@@ -897,14 +897,33 @@ namespace Opc.Ua
                 return new AggregatedReactivationOutcome();
             }
 
+            TimeSpan participantTimeout = ResolveParticipantTimeout(m_host.ReconnectPolicy);
             Task<ParticipantReconnectResult>[] tasks = [.. snapshot.Select(lease => Task.Run(
                 async () =>
                 {
                     using IDisposable scope = ClientChannelManager.EnterReactivationScope();
                     try
                     {
-                        return await lease.Participant.OnReconnectAsync(
-                            lease, attempt, ct).ConfigureAwait(false);
+                        Task<ParticipantReconnectResult> reconnectTask = lease.Participant
+                            .OnReconnectAsync(lease, attempt, ct)
+                            .AsTask();
+                        if (participantTimeout == Timeout.InfiniteTimeSpan)
+                        {
+                            return await reconnectTask.ConfigureAwait(false);
+                        }
+
+                        ObserveFaultedParticipantTask(reconnectTask);
+                        return await reconnectTask.WaitAsync(participantTimeout, ct).ConfigureAwait(false);
+                    }
+                    catch (TimeoutException)
+                    {
+                        m_host.Logger?.LogWarning(
+                            "ClientChannelManager: participant {Participant} OnReconnect timed out after {Timeout}; " +
+                            "treating as TransientFailure.",
+                            lease.Participant.Id,
+                            participantTimeout);
+                        m_host.RecordParticipantTimeout(this, lease.Participant.Id);
+                        return ParticipantReconnectResult.TransientFailure;
                     }
                     catch (Exception ex)
                     {
@@ -955,12 +974,86 @@ namespace Opc.Ua
                         }
                         break;
                     case ParticipantReconnectResult.RequiresSessionRecreate:
+                        DispatchRecreate(snapshot[i].Participant);
+                        break;
                     case ParticipantReconnectResult.Reactivated:
                     default:
                         break;
                 }
             }
             return outcome;
+        }
+
+        private void DispatchRecreate(IReconnectParticipant participant)
+        {
+            CancellationToken shutdownToken = m_host.ShutdownToken;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    ValueTask work = ResolveRecreateInvocation(participant, shutdownToken);
+                    await work.ConfigureAwait(false);
+                    m_host.RecordParticipantRecreate(this, participant.Id, success: true);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Shutdown is best effort; recreate work observes the manager token.
+                }
+                catch (Exception ex)
+                {
+                    m_host.Logger?.LogWarning(
+                        ex,
+                        "ClientChannelManager: participant {Participant} RecreateAsync failed.",
+                        participant.Id);
+                    m_host.RecordParticipantRecreate(this, participant.Id, success: false);
+                }
+            });
+        }
+
+        private static TimeSpan ResolveParticipantTimeout(IChannelReconnectPolicy policy)
+        {
+            TimeSpan timeout;
+            if (policy is IParticipantTimeoutPolicy timeoutPolicy)
+            {
+                timeout = timeoutPolicy.ParticipantTimeout;
+            }
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+            else
+            {
+                timeout = policy.ParticipantTimeout;
+            }
+#else
+            else
+            {
+                timeout = Timeout.InfiniteTimeSpan;
+            }
+#endif
+
+            return timeout < TimeSpan.Zero ? Timeout.InfiniteTimeSpan : timeout;
+        }
+
+        private static ValueTask ResolveRecreateInvocation(
+            IReconnectParticipant participant,
+            CancellationToken ct)
+        {
+            if (participant is IRecreateAwareReconnectParticipant aware)
+            {
+                return aware.RecreateAsync(ct);
+            }
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+            return participant.RecreateAsync(ct);
+#else
+            return new ValueTask();
+#endif
+        }
+
+        private static void ObserveFaultedParticipantTask(Task task)
+        {
+            _ = task.ContinueWith(
+                static faultedTask => _ = faultedTask.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         private async Task NotifyParticipantsFinalAsync()

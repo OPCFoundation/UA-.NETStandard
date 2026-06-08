@@ -11,7 +11,6 @@
 | `Integration` | L2 | `Channels/Integration/` and live-server parts of `Channels/Chaos/` | Every PR | In-process server coverage for outages, live certificate rotation, and failover lease changes. |
 | `ChaosTCP` | L3 | `Channels/Chaos/` | Nightly | TCP proxy chaos for transparent reconnect, subscription survival, accept-but-stall, and drop / block-accept schedules. |
 | `Soak` | L4 | `Channels/Soak/` | Manual or nightly | Long randomized and combinatorial runs, including memory-stability checks. |
-| `[Explicit]` | L5 | `Channels/Gaps/` | Never automatic | Known production carry-forward gaps such as faulted-entry reset, `RequiresSessionRecreate`, and bounded participant timeout. |
 
 ## Running
 
@@ -38,8 +37,6 @@ Every chaos test prints its seed at start. Re-run a failed chaos case with the p
   `ChaosSchedule`, `StressRunner`, and `MetricsCollector` as needed.
 - Add long randomized or matrix runs to `Channels/Soak/`. Use `IntegrationTestBase` when the test needs the live server
   or TCP proxy, and use `ContractTestBase` for fake-only soak coverage.
-- Add known production gaps to `Channels/Gaps/`, derive from `GapTestBase`, and mark each test `[Explicit]` with a
-  message that names the carry-forward gap.
 
 ## Inspecting failures
 

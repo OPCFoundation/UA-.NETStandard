@@ -55,6 +55,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
     {
         protected const string DefaultEndpointUrl = "opc.tcp://localhost:4840/Contract";
 
+        protected static readonly TimeSpan AssertionTimeout = TimeSpan.FromSeconds(5);
+        protected static readonly TimeSpan ObservationWindow = TimeSpan.FromMilliseconds(250);
+
         protected static TimeSpan DefaultWait => TimeSpan.FromSeconds(10);
 
         private static TimeSpan DefaultPollInterval => TimeSpan.FromMilliseconds(20);
@@ -111,6 +114,23 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 certificateChanges,
                 bindings,
                 managerInstance);
+        }
+
+        protected static ClientChannelManager CreateManager(
+            FakeChannelBindings bindings,
+            IChannelReconnectPolicy? reconnectPolicy = null)
+        {
+            if (bindings == null)
+            {
+                throw new ArgumentNullException(nameof(bindings));
+            }
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            return new ClientChannelManager(
+                CreateApplicationConfiguration(telemetry),
+                telemetry,
+                bindings,
+                reconnectPolicy ?? CreateImmediateHarnessReconnectPolicy());
         }
 
         protected static ContractHarness CreateHarness(
@@ -233,6 +253,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                     }
                 ]
             };
+        }
+
+        protected static ValueTask<ParticipantReconnectResult> ReconnectResultAsync(
+            ParticipantReconnectResult result)
+        {
+            return new ValueTask<ParticipantReconnectResult>(result);
         }
 
         protected static async Task WaitForBarrierArrivalAsync(

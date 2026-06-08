@@ -73,6 +73,16 @@ namespace Opc.Ua
         {
             return ChannelReconnectPolicyBudget.GetDelay(this, attempt, budget);
         }
+
+        /// <summary>
+        /// Maximum time a single participant's <see cref="IReconnectParticipant.OnReconnectAsync"/>
+        /// invocation may run during one reconnect cycle.
+        /// </summary>
+        /// <remarks>
+        /// The default preserves the historical unbounded behavior. Policies that opt in to bounded
+        /// participant work should return a non-negative timeout value.
+        /// </remarks>
+        public TimeSpan ParticipantTimeout => Timeout.InfiniteTimeSpan;
 #endif
     }
 
@@ -95,6 +105,23 @@ namespace Opc.Ua
         new TimeSpan GetDelay(int attempt, IRetryBudget? budget);
 #else
         TimeSpan GetDelay(int attempt, IRetryBudget? budget);
+#endif
+    }
+
+    /// <summary>
+    /// Optional interface for channel reconnect policies that bound participant reactivation
+    /// callbacks on TFMs without default interface method support.
+    /// </summary>
+    public interface IParticipantTimeoutPolicy : IChannelReconnectPolicy
+    {
+        /// <summary>
+        /// Maximum time a single participant's <see cref="IReconnectParticipant.OnReconnectAsync"/>
+        /// invocation may run during one reconnect cycle.
+        /// </summary>
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        new TimeSpan ParticipantTimeout { get; }
+#else
+        TimeSpan ParticipantTimeout { get; }
 #endif
     }
 
@@ -140,7 +167,9 @@ namespace Opc.Ua
     /// limit. Defaults match the historical <c>SessionReconnectHandler</c>
     /// behavior — <c>500&#160;ms → 30&#160;s</c>, unlimited attempts.
     /// </summary>
-    public sealed class ExponentialBackoffChannelReconnectPolicy : IBudgetAwareChannelReconnectPolicy
+    public sealed class ExponentialBackoffChannelReconnectPolicy :
+        IBudgetAwareChannelReconnectPolicy,
+        IParticipantTimeoutPolicy
     {
         /// <summary>
         /// Initial delay applied before the first reconnect attempt.
@@ -157,6 +186,12 @@ namespace Opc.Ua
         /// <c>int.MaxValue</c> (default) for unlimited retries.
         /// </summary>
         public int MaxAttempts { get; init; } = int.MaxValue;
+
+        /// <summary>
+        /// Maximum time a single participant's <see cref="IReconnectParticipant.OnReconnectAsync"/>
+        /// invocation may run during one reconnect cycle.
+        /// </summary>
+        public TimeSpan ParticipantTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
         /// <inheritdoc/>
         public TimeSpan GetDelay(int attempt)

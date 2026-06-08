@@ -251,6 +251,10 @@ connection state machine transitions `Connected → Reconnecting` and:
 6. On exhaustion (`MaxRetries` reached), transitions to `Closed` and
    surfaces a `ServiceResultException` to outstanding callers.
 
+When a `ManagedSession` is backed by `IClientChannelManager`, participant reactivation uses the
+manager's `IChannelReconnectPolicy`. The default `ExponentialBackoffChannelReconnectPolicy`
+bounds each participant callback with a `ParticipantTimeout` of 30 seconds.
+
 Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
@@ -366,17 +370,28 @@ The session runs the `ActivateSession` slice and returns one of:
 | Result | Meaning |
 |---|---|
 | `Reactivated` | Session is alive on the reconnected channel. |
-| `RequiresSessionRecreate` | Channel is OK; this participant's server-side session was lost (e.g. `BadSessionIdInvalid`) — participant will recreate inline. |
+| `RequiresSessionRecreate` | Channel is OK; this participant's server-side session was lost (e.g. `BadSessionIdInvalid`) — the manager dispatches participant recreation out of band. |
 | `TransientFailure` | Transient channel-level failure; manager retries per policy. |
 | `FatalForParticipant` | Authentication / cert problem specific to this participant — detach only this participant. |
 | `FatalForChannel` | Fatal channel error; transition to `Faulted`. |
 
+When a participant returns `RequiresSessionRecreate`, the manager invokes
+`IReconnectParticipant.RecreateAsync(ct)` fire-and-forget and does not block the channel's
+transition to `Ready` on that work. `Session` implements the callback by recreating its
+server-side session in place. On target frameworks without default interface method support,
+participants opt in with `IRecreateAwareReconnectParticipant`.
+
 ### Retry policy — `IChannelReconnectPolicy`
 
 The default `ExponentialBackoffChannelReconnectPolicy` mirrors the
-historical `SessionReconnectHandler` defaults:
-`500 ms → 30 s` with unlimited attempts. The policy is configurable on
-the `ClientChannelManager` constructor.
+historical `SessionReconnectHandler` backoff defaults:
+`500 ms → 30 s` with unlimited attempts. It also sets `ParticipantTimeout`
+to 30 seconds, bounding each participant's `OnReconnectAsync` callback. A
+participant timeout is treated as `TransientFailure`; retry exhaustion still
+transitions the channel to `Faulted`. The `IChannelReconnectPolicy` default
+interface member remains `Timeout.InfiniteTimeSpan` for custom-policy
+backward compatibility, and older TFMs can opt in with `IParticipantTimeoutPolicy`.
+The policy is configurable on the `ClientChannelManager` constructor.
 
 ### HTTPS resilience vs channel-mgr reconnect
 
@@ -568,16 +583,14 @@ The channel manager is covered by a layered stress and chaos test suite in
 [`Tests/Opc.Ua.Stress.Tests/`](../Tests/Opc.Ua.Stress.Tests/):
 
 - **L1 Contract** — fast deterministic fake-based tests for coalescing, participant result aggregation, retry
-  budgets, hung participants, lease lifecycle, gate + bypass, key equivalence, certificate rotation, and leak
-  accuracy. These run in every PR.
-- **L2 Integration** — live in-process server tests for server outage recovery, live certificate rotation, and
-  failover lease swap. These run in every PR.
+  budgets, hung participants, recreate dispatch, lease lifecycle, gate + bypass, key equivalence, certificate
+  rotation, and leak accuracy. These run in every PR.
+- **L2 Integration** — live in-process server tests for server outage recovery, live certificate rotation,
+  participant timeout, session recreate dispatch, and failover lease swap. These run in every PR.
 - **L3 ChaosTCP** — TCP proxy chaos tests for transparent reconnect under load, subscription survival,
   accept-but-stall, and mixed drop / block-accept failures. These run nightly.
 - **L4 Soak** — long-running randomized soak, combinatorial matrix, and memory-stability runs. These are manual or
   nightly only.
-- **L5 Gaps** — explicit known-failing tests that document production carry-forward gaps and are never selected by
-  automatic runs.
 
 ```bash
 # Contract + Integration (default PR CI):
@@ -592,9 +605,6 @@ dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
 
 Every chaos test prints its seed at the start of the run. Failed chaos runs can be reproduced by passing the same
 seed back to the test host with `--TestRunParameters.Parameter(Seed=<n>)`.
-
-`[Explicit]` tests under `Gaps/` document the production carry-forward gaps: faulted-entry reset,
-`RequiresSessionRecreate` plumbing, and bounded participant timeout.
 
 ## 5. Subscription engines
 

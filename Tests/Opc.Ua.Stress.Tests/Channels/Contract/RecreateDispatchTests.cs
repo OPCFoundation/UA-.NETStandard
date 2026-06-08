@@ -35,23 +35,21 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 
-namespace Opc.Ua.Stress.Tests.Channels.Gaps
+namespace Opc.Ua.Stress.Tests.Channels.Contract
 {
     /// <summary>
-    /// Documents that RequiresSessionRecreate is currently only aggregated as a ready outcome.
+    /// Verifies fire-and-forget recreate dispatch for participants that request session recreation.
     /// </summary>
     [TestFixture]
+    [Category("Contract")]
     [Category("ChannelManager")]
-    [Category("Gaps")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class SessionRecreatePlumbingGapTests : GapTestBase
+    public sealed class RecreateDispatchTests : ContractTestBase
     {
         [Test]
-        [Explicit("Documents production gap: RequiresSessionRecreate is not wired through to Session.RecreateAsync.")]
         [CancelAfter(30_000)]
-        public async Task RequiresSessionRecreateDoesNotInvokeAnythingAsync(
-            CancellationToken ct)
+        public async Task RequiresSessionRecreateInvokesRecreateAsync(CancellationToken ct)
         {
             using var bindings = new FakeChannelBindings();
             ClientChannelManager manager = CreateManager(bindings);
@@ -66,14 +64,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Gaps
                     channel = await manager.GetAsync(participant, ct).ConfigureAwait(false);
 
                     await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                    await participant.RecreateInvoked.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
 
-                    // TODO: https://github.com/OPCFoundation/UA-.NETStandard/issues/#TODO-FILL-IN
-                    // When the wiring lands, expect RecreateAsync or the equivalent callback exactly once.
                     Assert.Multiple(() =>
                     {
                         Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
                         Assert.That(participant.ReconnectInvocationCount, Is.EqualTo(1));
-                        Assert.That(participant.RecreateInvocationCount, Is.Zero);
+                        Assert.That(participant.RecreateInvocationCount, Is.EqualTo(1));
                     });
                 }
                 finally
@@ -83,7 +80,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Gaps
             }
         }
 
-        private sealed class RecreateRecordingParticipant : IReconnectParticipant
+        private sealed class RecreateRecordingParticipant : IRecreateAwareReconnectParticipant
         {
             public RecreateRecordingParticipant(ConfiguredEndpoint endpoint)
             {
@@ -99,10 +96,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Gaps
 
             public int RecreateInvocationCount => Volatile.Read(ref m_recreateInvocationCount);
 
+            public Task RecreateInvoked => m_recreateInvoked.Task;
+
             public ValueTask RecreateAsync(CancellationToken ct = default)
             {
                 ct.ThrowIfCancellationRequested();
                 Interlocked.Increment(ref m_recreateInvocationCount);
+                m_recreateInvoked.TrySetResult(true);
                 return new ValueTask();
             }
 
@@ -122,6 +122,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Gaps
                 return ReconnectResultAsync(ParticipantReconnectResult.RequiresSessionRecreate);
             }
 
+            private readonly TaskCompletionSource<bool> m_recreateInvoked = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             private int m_reconnectInvocationCount;
             private int m_recreateInvocationCount;
         }

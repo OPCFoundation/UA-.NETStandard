@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -61,11 +62,119 @@ namespace Opc.Ua.Sessions.Tests
     {
         [Test]
         [Order(100)]
-        [Ignore("Requires production plumbing for ParticipantReconnectResult.RequiresSessionRecreate. " +
-            "Session.OnReconnectAsync currently returns the result for BadSessionIdInvalid, " +
-            "but no channel-manager or ManagedSession path recreates that participant session.")]
-        public void BadSessionIdInvalidDuringReactivationRecreatesOnlyThatSession()
+        [CancelAfter(180_000)]
+        public async Task BadSessionIdInvalidDuringReactivationRecreatesOnlyThatSession(
+            CancellationToken ct)
         {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 2,
+                    ParticipantTimeout = TimeSpan.FromSeconds(5)
+                });
+            ManagedSessionType? recreatedSession = null;
+            ManagedSessionType? pinnedSession = null;
+
+            try
+            {
+                ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
+                    .ConfigureAwait(false);
+                recreatedSession = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(BadSessionIdInvalidDuringReactivationRecreatesOnlyThatSession) + "Recreate",
+                    ct).ConfigureAwait(false);
+                pinnedSession = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(BadSessionIdInvalidDuringReactivationRecreatesOnlyThatSession) + "Pinned",
+                    ct).ConfigureAwait(false);
+
+                IManagedTransportChannel sharedChannel = GetManagedChannel(recreatedSession);
+                Assert.That(GetManagedChannel(pinnedSession).Key, Is.EqualTo(sharedChannel.Key));
+                NodeId oldRecreatedSessionId = recreatedSession.InnerSession.SessionId;
+                NodeId oldPinnedSessionId = pinnedSession.InnerSession.SessionId;
+
+                await ReferenceServer.CurrentInstance.SessionManager
+                    .CloseSessionAsync(oldRecreatedSessionId, ct)
+                    .ConfigureAwait(false);
+
+                await manager.ReconnectAsync(sharedChannel, ct).ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                            () => !Equals(recreatedSession.InnerSession.SessionId, oldRecreatedSessionId),
+                            DefaultWait,
+                            ct)
+                        .ConfigureAwait(false),
+                    Is.True,
+                    "The participant recreate callback should create a new server-side session.");
+                Assert.That(pinnedSession.InnerSession.SessionId, Is.EqualTo(oldPinnedSessionId));
+
+                await AssertReadServerStatusAsync(recreatedSession, ct).ConfigureAwait(false);
+                await AssertReadServerStatusAsync(pinnedSession, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await CloseAndDisposeAsync(recreatedSession).ConfigureAwait(false);
+                await CloseAndDisposeAsync(pinnedSession).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Order(150)]
+        [CancelAfter(180_000)]
+        public async Task ParticipantTimeoutBoundsSlowReconnectParticipantAsync(CancellationToken ct)
+        {
+            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(500);
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 2,
+                    ParticipantTimeout = participantTimeout
+                });
+            ManagedSessionType? session = null;
+            IManagedTransportChannel? slowLease = null;
+
+            try
+            {
+                ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
+                    .ConfigureAwait(false);
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(ParticipantTimeoutBoundsSlowReconnectParticipantAsync),
+                    ct).ConfigureAwait(false);
+                IManagedTransportChannel sessionLease = GetManagedChannel(session);
+                var slowParticipant = new SlowReconnectParticipant(
+                    endpoint,
+                    TimeSpan.FromSeconds(1));
+                slowLease = await manager.GetAsync(slowParticipant, ct).ConfigureAwait(false);
+                Assert.That(slowLease.Key, Is.EqualTo(sessionLease.Key));
+
+                Stopwatch sw = Stopwatch.StartNew();
+                await manager.ReconnectAsync(sessionLease, ct).ConfigureAwait(false);
+                sw.Stop();
+
+                ManagedChannelDiagnostic diagnostic = GetDiagnostic(manager, sessionLease.Key);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sw.Elapsed, Is.GreaterThanOrEqualTo(participantTimeout));
+                    Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(3)));
+                    Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(slowParticipant.NotificationCount, Is.GreaterThanOrEqualTo(2));
+                });
+                await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                slowLease?.Dispose();
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -195,6 +304,44 @@ namespace Opc.Ua.Sessions.Tests
             secondary.TokenValidator = TokenValidator;
 
             return (fixture, new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"));
+        }
+
+        private sealed class SlowReconnectParticipant : IReconnectParticipant
+        {
+            public SlowReconnectParticipant(ConfiguredEndpoint endpoint, TimeSpan firstDelay)
+            {
+                Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
+                Id = nameof(SlowReconnectParticipant) + "-" + Guid.NewGuid().ToString("N");
+                m_firstDelay = firstDelay;
+            }
+
+            public string Id { get; }
+
+            public ConfiguredEndpoint Endpoint { get; }
+
+            public int NotificationCount => Volatile.Read(ref m_notificationCount);
+
+            public async ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+                IManagedTransportChannel channel,
+                int reconnectAttempt,
+                CancellationToken ct)
+            {
+                if (channel == null)
+                {
+                    throw new ArgumentNullException(nameof(channel));
+                }
+
+                Interlocked.Increment(ref m_notificationCount);
+                if (reconnectAttempt == 0)
+                {
+                    await Task.Delay(m_firstDelay, ct).ConfigureAwait(false);
+                }
+
+                return ParticipantReconnectResult.Reactivated;
+            }
+
+            private readonly TimeSpan m_firstDelay;
+            private int m_notificationCount;
         }
 
         private sealed class FakeRedundancyHandler : IServerRedundancyHandler

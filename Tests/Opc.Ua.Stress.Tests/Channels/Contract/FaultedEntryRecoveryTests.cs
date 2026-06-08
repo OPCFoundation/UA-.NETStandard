@@ -34,23 +34,33 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 
-namespace Opc.Ua.Stress.Tests.Channels.Gaps
+namespace Opc.Ua.Stress.Tests.Channels.Contract
 {
     /// <summary>
-    /// Documents the current missing reset path for faulted managed-channel entries.
+    /// Verifies the implicit faulted-entry auto-reset added by
+    /// <see cref="ClientChannelManager"/> in PR #3852 Phase E.
     /// </summary>
+    /// <remarks>
+    /// Before Phase E, an entry that transitioned to
+    /// <see cref="ChannelState.Faulted"/> could only be recovered by
+    /// disposing the lease and acquiring a fresh one. Phase E added
+    /// <c>SwapFaultedEntryAsync</c>: when <c>ReconnectAsync(lease, …)</c>
+    /// is called on a lease whose <c>Entry.State</c> is Faulted or
+    /// Closed, the manager transparently swaps the lease's underlying
+    /// entry to a freshly-created one under the same
+    /// <see cref="ManagedChannelKey"/>, preserves the participant, and
+    /// proceeds with the reconnect cycle.
+    /// </remarks>
     [TestFixture]
+    [Category("Contract")]
     [Category("ChannelManager")]
-    [Category("Gaps")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class FaultedEntryResetGapTests : GapTestBase
+    public sealed class FaultedEntryRecoveryTests : ContractTestBase
     {
         [Test]
-        [Explicit("Documents production gap: IClientChannelManager.ResetFaultedAsync is not implemented. " +
-            "After Faulted, callers must Dispose+reacquire.")]
         [CancelAfter(30_000)]
-        public async Task FaultedEntryCannotRecoverViaReconnectAsync(
+        public async Task FaultedEntryAutoResetsOnNextReconnectAsync(
             CancellationToken ct)
         {
             using var bindings = new FakeChannelBindings();
@@ -67,23 +77,28 @@ namespace Opc.Ua.Stress.Tests.Channels.Gaps
                 {
                     channel = await manager.GetAsync(participant, ct).ConfigureAwait(false);
 
+                    // First reconnect: participant returns FatalForChannel → entry transitions to Faulted.
                     await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
-
                     Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
+                    int notificationsAfterFirstCycle = participant.NotificationCount;
+                    Assert.That(notificationsAfterFirstCycle, Is.GreaterThanOrEqualTo(1));
 
+                    // Reconfigure participant to succeed on the next cycle, then call ReconnectAsync
+                    // again on the SAME lease. SwapFaultedEntryAsync swaps to a fresh entry under
+                    // the same ManagedChannelKey, re-attaches the participant, and drives the reconnect.
                     participant.ConfigureOnReconnect(
                         static (_, _) => ReconnectResultAsync(ParticipantReconnectResult.Reactivated));
 
-                    // TODO: https://github.com/OPCFoundation/UA-.NETStandard/issues/#TODO-FILL-IN
-                    // When ResetFaultedAsync lands, update this test to call it and assert the channel returns to Ready.
-                    ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await manager.ReconnectAsync(channel, ct).ConfigureAwait(false));
+                    await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
 
                     Assert.Multiple(() =>
                     {
-                        Assert.That(exception, Is.Not.Null);
-                        Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
-                        Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
+                        Assert.That(channel.State, Is.EqualTo(ChannelState.Ready),
+                            "SwapFaultedEntryAsync should reset the faulted entry and the second cycle should reach Ready.");
+                        Assert.That(
+                            participant.NotificationCount,
+                            Is.GreaterThan(notificationsAfterFirstCycle),
+                            "Participant should be re-invoked on the fresh entry after the swap.");
                     });
                 }
                 finally
