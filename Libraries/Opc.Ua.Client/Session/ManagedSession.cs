@@ -113,6 +113,7 @@ namespace Opc.Ua.Client
                 m_timeProvider);
 
             WireStateMachineCallbacks();
+            SubscribeCertificateChanges();
         }
 
         /// <summary>
@@ -1614,6 +1615,7 @@ namespace Opc.Ua.Client
             if (disposing)
             {
                 CancelIdentityRefreshLoop();
+                UnsubscribeCertificateChanges();
                 StateMachine.RequestClose();
 
                 Session? session = m_session;
@@ -1638,6 +1640,8 @@ namespace Opc.Ua.Client
             }
 
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+            UnsubscribeCertificateChanges();
+            await StopRevalidationLoopAsync().ConfigureAwait(false);
 
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work

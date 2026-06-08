@@ -101,5 +101,55 @@ namespace Opc.Ua.Server
         /// Stops the periodic alarm evaluation.
         /// </summary>
         void StopAlarmMonitoring();
+
+        /// <summary>
+        /// The grace period that elapses between the
+        /// <c>ApplyChanges</c> method response being returned and the
+        /// per-channel force-renegotiate fan-out specified by OPC UA
+        /// Part 12 §7.10.9. Configurable because the right value depends
+        /// on the transport latency between the server and its
+        /// administrative client.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Defaults to 250&#160;ms which is adequate for in-process and
+        /// LAN deployments. Hosts that run the server behind a higher-
+        /// latency link (e.g. WAN-fronted Push Configuration) should
+        /// raise this so the <c>ApplyChanges</c> response is flushed
+        /// before its SecureChannel is torn down.
+        /// </para>
+        /// <para>
+        /// Setting a non-positive value treats the rotation as
+        /// "immediate" and may cause the calling client to receive a
+        /// transport error instead of the method response. Tests can
+        /// instead await
+        /// <see cref="DrainPendingApplyChangesAsync(CancellationToken)"/>
+        /// for deterministic completion without relying on the grace
+        /// period.
+        /// </para>
+        /// <para>
+        /// TODO: replace the grace period with a transport-level
+        /// "response flushed" hook so the channel cut can run exactly
+        /// when the response has left the wire — tracked as a follow-up
+        /// feature on top of this PR.
+        /// </para>
+        /// </remarks>
+        TimeSpan ApplyChangesGracePeriod { get; set; }
+
+        /// <summary>
+        /// Awaits completion of any pending deferred work scheduled by a
+        /// recent <c>ApplyChanges</c> call. The deferred work includes
+        /// reloading certificates from disk via
+        /// <see cref="CertificateManager.UpdateAsync"/> and forcing
+        /// affected SecureChannels to renegotiate per OPC UA Part 12
+        /// §7.10.9.
+        /// </summary>
+        /// <remarks>
+        /// Returns immediately when no deferred work is in flight. Used
+        /// by tests and tightly-coupled hosts to deterministically wait
+        /// for cert rotation to take effect after a push update.
+        /// </remarks>
+        /// <param name="cancellationToken">A token to cancel the wait.</param>
+        Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default);
     }
 }
