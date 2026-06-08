@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -260,9 +261,34 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Has the channel been used in a session
+        /// Gets whether at least one active session is using the channel.
         /// </summary>
-        public bool UsedBySession { get; protected set; }
+        public bool UsedBySession => Volatile.Read(ref m_sessionCount) > 0;
+
+        /// <summary>
+        /// Records an active session on the channel.
+        /// </summary>
+        protected void AddSession()
+        {
+            Interlocked.Increment(ref m_sessionCount);
+        }
+
+        /// <summary>
+        /// Records a closed session on the channel.
+        /// </summary>
+        protected void RemoveSession()
+        {
+            int sessionCount;
+            do
+            {
+                sessionCount = Volatile.Read(ref m_sessionCount);
+                if (sessionCount == 0)
+                {
+                    return;
+                }
+            } while (Interlocked.CompareExchange(ref m_sessionCount, sessionCount - 1, sessionCount) !=
+                sessionCount);
+        }
 
         /// <summary>
         /// Handles a socket error.
@@ -627,6 +653,7 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private bool m_responseRequired;
         private uint m_lastTokenId;
+        private int m_sessionCount;
         private event ListenerChannelTokenActivatedEventHandler? m_tokenActivated;
     }
 
