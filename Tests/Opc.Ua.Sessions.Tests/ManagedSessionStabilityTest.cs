@@ -390,7 +390,8 @@ namespace Opc.Ua.Sessions.Tests
                             Interlocked.Increment(ref faultCount);
                             TestContext.Out.WriteLine(
                                 $"FAULT INJECTION #{faultCount}: closing subscriber transport channel");
-                            try { channel.Dispose(); }
+                            try
+                            { channel.Dispose(); }
                             catch (Exception ex)
                             {
                                 TestContext.Out.WriteLine(
@@ -443,12 +444,18 @@ namespace Opc.Ua.Sessions.Tests
                 await writerCts.CancelAsync().ConfigureAwait(false);
                 await faultCts.CancelAsync().ConfigureAwait(false);
                 await statusCts.CancelAsync().ConfigureAwait(false);
-                try { await writerTask.ConfigureAwait(false); } catch { /* ok */ }
+                try
+                { await writerTask.ConfigureAwait(false); }
+                catch { /* ok */ }
                 if (faultTask != null)
                 {
-                    try { await faultTask.ConfigureAwait(false); } catch { /* ok */ }
+                    try
+                    { await faultTask.ConfigureAwait(false); }
+                    catch { /* ok */ }
                 }
-                try { await statusTask.ConfigureAwait(false); } catch { /* ok */ }
+                try
+                { await statusTask.ConfigureAwait(false); }
+                catch { /* ok */ }
 
                 // Drain the last few publishes.
                 await Task.Delay(publishingIntervalMs * 4).ConfigureAwait(false);
@@ -503,15 +510,19 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                try { await subscriber.CloseAsync().ConfigureAwait(false); }
+                try
+                { await subscriber.CloseAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
-                try { await subscriber.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await subscriber.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
                 if (writer != null)
                 {
-                    try { await writer.CloseAsync().ConfigureAwait(false); }
+                    try
+                    { await writer.CloseAsync().ConfigureAwait(false); }
                     catch { /* best effort */ }
-                    try { await writer.DisposeAsync().ConfigureAwait(false); }
+                    try
+                    { await writer.DisposeAsync().ConfigureAwait(false); }
                     catch { /* best effort */ }
                 }
             }

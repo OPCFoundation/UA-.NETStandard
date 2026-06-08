@@ -137,7 +137,8 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await session.CloseAsync().ConfigureAwait(false); }
+                try
+                { await session.CloseAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
                 session.Dispose();
             }
@@ -221,7 +222,8 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await session.CloseAsync().ConfigureAwait(false); }
+                try
+                { await session.CloseAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
                 session.Dispose();
             }

@@ -76,9 +76,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder Organizes(
             this INodeBuilder builder,
             NodeId targetId)
-            {
+        {
             return builder.AddReference(ReferenceTypeIds.Organizes, isInverse: false, targetId);
-            }
+        }
 
         /// <summary>
         /// Convenience overload that takes a <see cref="NodeState"/> for
@@ -102,9 +102,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder HasComponent(
             this INodeBuilder builder,
             NodeId targetId)
-            {
+        {
             return builder.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, targetId);
-            }
+        }
 
         /// <summary>
         /// Adds a <see cref="ReferenceTypeIds.HasProperty"/> reference
@@ -113,9 +113,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder HasProperty(
             this INodeBuilder builder,
             NodeId targetId)
-            {
+        {
             return builder.AddReference(ReferenceTypeIds.HasProperty, isInverse: false, targetId);
-            }
+        }
 
         /// <summary>
         /// Adds an arbitrary reference from the current node to

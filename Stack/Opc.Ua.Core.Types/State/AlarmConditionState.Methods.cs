@@ -770,7 +770,7 @@ namespace Opc.Ua
             ClearChangeMasks(context, includeChildren: true);
         }
 
-}
+    }
 
     /// <summary>
     /// Delegate for simple alarm condition events (Silence, Reset).

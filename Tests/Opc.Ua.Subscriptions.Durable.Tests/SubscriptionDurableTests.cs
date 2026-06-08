@@ -407,13 +407,16 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             }
             finally
             {
-                try { await originSession.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await originSession.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
                 if (targetSession != null)
                 {
-                    try { await targetSession.CloseAsync().ConfigureAwait(false); }
+                    try
+                    { await targetSession.CloseAsync().ConfigureAwait(false); }
                     catch { /* best effort */ }
-                    try { await targetSession.DisposeAsync().ConfigureAwait(false); }
+                    try
+                    { await targetSession.DisposeAsync().ConfigureAwait(false); }
                     catch { /* best effort */ }
                 }
             }

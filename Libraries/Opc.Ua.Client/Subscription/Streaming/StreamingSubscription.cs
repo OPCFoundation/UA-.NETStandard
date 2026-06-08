@@ -123,7 +123,8 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 foreach (NodeId nodeId in nodeIds)
                 {
                     MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
-                        with { StartNodeId = nodeId };
+                        with
+                    { StartNodeId = nodeId };
 
                     string name = $"stream_data_{handle}_{nodeId}";
 
@@ -189,12 +190,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
             MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
                 with
-                {
-                    StartNodeId = notifierId,
-                    AttributeId = Attributes.EventNotifier,
-                    Filter = filter,
-                    QueueSize = options?.QueueSize > 0 ? options.QueueSize : 10
-                };
+            {
+                StartNodeId = notifierId,
+                AttributeId = Attributes.EventNotifier,
+                Filter = filter,
+                QueueSize = options?.QueueSize > 0 ? options.QueueSize : 10
+            };
 
             var channel = Channel.CreateUnbounded<EventNotification>(new UnboundedChannelOptions
             {
@@ -488,6 +489,6 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             public IDisposable? OnChange(Action<T, string?> listener) => null;
         }
 
-}
+    }
 }
 

@@ -390,7 +390,8 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static uint ExtractCurrentStateId(ProgramStateMachineState m)
         {
             NodeId value = m.CurrentState!.Id!.Value;
-            if (value.IsNull) { return 0; }
+            if (value.IsNull)
+            { return 0; }
             return value.TryGetValue(out uint numericId) ? numericId : 0;
         }
     }

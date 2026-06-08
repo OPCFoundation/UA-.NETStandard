@@ -947,5 +947,5 @@ namespace Opc.Ua.Features.Tests
             Assert.That(groups.Count, Is.EqualTo(1));
             Assert.That(groups[0], Is.EqualTo(groupNodeId));
         }
-}
+    }
 }

@@ -177,9 +177,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await session.CloseAsync().ConfigureAwait(false); }
+                try
+                { await session.CloseAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
-                try { await session.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await session.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
             }
         }
