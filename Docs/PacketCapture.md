@@ -23,6 +23,28 @@ graph TD
     F --> H[Replay engines]
 ```
 
+## Integration with the central channel manager
+
+The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the global `TransportBindings.Channels` registry: `AddOpcUaBindingsPcap` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory, and `ClientChannelManager` — which by default reads from that same global registry — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
+
+Three properties of the channel manager flow through to capture for free:
+
+- **Sharing.** When multiple participants share a single `IManagedTransportChannel` (the refcount + key-equivalence model in `ManagedChannelKey`), the underlying `CapturingMessageSocket` records all participant traffic onto a single wire stream. One capture session covers a `Session`, a `DiscoveryClient`, and a `RegistrationClient` all targeting the same endpoint.
+- **Transparent reconnect.** During the manager's coalesced reconnect cycle the wrapping socket is re-created against the new transport but the `IChannelCaptureRegistry` keeps recording into the same session file — the reconnect transition appears in the timeline as a state edge rather than a capture interruption.
+- **Faulted-entry swap.** The `Phase E` `SwapFaultedEntryAsync` path produces a fresh `ChannelEntry` under the same `ManagedChannelKey`; the active capture observer rolls onto the new entry so an exhaustion-then-recover cycle is recorded end-to-end in one session.
+
+If you compose the channel manager and the capture binding via DI the standard registration order is:
+
+```csharp
+services.AddOpcUa().AddClient(options => { });    // central IClientChannelManager
+services.AddSingleton<OpcUaSessionManager>();     // your application services
+services.AddOpcUaBindingsPcap();                  // capture binding + CaptureSessionManager
+services.AddOpcUaBindingsPcapFormatters();        // service-timeline / pcap / pcapng / json / csv / text
+services.AddOpcUaBindingsPcapReplay();            // mock-client / mock-server replay engines
+```
+
+Registration order does not strictly matter (the Pcap binding installs synchronously into the process-wide registry), but the order above reads top-down as "register the channel manager, then your services, then opt in to capture". For non-DI consumers, call `PcapBindings.Install()` at startup to achieve the same effect.
+
 ## Capture sources
 
 **NIC (`nic`)** captures live traffic through SharpPcap. It requires libpcap on Linux/macOS or Npcap on Windows and can use interface names and BPF filters.
@@ -36,7 +58,8 @@ graph TD
 ## Quick start: in-process client capture
 
 ```csharp
-services.AddOpcUaBindingsPcap();
+services.AddOpcUa().AddClient(options => { });   // central IClientChannelManager
+services.AddOpcUaBindingsPcap();                  // capture binding + CaptureSessionManager
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -47,7 +70,11 @@ var session = await manager.StartAsync(new StartCaptureRequest
     SessionFolder = "C:/captures"
 }, ct);
 
-// Do real OPC UA work here.
+// Do real OPC UA work here — every channel created through the central
+// IClientChannelManager (Session.CreateAsync, ManagedSessionBuilder,
+// DiscoveryClient, RegistrationClient, GDS clients, …) is automatically
+// wrapped by the Pcap binding. Channel sharing means a single recording
+// stream covers every participant on the same endpoint.
 
 await manager.StopAsync(session.SessionId, ct);
 
