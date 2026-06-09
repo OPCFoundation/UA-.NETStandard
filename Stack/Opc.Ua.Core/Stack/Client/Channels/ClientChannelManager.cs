@@ -778,11 +778,7 @@ namespace Opc.Ua
                 return Task.CompletedTask;
             }
 
-#if NET8_0_OR_GREATER
-            return Task.Delay(delay, m_timeProvider, ct);
-#else
-            return Task.Delay(delay, ct);
-#endif
+            return m_timeProvider.Delay(delay, ct);
         }
 
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(
