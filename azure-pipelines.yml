@@ -120,18 +120,14 @@ stages:
       jobnamesuffix: net100debug
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      ${{ if parameters.managedPool }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
-      ${{ else }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
-  - ${{ if parameters.managedPool }}:
-    - template: .azurepipelines/test.yml
-      parameters:
-        framework: net10.0
-        configuration: Debug
-        jobnamesuffix: net100debugmac
-        agents: '@{ mac = "${{ variables.macImage }}" }'
-        hosted: true
+      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net10.0
+      configuration: Debug
+      jobnamesuffix: net100debugmac
+      agents: '@{ mac = "${{ variables.macImage }}" }'
+      hosted: true
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -144,18 +140,14 @@ stages:
       jobnamesuffix: net90
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      ${{ if parameters.managedPool }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
-      ${{ else }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
-  - ${{ if parameters.managedPool }}:
-    - template: .azurepipelines/test.yml
-      parameters:
-        framework: net9.0
-        configuration: Release
-        jobnamesuffix: net90mac
-        agents: '@{ mac = "${{ variables.macImage }}" }'
-        hosted: true
+      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net9.0
+      configuration: Release
+      jobnamesuffix: net90mac
+      agents: '@{ mac = "${{ variables.macImage }}" }'
+      hosted: true
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -168,18 +160,14 @@ stages:
       jobnamesuffix: net80
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      ${{ if parameters.managedPool }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
-      ${{ else }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
-  - ${{ if parameters.managedPool }}:
-    - template: .azurepipelines/test.yml
-      parameters:
-        framework: net8.0
-        configuration: Release
-        jobnamesuffix: net80mac
-        agents: '@{ mac = "${{ variables.macImage }}" }'
-        hosted: true
+      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net8.0
+      configuration: Release
+      jobnamesuffix: net80mac
+      agents: '@{ mac = "${{ variables.macImage }}" }'
+      hosted: true
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -221,19 +209,15 @@ stages:
       customtestarget: netstandard2.1
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      ${{ if parameters.managedPool }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
-      ${{ else }}:
-        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
-  - ${{ if parameters.managedPool }}:
-    - template: .azurepipelines/test.yml
-      parameters:
-        framework: net8.0
-        configuration: Release
-        jobnamesuffix: netstandard21mac
-        customtestarget: netstandard2.1
-        agents: '@{ mac = "${{ variables.macImage }}" }'
-        hosted: true
+      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net8.0
+      configuration: Release
+      jobnamesuffix: netstandard21mac
+      customtestarget: netstandard2.1
+      agents: '@{ mac = "${{ variables.macImage }}" }'
+      hosted: true
 - stage: coverage
   dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'
