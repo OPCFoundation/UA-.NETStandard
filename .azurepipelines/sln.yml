@@ -65,18 +65,15 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
-  - task: NuGetCommand@2
+  - task: DotNetCoreCLI@2
     displayName: Restore $(configuration) $(file)
     inputs:
       command: restore
-      restoreSolution: $(file)
-      configuration: $(configuration)
-  - task: MSBuild@1
-    displayName: MS Build $(configuration) $(file)
+      projects: $(file)
+      arguments: '--configuration $(configuration)'
+  - task: DotNetCoreCLI@2
+    displayName: Build $(configuration) $(file)
     inputs:
-      solution: $(file)
-      msbuildVersion: 'latest'
-      configuration: $(configuration)
-      platform: 'Any CPU'
-      maximumCpuCount: true
-      msbuildArguments: '/p:BuildInParallel=true'
+      command: build
+      projects: $(file)
+      arguments: '--no-restore --configuration $(configuration) /p:Platform="Any CPU" /p:BuildInParallel=true'
