@@ -127,6 +127,109 @@ await manager.UpdateApplicationCertificateAsync(
     issuerChain);
 ```
 
+#### Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)
+
+When a client rotates a server's application certificate through the standard `ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges` push flow, the server must — once the `ApplyChanges` response has been delivered — force the SecureChannels that were negotiated against the old certificate to renegotiate. The session (and any subscriptions) stay alive so the client's reconnect logic can transfer them onto a fresh channel.
+
+The stack implements this contract in two pieces:
+
+1. **`ConfigurationNodeManager.ApplyChanges`** captures the old certificate per group at staging time, then schedules a deferred apply that (a) waits ~250 ms for the method response to flush, (b) re-syncs the registry from disk via `CertificateManager.UpdateAsync`, and (c) calls the new channel-cut hook on every transport listener.
+2. **`ITransportListenerCertificateRotation`** is an optional capability interface on `ITransportListener`. `TcpTransportListener` implements it by thumbprint-matching the per-channel `ServerCertificate` and force-closing only affected channels (listener socket stays bound). `HttpsTransportListener` implements it by cycling its Kestrel host (`Stop()` + `Start()`).
+
+Tests and hosts that need deterministic timing can await the deferred work via `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
+
+Custom transport listeners opt into the renegotiate hook by implementing the capability interface:
+
+```csharp
+public sealed class MyTransportListener : ITransportListener, ITransportListenerCertificateRotation
+{
+    // ...
+
+    public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+    {
+        // Close every channel whose negotiated ServerCertificate.Thumbprint
+        // matches oldCertificate.Thumbprint. Keep the listener socket bound.
+        // Return the global channel ids that were closed (for diagnostics).
+        return [];
+    }
+}
+```
+
+Server-base subclasses that want to observe rotation in custom ways can still subscribe to `ICertificateManager.CertificateChanges` and react to `ApplicationCertificateUpdated` events — but should not drive channel teardown from that hook (the event fires twice during a push update: once when the new cert is staged, once when `ApplyChanges` reloads, and only `ApplyChanges` has the real old-cert reference).
+
+#### Client-Side Auto-Detection of Certificate Changes
+
+`ManagedSession` automatically subscribes to
+`CertificateManager.CertificateChanges` and surfaces the three
+scenarios discussed in client-side certificate management:
+
+1. **Own (client) certificate renewal** — `ApplicationCertificateUpdated` fires from `UpdateApplicationCertificateAsync` / `ReloadApplicationCertificatesAsync`.
+2. **Trust-list add/remove** — `TrustListUpdated` fires from `WriteTrustListAsync` and from a successful `TrustListTransaction.CommitAsync` whenever certificates were added or removed.
+3. **CRL add/remove** — `CrlUpdated` fires from the same paths whenever CRLs were modified.
+
+Each event is forwarded to subscribers of
+`ManagedSession.ApplicationCertificateChanged` for diagnostics and for
+applications that want to implement custom rotation policies.
+
+By default
+(`ManagedSession.DisableAutoReconnectOnCertificateChange` is `false`),
+the managed session ALSO automatically reacts:
+
+- **`ApplicationCertificateUpdated`** — calls
+  `Session.ReloadInstanceCertificateAsync` (so the next ActivateSession
+  is signed with the rotated client cert) and triggers a reconnect via
+  the state machine. The new client cert takes effect within
+  milliseconds rather than at the next `SecurityTokenLifetime` rekey
+  (Part 4 §5.5.2).
+- **`TrustListUpdated` / `CrlUpdated`** — wakes a long-lived
+  per-session revalidation loop that:
+  1. Debounces a burst of events (250 ms window) on the injected
+     `TimeProvider`. A batch trust-list refresh or a fleet onboarding
+     that publishes dozens of events in a few milliseconds collapses
+     to a single validation on the final state.
+  2. Re-runs
+     `ICertificateValidatorEx.ValidateAsync(serverCert)` against the
+     server certificate currently cached on the configured endpoint.
+     There is exactly **one** validation in flight per session — the
+     loop's single-reader semantics serialise the work and signals
+     that arrive during a validation re-arm the next iteration so the
+     final trust state is always honoured exactly once after the burst
+     settles.
+  3. Calls `StateMachine.TriggerReconnect()` **only when the result
+     flips from valid to invalid** — sessions whose server cert is
+     still trusted under the new state stay connected. This keeps a
+     new server being onboarded into a shared client/server fleet
+     from forcing every session in the process to reconnect.
+
+The revalidation loop is implemented in
+`Libraries/Opc.Ua.Client/Session/ManagedSession.CertificateChanges.cs`.
+It uses a bounded `Channel<int>` of capacity 1 with
+`BoundedChannelFullMode.DropWrite` so the notifier thread never
+allocates a `Task` or `CancellationTokenSource` per event — duplicate
+signals collapse into the pending one. The loop pattern mirrors
+`RunIdentityRefreshLoopAsync` in `ManagedSession.cs` (single Task per
+session, started in `SubscribeCertificateChanges`, cancelled +
+awaited in `StopRevalidationLoopAsync` from `DisposeAsync`).
+
+```csharp
+using var managed = await ManagedSession.CreateAsync(
+    configuration, endpoint, sessionFactory);
+// Auto-reconnect on cert/trust/CRL changes is on by default.
+// Opt out by setting DisableAutoReconnectOnCertificateChange = true.
+
+managed.ApplicationCertificateChanged += (sender, e) =>
+{
+    Console.WriteLine($"observed {e.Kind} on {e.TrustList}");
+};
+```
+
+Applications that need manual control (auditing, idempotency) can opt
+out of auto-reconnect by setting
+`ManagedSession.DisableAutoReconnectOnCertificateChange = true` and
+continue calling `Session.ReloadInstanceCertificateAsync` + their own
+reconnect logic. The `ApplicationCertificateChanged` event still fires
+either way.
+
 #### Working with Trust-Lists
 
 ```csharp
