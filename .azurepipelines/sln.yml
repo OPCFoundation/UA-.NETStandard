@@ -82,9 +82,14 @@ jobs:
   - task: DotNetCoreCLI@2
     displayName: Restore $(configuration) $(file) $(targetTfm)
     inputs:
-      command: restore
-      projects: $(file)
-      arguments: '--configuration $(configuration) $(TfmBuildProperty)'
+      # Use `command: custom` instead of `command: restore` so the `arguments`
+      # input is actually forwarded - the built-in `restore` command silently
+      # ignores `arguments` and would drop `$(TfmBuildProperty)` /
+      # `--configuration`, leaving `obj/project.assets.json` populated with
+      # the default multi-TFM set rather than the matrix entry's TFM.
+      command: custom
+      custom: restore
+      arguments: '$(file) --configuration $(configuration) $(TfmBuildProperty)'
   - task: DotNetCoreCLI@2
     displayName: Build $(configuration) $(file) $(targetTfm)
     inputs:
