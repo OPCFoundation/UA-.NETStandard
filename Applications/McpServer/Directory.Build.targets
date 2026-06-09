@@ -1,21 +1,43 @@
 <Project>
   <!--
-    Skip restore/build/pack for this .NET 10+-only application when the CI
-    build matrix restricts to a legacy TFM it cannot target (the MCP server
-    requires .NET 8+ for the ModelContextProtocol packages).  The project
-    still loads in the .slnx graph but produces no outputs, so a single
-    `dotnet build UA.slnx -p:CustomTestTarget=net48` (etc.) doesn't fail
-    with NU1702/CS0012 on this project's references.
+    Skip restore/build/publish/pack for this .NET 10+-only project when the
+    CI build matrix restricts to a legacy TFM it cannot target (the MCP
+    server requires .NET 8+ for ModelContextProtocol packages).  The
+    project still loads in the .slnx graph but produces no outputs.
 
-    Targets are defined in Directory.Build.targets (not the csproj) so they
-    run AFTER the SDK targets and actually replace the SDK definitions.
+    Approach: when restricted, clear all source / references / packages so
+    the SDK's Build target compiles an empty assembly.  We deliberately do
+    NOT override Restore/Build/Pack targets here - same-named targets in
+    Directory.Build.targets ALWAYS replace the SDK's definitions (the
+    Condition only gates execution, not the registration), which would
+    silently break the SDK's restore in unrestricted builds too (e.g. the
+    GitHub Actions `dotnet publish` / `dotnet test` workflows that don't
+    pass CustomTestTarget).
   -->
   <PropertyGroup>
     <_RestrictedToLegacyTfm Condition="'$(CustomTestTarget)' == 'net48' or '$(CustomTestTarget)' == 'net472' or '$(CustomTestTarget)' == 'netstandard2.0' or '$(CustomTestTarget)' == 'netstandard2.1'">true</_RestrictedToLegacyTfm>
   </PropertyGroup>
-  <Target Name="Restore" Condition="'$(_RestrictedToLegacyTfm)' == 'true'" />
-  <Target Name="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+  <PropertyGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+    <OutputType>Library</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <IsPackable>false</IsPackable>
+    <PackAsTool>false</PackAsTool>
+    <PublishAot>false</PublishAot>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+    <Compile Remove="@(Compile)" />
+    <ProjectReference Remove="@(ProjectReference)" />
+    <PackageReference Remove="@(PackageReference)" />
+    <AdditionalFiles Remove="@(AdditionalFiles)" />
+    <None Remove="@(None)" />
+    <Content Remove="@(Content)" />
+  </ItemGroup>
+  <Target Name="_LogSkipped" BeforeTargets="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
   </Target>
-  <Target Name="Pack" Condition="'$(_RestrictedToLegacyTfm)' == 'true'" />
 </Project>
