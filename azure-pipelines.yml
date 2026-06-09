@@ -6,7 +6,7 @@ parameters:
 - name: managedPool
   displayName: 'Use the netstandard Managed DevOps Pool (adds ImageOverride demands per OS)'
   type: boolean
-  default: false
+  default: true
 
 trigger:
   batch: 'true'
@@ -41,8 +41,8 @@ variables:
   # does not provide macOS images.
   ${{ if parameters.managedPool }}:
     poolName: 'netstandard'
-    windowsImage: 'windows-2025-g2'
-    linuxImage: 'ubuntu-24.04-g2'
+    windowsImage: 'windows-2022-g2'
+    linuxImage: 'ubuntu-22.04-g2'
   ${{ else }}:
     poolName: ''
     windowsImage: 'windows-2025-vs2026'
@@ -122,6 +122,8 @@ stages:
       windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      ${{ else }}:
+        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
   - ${{ if parameters.managedPool }}:
     - template: .azurepipelines/test.yml
       parameters:
@@ -144,6 +146,8 @@ stages:
       windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      ${{ else }}:
+        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
   - ${{ if parameters.managedPool }}:
     - template: .azurepipelines/test.yml
       parameters:
@@ -166,6 +170,8 @@ stages:
       windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      ${{ else }}:
+        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
   - ${{ if parameters.managedPool }}:
     - template: .azurepipelines/test.yml
       parameters:
@@ -217,6 +223,8 @@ stages:
       windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      ${{ else }}:
+        agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}"; mac = "${{ variables.macImage }}" }'
   - ${{ if parameters.managedPool }}:
     - template: .azurepipelines/test.yml
       parameters:
@@ -234,10 +242,7 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      ${{ if parameters.managedPool }}:
-        poolImage: ${{ variables.linuxImage }}
-      ${{ else }}:
-        poolImage: 'ubuntu-22.04'
+      poolImage: ${{ variables.linuxImage }}
       framework: net10.0
       jobnamesuffix: net100cc
       poolName: ${{ variables.poolName }}

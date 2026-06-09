@@ -73,7 +73,7 @@ elseif ($AgentTable.Count -eq 0) {
     # (preserves the original get-matrix.ps1 behaviour for ci.yml callers).
     $AgentTable = @{
         windows = 'windows-2025-vs2026'
-        linux   = 'ubuntu-22.04'
+        linux   = 'ubuntu-24.04'
         mac     = 'macOS-15'
     }
 }
