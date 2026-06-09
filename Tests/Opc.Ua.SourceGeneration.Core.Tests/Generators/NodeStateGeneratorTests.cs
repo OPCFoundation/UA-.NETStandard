@@ -263,20 +263,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.Multiple(() =>
             {
-                // Site 1: VariableType template specialization (closes the
-                // original PR #3619 TODO). XYArrayItemType inherits the
-                // generic ArrayItemState chain with a MatrixOf<XVType>
-                // template parameter.
+                // VariableType template specialization: XYArrayItemType
+                // inherits the generic ArrayItemState chain with a
+                // MatrixOf<XVType> template parameter.
                 Assert.That(code, Does.Contain(
                     "global::Opc.Ua.ArrayItemState<global::Opc.Ua.MatrixOf<global::Opc.Ua.XVType>>"),
                     "XYArrayItemState should inherit ArrayItemState<MatrixOf<XVType>>.");
 
-                // Site 2 (a): Property-state instance matrix branch.
+                // Property-state instance matrix branch.
                 Assert.That(code, Does.Contain(
                     "global::Opc.Ua.PropertyState<global::Opc.Ua.MatrixOf<global::Opc.Ua.NodeId>>"),
                     "EnumDictionaryEntries should declare PropertyState<MatrixOf<NodeId>>.");
 
-                // Site 2 (b): BaseDataVariableState-instance matrix branch.
+                // BaseDataVariableState-instance matrix branch.
                 Assert.That(code, Does.Contain(
                     "global::Opc.Ua.BaseDataVariableState<global::Opc.Ua.MatrixOf<byte>>"),
                     "FailureSystemIdentifier should declare BaseDataVariableState<MatrixOf<byte>>.");

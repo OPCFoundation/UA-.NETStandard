@@ -418,6 +418,13 @@ namespace Opc.Ua
         /// <summary>
         /// Read a matrix of structures (fields inside a structure).
         /// </summary>
+        /// <remarks>
+        /// Wire format follows OPC UA Part 6 §5.2.5 (Matrix encoding): a
+        /// length-prefixed Int32 array of dimensions followed by the
+        /// flattened encodeable elements. Symmetric to
+        /// <see cref="IEncoder.WriteEncodeableMatrix{T}(string?, MatrixOf{T})"/>.
+        /// See https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
+        /// </remarks>
         /// <typeparam name="T">The type of the encodeable objects to be read
         /// </typeparam>
         /// <returns>A matrix of types of type <see cref="IEncodeable"/></returns>

@@ -254,46 +254,46 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 // Concrete encodeable matrix uses the typed
                 // WriteEncodeableMatrix overload.
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteEncodeableMatrix(\"VectorMatrix\", VectorMatrix);"));
+                    """encoder.WriteEncodeableMatrix("VectorMatrix", VectorMatrix);"""));
                 // Primitive matrices use Variant.From.
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"BooleanMatrix\", global::Opc.Ua.Variant.From(BooleanMatrix));"));
+                    """encoder.WriteVariant("BooleanMatrix", global::Opc.Ua.Variant.From(BooleanMatrix));"""));
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"Int32Matrix\", global::Opc.Ua.Variant.From(Int32Matrix));"));
+                    """encoder.WriteVariant("Int32Matrix", global::Opc.Ua.Variant.From(Int32Matrix));"""));
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"StringMatrix\", global::Opc.Ua.Variant.From(StringMatrix));"));
+                    """encoder.WriteVariant("StringMatrix", global::Opc.Ua.Variant.From(StringMatrix));"""));
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"NodeIdMatrix\", global::Opc.Ua.Variant.From(NodeIdMatrix));"));
+                    """encoder.WriteVariant("NodeIdMatrix", global::Opc.Ua.Variant.From(NodeIdMatrix));"""));
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"VariantMatrix\", global::Opc.Ua.Variant.From(VariantMatrix));"));
+                    """encoder.WriteVariant("VariantMatrix", global::Opc.Ua.Variant.From(VariantMatrix));"""));
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"ExtensionObjectMatrix\", global::Opc.Ua.Variant.From(ExtensionObjectMatrix));"));
+                    """encoder.WriteVariant("ExtensionObjectMatrix", global::Opc.Ua.Variant.From(ExtensionObjectMatrix));"""));
                 // AllowSubTypes -> field resolves to ExtensionObject, so it
                 // takes the same Variant.From(MatrixOf<ExtensionObject>) path
                 // as the explicit Structure field above.
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"AbstractVectorMatrix\", global::Opc.Ua.Variant.From(AbstractVectorMatrix));"));
+                    """encoder.WriteVariant("AbstractVectorMatrix", global::Opc.Ua.Variant.From(AbstractVectorMatrix));"""));
             });
 
             // Decode assertions.
             Assert.Multiple(() =>
             {
                 Assert.That(code, Does.Contain(
-                    "VectorMatrix = decoder.ReadEncodeableMatrix<global::TestData.Vector>(\"VectorMatrix\");"));
+                    """VectorMatrix = decoder.ReadEncodeableMatrix<global::TestData.Vector>("VectorMatrix");"""));
                 Assert.That(code, Does.Contain(
-                    "BooleanMatrix = decoder.ReadVariant(\"BooleanMatrix\").GetBooleanMatrix();"));
+                    """BooleanMatrix = decoder.ReadVariant("BooleanMatrix").GetBooleanMatrix();"""));
                 Assert.That(code, Does.Contain(
-                    "Int32Matrix = decoder.ReadVariant(\"Int32Matrix\").GetInt32Matrix();"));
+                    """Int32Matrix = decoder.ReadVariant("Int32Matrix").GetInt32Matrix();"""));
                 Assert.That(code, Does.Contain(
-                    "StringMatrix = decoder.ReadVariant(\"StringMatrix\").GetStringMatrix();"));
+                    """StringMatrix = decoder.ReadVariant("StringMatrix").GetStringMatrix();"""));
                 Assert.That(code, Does.Contain(
-                    "NodeIdMatrix = decoder.ReadVariant(\"NodeIdMatrix\").GetNodeIdMatrix();"));
+                    """NodeIdMatrix = decoder.ReadVariant("NodeIdMatrix").GetNodeIdMatrix();"""));
                 Assert.That(code, Does.Contain(
-                    "VariantMatrix = decoder.ReadVariant(\"VariantMatrix\").GetVariantMatrix();"));
+                    """VariantMatrix = decoder.ReadVariant("VariantMatrix").GetVariantMatrix();"""));
                 Assert.That(code, Does.Contain(
-                    "ExtensionObjectMatrix = decoder.ReadVariant(\"ExtensionObjectMatrix\").GetExtensionObjectMatrix();"));
+                    """ExtensionObjectMatrix = decoder.ReadVariant("ExtensionObjectMatrix").GetExtensionObjectMatrix();"""));
                 Assert.That(code, Does.Contain(
-                    "AbstractVectorMatrix = decoder.ReadVariant(\"AbstractVectorMatrix\").GetExtensionObjectMatrix();"));
+                    """AbstractVectorMatrix = decoder.ReadVariant("AbstractVectorMatrix").GetExtensionObjectMatrix();"""));
             });
         }
 

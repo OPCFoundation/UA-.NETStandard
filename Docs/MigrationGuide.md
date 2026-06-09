@@ -365,15 +365,20 @@ The element type follows the field's `DataType`:
 
 **Change code as follows:**
 
-- Direct access on the property is now typed; remove any `Variant.From(matrix)` / `value.GetXxxMatrix()` wrapping you previously had to add when reading or writing the property:
+- Direct access on the property is now typed; replace the
+  `new Variant(new Matrix(...))` wrapping / `Variant.Value` cast you
+  needed in 1.5.378 with the typed `MatrixOf<T>` assignment:
 
   ``` csharp
-      // Before — field was Variant
-      myStruct.MyMatrix = Variant.From(matrix);
-      MatrixOf<int> back = myStruct.MyMatrix.GetInt32Matrix();
+      // Before (1.5.378) — field was object/Variant; wrap a Matrix
+      myStruct.MyMatrix = new Variant(new Matrix(
+          new int[] { 1, 2, 3, 4 },
+          BuiltInType.Int32,
+          new int[] { 2, 2 }));
+      var back = (int[,])((Matrix)myStruct.MyMatrix.Value).ToArray();
 
-      // After — field is MatrixOf<int>
-      myStruct.MyMatrix = matrix;
+      // After — field is MatrixOf<int>; assign / read directly
+      myStruct.MyMatrix = new int[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
       MatrixOf<int> back = myStruct.MyMatrix;
   ```
 
@@ -391,13 +396,18 @@ The same `MatrixOf<T>` opt-in now extends beyond structure data type fields to t
 
 For abstract base variable types (`ArrayItemType`, `CubeItemType`, `ImageItemType`, `NDimensionArrayItemType`, all of which declare `DataType="BaseDataType"`) the State class still uses the generic `<T>` parameter — consumers continue to instantiate with whatever element type matches their data.
 
-For *concrete* matrix variable types (today only `XYArrayItemType`) and matrix-rank property/variable instances, the `Value` setter and getter are now typed. Drop the `Variant.FromStructure(...)` / `Variant.From(...)` / `.GetXxxMatrix()` wrapping you previously had to add:
+For *concrete* matrix variable types (today only `XYArrayItemType`) and matrix-rank property/variable instances, the `Value` setter and getter are now typed. Replace the 1.5.378 `new Variant(new Matrix(...))` pattern with a typed `MatrixOf<T>` assignment:
 
 ``` csharp
-    // Before — Value was Variant
-    variable.Value = Variant.FromStructure(ArrayOf.Wrapped(
-        new XVType { X = 0.0, Value = 0.0f },
-        new XVType { X = 1.0, Value = 1.0f }));
+    // Before (1.5.378) — Value was object; wrap a Matrix of XVType
+    variable.Value = new Variant(new Matrix(
+        new XVType[]
+        {
+            new XVType { X = 0.0, Value = 0.0f },
+            new XVType { X = 1.0, Value = 1.0f }
+        },
+        BuiltInType.ExtensionObject,
+        new int[] { 2 }));
 
     // After — Value is MatrixOf<XVType>; use a typed constructor
     variable.Value = new[]
@@ -406,8 +416,6 @@ For *concrete* matrix variable types (today only `XYArrayItemType`) and matrix-r
         new XVType { X = 1.0, Value = 1.0f }
     }.ToMatrixOf(2);
 ```
-
-The `IsTemplateParameterRequired` helper in the source generator (only relevant for downstream tooling that introspects the generator schema) now returns `true` for `(OneOrMoreDimensions, concrete-and-MatrixOf-supporting data type)` combinations. The previous `false` result is retained for matrices of `BaseDataType` / `Number` / `Integer` / `UInteger` / `DiagnosticInfo` (which legitimately need the `Variant` fallback).
 
 #### DateTimeUtc
 
