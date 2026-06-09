@@ -2,19 +2,31 @@
 # Test Opc.Ua.Aot.Tests with native AOT publish using Microsoft Testing Platform
 #
 parameters:
-  configuration: 'Release'
-  agents: '@{}'
-  jobnamesuffix: ''
-  # Set hosted=true to force all jobs in this template invocation onto
-  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
-  # Use this for stages that target macOS, which the managed pool does not
-  # provide.
-  hosted: false
-  # See ci.yml: passing pool config via parameters because root-pipeline
-  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
-  # included templates at compile-time.
-  poolName: ''
-  windowsImage: 'windows-2025-vs2026'
+- name: configuration
+  type: string
+  default: 'Release'
+- name: agents
+  type: string
+  default: '@{}'
+- name: jobnamesuffix
+  type: string
+  default: ''
+# Set hosted=true to force all jobs in this template invocation onto
+# Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+# Use this for stages that target macOS, which the managed pool does not
+# provide.
+- name: hosted
+  type: boolean
+  default: false
+# See ci.yml: passing pool config via parameters because root-pipeline
+# variables defined in ${{ if ... }}: blocks aren't reliably visible to
+# included templates at compile-time.
+- name: poolName
+  type: string
+  default: ''
+- name: windowsImage
+  type: string
+  default: 'windows-2025-vs2026'
 jobs:
 - job: testaotprep${{ parameters.jobnamesuffix }}
   displayName: Prepare AoT Test Jobs ${{ parameters.configuration }}
