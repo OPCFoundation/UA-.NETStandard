@@ -84,12 +84,16 @@ jobs:
     inputs:
       # Use `command: custom` instead of `command: restore` so the `arguments`
       # input is actually forwarded - the built-in `restore` command silently
-      # ignores `arguments` and would drop `$(TfmBuildProperty)` /
-      # `--configuration`, leaving `obj/project.assets.json` populated with
-      # the default multi-TFM set rather than the matrix entry's TFM.
+      # ignores `arguments` and would drop `$(TfmBuildProperty)`, leaving
+      # `obj/project.assets.json` populated with the default multi-TFM set
+      # rather than the matrix entry's TFM.
+      # NOTE: `dotnet restore` does NOT accept `--configuration`; only build /
+      # test / publish do.  Pass the configuration as a `/p:` property instead
+      # so per-config restore behaviour (when projects gate on $(Configuration))
+      # still works.
       command: custom
       custom: restore
-      arguments: '$(file) --configuration $(configuration) $(TfmBuildProperty)'
+      arguments: '$(file) /p:Configuration=$(configuration) $(TfmBuildProperty)'
   - task: DotNetCoreCLI@2
     displayName: Build $(configuration) $(file) $(targetTfm)
     inputs:
