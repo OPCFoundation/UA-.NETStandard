@@ -271,14 +271,15 @@ namespace Opc.Ua.Client.Subscriptions
             // mutate server-side state — desired-state was already
             // updated synchronously by ValidateBelongsAndUpdateDesired
             // above, and that intent stands regardless of the awaiter's
-            // cancellation. Pass the token to TrySetCanceled for
-            // correct cancellation metadata on the propagated exception.
+            // cancellation. The token is captured in the closure and
+            // passed to TrySetCanceled for correct cancellation
+            // metadata on the propagated exception (the
+            // Register(Action<object?, CancellationToken>, object?)
+            // overload was only added in .NET 5 and is unavailable on
+            // net48/net472/netstandard2.1, so the closure capture is
+            // the only portable form).
             using CancellationTokenRegistration reg = ct.Register(
-                static (state, token) =>
-                {
-                    ((TaskCompletionSource<SetTriggeringResult>)state!)
-                        .TrySetCanceled(token);
-                }, tcs);
+                () => tcs.TrySetCanceled(ct));
             return await tcs.Task.ConfigureAwait(false);
         }
 
