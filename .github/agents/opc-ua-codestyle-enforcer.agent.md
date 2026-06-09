@@ -125,32 +125,43 @@ Typical batch order:
 
 For IDE rules, use `dotnet format style`:
 ```powershell
-dotnet format style UA.slnx --severity info --diagnostics "IDE0005 IDE0004 IDE0001 IDE0002"
+dotnet format style UA.slnx --severity info --diagnostics IDE0005 --diagnostics IDE0004 --diagnostics IDE0001 --diagnostics IDE0002
 ```
 
 For RCS/CA rules, use `dotnet format analyzers`:
 ```powershell
-dotnet format analyzers UA.slnx --severity info --diagnostics "RCS0027 RCS0055 RCS0009 RCS0010"
+dotnet format analyzers UA.slnx --severity info --diagnostics RCS0027 --diagnostics RCS0055 --diagnostics RCS0009 --diagnostics RCS0010
 ```
 
-**IMPORTANT:** Pass diagnostic IDs as **space-separated** (not comma-separated). Run one rule at a time if you need to measure which rule changes which files.
+**CRITICAL — `--diagnostics` argument form:** Repeat the `--diagnostics` flag once per rule ID. **Do NOT** pass a single quoted, space-separated string (`--diagnostics "RCS1124 RCS1181"`); `dotnet format` 10.x silently parses that as one unknown ID, applies no fixers, and exits 0 — every run reports "0 files changed" even when hits exist. The per-rule repeated form is the only reliable shape; verified on `dotnet format 10.0.300` against this repo.
 
-**IMPORTANT:** Some rules report diagnostics but have NO code-fix provider. The `dotnet format` command exits cleanly with 0 files changed. This is expected — those rules need manual fixes or fleet agents.
+**Comma-separated form is also wrong:** never `--diagnostics RCS1,RCS2`.
 
-### Known rules WITHOUT auto-fixers
+**IMPORTANT:** Some rules report diagnostics but have NO code-fix provider. The `dotnet format` command exits cleanly with 0 files changed. This is expected — those rules need manual fixes or fleet agents. See the verified table below before assuming a rule is unfixable.
 
-These rules are report-only in `dotnet format` and require manual intervention:
-- RCS1140 (add `<exception>` to doc comment)
-- RCS1142 (add `<typeparam>` to doc comment)
-- RCS1181 (convert comment to doc comment)
-- RCS1078 (use `string.Empty`)
-- RCS1118 (mark local as `const`)
-- RCS1124 (inline local variable)
-- RCS1221 (pattern matching instead of cast)
-- RCS1260 (trailing comma) — though the fixer did work in some runs
-- NUnit4002/NUnit2046/NUnit2010 (NUnit constraint model)
+### Auto-fixer availability — verified for Roslynator 4.15.0
 
-For these, either fix manually or dispatch fleet sub-agents with precise file/line instructions.
+The Roslynator package ships `Roslynator.CSharp.Analyzers.CodeFixes.dll` (alongside the analyzer DLL); most RCS rules **do** have code fixers in 4.x. Empirically verified against this repo (commit `style: convert comments to doc comments and inline local vars`):
+
+| Rule | Fixer ships? | Notes / preconditions |
+|---|---|---|
+| RCS1078 (use `string.Empty` vs `""`) | **Yes** | Requires `.editorconfig`: `roslynator_empty_string_style = field` (already set in this repo). |
+| RCS1118 (mark local as `const`) | **Yes** | Fires at `--severity info`. |
+| RCS1124 (inline local variable) | **Yes** | Verified working — applied across the repo in the cited commit. |
+| RCS1140 (add `<exception>` to doc comment) | **Yes** | Default severity is **Hidden** — must run with `--severity info` for hits to surface and the fixer to apply. Generates `<exception cref="…">` lines on public APIs that throw; treat as semantic doc change and review per file. |
+| RCS1142 (add `<typeparam>` to doc comment) | **Yes** | Analogous to RCS1140. |
+| RCS1181 (convert comment to doc comment) | **Yes** | Verified working — applied across the repo in the cited commit. |
+| RCS1221 (pattern matching instead of cast) | **Yes** | Fires at `--severity info`. |
+| RCS1260 (trailing comma) | **Yes** | Works; earlier "did not work" sightings were caused by the `--diagnostics` argument-form bug above. |
+| NUnit4002 / NUnit2046 / NUnit2010 | **No** | NUnit.Analyzers does not ship a fixer for the constraint-model migration; manual edit required. |
+
+**Lesson:** if a rule appears in the inventory but `dotnet format` reports zero changes, **do not** add it to a "no fixer" list before checking:
+1. The `--diagnostics` form is repeated per rule (not a single quoted string).
+2. The rule's default severity — Hidden rules need `--severity info` (or higher) to surface.
+3. Any rule-specific `.editorconfig` config option is set (e.g. `roslynator_empty_string_style` for RCS1078).
+4. The rule actually has hits in the targeted scope (verify with `--verify-no-changes` first).
+
+For rules genuinely without a fixer (NUnit4002 etc.), either fix manually or dispatch fleet sub-agents with precise file/line instructions.
 
 ### Per-batch loop
 
