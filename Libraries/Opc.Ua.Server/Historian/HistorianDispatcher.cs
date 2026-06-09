@@ -390,7 +390,17 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Insert);
 
             AggregateConfiguration config = details.AggregateConfiguration;
-            if (config == null || config.UseServerCapabilitiesDefaults)
+            // A default-initialized AggregateConfiguration (all-zero, UseServerCapabilitiesDefaults
+            // unset) is the implicit "no override" case from a request that didn't set the field
+            // explicitly. Treat it as use-server-defaults rather than as an explicit configuration.
+            bool isImplicitDefault = config != null &&
+                !config.UseServerCapabilitiesDefaults &&
+                config.PercentDataBad == 0 &&
+                config.PercentDataGood == 0 &&
+                !config.TreatUncertainAsBad &&
+                !config.UseSlopedExtrapolation;
+
+            if (config == null || config.UseServerCapabilitiesDefaults || isImplicitDefault)
             {
                 config = systemContext.Server != null
                     ? systemContext.Server.AggregateManager.GetDefaultConfiguration(node.NodeId)
@@ -403,6 +413,19 @@ namespace Opc.Ua.Server.Historian
                         UseSlopedExtrapolation = false,
                         UseServerCapabilitiesDefaults = false
                     };
+            }
+            else
+            {
+                // Part 13 v1.05.07 §4.2.1.2: validate explicit AggregateConfiguration inputs.
+                // PercentDataGood and PercentDataBad must each be ≤ 100, and the relationship
+                // PercentDataGood ≥ (100 - PercentDataBad) must hold.
+                if (config.PercentDataGood > 100 ||
+                    config.PercentDataBad > 100 ||
+                    config.PercentDataGood < 100 - config.PercentDataBad)
+                {
+                    result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
+                    return StatusCodes.BadAggregateInvalidInputs;
+                }
             }
 
             var processedRequest = new HistorianProcessedReadRequest

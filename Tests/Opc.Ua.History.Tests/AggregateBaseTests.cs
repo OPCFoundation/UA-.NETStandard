@@ -612,6 +612,7 @@ namespace Opc.Ua.History.Tests
                     Is.EqualTo(StatusCodes.BadAggregateInvalidInputs)
                         .Or.EqualTo(StatusCodes.BadAggregateConfigurationRejected),
                     $"Invalid AggregateConfiguration inputs must be rejected; got {sc}.");
+            }
             catch (ServiceResultException ex)
             {
                 Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
