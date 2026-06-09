@@ -265,10 +265,20 @@ namespace Opc.Ua.Client.Subscriptions
             // Wake the state manager so the operations queue gets
             // drained on the next ApplyChangesAsync pass.
             m_stateControl.Set();
-            using CancellationTokenRegistration reg = ct.Register(static state =>
-            {
-                ((TaskCompletionSource<SetTriggeringResult>)state!).TrySetCanceled();
-            }, tcs);
+            // Cancellation semantics: aborting the await only stops the
+            // caller from observing the eventual result. The queued
+            // operation remains in flight and may still execute and
+            // mutate server-side state — desired-state was already
+            // updated synchronously by ValidateBelongsAndUpdateDesired
+            // above, and that intent stands regardless of the awaiter's
+            // cancellation. Pass the token to TrySetCanceled for
+            // correct cancellation metadata on the propagated exception.
+            using CancellationTokenRegistration reg = ct.Register(
+                static (state, token) =>
+                {
+                    ((TaskCompletionSource<SetTriggeringResult>)state!)
+                        .TrySetCanceled(token);
+                }, tcs);
             return await tcs.Task.ConfigureAwait(false);
         }
 

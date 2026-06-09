@@ -334,29 +334,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         [Test]
-        public async Task DeletedTriggeredItemAddFailsRemoveGoodAsync()
+        public async Task RemoveOfNonCreatedTriggeredItemReturnsGoodAsync()
         {
-            // Arrange: trig + two triggered items, the "remove" target
-            // already deleted (server side already cleaned up per
-            // §5.13.1.6).
+            // Arrange: trig + one triggered item that's not Created
+            // (server side already cleaned up per §5.13.1.6 — remove
+            // succeeds as a no-op).
             TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
             TestMonitoredItem deletedTgt = AddItemNoServerId("dead"); // not Created
-            TestMonitoredItem addTgt = AddItemNoServerId("alsoDead"); // not Created
 
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { addTgt },
+                    Array.Empty<IMonitoredItem>(),
                     new IMonitoredItem[] { deletedTgt }, tcs));
 
-            // Apply many passes to exhaust the retry budget; we don't
-            // hit the server because both triggered items resolve to
-            // pre-failed/pre-success without involving the server in
-            // the test scenario. Note: the current implementation
-            // re-queues if the *triggering* item is not Created, not
-            // if a triggered item is not Created. Since trig IS
-            // Created, the op runs immediately.
-
+            // Mock returns success on the assumption that addList +
+            // removeList is empty (both pre-resolve client-side).
             m_monitoredItemServices.Setup(s => s.SetTriggeringAsync(
                 It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
                 It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
@@ -371,14 +364,123 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Act
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
-            // Assert: add → BadMonitoredItemIdInvalid; remove → Good
-            // (auto-cleanup).
+            // Assert: remove → Good (auto-cleanup); no RPC issued for
+            // a single-edge no-op group.
+            SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
+            Assert.That(res.AddResults, Is.Empty);
+            Assert.That(res.RemoveResults, Has.Count.EqualTo(1));
+            Assert.That(StatusCode.IsGood(res.RemoveResults[0].Status), Is.True);
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task AddOfNonCreatedTriggeredItemDefersUntilCreatedAsync()
+        {
+            // Arrange: trig (Created) + tgt (not yet Created).
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt = AddItemNoServerId("tgt");
+
+            ExpectSetTriggering(100,
+                new uint[] { 101 },
+                Array.Empty<uint>(),
+                addResults: new[] { (StatusCode)StatusCodes.Good },
+                removeResults: Array.Empty<StatusCode>());
+
+            var tcs = new TaskCompletionSource<SetTriggeringResult>();
+            m_sut.EnqueueTriggeringOperation(
+                new MonitoredItemManager.TriggeringOperation(trig,
+                    new IMonitoredItem[] { tgt },
+                    Array.Empty<IMonitoredItem>(), tcs));
+
+            // First pass: tgt not Created → entire op deferred,
+            // TCS not yet completed.
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            Assert.That(tcs.Task.IsCompleted, Is.False);
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+
+            // Simulate the create completing on the server side.
+            tgt.SetServerIdForTest(101);
+
+            // Second pass: tgt Created → RPC issued, TCS completes.
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
+            Assert.That(res.AddResults, Has.Count.EqualTo(1));
+            Assert.That(StatusCode.IsGood(res.AddResults[0].Status), Is.True);
+        }
+
+        [Test]
+        public async Task AddOfNonCreatedTriggeredItemTerminatesAfterRetryBudgetExhaustionAsync()
+        {
+            // Arrange: trig + tgt that will never get Created.
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt = AddItemNoServerId("tgt");
+            // Seed the desired state to verify rollback on terminal
+            // failure (mimics what ValidateBelongsAndUpdateDesired does
+            // for the imperative API path).
+            tgt.AddDesiredTriggeredByForTest("trig");
+            Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
+
+            var tcs = new TaskCompletionSource<SetTriggeringResult>();
+            m_sut.EnqueueTriggeringOperation(
+                new MonitoredItemManager.TriggeringOperation(trig,
+                    new IMonitoredItem[] { tgt },
+                    Array.Empty<IMonitoredItem>(), tcs));
+
+            // Apply 11 times (MaxTriggeringRetryCount=10, so the 11th
+            // pass terminates the op).
+            for (int i = 0; i < 11; i++)
+            {
+                await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            }
+
             SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
             Assert.That(res.AddResults, Has.Count.EqualTo(1));
             Assert.That(res.AddResults[0].Status.Code,
                 Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
-            Assert.That(res.RemoveResults, Has.Count.EqualTo(1));
-            Assert.That(StatusCode.IsGood(res.RemoveResults[0].Status), Is.True);
+            // Desired state was rolled back for the non-Created edge.
+            Assert.That(tgt.DesiredTriggeredByNames, Does.Not.Contain("trig"));
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task BadSubscriptionIdInvalidPreservesDesiredStateAsync()
+        {
+            // Imperative SetTriggering path: when the service returns
+            // BadSubscriptionIdInvalid, the op is re-queued for retry
+            // after subscription recreate — desired state MUST NOT be
+            // rolled back (otherwise snapshot/navigation observes a
+            // missing link during recovery and the retry would fail
+            // to re-establish it because the desired set was wiped).
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", serverId: 101);
+            // Seed desired state to mirror the imperative path's
+            // synchronous mutation.
+            tgt.AddDesiredTriggeredByForTest("trig");
+
+            m_monitoredItemServices.Setup(s => s.SetTriggeringAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
+
+            m_sut.EnqueueTriggeringOperation(
+                new MonitoredItemManager.TriggeringOperation(trig,
+                    new IMonitoredItem[] { tgt },
+                    Array.Empty<IMonitoredItem>(), null));
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+
+            // Desired-state preserved despite the failure.
+            Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
         }
 
         [Test]
@@ -649,19 +751,126 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         // ----- EnqueueTriggeringDelta (declarative-path entry) -----
 
         [Test]
-        public async Task EnqueueTriggeringDeltaWithUnresolvedNameIsSkippedAsync()
+        public async Task EnqueueTriggeringDeltaPendingMaterializedOnLaterAddAsync()
         {
-            // Only the triggered item exists in this subscription;
-            // the triggering name "ghost" does not resolve. The
-            // engine logs and silently drops it.
+            // Declarative add-order independence: triggered item
+            // declares TriggeredByNames=["trig"] BEFORE the triggering
+            // item exists in the subscription. The pending entry is
+            // persisted by name and materialized into a real
+            // SetTriggering op when the triggering item is added later.
             TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
 
             m_sut.EnqueueTriggeringDelta(tgt,
-                addedTriggeringNames: new[] { "ghost" },
+                addedTriggeringNames: new[] { "trig" },
                 removedTriggeringNames: Array.Empty<string>());
 
+            // First apply pass — no triggering item yet, no RPC.
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
 
+            // For materialization to enqueue the op, the triggered
+            // item's DesiredTriggeredByNames must contain "trig" — the
+            // declarative path normally seeds this via Options at
+            // TryAdd time. Mimic that here.
+            tgt.AddDesiredTriggeredByForTest("trig");
+
+            ExpectSetTriggering(100,
+                new uint[] { 101 },
+                Array.Empty<uint>(),
+                addResults: new[] { (StatusCode)StatusCodes.Good },
+                removeResults: Array.Empty<StatusCode>());
+
+            // Now add the triggering item — pending materializes.
+            AddCreatedItem("trig", 100);
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            m_monitoredItemServices.VerifyAll();
+        }
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaPendingDroppedOnTriggeredItemRemovalAsync()
+        {
+            // If the triggered item is removed before the triggering
+            // item appears, the pending entry must be purged so a
+            // later add of the triggering item does not materialize a
+            // stale op against a dead reference.
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+
+            m_sut.EnqueueTriggeringDelta(tgt,
+                addedTriggeringNames: new[] { "trig" },
+                removedTriggeringNames: Array.Empty<string>());
+
+            // Remove the triggered item (purges pending entries).
+            m_sut.TryRemove(tgt.ClientHandle);
+
+            // Add the triggering item — must NOT enqueue any op.
+            AddCreatedItem("trig", 100);
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaPendingFoldedAddThenRemoveAsync()
+        {
+            // Add-then-remove for the same (triggeringName, triggered)
+            // pair before resolution folds to a single remove entry.
+            // Since the link was never on the server, materializing
+            // the remove is a no-op (handled as Good).
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+
+            // Two declarative deltas in opposite directions for the
+            // same edge — pending folds last-intent (remove) wins.
+            m_sut.EnqueueTriggeringDelta(tgt,
+                addedTriggeringNames: new[] { "trig" },
+                removedTriggeringNames: Array.Empty<string>());
+            m_sut.EnqueueTriggeringDelta(tgt,
+                addedTriggeringNames: Array.Empty<string>(),
+                removedTriggeringNames: new[] { "trig" });
+
+            // Add triggering item — pending materializes a single
+            // remove edge. Since tgt is Created the remove resolves
+            // server-side as a no-op (item was never linked) but the
+            // current implementation still issues the call for the
+            // remove. Set up the mock to accept it.
+            AddCreatedItem("trig", 100);
+
+            ExpectSetTriggering(100,
+                Array.Empty<uint>(),
+                new uint[] { 101 },
+                addResults: Array.Empty<StatusCode>(),
+                removeResults: new[] { (StatusCode)StatusCodes.Good });
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            m_monitoredItemServices.VerifyAll();
+        }
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaPendingSkippedWhenDesireRevokedAsync()
+        {
+            // If the triggered item's desired set no longer contains
+            // the triggering name by the time the triggering item
+            // appears, the pending add is dropped (a follow-up options
+            // change can have revoked the intent).
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            tgt.AddDesiredTriggeredByForTest("trig");
+
+            m_sut.EnqueueTriggeringDelta(tgt,
+                addedTriggeringNames: new[] { "trig" },
+                removedTriggeringNames: Array.Empty<string>());
+
+            // Revoke before the trigger appears.
+            tgt.RemoveDesiredTriggeredByForTest("trig");
+
+            AddCreatedItem("trig", 100);
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
                 It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
                 It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),

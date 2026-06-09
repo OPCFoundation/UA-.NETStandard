@@ -154,7 +154,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// Items whose triggering link to
         /// <paramref name="triggeringItem"/> should be removed.
         /// </param>
-        /// <param name="ct">Cancellation token.</param>
+        /// <param name="ct">
+        /// Cancellation token observed only by the awaiter — aborting
+        /// it abandons the wait but does not cancel the underlying
+        /// queued operation, which may still execute and apply on the
+        /// server. Desired-state mutations performed synchronously by
+        /// this call (see <see cref="IMonitoredItem.TriggeringItems"/>
+        /// and <see cref="IMonitoredItem.TriggeredItems"/>) persist
+        /// regardless of cancellation.
+        /// </param>
         /// <returns>
         /// A <see cref="SetTriggeringResult"/> with per-link statuses
         /// once the queued operation has been applied (the

@@ -96,6 +96,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 m_monitoredItems.Clear();
                 m_monitoredItemsByName.Clear();
+                m_pendingByTriggeringName.Clear();
+                m_pendingTriggeringCount = 0;
             }
         }
 
@@ -115,6 +117,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_monitoredItems.Add(item.ClientHandle, item);
                 m_monitoredItemsByName.Add(name, item);
                 monitoredItem = item;
+                // Drain any pending unresolved triggering-name deltas
+                // keyed by this just-added item's name — declarative
+                // adds that referenced this item before it existed get
+                // materialized now into real ops on the queue.
+                DrainPendingForTriggeringItem(item);
                 // Enqueue an initial triggering delta for any
                 // TriggeredByNames declared in the options at add
                 // time. The MonitoredItem ctor seeds the runtime
@@ -166,6 +173,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 item.ApplyLoadState(state);
                 m_monitoredItems.Add(item.ClientHandle, item);
                 m_monitoredItemsByName.Add(state.Name, item);
+                // Drain any pending unresolved triggering-name deltas
+                // (e.g. a triggered item already loaded that references
+                // this item by name): pending entries materialize into
+                // real triggering ops only when the named item appears.
+                DrainPendingForTriggeringItem(item);
                 return true;
             }
             // Intentionally NOT calling m_context.Update() — Update()
@@ -208,6 +220,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
                 m_monitoredItemsByName.Remove(monitoredItem.Name);
+                // Purge pending unresolved triggering deltas that
+                // reference this removed item (either by name as the
+                // pending triggering key, or as an inner triggered
+                // entry). Without this, a later AddLoaded/TryAdd of an
+                // item with the same name would materialize a stale
+                // pending into a real op against a dead reference.
+                DropPendingForRemovedItem(monitoredItem);
                 m_deletedItems.Add(monitoredItem);
             }
             m_context.Update();
@@ -238,6 +257,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         item = m_context.CreateMonitoredItem(name, options, this);
                         m_monitoredItems.Add(item.ClientHandle, item);
                         m_monitoredItemsByName.Add(name, item);
+                        // Drain pending unresolved triggering-name
+                        // deltas that referenced this name before it
+                        // existed (declarative TriggeredByNames adds
+                        // queued on prior items become real ops here).
+                        DrainPendingForTriggeringItem(item);
                         IReadOnlyList<string> triggers = options.CurrentValue.TriggeredByNames;
                         if (triggers.Count > 0)
                         {
@@ -259,6 +283,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     if (m_monitoredItems.Remove(clientHandle, out MonitoredItem? monitoredItem))
                     {
                         m_monitoredItemsByName.Remove(monitoredItem.Name);
+                        DropPendingForRemovedItem(monitoredItem);
                         m_deletedItems.Add(monitoredItem);
                     }
                 }
@@ -961,16 +986,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // operations so we never make the queue lopsided just by
             // calling the helper many times.
             //
-            // Names that don't currently resolve produce a placeholder
-            // operation keyed by a name-only "pending triggering"
-            // sentinel; the batched apply re-resolves on each pass
-            // within a bounded retry budget. We model this by
-            // allocating a lightweight placeholder item — but to
-            // avoid muddying the operation queue with placeholders,
-            // we simply log a debug message here and silently drop
-            // unresolved names. Callers needing eager validation use
-            // the imperative SetTriggeringAsync(IMonitoredItem, ...)
-            // overload, which takes references.
+            // Names that don't currently resolve are persisted in
+            // m_pendingByTriggeringName (folded per edge so later wins).
+            // When the missing triggering item is later added (via
+            // TryAdd/Update/AddLoaded), the pending entries are
+            // materialized into real triggering operations. This makes
+            // the declarative add order order-independent: a triggered
+            // item that references a not-yet-present trigger by name is
+            // wired up automatically once the trigger appears.
             lock (m_monitoredItemsLock)
             {
                 for (int i = 0; i < removedTriggeringNames.Count; i++)
@@ -988,13 +1011,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     }
                     else
                     {
-                        m_logger.LogDebug(
-                            "Triggering item '{Name}' not found in this " +
-                            "subscription when enqueueing remove delta for " +
-                            "triggered item '{Triggered}'; the link (if any) " +
-                            "is left to the server's auto-cleanup on item " +
-                            "deletion (Part 4 §5.13.1.6).",
-                            removedTriggeringNames[i], triggeredItem.Name);
+                        AddPendingTriggeringEntry(
+                            removedTriggeringNames[i], triggeredItem, isAdd: false);
                     }
                 }
                 for (int i = 0; i < addedTriggeringNames.Count; i++)
@@ -1012,17 +1030,154 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     }
                     else
                     {
-                        m_logger.LogDebug(
-                            "Triggering item '{Name}' not found in this " +
-                            "subscription when enqueueing add delta for " +
-                            "triggered item '{Triggered}'; the batched " +
-                            "apply will skip this delta and rely on the " +
-                            "next options-change push or imperative " +
-                            "call to supply a valid reference.",
-                            addedTriggeringNames[i], triggeredItem.Name);
+                        AddPendingTriggeringEntry(
+                            addedTriggeringNames[i], triggeredItem, isAdd: true);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Add an unresolved triggering-name delta to the pending
+        /// dictionary, folded per <c>(triggeringName, triggeredItem)</c>
+        /// so a later opposite isAdd value overrides an earlier one
+        /// (last-intent-wins). Bounded by
+        /// <see cref="MaxPendingTriggeringEntries"/>: when the cap is
+        /// hit, a warning is logged and the new entry is dropped.
+        /// Caller must hold <c>m_monitoredItemsLock</c>.
+        /// </summary>
+        private void AddPendingTriggeringEntry(
+            string triggeringName, IMonitoredItem triggeredItem, bool isAdd)
+        {
+            if (!m_pendingByTriggeringName.TryGetValue(
+                    triggeringName,
+                    out Dictionary<IMonitoredItem, bool>? entries))
+            {
+                if (m_pendingTriggeringCount >= MaxPendingTriggeringEntries)
+                {
+                    m_logger.LogWarning(
+                        "Pending triggering-name dictionary is full " +
+                        "({Cap} entries); dropping unresolved {Op} of " +
+                        "triggered '{Triggered}' under triggering " +
+                        "'{Triggering}'. Add the triggering item, remove " +
+                        "stale triggered items, or call " +
+                        "SetTriggeringAsync(IMonitoredItem,...) explicitly.",
+                        MaxPendingTriggeringEntries,
+                        isAdd ? "add" : "remove",
+                        triggeredItem.Name, triggeringName);
+                    return;
+                }
+                entries = [];
+                m_pendingByTriggeringName.Add(triggeringName, entries);
+            }
+            bool isNew = !entries.ContainsKey(triggeredItem);
+            entries[triggeredItem] = isAdd;
+            if (isNew)
+            {
+                m_pendingTriggeringCount++;
+            }
+        }
+
+        /// <summary>
+        /// Drain pending unresolved triggering-name deltas for a
+        /// just-added triggering item, materializing each (still-valid)
+        /// entry into a real <see cref="TriggeringOperation"/> appended
+        /// to <c>m_triggeringOps</c>. Validates that the triggered item
+        /// is still registered in this subscription AND (for adds) that
+        /// it still desires the link before materializing. Caller must
+        /// hold <c>m_monitoredItemsLock</c>.
+        /// </summary>
+        private void DrainPendingForTriggeringItem(MonitoredItem triggeringItem)
+        {
+            if (!m_pendingByTriggeringName.Remove(
+                    triggeringItem.Name,
+                    out Dictionary<IMonitoredItem, bool>? entries))
+            {
+                return;
+            }
+            m_pendingTriggeringCount -= entries.Count;
+            foreach (KeyValuePair<IMonitoredItem, bool> kv in entries)
+            {
+                IMonitoredItem triggered = kv.Key;
+                // Item may have been removed after the pending entry
+                // was queued; reference-identity check is enough since
+                // m_monitoredItemsByName always points at the live item.
+                if (!m_monitoredItemsByName.TryGetValue(
+                        triggered.Name, out MonitoredItem? current) ||
+                    !ReferenceEquals(current, triggered))
+                {
+                    continue;
+                }
+                // For add intents, only enqueue if the triggered item
+                // still desires this triggering name — guards against a
+                // stale add that was already revoked by an options
+                // change before the triggering item appeared.
+                if (kv.Value && !ContainsOrdinal(
+                        current.DesiredTriggeredByNames,
+                        triggeringItem.Name))
+                {
+                    continue;
+                }
+                m_triggeringOps.Enqueue(new TriggeringOperation(
+                    triggeringItem,
+                    kv.Value
+                        ? new IMonitoredItem[] { triggered }
+                        : Array.Empty<IMonitoredItem>(),
+                    kv.Value
+                        ? Array.Empty<IMonitoredItem>()
+                        : new IMonitoredItem[] { triggered },
+                    null));
+            }
+        }
+
+        /// <summary>
+        /// Remove all pending triggering-name deltas that reference the
+        /// supplied (just-removed) monitored item, both as the
+        /// triggering side (its name as a key) and as the triggered
+        /// side (entries within other keys' inner dicts). Caller must
+        /// hold <c>m_monitoredItemsLock</c>.
+        /// </summary>
+        private void DropPendingForRemovedItem(MonitoredItem removed)
+        {
+            if (m_pendingByTriggeringName.Remove(
+                    removed.Name,
+                    out Dictionary<IMonitoredItem, bool>? own))
+            {
+                m_pendingTriggeringCount -= own.Count;
+            }
+            List<string>? emptyKeys = null;
+            foreach (KeyValuePair<string, Dictionary<IMonitoredItem, bool>> kv
+                in m_pendingByTriggeringName)
+            {
+                if (kv.Value.Remove(removed))
+                {
+                    m_pendingTriggeringCount--;
+                }
+                if (kv.Value.Count == 0)
+                {
+                    emptyKeys ??= [];
+                    emptyKeys.Add(kv.Key);
+                }
+            }
+            if (emptyKeys != null)
+            {
+                foreach (string key in emptyKeys)
+                {
+                    m_pendingByTriggeringName.Remove(key);
+                }
+            }
+        }
+
+        private static bool ContainsOrdinal(IReadOnlyList<string> list, string value)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (string.Equals(list[i], value, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -1097,6 +1252,63 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     continue;
                 }
 
+                // Defer the entire operation group if any per-edge Add
+                // targets a triggered item that isn't yet Created on
+                // the server. Same retry pattern as the
+                // triggering-item-not-Created case above so add-order
+                // doesn't matter and a slow create doesn't terminally
+                // drop the link.
+                bool anyAddPending = false;
+                foreach (TriggeringOperation o in ops)
+                {
+                    foreach (IMonitoredItem item in o.Add)
+                    {
+                        if (!item.Created)
+                        {
+                            anyAddPending = true;
+                            break;
+                        }
+                    }
+                    if (anyAddPending)
+                    {
+                        break;
+                    }
+                }
+                if (anyAddPending)
+                {
+                    foreach (TriggeringOperation o in ops)
+                    {
+                        o.RetryCount++;
+                        if (o.RetryCount > MaxTriggeringRetryCount)
+                        {
+                            // Retry budget exhausted: roll back desired
+                            // state for only the non-Created add edges
+                            // (Created ones get failed with the same
+                            // status but the link request never reached
+                            // the server, so there's no desired state
+                            // to reverse on those).
+                            lock (m_monitoredItemsLock)
+                            {
+                                foreach (IMonitoredItem addItem in o.Add)
+                                {
+                                    if (!addItem.Created &&
+                                        addItem is MonitoredItem mi)
+                                    {
+                                        mi.RemoveDesiredTriggeredBy(trig.Name);
+                                    }
+                                }
+                            }
+                            FailOperation(o, trig,
+                                StatusCodes.BadMonitoredItemIdInvalid);
+                        }
+                        else
+                        {
+                            toRequeue.Add(o);
+                        }
+                    }
+                    continue;
+                }
+
                 // Fold per-edge: each triggered item contributes its
                 // last-recorded intent (add or remove). Operations are
                 // applied in enqueue order — later wins.
@@ -1114,9 +1326,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 // Build per-edge applied-status map; we'll fill it
-                // after the RPC returns. Items not yet Created get
-                // pre-failed with Bad_MonitoredItemIdInvalid (no RPC
-                // entry).
+                // after the RPC returns. The non-Created Add case is
+                // already handled by the deferral above; here we only
+                // need to handle remove-of-not-Created items (server
+                // auto-removes the link when the item is deleted,
+                // §5.13.1.6, so model as Good no-op).
                 var edgeApplied =
                     new Dictionary<IMonitoredItem, StatusCode>();
                 var addList = new List<IMonitoredItem>();
@@ -1125,15 +1339,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     if (kv.Value)
                     {
-                        if (!kv.Key.Created)
-                        {
-                            edgeApplied[kv.Key] = StatusCodes
-                                .BadMonitoredItemIdInvalid;
-                        }
-                        else
-                        {
-                            addList.Add(kv.Key);
-                        }
+                        addList.Add(kv.Key);
                     }
                     else
                     {
@@ -1193,59 +1399,67 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         {
                             ArrayOf<StatusCode> addResults =
                                 response.AddResults;
-                            for (int i = 0; i < addList.Count; i++)
-                            {
-                                StatusCode s = addResults.Count > i
-                                    ? addResults[i]
-                                    : StatusCodes.Bad;
-                                edgeApplied[addList[i]] = s;
-                                // Roll back the desired-state on
-                                // per-link failure so the caller's
-                                // intent matches the server's reality.
-                                if (StatusCode.IsBad(s) &&
-                                    addList[i] is MonitoredItem mi)
-                                {
-                                    mi.RemoveDesiredTriggeredBy(trig.Name);
-                                }
-                            }
                             ArrayOf<StatusCode> remResults =
                                 response.RemoveResults;
-                            for (int i = 0; i < removeList.Count; i++)
+                            lock (m_monitoredItemsLock)
                             {
-                                StatusCode s = remResults.Count > i
-                                    ? remResults[i]
-                                    : StatusCodes.Bad;
-                                edgeApplied[removeList[i]] = s;
-                                // A failed remove means the server
-                                // still has the link; preserve the
-                                // desired state to match (don't undo
-                                // the optimistic remove we did during
-                                // validation).
-                                if (StatusCode.IsBad(s) &&
-                                    removeList[i] is MonitoredItem mi)
+                                for (int i = 0; i < addList.Count; i++)
                                 {
-                                    mi.AddDesiredTriggeredBy(trig.Name);
+                                    StatusCode s = addResults.Count > i
+                                        ? addResults[i]
+                                        : StatusCodes.Bad;
+                                    edgeApplied[addList[i]] = s;
+                                    // Roll back the desired-state on
+                                    // per-link failure so the caller's
+                                    // intent matches the server's
+                                    // reality.
+                                    if (StatusCode.IsBad(s) &&
+                                        addList[i] is MonitoredItem mi)
+                                    {
+                                        mi.RemoveDesiredTriggeredBy(trig.Name);
+                                    }
+                                }
+                                for (int i = 0; i < removeList.Count; i++)
+                                {
+                                    StatusCode s = remResults.Count > i
+                                        ? remResults[i]
+                                        : StatusCodes.Bad;
+                                    edgeApplied[removeList[i]] = s;
+                                    // A failed remove means the server
+                                    // still has the link; preserve the
+                                    // desired state to match (don't
+                                    // undo the optimistic remove we
+                                    // did during validation).
+                                    if (StatusCode.IsBad(s) &&
+                                        removeList[i] is MonitoredItem mi)
+                                    {
+                                        mi.AddDesiredTriggeredBy(trig.Name);
+                                    }
                                 }
                             }
                         }
+                        else if (serviceResult.Code ==
+                            StatusCodes.BadSubscriptionIdInvalid)
+                        {
+                            // Recoverable via subscription recreate:
+                            // KEEP the optimistic desired-state and
+                            // re-queue. Rolling back here would leave
+                            // snapshots/navigation showing no link
+                            // during recovery; the retry path will
+                            // re-issue against the recreated
+                            // subscription with the correct intent.
+                            foreach (TriggeringOperation o in ops)
+                            {
+                                toRequeue.Add(o);
+                            }
+                            continue;
+                        }
                         else
                         {
-                            // Service-level error: roll back the
-                            // optimistic desired-state changes for
+                            // Service-level terminal error: roll back
+                            // the optimistic desired-state changes for
                             // every affected item.
                             RollbackDesired(addList, removeList, trig.Name);
-                            // Bad_SubscriptionIdInvalid is recoverable
-                            // via subscription recreate; re-queue
-                            // rather than fail terminally.
-                            if (serviceResult.Code ==
-                                StatusCodes.BadSubscriptionIdInvalid)
-                            {
-                                foreach (TriggeringOperation o in ops)
-                                {
-                                    toRequeue.Add(o);
-                                }
-                                continue;
-                            }
                             foreach (IMonitoredItem item in addList)
                             {
                                 edgeApplied[item] = serviceResult;
@@ -1258,7 +1472,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     }
                     catch (Exception ex)
                     {
-                        RollbackDesired(addList, removeList, trig.Name);
                         m_logger.LogError(ex,
                             "{Subscription}: SetTriggering for " +
                             "triggering item {Name} failed.",
@@ -1269,12 +1482,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         if (failStatus.Code ==
                             StatusCodes.BadSubscriptionIdInvalid)
                         {
+                            // Recoverable: KEEP desired-state and
+                            // re-queue. Same rationale as the
+                            // service-result path above.
                             foreach (TriggeringOperation o in ops)
                             {
                                 toRequeue.Add(o);
                             }
                             continue;
                         }
+                        // Terminal: rollback the optimistic desired
+                        // state so the local view matches what the
+                        // server didn't apply.
+                        RollbackDesired(addList, removeList, trig.Name);
                         foreach (IMonitoredItem item in addList)
                         {
                             edgeApplied[item] = failStatus;
@@ -1347,23 +1567,26 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 trig, addOut, remOut, status));
         }
 
-        private static void RollbackDesired(
+        private void RollbackDesired(
             List<IMonitoredItem> add,
             List<IMonitoredItem> remove,
             string trigName)
         {
-            for (int i = 0; i < add.Count; i++)
+            lock (m_monitoredItemsLock)
             {
-                if (add[i] is MonitoredItem mi)
+                for (int i = 0; i < add.Count; i++)
                 {
-                    mi.RemoveDesiredTriggeredBy(trigName);
+                    if (add[i] is MonitoredItem mi)
+                    {
+                        mi.RemoveDesiredTriggeredBy(trigName);
+                    }
                 }
-            }
-            for (int i = 0; i < remove.Count; i++)
-            {
-                if (remove[i] is MonitoredItem mi)
+                for (int i = 0; i < remove.Count; i++)
                 {
-                    mi.AddDesiredTriggeredBy(trigName);
+                    if (remove[i] is MonitoredItem mi)
+                    {
+                        mi.AddDesiredTriggeredBy(trigName);
+                    }
                 }
             }
         }
@@ -1376,7 +1599,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <c>Bad_MonitoredItemIdInvalid</c> as a fallback).
         /// </summary>
         private const int MaxTriggeringRetryCount = 10;
+        private const int MaxPendingTriggeringEntries = 256;
         private readonly ConcurrentQueue<TriggeringOperation> m_triggeringOps = new();
+        // Pending unresolved declarative-path triggering deltas keyed by
+        // triggering-item name; inner dictionary folds per triggered
+        // item (last-intent wins). Protected by m_monitoredItemsLock.
+        private readonly Dictionary<string, Dictionary<IMonitoredItem, bool>>
+            m_pendingByTriggeringName =
+                new(StringComparer.Ordinal);
+        private int m_pendingTriggeringCount;
 
         private readonly IMonitoredItemManagerContext m_context;
         private readonly List<MonitoredItem> m_deletedItems = [];
