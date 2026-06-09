@@ -40,15 +40,15 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 {
     /// <summary>
     /// Unit tests for the static
-    /// <see cref="ManagedSessionClass.RunRevalidationLoopAsync"/> loop
-    /// body that drives debounced server-certificate revalidation for
-    /// trust-list and CRL changes (issue #3160 follow-up).
+    /// <c>ManagedSession.RunRevalidationLoopAsync</c> loop body that
+    /// drives debounced server-certificate revalidation for trust-list
+    /// and CRL changes (issue #3160 follow-up).
     /// </summary>
     /// <remarks>
     /// These tests use the real <see cref="TimeProvider.System"/> with
     /// a short debounce window so each test runs in well under a
-    /// second. A <see cref="FakeTimeProvider"/> seam was considered
-    /// but rejected because the loop's
+    /// second. A <c>FakeTimeProvider</c> seam was considered but
+    /// rejected because the loop's
     /// <c>ReadAsync → Delay → drain</c> sequence is racy to drive with
     /// a fake clock — the fake timer is not created until after the
     /// first signal has been consumed, so an early <c>Advance</c> is
@@ -61,8 +61,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     [SetUICulture("en-us")]
     public sealed class ManagedSessionRevalidationLoopTests
     {
-        private static readonly TimeSpan kShortDebounce = TimeSpan.FromMilliseconds(50);
-        private static readonly TimeSpan kSettleWindow = TimeSpan.FromMilliseconds(250);
+        private static readonly TimeSpan s_shortDebounce = TimeSpan.FromMilliseconds(50);
+        private static readonly TimeSpan s_settleWindow = TimeSpan.FromMilliseconds(250);
 
         [Test]
         public async Task BurstOfSignalsCollapsesToSingleValidationAsync()
@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task loop = ManagedSessionClass.RunRevalidationLoopAsync(
                 channel.Reader,
                 TimeProvider.System,
-                kShortDebounce,
+                s_shortDebounce,
                 _ =>
                 {
                     Interlocked.Increment(ref invocations);
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
 
             // Wait through the debounce + a safety window.
-            await Task.Delay(kShortDebounce + kSettleWindow).ConfigureAwait(false);
+            await Task.Delay(s_shortDebounce + s_settleWindow).ConfigureAwait(false);
 
             await CancelAndAwaitAsync(cts, loop).ConfigureAwait(false);
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task loop = ManagedSessionClass.RunRevalidationLoopAsync(
                 channel.Reader,
                 TimeProvider.System,
-                kShortDebounce,
+                s_shortDebounce,
                 async _ =>
                 {
                     int n = Interlocked.Increment(ref invocations);
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             // Release the first validation; the loop must observe the
             // pending signal and run validation exactly once more.
             firstCanComplete.TrySetResult(true);
-            await Task.Delay(kShortDebounce + kSettleWindow).ConfigureAwait(false);
+            await Task.Delay(s_shortDebounce + s_settleWindow).ConfigureAwait(false);
 
             await CancelAndAwaitAsync(cts, loop).ConfigureAwait(false);
 
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task loop = ManagedSessionClass.RunRevalidationLoopAsync(
                 channel.Reader,
                 TimeProvider.System,
-                kShortDebounce,
+                s_shortDebounce,
                 _ =>
                 {
                     Interlocked.Increment(ref invocations);
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 cts.Token);
 
             // Idle: no signals at all, wait a few debounce windows.
-            await Task.Delay(kShortDebounce * 4).ConfigureAwait(false);
+            await Task.Delay(s_shortDebounce * 4).ConfigureAwait(false);
 
             await CancelAndAwaitAsync(cts, loop).ConfigureAwait(false);
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task loop = ManagedSessionClass.RunRevalidationLoopAsync(
                 channel.Reader,
                 TimeProvider.System,
-                kShortDebounce,
+                s_shortDebounce,
                 _ =>
                 {
                     int n = Interlocked.Increment(ref invocations);
@@ -237,12 +237,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 cts.Token);
 
             channel.Writer.TryWrite(0);
-            await Task.Delay(kShortDebounce + kSettleWindow).ConfigureAwait(false);
+            await Task.Delay(s_shortDebounce + s_settleWindow).ConfigureAwait(false);
 
             // The first validation threw; the next signal must still
             // drive a fresh run.
             channel.Writer.TryWrite(0);
-            await Task.Delay(kShortDebounce + kSettleWindow).ConfigureAwait(false);
+            await Task.Delay(s_shortDebounce + s_settleWindow).ConfigureAwait(false);
 
             await CancelAndAwaitAsync(cts, loop).ConfigureAwait(false);
 
