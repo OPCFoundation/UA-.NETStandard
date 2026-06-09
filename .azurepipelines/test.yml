@@ -95,7 +95,7 @@ jobs:
     condition: ne(variables['fuzzingartifacts.secureFilePath'], '')
     inputs:
       archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
-      destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests
+      destinationFolder: ./Fuzzing/Opc.Ua.Encoders.Fuzz.Tests
       cleanDestinationFolder: false
       overwriteExistingFiles: true
     continueOnError: true

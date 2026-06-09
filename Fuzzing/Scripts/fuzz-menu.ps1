@@ -1,6 +1,6 @@
 <#
 Lists fuzz targets dynamically from a built fuzz host assembly.
-Usage: powershell -File Fuzzing\scripts\fuzz-menu.ps1 -AssemblyPath Fuzzing\Encoders\Fuzz\bin\Debug\net10.0\Encoders.Fuzz.dll
+Usage: powershell -File Fuzzing\Scripts\fuzz-menu.ps1 -AssemblyPath Fuzzing\Opc.Ua.Encoders.Fuzz\bin\Debug\net10.0\Opc.Ua.Encoders.Fuzz.dll
 Pass -Filter to narrow target names and -Index to emit a selected target name without prompting.
 Per-area libfuzz.* and aflfuzz.* wrappers can call this script to avoid hardcoded target menus.
 #>
