@@ -45,3 +45,43 @@ Typically the following porting steps are necessary:
 * **Breaking change**: There is currently no support for NodeManagers to *not* support the new transfer service. Unless the NodeManagers are all ported to support the monitored items transfer, build errors will prevent from using the latest 1.4.368 library.
 * There is no client sample for special use cases like e.g. the client restart in a docker container.
 * In some .NET Core 3.1 projects a warning CS8032 occurs due to missing analyzer. Current believe is this warning can be safely disabled.
+
+## Recovering from unsolicited `Good_SubscriptionTransferred`
+
+Per [OPC UA Part 4 §5.14.7](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.14.7) the server emits a `StatusChangeNotification` with `Good_SubscriptionTransferred` on the **old** Session whenever the subscription is transferred away to a **new** Session via `TransferSubscriptions`. The receiving Session is expected to treat the subscription as gone and stop dispatching for it.
+
+Some servers have been observed to deliver this notification against a subscription the client has just **freshly created** on its current Session — for example, Kepware after a server re-initialisation can leak the pre-restart subscription's pending status notifications onto the new session (especially noticeable because subscription identifiers are re-used starting at `1`). The client then sees the per-subscription dispatch silently disabled even though, from its point of view, the subscription is alive and should keep receiving data. Tracked as issue [#3540](https://github.com/OPCFoundation/UA-.NETStandard/issues/3540).
+
+To opt into automatic in-place recovery, set `SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer`:
+
+```csharp
+// Classic (V1) subscription
+var subscription = new Subscription(telemetry, options)
+{
+    RecoveryPolicy = SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer,
+    FastDataChangeCallback = OnDataChange
+};
+```
+
+```csharp
+// V2 subscription options
+var options = new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+{
+    PublishingEnabled = true,
+    RecoveryPolicy = SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer
+};
+```
+
+When the policy is `RecreateOnUnsolicitedTransfer` and a `Good_SubscriptionTransferred` arrives while the subscription is still actively owned by this Session, the SDK will:
+
+1. Drop every queued acknowledgement targeting the dead subscription id — this prevents `BadSubscriptionIdInvalid` ack errors on servers that re-use subscription identifiers across generations.
+2. Recreate the subscription on the **same** Session via `CreateSubscription`, obtaining a fresh server-side subscription identifier.
+3. Re-issue the monitored items so the data flow resumes against the new identifier.
+
+The default is `SubscriptionRecoveryPolicy.ReportOnly`, which preserves the spec-strict behaviour: the `PublishStateChangedMask.Transferred` flag is raised (V1) or `PublishState.Transferred` is dispatched (V2) so the application can react manually, and the per-subscription publish dispatch is stopped (V1) or left as a no-op (V2).
+
+### Caveats
+
+* Auto-recovery is **not** lossless failover. The server-side retransmission queue and any triggering relationships tied to the invalidated subscription identifier are lost; only the subscription's wire-level options and the configured monitored items are re-applied.
+* The recovery path runs against the same Session. If the Session itself is reconnecting, the V1 implementation defers to the reconnect pipeline rather than racing it; the V2 implementation lets the in-place recreate run when the subscription is `Created`.
+* The "unsolicited" classification is conservative — concurrent recovery dispatches collapse into one — but it does not attempt to detect every legitimate cross-session/cross-client failover. If your design relies on another Session/Client legitimately pulling subscriptions away via `TransferSubscriptions`, keep the default `ReportOnly` policy and handle the `PublishStatusChanged` event explicitly.

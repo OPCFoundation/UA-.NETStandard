@@ -595,6 +595,16 @@ namespace Opc.Ua.Client.Subscriptions
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
         internal readonly ILogger Logger;
         protected TimeProvider TimeProvider => m_timeProvider;
+
+        /// <summary>
+        /// Exposes the ack queue / completion sink supplied to the
+        /// processor so derived classes can interact with it without
+        /// reaching for a private field — used today by the recovery
+        /// path to drop stale acknowledgements before recreating a
+        /// subscription that the server has invalidated under us.
+        /// </summary>
+        protected IMessageAckQueue AckQueue => m_completion;
+
         private readonly TimeProvider m_timeProvider;
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: m_cts is disposed in DisposeAsync(bool) — suppressed because

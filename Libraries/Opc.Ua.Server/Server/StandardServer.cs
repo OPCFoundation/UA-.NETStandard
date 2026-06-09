@@ -3073,6 +3073,7 @@ namespace Opc.Ua.Server
                 currentConfiguration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
 
+                // Legacy Utils trace pipeline; kept for 1.5.378 -> 2.0 migration.
 #pragma warning disable CS0618 // Type or member is obsolete
                 currentConfiguration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -3414,6 +3415,13 @@ namespace Opc.Ua.Server
 
             // all initialization is complete.
             m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
+
+            // Surface the live transport listener registry through the
+            // ITransportListenerRegistryProvider so consumers such as
+            // ConfigurationNodeManager can drive post-response channel
+            // cuts after ApplyChanges (OPC UA Part 12 §7.10.9).
+            m_serverInternal.SetTransportListenerRegistry(TransportListeners.AsReadOnly());
+
             OnServerStarted(m_serverInternal);
 
             // monitor the configuration file.

@@ -41,6 +41,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+    <!-- The shim provides the obsolete static helpers (ExtensionObject.ToArray / ToList, etc.)
+         that ExtensionObjectTests asserts on. Remove this reference once the tests are migrated
+         to the modern API. -->
+    <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />

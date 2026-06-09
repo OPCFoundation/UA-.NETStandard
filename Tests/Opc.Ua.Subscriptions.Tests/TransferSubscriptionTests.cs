@@ -157,7 +157,11 @@ namespace Opc.Ua.Subscriptions.Tests
                     .ConfigureAwait(false);
                 // The test goal is to verify subscription transfer on the target session.
                 // Accept transient transport-race close codes when the V2 publisher's
-                // outstanding Publish raced the CloseSession service call.
+                // outstanding Publish raced the CloseSession service call. Some races
+                // produce BadSessionIdInvalid (server-side cleanup completed before
+                // the close request reached it) and BadInvalidState (channel teardown
+                // ordering on the client side) — both equivalent to "session already
+                // gone" for the purposes of this test.
                 if (!ServiceResult.IsGood(close))
                 {
                     Assert.That(close.Code, Is.AnyOf(
@@ -165,7 +169,9 @@ namespace Opc.Ua.Subscriptions.Tests
                         StatusCodes.BadCommunicationError,
                         StatusCodes.BadConnectionClosed,
                         StatusCodes.BadSecureChannelClosed,
-                        StatusCodes.BadSessionClosed),
+                        StatusCodes.BadSessionClosed,
+                        StatusCodes.BadSessionIdInvalid,
+                        StatusCodes.BadInvalidState),
                         $"Unexpected close status: {close}");
                     TestContext.Out.WriteLine(
                         $"CloseAsync returned transient transport-race code {close} — tolerated.");

@@ -295,6 +295,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             StringComparison.Ordinal
                         );
                         config.TraceConfiguration.DeleteOnLoad = true;
+                        // TODO: remove this in 2.0 migration; use telemetry.ConfigureLogging below.
 #pragma warning disable CS0618 // Type or member is obsolete
                         config.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete

@@ -293,6 +293,41 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public int DropPendingForSubscription(uint subscriptionId)
+        {
+            // Drain the prioritised channel into a local buffer,
+            // keeping only the acks that do not target the dead
+            // subscription id, then re-publish the kept items.
+            // Concurrent workers may interleave reads or writes
+            // during this loop; that is intentional — a worker
+            // racing in is acceptable because (a) any ack it reads
+            // would have been sent to the server anyway, (b) any
+            // ack it writes is queued back into the channel. The
+            // contract is "no targeted acks remain when this
+            // method returns" — callers must invoke it BEFORE
+            // recreate assigns a fresh subscription id so a new
+            // generation cannot enter the queue.
+            var keep = new List<SubscriptionAcknowledgement>();
+            int dropped = 0;
+            while (m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack))
+            {
+                if (ack.SubscriptionId == subscriptionId)
+                {
+                    dropped++;
+                }
+                else
+                {
+                    keep.Add(ack);
+                }
+            }
+            foreach (SubscriptionAcknowledgement ack in keep)
+            {
+                m_acks.Writer.TryWrite(ack);
+            }
+            return dropped;
+        }
+
+        /// <inheritdoc/>
         public ValueTask CompleteAsync(uint subscriptionId, CancellationToken ct)
         {
             IManagedSubscription? subscription;
