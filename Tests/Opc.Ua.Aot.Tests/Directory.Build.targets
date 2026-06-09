@@ -1,0 +1,22 @@
+<Project>
+  <!--
+    Skip restore/build/pack for this .NET 10+-only test project when the
+    CI build matrix restricts to a legacy TFM it cannot target (PublishAot
+    and the TUnit native-AOT scenarios require .NET 10).  The project still
+    loads in the .slnx graph but produces no outputs, so a single
+    `dotnet build UA.slnx -p:CustomTestTarget=net48` (etc.) doesn't fail on
+    this project or its references to the equally-skipped
+    MinimalBoilerServer / MinimalCalcServer aliases.
+
+    Targets are defined in Directory.Build.targets (not the csproj) so they
+    run AFTER the SDK targets and actually replace the SDK definitions.
+  -->
+  <PropertyGroup>
+    <_RestrictedToLegacyTfm Condition="'$(CustomTestTarget)' == 'net48' or '$(CustomTestTarget)' == 'net472' or '$(CustomTestTarget)' == 'netstandard2.0' or '$(CustomTestTarget)' == 'netstandard2.1'">true</_RestrictedToLegacyTfm>
+  </PropertyGroup>
+  <Target Name="Restore" Condition="'$(_RestrictedToLegacyTfm)' == 'true'" />
+  <Target Name="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+    <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
+  </Target>
+  <Target Name="Pack" Condition="'$(_RestrictedToLegacyTfm)' == 'true'" />
+</Project>
