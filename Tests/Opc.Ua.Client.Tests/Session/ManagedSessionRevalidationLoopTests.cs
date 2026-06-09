@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 cts.Token);
 
             // Idle: no signals at all, wait a few debounce windows.
-            await Task.Delay(s_shortDebounce * 4).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromTicks(s_shortDebounce.Ticks * 4)).ConfigureAwait(false);
 
             await CancelAndAwaitAsync(cts, loop).ConfigureAwait(false);
 
