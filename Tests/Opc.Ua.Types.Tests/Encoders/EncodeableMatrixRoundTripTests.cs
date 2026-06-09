@@ -27,7 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.IO;
 using System.Runtime.Serialization;
+using System.Text;
+using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -153,6 +156,78 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PopNamespace();
 
             AssertMatricesEqual(input, output);
+        }
+
+        /// <summary>
+        /// Verifies XmlEncoder.WriteEncodeableMatrix &lt;-&gt;
+        /// XmlDecoder.ReadEncodeableMatrix&lt;T&gt;(name) round trip
+        /// (the streaming XML decoder, not the in-memory XmlParser).
+        /// </summary>
+        [Test]
+        public void XmlDecoderReadEncodeableMatrixNoEncodingIdRoundTrips()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            MatrixOf<MatrixSample> input = CreateSample();
+
+            string xml;
+            using (var encoder = new XmlEncoder(ctx))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteEncodeableMatrix("Matrix", input);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            using var reader = XmlReader.Create(
+                stream,
+                CoreUtils.DefaultXmlReaderSettings());
+            using var decoder = new XmlDecoder(reader, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            MatrixOf<MatrixSample> output =
+                decoder.ReadEncodeableMatrix<MatrixSample>("Matrix");
+            decoder.PopNamespace();
+
+            AssertMatricesEqual(input, output);
+        }
+
+        /// <summary>
+        /// Verifies JsonEncoder.WriteEncodeableMatrix &lt;-&gt;
+        /// JsonDecoder.ReadEncodeableMatrix&lt;T&gt;(name) round trip.
+        /// </summary>
+        [Test]
+        public void JsonDecoderReadEncodeableMatrixNoEncodingIdRoundTrips()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            MatrixOf<MatrixSample> input = CreateSample();
+
+            string json;
+            using (var encoder = new JsonEncoder(ctx))
+            {
+                encoder.WriteEncodeableMatrix("Matrix", input);
+                json = encoder.CloseAndReturnText();
+            }
+            using var decoder = new JsonDecoder(json, ctx);
+            MatrixOf<MatrixSample> output =
+                decoder.ReadEncodeableMatrix<MatrixSample>("Matrix");
+
+            AssertMatricesEqual(input, output);
+        }
+
+        /// <summary>
+        /// Verifies the JSON read returns a default
+        /// <see cref="MatrixOf{T}"/> when the field is missing from the
+        /// encoded payload.
+        /// </summary>
+        [Test]
+        public void JsonDecoderReadEncodeableMatrixNoEncodingIdMissingFieldReturnsDefault()
+        {
+            ServiceMessageContext ctx = CreateContext();
+
+            using var decoder = new JsonDecoder("{}", ctx);
+            MatrixOf<MatrixSample> output =
+                decoder.ReadEncodeableMatrix<MatrixSample>("Matrix");
+
+            Assert.That(output.IsNull, Is.True);
         }
 
         /// <summary>
