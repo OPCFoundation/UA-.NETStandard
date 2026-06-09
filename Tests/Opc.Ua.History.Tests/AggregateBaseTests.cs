@@ -553,19 +553,12 @@ namespace Opc.Ua.History.Tests
 
                 Assert.That(response.Results.Count, Is.EqualTo(1));
                 StatusCode sc = response.Results[0].StatusCode;
-                // Spec §4.2.1.2 mandates Bad_AggregateInvalidInputs for inputs > 100, but some
-                // servers tolerate by returning Good with no useful data. Accept either path; the
-                // service must not throw and the result must be deterministic.
-                Assert.That(response.Results[0], Is.Not.Null);
-                if (StatusCode.IsBad(sc))
-                {
-                    Assert.That(
-                        sc.Code,
-                        Is.EqualTo(StatusCodes.BadAggregateInvalidInputs)
-                            .Or.EqualTo(StatusCodes.BadAggregateConfigurationRejected)
-                            .Or.EqualTo(StatusCodes.BadAggregateNotSupported),
-                        $"Unexpected Bad code for PercentData > 100: {sc}.");
-                }
+
+                Assert.That(
+                    sc.Code,
+                    Is.EqualTo(StatusCodes.BadAggregateInvalidInputs)
+                        .Or.EqualTo(StatusCodes.BadAggregateConfigurationRejected),
+                    $"Invalid PercentData inputs must be rejected; got {sc}.");
             }
             catch (ServiceResultException ex)
             {
@@ -612,8 +605,13 @@ namespace Opc.Ua.History.Tests
                     CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(response.Results.Count, Is.EqualTo(1));
-                Assert.That(response.Results[0], Is.Not.Null);
-            }
+                StatusCode sc = response.Results[0].StatusCode;
+
+                Assert.That(
+                    sc.Code,
+                    Is.EqualTo(StatusCodes.BadAggregateInvalidInputs)
+                        .Or.EqualTo(StatusCodes.BadAggregateConfigurationRejected),
+                    $"Invalid AggregateConfiguration inputs must be rejected; got {sc}.");
             catch (ServiceResultException ex)
             {
                 Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
