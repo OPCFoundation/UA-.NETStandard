@@ -53,7 +53,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0009DataContractToDataTypeAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0009_DataContractToDataType);
+            [DiagnosticDescriptors.UA0009_DataContractToDataType];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -65,7 +65,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private static void OnCompilationStart(CompilationStartAnalysisContext context)
         {
             Dictionary<Compilation, UaSymbols> cache = [];
-            UaSymbols symbols = UaSymbols.For(context.Compilation, cache);
+            var symbols = UaSymbols.For(context.Compilation, cache);
             if (symbols.DataContractType is null || symbols.DataMemberType is null)
             {
                 return;
@@ -75,7 +75,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeNamedType(SymbolAnalysisContext context, UaSymbols symbols)
         {
-            INamedTypeSymbol type = (INamedTypeSymbol)context.Symbol;
+            var type = (INamedTypeSymbol)context.Symbol;
             if (type.TypeKind != TypeKind.Class)
             {
                 return;

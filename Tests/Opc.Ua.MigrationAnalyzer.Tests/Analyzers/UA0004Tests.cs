@@ -56,7 +56,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0004 = diags.SingleOrDefault(d => d.Id == "UA0004");
             Assert.That(ua0004, Is.Not.Null, "Expected UA0004 to fire on nodeId?.NamespaceIndex.");
@@ -77,7 +78,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0004"), Is.True,
                 "Expected UA0004 to fire on dv?.IsGood.");
@@ -94,7 +96,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0004"), Is.False,
                 "Conditional access on string must not trigger UA0004.");
@@ -112,7 +115,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0004ConditionalAccessOnStructAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0004"), Is.False,
                 "Plain member access without '?.' must not trigger UA0004.");
@@ -139,7 +143,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0004ConditionalAccessOnStructAnalyzer(),
                 new UA0004ConditionalAccessOnStructCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

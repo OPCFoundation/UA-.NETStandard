@@ -47,13 +47,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// <c>ISession.CallAsync</c> with <c>Variant.From(...)</c> (replacing
     /// <c>null</c> literals with <c>Variant.Null</c>).
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0008SessionCallParamsObjectCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0008SessionCallParamsObjectCodeFix))]
+    [Shared]
     public sealed class UA0008SessionCallParamsObjectCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0008);
+            [DiagnosticIds.UA0008];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
@@ -96,7 +100,7 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
             int firstVariadicIndex = methodName == "Call" ? 2 : 3;
             SeparatedSyntaxList<ArgumentSyntax> originalArgs = invocation.ArgumentList.Arguments;
 
-            List<ArgumentSyntax> newArgs = new List<ArgumentSyntax>(originalArgs.Count);
+            var newArgs = new List<ArgumentSyntax>(originalArgs.Count);
             for (int i = 0; i < originalArgs.Count; i++)
             {
                 ArgumentSyntax arg = originalArgs[i];

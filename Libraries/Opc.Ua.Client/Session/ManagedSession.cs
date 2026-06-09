@@ -119,7 +119,6 @@ namespace Opc.Ua.Client
         /// <param name="sessionFactory">The session factory to use for
         /// creating sessions.</param>
         /// <param name="identity">Optional user identity.</param>
-        /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="reconnectPolicy">Optional reconnect policy.
         /// Defaults to <see cref="ReconnectPolicy"/>.</param>
         /// <param name="redundancyHandler">Optional redundancy handler.
@@ -149,6 +148,7 @@ namespace Opc.Ua.Client
         /// release them back to their activator pools. Default
         /// <c>false</c>. See <c>ManagedSessionOptions.PoolNotifications</c>
         /// for the retain-by-copy contract.</param>
+        /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="timeProvider">Optional time provider for proactive refresh.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
@@ -868,6 +868,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Refreshes the user identity on the connected inner session.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         public async ValueTask UpdateIdentityAsync(
             IClientIdentityProvider provider,
             CancellationToken ct = default)

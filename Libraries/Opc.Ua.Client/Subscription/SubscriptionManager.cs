@@ -399,6 +399,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// fluent helpers and the serializer cast to the concrete
         /// <see cref="SubscriptionManager"/> to reach this method.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="handler"/> is <c>null</c>.</exception>
         internal ValueTask<ISubscription> RestoreAsync(
             ISubscriptionNotificationHandler handler,
             SubscriptionStateSnapshot state,

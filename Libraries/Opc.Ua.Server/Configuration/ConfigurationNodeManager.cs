@@ -547,7 +547,8 @@ namespace Opc.Ua.Server
             }
 
             NodeState? node = FindPredefinedNode<NodeState>(
-                KeyCredentialPushSubject.StandardConfigurationFolderNodeId) ?? await Server.NodeManager
+                KeyCredentialPushSubject.StandardConfigurationFolderNodeId) ??
+                await Server.NodeManager
                     .FindNodeInAddressSpaceAsync(KeyCredentialPushSubject.StandardConfigurationFolderNodeId, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1207,6 +1208,7 @@ namespace Opc.Ua.Server
         /// certificate with the requested subject / DNS / IP and lifetime,
         /// stores it, and returns the DER-encoded public certificate.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ValueTask<CreateSelfSignedCertificateMethodStateResult>
             CreateSelfSignedCertificateAsync(
             ISystemContext context,
@@ -1581,7 +1583,7 @@ namespace Opc.Ua.Server
                     // ITransportListenerCertificateRotation.
                     IReadOnlyList<ITransportListener> listeners
                         = (Server as ITransportListenerRegistryProvider)?.TransportListeners
-                          ?? [];
+                            ?? [];
 
                     int totalCut = 0;
                     foreach (PendingCertificateRotation rotation in rotations)

@@ -469,9 +469,9 @@ namespace Alarms
                 m_suppressionEngine = new AlarmSuppressionEngine();
                 m_suppressionEngine.RegisterSuppressionGroup(
                     m_analogGroup.State,
-                    () => m_maintenanceMode != null
-                          && m_maintenanceMode.Value.TryGetValue(out bool b)
-                          && b,
+                    () => m_maintenanceMode != null &&
+                        m_maintenanceMode.Value.TryGetValue(out bool b) &&
+                        b,
                     [.. GetAlarmStates()]);
 
                 await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);

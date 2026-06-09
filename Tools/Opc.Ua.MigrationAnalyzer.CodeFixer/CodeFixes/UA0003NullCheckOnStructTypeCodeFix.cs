@@ -46,13 +46,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// <c>x.IsNullOrEmpty</c> for LocalizedText) and <c>x != null</c> as the
     /// negated form.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0003NullCheckOnStructTypeCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0003NullCheckOnStructTypeCodeFix))]
+    [Shared]
     public sealed class UA0003NullCheckOnStructTypeCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0003);
+            [DiagnosticIds.UA0003];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
@@ -108,7 +112,7 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
                 SyntaxFactory.IdentifierName(memberName));
 
             ExpressionSyntax replacement = binary.IsKind(SyntaxKind.EqualsExpression)
-                ? (ExpressionSyntax)access
+                ? access
                 : SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, access);
 
             replacement = replacement.WithTriviaFrom(binary);

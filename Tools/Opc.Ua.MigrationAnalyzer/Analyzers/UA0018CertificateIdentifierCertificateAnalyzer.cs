@@ -48,7 +48,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private const string CertificateIdentifierTypeSuffix = "CertificateIdentifier";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0018_CertificateIdentifierCertificateGetter);
+            [DiagnosticDescriptors.UA0018_CertificateIdentifierCertificateGetter];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -59,7 +59,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzePropertyReference(OperationAnalysisContext context)
         {
-            IPropertyReferenceOperation reference = (IPropertyReferenceOperation)context.Operation;
+            var reference = (IPropertyReferenceOperation)context.Operation;
             IPropertySymbol property = reference.Property;
             if (property is null || property.Name != CertificatePropertyName)
             {
@@ -83,8 +83,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 string typeName = containing.Name;
                 if (typeName is null ||
                     !(typeName == CertificateIdentifierTypeSuffix ||
-                      typeName.EndsWith(CertificateIdentifierTypeSuffix, System.StringComparison.Ordinal) ||
-                      typeName.Contains(CertificateIdentifierTypeSuffix)))
+                        typeName.EndsWith(CertificateIdentifierTypeSuffix, System.StringComparison.Ordinal) ||
+                        typeName.Contains(CertificateIdentifierTypeSuffix)))
                 {
                     return;
                 }
