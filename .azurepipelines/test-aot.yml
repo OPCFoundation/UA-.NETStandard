@@ -31,7 +31,7 @@ jobs:
 - job: testaotprep${{ parameters.jobnamesuffix }}
   displayName: Prepare AoT Test Jobs ${{ parameters.configuration }}
   pool:
-    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+    ${{ if ne(parameters.poolName, '') }}:
       name: ${{ parameters.poolName }}
       demands:
         - ImageOverride -equals ${{ parameters.windowsImage }}

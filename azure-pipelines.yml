@@ -96,6 +96,8 @@ stages:
       jobnamesuffix: net100
       customtestarget: net10.0
       hosted: true
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
@@ -128,6 +130,8 @@ stages:
       jobnamesuffix: net100debugmac
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -148,6 +152,8 @@ stages:
       jobnamesuffix: net90mac
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -168,6 +174,8 @@ stages:
       jobnamesuffix: net80mac
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -218,6 +226,8 @@ stages:
       customtestarget: netstandard2.1
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: coverage
   dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'

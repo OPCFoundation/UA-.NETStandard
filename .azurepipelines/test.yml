@@ -37,7 +37,7 @@ jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
   pool:
-    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+    ${{ if ne(parameters.poolName, '') }}:
       name: ${{ parameters.poolName }}
       demands:
         - ImageOverride -equals ${{ parameters.windowsImage }}
