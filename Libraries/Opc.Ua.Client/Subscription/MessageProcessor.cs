@@ -609,6 +609,7 @@ namespace Opc.Ua.Client.Subscriptions
         // the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213
         private readonly CancellationTokenSource m_cts = new();
+#pragma warning restore CA2213
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
     }
