@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests
                         .FindNodeInAddressSpaceAsync(suppressedNodeId)
                         .ConfigureAwait(false);
                     Assert.That(node, Is.Null,
-                        $"NodeId {suppressedNodeId} should not be exposed as an SDK does not " +
+                        $"NodeId {suppressedNodeId} should not be exposed because the SDK does not " +
                         "implement it. See issue #3768.");
                 }
 

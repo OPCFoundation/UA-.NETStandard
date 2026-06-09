@@ -540,8 +540,9 @@ namespace Opc.Ua.Server
             // well-known singleton-instance NodeId so the address-space
             // matches master (see AddServerSdkOptionalChildren for the
             // rationale). The OperationLimits child needs its sub-tree
-            // populated, so retrieve it via AddAndGetOperationLimits to
-            // continue with AddOperationLimitsSdkOptionalChildren.
+            // populated, so access the typed slot via
+            // .AddOperationLimits(...).OperationLimits! to continue chaining
+            // the operational-limit Properties.
             serverCapabilities
                 .AddMaxArrayLength(context, VariableIds.Server_ServerCapabilities_MaxArrayLength)
                 .AddMaxStringLength(context, VariableIds.Server_ServerCapabilities_MaxStringLength)

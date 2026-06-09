@@ -197,7 +197,15 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            var activeNode = new ServerConfigurationState(passiveNode.Parent);
+                            // Reuse the passive node if it is already a
+                            // ServerConfigurationState (i.e. the predefined
+                            // node loader handed us a typed instance);
+                            // otherwise promote the loaded BaseObjectState
+                            // to its typed counterpart so the SDK can wire
+                            // Optional methods and behaviours.
+                            ServerConfigurationState activeNode =
+                                passiveNode as ServerConfigurationState
+                                ?? new ServerConfigurationState(passiveNode.Parent);
 
                             // Optional ServerConfigurationType methods this
                             // SDK wires in CreateServerConfiguration but that
@@ -214,20 +222,26 @@ namespace Opc.Ua.Server
                                 .AddGetCertificates(context)
                                 .AddCreateSelfSignedCertificate(context);
 
-                            activeNode.Create(context, passiveNode);
+                            if (!ReferenceEquals(activeNode, passiveNode))
+                            {
+                                activeNode.Create(context, passiveNode);
+                            }
 
                             m_serverConfigurationNode = activeNode;
 
-                            // replace the node in the parent.
-                            if (passiveNode.Parent != null)
+                            if (!ReferenceEquals(activeNode, passiveNode))
                             {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
-                            else
-                            {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                    .ConfigureAwait(false);
-                                serverNode?.ReplaceChild(context, activeNode);
+                                // replace the node in the parent.
+                                if (passiveNode.Parent != null)
+                                {
+                                    passiveNode.Parent.ReplaceChild(context, activeNode);
+                                }
+                                else
+                                {
+                                    NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
+                                        .ConfigureAwait(false);
+                                    serverNode?.ReplaceChild(context, activeNode);
+                                }
                             }
                             // remove the reference to server node because it is set as parent
                             activeNode.RemoveReference(

@@ -802,74 +802,50 @@ namespace Opc.Ua.Server
             serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
                 m_configuration.ServerConfiguration.MaxSubscriptionCount);
 
-            // Operational-limit Properties are added selectively by
-            // DiagnosticsNodeManager.LoadPredefinedNodesAsync based on which
-            // configured values are non-zero (Part 5 §6.3.4: any exposed
-            // operational-limit Property shall have a non-zero value).
-            // Here we just set the values for the Properties that were
-            // added.
+            // Operational-limit Properties: per Part 5 §6.3.4, any exposed
+            // operational-limit Property shall have a non-zero value.
+            // DiagnosticsNodeManager.LoadPredefinedNodesAsync lazy-adds the
+            // typed slots for every Property; here we either set the value
+            // when the configured value is non-zero, or null out the typed
+            // slot so the Property is not exposed in the address space.
             OperationLimitsState? operationLimits = serverCapabilities.OperationLimits;
             OperationLimits configOperationLimits = m_configuration.ServerConfiguration
                 .OperationLimits;
             if (operationLimits != null && configOperationLimits != null)
             {
-                if (operationLimits.MaxNodesPerRead != null)
-                {
-                    operationLimits.MaxNodesPerRead.Value = configOperationLimits.MaxNodesPerRead;
-                }
-                if (operationLimits.MaxNodesPerHistoryReadData != null)
-                {
-                    operationLimits.MaxNodesPerHistoryReadData.Value =
-                        configOperationLimits.MaxNodesPerHistoryReadData;
-                }
-                if (operationLimits.MaxNodesPerHistoryReadEvents != null)
-                {
-                    operationLimits.MaxNodesPerHistoryReadEvents.Value =
-                        configOperationLimits.MaxNodesPerHistoryReadEvents;
-                }
-                if (operationLimits.MaxNodesPerWrite != null)
-                {
-                    operationLimits.MaxNodesPerWrite.Value = configOperationLimits.MaxNodesPerWrite;
-                }
-                if (operationLimits.MaxNodesPerHistoryUpdateData != null)
-                {
-                    operationLimits.MaxNodesPerHistoryUpdateData.Value =
-                        configOperationLimits.MaxNodesPerHistoryUpdateData;
-                }
-                if (operationLimits.MaxNodesPerHistoryUpdateEvents != null)
-                {
-                    operationLimits.MaxNodesPerHistoryUpdateEvents.Value =
-                        configOperationLimits.MaxNodesPerHistoryUpdateEvents;
-                }
-                if (operationLimits.MaxNodesPerMethodCall != null)
-                {
-                    operationLimits.MaxNodesPerMethodCall.Value =
-                        configOperationLimits.MaxNodesPerMethodCall;
-                }
-                if (operationLimits.MaxNodesPerBrowse != null)
-                {
-                    operationLimits.MaxNodesPerBrowse.Value = configOperationLimits.MaxNodesPerBrowse;
-                }
-                if (operationLimits.MaxNodesPerRegisterNodes != null)
-                {
-                    operationLimits.MaxNodesPerRegisterNodes.Value =
-                        configOperationLimits.MaxNodesPerRegisterNodes;
-                }
-                if (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds != null)
-                {
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds.Value =
-                        configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
-                }
-                if (operationLimits.MaxNodesPerNodeManagement != null)
-                {
-                    operationLimits.MaxNodesPerNodeManagement.Value =
-                        configOperationLimits.MaxNodesPerNodeManagement;
-                }
-                if (operationLimits.MaxMonitoredItemsPerCall != null)
-                {
-                    operationLimits.MaxMonitoredItemsPerCall.Value =
-                        configOperationLimits.MaxMonitoredItemsPerCall;
-                }
+                operationLimits.MaxNodesPerRead = ApplyOrHide(
+                    operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
+                operationLimits.MaxNodesPerHistoryReadData = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryReadData,
+                    configOperationLimits.MaxNodesPerHistoryReadData);
+                operationLimits.MaxNodesPerHistoryReadEvents = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryReadEvents,
+                    configOperationLimits.MaxNodesPerHistoryReadEvents);
+                operationLimits.MaxNodesPerWrite = ApplyOrHide(
+                    operationLimits.MaxNodesPerWrite, configOperationLimits.MaxNodesPerWrite);
+                operationLimits.MaxNodesPerHistoryUpdateData = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryUpdateData,
+                    configOperationLimits.MaxNodesPerHistoryUpdateData);
+                operationLimits.MaxNodesPerHistoryUpdateEvents = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryUpdateEvents,
+                    configOperationLimits.MaxNodesPerHistoryUpdateEvents);
+                operationLimits.MaxNodesPerMethodCall = ApplyOrHide(
+                    operationLimits.MaxNodesPerMethodCall,
+                    configOperationLimits.MaxNodesPerMethodCall);
+                operationLimits.MaxNodesPerBrowse = ApplyOrHide(
+                    operationLimits.MaxNodesPerBrowse, configOperationLimits.MaxNodesPerBrowse);
+                operationLimits.MaxNodesPerRegisterNodes = ApplyOrHide(
+                    operationLimits.MaxNodesPerRegisterNodes,
+                    configOperationLimits.MaxNodesPerRegisterNodes);
+                operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ApplyOrHide(
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
+                    configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                operationLimits.MaxNodesPerNodeManagement = ApplyOrHide(
+                    operationLimits.MaxNodesPerNodeManagement,
+                    configOperationLimits.MaxNodesPerNodeManagement);
+                operationLimits.MaxMonitoredItemsPerCall = ApplyOrHide(
+                    operationLimits.MaxMonitoredItemsPerCall,
+                    configOperationLimits.MaxMonitoredItemsPerCall);
             }
 
             // setup PublishSubscribe Status State value
@@ -999,6 +975,28 @@ namespace Opc.Ua.Server
             {
                 m_roleStateBinding = RoleStateBinding.Bind(diagnosticsCustom, RoleManager, this);
             }
+        }
+
+        /// <summary>
+        /// Per Part 5 §6.3.4, any exposed operational-limit Property shall
+        /// have a non-zero value. Returns the slot unchanged with its
+        /// <see cref="PropertyState{T}.Value"/> set when
+        /// <paramref name="value"/> is non-zero, or <c>null</c> when the
+        /// value is zero so the Property is hidden from the address space.
+        /// </summary>
+        private static PropertyState<uint>? ApplyOrHide(
+            PropertyState<uint>? slot, uint value)
+        {
+            if (slot == null)
+            {
+                return null;
+            }
+            if (value == 0)
+            {
+                return null;
+            }
+            slot.Value = value;
+            return slot;
         }
 
         /// <summary>
