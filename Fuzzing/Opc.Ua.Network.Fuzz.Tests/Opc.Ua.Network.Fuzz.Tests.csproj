@@ -7,11 +7,11 @@
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
-    <Compile Include="..\Fuzz\FuzzableCode.*.cs" Link="%(FileName)%(Extension)" />
-    <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
-    <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
-    <Compile Include="..\..\common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
+    <Compile Include="..\Opc.Ua.Network.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.Network.Fuzz\FuzzableCode.*.cs" Link="%(FileName)%(Extension)" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -29,43 +29,43 @@
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Bindings.Pcap\Opc.Ua.Bindings.Pcap.csproj" />
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\..\Tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Pcap\Opc.Ua.Bindings.Pcap.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\..\Tests\Common\Main.cs" />
+    <Compile Include="..\..\Tests\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Fuzz\Testcases.Tcp\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Chunks\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Chunks\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Keys\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Keys\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Tcp.Hello\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Hello\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Tcp.Ack\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Ack\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Tcp.Err\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Err\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Tcp.Rhe\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Rhe\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Fuzz\Testcases.Tcp.AsymHdr\**\*.*">
+    <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.AsymHdr\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -10,15 +10,15 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
-    <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
-    <Compile Include="..\Fuzz\FuzzableCode.BuiltInTypes.cs" Link="FuzzableCode.BuiltInTypes.cs" />
-    <Compile Include="..\Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
-    <Compile Include="..\Fuzz\FuzzableCode.Parsers.cs" Link="FuzzableCode.Parsers.cs" />
-    <Compile Include="..\Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />
-    <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
-    <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
-    <Compile Include="..\..\common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.BuiltInTypes.cs" Link="FuzzableCode.BuiltInTypes.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.Parsers.cs" Link="FuzzableCode.Parsers.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -36,55 +36,36 @@
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\..\Tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\..\Tests\Common\Main.cs" />
+    <Compile Include="..\..\Tests\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Fuzz\Testcases.Binary\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
-    </None>
-    <None Include="..\Fuzz\Testcases.Json\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
-    </None>
-    <None Include="..\Fuzz\Testcases.Xml\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
-    </None>
-    <None Include="..\Fuzz\Testcases.BuiltInTypes\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
-    </None>
-    <None Include="..\Fuzz\Testcases.Parsers\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="..\Fuzz\Testcases.Binary\**\*.*">
+    <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Binary\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="..\Fuzz\Testcases.Json\**\*.*">
+    <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Json\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="..\Fuzz\Testcases.Xml\**\*.*">
+    <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Xml\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="..\Fuzz\Testcases.BuiltInTypes\**\*.*">
+    <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.BuiltInTypes\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="..\Fuzz\Testcases.Parsers\**\*.*">
+    <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Parsers\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

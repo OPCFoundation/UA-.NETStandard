@@ -40,8 +40,14 @@ namespace Opc.Ua.Fuzzing
         /// Relative folder references for testcases and findings,
         /// for when Fuzz.Tools is started from a Visual Studio project.
         /// </summary>
-        public static readonly string RootFolder = "../../../../";
-        public static readonly string DefaultTestcasesFolder = RootFolder + "Fuzz/Testcases";
+        public static readonly string RootFolder = "../../../";
+
+        private static readonly string s_areaName =
+            typeof(Program).Assembly.GetName().Name?.Replace(".Fuzz.Tools", string.Empty)
+            ?? "Unknown";
+
+        public static readonly string DefaultTestcasesFolder =
+            RootFolder + "../" + s_areaName + ".Fuzz.Corpus/Testcases";
         public static readonly string DefaultFindingsCrashFolder = RootFolder + "findings/crashes/";
         public static readonly string DefaultFindingsHangsFolder = RootFolder + "findings/hangs/";
         public static readonly string DefaultLibFuzzerCrashes = RootFolder + "crash-*";
