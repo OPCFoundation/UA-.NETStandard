@@ -12,10 +12,13 @@
   <ItemGroup>
     <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.BuiltInTypes.cs" Link="FuzzableCode.BuiltInTypes.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.Parsers.cs" Link="FuzzableCode.Parsers.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />
     <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\..\common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -49,6 +52,12 @@
     <None Include="..\Fuzz\Testcases.Xml\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
     </None>
+    <None Include="..\Fuzz\Testcases.BuiltInTypes\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.Parsers\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Update="..\Fuzz\Testcases.Binary\**\*.*">
@@ -60,6 +69,14 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="..\Fuzz\Testcases.Xml\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.BuiltInTypes\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.Parsers\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

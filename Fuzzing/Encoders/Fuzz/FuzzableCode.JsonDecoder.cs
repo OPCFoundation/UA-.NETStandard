@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Opc.Ua.Fuzzing
@@ -67,6 +69,49 @@ namespace Opc.Ua.Fuzzing
                 encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
+        }
+
+        /// <summary>
+        /// The compact Json encoder fuzz target for afl-fuzz.
+        /// </summary>
+        public static void AflfuzzJsonEncoderCompact(string input)
+        {
+            IEncodeable encodeable;
+            try
+            {
+                encodeable = FuzzJsonDecoderCore(input);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (encodeable != null)
+            {
+                using var encoder = new JsonEncoder(MessageContext, JsonEncoderOptions.Compact);
+                encoder.EncodeMessage(encodeable, encodeable.TypeId);
+                encoder.Close();
+            }
+        }
+
+        /// <summary>
+        /// The Json encoder idempotent fuzz target for afl-fuzz.
+        /// </summary>
+        public static void AflfuzzJsonEncoderIndempotent(string input)
+        {
+            IEncodeable encodeable;
+            string serialized;
+            try
+            {
+                encodeable = FuzzJsonDecoderCore(input, true);
+                serialized = EncodeJsonMessage(encodeable, JsonEncoderOptions.Verbose);
+            }
+            catch
+            {
+                return;
+            }
+
+            FuzzJsonEncoderIndempotentCore(serialized, encodeable);
         }
 
         /// <summary>
@@ -112,6 +157,32 @@ namespace Opc.Ua.Fuzzing
         }
 
         /// <summary>
+        /// The compact Json encoder fuzz target for libfuzzer.
+        /// </summary>
+        public static void LibfuzzJsonEncoderCompact(ReadOnlySpan<byte> input)
+        {
+#if NETFRAMEWORK
+            string json = Encoding.UTF8.GetString(input.ToArray());
+#else
+            string json = Encoding.UTF8.GetString(input);
+#endif
+            AflfuzzJsonEncoderCompact(json);
+        }
+
+        /// <summary>
+        /// The Json encoder idempotent fuzz target for libfuzzer.
+        /// </summary>
+        public static void LibfuzzJsonEncoderIndempotent(ReadOnlySpan<byte> input)
+        {
+#if NETFRAMEWORK
+            string json = Encoding.UTF8.GetString(input.ToArray());
+#else
+            string json = Encoding.UTF8.GetString(input);
+#endif
+            AflfuzzJsonEncoderIndempotent(json);
+        }
+
+        /// <summary>
         /// The fuzz target for the JsonDecoder.
         /// </summary>
         /// <param name="json">A string with fuzz content.</param>
@@ -132,6 +203,46 @@ namespace Opc.Ua.Fuzzing
                 }
                 throw;
             }
+        }
+
+        /// <summary>
+        /// The idempotent fuzz target core for the JsonEncoder.
+        /// </summary>
+        internal static void FuzzJsonEncoderIndempotentCore(
+            string serialized,
+            IEncodeable encodeable)
+        {
+            if (serialized == null || encodeable == null)
+            {
+                return;
+            }
+
+            IEncodeable encodeable2 = FuzzJsonDecoderCore(serialized, true);
+            string serialized2 = EncodeJsonMessage(encodeable2, JsonEncoderOptions.Verbose);
+            IEncodeable encodeable3 = FuzzJsonDecoderCore(serialized2, true);
+
+            string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
+            if (serialized2 == null || !serialized.SequenceEqual(serialized2))
+            {
+                throw new InvalidOperationException(
+                    Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
+            }
+
+            if (!Utils.IsEqual(encodeable2, encodeable3))
+            {
+                throw new InvalidOperationException(Utils.Format(
+                    "Idempotent JSON 3rd gen decoding failed. Type={0}.",
+                    encodeableTypeName));
+            }
+        }
+
+        private static string EncodeJsonMessage(IEncodeable encodeable, JsonEncoderOptions options)
+        {
+            using var memoryStream = new MemoryStream(0x1000);
+            using var encoder = new JsonEncoder(memoryStream, MessageContext, options);
+            encoder.EncodeMessage(encodeable, encodeable.TypeId);
+            encoder.Close();
+            return Encoding.UTF8.GetString(memoryStream.ToArray());
         }
     }
 }

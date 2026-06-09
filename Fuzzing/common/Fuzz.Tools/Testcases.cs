@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace Opc.Ua.Fuzzing
 {
@@ -39,6 +42,39 @@ namespace Opc.Ua.Fuzzing
         public delegate void MessageEncoder(IEncoder encoder);
 
         public static readonly MessageEncoder[] MessageEncoders = [ReadRequest, ReadResponse];
+
+        public static string[] DiscoverTestcaseEncoderSuffixes(string testcasesRoot)
+        {
+            if (string.IsNullOrEmpty(testcasesRoot))
+            {
+                return [];
+            }
+
+            string rootName = Path.GetFileName(
+                testcasesRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            string parent = Path.GetDirectoryName(testcasesRoot);
+            var directories = new List<string>();
+
+            if (Directory.Exists(testcasesRoot))
+            {
+                directories.AddRange(Directory.EnumerateDirectories(testcasesRoot, "Testcases.*"));
+            }
+
+            if (parent != null && Directory.Exists(parent))
+            {
+                directories.AddRange(Directory.EnumerateDirectories(parent, rootName + ".*"));
+            }
+
+            return
+            [
+                .. directories
+                    .Select(path => Path.GetFileName(path))
+                    .Where(name => name.StartsWith(rootName + ".", StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name[rootName.Length..])
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(suffix => suffix, StringComparer.OrdinalIgnoreCase)
+            ];
+        }
 
         public static void ReadRequest(IEncoder encoder)
         {

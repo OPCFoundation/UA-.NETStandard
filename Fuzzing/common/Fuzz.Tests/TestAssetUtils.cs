@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,11 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
-using NUnit.Framework;
-using Opc.Ua.Security.Certificates;
+using System.Linq;
 
 namespace Opc.Ua.Tests
 {
@@ -46,7 +45,7 @@ namespace Opc.Ua.Tests
     /// <summary>
     /// Create a collection of test assets.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">The asset type.</typeparam>
     public class AssetCollection<T> : List<T>
         where T : IAsset, new()
     {
@@ -98,19 +97,63 @@ namespace Opc.Ua.Tests
             string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
             if (assetsPath != null)
             {
-                return [.. Directory.EnumerateFiles(assetsPath, searchPattern)];
+                return [.. Directory.EnumerateFiles(assetsPath, searchPattern, SearchOption.AllDirectories)];
             }
             return [];
         }
 
-        public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
+        public static string[] DiscoverTestcaseEncoderSuffixes(string folder)
         {
-            X509BasicConstraintsExtension basicConstraintsExtension =
-                certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
-            Assert.That(basicConstraintsExtension, Is.Not.Null);
-            Assert.That(basicConstraintsExtension.CertificateAuthority, Is.False);
-            Assert.That(basicConstraintsExtension.Critical, Is.True);
-            Assert.That(basicConstraintsExtension.HasPathLengthConstraint, Is.False);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            if (assetsPath == null)
+            {
+                return [];
+            }
+
+            return DiscoverTestcaseEncoderSuffixesFromPath(assetsPath);
+        }
+
+        private static string[] DiscoverTestcaseEncoderSuffixesFromPath(string testcasesRoot)
+        {
+            if (!Directory.Exists(testcasesRoot))
+            {
+                return [];
+            }
+
+            string rootName = Path.GetFileName(
+                testcasesRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            IEnumerable<string> sourceDirectories = Directory.EnumerateDirectories(testcasesRoot);
+
+            if (string.Equals(rootName, "Testcases", StringComparison.OrdinalIgnoreCase))
+            {
+                string parent = Path.GetDirectoryName(testcasesRoot);
+                if (parent != null)
+                {
+                    sourceDirectories = sourceDirectories.Concat(
+                        Directory.EnumerateDirectories(parent, "Testcases.*"));
+                }
+            }
+
+            return
+            [
+                .. sourceDirectories
+                    .Select(path => GetTestcaseSuffix(rootName, path))
+                    .Where(suffix => !string.IsNullOrEmpty(suffix))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(suffix => suffix, StringComparer.OrdinalIgnoreCase)
+            ];
+        }
+
+        private static string GetTestcaseSuffix(string rootName, string path)
+        {
+            string directoryName = Path.GetFileName(path);
+            string prefix = rootName + ".";
+            if (directoryName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return directoryName[rootName.Length..];
+            }
+
+            return "." + directoryName;
         }
     }
 }

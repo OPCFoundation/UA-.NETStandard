@@ -1,6 +1,6 @@
-<ReadResponse xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+<ReadResponse xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <ResponseHeader>
-    <Timestamp>2026-02-10T12:12:24.9054884Z</Timestamp>
+    <Timestamp>2026-06-09T10:03:56.2780417Z</Timestamp>
     <RequestHandle>42</RequestHandle>
     <ServiceResult>
       <Code>0</Code>
@@ -57,9 +57,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2026-02-10T12:13:24.9054635Z</SourceTimestamp>
+      <SourceTimestamp>2026-06-09T10:04:56.2780243Z</SourceTimestamp>
       <SourcePicoseconds>10</SourcePicoseconds>
-      <ServerTimestamp>2026-02-10T12:12:24.9054635Z</ServerTimestamp>
+      <ServerTimestamp>2026-06-09T10:03:56.2780243Z</ServerTimestamp>
       <ServerPicoseconds>100</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -71,9 +71,9 @@
       <StatusCode>
         <Code>2157772800</Code>
       </StatusCode>
-      <SourceTimestamp>2026-02-10T12:13:24.9054635Z</SourceTimestamp>
+      <SourceTimestamp>2026-06-09T10:04:56.2780243Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>2026-02-10T12:12:24.9054635Z</ServerTimestamp>
+      <ServerTimestamp>2026-06-09T10:03:56.2780243Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -85,9 +85,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2026-02-10T12:13:24.9054635Z</SourceTimestamp>
+      <SourceTimestamp>2026-06-09T10:04:56.2780243Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>2026-02-10T12:12:24.9054635Z</ServerTimestamp>
+      <ServerTimestamp>2026-06-09T10:03:56.2780243Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -99,9 +99,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2026-02-10T12:12:24.9054635Z</SourceTimestamp>
+      <SourceTimestamp>2026-06-09T10:03:56.2780243Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
+      <ServerTimestamp>1601-01-01T00:00:00Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
   </Results>

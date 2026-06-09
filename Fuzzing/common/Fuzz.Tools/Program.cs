@@ -83,7 +83,7 @@ namespace Opc.Ua.Fuzzing
                 }
                 else if (playback)
                 {
-                    foreach (string encoderType in Testcases.TestcaseEncoderSuffixes)
+                    foreach (string encoderType in Testcases.DiscoverTestcaseEncoderSuffixes(DefaultTestcasesFolder))
                     {
                         Console.WriteLine("--- Fuzzer testcases for {0} ---", encoderType[1..]);
                         Playback.Run(

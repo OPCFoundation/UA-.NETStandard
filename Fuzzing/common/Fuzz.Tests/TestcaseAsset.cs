@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,23 +28,29 @@
  * ======================================================================*/
 
 using System;
-using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Fuzzing
 {
-    [TestFixture]
-    [Category("Fuzzing")]
-    public class EncoderTests : FuzzTargetTestsBase
+    /// <summary>
+    /// A testcase as test asset.
+    /// </summary>
+    public sealed class TestcaseAsset : IAsset, IFormattable
     {
-        [DatapointSource]
-        public static readonly FuzzTargetFunction[] FuzzableFunctions =
-            CreateFuzzTargetFunctions(typeof(FuzzableCode));
+        public string Path { get; private set; }
 
-        protected override Type FuzzableCodeType => typeof(FuzzableCode);
+        public byte[] Testcase { get; private set; }
 
-        protected override void OnFuzzTargetSetup(ITelemetryContext telemetry)
+        public void Initialize(byte[] blob, string path)
         {
-            FuzzableCode.MessageContext = ServiceMessageContext.Create(telemetry);
+            Path = path;
+            Testcase = blob;
+        }
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            string file = System.IO.Path.GetFileName(Path);
+            return $"{file}";
         }
     }
 }

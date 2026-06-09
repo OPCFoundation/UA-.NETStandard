@@ -65,10 +65,30 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new JsonEncoder(MessageContext, JsonEncoderOptions.Verbose);
+                using var encoder = new XmlEncoder(MessageContext);
                 encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
+        }
+
+        /// <summary>
+        /// The Xml encoder idempotent fuzz target for afl-fuzz.
+        /// </summary>
+        public static void AflfuzzXmlEncoderIndempotent(Stream stream)
+        {
+            IEncodeable encodeable;
+            string serialized;
+            try
+            {
+                encodeable = FuzzXmlDecoderCore(stream, true);
+                serialized = EncodeXmlMessage(encodeable);
+            }
+            catch
+            {
+                return;
+            }
+
+            FuzzXmlEncoderIndempotentCore(serialized, encodeable);
         }
 
         /// <summary>
@@ -103,6 +123,55 @@ namespace Opc.Ua.Fuzzing
                 encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
+        }
+
+        /// <summary>
+        /// The Xml encoder idempotent fuzz target for libfuzzer.
+        /// </summary>
+        public static void LibfuzzXmlEncoderIndempotent(ReadOnlySpan<byte> input)
+        {
+            using var memoryStream = new MemoryStream(input.ToArray());
+            AflfuzzXmlEncoderIndempotent(memoryStream);
+        }
+
+        /// <summary>
+        /// The idempotent fuzz target core for the XmlEncoder.
+        /// </summary>
+        internal static void FuzzXmlEncoderIndempotentCore(
+            string serialized,
+            IEncodeable encodeable)
+        {
+            if (serialized == null || encodeable == null)
+            {
+                return;
+            }
+
+            using var memoryStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serialized));
+            IEncodeable encodeable2 = FuzzXmlDecoderCore(memoryStream, true);
+            string serialized2 = EncodeXmlMessage(encodeable2);
+            using var memoryStream2 = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serialized2));
+            IEncodeable encodeable3 = FuzzXmlDecoderCore(memoryStream2, true);
+
+            string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
+            if (serialized2 == null || !serialized.SequenceEqual(serialized2))
+            {
+                throw new InvalidOperationException(
+                    Utils.Format("Idempotent XML encoding failed. Type={0}.", encodeableTypeName));
+            }
+
+            if (!Utils.IsEqual(encodeable2, encodeable3))
+            {
+                throw new InvalidOperationException(Utils.Format(
+                    "Idempotent XML 3rd gen decoding failed. Type={0}.",
+                    encodeableTypeName));
+            }
+        }
+
+        private static string EncodeXmlMessage(IEncodeable encodeable)
+        {
+            using var encoder = new XmlEncoder(MessageContext);
+            encoder.EncodeMessage(encodeable, encodeable.TypeId);
+            return encoder.CloseAndReturnText() ?? string.Empty;
         }
 
         /// <summary>
