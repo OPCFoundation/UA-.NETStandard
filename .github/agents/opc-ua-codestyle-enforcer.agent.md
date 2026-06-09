@@ -27,34 +27,73 @@ When the user asks to format "the new code" or "the files I just changed" (rathe
 
 * If the user names files / a folder, use that.
 * If the user says "the new code" or "the changes I just made", run `git status --short` and pick the new/modified `.cs` files; group them by owning `.csproj`.
-* Use `dotnet format --include <path>` (path can be a folder or comma-separated list of files) to constrain the run.
+* Use `dotnet format --include <relative-path>` (one per file) to constrain the run — see the `--include` argument-form warning below.
+
+### `--include` argument form (CRITICAL)
+
+`dotnet format --include` is silently broken for two common shapes that look reasonable. Verified on `dotnet format 10.0.300` against this repo:
+
+| Form | Result |
+|---|---|
+| `--include D:/abs/path/File.cs` (absolute path) | **No match.** Exits 0, format pass is a no-op, verify-no-changes passes even when the file has real issues. |
+| `--include "a.cs,b.cs"` (comma-separated) | **No match.** Same silent no-op. |
+| `--include "a.cs;b.cs"` (semicolon-separated) | **No match.** Same silent no-op. |
+| `--include a.cs --include b.cs` (repeated, **relative** paths) | **Works.** Matches both files, applies fixes / reports diagnostics. |
+
+The relative paths must be relative to the working directory (the repo root for solution-level runs).
+
+**For a "format only the changed files" run**, build the command programmatically — one `--include` per file:
+
+```powershell
+$cmd = @("dotnet", "format", $proj)
+foreach ($f in $files) { $cmd += @("--include", $f) }   # $f must be a workspace-relative path
+$cmd += @("--no-restore", "--verbosity", "minimal", "--severity", "info")
+& $cmd[0] $cmd[1..($cmd.Length-1)]
+```
+
+This is the symmetric trap to the `--diagnostics` per-rule repetition documented in Phase 2.
 
 ### 2. Run the three-phase format sweep (scoped)
 
-Run all three sub-commands in order, scoped with `--include`:
+Run all three sub-commands in order, scoped with `--include` (repeated per file, relative paths):
 
 ```powershell
+# Build the include args once
+$includeArgs = @(); foreach ($f in $files) { $includeArgs += @("--include", $f) }
+
 # 1. Whitespace (tabs → spaces, trailing whitespace, newline-at-EOF, brace placement)
-dotnet format whitespace <Project.csproj> --include <path> --no-restore --verbosity minimal
+dotnet format whitespace <Project.csproj> @includeArgs --no-restore --verbosity minimal
 
 # 2. Style (.editorconfig style rules: var vs explicit, qualification, modifier order, …)
-dotnet format style <Project.csproj> --include <path> --no-restore --verbosity minimal
+dotnet format style <Project.csproj> @includeArgs --no-restore --verbosity minimal
 
 # 3. Analyzers (Roslyn analyzers — CA/IDE/RCS at the requested severity)
-dotnet format analyzers <Project.csproj> --include <path> --no-restore --severity info --verbosity minimal
+dotnet format analyzers <Project.csproj> @includeArgs --no-restore --severity info --verbosity minimal
 ```
+
+Or, even simpler, let `dotnet format` (no subcommand) run all three phases in one project load — same `@includeArgs` works.
 
 Run each phase to completion before starting the next; some style fixes resolve later analyzer warnings, and analyzer fixes can introduce new style issues. Pre-existing source-generation log lines in the output are noise — focus on the `Formatted code file` / `info` / `warning` lines.
 
 ### 3. Verify (scoped)
 
 ```powershell
-dotnet format whitespace <Project.csproj> --include <path> --no-restore --verify-no-changes --verbosity minimal
-dotnet format style       <Project.csproj> --include <path> --no-restore --verify-no-changes --verbosity minimal
-dotnet format analyzers   <Project.csproj> --include <path> --no-restore --severity info --verify-no-changes --verbosity minimal
+dotnet format whitespace <Project.csproj> @includeArgs --no-restore --verify-no-changes --verbosity minimal
+dotnet format style       <Project.csproj> @includeArgs --no-restore --verify-no-changes --verbosity minimal
+dotnet format analyzers   <Project.csproj> @includeArgs --no-restore --severity info --verify-no-changes --verbosity minimal
 ```
 
 Then build the project(s) and dependent test project(s).
+
+### Cross-namespace using/qualifier hazards (RISKY on scoped sweeps)
+
+`dotnet format` with `IDE0005` (remove unused usings) or `IDE0002` (simplify member access) can over-prune in these cases. **Always rebuild on every target TFM after a scoped sweep** and be ready to revert these classes of files:
+
+| Pattern | What goes wrong | Revert / mitigation |
+|---|---|---|
+| `using Opc.Ua.Security.Certificates;` in a file that uses `Certificate` / `CertificateCollection` as plain identifiers (e.g. 1.5.378 reference fixtures under `Tools/Opc.Ua.MigrationAnalyzer.Core/**`) | `IDE0005` removes the import → `CS0246` on `Certificate` / `CertificateCollection`. | `git checkout HEAD -- <file>` after the sweep, add the file to a per-file IDE0005 suppression, or add `// dotnet format: keep` comment near the using if you want it preserved across runs. |
+| Files that disambiguate via `using OpcUa = Opc.Ua;` and then reference `OpcUa.ObjectTypeIds.X` (e.g. `Tests/Opc.Ua.Gds.Tests/PushTest.cs`) | `IDE0002` strips the `OpcUa.` qualifier → resolves to a conflicting `ObjectTypeIds` in scope → `CS0117`. | Revert the file; if you need the cleanup, do it per-symbol by hand. |
+| Multi-TFM files where one TFM's analysis disagrees with another (e.g. `Libraries/Opc.Ua.Server/Server/ServerInternalData.cs` between `net48` and `net10.0`) | The formatter injects literal `<<<<<<<` / `=======` / `>>>>>>>` markers into the file → `CS8300 Merge conflict marker encountered`. | Revert the file; the multi-TFM disagreement needs a manual fix. |
 
 ## Phase 1 — Discovery: Collect and categorize diagnostics
 
