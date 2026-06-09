@@ -2423,6 +2423,12 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName) where T : IEncodeable, new()
+        {
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
             return ArrayOf.From<T>(ReadEnumeratedArray(fieldName, typeof(T)));

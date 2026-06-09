@@ -16,6 +16,7 @@
       - [ByteString](#bytestring)
       - [ArrayOf and MatrixOf](#arrayof-and-matrixof)
         - [Configuration collection types removed](#configuration-collection-types-removed)
+        - [Generated data type fields with ValueRank=OneOrMoreDimensions](#generated-data-type-fields-with-valuerankoneormoredimensions)
       - [DateTimeUtc](#datetimeutc)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
@@ -345,6 +346,68 @@ Note that equality operators and methods now compare the content of the Array an
 ##### Configuration collection types removed
 
 All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
+
+##### Generated data type fields with ValueRank=OneOrMoreDimensions
+
+Previously, every structure field declared with `ValueRank="OneOrMoreDimensions"` in a model design was generated as `global::Opc.Ua.Variant`. The property is now typed as `global::Opc.Ua.MatrixOf<T>` (mirroring the `ArrayOf<T>` treatment already used for `ValueRank="Array"`). Encoding/decoding still flows through `Variant`, but the boxing/unboxing happens inside the encoder calls so consumers see the typed surface.
+
+The element type follows the field's `DataType`:
+
+| Field `DataType`                                  | Generated property type                    | Encode call                                                       | Decode call                                                                 |
+| ------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| primitive (e.g. `Boolean`, `Int32`, `String`)     | `MatrixOf<bool>` etc.                      | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetBooleanMatrix();` (etc.)              |
+| `Structure` / abstract structure parent           | `MatrixOf<ExtensionObject>`                | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetExtensionObjectMatrix();`             |
+| concrete `IEncodeable` (e.g. `Vector`)            | `MatrixOf<Vector>`                         | `encoder.WriteEncodeableMatrix(name, field);`                     | `field = decoder.ReadEncodeableMatrix<Vector>(name);`                       |
+| typed enum (`MyEnum`)                             | `MatrixOf<MyEnum>`                         | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetEnumerationMatrix<MyEnum>();`         |
+| `BaseDataType` / `Number` / `Integer` / `UInteger`| `MatrixOf<Variant>`                        | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetVariantMatrix();`                     |
+
+`Variant` round-trip APIs are available for every `BasicDataType` value except `DiagnosticInfo`. For a `DiagnosticInfo` matrix field — which is not a valid structure field per OPC UA Part 5 in any case — the legacy `Variant` property surface is retained.
+
+**Change code as follows:**
+
+- Direct access on the property is now typed; remove any `Variant.From(matrix)` / `value.GetXxxMatrix()` wrapping you previously had to add when reading or writing the property:
+
+  ``` csharp
+      // Before — field was Variant
+      myStruct.MyMatrix = Variant.From(matrix);
+      MatrixOf<int> back = myStruct.MyMatrix.GetInt32Matrix();
+
+      // After — field is MatrixOf<int>
+      myStruct.MyMatrix = matrix;
+      MatrixOf<int> back = myStruct.MyMatrix;
+  ```
+
+- `IDecoder` gained a parameterless `ReadEncodeableMatrix<T>(string? fieldName) where T : IEncodeable, new()` overload that mirrors the existing `ReadEncodeableArray<T>(string? fieldName)` shape. Custom `IDecoder` implementations should add this overload alongside the existing encoding-id variant.
+
+###### VariableType State classes, PropertyState instances, and service parameters
+
+The same `MatrixOf<T>` opt-in now extends beyond structure data type fields to three sibling sites in the source generator:
+
+- **VariableType State classes** — `VariableType` designs that restrict both the `DataType` and the `ValueRank` to a concrete matrix shape (e.g. `XYArrayItemType` with `DataType="XVType" ValueRank="OneOrMoreDimensions"`) now inherit the generic chain with a typed parameter. Previously: `XYArrayItemState : ArrayItemState<Variant>.Implementation<VariantBuilder>`. Now: `XYArrayItemState : ArrayItemState<MatrixOf<XVType>>.Implementation<StructureBuilder<XVType>>`. Consumers reading or writing `.Value` get a typed `MatrixOf<XVType>` directly.
+- **PropertyState / BaseDataVariableState instances** — instance variables that *narrow* a generic variable type (e.g. `PropertyType` → `EnumDictionaryEntries` with `DataType="NodeId" ValueRank="OneOrMoreDimensions"`) now declare typed `PropertyState<MatrixOf<NodeId>>` instead of falling back to the simple `PropertyState` name and losing type information. Same for `FailureSystemIdentifier` → `BaseDataVariableState<MatrixOf<byte>>`.
+- **Service method parameters** — Client/Server API generators now type matrix-rank arguments as `MatrixOf<T>` instead of `Variant`. No OPC UA standard service declares matrix arguments today, so this is forward-looking for custom service models.
+
+**Change code as follows:**
+
+For abstract base variable types (`ArrayItemType`, `CubeItemType`, `ImageItemType`, `NDimensionArrayItemType`, all of which declare `DataType="BaseDataType"`) the State class still uses the generic `<T>` parameter — consumers continue to instantiate with whatever element type matches their data.
+
+For *concrete* matrix variable types (today only `XYArrayItemType`) and matrix-rank property/variable instances, the `Value` setter and getter are now typed. Drop the `Variant.FromStructure(...)` / `Variant.From(...)` / `.GetXxxMatrix()` wrapping you previously had to add:
+
+``` csharp
+    // Before — Value was Variant
+    variable.Value = Variant.FromStructure(ArrayOf.Wrapped(
+        new XVType { X = 0.0, Value = 0.0f },
+        new XVType { X = 1.0, Value = 1.0f }));
+
+    // After — Value is MatrixOf<XVType>; use a typed constructor
+    variable.Value = new[]
+    {
+        new XVType { X = 0.0, Value = 0.0f },
+        new XVType { X = 1.0, Value = 1.0f }
+    }.ToMatrixOf(2);
+```
+
+The `IsTemplateParameterRequired` helper in the source generator (only relevant for downstream tooling that introspects the generator schema) now returns `true` for `(OneOrMoreDimensions, concrete-and-MatrixOf-supporting data type)` combinations. The previous `false` result is retained for matrices of `BaseDataType` / `Number` / `Integer` / `UInteger` / `DiagnosticInfo` (which legitimately need the `Variant` fallback).
 
 #### DateTimeUtc
 

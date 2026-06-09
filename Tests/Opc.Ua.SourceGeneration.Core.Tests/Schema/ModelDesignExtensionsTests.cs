@@ -5782,7 +5782,8 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests GetDotNetTypeName returns "Variant" when valueRank is not Scalar or Array.
+        /// Tests GetDotNetTypeName returns "Variant" when valueRank is not Scalar or Array
+        /// (and matrix opt-in is disabled).
         /// </summary>
         [TestCase(ValueRank.ScalarOrArray, TestName = "GetDotNetTypeName_ScalarOrArrayValueRank_ReturnsVariant")]
         [TestCase(ValueRank.OneOrMoreDimensions, TestName = "GetDotNetTypeName_OneOrMoreDimensionsValueRank_ReturnsVariant")]
@@ -5807,6 +5808,130 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant"));
+        }
+
+        /// <summary>
+        /// Tests GetDotNetTypeName returns proper MatrixOf&lt;T&gt; type names for
+        /// OneOrMoreDimensions valueRank with all basic data types when the
+        /// caller opts in via <c>useMatrixTypeInsteadOfVariant: true</c>.
+        /// </summary>
+        [TestCase(BasicDataType.Boolean, "global::Opc.Ua.MatrixOf<bool>")]
+        [TestCase(BasicDataType.SByte, "global::Opc.Ua.MatrixOf<sbyte>")]
+        [TestCase(BasicDataType.Byte, "global::Opc.Ua.MatrixOf<byte>")]
+        [TestCase(BasicDataType.Int16, "global::Opc.Ua.MatrixOf<short>")]
+        [TestCase(BasicDataType.UInt16, "global::Opc.Ua.MatrixOf<ushort>")]
+        [TestCase(BasicDataType.Int32, "global::Opc.Ua.MatrixOf<int>")]
+        [TestCase(BasicDataType.UInt32, "global::Opc.Ua.MatrixOf<uint>")]
+        [TestCase(BasicDataType.Int64, "global::Opc.Ua.MatrixOf<long>")]
+        [TestCase(BasicDataType.UInt64, "global::Opc.Ua.MatrixOf<ulong>")]
+        [TestCase(BasicDataType.Float, "global::Opc.Ua.MatrixOf<float>")]
+        [TestCase(BasicDataType.Double, "global::Opc.Ua.MatrixOf<double>")]
+        [TestCase(BasicDataType.String, "global::Opc.Ua.MatrixOf<string>")]
+        [TestCase(BasicDataType.DateTime, "global::Opc.Ua.MatrixOf<global::Opc.Ua.DateTimeUtc>")]
+        [TestCase(BasicDataType.Guid, "global::Opc.Ua.MatrixOf<global::Opc.Ua.Uuid>")]
+        [TestCase(BasicDataType.ByteString, "global::Opc.Ua.MatrixOf<global::Opc.Ua.ByteString>")]
+        [TestCase(BasicDataType.XmlElement, "global::Opc.Ua.MatrixOf<global::Opc.Ua.XmlElement>")]
+        [TestCase(BasicDataType.NodeId, "global::Opc.Ua.MatrixOf<global::Opc.Ua.NodeId>")]
+        [TestCase(BasicDataType.ExpandedNodeId, "global::Opc.Ua.MatrixOf<global::Opc.Ua.ExpandedNodeId>")]
+        [TestCase(BasicDataType.StatusCode, "global::Opc.Ua.MatrixOf<global::Opc.Ua.StatusCode>")]
+        [TestCase(BasicDataType.DiagnosticInfo, "global::Opc.Ua.MatrixOf<global::Opc.Ua.DiagnosticInfo>")]
+        [TestCase(BasicDataType.QualifiedName, "global::Opc.Ua.MatrixOf<global::Opc.Ua.QualifiedName>")]
+        [TestCase(BasicDataType.LocalizedText, "global::Opc.Ua.MatrixOf<global::Opc.Ua.LocalizedText>")]
+        [TestCase(BasicDataType.DataValue, "global::Opc.Ua.MatrixOf<global::Opc.Ua.DataValue>")]
+        [TestCase(BasicDataType.Number, "global::Opc.Ua.MatrixOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.Integer, "global::Opc.Ua.MatrixOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.UInteger, "global::Opc.Ua.MatrixOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.BaseDataType, "global::Opc.Ua.MatrixOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.Structure, "global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>")]
+        public void GetDotNetTypeName_OneOrMoreDimensionsValueRankWithBasicDataTypes_ReturnsCorrectMatrixOfType(
+            BasicDataType basicDataType,
+            string expectedMatrixOfTType)
+        {
+            // Arrange
+            var mockDataType = new DataTypeDesign
+            {
+                BasicDataType = basicDataType
+            };
+            Namespace[] namespaces = [];
+            const string targetNamespace = "http://test.namespace";
+
+            // Act
+            string result = mockDataType.GetDotNetTypeName(
+                ValueRank.OneOrMoreDimensions,
+                targetNamespace,
+                namespaces,
+                NullableAnnotation.NonNullable,
+                useMatrixTypeInsteadOfVariant: true);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(expectedMatrixOfTType));
+        }
+
+        /// <summary>
+        /// Tests SupportsMatrixOf returns true for all built-in basic data
+        /// types except DiagnosticInfo, which has no Variant.From(MatrixOf&lt;T&gt;)
+        /// / Variant.GetXxxMatrix() API surface.
+        /// </summary>
+        [TestCase(BasicDataType.Boolean, true)]
+        [TestCase(BasicDataType.SByte, true)]
+        [TestCase(BasicDataType.Byte, true)]
+        [TestCase(BasicDataType.Int16, true)]
+        [TestCase(BasicDataType.UInt16, true)]
+        [TestCase(BasicDataType.Int32, true)]
+        [TestCase(BasicDataType.UInt32, true)]
+        [TestCase(BasicDataType.Int64, true)]
+        [TestCase(BasicDataType.UInt64, true)]
+        [TestCase(BasicDataType.Float, true)]
+        [TestCase(BasicDataType.Double, true)]
+        [TestCase(BasicDataType.String, true)]
+        [TestCase(BasicDataType.DateTime, true)]
+        [TestCase(BasicDataType.Guid, true)]
+        [TestCase(BasicDataType.ByteString, true)]
+        [TestCase(BasicDataType.XmlElement, true)]
+        [TestCase(BasicDataType.NodeId, true)]
+        [TestCase(BasicDataType.ExpandedNodeId, true)]
+        [TestCase(BasicDataType.StatusCode, true)]
+        [TestCase(BasicDataType.DiagnosticInfo, false)]
+        [TestCase(BasicDataType.QualifiedName, true)]
+        [TestCase(BasicDataType.LocalizedText, true)]
+        [TestCase(BasicDataType.DataValue, true)]
+        [TestCase(BasicDataType.Number, true)]
+        [TestCase(BasicDataType.Integer, true)]
+        [TestCase(BasicDataType.UInteger, true)]
+        [TestCase(BasicDataType.BaseDataType, true)]
+        [TestCase(BasicDataType.Structure, true)]
+        [TestCase(BasicDataType.Enumeration, true)]
+        [TestCase(BasicDataType.UserDefined, true)]
+        public void SupportsMatrixOf_ForBasicDataType_ReturnsExpected(
+            BasicDataType basicDataType,
+            bool expected)
+        {
+            // Arrange
+            var mockDataType = new DataTypeDesign
+            {
+                BasicDataType = basicDataType
+            };
+
+            // Act
+            bool result = mockDataType.SupportsMatrixOf();
+
+            // Assert
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// SupportsMatrixOf throws ArgumentNullException for a null receiver.
+        /// </summary>
+        [Test]
+        public void SupportsMatrixOf_NullDataType_Throws()
+        {
+            // Arrange
+            DataTypeDesign nullDataType = null;
+
+            // Act & Assert
+            Assert.That(
+                () => nullDataType.SupportsMatrixOf(),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         /// <summary>
@@ -9383,22 +9508,19 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Test IsRequiredParameterInTemplates returns false when ValueRank is OneOrMoreDimensions, ScalarOrOneDimension, or ScalarOrArray
+        /// Test IsRequiredParameterInTemplates returns false when ValueRank is ScalarOrOneDimension or ScalarOrArray
         /// regardless of BasicDataType value (except excluded BasicDataTypes).
-        /// Tests specific excluded ValueRank values with various BasicDataType values.
         /// </summary>
-        [TestCase(BasicDataType.Boolean, ValueRank.OneOrMoreDimensions, false)]
         [TestCase(BasicDataType.Boolean, ValueRank.ScalarOrOneDimension, false)]
         [TestCase(BasicDataType.Boolean, ValueRank.ScalarOrArray, false)]
-        [TestCase(BasicDataType.String, ValueRank.OneOrMoreDimensions, false)]
         [TestCase(BasicDataType.String, ValueRank.ScalarOrOneDimension, false)]
         [TestCase(BasicDataType.String, ValueRank.ScalarOrArray, false)]
-        [TestCase(BasicDataType.Int32, ValueRank.OneOrMoreDimensions, false)]
         [TestCase(BasicDataType.Int32, ValueRank.ScalarOrOneDimension, false)]
         [TestCase(BasicDataType.Int32, ValueRank.ScalarOrArray, false)]
-        [TestCase(BasicDataType.Structure, ValueRank.OneOrMoreDimensions, false)]
         [TestCase(BasicDataType.Structure, ValueRank.ScalarOrOneDimension, false)]
         [TestCase(BasicDataType.Structure, ValueRank.ScalarOrArray, false)]
+        // DiagnosticInfo does not support MatrixOf<T>, so OneOrMoreDimensions stays false.
+        [TestCase(BasicDataType.DiagnosticInfo, ValueRank.OneOrMoreDimensions, false)]
         public void IsRequiredParameterInTemplates_ExcludedValueRank_ReturnsFalse(
             BasicDataType basicDataType,
             ValueRank valueRank,
@@ -9456,6 +9578,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             bool result = dataType.IsTemplateParameterRequired(ValueRank.Array);
 
+
             // Assert
             Assert.That(result, Is.True);
         }
@@ -9468,7 +9591,9 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.Number, ValueRank.Scalar, false)]
         [TestCase(BasicDataType.Integer, ValueRank.Scalar, false)]
         [TestCase(BasicDataType.UInteger, ValueRank.Scalar, false)]
-        [TestCase(BasicDataType.String, ValueRank.OneOrMoreDimensions, false)]
+        // String + OneOrMoreDimensions used to return false; it now returns
+        // true because the generator emits a typed `State<MatrixOf<string>>`
+        // and the template parameter is therefore required to specialize.
         [TestCase(BasicDataType.Int32, ValueRank.ScalarOrOneDimension, false)]
         [TestCase(BasicDataType.Boolean, ValueRank.ScalarOrArray, false)]
         [TestCase(BasicDataType.BaseDataType, ValueRank.OneOrMoreDimensions, false)]
@@ -9487,6 +9612,77 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Tests IsTemplateParameterRequired returns true for matrix-rank
+        /// (<see cref="ValueRank.OneOrMoreDimensions"/>) with a concrete
+        /// data type that supports <see cref="MatrixOf{T}"/>. The generator
+        /// emits a typed <c>State&lt;MatrixOf&lt;T&gt;&gt;</c> for these so
+        /// the template parameter is required to specialize the inherited
+        /// State class.
+        /// </summary>
+        [TestCase(BasicDataType.Boolean)]
+        [TestCase(BasicDataType.SByte)]
+        [TestCase(BasicDataType.Byte)]
+        [TestCase(BasicDataType.Int16)]
+        [TestCase(BasicDataType.UInt16)]
+        [TestCase(BasicDataType.Int32)]
+        [TestCase(BasicDataType.UInt32)]
+        [TestCase(BasicDataType.Int64)]
+        [TestCase(BasicDataType.UInt64)]
+        [TestCase(BasicDataType.Float)]
+        [TestCase(BasicDataType.Double)]
+        [TestCase(BasicDataType.String)]
+        [TestCase(BasicDataType.DateTime)]
+        [TestCase(BasicDataType.Guid)]
+        [TestCase(BasicDataType.ByteString)]
+        [TestCase(BasicDataType.XmlElement)]
+        [TestCase(BasicDataType.NodeId)]
+        [TestCase(BasicDataType.ExpandedNodeId)]
+        [TestCase(BasicDataType.StatusCode)]
+        [TestCase(BasicDataType.QualifiedName)]
+        [TestCase(BasicDataType.LocalizedText)]
+        [TestCase(BasicDataType.DataValue)]
+        [TestCase(BasicDataType.Structure)]
+        [TestCase(BasicDataType.Enumeration)]
+        [TestCase(BasicDataType.UserDefined)]
+        public void IsTemplateParameterRequired_OneOrMoreDimensionsWithConcreteMatrixSupportingType_ReturnsTrue(
+            BasicDataType basicDataType)
+        {
+            // Arrange
+            var dataType = new DataTypeDesign { BasicDataType = basicDataType };
+
+            // Act
+            bool result = dataType.IsTemplateParameterRequired(ValueRank.OneOrMoreDimensions);
+
+            // Assert
+            Assert.That(result, Is.True);
+        }
+
+        /// <summary>
+        /// IsTemplateParameterRequired returns false for matrix-rank with
+        /// abstract numeric bases or <see cref="BasicDataType.DiagnosticInfo"/>,
+        /// which fall back to the existing <c>Variant</c> path because
+        /// they either lack a concrete element type or have no
+        /// <c>Variant.From(MatrixOf&lt;T&gt;)</c> API surface.
+        /// </summary>
+        [TestCase(BasicDataType.BaseDataType)]
+        [TestCase(BasicDataType.Number)]
+        [TestCase(BasicDataType.Integer)]
+        [TestCase(BasicDataType.UInteger)]
+        [TestCase(BasicDataType.DiagnosticInfo)]
+        public void IsTemplateParameterRequired_OneOrMoreDimensionsWithAbstractOrUnsupportedType_ReturnsFalse(
+            BasicDataType basicDataType)
+        {
+            // Arrange
+            var dataType = new DataTypeDesign { BasicDataType = basicDataType };
+
+            // Act
+            bool result = dataType.IsTemplateParameterRequired(ValueRank.OneOrMoreDimensions);
+
+            // Assert
+            Assert.That(result, Is.False);
         }
 
         /// <summary>

@@ -416,6 +416,15 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
+        /// Read a matrix of structures (fields inside a structure).
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>A matrix of types of type <see cref="IEncodeable"/></returns>
+        MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName)
+            where T : IEncodeable, new();
+
+        /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enum to be read</typeparam>
