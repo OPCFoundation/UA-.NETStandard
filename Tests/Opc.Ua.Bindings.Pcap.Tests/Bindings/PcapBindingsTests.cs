@@ -37,6 +37,41 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
     [TestFixture]
     public sealed class PcapBindingsTests
     {
+        private ITransportChannelFactory? m_previousBinding;
+
+        /// <summary>
+        /// Captures the binding currently registered for
+        /// <c>opc.tcp</c> in the process-wide
+        /// <see cref="TransportBindings.Channels"/> registry so it can
+        /// be restored after the test. Without this, the Pcap binding
+        /// installed by tests below would leak into unrelated tests in
+        /// other fixtures and produce order-dependent results.
+        /// </summary>
+        [SetUp]
+        public void CapturePreviousBinding()
+        {
+            var bindings = (ITransportBindings<ITransportChannelFactory>)TransportBindings.Channels;
+            m_previousBinding = bindings.HasBinding(Utils.UriSchemeOpcTcp)
+                ? bindings.GetBinding(Utils.UriSchemeOpcTcp, TestTelemetryContext.Instance)
+                : null;
+        }
+
+        /// <summary>
+        /// Restores whatever binding was registered before the test ran
+        /// (or leaves whatever this test installed in place when none
+        /// was previously registered — that mirrors a fresh process and
+        /// is acceptable).
+        /// </summary>
+        [TearDown]
+        public void RestorePreviousBinding()
+        {
+            if (m_previousBinding is not null)
+            {
+                ((ITransportBindings<ITransportChannelFactory>)TransportBindings.Channels)
+                    .SetBinding(m_previousBinding);
+            }
+        }
+
         [Test]
         public void InstallParameterlessReturnsNonNullRegistry()
         {

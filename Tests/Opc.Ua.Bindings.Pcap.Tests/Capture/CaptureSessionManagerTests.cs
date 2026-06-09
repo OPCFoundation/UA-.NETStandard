@@ -225,7 +225,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
             var factory = new StubSourceFactory();
             await using var manager = new CaptureSessionManager(factory, TempDirectory);
             var sessions = new List<CaptureSession>();
-            for (int i = 0; i < CaptureSessionManager.MaxActiveSessions; i++)
+            for (int i = 0; i < manager.MaxActiveSessions; i++)
             {
                 sessions.Add(await manager.StartAsync(
                     new StartCaptureRequest(),
@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                     new StartCaptureRequest(),
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<PcapDiagnosticsException>()
-                    .With.Message.Contains("max " + CaptureSessionManager.MaxActiveSessions));
+                    .With.Message.Contains("max " + manager.MaxActiveSessions));
 
             // Cleanup
             foreach (CaptureSession session in sessions)

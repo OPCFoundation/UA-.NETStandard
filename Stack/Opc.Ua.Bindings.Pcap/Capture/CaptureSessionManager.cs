@@ -58,9 +58,11 @@ namespace Opc.Ua.Bindings.Pcap.Capture
     public sealed class CaptureSessionManager : IAsyncDisposable
     {
         /// <summary>
-        /// Maximum number of concurrent active (Starting/Running) sessions.
+        /// Default cap on the number of concurrent active
+        /// (Starting/Running) sessions when none is supplied to the
+        /// constructor.
         /// </summary>
-        public const int MaxActiveSessions = 8;
+        public const int DefaultMaxActiveSessions = 8;
 
         /// <summary>
         /// Maximum number of retained sessions before LRU eviction kicks in.
@@ -91,7 +93,8 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             : this(
                 sourceFactory,
                 Path.Combine(Path.GetTempPath(), "opcua-pcap"),
-                loggerFactory)
+                loggerFactory,
+                maxActiveSessions: null)
         {
         }
 
@@ -106,16 +109,56 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             ICaptureSourceFactory sourceFactory,
             string baseFolder,
             ILoggerFactory? loggerFactory = null)
+            : this(sourceFactory, baseFolder, loggerFactory, maxActiveSessions: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a manager with an explicit base folder and an
+        /// optional cap on the number of concurrent active sessions.
+        /// Passing <c>null</c> for <paramref name="maxActiveSessions"/>
+        /// uses <see cref="DefaultMaxActiveSessions"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="sourceFactory"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="baseFolder"/> is null or whitespace.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="maxActiveSessions"/> is less than 1.
+        /// </exception>
+        public CaptureSessionManager(
+            ICaptureSourceFactory sourceFactory,
+            string baseFolder,
+            ILoggerFactory? loggerFactory,
+            int? maxActiveSessions)
         {
             ArgumentNullException.ThrowIfNull(sourceFactory);
             ArgumentException.ThrowIfNullOrWhiteSpace(baseFolder);
+            int limit = maxActiveSessions ?? DefaultMaxActiveSessions;
+            if (limit < 1)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxActiveSessions),
+                    limit,
+                    "Maximum active sessions must be at least 1.");
+            }
 
             m_sourceFactory = sourceFactory;
             m_baseFolder = baseFolder;
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = m_loggerFactory.CreateLogger<CaptureSessionManager>();
+            MaxActiveSessions = limit;
             Directory.CreateDirectory(m_baseFolder);
         }
+
+        /// <summary>
+        /// Maximum number of concurrent active (Starting/Running)
+        /// sessions enforced by this manager instance. Defaults to
+        /// <see cref="DefaultMaxActiveSessions"/>.
+        /// </summary>
+        public int MaxActiveSessions { get; }
 
         /// <summary>
         /// Creates and starts a new capture session. Throws if the active

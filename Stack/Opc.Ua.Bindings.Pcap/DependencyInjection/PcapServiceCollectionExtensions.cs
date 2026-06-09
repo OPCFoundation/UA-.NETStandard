@@ -98,7 +98,8 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
                 return new CaptureSessionManager(
                     sourceFactory,
                     configuredOptions.BaseFolder,
-                    loggerFactory);
+                    loggerFactory,
+                    configuredOptions.MaxActiveSessions);
             });
 
             return services;
@@ -141,8 +142,10 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         public string BaseFolder { get; set; } = Path.Combine(Path.GetTempPath(), "opcua-pcap");
 
         /// <summary>
-        /// Maximum intended number of active sessions.
+        /// Maximum intended number of concurrent active sessions. Passed
+        /// to the <see cref="CaptureSessionManager"/> constructor and
+        /// enforced by <see cref="CaptureSessionManager.StartAsync"/>.
         /// </summary>
-        public int MaxActiveSessions { get; set; } = CaptureSessionManager.MaxActiveSessions;
+        public int MaxActiveSessions { get; set; } = CaptureSessionManager.DefaultMaxActiveSessions;
     }
 }

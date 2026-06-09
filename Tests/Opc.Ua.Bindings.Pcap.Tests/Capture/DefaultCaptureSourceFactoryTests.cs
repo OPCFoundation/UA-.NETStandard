@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings.Pcap.Bindings;
@@ -50,7 +51,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
         }
 
         [Test]
-        public void CreateInProcessClientReturnsInProcessClientCaptureSource()
+        public async Task CreateInProcessClientReturnsInProcessClientCaptureSource()
         {
             var registry = new ChannelCaptureRegistry();
             var factory = new DefaultCaptureSourceFactory(registry);
@@ -59,14 +60,22 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 CaptureSourceKind.InProcessClient,
                 TempDirectory,
                 NullLoggerFactory.Instance);
-
-            Assert.That(source, Is.Not.Null);
-            Assert.That(source, Is.TypeOf<InProcessClientCaptureSource>());
-            (source as IAsyncDisposable)?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            try
+            {
+                Assert.That(source, Is.Not.Null);
+                Assert.That(source, Is.TypeOf<InProcessClientCaptureSource>());
+            }
+            finally
+            {
+                if (source is IAsyncDisposable disposable)
+                {
+                    await disposable.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         [Test]
-        public void CreateInProcessServerReturnsInProcessServerCaptureSource()
+        public async Task CreateInProcessServerReturnsInProcessServerCaptureSource()
         {
             var registry = new ChannelCaptureRegistry();
             var factory = new DefaultCaptureSourceFactory(registry);
@@ -75,14 +84,22 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 CaptureSourceKind.InProcessServer,
                 TempDirectory,
                 NullLoggerFactory.Instance);
-
-            Assert.That(source, Is.Not.Null);
-            Assert.That(source, Is.TypeOf<InProcessServerCaptureSource>());
-            (source as IAsyncDisposable)?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            try
+            {
+                Assert.That(source, Is.Not.Null);
+                Assert.That(source, Is.TypeOf<InProcessServerCaptureSource>());
+            }
+            finally
+            {
+                if (source is IAsyncDisposable disposable)
+                {
+                    await disposable.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         [Test]
-        public void CreateReplayReturnsReplayCaptureSource()
+        public async Task CreateReplayReturnsReplayCaptureSource()
         {
             var registry = new ChannelCaptureRegistry();
             var factory = new DefaultCaptureSourceFactory(registry);
@@ -91,10 +108,18 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 CaptureSourceKind.Replay,
                 TempDirectory,
                 NullLoggerFactory.Instance);
-
-            Assert.That(source, Is.Not.Null);
-            Assert.That(source, Is.TypeOf<ReplayCaptureSource>());
-            (source as IAsyncDisposable)?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            try
+            {
+                Assert.That(source, Is.Not.Null);
+                Assert.That(source, Is.TypeOf<ReplayCaptureSource>());
+            }
+            finally
+            {
+                if (source is IAsyncDisposable disposable)
+                {
+                    await disposable.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         [Test]

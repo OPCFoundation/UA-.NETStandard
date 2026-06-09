@@ -50,6 +50,37 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapServiceCollectionExtensionsTests
     {
+        private Opc.Ua.Bindings.ITransportChannelFactory? m_previousBinding;
+
+        /// <summary>
+        /// Snapshots the process-wide opc.tcp binding so the AddOpcUa*
+        /// installs performed by these tests don't leak into other
+        /// fixtures and produce order-dependent results.
+        /// </summary>
+        [SetUp]
+        public void CapturePreviousBinding()
+        {
+            var bindings = (Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
+                Opc.Ua.Bindings.TransportBindings.Channels;
+            m_previousBinding = bindings.HasBinding(Opc.Ua.Utils.UriSchemeOpcTcp)
+                ? bindings.GetBinding(Opc.Ua.Utils.UriSchemeOpcTcp, new TestTelemetryContext())
+                : null;
+        }
+
+        /// <summary>
+        /// Restores the previously-registered opc.tcp binding (if any).
+        /// </summary>
+        [TearDown]
+        public void RestorePreviousBinding()
+        {
+            if (m_previousBinding is not null)
+            {
+                ((Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
+                    Opc.Ua.Bindings.TransportBindings.Channels)
+                    .SetBinding(m_previousBinding);
+            }
+        }
+
         [Test]
         public void AddOpcUaBindingsPcapThrowsOnNullServices()
         {
@@ -166,6 +197,28 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
+        public async Task AddOpcUaBindingsPcapPropagatesMaxActiveSessionsToManager()
+        {
+            var services = new ServiceCollection();
+            string desiredFolder = Path.Combine(Path.GetTempPath(), "pcap-di-cap-" + Guid.NewGuid().ToString("N"));
+
+            services.AddOpcUaBindingsPcap(opts =>
+            {
+                opts.BaseFolder = desiredFolder;
+                opts.MaxActiveSessions = 2;
+            });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            var manager = provider.GetRequiredService<CaptureSessionManager>();
+
+            // The cap configured on PcapOptions must reach the manager
+            // instance (this is what makes the option meaningful for
+            // DI consumers; without the wiring the manager would
+            // silently fall back to DefaultMaxActiveSessions).
+            Assert.That(manager.MaxActiveSessions, Is.EqualTo(2));
+        }
+
+        [Test]
         public async Task AddOpcUaBindingsPcapDefaultOptionsUseSystemTemp()
         {
             var services = new ServiceCollection();
@@ -176,7 +229,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
 
             Assert.That(options.BaseFolder, Does.StartWith(Path.GetTempPath()));
             Assert.That(options.MaxActiveSessions,
-                Is.EqualTo(CaptureSessionManager.MaxActiveSessions));
+                Is.EqualTo(CaptureSessionManager.DefaultMaxActiveSessions));
         }
 
         [Test]
@@ -281,7 +334,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             Assert.That(options.BaseFolder, Does.Contain("opcua-pcap"));
             Assert.That(options.MaxActiveSessions, Is.GreaterThan(0));
             Assert.That(options.MaxActiveSessions,
-                Is.EqualTo(CaptureSessionManager.MaxActiveSessions));
+                Is.EqualTo(CaptureSessionManager.DefaultMaxActiveSessions));
         }
     }
 }

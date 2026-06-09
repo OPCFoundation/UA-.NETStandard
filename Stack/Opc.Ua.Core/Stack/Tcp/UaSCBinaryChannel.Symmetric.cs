@@ -55,7 +55,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Replaces the current and previous tokens without re-deriving any
         /// key material. Used exclusively by the offline diagnostic
-        /// decoder (Opc.Ua.Diagnostics.Pcap) which reconstitutes
+        /// decoder (Opc.Ua.Bindings.Pcap) which reconstitutes
         /// <see cref="ChannelToken"/> instances directly from a keylog and
         /// must NOT trigger the live token-activation pipeline.
         /// </summary>
