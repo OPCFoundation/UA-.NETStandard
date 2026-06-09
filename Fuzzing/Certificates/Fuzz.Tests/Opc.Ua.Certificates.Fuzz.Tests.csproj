@@ -1,0 +1,90 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>Opc.Ua.Certificates.Fuzz.Tests</AssemblyName>
+    <RootNamespace>Certificates.Fuzz.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
+    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.X509CRL.cs" Link="FuzzableCode.X509CRL.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.X509Extensions.cs" Link="FuzzableCode.X509Extensions.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.PEMReader.cs" Link="FuzzableCode.PEMReader.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.Pkcs10.cs" Link="FuzzableCode.Pkcs10.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.AsnUtils.cs" Link="FuzzableCode.AsnUtils.cs" />
+    <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\..\common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\Tests\Common\Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Fuzz\Testcases.X509Cert\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.X509CRL\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.X509CSR\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.PEM\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.ASN1\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="..\Fuzz\Testcases.X509Cert\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.X509CRL\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.X509CSR\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.PEM\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.ASN1\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+</Project>
