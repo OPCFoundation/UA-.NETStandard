@@ -174,6 +174,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public partial bool AutoSetQueueSize { get; init; }
 
         /// <summary>
+        /// <see cref="MonitoredItemOptions.Affinity"/> surrogate.
+        /// Round-trips the strict-affinity tag so a restored
+        /// subscription regroups items into the same logical
+        /// partition the source had.
+        /// </summary>
+        [DataTypeField(Order = 22)]
+        public partial string? Affinity { get; init; }
+
+        /// <summary>
         /// Project the encoded surrogate fields back into a live
         /// <see cref="MonitoredItemOptions"/>. Not serialized.
         /// </summary>
@@ -192,7 +201,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Filter = Filter,
                 QueueSize = QueueSize,
                 DiscardOldest = DiscardOldest,
-                AutoSetQueueSize = AutoSetQueueSize
+                AutoSetQueueSize = AutoSetQueueSize,
+                Affinity = Affinity
             };
         }
 
@@ -233,7 +243,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Filter = options.Filter,
                 QueueSize = options.QueueSize,
                 DiscardOldest = options.DiscardOldest,
-                AutoSetQueueSize = options.AutoSetQueueSize
+                AutoSetQueueSize = options.AutoSetQueueSize,
+                Affinity = options.Affinity
             };
         }
     }

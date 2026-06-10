@@ -160,7 +160,8 @@ namespace Opc.Ua.Subscriptions.Tests
                 // the classic test that asserts BadMessageNotAvailable
                 // for a sequence number that the server doesn't have.
                 // TODO(V2): expose RepublishAsync(seq, ct) on ISubscription.
-                Opc.Ua.Client.Subscriptions.Subscription internalSub = (Opc.Ua.Client.Subscriptions.Subscription)subscription;
+                Opc.Ua.Client.Subscriptions.Subscription internalSub =
+                    (Opc.Ua.Client.Subscriptions.Subscription)((Opc.Ua.Client.Subscriptions.LogicalSubscription)subscription).Primary;
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.RepublishAsync(null,
                         internalSub.Id, internalSub.LastSequenceNumberProcessed + 100, ct)
@@ -546,7 +547,8 @@ namespace Opc.Ua.Subscriptions.Tests
                 // exercise the raw service call so the test still
                 // verifies the server resends the cached value.
                 // TODO(V2): expose ResendDataAsync on ISubscription.
-                Opc.Ua.Client.Subscriptions.Subscription internalSub = (Opc.Ua.Client.Subscriptions.Subscription)subscription;
+                Opc.Ua.Client.Subscriptions.Subscription internalSub =
+                    (Opc.Ua.Client.Subscriptions.Subscription)((Opc.Ua.Client.Subscriptions.LogicalSubscription)subscription).Primary;
                 CallMethodRequest[] resend =
                 [
                     new()
@@ -624,7 +626,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(allCreated, Is.True);
 
-                SetTriggeringResponse response = await ((Opc.Ua.Client.Subscriptions.Subscription)subscription)
+                SetTriggeringResponse response = await ((Opc.Ua.Client.Subscriptions.LogicalSubscription)subscription)
                     .SetTriggeringAsync(
                         triggering!.ClientHandle,
                         [triggered1!.ClientHandle, triggered2!.ClientHandle],
@@ -642,7 +644,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(triggered2.TriggeringItem, Is.SameAs(triggering));
 
                 // Remove one of the links
-                SetTriggeringResponse removeResponse = await ((Opc.Ua.Client.Subscriptions.Subscription)subscription)
+                SetTriggeringResponse removeResponse = await ((Opc.Ua.Client.Subscriptions.LogicalSubscription)subscription)
                     .SetTriggeringAsync(triggering.ClientHandle,
                         [],
                         [triggered1.ClientHandle], ct).ConfigureAwait(false);

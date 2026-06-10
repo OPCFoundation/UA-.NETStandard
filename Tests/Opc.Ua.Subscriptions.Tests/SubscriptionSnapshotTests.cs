@@ -244,10 +244,10 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(both, Is.True);
 
-                await ((Opc.Ua.Client.Subscriptions.Subscription)sub).SetTriggeringAsync(triggering!.ClientHandle,
+                await ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).SetTriggeringAsync(triggering!.ClientHandle,
                     [triggered!.ClientHandle], [], ct).ConfigureAwait(false);
 
-                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).Snapshot();
                 MonitoredItemStateSnapshot? triggerSnap = null;
                 MonitoredItemStateSnapshot? triggeredSnap = null;
                 foreach (MonitoredItemStateSnapshot it in snap.MonitoredItems)

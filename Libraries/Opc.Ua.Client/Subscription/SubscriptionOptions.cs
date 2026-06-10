@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -106,5 +107,73 @@ namespace Opc.Ua.Client.Subscriptions
         /// addresses server quirks that leave subscriptions stuck.
         /// </summary>
         public SubscriptionRecoveryPolicy RecoveryPolicy { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// Opts the logical subscription out of the V2 unbounded-item
+        /// behaviour. When <c>false</c> (the default), the engine
+        /// transparently splits monitored items across multiple
+        /// server-side partition subscriptions as needed so callers
+        /// can add an effectively unlimited number of items. When
+        /// <c>true</c>, the subscription is bound to a single
+        /// server-side subscription and
+        /// <see cref="MonitoredItems.IMonitoredItemCollection.TryAdd"/>
+        /// calls that would exceed the server's
+        /// <see cref="ServerCapabilities.MaxMonitoredItemsPerSubscription"/>
+        /// cap surface the server's
+        /// <c>Bad_TooManyMonitoredItems</c> per-item status (the
+        /// pre-V2 behaviour).
+        /// </para>
+        /// </summary>
+        public bool DisableUnboundedItemMode { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// Per-partition upper bound on monitored items. When the
+        /// logical subscription decides to split (see
+        /// <see cref="DisableUnboundedItemMode"/>) the effective
+        /// per-partition cap is
+        /// <c>min(ServerCapabilities.MaxMonitoredItemsPerSubscription,
+        /// MaxMonitoredItemsPerPartition ?? uint.MaxValue)</c>. The
+        /// reactive fallback further lowers the cap if the server
+        /// returns <c>Bad_TooManyMonitoredItems</c> for any individual
+        /// <c>CreateMonitoredItems</c> request.
+        /// </para>
+        /// <para>
+        /// <c>null</c> (the default) means "use the server-reported
+        /// capability". Set this to a smaller value to keep each
+        /// partition smaller for snapshot/transfer scaling, or to a
+        /// larger value to override an artificially low server-reported
+        /// capability.
+        /// </para>
+        /// <para>
+        /// Has no effect when <see cref="DisableUnboundedItemMode"/>
+        /// is <c>true</c>.
+        /// </para>
+        /// </summary>
+        public uint? MaxMonitoredItemsPerPartition { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// Idle timeout before a secondary (non-primary) partition
+        /// subscription is deleted on the server after its last
+        /// monitored item is removed. The primary partition is never
+        /// deleted while the logical subscription is alive so the
+        /// logical subscription's server-side identifier remains
+        /// stable for callers that log or correlate by id.
+        /// </para>
+        /// <para>
+        /// Defaults to <c>30s</c>. Set to <see cref="TimeSpan.Zero"/>
+        /// to delete empty secondary partitions immediately; set to
+        /// <see cref="Timeout.InfiniteTimeSpan"/> to never delete
+        /// empty secondary partitions.
+        /// </para>
+        /// <para>
+        /// Has no effect when <see cref="DisableUnboundedItemMode"/>
+        /// is <c>true</c>.
+        /// </para>
+        /// </summary>
+        public TimeSpan SecondaryPartitionIdleTimeout { get; init; }
+            = TimeSpan.FromSeconds(30);
     }
 }

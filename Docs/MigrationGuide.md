@@ -1540,6 +1540,19 @@ using V2SubscriptionOptions      = Opc.Ua.Client.Subscriptions.SubscriptionOptio
 
 The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed for the time being, but this will change in future releases; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
 
+**Unbounded monitored items per subscription (new default):**
+
+The V2 subscription returned from `Add(...)` is a `LogicalSubscription` wrapper that transparently splits monitored items across multiple server-side **partition** subscriptions when the per-subscription cap (`MaxMonitoredItemsPerSubscription`, OPC UA Part 4 §5.13.2) would be exceeded. Callers see a single `ISubscription` and a single `MonitoredItems` collection — the engine fans out under the hood. Single-partition workloads (the common case) pay zero overhead because the composite collection short-circuits to the primary partition.
+
+* Opt out with `SubscriptionOptions.DisableUnboundedItemMode = true` to restore the pre-V2 "single partition, per-item `Bad_TooManyMonitoredItems`" behaviour.
+* Pin items into the same partition via `MonitoredItemOptions.Affinity` so per-subscription features such as `SetTriggering` keep working across the items in a group; the contract is **strict**, so an affinity group that exceeds the per-partition cap rejects further adds.
+* Cast the returned `ISubscription` to `IPartitionedSubscription` to see the partition layout (`PartitionCount`, `PartitionIds`).
+* Notifications include `PartitionServerId` on `DataValueChange` / `EventNotification` so `(PartitionServerId, sequenceNumber)` disambiguates across partitions.
+* Configurable knobs on `SubscriptionOptions`: `MaxMonitoredItemsPerPartition` (override the per-partition cap), `SecondaryPartitionIdleTimeout` (when an empty secondary partition is deleted, default 30s — primary is never deleted).
+* `Save` / `Load` and `SnapshotSubscriptions` / `RestoreSubscriptionsAsync` round-trip all partitions: every partition emits a snapshot stamped with a shared `LogicalGroupId` + incrementing `PartitionIndex`; the load path regroups them into one `LogicalSubscription`. Old single-partition snapshot files (with `LogicalGroupId == null`) still load via the standalone path.
+* `SetAsDurableAsync(lifetime)` is spec-correct across partitions: the wrapper installs an `OnAfterCreateAsync` state-machine hook on every new partition so `SetSubscriptionDurable` runs between `CreateSubscription` and `CreateMonitoredItems`, satisfying OPC UA Part 4 §5.13.9 on every secondary the placement policy mints.
+* Full developer guide: [UnboundedSubscriptions.md](UnboundedSubscriptions.md).
+
 **Opt-in V2 notification pooling (`WithPoolNotifications`):**
 
 The V2 subscription engine supports activator-level pooling of decoded

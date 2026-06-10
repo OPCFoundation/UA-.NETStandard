@@ -138,7 +138,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(firstData, Is.True);
 
-                uint originSubscriptionServerId = ((Opc.Ua.Client.Subscriptions.Subscription)originSub).Id;
+                uint originSubscriptionServerId = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)originSub).ServerId;
                 uint originItemServerId = originItem!.ServerId;
                 uint originItemClientHandle = originItem.ClientHandle;
 
@@ -204,10 +204,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 // the target session. Distinguish via the preserved id; assert the
                 // outcome is internally consistent.
                 bool transferActuallyTookOver =
-                    ((Opc.Ua.Client.Subscriptions.Subscription)transferred).Id == originSubscriptionServerId;
+                    ((Opc.Ua.Client.Subscriptions.LogicalSubscription)transferred).ServerId == originSubscriptionServerId;
                 TestContext.Out.WriteLine(transferActuallyTookOver
                     ? $"Transfer preserved server id {originSubscriptionServerId}"
-                    : $"Transfer denied → fallback recreate (origin Id={originSubscriptionServerId}, new Id={((Opc.Ua.Client.Subscriptions.Subscription)transferred).Id})");
+                    : $"Transfer denied → fallback recreate (origin Id={originSubscriptionServerId}, new Id={((Opc.Ua.Client.Subscriptions.LogicalSubscription)transferred).ServerId})");
 
                 Assert.That(transferred.MonitoredItems.TryGetMonitoredItemByName(
                     "CurrentTime", out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? transferredItem),
@@ -286,7 +286,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(gotData, Is.True);
 
-                uint originSubServerId = ((Opc.Ua.Client.Subscriptions.Subscription)originSub).Id;
+                uint originSubServerId = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)originSub).ServerId;
 
                 using (var output = File.Create(saveFile))
                 {
@@ -320,7 +320,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // With transferSubscriptions=false, the V2 manager
                 // creates a fresh server subscription with a new id
                 // rather than taking over the saved id.
-                uint newSubServerId = ((Opc.Ua.Client.Subscriptions.Subscription)recreated).Id;
+                uint newSubServerId = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)recreated).ServerId;
                 Assert.That(newSubServerId, Is.Not.Zero);
                 Assert.That(newSubServerId, Is.Not.EqualTo(originSubServerId),
                     "Recreated subscription should have a fresh server id");

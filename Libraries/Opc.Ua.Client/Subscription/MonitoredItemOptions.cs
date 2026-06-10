@@ -101,5 +101,35 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Auto calculate a queue size and apply
         /// </summary>
         public bool AutoSetQueueSize { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// Optional affinity tag. When the V2 subscription engine
+        /// runs in unbounded-item mode (the default — see
+        /// <see cref="SubscriptionOptions.DisableUnboundedItemMode"/>),
+        /// monitored items that share the same non-null
+        /// <see cref="Affinity"/> value are guaranteed to land in
+        /// the same underlying server-side partition subscription.
+        /// </para>
+        /// <para>
+        /// Co-location is required for cross-item OPC UA features
+        /// that are scoped to a single subscription on the server,
+        /// most notably <c>SetTriggering</c> (OPC UA Part 4 §5.13.6).
+        /// </para>
+        /// <para>
+        /// The affinity contract is <em>strict</em>: once an affinity
+        /// group reaches the per-partition capacity, further
+        /// <see cref="IMonitoredItemCollection.TryAdd"/> calls for
+        /// the same tag return <c>false</c> rather than silently
+        /// splitting the group across partitions. Callers that want
+        /// to allow splitting must drop the tag or move the items to
+        /// a different logical subscription.
+        /// </para>
+        /// <para>
+        /// A <c>null</c> value (the default) places no co-location
+        /// constraint on the item.
+        /// </para>
+        /// </summary>
+        public string? Affinity { get; init; }
     }
 }

@@ -217,5 +217,185 @@ namespace Opc.Ua.Aot.Tests
             await fixture.Session.RemoveSubscriptionAsync(subscription)
                 .ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Smoke test for the V2 unbounded-items mode under
+        /// NativeAOT. Exercises every new code path
+        /// (LogicalSubscription, CompositeMonitoredItemCollection,
+        /// PartitionPlacementPolicy, PartitionForwardingHandler,
+        /// and the SubscriptionManager partition factory) to confirm
+        /// no missing trimming or reflection annotations break
+        /// under AOT.
+        /// </summary>
+        [Test]
+        public async Task UnboundedSubscriptionWithCapAotAsync()
+        {
+            Opc.Ua.Client.ManagedSession session = await fixture
+                .CreateManagedSessionAsync("AotUnboundedSubscription")
+                .ConfigureAwait(false);
+            try
+            {
+                var handler = new AotRecordingHandler();
+                Opc.Ua.Client.Subscriptions.ISubscription subscription =
+                    session.AddSubscription(handler,
+                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                        {
+                            PublishingInterval = TimeSpan.FromMilliseconds(500),
+                            KeepAliveCount = 10,
+                            LifetimeCount = 100,
+                            PublishingEnabled = true,
+                            Priority = 0,
+                            MaxMonitoredItemsPerPartition = 5
+                        });
+                // The concrete LogicalSubscription type is internal —
+                // verify via the public IPartitionedSubscription
+                // surface that we got a partition-aware wrapper.
+                await Assert.That(subscription)
+                    .IsAssignableTo<Opc.Ua.Client.Subscriptions.IPartitionedSubscription>();
+
+                bool created = await WaitForAsync(() => subscription.Created,
+                    TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                await Assert.That(created).IsTrue();
+
+                // Add 12 items at cap=5 → forces 3 partitions; every
+                // partition mint runs through the V2 factory path the
+                // composite collection drives. Each item add exercises
+                // the placement policy + composite indexing.
+                NodeId timeNode = VariableIds.Server_ServerStatus_CurrentTime;
+                for (int i = 0; i < 12; i++)
+                {
+                    bool added = subscription.MonitoredItems.TryAdd(
+                        $"aot_unbounded_{i}",
+                        new Opc.Ua.OptionsMonitor<
+                            Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>(
+                            new Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+                            {
+                                StartNodeId = timeNode,
+                                SamplingInterval = TimeSpan.FromMilliseconds(500)
+                            }),
+                        out _);
+                    await Assert.That(added).IsTrue();
+                }
+
+                var partitioned =
+                    (Opc.Ua.Client.Subscriptions.IPartitionedSubscription)subscription;
+                await Assert.That(partitioned.PartitionCount).IsEqualTo(3);
+
+                // Strict-affinity smoke: an Affinity-tagged item must
+                // co-locate with previous items of the same tag. The
+                // assertion is implicit — TryAdd returns true and the
+                // composite name lookup succeeds (PartitionPlacementPolicy
+                // pinned the tag to its first chosen partition).
+                bool affinityAdded = subscription.MonitoredItems.TryAdd(
+                    "aot_affinity_a",
+                    new Opc.Ua.OptionsMonitor<
+                        Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>(
+                        new Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+                        {
+                            StartNodeId = timeNode,
+                            SamplingInterval = TimeSpan.FromMilliseconds(500),
+                            Affinity = "aot_group"
+                        }),
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem affinityItem);
+                await Assert.That(affinityAdded).IsTrue();
+                await Assert.That(affinityItem).IsNotNull();
+
+                bool allCreated = await WaitForAsync(
+                    () => subscription.MonitoredItems.Items.All(i => i.Created),
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                await Assert.That(allCreated).IsTrue();
+
+                // Notifications must flow through the
+                // PartitionForwardingHandler dispatch path.
+                bool gotData = await handler.WaitForAnyDataAsync(
+                    TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                await Assert.That(gotData).IsTrue();
+
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    await session.CloseAsync(ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch { /* best effort */ }
+                try { await session.DisposeAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
+            }
+        }
+
+        private static async Task<bool> WaitForAsync(Func<bool> predicate, TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                if (predicate())
+                {
+                    return true;
+                }
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+            return predicate();
+        }
+
+        /// <summary>
+        /// Minimal AOT-safe notification handler — counts
+        /// data-change callbacks so the test can wait for the
+        /// PartitionForwardingHandler dispatch path to deliver at
+        /// least one notification.
+        /// </summary>
+        private sealed class AotRecordingHandler
+            : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+        {
+            private readonly TaskCompletionSource<bool> m_firstData =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public ValueTask OnDataChangeNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber, DateTime publishTime,
+                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
+            {
+                m_firstData.TrySetResult(true);
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber, DateTime publishTime,
+                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber, DateTime publishTime,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+            {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            public async Task<bool> WaitForAnyDataAsync(TimeSpan timeout)
+            {
+                Task winner = await Task.WhenAny(
+                    m_firstData.Task, Task.Delay(timeout)).ConfigureAwait(false);
+                return winner == m_firstData.Task;
+            }
+        }
     }
 }

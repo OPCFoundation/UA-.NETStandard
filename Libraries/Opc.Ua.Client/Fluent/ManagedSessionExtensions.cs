@@ -229,10 +229,12 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Capture an in-memory snapshot of every subscription managed
-        /// by <paramref name="session"/>. The returned list of
-        /// <see cref="SubscriptionStateSnapshot"/>s can be persisted by
-        /// the caller in any format and later passed to
-        /// <see cref="RestoreSubscriptionsAsync"/>.
+        /// by <paramref name="session"/>. Multi-partition wrappers
+        /// contribute one <see cref="SubscriptionStateSnapshot"/> per
+        /// partition; the returned list can be persisted by the caller
+        /// in any format and later passed to
+        /// <see cref="RestoreSubscriptionsAsync"/>, which regroups
+        /// snapshots by their <c>LogicalGroupId</c>.
         /// </summary>
         public static IReadOnlyList<SubscriptionStateSnapshot> SnapshotSubscriptions(
             this ManagedSession session)
@@ -244,8 +246,14 @@ namespace Opc.Ua.Client
             var result = new List<SubscriptionStateSnapshot>();
             foreach (ISubscription s in session.SubscriptionManager.Items)
             {
-                if (s is Subscriptions.Subscription concrete)
+                if (s is Subscriptions.LogicalSubscription logical)
                 {
+                    result.AddRange(logical.SnapshotAllPartitions());
+                }
+                else if (s is Subscriptions.Subscription concrete)
+                {
+                    // Fall-through for any direct Subscription usage
+                    // (e.g. tests bypassing the manager).
                     result.Add(concrete.Snapshot());
                 }
             }
@@ -255,14 +263,22 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Restore a list of <see cref="SubscriptionStateSnapshot"/>s
         /// previously captured by <see cref="SnapshotSubscriptions"/>.
+        /// Snapshots that share a non-null
+        /// <c>LogicalGroupId</c> are regrouped into a single
+        /// multi-partition <c>LogicalSubscription</c>; snapshots
+        /// with <c>null</c> <c>LogicalGroupId</c> restore as
+        /// standalone subscriptions (matching V1 snapshot files).
+        /// Malformed groups throw
+        /// <see cref="ServiceResultException"/> with
+        /// <see cref="StatusCodes.BadDecodingError"/>.
         /// </summary>
         /// <param name="session">Session that owns the V2 subscription
         /// manager.</param>
         /// <param name="states">Snapshots to restore.</param>
         /// <param name="handlerFactory">Factory invoked once per
-        /// snapshot to construct the application's notification
-        /// handler. The factory receives the snapshot itself so callers
-        /// can route by options or per-item metadata.</param>
+        /// logical subscription to construct the application's
+        /// notification handler. For grouped restores the factory is
+        /// passed the primary partition's snapshot.</param>
         /// <param name="transferSubscriptions">When <c>true</c> the
         /// restored subscriptions take over the original server-side
         /// state via <c>TransferSubscriptions</c>; if that fails for
@@ -287,10 +303,37 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
-            var result = new List<ISubscription>(states.Count);
+            var result = new List<ISubscription>();
             Subscriptions.SubscriptionManager manager =
                 (Subscriptions.SubscriptionManager)session.SubscriptionManager;
+
+            // Group by LogicalGroupId; null group = standalone. The
+            // grouping logic mirrors the stream-based LoadAsync
+            // path so callers see consistent multi-partition
+            // restore behaviour regardless of where the snapshots
+            // came from.
+            var groups = new Dictionary<string, List<SubscriptionStateSnapshot>>(
+                StringComparer.Ordinal);
+            var standalone = new List<SubscriptionStateSnapshot>();
             foreach (SubscriptionStateSnapshot state in states)
+            {
+                if (string.IsNullOrEmpty(state.LogicalGroupId))
+                {
+                    standalone.Add(state);
+                }
+                else
+                {
+                    if (!groups.TryGetValue(state.LogicalGroupId,
+                        out List<SubscriptionStateSnapshot>? bucket))
+                    {
+                        bucket = [];
+                        groups[state.LogicalGroupId] = bucket;
+                    }
+                    bucket.Add(state);
+                }
+            }
+
+            foreach (SubscriptionStateSnapshot state in standalone)
             {
                 result.Add(await manager.RestoreAsync(
                     handlerFactory(state),
@@ -298,7 +341,37 @@ namespace Opc.Ua.Client
                     transferSubscriptions,
                     ct).ConfigureAwait(false));
             }
+            foreach (KeyValuePair<string, List<SubscriptionStateSnapshot>> entry in groups)
+            {
+                List<SubscriptionStateSnapshot> ordered = ValidateAndSortGroup(
+                    entry.Key, entry.Value);
+                result.Add(await manager.RestoreGroupAsync(
+                    handlerFactory(ordered[0]),
+                    ordered,
+                    transferSubscriptions,
+                    ct).ConfigureAwait(false));
+            }
             return result;
+        }
+
+        private static List<SubscriptionStateSnapshot> ValidateAndSortGroup(
+            string groupId,
+            List<SubscriptionStateSnapshot> bucket)
+        {
+            bucket.Sort(static (a, b) => a.PartitionIndex.CompareTo(b.PartitionIndex));
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                if (bucket[i].PartitionIndex != i)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Multi-partition snapshot group '{0}' has " +
+                        "non-contiguous or duplicated PartitionIndex " +
+                        "values (expected {1} at position {1}, got {2}).",
+                        groupId, i, bucket[i].PartitionIndex);
+                }
+            }
+            return bucket;
         }
     }
 }

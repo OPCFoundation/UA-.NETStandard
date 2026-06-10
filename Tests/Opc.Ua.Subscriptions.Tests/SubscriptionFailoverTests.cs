@@ -203,7 +203,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(await handler.WaitForFirstDataAsync(
                     TimeSpan.FromSeconds(15), ct).ConfigureAwait(false), Is.True);
 
-                uint preServerId = ((Opc.Ua.Client.Subscriptions.Subscription)sub).ServerId;
+                uint preServerId = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).ServerId;
                 int preCount = handler.DataChangeCount;
                 ITransportChannel? channel = session.InnerSession?.TransportChannel;
                 if (channel == null)
@@ -224,7 +224,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     () => handler.DataChangeCount > preCount,
                     TimeSpan.FromSeconds(30), ct).ConfigureAwait(false), Is.True,
                     "Subscription must continue to deliver after channel reconnect");
-                Assert.That(((Opc.Ua.Client.Subscriptions.Subscription)sub).ServerId, Is.EqualTo(preServerId),
+                Assert.That(((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).ServerId, Is.EqualTo(preServerId),
                     "Without TransferSubscriptions on recreate, the server-side " +
                     "ServerId should be preserved across a transport-level reconnect.");
 
