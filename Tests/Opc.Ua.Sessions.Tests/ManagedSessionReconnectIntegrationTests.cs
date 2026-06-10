@@ -659,9 +659,9 @@ namespace Opc.Ua.Sessions.Tests
             var handler = new SubscriptionRecordingHandler();
             try
             {
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -792,9 +792,9 @@ namespace Opc.Ua.Sessions.Tests
             var recordingHandler = new SubscriptionRecordingHandler();
             try
             {
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     recordingHandler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -972,9 +972,9 @@ namespace Opc.Ua.Sessions.Tests
             var handler = new SubscriptionRecordingHandler();
             try
             {
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Sessions.Tests
                 // SubscriptionManager type is internal but accessible
                 // to this test project via InternalsVisibleTo.
                 var concreteManager =
-                    (Opc.Ua.Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
+                    (Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
                 concreteManager.TransferSubscriptionsOnRecreate = true;
 
                 int snapshotCountBeforeTransfer = handler.DataChangeCount;
@@ -1131,15 +1131,15 @@ namespace Opc.Ua.Sessions.Tests
                 // After connect the V2 manager must already report the
                 // opt-in flag set.
                 var manager =
-                    (Opc.Ua.Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
+                    (Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
                 Assert.That(
                     manager.TransferSubscriptionsOnRecreate, Is.True,
                     "Builder.WithTransferSubscriptionsOnRecreate must " +
                     "set V2 SubscriptionManager.TransferSubscriptionsOnRecreate.");
 
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -1235,12 +1235,12 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
-        /// Test double for <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler"/>
+        /// Test double for <see cref="Client.Subscriptions.ISubscriptionNotificationHandler"/>
         /// that records data-change/keep-alive/event counts and exposes a
         /// resettable signal for "data has arrived since reset".
         /// </summary>
         private sealed class SubscriptionRecordingHandler
-            : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+            : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             private TaskCompletionSource<bool> m_dataSignal
                 = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1271,11 +1271,11 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnDataChangeNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 Interlocked.Add(ref DataChangeCount, notification.Length);
@@ -1284,11 +1284,11 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnEventDataNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 Interlocked.Add(ref EventCount, notification.Length);
@@ -1296,19 +1296,19 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnKeepAliveNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+                Client.Subscriptions.PublishState publishStateMask)
             {
                 Interlocked.Increment(ref KeepAliveCount);
                 return default;
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;

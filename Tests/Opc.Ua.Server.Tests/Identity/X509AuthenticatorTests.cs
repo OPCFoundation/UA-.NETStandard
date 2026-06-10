@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests.Identity
             var validationResult = new CertificateValidationResult(
                 false,
                 StatusCodes.BadCertificateUntrusted,
-                Array.Empty<ServiceResult>(),
+                [],
                 false);
             var authenticator = new X509Authenticator(new TestCertificateValidator(validationResult));
 

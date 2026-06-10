@@ -178,7 +178,8 @@ namespace Opc.Ua.History.Tests
             {
                 Assert.Inconclusive(
                     "Disable/Enable event did not arrive within the expected window " +
-                    "(CI load flakiness): " + ex.Message);
+                    "(CI load flakiness): " +
+                    ex.Message);
             }
         }
 
@@ -266,7 +267,8 @@ namespace Opc.Ua.History.Tests
                 e => AlarmEventCollector.TryGetBoolean(
                     e,
                     AlarmEventCollector.FieldIndex.EnabledStateId,
-                    out bool enabled) && !enabled,
+                    out bool enabled) &&
+                    !enabled,
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             AssertTransitionTimeInCallWindow(
                 disableEvent,
@@ -295,7 +297,8 @@ namespace Opc.Ua.History.Tests
                 e => AlarmEventCollector.TryGetBoolean(
                     e,
                     AlarmEventCollector.FieldIndex.EnabledStateId,
-                    out bool enabled) && enabled,
+                    out bool enabled) &&
+                    enabled,
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             AssertTransitionTimeInCallWindow(
                 enableEvent,

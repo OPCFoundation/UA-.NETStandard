@@ -68,6 +68,9 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#";
 
         /// <summary>Compose a per-rule help URL anchored at the rule ID.</summary>
-        public static string HelpLinkFor(string id) => HelpLinkUriBase + id.ToLowerInvariant();
+        public static string HelpLinkFor(string id)
+        {
+            return HelpLinkUriBase + id.ToLowerInvariant();
+        }
     }
 }

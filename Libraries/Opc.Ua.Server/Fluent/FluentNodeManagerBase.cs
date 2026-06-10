@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Fluent
                 defaultNamespaceIndex,
                 browseName => PredefinedNodes.Values.FindByBrowseName(browseName)!,
                 nodeId => PredefinedNodes.FindById(nodeId)!,
-                typeDefId => PredefinedNodes.Values.FindByTypeDefinition(typeDefId));
+                PredefinedNodes.Values.FindByTypeDefinition);
             AttachToBuilder(builder);
             return builder;
         }

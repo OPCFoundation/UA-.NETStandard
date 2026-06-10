@@ -55,7 +55,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0012CertificateFactoryStaticToInstanceAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0012CertificateFactoryStaticToInstanceAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0012 = diags.SingleOrDefault(d => d.Id == "UA0012");
             Assert.That(ua0012, Is.Not.Null);
@@ -76,7 +77,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0012CertificateFactoryStaticToInstanceAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0012CertificateFactoryStaticToInstanceAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0012"), Is.True);
         }
@@ -93,7 +95,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0012CertificateFactoryStaticToInstanceAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0012CertificateFactoryStaticToInstanceAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0012"), Is.False);
         }
@@ -119,7 +122,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0012CertificateFactoryStaticToInstanceAnalyzer(),
                 new UA0012CertificateFactoryStaticToInstanceCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

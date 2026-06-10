@@ -76,9 +76,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder Organizes(
             this INodeBuilder builder,
             NodeId targetId)
-            {
+        {
             return builder.AddReference(ReferenceTypeIds.Organizes, isInverse: false, targetId);
-            }
+        }
 
         /// <summary>
         /// Convenience overload that takes a <see cref="NodeState"/> for
@@ -102,9 +102,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder HasComponent(
             this INodeBuilder builder,
             NodeId targetId)
-            {
+        {
             return builder.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, targetId);
-            }
+        }
 
         /// <summary>
         /// Adds a <see cref="ReferenceTypeIds.HasProperty"/> reference
@@ -113,9 +113,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder HasProperty(
             this INodeBuilder builder,
             NodeId targetId)
-            {
+        {
             return builder.AddReference(ReferenceTypeIds.HasProperty, isInverse: false, targetId);
-            }
+        }
 
         /// <summary>
         /// Adds an arbitrary reference from the current node to
@@ -346,15 +346,11 @@ namespace Opc.Ua.Server.Fluent
 
             public INodeBuilder Child(QualifiedName browseName)
             {
-                NodeState? c = Node.FindChild(Builder.Context, browseName);
-                if (c == null)
-                {
-                    throw ServiceResultException.Create(
+                NodeState? c = Node.FindChild(Builder.Context, browseName) ?? throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Child '{0}' not found on '{1}'.",
                         browseName,
                         Node.BrowseName);
-                }
                 return new AdHocNodeBuilder<NodeState>(Builder, c);
             }
 

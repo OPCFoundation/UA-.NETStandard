@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static SystemContext CreateContext()
         {
             var ns = new NamespaceTable();
-            ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+            ns.Append(Ua.Namespaces.OpcUa);
             return new SystemContext(telemetry: null!)
             {
                 NamespaceUris = ns
@@ -187,11 +187,11 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new QualifiedName("X", kNs),
                     p => new BaseObjectState(p)));
             Assert.Throws<ArgumentNullException>(
-                () => nb.CreateInstance<BaseObjectState>(QualifiedName.Null, p => new BaseObjectState(p)));
+                () => nb.CreateInstance(QualifiedName.Null, p => new BaseObjectState(p)));
             Assert.Throws<ArgumentNullException>(
                 () => nb.CreateInstance<BaseObjectState>(
                     new QualifiedName("X", kNs),
-                    (Func<NodeState, BaseObjectState>)null!));
+                    null!));
         }
 
         [Test]
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
             Assert.Throws<ArgumentNullException>(
-                () => nb.CreateInstance<BaseObjectState>(
+                () => nb.CreateInstance(
                     QualifiedName.Null,
                     new NodeId(1024u, kNs),
                     p => new BaseObjectState(p)));
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => nb.CreateInstance<BaseObjectState>(
                     new QualifiedName("X", kNs),
                     new NodeId(1024u, kNs),
-                    (Func<NodeState, BaseObjectState>)null!));
+                    null!));
         }
 
         [Test]
@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .AsNode();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => typed.OnRead((NodeValueSimpleEventHandler)((ISystemContext c, NodeState n, ref Variant v) => ServiceResult.Good)))!;
+                () => typed.OnRead((c, n, ref v) => ServiceResult.Good))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
         }
 

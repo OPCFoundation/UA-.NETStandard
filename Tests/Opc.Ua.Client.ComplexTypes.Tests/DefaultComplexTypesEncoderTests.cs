@@ -29,7 +29,6 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Core.TestFramework;
 using Opc.Ua.Tests;
 using ComplexStructure = Opc.Ua.Encoders.Structure;

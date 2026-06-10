@@ -56,11 +56,11 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             "IsUncertain",
             "IsNotGood",
             "IsNotBad",
-            "IsNotUncertain",
+            "IsNotUncertain"
         ];
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0014_DataValueIsGoodStaticToInstance);
+            [DiagnosticDescriptors.UA0014_DataValueIsGoodStaticToInstance];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -71,7 +71,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeInvocation(OperationAnalysisContext context)
         {
-            IInvocationOperation invocation = (IInvocationOperation)context.Operation;
+            var invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
 
             if (!method.IsStatic ||
@@ -87,8 +87,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 return;
             }
             string containingName = containing.ToDisplayString();
-            if (containingName != "Opc.Ua.DataValue" &&
-                containingName != "Opc.Ua.DataValueExtensions")
+            if (containingName is not "Opc.Ua.DataValue" and
+                not "Opc.Ua.DataValueExtensions")
             {
                 return;
             }

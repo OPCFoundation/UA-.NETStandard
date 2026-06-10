@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Hosting
         {
             if (Algorithms.Count == 0)
             {
-                return new[] { "RS256" };
+                return ["RS256"];
             }
 
             var values = new List<string>(Algorithms.Count);
@@ -309,7 +309,7 @@ namespace Opc.Ua.Server.Hosting
                 return value;
             }
 
-            var trimmed = new byte[value.Length - offset];
+            byte[] trimmed = new byte[value.Length - offset];
             Buffer.BlockCopy(value, offset, trimmed, 0, trimmed.Length);
             return trimmed;
         }
@@ -380,7 +380,7 @@ namespace Opc.Ua.Server.Hosting
                     throw new InvalidOperationException("RSA public-key BIT STRING has unsupported padding.");
                 }
 
-                var result = new byte[value.Length - 1];
+                byte[] result = new byte[value.Length - 1];
                 Buffer.BlockCopy(value, 1, result, 0, result.Length);
                 return result;
             }
@@ -406,7 +406,7 @@ namespace Opc.Ua.Server.Hosting
                     throw new InvalidOperationException("Invalid DER length while reading RSA public key.");
                 }
 
-                var value = new byte[length];
+                byte[] value = new byte[length];
                 Buffer.BlockCopy(m_data, m_offset, value, 0, length);
                 m_offset += length;
                 return value;

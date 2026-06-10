@@ -153,10 +153,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 alarm.ActiveState.Id.Value = active;
                 alarm.ActiveState.Value = new LocalizedText(active ? "Active" : "Inactive");
-                if (alarm.Time != null)
-                {
-                    alarm.Time.Value = DateTimeUtc.Now;
-                }
+                alarm.Time?.Value = DateTimeUtc.Now;
                 alarm.ClearChangeMasks(context, includeChildren: true);
             }
         }
@@ -222,7 +219,7 @@ namespace Opc.Ua.Server.Fluent
                 }
                 bool wasInitialized = m_initialized;
                 m_initialized = true;
-                bool previous = wasInitialized ? m_last : false;
+                bool previous = wasInitialized && m_last;
                 m_last = current;
 
                 if (current && !previous)

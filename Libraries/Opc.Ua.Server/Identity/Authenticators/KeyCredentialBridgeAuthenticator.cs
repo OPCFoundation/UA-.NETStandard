@@ -341,7 +341,7 @@ namespace Opc.Ua.Server
         {
             if (!claims.TryGetValue(claimName, out object? value) || value == null)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             if (value is string single)
@@ -356,7 +356,7 @@ namespace Opc.Ua.Server
                 return new List<string>(strings).AsReadOnly();
             }
 
-            return Array.Empty<string>();
+            return [];
         }
 
         private static string? GetOptionalString(

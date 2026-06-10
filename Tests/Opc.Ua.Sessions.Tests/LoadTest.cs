@@ -846,9 +846,9 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;

@@ -307,7 +307,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// magic does not match.</returns>
         public static ModelDependencyV1? FromBase64Payload(string base64)
         {
-            if (string.IsNullOrEmpty(base64)) { return null; }
+            if (string.IsNullOrEmpty(base64))
+            { return null; }
             byte[] bytes;
             try
             {

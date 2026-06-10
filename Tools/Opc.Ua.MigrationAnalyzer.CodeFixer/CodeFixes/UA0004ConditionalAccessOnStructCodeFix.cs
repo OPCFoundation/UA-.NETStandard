@@ -45,13 +45,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// UA0004 code fix: drop the leading <c>?.</c> of a null-conditional chain
     /// whose receiver is a now-struct type, leaving any deeper <c>?.</c> intact.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0004ConditionalAccessOnStructCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0004ConditionalAccessOnStructCodeFix))]
+    [Shared]
     public sealed class UA0004ConditionalAccessOnStructCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0004);
+            [DiagnosticIds.UA0004];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

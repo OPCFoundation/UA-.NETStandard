@@ -174,9 +174,9 @@ namespace Opc.Ua.Client.Tests.Identity
 
             public int ThrowOnCall { get; set; }
 
-            public IReadOnlyList<UserTokenType> SupportedTokenTypes => new[] { UserTokenType.UserName };
+            public IReadOnlyList<UserTokenType> SupportedTokenTypes => [UserTokenType.UserName];
 
-            public IReadOnlyList<string> SupportedIssuedTokenProfileUris => Array.Empty<string>();
+            public IReadOnlyList<string> SupportedIssuedTokenProfileUris => [];
 
             public DateTime ExpiresAt { get; private set; }
 
