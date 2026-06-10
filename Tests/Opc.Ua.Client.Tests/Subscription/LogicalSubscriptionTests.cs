@@ -34,10 +34,6 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using V2Options = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
-
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
-#pragma warning disable CA2000 // Dispose objects before losing scope — ownership transfers to LogicalSubscription which disposes the fake.
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -71,20 +67,24 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task ImplementsPartitionedSubscriptionAndIsSubscriptionAsync()
         {
-            var fake = CreateFake(id: 42, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 42, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
                 Assert.That(sut, Is.InstanceOf<ISubscription>());
                 Assert.That(sut, Is.InstanceOf<IPartitionedSubscription>());
                 Assert.That(sut, Is.InstanceOf<ILogicalSubscription>());
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         public async Task SinglePartitionFastPathDelegatesAllSubscriptionMembersAsync()
         {
-            var fake = CreateFake(id: 42, created: true);
+            FakeManagedSubscription fake = CreateFake(id: 42, created: true);
             fake.CurrentPublishingInterval = TimeSpan.FromMilliseconds(500);
             fake.CurrentPriority = 7;
             fake.CurrentLifetimeCount = 1200;
@@ -94,8 +94,8 @@ namespace Opc.Ua.Client.Subscriptions
             fake.MissingMessageCount = 11;
             fake.RepublishMessageCount = 5;
 
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            LogicalSubscription sut = new(fake);
+            try
             {
                 Assert.Multiple(() =>
                 {
@@ -114,14 +114,18 @@ namespace Opc.Ua.Client.Subscriptions
                     Assert.That(sut.ServerId, Is.EqualTo(42u));
                 });
             }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
         public async Task CreatedFollowsPrimaryStateThroughTransitionsAsync()
         {
-            var fake = CreateFake(id: 0, created: false);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 0, created: false);
+            LogicalSubscription sut = new(fake);
+            try
             {
                 Assert.That(sut.Created, Is.False, "before primary is created");
 
@@ -130,25 +134,33 @@ namespace Opc.Ua.Client.Subscriptions
 
                 Assert.That(sut.Created, Is.True, "after primary is created");
             }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
         public async Task PartitionCountIsOneForSinglePartitionAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
                 Assert.That(sut.PartitionCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         public async Task PartitionIdsContainsExactlyThePrimaryIdAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
                 Assert.That(sut.PartitionIds, Has.Count.EqualTo(1));
                 Assert.That(sut.PartitionIds[0], Is.EqualTo(11u));
@@ -156,66 +168,86 @@ namespace Opc.Ua.Client.Subscriptions
                 // value as ServerId so consumers can correlate by id.
                 Assert.That(sut.PartitionIds[0], Is.EqualTo(sut.ServerId));
             }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
         public async Task PartitionsExposesThePrimaryAsTheOnlyEntryAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
                 Assert.That(sut.Partitions, Has.Count.EqualTo(1));
                 Assert.That(sut.Partitions[0], Is.SameAs(fake));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         public async Task SetAsDurableForwardsToPrimaryAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
             var requested = TimeSpan.FromHours(2);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            LogicalSubscription sut = new(fake);
+            try
             {
-                TimeSpan revised = await sut.SetAsDurableAsync(requested);
+                TimeSpan revised = await sut.SetAsDurableAsync(requested).ConfigureAwait(false);
 
                 Assert.That(fake.SetAsDurableCalls, Has.Count.EqualTo(1));
                 Assert.That(fake.SetAsDurableCalls[0].Lifetime, Is.EqualTo(requested));
                 Assert.That(revised, Is.EqualTo(requested));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         public async Task ConditionRefreshForwardsToPrimaryAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
-                await sut.ConditionRefreshAsync();
+                await sut.ConditionRefreshAsync().ConfigureAwait(false);
                 Assert.That(fake.ConditionRefreshAsyncCalls, Is.EqualTo(1));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         public async Task RecreateForwardsToPrimaryAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
-                await sut.RecreateAsync();
+                await sut.RecreateAsync().ConfigureAwait(false);
                 Assert.That(fake.RecreateAsyncCalls, Is.EqualTo(1));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         public async Task NotifyPausedFanOutsToEveryPartitionAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
             {
                 sut.NotifySubscriptionManagerPaused(true);
                 sut.NotifySubscriptionManagerPaused(false);
@@ -223,15 +255,19 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(fake.NotifySubscriptionManagerPausedCalls,
                     Is.EqualTo(s_pausedTrueFalseSequence));
             }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
         public async Task DisposeForwardsToEveryPartitionAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
-            var sut = new LogicalSubscription(fake);
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
 
-            await sut.DisposeAsync();
+            await sut.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(fake.DisposeAsyncCalls, Is.EqualTo(1));
         }
@@ -239,7 +275,7 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task MonitoredItemsDelegatesToPrimaryInFastPathAsync()
         {
-            var fake = CreateFake(id: 11, created: true);
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
             // The wrapper's MonitoredItems is a composite, not the
             // primary's collection directly. In single-partition
             // fast-path mode it must delegate every member to the
@@ -248,8 +284,8 @@ namespace Opc.Ua.Client.Subscriptions
             var sentinel = new RecordingMonitoredItemCollection();
             fake.MonitoredItems = sentinel;
 
-            var sut = new LogicalSubscription(fake);
-            await using (sut.ConfigureAwait(false))
+            LogicalSubscription sut = new(fake);
+            try
             {
                 _ = sut.MonitoredItems.Count;
                 Assert.That(sentinel.CountCalls, Is.EqualTo(1),
@@ -258,6 +294,10 @@ namespace Opc.Ua.Client.Subscriptions
                 _ = sut.MonitoredItems.TryGetMonitoredItemByName("nope", out _);
                 Assert.That(sentinel.TryGetByNameCalls, Is.EqualTo(1),
                     "fast-path name lookup must be served by the primary collection");
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -300,7 +340,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             public bool TryAdd(string name,
-                IOptionsMonitor<V2Options> options,
+                IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options,
                 out IMonitoredItem? monitoredItem)
             {
                 monitoredItem = null;
@@ -313,7 +353,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             public IReadOnlyList<IMonitoredItem> Update(
-                IReadOnlyList<(string Name, IOptionsMonitor<V2Options> Options)> state)
+                IReadOnlyList<(string Name, IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options)> state)
             {
                 return Array.Empty<IMonitoredItem>();
             }
@@ -351,7 +391,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             public bool TryAdd(string name,
-                IOptionsMonitor<V2Options> options,
+                IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options,
                 out IMonitoredItem? monitoredItem)
             {
                 monitoredItem = null;
@@ -364,10 +404,11 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             public IReadOnlyList<IMonitoredItem> Update(
-                IReadOnlyList<(string Name, IOptionsMonitor<V2Options> Options)> state)
+                IReadOnlyList<(string Name, IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options)> state)
             {
                 return Array.Empty<IMonitoredItem>();
             }
         }
     }
 }
+

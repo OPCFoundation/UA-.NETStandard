@@ -57,9 +57,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// Reactive cap fallback: callers report
     /// <c>Bad_TooManyMonitoredItems</c> outcomes via
     /// <see cref="OnPartitionCapReached"/>. The policy then marks
-    /// the partition "no-grow" so future placements skip it, and
-    /// pins the effective per-partition cap to the count at which
-    /// the rejection occurred. This handles servers whose actual
+    /// the partition "no-grow" so future placements skip it and the
+    /// next add mints a fresh partition. The per-partition cap
+    /// (<see cref="MaxItemsPerPartition"/>) itself is not lowered —
+    /// fresh partitions still start with the original cap, which is
+    /// the right behaviour when the rejection was driven by a
+    /// transient or partition-local condition (concurrent server-
+    /// side activity, per-handler limits, etc.) rather than a hard
+    /// per-subscription limit. This handles servers whose actual
     /// limit is lower than the advertised
     /// <see cref="ServerCapabilities.MaxMonitoredItemsPerSubscription"/>.
     /// </para>

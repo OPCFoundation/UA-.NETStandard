@@ -131,20 +131,30 @@ namespace Opc.Ua.Client.Subscriptions
         /// <para>
         /// Per-partition upper bound on monitored items. When the
         /// logical subscription decides to split (see
-        /// <see cref="DisableUnboundedItemMode"/>) the effective
-        /// per-partition cap is
-        /// <c>min(ServerCapabilities.MaxMonitoredItemsPerSubscription,
-        /// MaxMonitoredItemsPerPartition ?? uint.MaxValue)</c>. The
-        /// reactive fallback further lowers the cap if the server
-        /// returns <c>Bad_TooManyMonitoredItems</c> for any individual
-        /// <c>CreateMonitoredItems</c> request.
+        /// <see cref="DisableUnboundedItemMode"/>) the wrapper uses
+        /// this value as the proactive per-partition cap; new items
+        /// land on a fresh partition once the current one reaches
+        /// the cap.
         /// </para>
         /// <para>
-        /// <c>null</c> (the default) means "use the server-reported
-        /// capability". Set this to a smaller value to keep each
-        /// partition smaller for snapshot/transfer scaling, or to a
-        /// larger value to override an artificially low server-reported
-        /// capability.
+        /// The reactive fallback further pins the effective cap of
+        /// any individual partition if the server returns
+        /// <c>Bad_TooManyMonitoredItems</c> for a
+        /// <c>CreateMonitoredItems</c> request — the partition is
+        /// marked no-grow and the next add mints a new partition.
+        /// This lets the wrapper handle servers that enforce a
+        /// stricter limit than they advertise (or that advertise
+        /// none at all).
+        /// </para>
+        /// <para>
+        /// <c>null</c> (the default) means "no proactive cap" — the
+        /// wrapper relies entirely on the reactive fallback to
+        /// discover the server's actual limit. Set this to a smaller
+        /// value to keep each partition smaller for snapshot /
+        /// transfer scaling, or for predictable partitioning at a
+        /// specific threshold; the wrapper does not consult
+        /// <see cref="ServerCapabilities.MaxMonitoredItemsPerSubscription"/>
+        /// to seed this value automatically.
         /// </para>
         /// <para>
         /// Has no effect when <see cref="DisableUnboundedItemMode"/>

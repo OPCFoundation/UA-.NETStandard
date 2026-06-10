@@ -469,9 +469,7 @@ namespace Opc.Ua.Client.Subscriptions
                 };
                 wrapper = new LogicalSubscription(primary, policy, partitionFactory,
                     m_timeProvider,
-                    snapshot.SecondaryPartitionIdleTimeout > TimeSpan.Zero
-                        ? snapshot.SecondaryPartitionIdleTimeout
-                        : System.Threading.Timeout.InfiniteTimeSpan,
+                    NormalizeIdleTimeout(snapshot.SecondaryPartitionIdleTimeout),
                     RemoveSecondaryPartitionAsync);
                 created = wrapper;
                 AttachReactiveFallback(primary, wrapper);
@@ -522,6 +520,23 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 concrete.OnPartitionCapReached = _ => wrapper.OnPartitionCapReached(partition);
             }
+        }
+
+        /// <summary>
+        /// Normalize a caller-supplied
+        /// <see cref="SubscriptionOptions.SecondaryPartitionIdleTimeout"/>
+        /// for the wrapper. Per the option docs,
+        /// <see cref="TimeSpan.Zero"/> means immediate idle-delete
+        /// and <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
+        /// (the only valid negative value) disables idle-delete. Any
+        /// other negative value is treated as "disabled" defensively
+        /// because <see cref="System.Threading.ITimer"/> rejects them.
+        /// </summary>
+        private static TimeSpan NormalizeIdleTimeout(TimeSpan idleTimeout)
+        {
+            return idleTimeout < TimeSpan.Zero
+                ? System.Threading.Timeout.InfiniteTimeSpan
+                : idleTimeout;
         }
 
         /// <summary>
@@ -761,9 +776,7 @@ namespace Opc.Ua.Client.Subscriptions
                 };
                 wrapper = new LogicalSubscription(subscription, policy, partitionFactory,
                     m_timeProvider,
-                    options.SecondaryPartitionIdleTimeout > TimeSpan.Zero
-                        ? options.SecondaryPartitionIdleTimeout
-                        : System.Threading.Timeout.InfiniteTimeSpan,
+                    NormalizeIdleTimeout(options.SecondaryPartitionIdleTimeout),
                     RemoveSecondaryPartitionAsync);
                 created = wrapper;
                 AttachReactiveFallback(subscription, wrapper);

@@ -151,10 +151,15 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                // Per-rubber-duck guidance: a logical subscription is
-                // considered Created only when every partition has been
-                // created on the server. With one partition this collapses
-                // to the partition's own Created flag.
+                // A logical subscription is considered Created only
+                // when every partition has been created on the
+                // server. With one partition this collapses to the
+                // partition's own Created flag. The primary
+                // partition is installed at construction time and
+                // never removed, so the snapshot is guaranteed to
+                // contain at least the primary — no post-loop count
+                // check is needed (and reading m_partitions.Count
+                // outside the lock would race against TryAdd).
                 foreach (IManagedSubscription partition in SnapshotPartitions())
                 {
                     if (!partition.Created)
@@ -162,7 +167,7 @@ namespace Opc.Ua.Client.Subscriptions
                         return false;
                     }
                 }
-                return m_partitions.Count > 0;
+                return true;
             }
         }
 
@@ -245,6 +250,17 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 lock (m_partitionLock)
                 {
+                    // Honour the IPartitionedSubscription contract:
+                    // the list is empty until the primary partition
+                    // has been created on the server. We use the
+                    // primary's Created flag rather than calling
+                    // this.Created to keep this getter
+                    // self-contained and to avoid the snapshot copy
+                    // the Created-aggregate path makes.
+                    if (!m_partitions[0].Created)
+                    {
+                        return Array.Empty<uint>();
+                    }
                     if (m_partitions.Count == 1)
                     {
                         return [m_partitions[0].Id];
