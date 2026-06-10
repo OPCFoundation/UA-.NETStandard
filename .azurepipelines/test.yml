@@ -33,9 +33,20 @@ parameters:
 - name: windowsImage
   type: string
   default: 'windows-2025-vs2026'
+# Optional job-level condition forwarded to both the testprep… and testall… jobs.
+# When unset (the overwhelming majority of callers) no `condition:` line is
+# emitted - preserves today's "always run" behaviour exactly.  When set, both
+# jobs receive the same condition so the entire test invocation is gated
+# together (used by the root pipeline to skip macOS test invocations on draft
+# GitHub PRs).
+- name: condition
+  type: string
+  default: ''
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
+  ${{ if ne(parameters.condition, '') }}:
+    condition: ${{ parameters.condition }}
   pool:
     ${{ if ne(parameters.poolName, '') }}:
       name: ${{ parameters.poolName }}
@@ -57,6 +68,8 @@ jobs:
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
+  ${{ if ne(parameters.condition, '') }}:
+    condition: ${{ parameters.condition }}
   timeoutInMinutes: 180
   strategy:
     matrix: $[dependencies.testprep${{ parameters.jobnamesuffix }}.outputs['testmatrix.jobMatrix'] ]
