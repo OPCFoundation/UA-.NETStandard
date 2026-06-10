@@ -321,8 +321,7 @@ namespace Opc.Ua.History.Tests
             await ExecuteAggregateScenarioAsync(
                         ObjectIds.AggregateFunction_NumberOfTransitions,
                         TimeArrangement.StartBeforeEnd,
-                        IntervalShort,
-                        allowAnyResult: true).ConfigureAwait(false);
+                        IntervalShort).ConfigureAwait(false);
         }
 
         // ------------------------------------------------------------------
@@ -336,8 +335,7 @@ namespace Opc.Ua.History.Tests
             await ExecuteAggregateScenarioAsync(
                         ObjectIds.AggregateFunction_StandardDeviationSample,
                         TimeArrangement.StartBeforeEnd,
-                        IntervalShort,
-                        allowAnyResult: true).ConfigureAwait(false);
+                        IntervalShort).ConfigureAwait(false);
         }
 
         [Description("Aggregate - Base 008-02: Standard deviation (population) aggregate, single node.")]
@@ -347,8 +345,7 @@ namespace Opc.Ua.History.Tests
             await ExecuteAggregateScenarioAsync(
                         ObjectIds.AggregateFunction_StandardDeviationPopulation,
                         TimeArrangement.StartBeforeEnd,
-                        IntervalShort,
-                        allowAnyResult: true).ConfigureAwait(false);
+                        IntervalShort).ConfigureAwait(false);
         }
 
         [Description("Aggregate - Base 008-03: Standard deviation aggregate with longer processing interval.")]
@@ -358,8 +355,7 @@ namespace Opc.Ua.History.Tests
             await ExecuteAggregateScenarioAsync(
                         ObjectIds.AggregateFunction_StandardDeviationSample,
                         TimeArrangement.StartBeforeEnd,
-                        IntervalLong,
-                        allowAnyResult: true).ConfigureAwait(false);
+                        IntervalLong).ConfigureAwait(false);
         }
 
         // ------------------------------------------------------------------
@@ -510,6 +506,134 @@ namespace Opc.Ua.History.Tests
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True,
                 "Unknown NodeId must produce a Bad operation status; got " +
                 $"{response.Results[0].StatusCode}.");
+        }
+
+        // ------------------------------------------------------------------
+        // D7  Additional ReadProcessedDetails request validation (§4.2.1.2,
+        // §5.4.3.1). Bad_AggregateInvalidInputs for invalid PercentDataGood /
+        // PercentDataBad inputs, and a Bad result for inverted time ranges.
+        // ------------------------------------------------------------------
+
+        [Description("PercentDataGood/PercentDataBad both > 100; expect Bad_AggregateInvalidInputs or service-level rejection.")]
+        [Test]
+        public async Task ReadProcessedPercentDataOutOfRangeAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddMinutes(-5);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = startTime,
+                EndTime = endTime,
+                ProcessingInterval = IntervalShort,
+                AggregateType = new NodeId[] { ObjectIds.AggregateFunction_Average }.ToArrayOf(),
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    UseServerCapabilitiesDefaults = false,
+                    TreatUncertainAsBad = true,
+                    PercentDataBad = 200,
+                    PercentDataGood = 200,
+                    UseSlopedExtrapolation = false
+                }
+            };
+
+            try
+            {
+                HistoryReadResponse response = await Session.HistoryReadAsync(
+                    null,
+                    new ExtensionObject(details),
+                    TimestampsToReturn.Both,
+                    false,
+                    new HistoryReadValueId[]
+                    {
+                        new() { NodeId = nodeId }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                StatusCode sc = response.Results[0].StatusCode;
+
+                Assert.That(
+                    sc.Code,
+                    Is.EqualTo(StatusCodes.BadAggregateInvalidInputs)
+                        .Or.EqualTo(StatusCodes.BadAggregateConfigurationRejected),
+                    $"Invalid PercentData inputs must be rejected; got {sc}.");
+            }
+            catch (ServiceResultException ex)
+            {
+                Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True,
+                    $"Service exception for PercentData > 100 must be Bad: {ex.StatusCode}.");
+            }
+        }
+
+        [Description("AggregateConfiguration with invalid relationship PercentDataGood < (100 - PercentDataBad); expect Bad or tolerant Good.")]
+        [Test]
+        public async Task ReadProcessedPercentDataInvalidRelationshipAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddMinutes(-5);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = startTime,
+                EndTime = endTime,
+                ProcessingInterval = IntervalShort,
+                AggregateType = new NodeId[] { ObjectIds.AggregateFunction_Average }.ToArrayOf(),
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    UseServerCapabilitiesDefaults = false,
+                    TreatUncertainAsBad = true,
+                    PercentDataBad = 80, // 100 - 80 = 20
+                    PercentDataGood = 0,  // < 20 → invalid per §4.2.1.2
+                    UseSlopedExtrapolation = false
+                }
+            };
+
+            try
+            {
+                HistoryReadResponse response = await Session.HistoryReadAsync(
+                    null,
+                    new ExtensionObject(details),
+                    TimestampsToReturn.Both,
+                    false,
+                    new HistoryReadValueId[]
+                    {
+                        new() { NodeId = nodeId }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                StatusCode sc = response.Results[0].StatusCode;
+
+                Assert.That(
+                    sc.Code,
+                    Is.EqualTo(StatusCodes.BadAggregateInvalidInputs)
+                        .Or.EqualTo(StatusCodes.BadAggregateConfigurationRejected),
+                    $"Invalid AggregateConfiguration inputs must be rejected; got {sc}.");
+            }
+            catch (ServiceResultException ex)
+            {
+                Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // X-XXX  Cross-cutting behavior: reversed time range (Part 13
+        // §5.4.3.1, also Part 11 §6.4.3). HistoryRead must not throw and
+        // must return a result for start > end.
+        // ------------------------------------------------------------------
+
+        [Description("Reversed time range (start > end) on a normal aggregate; service must produce a deterministic per-node result.")]
+        [Test]
+        public async Task ReadProcessedReversedTimeRangeReturnsDeterministicResultAsync()
+        {
+            await ExecuteAggregateScenarioAsync(
+                ObjectIds.AggregateFunction_Average,
+                TimeArrangement.StartAfterEnd,
+                IntervalShort,
+                allowAnyResult: true).ConfigureAwait(false);
         }
 
         // ------------------------------------------------------------------

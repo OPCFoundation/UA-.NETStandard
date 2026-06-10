@@ -435,5 +435,144 @@ namespace Opc.Ua.History.Tests
             Assert.That(secondReadValues, Is.Not.Empty,
                 "The second read should succeed and return data after the first read's CP was released.");
         }
+
+        [Test]
+        public async Task ReadProcessedAverageOfInsertedValuesReturnsExactAverageAsync()
+        {
+            var client = new HistoryClient(Session);
+            // Seed-free window well clear of the other integration tests' offsets.
+            DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(601);
+
+            // All-equal values so the average is independent of any boundary
+            // value-selection nuance in the calculator.
+            var insertValues = new DataValue[5];
+            for (int i = 0; i < 5; i++)
+            {
+                DateTime ts = baseTs.AddSeconds(i);
+                insertValues[i] = new DataValue(new Variant(77.0), StatusCodes.Good, ts, ts);
+            }
+            await client.InsertAsync(m_doubleNodeId, insertValues).ConfigureAwait(false);
+
+            var buckets = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadProcessedAsync(
+                m_doubleNodeId,
+                ObjectIds.AggregateFunction_Average,
+                baseTs,
+                baseTs.AddSeconds(5),
+                processingInterval: 5000))
+            {
+                buckets.Add(dv);
+            }
+
+            Assert.That(buckets, Is.Not.Empty);
+            Assert.That(
+                buckets.Any(v => v.WrappedValue.TryGetValue(out double a) && System.Math.Abs(a - 77.0) < 0.0001),
+                Is.True,
+                "Average of five 77.0 samples must be 77.0.");
+        }
+
+        [Test]
+        public async Task ReadProcessedMinimumAndMaximumOfInsertedValuesAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(701);
+
+            // Extrema duplicated in the interior so the result is independent of
+            // any boundary value-selection nuance.
+            double[] raw = [30, 5, 50, 20, 50, 5];
+            var insertValues = new DataValue[raw.Length];
+            for (int i = 0; i < raw.Length; i++)
+            {
+                DateTime ts = baseTs.AddSeconds(i);
+                insertValues[i] = new DataValue(new Variant(raw[i]), StatusCodes.Good, ts, ts);
+            }
+            await client.InsertAsync(m_doubleNodeId, insertValues).ConfigureAwait(false);
+
+            var minBuckets = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadProcessedAsync(
+                m_doubleNodeId, ObjectIds.AggregateFunction_Minimum,
+                baseTs, baseTs.AddSeconds(6), processingInterval: 6000))
+            {
+                minBuckets.Add(dv);
+            }
+
+            var maxBuckets = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadProcessedAsync(
+                m_doubleNodeId, ObjectIds.AggregateFunction_Maximum,
+                baseTs, baseTs.AddSeconds(6), processingInterval: 6000))
+            {
+                maxBuckets.Add(dv);
+            }
+
+            Assert.That(
+                minBuckets.Any(v => v.WrappedValue.TryGetValue(out double m) && System.Math.Abs(m - 5.0) < 0.0001),
+                Is.True, "Minimum of the inserted samples must be 5.");
+            Assert.That(
+                maxBuckets.Any(v => v.WrappedValue.TryGetValue(out double m) && System.Math.Abs(m - 50.0) < 0.0001),
+                Is.True, "Maximum of the inserted samples must be 50.");
+        }
+
+        [Test]
+        public async Task ReadProcessedAnnotationCountCountsWrittenAnnotationsAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(801);
+
+            // Three annotations across the read window.
+            DateTime[] annotationTimes =
+            [
+                baseTs.AddMilliseconds(500),
+                baseTs.AddSeconds(1),
+                baseTs.AddSeconds(3)
+            ];
+
+            StatusCode firstWrite = StatusCodes.Good;
+            for (int i = 0; i < annotationTimes.Length; i++)
+            {
+                StatusCode w = await client.WriteAnnotationAsync(
+                    m_doubleNodeId, annotationTimes[i], $"ac-{i}", "TestUser").ConfigureAwait(false);
+                if (i == 0)
+                {
+                    firstWrite = w;
+                }
+            }
+
+            if (StatusCode.IsBad(firstWrite))
+            {
+                // Annotations are not exposed on this node; AnnotationCount must
+                // then report the documented unsupported contract.
+                Assert.That(
+                    firstWrite.Code,
+                    Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
+                        .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
+                    $"Unexpected WriteAnnotation failure 0x{firstWrite.Code:X8}");
+                return;
+            }
+
+            var buckets = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadProcessedAsync(
+                m_doubleNodeId,
+                ObjectIds.AggregateFunction_AnnotationCount,
+                baseTs,
+                baseTs.AddSeconds(6),
+                processingInterval: 2000))
+            {
+                buckets.Add(dv);
+            }
+
+            Assert.That(buckets, Is.Not.Empty, "AnnotationCount must return at least one bucket.");
+
+            int total = 0;
+            foreach (DataValue v in buckets)
+            {
+                if (v.WrappedValue.TryGetValue(out int count))
+                {
+                    total += count;
+                }
+            }
+
+            Assert.That(total, Is.EqualTo(3),
+                "AnnotationCount across the window must total the three written annotations.");
+        }
     }
 }
