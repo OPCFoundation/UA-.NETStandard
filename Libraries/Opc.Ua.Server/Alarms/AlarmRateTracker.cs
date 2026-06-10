@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Server.Alarms
 {
@@ -161,7 +160,7 @@ namespace Opc.Ua.Server.Alarms
             lock (m_lock)
             {
                 TrimOldEntries(m_timeProvider.GetUtcNow().UtcDateTime);
-                return m_activations.ToArray();
+                return [.. m_activations];
             }
         }
 

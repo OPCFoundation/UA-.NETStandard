@@ -163,25 +163,25 @@ namespace Opc.Ua
             {
                 return NodeId.Null;
             }
-            ArrayOf<BrowsePath> paths = ArrayOf.Wrapped(new[]
-            {
+            var paths = ArrayOf.Wrapped(
+            [
                 new BrowsePath
                 {
                     StartingNode = ObjectId,
                     RelativePath = new RelativePath
                     {
-                        Elements = ArrayOf.Wrapped(new[]
-                        {
+                        Elements = ArrayOf.Wrapped(
+                        [
                             new RelativePathElement
                             {
                                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                                 IncludeSubtypes = true,
                                 TargetName = new QualifiedName(browseName, (ushort)nsIdx)
                             }
-                        })
+                        ])
                     }
                 }
-            });
+            ]);
 
             TranslateBrowsePathsToNodeIdsResponse response =
                 await Session.TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)

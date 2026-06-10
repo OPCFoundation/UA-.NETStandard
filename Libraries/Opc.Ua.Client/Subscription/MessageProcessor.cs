@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// subscription manager; toggling the manager-level setting takes
         /// effect on the next dispatch.
         /// </summary>
-        protected bool PoolNotifications => m_completion.PoolNotifications;
+        protected bool PoolNotifications => AckQueue.PoolNotifications;
 
         /// <summary>
         /// Create subscription
@@ -89,12 +89,12 @@ namespace Opc.Ua.Client.Subscriptions
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
         {
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
             Observability = telemetry;
             AvailableInRetransmissionQueue = [];
             Logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             m_services = services;
-            m_completion = completion;
+            AckQueue = completion;
             m_messages = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
@@ -122,9 +122,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
-            LastNotificationTimestamp = m_timeProvider.GetTimestamp();
+            LastNotificationTimestamp = TimeProvider.GetTimestamp();
             await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                m_timeProvider.GetUtcNow())).ConfigureAwait(false);
+                TimeProvider.GetUtcNow())).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // to be removed
                 throw;
             }
-            await m_completion.CompleteAsync(Id, default).ConfigureAwait(false);
+            await AckQueue.CompleteAsync(Id, default).ConfigureAwait(false);
             OnPublishStateChanged(PublishState.Completed);
         }
 
@@ -277,7 +277,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         protected void NotifyManagerOfCreation()
         {
-            m_completion.Update();
+            AckQueue.Update();
         }
 
         /// <summary>
@@ -492,7 +492,7 @@ namespace Opc.Ua.Client.Subscriptions
                             message.NotificationData[i]).ConfigureAwait(false);
                     }
                 }
-                await m_completion.QueueAsync(new SubscriptionAcknowledgement
+                await AckQueue.QueueAsync(new SubscriptionAcknowledgement
                 {
                     SequenceNumber = message.SequenceNumber,
                     SubscriptionId = Id
@@ -594,7 +594,7 @@ namespace Opc.Ua.Client.Subscriptions
         internal long m_republishCount;
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
         internal readonly ILogger Logger;
-        protected TimeProvider TimeProvider => m_timeProvider;
+        protected TimeProvider TimeProvider { get; }
 
         /// <summary>
         /// Exposes the ack queue / completion sink supplied to the
@@ -603,16 +603,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// path to drop stale acknowledgements before recreating a
         /// subscription that the server has invalidated under us.
         /// </summary>
-        protected IMessageAckQueue AckQueue => m_completion;
-
-        private readonly TimeProvider m_timeProvider;
+        protected IMessageAckQueue AckQueue { get; }
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: m_cts is disposed in DisposeAsync(bool) — suppressed because
         // the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213
         private readonly CancellationTokenSource m_cts = new();
 #pragma warning restore CA2213
-        private readonly IMessageAckQueue m_completion;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
     }

@@ -172,15 +172,15 @@ namespace Opc.Ua.Client.Tests.AliasNames
             var client = AliasNameClient.OpenStandardAliases(harness.Session);
             Assert.That(async () =>
             {
-                await client.AddAliasesToCategoryAsync(new[]
-                {
+                await client.AddAliasesToCategoryAsync(
+                [
                     new AliasNameAddRequest("A",
                         new ExpandedNodeId("T", 2),
                         null, ReferenceTypeIds.AliasFor),
                     new AliasNameAddRequest("B",
                         new ExpandedNodeId("T", 2),
                         null, ReferenceTypeIds.Organizes)
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
             }, Throws.ArgumentException);
         }
 
@@ -220,12 +220,12 @@ namespace Opc.Ua.Client.Tests.AliasNames
             var client = AliasNameClient.OpenStandardAliases(harness.Session);
             Assert.That(async () =>
             {
-                await client.AddAliasesToCategoryAsync(new[]
-                {
+                await client.AddAliasesToCategoryAsync(
+                [
                     new AliasNameAddRequest("A",
                         new ExpandedNodeId("T", 2),
                         null, ReferenceTypeIds.AliasFor)
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
             }, Throws.TypeOf<System.UnauthorizedAccessException>());
         }
     }

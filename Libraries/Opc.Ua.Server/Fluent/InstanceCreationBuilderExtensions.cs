@@ -92,7 +92,9 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browseName,
             Func<NodeState, TState> factory)
             where TState : BaseInstanceState
-            => CreateInstance(parent, browseName, NodeId.Null, factory);
+        {
+            return CreateInstance(parent, browseName, NodeId.Null, factory);
+        }
 
         /// <summary>
         /// Creates a new instance of <typeparamref name="TState"/> under
@@ -120,14 +122,10 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(factory));
             }
             string symbolicName = browseName.Name ?? string.Empty;
-            TState instance = factory(parent.Node);
-            if (instance == null)
-            {
-                throw ServiceResultException.Create(
+            TState instance = factory(parent.Node) ?? throw ServiceResultException.Create(
                     StatusCodes.BadInvalidArgument,
                     "Factory returned null for instance '{0}'.",
                     browseName);
-            }
 
             instance.SymbolicName = symbolicName;
             instance.BrowseName = browseName;
@@ -277,26 +275,55 @@ namespace Opc.Ua.Server.Fluent
             return new AdHocInstanceNodeBuilder<TOther>(Builder, typed);
         }
 
-        public INodeBuilder OnRead(NodeValueEventHandler handler) =>
-            SetVariable(v => v.OnReadValue = handler);
-        public INodeBuilder OnRead(NodeValueSimpleEventHandler handler) =>
-            SetVariable(v => v.OnSimpleReadValue = handler);
-        public INodeBuilder OnWrite(NodeValueEventHandler handler) =>
-            SetVariable(v => v.OnWriteValue = handler);
-        public INodeBuilder OnWrite(NodeValueSimpleEventHandler handler) =>
-            SetVariable(v => v.OnSimpleWriteValue = handler);
-        public INodeBuilder OnRead(NodeValueEventHandlerAsync handler) =>
-            SetVariable(v => v.OnReadValueAsync = handler);
-        public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler) =>
-            SetVariable(v => v.OnSimpleReadValueAsync = handler);
-        public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler) =>
-            SetVariable(v => v.OnWriteValueAsync = handler);
-        public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler) =>
-            SetVariable(v => v.OnSimpleWriteValueAsync = handler);
-        public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler) =>
-            SetMethod(m => m.OnCallMethod2 = handler);
-        public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler) =>
-            SetMethod(m => m.OnCallMethod2Async = handler);
+        public INodeBuilder OnRead(NodeValueEventHandler handler)
+        {
+            return SetVariable(v => v.OnReadValue = handler);
+        }
+
+        public INodeBuilder OnRead(NodeValueSimpleEventHandler handler)
+        {
+            return SetVariable(v => v.OnSimpleReadValue = handler);
+        }
+
+        public INodeBuilder OnWrite(NodeValueEventHandler handler)
+        {
+            return SetVariable(v => v.OnWriteValue = handler);
+        }
+
+        public INodeBuilder OnWrite(NodeValueSimpleEventHandler handler)
+        {
+            return SetVariable(v => v.OnSimpleWriteValue = handler);
+        }
+
+        public INodeBuilder OnRead(NodeValueEventHandlerAsync handler)
+        {
+            return SetVariable(v => v.OnReadValueAsync = handler);
+        }
+
+        public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler)
+        {
+            return SetVariable(v => v.OnSimpleReadValueAsync = handler);
+        }
+
+        public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler)
+        {
+            return SetVariable(v => v.OnWriteValueAsync = handler);
+        }
+
+        public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler)
+        {
+            return SetVariable(v => v.OnSimpleWriteValueAsync = handler);
+        }
+
+        public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
+        {
+            return SetMethod(m => m.OnCallMethod2 = handler);
+        }
+
+        public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
+        {
+            return SetMethod(m => m.OnCallMethod2Async = handler);
+        }
 
         public INodeBuilder OnNodeAdded(NodeLifecycleHandler handler)
         {
@@ -341,14 +368,10 @@ namespace Opc.Ua.Server.Fluent
 
         public INodeBuilder Child(QualifiedName browseName)
         {
-            NodeState? c = Node.FindChild(Builder.Context, browseName);
-            if (c == null)
-            {
-                throw ServiceResultException.Create(
+            NodeState? c = Node.FindChild(Builder.Context, browseName) ?? throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "Child '{0}' not found on '{1}'.",
                     browseName, Node.BrowseName);
-            }
             return new AdHocInstanceNodeBuilder<NodeState>(Builder, c);
         }
 

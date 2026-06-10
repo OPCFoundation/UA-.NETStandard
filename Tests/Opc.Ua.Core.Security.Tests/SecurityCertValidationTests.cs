@@ -1028,7 +1028,7 @@ namespace Opc.Ua.Core.Security.Tests
         public Task CertValidation010InvalidSignatureAsync()
         {
             const string slug = "corrupted010";
-            string subject = "CN=" + slug + ", O=OPC Foundation";
+            const string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
             using Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
             // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).

@@ -45,13 +45,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// UA0005 code fix: append <c>.ToByteString()</c> to a <c>byte[]</c>
     /// argument that needs to become a <c>ByteString</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0005ByteArrayToByteStringCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0005ByteArrayToByteStringCodeFix))]
+    [Shared]
     public sealed class UA0005ByteArrayToByteStringCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0005);
+            [DiagnosticIds.UA0005];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

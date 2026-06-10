@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (ServiceResult result, NodeId added) = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameInvalid));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
             Assert.That(added.IsNull, Is.True);
         }
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadParentNodeIdInvalid));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadParentNodeIdInvalid));
         }
 
         [Test]
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdRejected));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
         }
 
         [Test]
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdExists));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
         }
 
         [Test]
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (ServiceResult secondResult, NodeId secondId) = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddNodeAsync(h.OperationContext, second).ConfigureAwait(false);
 
-            Assert.That(secondResult.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
             Assert.That(secondId.IsNull, Is.True);
         }
 
@@ -310,7 +310,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeClassInvalid));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeClassInvalid));
         }
 
         [Test]
@@ -328,7 +328,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdInvalid));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
         [Test]
@@ -443,7 +443,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSourceNodeIdInvalid));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSourceNodeIdInvalid));
         }
 
         [Test]
@@ -470,7 +470,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ServiceResult second = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .AddReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(second.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDuplicateReferenceNotAllowed));
+            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
         }
 
         [Test]
@@ -517,7 +517,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
                 .DeleteReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoMatch));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
         }
 
         [Test]

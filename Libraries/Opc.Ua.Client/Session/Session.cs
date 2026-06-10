@@ -3630,7 +3630,7 @@ namespace Opc.Ua.Client
                 if (state != null)
                 {
                     // mark any old requests as defunct (i.e. the should have returned before this request).
-                    TimeSpan maxAge = TimeSpan.FromMilliseconds(1000);
+                    var maxAge = TimeSpan.FromMilliseconds(1000);
 
                     for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;

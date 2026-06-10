@@ -60,7 +60,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0015 = diags.SingleOrDefault(d => d.Id == "UA0015");
             Assert.That(ua0015, Is.Not.Null, "Expected UA0015 to fire on RegisterApplication.");
@@ -86,7 +87,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0015 = diags.SingleOrDefault(d => d.Id == "UA0015");
             Assert.That(ua0015, Is.Not.Null, "Expected UA0015 to fire on ApplyChanges.");
@@ -112,7 +114,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0015 = diags.SingleOrDefault(d => d.Id == "UA0015");
             Assert.That(ua0015, Is.Not.Null, "Expected UA0015 to fire on BeginFindServers.");
@@ -138,7 +141,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0015"), Is.False,
                 "RegisterApplicationAsync must not trigger UA0015.");
@@ -159,7 +163,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0015"), Is.False,
                 "RegisterApplication on an unrelated type must not trigger UA0015.");
@@ -182,7 +187,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0015"), Is.True,
                 "Expected UA0015 to fire on a call resolving to a [OpcUaShim(\"UA0015\")] extension.");

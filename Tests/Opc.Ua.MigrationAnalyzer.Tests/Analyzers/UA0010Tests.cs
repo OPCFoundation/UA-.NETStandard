@@ -60,7 +60,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0010"), Is.True,
                 "Expected UA0010 to fire on 'using var ci = new CertificateIdentifier();'.");
@@ -82,7 +83,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0010"), Is.True,
                 "Expected UA0010 to fire on 'using (var ui = new UserIdentity()) { }'.");
@@ -103,7 +105,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0010"), Is.False,
                 "Unrelated IDisposable types must not trigger UA0010.");
@@ -124,7 +127,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0010RemoveDisposableAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0010"), Is.False,
                 "A plain variable declaration without 'using' must not trigger UA0010.");

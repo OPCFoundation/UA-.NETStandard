@@ -44,7 +44,7 @@ namespace Opc.Ua.Client
     /// and surfaces every observed change through the
     /// <see cref="ApplicationCertificateChanged"/> event so applications
     /// can implement custom rotation policies. When
-    /// <see cref="ManagedSession.DisableAutoReconnectOnCertificateChange"/> is
+    /// <see cref="DisableAutoReconnectOnCertificateChange"/> is
     /// <c>false</c> (the default) the manager additionally reloads the
     /// instance certificate and triggers a reconnect on
     /// <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>,
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client
         /// <see cref="ICertificateLifecycle.CertificateChanges"/> and
         /// cancels the background revalidation loop. Safe to call when
         /// no subscription is active. Synchronous callers (the sync
-        /// <see cref="ManagedSession.Dispose(bool)"/> path) cannot
+        /// <see cref="Dispose(bool)"/> path) cannot
         /// await the loop's exit;
         /// <see cref="StopRevalidationLoopAsync"/> handles the
         /// asynchronous wait used by <c>DisposeAsync</c>.
@@ -176,7 +176,6 @@ namespace Opc.Ua.Client
                     // ReconnectAsync (see HandleApplicationCertificateUpdatedAsync).
                     _ = Task.Run(() => HandleApplicationCertificateUpdatedAsync(evt));
                     break;
-
                 case CertificateChangeKind.TrustListUpdated:
                 case CertificateChangeKind.CrlUpdated:
                     // Wake the persistent revalidation loop. No Task is
@@ -245,7 +244,7 @@ namespace Opc.Ua.Client
         /// callers may invoke from <see cref="SubscribeCertificateChanges"/>
         /// even if the loop was previously started — the existing loop
         /// is cancelled and replaced. The pattern mirrors
-        /// <see cref="ManagedSession.StartIdentityRefreshLoop"/>.
+        /// <see cref="StartIdentityRefreshLoop"/>.
         /// </summary>
         private void StartRevalidationLoop()
         {
@@ -265,9 +264,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Cancels the revalidation loop without awaiting its exit.
-        /// Used by the synchronous <see cref="ManagedSession.Dispose(bool)"/>
+        /// Used by the synchronous <see cref="Dispose(bool)"/>
         /// path which cannot await asynchronously. Mirrors
-        /// <see cref="ManagedSession.CancelIdentityRefreshLoop"/>.
+        /// <see cref="CancelIdentityRefreshLoop"/>.
         /// </summary>
         private void CancelRevalidationLoop()
         {
@@ -283,7 +282,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Cancels the revalidation loop and awaits its exit. Used by
-        /// <see cref="ManagedSession.DisposeAsync"/> to guarantee the
+        /// <see cref="DisposeAsync"/> to guarantee the
         /// loop has released the certificate manager and any in-flight
         /// validation completed before the manager is torn down.
         /// </summary>
@@ -462,7 +461,7 @@ namespace Opc.Ua.Client
             }
 
             byte[] rawData = serverCertBlob.ToArray();
-            using Certificate serverCert = Certificate.FromRawData(rawData);
+            using var serverCert = Certificate.FromRawData(rawData);
 
             CertificateValidationResult result;
             try
@@ -513,10 +512,12 @@ namespace Opc.Ua.Client
         // analyzer. Disposed in both Dispose paths.
 #pragma warning disable CA2213
         private IDisposable? m_certificateChangeSubscription;
-        // CTS owned by StartRevalidationLoop / disposed by
-        // StopRevalidationLoopAsync. CancelRevalidationLoop (sync) only
-        // cancels — the CTS is freed by the next StartRevalidationLoop
-        // or by StopRevalidationLoopAsync.
+        /// <summary>
+        /// CTS owned by StartRevalidationLoop / disposed by
+        /// StopRevalidationLoopAsync. CancelRevalidationLoop (sync) only
+        /// cancels — the CTS is freed by the next StartRevalidationLoop
+        /// or by StopRevalidationLoopAsync.
+        /// </summary>
         private CancellationTokenSource? m_revalidationCancellation;
 #pragma warning restore CA2213
 

@@ -114,9 +114,9 @@ namespace Opc.Ua.Client.Historian
                 AggregateType = new NodeId[] { aggregateFunctionId },
                 AggregateConfiguration = configuration ??
                     new AggregateConfiguration
-                        {
-                            UseServerCapabilitiesDefaults = true
-                        }
+                    {
+                        UseServerCapabilitiesDefaults = true
+                    }
             };
 
             await foreach (DataValue v in ReadDetailsAsync(

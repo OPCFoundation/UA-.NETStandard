@@ -60,7 +60,7 @@ namespace Opc.Ua.Identity
 
         /// <inheritdoc/>
         public IReadOnlyList<string> SupportedIssuedTokenProfileUris { get; }
-            = Array.Empty<string>();
+            = [];
 
         /// <inheritdoc/>
         public DateTime ExpiresAt => DateTime.MaxValue;

@@ -119,7 +119,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -192,7 +192,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     handlers[i] = new RecordingSubscriptionHandler();
                     subscriptions[i] = session.AddSubscription(handlers[i],
-                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                        new Client.Subscriptions.SubscriptionOptions
                         {
                             PublishingInterval = TimeSpan.FromMilliseconds(1000),
                             KeepAliveCount = 10,
@@ -244,7 +244,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 1,
