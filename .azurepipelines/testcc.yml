@@ -5,7 +5,7 @@ parameters:
   configuration: 'Release'
   framework: net10.0
   agent: 'linux'
-  poolImage: 'ubuntu-22.04'
+  poolImage: 'ubuntu-24.04'
   jobnamesuffix: 'net100cc'
   customtestarget: ''
   # See ci.yml: passing pool config via parameter because root-pipeline

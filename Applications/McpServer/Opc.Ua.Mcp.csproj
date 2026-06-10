@@ -9,6 +9,10 @@
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Opt into the root Directory.Build.targets no-op shape on
+         per-TFM CI matrix entries that pin CustomTestTarget to a
+         legacy TFM this app cannot target. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <!-- NuGet dotnet tool packaging -->
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>

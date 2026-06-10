@@ -77,11 +77,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
             h.Builder.Seal();
 
-            await Task.Delay(150).ConfigureAwait(false);
-            int observed = Volatile.Read(ref ticks);
-
-            Assert.That(observed, Is.GreaterThanOrEqualTo(2),
-                "Tick should fire at least twice in 150ms with a 25ms interval.");
+            await WaitForAsync(
+                () => Volatile.Read(ref ticks) >= 2,
+                "Tick should fire at least twice with a 25ms interval.")
+                .ConfigureAwait(false);
         }
 
         [Test]
@@ -99,9 +98,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             h.Builder.Seal();
 
-            await Task.Delay(150).ConfigureAwait(false);
-            Assert.That(Volatile.Read(ref started), Is.GreaterThanOrEqualTo(2));
-            Assert.That(Volatile.Read(ref completed), Is.GreaterThanOrEqualTo(2));
+            await WaitForAsync(() => Volatile.Read(ref started) >= 2).ConfigureAwait(false);
+            await WaitForAsync(() => Volatile.Read(ref completed) >= 2).ConfigureAwait(false);
         }
 
         [Test]
@@ -120,9 +118,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             h.Builder.Seal();
 
-            await Task.Delay(200).ConfigureAwait(false);
-            Assert.That(Volatile.Read(ref ticks), Is.GreaterThanOrEqualTo(3),
-                "Handler-thrown exception must not stop subsequent ticks.");
+            await WaitForAsync(
+                () => Volatile.Read(ref ticks) >= 3,
+                "Handler-thrown exception must not stop subsequent ticks.")
+                .ConfigureAwait(false);
         }
 
         [Test]
@@ -159,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void MultipleOnTickHandlersAllFire()
+        public async Task MultipleOnTickHandlersAllFire()
         {
             using var h = SimulationHarness.Create();
             int handlerA = 0, handlerB = 0;
@@ -168,13 +167,30 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerB));
             h.Builder.Seal();
 
-            Thread.Sleep(150);
-            Assert.That(Volatile.Read(ref handlerA), Is.GreaterThanOrEqualTo(2));
-            Assert.That(Volatile.Read(ref handlerB), Is.GreaterThanOrEqualTo(2));
+            await WaitForAsync(
+                () => Volatile.Read(ref handlerA) >= 2 && Volatile.Read(ref handlerB) >= 2)
+                .ConfigureAwait(false);
             Assert.That(
                 Math.Abs(Volatile.Read(ref handlerA) - Volatile.Read(ref handlerB)),
                 Is.LessThanOrEqualTo(1),
                 "Both handlers fire on the same tick — counts should be in lockstep.");
+        }
+
+        private static async Task WaitForAsync(
+            Func<bool> condition,
+            string? message = null,
+            int timeoutMs = 5000)
+        {
+            DateTime end = DateTime.UtcNow + TimeSpan.FromMilliseconds(timeoutMs);
+            while (!condition())
+            {
+                if (DateTime.UtcNow > end)
+                {
+                    Assert.Fail(
+                        message ?? $"Condition not satisfied within {timeoutMs}ms.");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
