@@ -543,6 +543,8 @@ namespace Opc.Ua
             ServiceResult? finalError = null;
             int attemptsStarted = 0;
 
+            CancellationToken shutdownToken = m_host.ShutdownToken;
+
             async Task StopWithFaultAsync(
                 ServiceResult error,
                 string message,
@@ -567,6 +569,7 @@ namespace Opc.Ua
                 int attempt = 0;
                 while (true)
                 {
+                    shutdownToken.ThrowIfCancellationRequested();
                     if (budget != null && budget.IsExhausted)
                     {
                         ServiceResult error = ServiceResult.Create(
@@ -614,11 +617,11 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            await DelayAsync(delay, default).ConfigureAwait(false);
+                            await DelayAsync(delay, shutdownToken).ConfigureAwait(false);
                         }
-                        catch
+                        catch (OperationCanceledException) when (!shutdownToken.IsCancellationRequested)
                         {
-                            // delay-cancelled — ignore and try
+                            // delay-cancelled by unrelated source — ignore and try
                         }
                     }
 
@@ -638,7 +641,11 @@ namespace Opc.Ua
 
                     try
                     {
-                        await EnsureTransportConnectedAsync(default).ConfigureAwait(false);
+                        await EnsureTransportConnectedAsync(shutdownToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -660,8 +667,12 @@ namespace Opc.Ua
                     AggregatedReactivationOutcome outcome;
                     try
                     {
-                        outcome = await NotifyParticipantsAsync(attempt, default)
+                        outcome = await NotifyParticipantsAsync(attempt, shutdownToken)
                             .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -767,6 +778,10 @@ namespace Opc.Ua
                     await underlying.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
                     MarkOpened();
                     return;
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
