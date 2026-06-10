@@ -6,7 +6,7 @@ parameters:
 - name: managedPool
   displayName: 'Use the netstandard Managed DevOps Pool (adds ImageOverride demands per OS)'
   type: boolean
-  default: true
+  default: false
 
 trigger:
   batch: 'true'
