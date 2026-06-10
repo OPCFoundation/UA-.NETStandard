@@ -44,7 +44,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0019DataValueStatusCodeCtorAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0019_ObsoleteDataValueStatusCodeCtor);
+            [DiagnosticDescriptors.UA0019_ObsoleteDataValueStatusCodeCtor];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -55,7 +55,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeObjectCreation(OperationAnalysisContext context)
         {
-            IObjectCreationOperation creation = (IObjectCreationOperation)context.Operation;
+            var creation = (IObjectCreationOperation)context.Operation;
             IMethodSymbol ctor = creation.Constructor;
             if (ctor is null)
             {
@@ -68,7 +68,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 return;
             }
 
-            if (ctor.Parameters.Length < 1 || ctor.Parameters.Length > 2)
+            if (ctor.Parameters.Length is < 1 or > 2)
             {
                 return;
             }

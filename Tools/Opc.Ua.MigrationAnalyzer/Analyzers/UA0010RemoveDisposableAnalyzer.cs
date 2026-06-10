@@ -61,7 +61,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0010RemoveDisposableAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0010_RemoveDisposable);
+            [DiagnosticDescriptors.UA0010_RemoveDisposable];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -73,7 +73,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private static void OnCompilationStart(CompilationStartAnalysisContext context)
         {
             Dictionary<Compilation, UaSymbols> cache = [];
-            UaSymbols symbols = UaSymbols.For(context.Compilation, cache);
+            var symbols = UaSymbols.For(context.Compilation, cache);
             if (!symbols.ReferencesOpcUa)
             {
                 return;
@@ -95,7 +95,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeUsingStatement(SyntaxNodeAnalysisContext context, UaSymbols symbols)
         {
-            UsingStatementSyntax usingStmt = (UsingStatementSyntax)context.Node;
+            var usingStmt = (UsingStatementSyntax)context.Node;
             if (usingStmt.Declaration is { } declaration)
             {
                 ReportIfMatch(context, symbols, declaration, usingStmt.GetLocation());
@@ -109,7 +109,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeLocalDeclaration(SyntaxNodeAnalysisContext context, UaSymbols symbols)
         {
-            LocalDeclarationStatementSyntax local = (LocalDeclarationStatementSyntax)context.Node;
+            var local = (LocalDeclarationStatementSyntax)context.Node;
             if (local.UsingKeyword.IsKind(SyntaxKind.None))
             {
                 return;

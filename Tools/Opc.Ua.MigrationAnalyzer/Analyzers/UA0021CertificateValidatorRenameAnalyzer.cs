@@ -45,14 +45,15 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     /// <c>CertificateValidationResult</c> pipeline.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Diagnostic-only: the 1.5.378 -> 1.6 change is <b>structural</b> (event-based per-error
     /// accept handler became an async <c>ValidateAsync</c> call returning a
     /// <c>CertificateValidationResult</c>, with per-error accept logic moving to
     /// <c>CertificateValidationOptions.AcceptError</c>). There is therefore no accompanying
     /// code-fix provider; consumers must perform the migration manually using
     /// <c>Docs/MigrationGuide.md#certificatemanager-and-segregated-interfaces</c>.
-    ///
-    /// Detection strategy:
+    /// </para>
+    /// <para>Detection strategy:</para>
     /// <list type="bullet">
     /// <item>If the legacy type is present in the compilation (via the 1.5.378 stack or the shim
     /// package), fire when an <c>[Obsolete]</c>-marked type with the matching full name is
@@ -71,11 +72,12 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private const string CertificateValidatorTypeName = "CertificateValidator";
         private const string CertificateValidationEventArgsTypeName = "CertificateValidationEventArgs";
         private const string CertificateValidatorFullName = OpcUaNamespace + "." + CertificateValidatorTypeName;
+
         private const string CertificateValidationEventArgsFullName =
             OpcUaNamespace + "." + CertificateValidationEventArgsTypeName;
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0021_CertificateValidatorRename);
+            [DiagnosticDescriptors.UA0021_CertificateValidatorRename];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -111,9 +113,9 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             INamedTypeSymbol? legacyValidator,
             INamedTypeSymbol? legacyEventArgs)
         {
-            IdentifierNameSyntax identifier = (IdentifierNameSyntax)context.Node;
+            var identifier = (IdentifierNameSyntax)context.Node;
             string text = identifier.Identifier.ValueText;
-            if (text != CertificateValidatorTypeName && text != CertificateValidationEventArgsTypeName)
+            if (text is not CertificateValidatorTypeName and not CertificateValidationEventArgsTypeName)
             {
                 return;
             }
@@ -133,10 +135,10 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             }
 
             bool matchesLegacy =
-                (legacyValidator is not null
-                    && SymbolEqualityComparer.Default.Equals(namedType, legacyValidator)) ||
-                (legacyEventArgs is not null
-                    && SymbolEqualityComparer.Default.Equals(namedType, legacyEventArgs));
+                (legacyValidator is not null &&
+                    SymbolEqualityComparer.Default.Equals(namedType, legacyValidator)) ||
+                (legacyEventArgs is not null &&
+                    SymbolEqualityComparer.Default.Equals(namedType, legacyEventArgs));
             if (!matchesLegacy)
             {
                 return;
@@ -155,9 +157,9 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeIdentifierSyntactic(SyntaxNodeAnalysisContext context)
         {
-            IdentifierNameSyntax identifier = (IdentifierNameSyntax)context.Node;
+            var identifier = (IdentifierNameSyntax)context.Node;
             string text = identifier.Identifier.ValueText;
-            if (text != CertificateValidatorTypeName && text != CertificateValidationEventArgsTypeName)
+            if (text is not CertificateValidatorTypeName and not CertificateValidationEventArgsTypeName)
             {
                 return;
             }
@@ -225,8 +227,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             // "Opc.Ua.Configuration", "Opc.Ua.Client.ComplexTypes" etc. We require a '.'
             // separator after "Opc.Ua" so that a hypothetical sibling namespace like
             // "Opc.UaFoo" does not match.
-            return string.Equals(text, OpcUaNamespace, StringComparison.Ordinal)
-                || text.StartsWith(OpcUaNamespace + ".", StringComparison.Ordinal);
+            return string.Equals(text, OpcUaNamespace, StringComparison.Ordinal) ||
+                text.StartsWith(OpcUaNamespace + ".", StringComparison.Ordinal);
         }
     }
 }

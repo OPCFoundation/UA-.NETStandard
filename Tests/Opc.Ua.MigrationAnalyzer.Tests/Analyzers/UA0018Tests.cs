@@ -62,7 +62,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsAsync(
-                    new UA0018CertificateIdentifierCertificateAnalyzer(), source);
+                    new UA0018CertificateIdentifierCertificateAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0018 = diags.SingleOrDefault(d => d.Id == "UA0018");
             Assert.That(ua0018, Is.Not.Null, "Expected UA0018 to fire on id.Certificate read.");
@@ -90,7 +91,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsAsync(
-                    new UA0018CertificateIdentifierCertificateAnalyzer(), source);
+                    new UA0018CertificateIdentifierCertificateAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0018"), Is.True,
                 "Expected UA0018 to fire on id.Certificate in a null comparison.");
@@ -109,7 +111,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsAsync(
-                    new UA0018CertificateIdentifierCertificateAnalyzer(), source);
+                    new UA0018CertificateIdentifierCertificateAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0018"), Is.False,
                 "id.SubjectName must not trigger UA0018.");
@@ -131,7 +134,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsAsync(
-                    new UA0018CertificateIdentifierCertificateAnalyzer(), source);
+                    new UA0018CertificateIdentifierCertificateAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0018"), Is.False,
                 "Certificate property on an unrelated type must not trigger UA0018.");
@@ -155,7 +159,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsAsync(
-                    new UA0018CertificateIdentifierCertificateAnalyzer(), source);
+                    new UA0018CertificateIdentifierCertificateAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0018"), Is.True,
                 "Expected UA0018 to fire on a property carrying [OpcUaShim(\"UA0018\")].");

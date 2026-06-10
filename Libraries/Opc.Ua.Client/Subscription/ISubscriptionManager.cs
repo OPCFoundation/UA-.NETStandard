@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -172,7 +171,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// over the existing server-side state. When <c>false</c> the ids
         /// are cleared so the V2 manager recreates the subscriptions from
         /// scratch on the new session — matching classic
-        /// <see cref="Session.Load(System.IO.Stream, bool, IEnumerable{System.Type})"/>.</param>
+        /// <see cref="Session.Load(Stream, bool, IEnumerable{System.Type})"/>.</param>
         /// <param name="ct">Cancellation token.</param>
         ValueTask<IReadOnlyList<ISubscription>> LoadAsync(Stream stream,
             IServiceMessageContext messageContext,

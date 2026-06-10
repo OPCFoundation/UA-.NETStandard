@@ -60,7 +60,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0002RemovedCollectionTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0002RemovedCollectionTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0002 = diags.FirstOrDefault(IsUserDiagnostic);
             Assert.That(ua0002, Is.Not.Null,
@@ -82,7 +83,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0002RemovedCollectionTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0002RemovedCollectionTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(IsUserDiagnostic), Is.True,
                 "Expected UA0002 to fire on the NodeIdCollection parameter type.");
@@ -100,7 +102,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0002RemovedCollectionTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0002RemovedCollectionTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(IsUserDiagnostic), Is.False,
                 "List<int> must not trigger UA0002.");
@@ -129,7 +132,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0002RemovedCollectionTypeAnalyzer(),
                 new UA0002RemovedCollectionTypeCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

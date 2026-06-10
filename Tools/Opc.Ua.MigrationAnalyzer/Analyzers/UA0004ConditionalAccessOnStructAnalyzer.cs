@@ -52,7 +52,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0004ConditionalAccessOnStructAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0004_ConditionalAccessOnStructType);
+            [DiagnosticDescriptors.UA0004_ConditionalAccessOnStructType];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -64,7 +64,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private static void OnCompilationStart(CompilationStartAnalysisContext context)
         {
             Dictionary<Compilation, UaSymbols> cache = [];
-            UaSymbols symbols = UaSymbols.For(context.Compilation, cache);
+            var symbols = UaSymbols.For(context.Compilation, cache);
             if (!symbols.ReferencesOpcUa)
             {
                 return;
@@ -76,7 +76,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeConditionalAccess(SyntaxNodeAnalysisContext context, UaSymbols symbols)
         {
-            ConditionalAccessExpressionSyntax node = (ConditionalAccessExpressionSyntax)context.Node;
+            var node = (ConditionalAccessExpressionSyntax)context.Node;
             ITypeSymbol receiverType = context.SemanticModel
                 .GetTypeInfo(node.Expression, context.CancellationToken).Type;
             if (receiverType is null)

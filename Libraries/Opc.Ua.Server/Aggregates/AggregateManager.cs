@@ -120,7 +120,8 @@ namespace Opc.Ua.Server
                 {
                     PercentDataBad = 100,
                     PercentDataGood = 100,
-                    TreatUncertainAsBad = false,
+                    // Part 13 v1.05.07 §4.2.1.2: the TreatUncertainAsBad default is True.
+                    TreatUncertainAsBad = true,
                     UseSlopedExtrapolation = false,
                     UseServerCapabilitiesDefaults = false
                 };

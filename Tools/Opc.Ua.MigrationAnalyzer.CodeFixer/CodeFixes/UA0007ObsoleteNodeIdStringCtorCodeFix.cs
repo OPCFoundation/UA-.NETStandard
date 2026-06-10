@@ -45,13 +45,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// UA0007 code fix: rewrite <c>new NodeId(s)</c> / <c>new ExpandedNodeId(s)</c>
     /// as the corresponding <c>Parse(s)</c> call.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0007ObsoleteNodeIdStringCtorCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0007ObsoleteNodeIdStringCtorCodeFix))]
+    [Shared]
     public sealed class UA0007ObsoleteNodeIdStringCtorCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0007);
+            [DiagnosticIds.UA0007];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

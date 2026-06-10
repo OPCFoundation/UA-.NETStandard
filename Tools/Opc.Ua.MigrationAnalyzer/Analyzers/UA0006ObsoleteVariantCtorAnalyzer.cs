@@ -45,7 +45,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0006ObsoleteVariantCtorAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0006_ObsoleteVariantCtor);
+            [DiagnosticDescriptors.UA0006_ObsoleteVariantCtor];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -56,7 +56,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeObjectCreation(OperationAnalysisContext context)
         {
-            IObjectCreationOperation creation = (IObjectCreationOperation)context.Operation;
+            var creation = (IObjectCreationOperation)context.Operation;
             IMethodSymbol ctor = creation.Constructor;
             if (ctor is null || ctor.Parameters.Length != 1)
             {

@@ -26,7 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
@@ -102,8 +101,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 "Default registry must expose the EventType browse path "
                 + "for filter construction.");
 
-            Variant[] fields = new Variant[registry.StandardFields.Length];
-            fields[eventTypePosition] = Variant.From((NodeId)ObjectTypeIds.BaseEventType);
+            var fields = new Variant[registry.StandardFields.Length];
+            fields[eventTypePosition] = Variant.From(ObjectTypeIds.BaseEventType);
 
             EventRecord record = registry.Decode(fields);
 
@@ -115,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void DecodeReturnsNullWhenFieldsEmpty()
         {
             EventRecordDecoderRegistry registry = EventRecordDecoderRegistry.Default;
-            Assert.That(registry.Decode(System.Array.Empty<Variant>()), Is.Null);
+            Assert.That(registry.Decode([]), Is.Null);
         }
 
         [Test]
@@ -154,11 +153,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // IS registered.
             var unknownVendor = new NodeId(42u, 5);
             registry.SuperTypeResolver = current =>
-                current == unknownVendor ? (NodeId)ObjectTypeIds.BaseEventType : null;
+                current == unknownVendor ? ObjectTypeIds.BaseEventType : null;
 
             EventRecord record = registry.DecodeAs(
                 unknownVendor,
-                new Variant[] { default, Variant.From((NodeId)unknownVendor) });
+                [default, Variant.From(unknownVendor)]);
 
             Assert.That(record, Is.InstanceOf<BaseEventTypeRecord>());
         }
@@ -169,7 +168,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var registry = new EventRecordDecoderRegistry();
             var unknownType = new NodeId(987u, 7);
 
-            EventRecord record = registry.DecodeAs(unknownType, new[] { Variant.From(1) });
+            EventRecord record = registry.DecodeAs(unknownType, [Variant.From(1)]);
 
             Assert.That(record, Is.Null);
         }
@@ -211,14 +210,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(eventTypePosition, Is.GreaterThanOrEqualTo(0));
             Assert.That(severityPosition, Is.GreaterThanOrEqualTo(0));
 
-            Variant[] fields = new Variant[composed.Length];
-            fields[eventTypePosition] = Variant.From((NodeId)ObjectTypeIds.BaseEventType);
+            var fields = new Variant[composed.Length];
+            fields[eventTypePosition] = Variant.From(ObjectTypeIds.BaseEventType);
             fields[severityPosition] = Variant.From((ushort)999);
 
             EventRecord record = registry.Decode(fields);
 
             Assert.That(record, Is.InstanceOf<BaseEventTypeRecord>());
-            BaseEventTypeRecord baseRecord = (BaseEventTypeRecord)record;
+            var baseRecord = (BaseEventTypeRecord)record;
             Assert.That(baseRecord.Severity, Is.EqualTo((ushort)999),
                 "Registry must remap composed-layout fields to each "
                 + "decoder's local positional layout before decoding.");
@@ -230,7 +229,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             EventRecordDecoderRegistry registry = EventRecordDecoderRegistry.Default;
             int eventTypePosition = FindEventTypeIndex(registry.StandardFields);
 
-            Variant[] fields = new Variant[registry.StandardFields.Length];
+            var fields = new Variant[registry.StandardFields.Length];
             fields[eventTypePosition] = Variant.From(NodeId.Null);
 
             EventRecord record = registry.Decode(fields);

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
@@ -55,9 +54,9 @@ namespace Opc.Ua.Client
         /// asynchronously.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
-        public static Subscriptions.ISubscription AddSubscription(
+        public static ISubscription AddSubscription(
             this ManagedSession session,
-            Subscriptions.ISubscriptionNotificationHandler handler,
+            ISubscriptionNotificationHandler handler,
             Subscriptions.SubscriptionOptions options)
         {
             if (session == null)
@@ -82,9 +81,9 @@ namespace Opc.Ua.Client
         /// record.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
-        public static Subscriptions.ISubscription AddSubscription(
+        public static ISubscription AddSubscription(
             this ManagedSession session,
-            Subscriptions.ISubscriptionNotificationHandler handler,
+            ISubscriptionNotificationHandler handler,
             Func<Subscriptions.SubscriptionOptions, Subscriptions.SubscriptionOptions> configure)
         {
             if (session == null)
@@ -109,7 +108,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public static bool TryAddMonitoredItem(
-            this Subscriptions.ISubscription subscription,
+            this ISubscription subscription,
             string name,
             Subscriptions.MonitoredItems.MonitoredItemOptions options,
             out Subscriptions.MonitoredItems.IMonitoredItem? monitoredItem)
@@ -139,7 +138,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public static bool TryAddMonitoredItem(
-            this Subscriptions.ISubscription subscription,
+            this ISubscription subscription,
             string name,
             NodeId nodeId,
             Func<Subscriptions.MonitoredItems.MonitoredItemOptions, Subscriptions.MonitoredItems.MonitoredItemOptions> configure,
@@ -303,9 +302,9 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
-            var result = new List<ISubscription>();
-            Subscriptions.SubscriptionManager manager =
-                (Subscriptions.SubscriptionManager)session.SubscriptionManager;
+            var result = new List<ISubscription>(states.Count);
+            SubscriptionManager manager =
+                (SubscriptionManager)session.SubscriptionManager;
 
             // Group by LogicalGroupId; null group = standalone. The
             // grouping logic mirrors the stream-based LoadAsync

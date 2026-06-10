@@ -625,6 +625,7 @@ namespace Opc.Ua
 
             return defaultValue;
         }
+
         /// <summary>
         /// Sentinel: true iff the struct was constructed via a public ctor or
         /// factory. default(DataValue) leaves it false, which is what IsNull

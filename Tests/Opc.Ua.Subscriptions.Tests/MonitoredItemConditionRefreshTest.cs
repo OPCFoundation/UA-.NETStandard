@@ -44,7 +44,7 @@ namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// Per-item <c>ConditionRefresh2</c> tests for V2
-    /// <see cref="Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem.ConditionRefreshAsync"/>.
+    /// <see cref="Client.Subscriptions.MonitoredItems.IMonitoredItem.ConditionRefreshAsync"/>.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -95,7 +95,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -118,7 +118,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     "PendingItem",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.Zero },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(item, Is.Not.Null);
                 ServiceResultException? caught = null;
                 try
@@ -173,7 +173,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -188,7 +188,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     "Time",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.Zero },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 bool itemCreated = await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(itemCreated, Is.True);

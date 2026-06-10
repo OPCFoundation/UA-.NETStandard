@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions
 {

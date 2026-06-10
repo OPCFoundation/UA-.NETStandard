@@ -868,8 +868,8 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    if (channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId)
-                        && !string.IsNullOrEmpty(globalChannelId))
+                    if (channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
+                        !string.IsNullOrEmpty(globalChannelId))
                     {
                         closed.Add(globalChannelId!);
                     }

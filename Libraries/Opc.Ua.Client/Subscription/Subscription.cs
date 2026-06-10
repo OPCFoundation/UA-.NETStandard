@@ -296,6 +296,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// low-level for the SDK contract; per-item link/unlink methods
         /// are tracked as a follow-up.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="linksToAdd"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             uint triggeringItemClientHandle,
             IReadOnlyList<uint> linksToAdd,
@@ -335,12 +338,12 @@ namespace Opc.Ua.Client.Subscriptions
             // post-call local update. Skipping items not in the
             // subscription would silently lose links — instead we throw
             // so the caller can fix the call site.
-            var addServerIds = new uint[linksToAdd.Count];
+            uint[] addServerIds = new uint[linksToAdd.Count];
             for (int i = 0; i < linksToAdd.Count; i++)
             {
                 addServerIds[i] = ResolveServerId(linksToAdd[i], nameof(linksToAdd));
             }
-            var removeServerIds = new uint[linksToRemove.Count];
+            uint[] removeServerIds = new uint[linksToRemove.Count];
             for (int i = 0; i < linksToRemove.Count; i++)
             {
                 removeServerIds[i] = ResolveServerId(linksToRemove[i], nameof(linksToRemove));
@@ -401,7 +404,8 @@ namespace Opc.Ua.Client.Subscriptions
             uint ResolveServerId(uint clientHandle, string paramName)
             {
                 if (!m_monitoredItems.TryGetMonitoredItemByClientHandle(
-                    clientHandle, out IMonitoredItem? item) || item == null)
+                    clientHandle, out IMonitoredItem? item) ||
+                    item == null)
                 {
                     throw new ArgumentException(
                         $"Monitored item with client handle {clientHandle} " +
@@ -793,17 +797,14 @@ namespace Opc.Ua.Client.Subscriptions
             // pre-restart state). Opt-in policy lets the caller ask
             // for an in-place recreate instead of leaving the
             // subscription dark.
-            if (notification.Status == StatusCodes.GoodSubscriptionTransferred
-                && Options.RecoveryPolicy
-                    .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer)
-                && Created
-                && !Disposed)
-            {
-                if (Interlocked.CompareExchange(
+            if (notification.Status == StatusCodes.GoodSubscriptionTransferred &&
+                Options.RecoveryPolicy
+                    .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
+                Created &&
+                !Disposed && Interlocked.CompareExchange(
                     ref m_recreateAfterTransferInProgress, 1, 0) == 0)
-                {
-                    _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);
-                }
+            {
+                _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);
             }
             return default;
         }

@@ -39,7 +39,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// <remarks>
     /// <para>
     /// Produced by <see cref="MonitoredItem.Snapshot"/> and consumed by
-    /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.LoadAsync"/>.
+    /// <see cref="ISubscriptionManager.LoadAsync"/>.
     /// Per-item runtime values (filter result, last sample,
     /// current sampling interval) are intentionally not captured — the
     /// transfer path re-binds them from the server via
@@ -192,11 +192,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 Order = Order,
                 StartNodeId = StartNodeId.IsNull ? NodeId.Null : StartNodeId,
-                TimestampsToReturn = (Opc.Ua.TimestampsToReturn)TimestampsToReturn,
+                TimestampsToReturn = (TimestampsToReturn)TimestampsToReturn,
                 AttributeId = AttributeId,
                 IndexRange = IndexRange,
                 Encoding = Encoding.IsNull ? null : Encoding,
-                MonitoringMode = (Opc.Ua.MonitoringMode)MonitoringMode,
+                MonitoringMode = (MonitoringMode)MonitoringMode,
                 SamplingInterval = TimeSpan.FromMilliseconds(SamplingIntervalMs),
                 Filter = Filter,
                 QueueSize = QueueSize,
