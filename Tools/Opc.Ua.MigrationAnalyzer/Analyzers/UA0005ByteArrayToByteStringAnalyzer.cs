@@ -52,7 +52,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0005ByteArrayToByteStringAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0005_ByteArrayWhereByteStringExpected);
+            [DiagnosticDescriptors.UA0005_ByteArrayWhereByteStringExpected];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -64,7 +64,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private static void OnCompilationStart(CompilationStartAnalysisContext context)
         {
             Dictionary<Compilation, UaSymbols> cache = [];
-            UaSymbols symbols = UaSymbols.For(context.Compilation, cache);
+            var symbols = UaSymbols.For(context.Compilation, cache);
             if (!symbols.ReferencesOpcUa || symbols.ByteStringType is null)
             {
                 return;
@@ -76,7 +76,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, UaSymbols symbols)
         {
-            InvocationExpressionSyntax invocation = (InvocationExpressionSyntax)context.Node;
+            var invocation = (InvocationExpressionSyntax)context.Node;
             SymbolInfo info = context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken);
             IMethodSymbol method = info.Symbol as IMethodSymbol
                 ?? info.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault();

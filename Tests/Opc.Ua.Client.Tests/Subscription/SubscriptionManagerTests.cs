@@ -648,7 +648,7 @@ namespace Opc.Ua.Client.Subscriptions
             TimeSpan? timeout = null)
         {
             timeout ??= TimeSpan.FromSeconds(5);
-            Stopwatch sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             while (sw.Elapsed < timeout.Value && sut.PublishWorkerCount != expected)
             {
                 await Task.Delay(25).ConfigureAwait(false);

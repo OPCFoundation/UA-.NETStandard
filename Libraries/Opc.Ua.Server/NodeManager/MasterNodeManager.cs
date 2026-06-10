@@ -2508,7 +2508,7 @@ namespace Opc.Ua.Server
 
                 if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
                 {
-                    value = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
+                    _ = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
                 }
             }
 

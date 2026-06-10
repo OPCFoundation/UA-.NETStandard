@@ -52,45 +52,61 @@ namespace Opc.Ua.Di.Server.Builders
     /// </remarks>
     internal static class SoftwareUpdateStateMachineDispatcher
     {
-        // ---- well-known state identifiers (delegated to typed Ids classes) ----
-        // PrepareForUpdate
+        /// <summary>
+        /// ---- well-known state identifiers (delegated to typed Ids classes) ----
+        /// PrepareForUpdate
+        /// </summary>
         internal const uint PrepareForUpdate_Idle = PrepareForUpdateStateMachineTypeIds.StateIds.Idle;
         internal const uint PrepareForUpdate_Preparing = PrepareForUpdateStateMachineTypeIds.StateIds.Preparing;
         internal const uint PrepareForUpdate_PreparedForUpdate = PrepareForUpdateStateMachineTypeIds.StateIds.PreparedForUpdate;
 
-        // Installation
+        /// <summary>
+        /// Installation
+        /// </summary>
         internal const uint Installation_Idle = InstallationStateMachineTypeIds.StateIds.Idle;
         internal const uint Installation_Installing = InstallationStateMachineTypeIds.StateIds.Installing;
         internal const uint Installation_Error = InstallationStateMachineTypeIds.StateIds.Error;
 
-        // PowerCycle
+        /// <summary>
+        /// PowerCycle
+        /// </summary>
         internal const uint PowerCycle_NotWaiting = PowerCycleStateMachineTypeIds.StateIds.NotWaitingForPowerCycle;
         internal const uint PowerCycle_Waiting = PowerCycleStateMachineTypeIds.StateIds.WaitingForPowerCycle;
 
-        // Confirmation
+        /// <summary>
+        /// Confirmation
+        /// </summary>
         internal const uint Confirmation_NotWaitingForConfirm = ConfirmationStateMachineTypeIds.StateIds.NotWaitingForConfirm;
         internal const uint Confirmation_WaitingForConfirm = ConfirmationStateMachineTypeIds.StateIds.WaitingForConfirm;
 
-        // ---- well-known transition identifiers (delegated to typed Ids classes) ----
-        // PrepareForUpdate
+        /// <summary>
+        /// ---- well-known transition identifiers (delegated to typed Ids classes) ----
+        /// PrepareForUpdate
+        /// </summary>
         internal const uint PrepareForUpdate_IdleToPreparing = PrepareForUpdateStateMachineTypeIds.TransitionIds.IdleToPreparing;
         internal const uint PrepareForUpdate_PreparingToIdle = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToIdle;
         internal const uint PrepareForUpdate_PreparingToPreparedForUpdate = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToPreparedForUpdate;
         internal const uint PrepareForUpdate_PreparedForUpdateToResuming = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparedForUpdateToResuming;
 
-        // Installation
+        /// <summary>
+        /// Installation
+        /// </summary>
         internal const uint Installation_IdleToInstalling = InstallationStateMachineTypeIds.TransitionIds.IdleToInstalling;
         internal const uint Installation_InstallingToIdle = InstallationStateMachineTypeIds.TransitionIds.InstallingToIdle;
         internal const uint Installation_InstallingToError = InstallationStateMachineTypeIds.TransitionIds.InstallingToError;
         internal const uint Installation_ErrorToIdle = InstallationStateMachineTypeIds.TransitionIds.ErrorToIdle;
 
-        // Confirmation
+        /// <summary>
+        /// Confirmation
+        /// </summary>
         internal const uint Confirmation_NotWaitingToWaiting = ConfirmationStateMachineTypeIds.TransitionIds.NotWaitingForConfirmToWaitingForConfirm;
         internal const uint Confirmation_WaitingToNotWaiting = ConfirmationStateMachineTypeIds.TransitionIds.WaitingForConfirmToNotWaitingForConfirm;
 
-        // ---- per-state browse-name + state-number lookup table ----
-        // (StateNumber values now sourced from the generator-emitted *Ids.StateNumbers classes
-        //  so any future change in the DI model is picked up automatically.)
+        /// <summary>
+        /// ---- per-state browse-name + state-number lookup table ----
+        /// (StateNumber values now sourced from the generator-emitted *Ids.StateNumbers classes
+        /// so any future change in the DI model is picked up automatically.)
+        /// </summary>
         private static readonly (uint Id, uint Number, string Name)[] s_states =
         [
             (PrepareForUpdate_Idle,
@@ -115,7 +131,9 @@ namespace Opc.Ua.Di.Server.Builders
              ConfirmationStateMachineTypeIds.StateNumbers.WaitingForConfirm, "WaitingForConfirm"),
         ];
 
-        // ---- per-transition browse-name + transition-number lookup table ----
+        /// <summary>
+        /// ---- per-transition browse-name + transition-number lookup table ----
+        /// </summary>
         private static readonly (uint Id, uint Number, string Name)[] s_transitions =
         [
             (PrepareForUpdate_IdleToPreparing,

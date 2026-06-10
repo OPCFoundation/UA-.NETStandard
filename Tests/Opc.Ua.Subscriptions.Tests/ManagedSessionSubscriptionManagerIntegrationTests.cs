@@ -149,7 +149,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -284,7 +284,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
             {

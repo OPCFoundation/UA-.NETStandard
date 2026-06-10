@@ -197,6 +197,19 @@ var connection = new PubSubConnectionDataType
 };
 ```
 
+#### Server default Aggregate configuration now treats Uncertain as Bad (Part 13)
+
+**Behavioral Change (Part 13 compliance)**: The server-side default aggregate configuration returned by
+`AggregateManager.GetDefaultConfiguration(...)` — used when a `ReadProcessedDetails` request sets
+`AggregateConfiguration.UseServerCapabilitiesDefaults = true` — now sets `TreatUncertainAsBad = true`,
+matching the default mandated by OPC 10000-13 (Aggregates) v1.05.07 §4.2.1.2. Previously it defaulted to
+`false`.
+
+**Impact**: Processed (aggregate) history reads that rely on the server-capabilities defaults now treat
+Uncertain-quality samples as Bad when computing aggregate `StatusCode`s (unless a specific aggregate
+definition states otherwise). Clients that require the previous behavior should send an explicit
+`AggregateConfiguration` with `TreatUncertainAsBad = false` instead of `UseServerCapabilitiesDefaults = true`.
+
 #### Project Structure
 
 New `Opc.Ua` project as an intermediate project. Impact:

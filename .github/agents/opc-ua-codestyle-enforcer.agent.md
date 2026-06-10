@@ -27,34 +27,73 @@ When the user asks to format "the new code" or "the files I just changed" (rathe
 
 * If the user names files / a folder, use that.
 * If the user says "the new code" or "the changes I just made", run `git status --short` and pick the new/modified `.cs` files; group them by owning `.csproj`.
-* Use `dotnet format --include <path>` (path can be a folder or comma-separated list of files) to constrain the run.
+* Use `dotnet format --include <relative-path>` (one per file) to constrain the run — see the `--include` argument-form warning below.
+
+### `--include` argument form (CRITICAL)
+
+`dotnet format --include` is silently broken for two common shapes that look reasonable. Verified on `dotnet format 10.0.300` against this repo:
+
+| Form | Result |
+|---|---|
+| `--include D:/abs/path/File.cs` (absolute path) | **No match.** Exits 0, format pass is a no-op, verify-no-changes passes even when the file has real issues. |
+| `--include "a.cs,b.cs"` (comma-separated) | **No match.** Same silent no-op. |
+| `--include "a.cs;b.cs"` (semicolon-separated) | **No match.** Same silent no-op. |
+| `--include a.cs --include b.cs` (repeated, **relative** paths) | **Works.** Matches both files, applies fixes / reports diagnostics. |
+
+The relative paths must be relative to the working directory (the repo root for solution-level runs).
+
+**For a "format only the changed files" run**, build the command programmatically — one `--include` per file:
+
+```powershell
+$cmd = @("dotnet", "format", $proj)
+foreach ($f in $files) { $cmd += @("--include", $f) }   # $f must be a workspace-relative path
+$cmd += @("--no-restore", "--verbosity", "minimal", "--severity", "info")
+& $cmd[0] $cmd[1..($cmd.Length-1)]
+```
+
+This is the symmetric trap to the `--diagnostics` per-rule repetition documented in Phase 2.
 
 ### 2. Run the three-phase format sweep (scoped)
 
-Run all three sub-commands in order, scoped with `--include`:
+Run all three sub-commands in order, scoped with `--include` (repeated per file, relative paths):
 
 ```powershell
+# Build the include args once
+$includeArgs = @(); foreach ($f in $files) { $includeArgs += @("--include", $f) }
+
 # 1. Whitespace (tabs → spaces, trailing whitespace, newline-at-EOF, brace placement)
-dotnet format whitespace <Project.csproj> --include <path> --no-restore --verbosity minimal
+dotnet format whitespace <Project.csproj> @includeArgs --no-restore --verbosity minimal
 
 # 2. Style (.editorconfig style rules: var vs explicit, qualification, modifier order, …)
-dotnet format style <Project.csproj> --include <path> --no-restore --verbosity minimal
+dotnet format style <Project.csproj> @includeArgs --no-restore --verbosity minimal
 
 # 3. Analyzers (Roslyn analyzers — CA/IDE/RCS at the requested severity)
-dotnet format analyzers <Project.csproj> --include <path> --no-restore --severity info --verbosity minimal
+dotnet format analyzers <Project.csproj> @includeArgs --no-restore --severity info --verbosity minimal
 ```
+
+Or, even simpler, let `dotnet format` (no subcommand) run all three phases in one project load — same `@includeArgs` works.
 
 Run each phase to completion before starting the next; some style fixes resolve later analyzer warnings, and analyzer fixes can introduce new style issues. Pre-existing source-generation log lines in the output are noise — focus on the `Formatted code file` / `info` / `warning` lines.
 
 ### 3. Verify (scoped)
 
 ```powershell
-dotnet format whitespace <Project.csproj> --include <path> --no-restore --verify-no-changes --verbosity minimal
-dotnet format style       <Project.csproj> --include <path> --no-restore --verify-no-changes --verbosity minimal
-dotnet format analyzers   <Project.csproj> --include <path> --no-restore --severity info --verify-no-changes --verbosity minimal
+dotnet format whitespace <Project.csproj> @includeArgs --no-restore --verify-no-changes --verbosity minimal
+dotnet format style       <Project.csproj> @includeArgs --no-restore --verify-no-changes --verbosity minimal
+dotnet format analyzers   <Project.csproj> @includeArgs --no-restore --severity info --verify-no-changes --verbosity minimal
 ```
 
 Then build the project(s) and dependent test project(s).
+
+### Cross-namespace using/qualifier hazards (RISKY on scoped sweeps)
+
+`dotnet format` with `IDE0005` (remove unused usings) or `IDE0002` (simplify member access) can over-prune in these cases. **Always rebuild on every target TFM after a scoped sweep** and be ready to revert these classes of files:
+
+| Pattern | What goes wrong | Revert / mitigation |
+|---|---|---|
+| `using Opc.Ua.Security.Certificates;` in a file that uses `Certificate` / `CertificateCollection` as plain identifiers (e.g. 1.5.378 reference fixtures under `Tools/Opc.Ua.MigrationAnalyzer.Core/**`) | `IDE0005` removes the import → `CS0246` on `Certificate` / `CertificateCollection`. | `git checkout HEAD -- <file>` after the sweep, add the file to a per-file IDE0005 suppression, or add `// dotnet format: keep` comment near the using if you want it preserved across runs. |
+| Files that disambiguate via `using OpcUa = Opc.Ua;` and then reference `OpcUa.ObjectTypeIds.X` (e.g. `Tests/Opc.Ua.Gds.Tests/PushTest.cs`) | `IDE0002` strips the `OpcUa.` qualifier → resolves to a conflicting `ObjectTypeIds` in scope → `CS0117`. | Revert the file; if you need the cleanup, do it per-symbol by hand. |
+| Multi-TFM files where one TFM's analysis disagrees with another (e.g. `Libraries/Opc.Ua.Server/Server/ServerInternalData.cs` between `net48` and `net10.0`) | The formatter injects literal `<<<<<<<` / `=======` / `>>>>>>>` markers into the file → `CS8300 Merge conflict marker encountered`. | Revert the file; the multi-TFM disagreement needs a manual fix. |
 
 ## Phase 1 — Discovery: Collect and categorize diagnostics
 
@@ -125,32 +164,43 @@ Typical batch order:
 
 For IDE rules, use `dotnet format style`:
 ```powershell
-dotnet format style UA.slnx --severity info --diagnostics "IDE0005 IDE0004 IDE0001 IDE0002"
+dotnet format style UA.slnx --severity info --diagnostics IDE0005 --diagnostics IDE0004 --diagnostics IDE0001 --diagnostics IDE0002
 ```
 
 For RCS/CA rules, use `dotnet format analyzers`:
 ```powershell
-dotnet format analyzers UA.slnx --severity info --diagnostics "RCS0027 RCS0055 RCS0009 RCS0010"
+dotnet format analyzers UA.slnx --severity info --diagnostics RCS0027 --diagnostics RCS0055 --diagnostics RCS0009 --diagnostics RCS0010
 ```
 
-**IMPORTANT:** Pass diagnostic IDs as **space-separated** (not comma-separated). Run one rule at a time if you need to measure which rule changes which files.
+**CRITICAL — `--diagnostics` argument form:** Repeat the `--diagnostics` flag once per rule ID. **Do NOT** pass a single quoted, space-separated string (`--diagnostics "RCS1124 RCS1181"`); `dotnet format` 10.x silently parses that as one unknown ID, applies no fixers, and exits 0 — every run reports "0 files changed" even when hits exist. The per-rule repeated form is the only reliable shape; verified on `dotnet format 10.0.300` against this repo.
 
-**IMPORTANT:** Some rules report diagnostics but have NO code-fix provider. The `dotnet format` command exits cleanly with 0 files changed. This is expected — those rules need manual fixes or fleet agents.
+**Comma-separated form is also wrong:** never `--diagnostics RCS1,RCS2`.
 
-### Known rules WITHOUT auto-fixers
+**IMPORTANT:** Some rules report diagnostics but have NO code-fix provider. The `dotnet format` command exits cleanly with 0 files changed. This is expected — those rules need manual fixes or fleet agents. See the verified table below before assuming a rule is unfixable.
 
-These rules are report-only in `dotnet format` and require manual intervention:
-- RCS1140 (add `<exception>` to doc comment)
-- RCS1142 (add `<typeparam>` to doc comment)
-- RCS1181 (convert comment to doc comment)
-- RCS1078 (use `string.Empty`)
-- RCS1118 (mark local as `const`)
-- RCS1124 (inline local variable)
-- RCS1221 (pattern matching instead of cast)
-- RCS1260 (trailing comma) — though the fixer did work in some runs
-- NUnit4002/NUnit2046/NUnit2010 (NUnit constraint model)
+### Auto-fixer availability — verified for Roslynator 4.15.0
 
-For these, either fix manually or dispatch fleet sub-agents with precise file/line instructions.
+The Roslynator package ships `Roslynator.CSharp.Analyzers.CodeFixes.dll` (alongside the analyzer DLL); most RCS rules **do** have code fixers in 4.x. Empirically verified against this repo (commit `style: convert comments to doc comments and inline local vars`):
+
+| Rule | Fixer ships? | Notes / preconditions |
+|---|---|---|
+| RCS1078 (use `string.Empty` vs `""`) | **Yes** | Requires `.editorconfig`: `roslynator_empty_string_style = field` (already set in this repo). |
+| RCS1118 (mark local as `const`) | **Yes** | Fires at `--severity info`. |
+| RCS1124 (inline local variable) | **Yes** | Verified working — applied across the repo in the cited commit. |
+| RCS1140 (add `<exception>` to doc comment) | **Yes** | Default severity is **Hidden** — must run with `--severity info` for hits to surface and the fixer to apply. Generates `<exception cref="…">` lines on public APIs that throw; treat as semantic doc change and review per file. |
+| RCS1142 (add `<typeparam>` to doc comment) | **Yes** | Analogous to RCS1140. |
+| RCS1181 (convert comment to doc comment) | **Yes** | Verified working — applied across the repo in the cited commit. |
+| RCS1221 (pattern matching instead of cast) | **Yes** | Fires at `--severity info`. |
+| RCS1260 (trailing comma) | **Yes** | Works; earlier "did not work" sightings were caused by the `--diagnostics` argument-form bug above. |
+| NUnit4002 / NUnit2046 / NUnit2010 | **No** | NUnit.Analyzers does not ship a fixer for the constraint-model migration; manual edit required. |
+
+**Lesson:** if a rule appears in the inventory but `dotnet format` reports zero changes, **do not** add it to a "no fixer" list before checking:
+1. The `--diagnostics` form is repeated per rule (not a single quoted string).
+2. The rule's default severity — Hidden rules need `--severity info` (or higher) to surface.
+3. Any rule-specific `.editorconfig` config option is set (e.g. `roslynator_empty_string_style` for RCS1078).
+4. The rule actually has hits in the targeted scope (verify with `--verify-no-changes` first).
+
+For rules genuinely without a fixer (NUnit4002 etc.), either fix manually or dispatch fleet sub-agents with precise file/line instructions.
 
 ### Per-batch loop
 

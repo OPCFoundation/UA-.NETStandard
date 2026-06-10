@@ -45,13 +45,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// UA0012 code fix: rewrite <c>CertificateFactory.X(args)</c> as
     /// <c>DefaultCertificateFactory.Instance.X(args)</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0012CertificateFactoryStaticToInstanceCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0012CertificateFactoryStaticToInstanceCodeFix))]
+    [Shared]
     public sealed class UA0012CertificateFactoryStaticToInstanceCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0012);
+            [DiagnosticIds.UA0012];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

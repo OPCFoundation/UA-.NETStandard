@@ -186,6 +186,11 @@ namespace Opc.Ua
             Interlocked.Exchange(ref m_active, 0);
         }
 
+        internal void MarkActiveForSwap()
+        {
+            Interlocked.Exchange(ref m_active, 1);
+        }
+
         // ---- ITransportChannel forwarding ----
 
         /// <inheritdoc/>

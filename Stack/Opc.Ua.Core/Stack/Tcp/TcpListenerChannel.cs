@@ -350,7 +350,7 @@ namespace Opc.Ua.Bindings
                     ChannelId,
                     oldThumbprint);
 
-                ServiceResult reason = ServiceResult.Create(
+                var reason = ServiceResult.Create(
                     StatusCodes.BadCertificateInvalid,
                     "Server certificate rotated. Renegotiate the SecureChannel.");
 

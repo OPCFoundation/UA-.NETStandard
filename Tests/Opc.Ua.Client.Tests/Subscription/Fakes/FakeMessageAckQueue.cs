@@ -83,9 +83,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public int DropPendingForSubscription(uint subscriptionId)
         {
             DroppedSubscriptions.Add(subscriptionId);
-            int dropped = QueuedAcks.RemoveAll(
+            return QueuedAcks.RemoveAll(
                 ack => ack.SubscriptionId == subscriptionId);
-            return dropped;
         }
 
         public void Update()

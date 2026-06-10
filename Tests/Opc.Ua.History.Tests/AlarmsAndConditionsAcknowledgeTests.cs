@@ -135,7 +135,8 @@ namespace Opc.Ua.History.Tests
                 e => AlarmEventCollector.TryGetBoolean(
                     e,
                     AlarmEventCollector.FieldIndex.AckedStateId,
-                    out bool acked) && !acked,
+                    out bool acked) &&
+                    !acked,
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             if (!AlarmEventCollector.TryGetByteString(
@@ -162,7 +163,8 @@ namespace Opc.Ua.History.Tests
                 e => AlarmEventCollector.TryGetBoolean(
                     e,
                     AlarmEventCollector.FieldIndex.AckedStateId,
-                    out bool acked) && acked,
+                    out bool acked) &&
+                    acked,
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             Assert.That(

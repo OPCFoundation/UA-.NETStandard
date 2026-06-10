@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static SystemContext CreateContext()
         {
             var ns = new NamespaceTable();
-            ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+            ns.Append(Ua.Namespaces.OpcUa);
             return new SystemContext(telemetry: null!)
             {
                 NamespaceUris = ns
@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 DisplayName = new LocalizedText("Root")
             };
 
-            AnalogItemState<double> analog = AnalogItemState<double>.With<VariantBuilder>(root);
+            var analog = AnalogItemState<double>.With<VariantBuilder>(root);
             analog.NodeId = new NodeId("Root.Temp", kNs);
             analog.BrowseName = new QualifiedName("Temp", kNs);
             analog.DisplayName = new LocalizedText("Temp");

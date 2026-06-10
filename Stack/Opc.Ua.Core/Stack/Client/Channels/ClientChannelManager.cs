@@ -738,6 +738,13 @@ namespace Opc.Ua
                 }
             }
 
+            // The lease was marked released when the original entry tore down
+            // during its Faulted disposal. Re-activate it so ReattachParticipant
+            // (which guards against attaching released leases) can re-establish
+            // the bookkeeping on the fresh entry. This is safe because we hold
+            // the only reference to the lease as the caller of ReconnectAsync.
+            lease.MarkActiveForSwap();
+
             fresh.ReattachParticipant(lease, lease.ParticipantFactory);
             if (!ReferenceEquals(original, fresh))
             {

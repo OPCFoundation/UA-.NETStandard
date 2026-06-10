@@ -55,7 +55,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0006 = diags.SingleOrDefault(d => d.Id == "UA0006");
             Assert.That(ua0006, Is.Not.Null);
@@ -77,7 +78,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0006 = diags.SingleOrDefault(d => d.Id == "UA0006");
             Assert.That(ua0006, Is.Not.Null);
@@ -99,7 +101,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0006 = diags.SingleOrDefault(d => d.Id == "UA0006");
             Assert.That(ua0006, Is.Not.Null);
@@ -120,7 +123,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0006 = diags.SingleOrDefault(d => d.Id == "UA0006");
             Assert.That(ua0006, Is.Not.Null);
@@ -141,7 +145,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0006"), Is.False);
         }
@@ -158,7 +163,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0006ObsoleteVariantCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0006"), Is.False);
         }
@@ -186,7 +192,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0006ObsoleteVariantCtorAnalyzer(),
                 new UA0006ObsoleteVariantCtorCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }
@@ -212,7 +218,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0006ObsoleteVariantCtorAnalyzer(),
                 new UA0006ObsoleteVariantCtorCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

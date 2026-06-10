@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                         .AddTransition(100, "Loop", from: 10, to: 10))
                 .StateMachine;
 
-            FluentFiniteStateMachineState child = (FluentFiniteStateMachineState)
+            var child = (FluentFiniteStateMachineState)
                 GetChild(parent, "ChildSm");
 
             // Sub-SM starts suspended (parent is in state 2, not 1).
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                         .AddTransition(100, "Loop", from: 10, to: 10))
                 .StateMachine;
 
-            FluentFiniteStateMachineState child = (FluentFiniteStateMachineState)
+            var child = (FluentFiniteStateMachineState)
                 GetChild(parent, "ChildSm");
             Assert.That(child.IsSuspended, Is.False);
 
@@ -137,13 +137,13 @@ namespace Opc.Ua.Server.Tests.StateMachines
                         .AddTransition(100, "Loop", from: 10, to: 10))
                 .StateMachine;
 
-            FluentFiniteStateMachineState child = (FluentFiniteStateMachineState)
+            var child = (FluentFiniteStateMachineState)
                 GetChild(parent, "ChildSm");
 
             ServiceResult result = child.DoTransition(m_context, 100, 0, default, []);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
-            Assert.That((uint)result.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                         .OnCause(1000, from: 10, transition: 100))
                 .StateMachine;
 
-            FluentFiniteStateMachineState child = (FluentFiniteStateMachineState)
+            var child = (FluentFiniteStateMachineState)
                 GetChild(parent, "ChildSm");
 
             // Move child to "Running" state.
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                     preserveOnReentry: true)
                 .StateMachine;
 
-            FluentFiniteStateMachineState child = (FluentFiniteStateMachineState)
+            var child = (FluentFiniteStateMachineState)
                 GetChild(parent, "ChildSm");
 
             child.DoTransition(m_context, 100, 1000, default, []);
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void WithSubStateMachineThrowsInLifecycleMode()
         {
             FluentFiniteStateMachineState sm = BuildParent().StateMachine;
-            StateMachineBuilder<FluentFiniteStateMachineState> lifecycle =
+            var lifecycle =
                 StateMachineBuilder.For(sm, m_context);
 
             Assert.That(() => lifecycle.WithSubStateMachine(

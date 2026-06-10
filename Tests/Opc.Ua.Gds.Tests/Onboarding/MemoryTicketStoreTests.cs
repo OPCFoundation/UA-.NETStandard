@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var store = new MemoryTicketStore();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.AddAsync("", Array.Empty<byte>(), Metadata()).ConfigureAwait(false));
+                async () => await store.AddAsync(string.Empty, Array.Empty<byte>(), Metadata()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync("t1", null!, Metadata()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(

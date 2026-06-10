@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Collections.Generic;
 using ECCurve = System.Security.Cryptography.ECCurve;
 using X509Extension = System.Security.Cryptography.X509Certificates.X509Extension;
 #if NETFRAMEWORK
