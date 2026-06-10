@@ -537,32 +537,56 @@ namespace Opc.Ua.SourceGeneration
             string id = dataType.SymbolicId?.Name;
             switch (id)
             {
-                case "Boolean": return "bool?";
-                case "SByte": return "sbyte?";
-                case "Byte": return "byte?";
-                case "Int16": return "short?";
-                case "UInt16": return "ushort?";
-                case "Int32": return "int?";
-                case "UInt32": return "uint?";
-                case "Int64": return "long?";
-                case "UInt64": return "ulong?";
-                case "Float": return "float?";
-                case "Double": return "double?";
-                case "String": return "string?";
-                case "DateTime": return "global::System.DateTime?";
-                case "UtcTime": return "global::System.DateTime?";
-                case "Guid": return "global::System.Guid?";
-                case "Duration": return "double?";
+                case "Boolean":
+                    return "bool?";
+                case "SByte":
+                    return "sbyte?";
+                case "Byte":
+                    return "byte?";
+                case "Int16":
+                    return "short?";
+                case "UInt16":
+                    return "ushort?";
+                case "Int32":
+                    return "int?";
+                case "UInt32":
+                    return "uint?";
+                case "Int64":
+                    return "long?";
+                case "UInt64":
+                    return "ulong?";
+                case "Float":
+                    return "float?";
+                case "Double":
+                    return "double?";
+                case "String":
+                    return "string?";
+                case "DateTime":
+                    return "global::System.DateTime?";
+                case "UtcTime":
+                    return "global::System.DateTime?";
+                case "Guid":
+                    return "global::System.Guid?";
+                case "Duration":
+                    return "double?";
                 // BuiltIn types that implement INullable — use the
                 // type's own .IsNull instead of wrapping in Nullable<T>.
-                case "ByteString": return "global::Opc.Ua.ByteString";
-                case "XmlElement": return "global::System.Xml.XmlElement";
-                case "NodeId": return "global::Opc.Ua.NodeId";
-                case "ExpandedNodeId": return "global::Opc.Ua.ExpandedNodeId";
-                case "QualifiedName": return "global::Opc.Ua.QualifiedName";
-                case "LocalizedText": return "global::Opc.Ua.LocalizedText";
-                case "StatusCode": return "global::Opc.Ua.StatusCode";
-                default: return "global::Opc.Ua.Variant";
+                case "ByteString":
+                    return "global::Opc.Ua.ByteString";
+                case "XmlElement":
+                    return "global::System.Xml.XmlElement";
+                case "NodeId":
+                    return "global::Opc.Ua.NodeId";
+                case "ExpandedNodeId":
+                    return "global::Opc.Ua.ExpandedNodeId";
+                case "QualifiedName":
+                    return "global::Opc.Ua.QualifiedName";
+                case "LocalizedText":
+                    return "global::Opc.Ua.LocalizedText";
+                case "StatusCode":
+                    return "global::Opc.Ua.StatusCode";
+                default:
+                    return "global::Opc.Ua.Variant";
             }
         }
 
@@ -579,17 +603,28 @@ namespace Opc.Ua.SourceGeneration
         {
             switch (dotnetType)
             {
-                case "bool?": return "GetNullableBool";
-                case "double?": return "GetNullableDouble";
-                case "global::System.DateTime?": return "GetNullableDateTime";
-                case "string?": return "GetString";
-                case "ushort?": return "GetUInt16";
-                case "global::Opc.Ua.ByteString": return "GetByteString";
-                case "global::Opc.Ua.NodeId": return "GetNodeId";
-                case "global::Opc.Ua.LocalizedText": return "GetLocalizedText";
-                case "global::Opc.Ua.StatusCode": return "GetStatusCode";
-                case "global::Opc.Ua.LocalizedText[]?": return "GetLocalizedTextArray";
-                default: return null;
+                case "bool?":
+                    return "GetNullableBool";
+                case "double?":
+                    return "GetNullableDouble";
+                case "global::System.DateTime?":
+                    return "GetNullableDateTime";
+                case "string?":
+                    return "GetString";
+                case "ushort?":
+                    return "GetUInt16";
+                case "global::Opc.Ua.ByteString":
+                    return "GetByteString";
+                case "global::Opc.Ua.NodeId":
+                    return "GetNodeId";
+                case "global::Opc.Ua.LocalizedText":
+                    return "GetLocalizedText";
+                case "global::Opc.Ua.StatusCode":
+                    return "GetStatusCode";
+                case "global::Opc.Ua.LocalizedText[]?":
+                    return "GetLocalizedTextArray";
+                default:
+                    return null;
             }
         }
 

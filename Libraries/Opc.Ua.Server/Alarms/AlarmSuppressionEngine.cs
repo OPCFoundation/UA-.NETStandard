@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Alarms
                 {
                     Group = suppressionGroup,
                     Source = suppressionSource,
-                    Members = new List<AlarmConditionState>(alarmMembers),
+                    Members = [.. alarmMembers],
                     LastState = initial,
                     FirstEvaluation = true
                 });
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Alarms
             lock (m_lock)
             {
                 ThrowIfDisposed();
-                snapshot = m_registrations.ToArray();
+                snapshot = [.. m_registrations];
             }
 
             foreach (RegistrationEntry entry in snapshot)
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Alarms
                 {
                     return;
                 }
-                otherMembers = new List<AlarmConditionState>(otherMembers);
+                otherMembers = [.. otherMembers];
             }
 
             foreach (AlarmConditionState other in otherMembers)

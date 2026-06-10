@@ -33,7 +33,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -327,14 +326,14 @@ namespace Opc.Ua.Client.StateMachines
                 TimestampsToReturn.Both,
                 nodesToRead,
                 ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse<ReadValueId, DataValue>(
+            ClientBase.ValidateResponse(
                 response.Results, nodesToRead);
             return response.Results[0];
         }
 
         internal static DateTime ToTimestamp(DateTimeUtc sourceTimestamp)
         {
-            DateTime dt = (DateTime)sourceTimestamp;
+            var dt = (DateTime)sourceTimestamp;
             return dt == DateTime.MinValue ? DateTime.UtcNow : dt;
         }
     }

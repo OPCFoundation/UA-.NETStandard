@@ -39,7 +39,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.ModelChange;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -192,7 +191,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
             // tracker must fall back to full cache invalidation.
             fake.Push(new EventNotification(
                 null,
-                ArrayOf.Wrapped<Variant>(
+                ArrayOf.Wrapped(
                     default,
                     default,
                     Variant.From("not-an-extension-object-array"))));
@@ -253,14 +252,14 @@ namespace Opc.Ua.Client.Tests.ModelChange
             // ModelChanged must still fire.
             fake.Push(new EventNotification(
                 null,
-                ArrayOf.Wrapped<Variant>(
+                ArrayOf.Wrapped(
                     default, default, Variant.From("garbage"))));
             await fake.QuiesceAsync();
 
             // Second notification — pump must still be alive.
             fake.Push(new EventNotification(
                 null,
-                ArrayOf.Wrapped<Variant>(
+                ArrayOf.Wrapped(
                     default, default, Variant.From("garbage-2"))));
             await fake.QuiesceAsync();
 
@@ -286,14 +285,14 @@ namespace Opc.Ua.Client.Tests.ModelChange
 
             fake.Push(new EventNotification(
                 null,
-                ArrayOf.Wrapped<Variant>(
+                ArrayOf.Wrapped(
                     default, default, Variant.From("garbage-1"))));
             await fake.QuiesceAsync();
 
             // Pump still alive — a second notification is delivered.
             fake.Push(new EventNotification(
                 null,
-                ArrayOf.Wrapped<Variant>(
+                ArrayOf.Wrapped(
                     default, default, Variant.From("garbage-2"))));
             await fake.QuiesceAsync();
 

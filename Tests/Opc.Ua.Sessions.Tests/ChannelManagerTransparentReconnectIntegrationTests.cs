@@ -176,6 +176,20 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
                 Assert.That(GetDiagnostic(manager, channel.Key).State, Is.EqualTo(ChannelState.Ready));
 
+                // The participant returned RequiresSessionRecreate from OnReconnectAsync
+                // (the server lost the session id while down). The manager dispatches
+                // Session.RecreateAsync fire-and-forget; poll the read until the
+                // recreate has installed a fresh server-side session id. On a slow
+                // CI runner (macOS) the fire-and-forget can lose the race against
+                // an immediate Read.
+                Assert.That(
+                    await WaitForAsync(
+                        () => TryReadServerStatus(session),
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "Session should be recreated and able to read ServerStatus after the channel swap.");
+
                 await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
             }
             finally
@@ -187,6 +201,25 @@ namespace Opc.Ua.Sessions.Tests
                 }
 
                 await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        private static bool TryReadServerStatus(ManagedSessionType session)
+        {
+            try
+            {
+                DataValue value = session
+                    .ReadValueAsync(VariableIds.Server_ServerStatus_State, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                return !value.IsNull && StatusCode.IsGood(value.StatusCode);
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
     }

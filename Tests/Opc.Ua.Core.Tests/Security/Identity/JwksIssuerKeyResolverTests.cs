@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using var handler = new QueueMessageHandler(
                 CreateJwks(CreateRsaJwk(first, "kid-1", "sig")),
                 CreateJwks(CreateRsaJwk(second, "kid-2", "sig")));
-            using HttpClient httpClient = new HttpClient(handler, disposeHandler: false);
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
             using var resolver = new JwksIssuerKeyResolver(
                 "https://issuer.example.test",
                 "https://issuer.example.test/keys",

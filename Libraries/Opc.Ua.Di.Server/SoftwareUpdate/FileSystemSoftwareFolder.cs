@@ -144,7 +144,8 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                     .ConfigureAwait(false);
             }
 
-            if (string.IsNullOrEmpty(version)) { return null; }
+            if (string.IsNullOrEmpty(version))
+            { return null; }
             return await TryReadMetadataAsync(version, cancellationToken)
                 .ConfigureAwait(false);
         }

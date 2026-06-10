@@ -127,7 +127,7 @@ namespace Opc.Ua.Identity
             return new ValueTask<IReadOnlyList<IssuerVerificationKey>>(
                 m_keysById.TryGetValue(keyId, out IReadOnlyList<IssuerVerificationKey>? keys)
                     ? keys
-                    : Array.Empty<IssuerVerificationKey>());
+                    : []);
         }
 
         /// <inheritdoc/>

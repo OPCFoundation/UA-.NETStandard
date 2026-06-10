@@ -271,12 +271,12 @@ namespace Opc.Ua.Client
         private void HandleGoodSubscriptionTransferred()
         {
             ISession? session = Session;
-            bool unsolicited = session != null
-                && !session.Reconnecting
-                && Created;
+            bool unsolicited = session != null &&
+                !session.Reconnecting &&
+                Created;
 
-            if (RecoveryPolicy.HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer)
-                && unsolicited)
+            if (RecoveryPolicy.HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
+                unsolicited)
             {
                 m_logger.LogWarning(
                     "SubscriptionId {SubscriptionId}: unsolicited Good_SubscriptionTransferred received — " +
@@ -327,9 +327,9 @@ namespace Opc.Ua.Client
                         return;
                     }
 
-                    if (deadId != 0
-                        && session is Session classicSession
-                        && classicSession.SubscriptionEngine
+                    if (deadId != 0 &&
+                        session is Session classicSession &&
+                        classicSession.SubscriptionEngine
                             is ClassicSubscriptionEngine engine)
                     {
                         int dropped = engine.RemoveAcknowledgementsForSubscription(deadId);

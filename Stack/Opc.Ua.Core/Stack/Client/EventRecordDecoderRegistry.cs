@@ -123,7 +123,9 @@ namespace Opc.Ua
         /// registrations on the child do not affect the parent.
         /// </summary>
         public EventRecordDecoderRegistry CreateChildScope()
-            => new EventRecordDecoderRegistry(parent: this) { SuperTypeResolver = SuperTypeResolver };
+        {
+            return new(parent: this) { SuperTypeResolver = SuperTypeResolver };
+        }
 
         /// <summary>
         /// Registers a decoder for the given event type. Throws if
@@ -284,7 +286,7 @@ namespace Opc.Ua
                 List<Entry> entries;
                 lock (registry.m_lock)
                 {
-                    entries = new List<Entry>(registry.m_decoders.Values);
+                    entries = [.. registry.m_decoders.Values];
                 }
                 foreach (Entry entry in entries)
                 {
@@ -412,9 +414,11 @@ namespace Opc.Ua
 
             public QualifiedName[][] StandardFields { get; }
             public Func<IReadOnlyList<Variant>, EventRecord?> Decode { get; }
-            // Composed-layout → local-layout remap cache. Rebuilt when
-            // RemapVersion differs from the composed-fields snapshot's
-            // identity hash.
+            /// <summary>
+            /// Composed-layout → local-layout remap cache. Rebuilt when
+            /// RemapVersion differs from the composed-fields snapshot's
+            /// identity hash.
+            /// </summary>
             public int[]? RemapTo { get; set; }
             public int RemapVersion { get; set; } = -1;
         }
@@ -449,7 +453,9 @@ namespace Opc.Ua
             }
 
             public override bool Equals(object? obj)
-                => obj is PathKey other && Equals(other);
+            {
+                return obj is PathKey other && Equals(other);
+            }
 
             public override int GetHashCode()
             {

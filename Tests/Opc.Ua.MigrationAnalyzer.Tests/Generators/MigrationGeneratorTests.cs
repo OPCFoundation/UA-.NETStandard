@@ -56,10 +56,9 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             // On .NET Core / .NET 5+, the runtime exposes the full set of trusted
             // platform assemblies via AppContext.
             string trustedAssemblies = (string?)System.AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? string.Empty;
-            string[] tpaList = trustedAssemblies
+            string[] tpaList = [.. trustedAssemblies
                 .Split(Path.PathSeparator)
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToArray();
+                .Where(p => !string.IsNullOrEmpty(p))];
             if (tpaList.Length > 0)
             {
                 return [.. tpaList.Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))];
@@ -80,27 +79,27 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         private static bool IsBclAssembly(string path)
         {
             string name = Path.GetFileNameWithoutExtension(path);
-            return name.Equals("mscorlib", System.StringComparison.OrdinalIgnoreCase)
-                || name.Equals("netstandard", System.StringComparison.OrdinalIgnoreCase)
-                || name.StartsWith("System", System.StringComparison.OrdinalIgnoreCase)
-                || name.StartsWith("Microsoft.CSharp", System.StringComparison.OrdinalIgnoreCase);
+            return name.Equals("mscorlib", System.StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("netstandard", System.StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("System", System.StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("Microsoft.CSharp", System.StringComparison.OrdinalIgnoreCase);
         }
 
         private static GeneratorDriverRunResult Run(string userSource, string? extraSource = null)
         {
-            CSharpParseOptions parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
+            var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
 
-            List<SyntaxTree> trees = new()
-            {
+            List<SyntaxTree> trees =
+            [
                 CSharpSyntaxTree.ParseText(MinimalOpcUaStubs.Source, parseOptions, "OpcUaStubs.cs"),
-                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Consumer.cs"),
-            };
+                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Consumer.cs")
+            ];
             if (extraSource is not null)
             {
                 trees.Add(CSharpSyntaxTree.ParseText(extraSource, parseOptions, "Extra.cs"));
             }
 
-            CSharpCompilation compilation = CSharpCompilation.Create(
+            var compilation = CSharpCompilation.Create(
                 "GeneratorTestAssembly",
                 trees,
                 s_baseReferences,
@@ -157,7 +156,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         [Test]
         public void ModelCompiledUserTypeResolvesViaSemanticLookup()
         {
-            string user = """
+            const string user = """
                 using Acme;
                 using Opc.Ua;
                 public static class Use
@@ -165,7 +164,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                     public static void M(WaterPumpCollection arg) { }
                 }
                 """;
-            string extra = """
+            const string extra = """
                 namespace Acme
                 {
                     public sealed class WaterPump { }
@@ -189,7 +188,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             // NodeIdCollection is NOT in CollectionShimCatalog any more because
             // the bare short name 'NodeId' resolves uniquely to Opc.Ua.NodeId via
             // semantic lookup. Verify the fall-through path emits the right shim.
-            string user = """
+            const string user = """
                 using Opc.Ua;
                 public static class Use
                 {
@@ -215,7 +214,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             // the bare short name 'Int32' resolves uniquely to System.Int32 via
             // semantic lookup. The generated element type is global::System.Int32
             // (equivalent to 'int', just more verbose) — confirm the path works.
-            string user = """
+            const string user = """
                 using Opc.Ua;
                 public static class Use
                 {
@@ -242,7 +241,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         {
             // Consumer already declares a type called 'AlreadyDefinedCollection';
             // the generator must NOT emit a shim for it.
-            string user = """
+            const string user = """
                 public sealed class AlreadyDefinedCollection { }
                 public static class Use
                 {
@@ -260,7 +259,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         [Test]
         public void UnresolvableElementTypeReportsMig01AndEmitsNothing()
         {
-            string user = """
+            const string user = """
                 using Opc.Ua;
                 public static class Use
                 {
@@ -282,7 +281,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         [Test]
         public void MultipleReferencesProduceSingleDeduplicatedEmission()
         {
-            string user = """
+            const string user = """
                 using Opc.Ua;
                 public static class Use1
                 {
@@ -304,7 +303,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         {
             // Identifier that ends in "Collection" but isn't in a type position
             // (variable name) must not trigger emission or diagnostics.
-            string user = """
+            const string user = """
                 using System.Collections.Generic;
                 public static class Use
                 {
@@ -323,7 +322,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
         [Test]
         public void NoReferencesProducesNoEmission()
         {
-            string user = """
+            const string user = """
                 public static class Use
                 {
                     public static int M() => 42;

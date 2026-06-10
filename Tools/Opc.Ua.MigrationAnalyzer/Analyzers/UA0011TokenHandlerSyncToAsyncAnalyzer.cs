@@ -53,11 +53,11 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             "Encrypt",
             "Decrypt",
             "Sign",
-            "Verify",
+            "Verify"
         ];
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0011_TokenHandlerSyncToAsync);
+            [DiagnosticDescriptors.UA0011_TokenHandlerSyncToAsync];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -83,7 +83,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             OperationAnalysisContext context,
             INamedTypeSymbol tokenHandler)
         {
-            IInvocationOperation invocation = (IInvocationOperation)context.Operation;
+            var invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
 
             if (method is null || !s_targetNames.Contains(method.Name))

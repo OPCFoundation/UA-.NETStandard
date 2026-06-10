@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
@@ -90,7 +89,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             services.AddOpcUa().AddAlarms();
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var factory = sp.GetService<AlarmClientFactory>();
+            AlarmClientFactory? factory = sp.GetService<AlarmClientFactory>();
 
             Assert.That(factory, Is.Not.Null);
             Assert.That(factory!.Telemetry, Is.Not.Null);
@@ -105,8 +104,8 @@ namespace Opc.Ua.Client.Tests.Alarms
             var services = new ServiceCollection();
             services.AddOpcUa().AddAlarms();
             using ServiceProvider sp = services.BuildServiceProvider();
-            var factory = sp.GetRequiredService<AlarmClientFactory>();
-            var session = new Mock<ISessionClient>(MockBehavior.Loose).Object;
+            AlarmClientFactory factory = sp.GetRequiredService<AlarmClientFactory>();
+            ISessionClient session = new Mock<ISessionClient>(MockBehavior.Loose).Object;
 
             AlarmClient client = factory.Create(session);
 
@@ -119,7 +118,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             var services = new ServiceCollection();
             services.AddOpcUa().AddAlarms();
             using ServiceProvider sp = services.BuildServiceProvider();
-            var factory = sp.GetRequiredService<AlarmClientFactory>();
+            AlarmClientFactory factory = sp.GetRequiredService<AlarmClientFactory>();
 
             Assert.That(
                 () => factory.Create(null!),

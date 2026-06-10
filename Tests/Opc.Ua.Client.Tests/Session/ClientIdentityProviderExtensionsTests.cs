@@ -169,9 +169,9 @@ namespace Opc.Ua.Client.Tests.Identity
 
             public IdentitySelectionContext SelectionContext { get; private set; }
 
-            public IReadOnlyList<UserTokenType> SupportedTokenTypes => new[] { m_tokenType };
+            public IReadOnlyList<UserTokenType> SupportedTokenTypes => [m_tokenType];
 
-            public IReadOnlyList<string> SupportedIssuedTokenProfileUris => Array.Empty<string>();
+            public IReadOnlyList<string> SupportedIssuedTokenProfileUris => [];
 
             public DateTime ExpiresAt => DateTime.MaxValue;
 

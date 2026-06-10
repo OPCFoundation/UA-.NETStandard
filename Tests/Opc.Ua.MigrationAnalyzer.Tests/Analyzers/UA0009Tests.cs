@@ -61,7 +61,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0009 = diags.SingleOrDefault(d => d.Id == "UA0009");
             Assert.That(ua0009, Is.Not.Null, "Expected UA0009 on [DataContract] + [DataMember] class.");
@@ -90,7 +91,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0009"), Is.True,
                 "Expected UA0009 even when no ParseExtension call is present.");
@@ -113,7 +115,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0009"), Is.False,
                 "Field-only [DataMember] must not trigger UA0009 under simplified detection.");
@@ -135,7 +138,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0009DataContractToDataTypeAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0009"), Is.False,
                 "[DataContract] alone (no [DataMember]) must not trigger UA0009.");
@@ -174,7 +178,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0009DataContractToDataTypeAnalyzer(),
                 new UA0009DataContractToDataTypeCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }
@@ -198,7 +202,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0009DataContractToDataTypeAnalyzer(),
                 new UA0009DataContractToDataTypeCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Does.Contain("using Opc.Ua;"),
                 "Fix must add 'using Opc.Ua;' when missing.");

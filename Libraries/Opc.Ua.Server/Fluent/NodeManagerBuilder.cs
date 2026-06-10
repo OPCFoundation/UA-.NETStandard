@@ -354,22 +354,18 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Wires the supplied registry into this builder so the
-        /// <see cref="SimulationBuilderExtensions.Simulation(INodeManagerBuilder, System.TimeSpan)"/>
+        /// <see cref="SimulationBuilderExtensions.Simulation(INodeManagerBuilder, TimeSpan)"/>
         /// extension can route loop registrations to the owning manager.
         /// </summary>
         internal void AttachSimulations(SimulationRegistry registry)
         {
-            if (registry == null)
-            {
-                throw new System.ArgumentNullException(nameof(registry));
-            }
             if (Simulations != null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
                     "A SimulationRegistry is already attached to this builder.");
             }
-            Simulations = registry;
+            Simulations = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
         private static string FormatNodeId(NodeId nodeId)

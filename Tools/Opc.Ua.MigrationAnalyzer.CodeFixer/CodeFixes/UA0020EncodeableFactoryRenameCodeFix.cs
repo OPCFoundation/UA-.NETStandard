@@ -47,13 +47,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// (<c>ServiceMessageContext.Factory</c>) requires a context instance
     /// that the analyzer cannot conjure.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0020EncodeableFactoryRenameCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0020EncodeableFactoryRenameCodeFix))]
+    [Shared]
     public sealed class UA0020EncodeableFactoryRenameCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0020);
+            [DiagnosticIds.UA0020];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

@@ -322,11 +322,11 @@ namespace Opc.Ua.Server.Tests
 
             // Signal when QueueValue is called — this guarantees the cache has been populated
             // (QueueValue happens after the permission result is cached).
-            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
+            using var firstItemProcessed = new ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
             monitoredItemMock
                 .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
-                .Callback(() => firstItemProcessed.Set());
+                .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1208,12 +1208,12 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Auditing).Returns(false);
 
             // Signal when QueueValue is called — this guarantees the cache has been populated.
-            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
+            using var firstItemProcessed = new ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
             monitoredItemMock
                 .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
-                .Callback(() => firstItemProcessed.Set());
+                .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1272,14 +1272,14 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Auditing).Returns(false);
 
             // Signal when QueueValue is called — this guarantees the cache has been populated.
-            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
+            using var firstItemProcessed = new ManualResetEventSlim(false);
 
             // Monitored item belongs to sessionId, not otherSessionId
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
             monitoredItemMock
                 .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
-                .Callback(() => firstItemProcessed.Set());
+                .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1368,7 +1368,7 @@ namespace Opc.Ua.Server.Tests
 
             ISystemContext context = new Mock<ISystemContext>().Object;
 
-            BaseEventState BuildEvent()
+            static BaseEventState BuildEvent()
             {
                 var ev = new BaseEventState(null);
                 ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
@@ -1430,7 +1430,7 @@ namespace Opc.Ua.Server.Tests
 
             ISystemContext context = new Mock<ISystemContext>().Object;
 
-            BaseEventState BuildEvent()
+            static BaseEventState BuildEvent()
             {
                 var ev = new BaseEventState(null);
                 ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
@@ -1498,7 +1498,7 @@ namespace Opc.Ua.Server.Tests
 
             ISystemContext context = new Mock<ISystemContext>().Object;
 
-            BaseEventState BuildEvent()
+            static BaseEventState BuildEvent()
             {
                 var ev = new BaseEventState(null);
                 ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -50,7 +49,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         public const string MethodNameProperty = WellKnownProperties.MethodName;
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0008_SessionCallParamsObject);
+            [DiagnosticDescriptors.UA0008_SessionCallParamsObject];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -77,19 +76,19 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             INamedTypeSymbol sessionInterface,
             INamedTypeSymbol variantType)
         {
-            InvocationExpressionSyntax invocation = (InvocationExpressionSyntax)context.Node;
+            var invocation = (InvocationExpressionSyntax)context.Node;
             if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
             {
                 return;
             }
 
             string methodName = memberAccess.Name.Identifier.ValueText;
-            if (methodName != "Call" && methodName != "CallAsync")
+            if (methodName is not "Call" and not "CallAsync")
             {
                 return;
             }
 
-            IMethodSymbol resolvedMethod = context.SemanticModel
+            var resolvedMethod = context.SemanticModel
                 .GetSymbolInfo(invocation, context.CancellationToken).Symbol as IMethodSymbol;
             bool isShim = resolvedMethod.IsOpcUaShim("UA0008");
 

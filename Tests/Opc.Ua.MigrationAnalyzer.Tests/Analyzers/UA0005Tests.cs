@@ -57,7 +57,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0005 = diags.SingleOrDefault(d => d.Id == "UA0005");
             Assert.That(ua0005, Is.Not.Null, "Expected UA0005 to fire when byte[] is passed to a ByteString parameter.");
@@ -79,7 +80,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0005"), Is.False,
                 "Calling .ToByteString() at the call site must not trigger UA0005.");
@@ -97,7 +99,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0005"), Is.False,
                 "When the byte[] overload binds the rule must not fire.");
@@ -116,7 +119,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0005ByteArrayToByteStringAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0005"), Is.False,
                 "A 'default' literal has type ByteString — UA0005 must not fire.");
@@ -145,7 +149,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0005ByteArrayToByteStringAnalyzer(),
                 new UA0005ByteArrayToByteStringCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

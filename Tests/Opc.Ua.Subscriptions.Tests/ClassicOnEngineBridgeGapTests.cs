@@ -31,26 +31,26 @@
 
 #pragma warning disable CA2016
 
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// Documents the bridge wiring gap: classic
-    /// <see cref="Opc.Ua.Client.Subscription"/> instances added to a
+    /// <see cref="Subscription"/> instances added to a
     /// session whose engine is <see cref="DefaultSubscriptionEngine"/>
     /// (V2) currently do not receive publish notifications, because
     /// the V2 publish loop does not route messages for "external"
     /// (classic-owned) subscription ids through
-    /// <see cref="Opc.Ua.Client.Subscriptions.Engine.SubscriptionBridge"/>.
+    /// <see cref="Client.Subscriptions.Engine.SubscriptionBridge"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -67,7 +67,7 @@ namespace Opc.Ua.Subscriptions.Tests
     /// <para>
     /// See <c>plans/26-v2-subscription-parity.md</c> §6 "Bridge wiring
     /// TODO" and the inline doc on
-    /// <see cref="Opc.Ua.Client.Subscriptions.Engine.SubscriptionBridge"/>.
+    /// <see cref="Client.Subscriptions.Engine.SubscriptionBridge"/>.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -109,7 +109,7 @@ namespace Opc.Ua.Subscriptions.Tests
         /// <summary>
         /// Demonstrates that <see cref="Subscription.SaveMessageInCache"/>
         /// signature already matches
-        /// <see cref="Opc.Ua.Client.Subscriptions.Engine.ISubscriptionMessageSink"/>
+        /// <see cref="Client.Subscriptions.Engine.ISubscriptionMessageSink"/>
         /// so the classic subscription is sink-shaped already; only the
         /// V2 manager-side routing remains.
         /// </summary>
@@ -131,13 +131,14 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     DisplayName = "BridgeGapProbe"
                 };
-                Assert.That(sub, Is.InstanceOf<Opc.Ua.Client.Subscriptions.Engine.ISubscriptionMessageSink>(),
+                Assert.That(sub, Is.InstanceOf<Client.Subscriptions.Engine.ISubscriptionMessageSink>(),
                     "Classic Subscription must implement ISubscriptionMessageSink so " +
                     "the V2 SubscriptionBridge can deliver translated notifications.");
             }
             finally
             {
-                try { await session.CloseAsync().ConfigureAwait(false); }
+                try
+                { await session.CloseAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
                 session.Dispose();
             }
@@ -221,7 +222,8 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await session.CloseAsync().ConfigureAwait(false); }
+                try
+                { await session.CloseAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
                 session.Dispose();
             }

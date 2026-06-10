@@ -104,32 +104,35 @@ namespace Opc.Ua.Server.Fluent
                 NodeState parent = current;
                 NodeState child = parent.FindChild(context, segments[i])
                     ?? FindChildByLocalName(context, parent, segments[i].Name ?? string.Empty, browsePath, segments[i]);
-
-                if (child == null)
-                {
-                    throw ServiceResultException.Create(
+                current = child ?? throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Browse path '{0}' did not resolve: segment '{1}' not found under '{2}'.",
                         browsePath,
                         segments[i],
                         parent.BrowseName);
-                }
-                current = child;
             }
 
             return current;
         }
 
-        // Cross-namespace name-only fallback used when a segment fails
-        // its exact-namespace FindChild lookup. Required so callers can
-        // author browse paths without sprinkling `ns=N;` prefixes on
-        // every segment that lives in an inherited / referenced model's
-        // namespace (e.g. PumpType's Operational child carries the
-        // Machinery namespace because PumpType inherits from
-        // MachineComponentType). The fallback throws
-        // BadBrowseNameDuplicated when more than one child matches by
-        // local name so callers are forced to disambiguate with an
-        // explicit prefix.
+        /// <summary>
+        /// Cross-namespace name-only fallback used when a segment fails
+        /// its exact-namespace FindChild lookup. Required so callers can
+        /// author browse paths without sprinkling `ns=N;` prefixes on
+        /// every segment that lives in an inherited / referenced model's
+        /// namespace (e.g. PumpType's Operational child carries the
+        /// Machinery namespace because PumpType inherits from
+        /// MachineComponentType). The fallback throws
+        /// BadBrowseNameDuplicated when more than one child matches by
+        /// local name so callers are forced to disambiguate with an
+        /// explicit prefix.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="parent"></param>
+        /// <param name="localName"></param>
+        /// <param name="browsePath"></param>
+        /// <param name="segment"></param>
+        /// <returns></returns>
         private static NodeState FindChildByLocalName(
             ISystemContext context,
             NodeState parent,

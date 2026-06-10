@@ -67,12 +67,14 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private const string CertificateValidatorPropertyName = "CertificateValidator";
         private const string ApplicationConfigurationTypeName = "ApplicationConfiguration";
         private const string ServerBaseTypeName = "ServerBase";
+
         private const string ApplicationConfigurationFullName =
             OpcUaNamespace + "." + ApplicationConfigurationTypeName;
+
         private const string ServerBaseFullName = OpcUaNamespace + "." + ServerBaseTypeName;
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0022_CertificateValidatorPropertyRename);
+            [DiagnosticDescriptors.UA0022_CertificateValidatorPropertyRename];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -101,7 +103,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             INamedTypeSymbol? appConfig,
             INamedTypeSymbol? serverBase)
         {
-            IPropertyReferenceOperation reference = (IPropertyReferenceOperation)context.Operation;
+            var reference = (IPropertyReferenceOperation)context.Operation;
             IPropertySymbol property = reference.Property;
             if (property is null || property.Name != CertificateValidatorPropertyName)
             {
@@ -145,7 +147,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             INamedTypeSymbol? appConfig,
             INamedTypeSymbol? serverBase)
         {
-            MemberAccessExpressionSyntax memberAccess = (MemberAccessExpressionSyntax)context.Node;
+            var memberAccess = (MemberAccessExpressionSyntax)context.Node;
             if (memberAccess.Name.Identifier.ValueText != CertificateValidatorPropertyName)
             {
                 return;
@@ -157,8 +159,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 resolved.ContainingType is INamedTypeSymbol containingResolved)
             {
                 string fullName = containingResolved.ToDisplayString();
-                if (fullName == ApplicationConfigurationFullName ||
-                    fullName == ServerBaseFullName)
+                if (fullName is ApplicationConfigurationFullName or
+                    ServerBaseFullName)
                 {
                     // Semantic action handles it (and gates on [Obsolete]).
                     return;

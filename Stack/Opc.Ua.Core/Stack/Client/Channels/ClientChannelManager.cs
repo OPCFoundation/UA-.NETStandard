@@ -738,6 +738,13 @@ namespace Opc.Ua
                 }
             }
 
+            // The lease was marked released when the original entry tore down
+            // during its Faulted disposal. Re-activate it so ReattachParticipant
+            // (which guards against attaching released leases) can re-establish
+            // the bookkeeping on the fresh entry. This is safe because we hold
+            // the only reference to the lease as the caller of ReconnectAsync.
+            lease.MarkActiveForSwap();
+
             fresh.ReattachParticipant(lease, lease.ParticipantFactory);
             if (!ReferenceEquals(original, fresh))
             {
@@ -778,11 +785,7 @@ namespace Opc.Ua
                 return Task.CompletedTask;
             }
 
-#if NET8_0_OR_GREATER
-            return Task.Delay(delay, m_timeProvider, ct);
-#else
-            return Task.Delay(delay, ct);
-#endif
+            return m_timeProvider.Delay(delay, ct);
         }
 
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(

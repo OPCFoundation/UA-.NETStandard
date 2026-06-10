@@ -49,31 +49,45 @@ namespace Opc.Ua
     internal static class EventRecordFieldReaders
     {
         public static ByteString GetByteString(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out ByteString v)
-                ? v : default;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out ByteString v)
+                        ? v : default;
+        }
 
         public static string? GetString(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out string v)
-                ? v : null;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out string v)
+                        ? v : null;
+        }
 
         public static DateTime GetDateTime(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out DateTimeUtc v)
-                ? (DateTime)v : default;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out DateTimeUtc v)
+                        ? (DateTime)v : default;
+        }
 
         public static LocalizedText GetLocalizedText(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out LocalizedText v)
-                ? v : LocalizedText.Null;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out LocalizedText v)
+                        ? v : LocalizedText.Null;
+        }
 
         public static ushort GetUInt16(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out ushort v)
-                ? v : (ushort)0;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out ushort v)
+                        ? v : (ushort)0;
+        }
 
         public static bool GetBool(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out bool v) && v;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out bool v) && v;
+        }
 
         public static StatusCode GetStatusCode(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out StatusCode v)
-                ? v : default;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out StatusCode v)
+                        ? v : default;
+        }
 
         public static bool? GetNullableBool(IReadOnlyList<Variant> fields, int index)
         {
@@ -113,7 +127,9 @@ namespace Opc.Ua
         }
 
         public static NodeId GetNodeId(IReadOnlyList<Variant> fields, int index)
-            => index < fields.Count && fields[index].TryGetValue(out NodeId v)
-                ? v : NodeId.Null;
+        {
+            return index < fields.Count && fields[index].TryGetValue(out NodeId v)
+                        ? v : NodeId.Null;
+        }
     }
 }

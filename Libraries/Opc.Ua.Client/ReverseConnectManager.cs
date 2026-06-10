@@ -713,7 +713,7 @@ namespace Opc.Ua.Client
         private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs e)
         {
             long startTimestamp = m_timeProvider.GetTimestamp();
-            TimeSpan holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
+            var holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
 
             bool matched = MatchRegistration(sender, e);
             while (!matched)
