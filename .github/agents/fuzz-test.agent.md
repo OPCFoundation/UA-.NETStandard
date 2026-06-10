@@ -81,9 +81,45 @@ These come from `.github/copilot-instructions.md` and `common.props` /
 
 ## Setup gate — verify the toolchain before doing anything else
 
-Run these checks at the very start of every invocation:
+Run these checks at the very start of every invocation. Order matters:
+detect the OS first, then probe for what each engine needs.
 
-### 1. `SharpFuzz.CommandLine` global .NET tool
+### 0. Detect the host OS and capability matrix
+
+```powershell
+$isLinux   = $IsLinux   -or [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)
+$isWindows = $IsWindows -or [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+$isMacOS   = $IsMacOS   -or [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)
+```
+
+| OS | libFuzzer (cross-platform) | afl-fuzz (Linux-only) |
+|----|---------------------------|------------------------|
+| Windows | ✅ enabled | ❌ unavailable |
+| Linux | ✅ enabled | ✅ enabled if installed |
+| macOS | ✅ enabled | ❌ unavailable (afl-fuzz is Linux-only) |
+
+Compute `$engines` as the list of engines to drive in this run:
+
+* Always include `libfuzzer`.
+* On Linux, additionally include `aflfuzz` **iff** the `afl-fuzz` binary is
+  on PATH AND `sharpfuzz` is installed (verified in step 1 below). If
+  `afl-fuzz` is missing on Linux, do NOT auto-install — `make install`
+  needs sudo and a compile toolchain (`Fuzzing/Scripts/install.sh` is the
+  reference installer). Surface the gap to the user with a one-line note:
+  "afl-fuzz not on PATH; skipping AFL engine. Run
+  `Fuzzing/Scripts/install.sh` to enable." Continue with libFuzzer only.
+* On Windows / macOS, never run afl-fuzz; do not even probe for it. The
+  `Aflfuzz*` targets enumerated in Phase 2 are skipped on those OSes.
+
+Tell the user which engines are active up front:
+
+```
+Engines: libfuzzer (windows)
+Engines: libfuzzer, aflfuzz (linux)
+Engines: libfuzzer (linux; afl-fuzz not installed)
+```
+
+### 1. `SharpFuzz.CommandLine` global .NET tool (required by every engine)
 
 ```powershell
 dotnet tool list -g | Select-String "sharpfuzz"
@@ -98,16 +134,37 @@ dotnet tool install --global SharpFuzz.CommandLine
 If the install fails (network blocked, no permission, …), surface as a
 blocker and ask the user how to proceed.
 
-### 2. `libfuzzer-dotnet` driver binary
+### 2. `libfuzzer-dotnet` driver binary (libFuzzer engine only)
 
-Check `Fuzzing/.tools/libfuzzer-dotnet-<platform>.exe` (`<platform>` is
-`windows.exe` on Windows, `ubuntu` / `debian` on Linux). If missing, download
-from <https://github.com/Metalnem/libfuzzer-dotnet/releases> into
+Check `Fuzzing/.tools/libfuzzer-dotnet-<platform>` (`<platform>` is
+`windows.exe` on Windows, `ubuntu` / `debian` on Linux, `macos` on macOS if
+available). If missing, download from
+<https://github.com/Metalnem/libfuzzer-dotnet/releases> into
 `Fuzzing/.tools/`. Create `Fuzzing/.tools/` and add it to the repo's
 `.gitignore` if not already excluded.
 
 If the download is blocked (air-gapped, proxy, …), prompt the user to drop
 the binary at that path manually and pause.
+
+### 2b. `afl-fuzz` binary (AFL engine only, Linux only)
+
+Skipped on Windows / macOS. On Linux:
+
+```powershell
+$aflFuzz = Get-Command afl-fuzz -ErrorAction SilentlyContinue
+if (-not $aflFuzz) {
+    # afl-fuzz not installed; drop 'aflfuzz' from $engines and continue.
+}
+```
+
+If `afl-fuzz` is missing, do NOT attempt to install — the standard install
+path is `sudo make install` (`Fuzzing/Scripts/install.sh` automates it but
+requires sudo + a compile toolchain). Continue with `libfuzzer` only. Note
+the gap in the engine-selection log line emitted in step 0.
+
+If `afl-fuzz` is present, also verify `sharpfuzz` (already covered by
+step 1) and the AFL helper script: `Fuzzing/Scripts/fuzz-afl.ps1` (already
+in the repo).
 
 ### 3. Bin / obj clean state for the areas you're about to fuzz
 
@@ -152,10 +209,22 @@ For each area:
 
 ```powershell
 $dll = "Fuzzing/.runs/$area/bin/$area.dll"
-$targets = & "Fuzzing/Scripts/fuzz-menu.ps1" -AssemblyPath $dll
-# Only Libfuzz* — libFuzzer needs ReadOnlySpan<byte> signatures.
-$libfuzzTargets = $targets | Where-Object { $_ -like 'Libfuzz*' }
+$allTargets = & "Fuzzing/Scripts/fuzz-menu.ps1" -AssemblyPath $dll
+
+# Split by engine:
+# libFuzzer needs ReadOnlySpan<byte> signatures (Libfuzz* convention).
+$libfuzzTargets = $allTargets | Where-Object { $_ -like 'Libfuzz*' }
+# afl-fuzz needs Stream or string signatures (Aflfuzz* convention).
+$aflfuzzTargets = $allTargets | Where-Object { $_ -like 'Aflfuzz*' }
 ```
+
+Per-engine plan from the active `$engines` list (Setup gate step 0):
+
+* If `libfuzzer` ∈ `$engines`: schedule every `Libfuzz*` target.
+* If `aflfuzz` ∈ `$engines`: ALSO schedule every `Aflfuzz*` target. The two
+  engines run in parallel; their findings folders are isolated per Phase 3.
+* If neither convention matches a `FuzzableCode` method (unusual), skip it
+  with a log line — don't fail the run.
 
 Map each target to a dictionary by name match (case-insensitive):
 
@@ -179,10 +248,15 @@ the area has if no specific match.
 
 ## Phase 3 — Parallel fuzzing
 
-For each (area × target) pair, launch a detached `libfuzzer-dotnet` process:
+Launch one detached process per (area × engine × target) tuple. The two
+engines (libFuzzer, afl-fuzz) run side-by-side when both are active —
+their findings folders are isolated, so the Phase 4 poll covers both
+without changes.
+
+### 3a. libFuzzer instances (all OSes)
 
 ```powershell
-$workDir = "Fuzzing/.runs/$area/$target"
+$workDir = "Fuzzing/.runs/$area/libfuzz/$target"
 New-Item -ItemType Directory -Force -Path $workDir | Out-Null
 Copy-Item "$corpus/*.*" -Destination $workDir/Testcases/ -Recurse -Force
 
@@ -201,51 +275,126 @@ Start-Process -FilePath "Fuzzing/.tools/libfuzzer-dotnet-<platform>" `
     -WindowStyle Hidden
 ```
 
-- Cap parallelism at `min(num_targets, [Environment]::ProcessorCount / 2)`.
-  Keep the box responsive.
-- Record every PID so Phase 9 can shut them all down cleanly.
-- Use `powershell` tool in `mode=async, detach=true` for the launcher itself
-  if needed.
+libFuzzer writes findings into `$workDir` itself with `crash-*` /
+`timeout-*` / `slow-unit-*` prefixes.
+
+### 3b. afl-fuzz instances (Linux only, opt-in)
+
+Only schedule these when `aflfuzz` ∈ `$engines`. On Linux, prefer the
+existing `Fuzzing/Scripts/fuzz-afl.ps1` helper since it already handles
+publishing, instrumentation, `AFL_SKIP_BIN_CHECK`, and the `afl-fuzz`
+invocation. Run it once per `Aflfuzz*` target:
+
+```powershell
+$workDir = "Fuzzing/.runs/$area/aflfuzz/$target"
+New-Item -ItemType Directory -Force -Path "$workDir/input" | Out-Null
+Copy-Item "$corpus/*.*" -Destination "$workDir/input/" -Recurse -Force
+
+# Dictionary if mapped (Phase 2)
+$dictArg = if ($dict) { @('-x', $dict) } else { @() }
+
+# afl-fuzz uses -i for input corpus, -o for findings, -t for timeout (ms),
+# -m none disables memory cap (sharpfuzz dotnet processes routinely exceed
+# afl's default). $env:AFL_SKIP_BIN_CHECK = 1 because the binary under
+# test is `dotnet`, not a native AFL-instrumented ELF.
+$env:AFL_SKIP_BIN_CHECK = 1
+
+Start-Process -FilePath afl-fuzz `
+    -ArgumentList (@('-i', "$workDir/input", '-o', "$workDir/findings", `
+        '-t', '10000', '-m', 'none') + $dictArg + @( `
+        'dotnet', "$outDir/$area.dll", $target)) `
+    -WorkingDirectory $workDir `
+    -RedirectStandardOutput "$workDir/aflfuzz.log" `
+    -RedirectStandardError "$workDir/aflfuzz.err" `
+    -WindowStyle Hidden
+```
+
+afl-fuzz writes findings under `$workDir/findings/`. The per-instance
+layout differs from libFuzzer:
+
+* `$workDir/findings/default/crashes/id:*,sig:*,src:*,...` — crash cases.
+* `$workDir/findings/default/hangs/id:*,...` — hangs (afl's equivalent of
+  libFuzzer timeouts).
+* `$workDir/findings/default/queue/...` — coverage-expanding inputs (do
+  NOT treat these as findings — they're the live corpus).
+
+### 3c. Parallelism cap and bookkeeping
+
+* Cap total parallelism at `min(total_instances, [Environment]::ProcessorCount / 2)`
+  across BOTH engines. Both engines hammer the same DLL via `dotnet`, so
+  CPU contention is the constraint, not engine choice.
+* Record every PID (engine, area, target, workDir) so Phase 9 can shut
+  them all down cleanly.
 
 ## Phase 4 — Finding-detection loop
 
-Every ~5 s, poll every per-instance working dir for new `crash-*` /
-`timeout-*` / `slow-unit-*` files:
+Every ~5 s, poll every per-instance working dir for new findings. Each
+engine has its own naming convention, so the glob differs by engine:
+
+### libFuzzer findings
 
 ```powershell
-foreach ($area in $areas) {
-    Get-ChildItem "Fuzzing/.runs/$area" -Recurse -File `
-        -Include 'crash-*','timeout-*','slow-unit-*' |
-        Where-Object { -not $_.PSIsContainer }
-}
+Get-ChildItem "Fuzzing/.runs/$area/libfuzz" -Recurse -File `
+    -Include 'crash-*','timeout-*','slow-unit-*' |
+    Where-Object { -not $_.PSIsContainer }
 ```
 
-For each new finding:
+### afl-fuzz findings
+
+```powershell
+# afl puts crashes under findings/<fuzzer>/crashes/ and hangs under
+# findings/<fuzzer>/hangs/. The queue/ folder is the live corpus — ignore.
+Get-ChildItem "Fuzzing/.runs/$area/aflfuzz/*/findings/*/crashes" `
+    -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne 'README.txt' }
+
+Get-ChildItem "Fuzzing/.runs/$area/aflfuzz/*/findings/*/hangs" `
+    -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne 'README.txt' }
+```
+
+### Common per-finding handling
+
+For each new finding (either engine):
 
 1. Compute SHA-1 of the file contents.
-2. Check whether the SHA-1 hash already exists as
+2. Determine the `<prefix>` to use when copying it to Assets:
+   * libFuzzer `crash-*`            → `crash`
+   * libFuzzer `timeout-*`          → `timeout`
+   * libFuzzer `slow-unit-*`        → `slow`
+   * afl-fuzz `findings/.../crashes/*` → `crash`
+   * afl-fuzz `findings/.../hangs/*`   → `timeout`
+3. Check whether the SHA-1 hash already exists as
    `Fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha1>*` (in any of the
    three areas, since the harness cross-replays). If yes, skip — this is an
    already-known regression seed; the harness already validates it. Note the
    finding count and continue.
-3. Otherwise: this is a novel finding. Stop the originating libFuzzer
-   instance (the others keep running). Move to Phase 5.
+4. Otherwise: this is a novel finding. Stop the originating instance (the
+   others keep running). Record the engine type alongside the finding so
+   Phase 5 can pick the right playback signature
+   (`Aflfuzz*` takes `Stream` / `string`; `Libfuzz*` takes
+   `ReadOnlySpan<byte>`). Move to Phase 5.
 
 ## Phase 5 — Reproduce + fix
 
-1. **Reproduce locally** using the area's `*.Fuzz.Tools --playback` against
-   the specific finding directory (point it at `<workDir>/` so it picks up
-   the `crash-*` / `timeout-*` / `slow-unit-*` file). Capture the full
-   exception type, message, and stack trace.
+1. **Reproduce locally** using the area's `*.Fuzz.Tools --playback`. Both
+   engines write findings in formats the same playback driver handles
+   (libFuzzer's `crash-*` / `timeout-*` / `slow-unit-*` and afl's
+   `findings/.../crashes/*` / `findings/.../hangs/*` are all just raw input
+   bytes — the playback driver replays them through every libFuzzer target
+   it can find). Point the tool at the specific finding directory and
+   capture the full exception type, message, and stack trace.
 
    ```powershell
    dotnet run --project "Fuzzing/Opc.Ua.<area>.Fuzz.Tools" -c Release -- `
        --playback --stacktrace
    ```
 
-   (The playback tool walks the default findings folders and replays through
-   every libFuzzer target. Use the area whose `FuzzableCode.dll` houses the
-   target that crashed.)
+   When the originating finding came from an `Aflfuzz*` target (which
+   takes `Stream` / `string`), the same input bytes still expose the
+   underlying bug through the matching `Libfuzz*` target — playback uses
+   the libFuzzer signatures by default. Note both target names in the
+   commit message so the asset's effect on the harness is unambiguous.
 
 2. **Locate the throwing code** from the stack trace. Use `lsp.goToDefinition`
    / `lsp.findReferences` to understand the call path.
@@ -338,9 +487,11 @@ points). If failures appear OR the count regresses → Phase 7.
 
 ### 6d. Per-fix re-fuzz validation
 
-- Restart **just the originating libFuzzer instance** with the new asset
-  copied into its seed corpus, for a brief budget (`-max_total_time=30` /
-  30 s). Must NOT re-find the same crash.
+- Restart **just the originating instance** (libFuzzer or afl-fuzz) with
+  the new asset copied into its seed corpus, for a brief budget
+  (libFuzzer: `-max_total_time=30` / 30 s; afl-fuzz: send SIGINT after
+  ~30 s with `Stop-Process` or use `timeout 30 afl-fuzz ...`). Must NOT
+  re-find the same crash.
 - Cross-replay sanity: the freshly-rebuilt `*.Fuzz.Tests` already do this
   via the harness (every Asset replayed through every target). 6c covers it.
 
@@ -432,17 +583,21 @@ The agent runs until **any** of:
 
 On stop:
 
-1. Send SIGTERM (Stop-Process on Windows) to every running
-   `libfuzzer-dotnet` PID. Wait briefly; SIGKILL stragglers.
+1. Terminate every running instance cleanly. libFuzzer responds to
+   `Stop-Process` directly; afl-fuzz prefers SIGINT (Linux:
+   `kill -INT <pid>` so it can flush its `fuzzer_stats` file before
+   exiting). Wait briefly; force-kill stragglers.
 2. Print a summary report:
 
 ```
 ## Fuzzing session summary
 
+- Engines: <libfuzzer, aflfuzz>
+- Host OS: <Windows/Linux/macOS>
 - Areas fuzzed: <list>
-- Targets covered: <count>
+- Targets covered: libFuzzer <n>, afl-fuzz <n>
 - Wall clock: <hh:mm:ss>
-- Findings observed: <total> (crash=<n>, timeout=<n>, slow=<n>)
+- Findings observed: <total> (libfuzzer crash=<n>/timeout=<n>/slow=<n>, afl crash=<n>/hang=<n>)
 - Novel findings (after asset dedup): <count>
 - Fixes applied: <count>
 - Regression / breaking-change escalations: <count>
@@ -467,8 +622,26 @@ When a fix lands, print:
 
 ## Edge cases and pitfalls
 
-- **`Aflfuzz*` targets**: ignore them. They take `Stream` / `string` and are
-  for afl-fuzz (Linux-only); libFuzzer needs `ReadOnlySpan<byte>`.
+- **`Aflfuzz*` targets on Windows / macOS**: skipped. They take
+  `Stream` / `string` and are for afl-fuzz, which is Linux-only. The Phase 2
+  enumerator filters them out when `aflfuzz` ∉ `$engines`.
+- **afl-fuzz on Linux without afl-fuzz installed**: the Setup gate detects
+  this, logs a one-liner ("afl-fuzz not on PATH; skipping AFL engine. Run
+  `Fuzzing/Scripts/install.sh` to enable.") and continues with libFuzzer
+  only. Do NOT auto-install — `install.sh` requires sudo and a compile
+  toolchain.
+- **AFL CPU governor warning**: on Linux, afl-fuzz may complain about the
+  CPU scaling governor (`performance` mode recommended). It's a warning,
+  not a fatal — the agent ignores it. If the user wants peak throughput
+  they can run `sudo cpupower frequency-set -g performance` outside the
+  agent.
+- **AFL_SKIP_BIN_CHECK**: required because the binary under test is
+  `dotnet`, not a native AFL-instrumented ELF. `Fuzzing/Scripts/fuzz-afl.ps1`
+  already sets this; the agent's inline invocation sets it too.
+- **afl-fuzz `findings/<fuzzer>/queue/`**: live coverage-expanding corpus —
+  NOT findings. Never copy these to Assets/ or treat them as crashes.
+- **afl-fuzz `findings/<fuzzer>/README.txt`**: skip this file in the Phase 4
+  glob; it's metadata, not an input.
 - **`FuzzCrashAssets` does not currently `Assert`** (it only logs caught
   exceptions). The harness will not turn red just because a fix is missing.
   That's why per-fix validation in Phase 6d is the strict gate, not just
