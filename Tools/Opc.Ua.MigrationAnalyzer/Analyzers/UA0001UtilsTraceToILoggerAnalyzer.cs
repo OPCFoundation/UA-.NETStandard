@@ -59,11 +59,11 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             "LogInformation",
             "LogDebug",
             "LogTrace",
-            "LogCritical",
+            "LogCritical"
         ];
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0001_UtilsTraceToILogger);
+            [DiagnosticDescriptors.UA0001_UtilsTraceToILogger];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -74,7 +74,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeInvocation(OperationAnalysisContext context)
         {
-            IInvocationOperation invocation = (IInvocationOperation)context.Operation;
+            var invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
 
             if (!method.IsStatic || !s_targetNames.Contains(method.Name))

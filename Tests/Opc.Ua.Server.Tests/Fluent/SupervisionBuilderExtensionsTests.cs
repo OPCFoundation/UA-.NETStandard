@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static SystemContext CreateContext()
         {
             var ns = new NamespaceTable();
-            ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+            ns.Append(Ua.Namespaces.OpcUa);
             return new SystemContext(telemetry: null!)
             {
                 NamespaceUris = ns
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 DisplayName = new LocalizedText("Root")
             };
 
-            BaseDataVariableState<bool> boolVar =
+            var boolVar =
                 BaseDataVariableState<bool>.With<VariantBuilder>(root);
             boolVar.NodeId = new NodeId("Root.Flag", kNs);
             boolVar.BrowseName = new QualifiedName("Flag", kNs);

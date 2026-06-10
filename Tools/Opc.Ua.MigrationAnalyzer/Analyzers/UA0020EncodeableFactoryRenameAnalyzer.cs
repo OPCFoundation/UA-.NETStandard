@@ -45,8 +45,10 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UA0020EncodeableFactoryRenameAnalyzer : DiagnosticAnalyzer
     {
-        // Public surface preserved for source compatibility; values delegate to the
-        // shared WellKnownProperties (also linked into the CodeFixes assembly).
+        /// <summary>
+        /// Public surface preserved for source compatibility; values delegate to the
+        /// shared WellKnownProperties (also linked into the CodeFixes assembly).
+        /// </summary>
         public const string FormProperty = WellKnownProperties.Form;
         public const string FormGlobalFactory = WellKnownProperties.FormGlobalFactory;
         public const string FormCreate = WellKnownProperties.FormCreate;
@@ -54,7 +56,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private const string EncodeableFactoryTypeName = "Opc.Ua.EncodeableFactory";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0020_EncodeableFactoryRename);
+            [DiagnosticDescriptors.UA0020_EncodeableFactoryRename];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -66,7 +68,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzePropertyReference(OperationAnalysisContext context)
         {
-            IPropertyReferenceOperation reference = (IPropertyReferenceOperation)context.Operation;
+            var reference = (IPropertyReferenceOperation)context.Operation;
             IPropertySymbol property = reference.Property;
             if (property is null || property.Name != "GlobalFactory")
             {
@@ -100,7 +102,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeInvocation(OperationAnalysisContext context)
         {
-            IInvocationOperation invocation = (IInvocationOperation)context.Operation;
+            var invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
             if (method is null || method.Name != "Create")
             {

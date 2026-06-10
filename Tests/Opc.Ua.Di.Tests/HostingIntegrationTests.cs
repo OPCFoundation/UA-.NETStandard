@@ -325,8 +325,10 @@ namespace Opc.Ua.Di.Tests
                 : base(s, c) { }
         }
 
-        // Activated by Microsoft.Extensions.DependencyInjection.AddSingleton;
-        // the analyzer doesn't see runtime DI activation, hence CA1812.
+        /// <summary>
+        /// Activated by Microsoft.Extensions.DependencyInjection.AddSingleton;
+        /// the analyzer doesn't see runtime DI activation, hence CA1812.
+        /// </summary>
         private sealed class SomeApplicationService
         {
             public bool Touched { get; set; }

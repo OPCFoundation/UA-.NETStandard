@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new AddNodesItem(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             Assert.That(added.IsNull, Is.True);
         }
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new DeleteNodesItem(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new AddReferencesItem(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new DeleteReferencesItem(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]

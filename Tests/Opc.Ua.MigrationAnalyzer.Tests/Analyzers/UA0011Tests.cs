@@ -61,7 +61,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0011 = diags.SingleOrDefault(d => d.Id == "UA0011");
             Assert.That(ua0011, Is.Not.Null, "Expected UA0011 to fire on handler.Encrypt(bytes).");
@@ -87,7 +88,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0011 = diags.SingleOrDefault(d => d.Id == "UA0011");
             Assert.That(ua0011, Is.Not.Null, "Expected UA0011 to fire on handler.Sign(bytes).");
@@ -113,7 +115,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0011"), Is.False,
                 "EncryptAsync must not trigger UA0011.");
@@ -134,7 +137,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0011"), Is.False,
                 "Encrypt on an unrelated type must not trigger UA0011.");
@@ -157,7 +161,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0011 = diags.SingleOrDefault(d => d.Id == "UA0011");
             Assert.That(ua0011, Is.Not.Null,
@@ -181,7 +186,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0011"), Is.False,
                 "A shim attribute with a different RuleId must not trigger UA0011.");

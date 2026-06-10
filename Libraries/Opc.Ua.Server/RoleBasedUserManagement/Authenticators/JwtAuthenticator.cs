@@ -383,7 +383,7 @@ namespace Opc.Ua.Server
         {
             if (!claims.TryGetValue(name, out object? value) || value == null)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             if (value is IReadOnlyList<string> list)
@@ -393,10 +393,10 @@ namespace Opc.Ua.Server
 
             if (value is string singleValue && singleValue.Length > 0)
             {
-                return new[] { singleValue };
+                return [singleValue];
             }
 
-            return Array.Empty<string>();
+            return [];
         }
 
         private static bool TryGetInt64(JsonElement payload, string propertyName, out long value)

@@ -41,13 +41,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// <c>using</c> may change variable scope, so we surface the warning and
     /// let the developer rework the lifecycle by hand.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0010RemoveDisposableCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0010RemoveDisposableCodeFix))]
+    [Shared]
     public sealed class UA0010RemoveDisposableCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0010);
+            [DiagnosticIds.UA0010];
 
-        public override FixAllProvider GetFixAllProvider() => null;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return null;
+        }
 
         public override Task RegisterCodeFixesAsync(CodeFixContext context)
         {

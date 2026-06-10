@@ -57,7 +57,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0021 = diags.SingleOrDefault(d => d.Id == "UA0021");
             Assert.That(ua0021, Is.Not.Null);
@@ -78,7 +79,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0021 = diags.SingleOrDefault(d => d.Id == "UA0021");
             Assert.That(ua0021, Is.Not.Null);
@@ -99,7 +101,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0021"), Is.False);
         }
@@ -123,7 +126,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0021"), Is.False);
         }
@@ -140,7 +144,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Count(d => d.Id == "UA0021"), Is.EqualTo(2));
         }
@@ -167,7 +172,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsWithoutStubsAsync(
-                    new UA0021CertificateValidatorRenameAnalyzer(), source);
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0021"), Is.True,
                 "UA0021 must fire when the file imports any Opc.Ua sub-namespace (not just bare Opc.Ua).");
@@ -193,7 +199,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsWithoutStubsAsync(
-                    new UA0021CertificateValidatorRenameAnalyzer(), source);
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0021"), Is.True);
         }
@@ -220,7 +227,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
                 .GetAnalyzerDiagnosticsWithoutStubsAsync(
-                    new UA0021CertificateValidatorRenameAnalyzer(), source);
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0021"), Is.False);
         }

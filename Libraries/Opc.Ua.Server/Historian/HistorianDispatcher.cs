@@ -376,8 +376,9 @@ namespace Opc.Ua.Server.Historian
             HistorianContinuationState? cont = TryRestoreContinuation(
                 systemContext, nodeToRead, HistorianReadKind.Processed);
 
+
             // Resume from buffered output if a continuation already exists.
-            if (cont?.BufferedProcessedOutputs is { } buffered)
+            if (cont?.BufferedProcessedOutputs is { })
             {
                 EmitProcessedPage(cont, result, nodeToRead, timestampsToReturn, systemContext);
                 return ServiceResult.Good;
@@ -390,7 +391,17 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Insert);
 
             AggregateConfiguration config = details.AggregateConfiguration;
-            if (config == null || config.UseServerCapabilitiesDefaults)
+            // A default-initialized AggregateConfiguration (all-zero, UseServerCapabilitiesDefaults
+            // unset) is the implicit "no override" case from a request that didn't set the field
+            // explicitly. Treat it as use-server-defaults rather than as an explicit configuration.
+            bool isImplicitDefault = config != null &&
+                !config.UseServerCapabilitiesDefaults &&
+                config.PercentDataBad == 0 &&
+                config.PercentDataGood == 0 &&
+                !config.TreatUncertainAsBad &&
+                !config.UseSlopedExtrapolation;
+
+            if (config == null || config.UseServerCapabilitiesDefaults || isImplicitDefault)
             {
                 config = systemContext.Server != null
                     ? systemContext.Server.AggregateManager.GetDefaultConfiguration(node.NodeId)
@@ -398,10 +409,24 @@ namespace Opc.Ua.Server.Historian
                     {
                         PercentDataBad = 100,
                         PercentDataGood = 100,
-                        TreatUncertainAsBad = false,
+                        // Part 13 v1.05.07 §4.2.1.2: the TreatUncertainAsBad default is True.
+                        TreatUncertainAsBad = true,
                         UseSlopedExtrapolation = false,
                         UseServerCapabilitiesDefaults = false
                     };
+            }
+            else
+            {
+                // Part 13 v1.05.07 §4.2.1.2: validate explicit AggregateConfiguration inputs.
+                // PercentDataGood and PercentDataBad must each be ≤ 100, and the relationship
+                // PercentDataGood ≥ (100 - PercentDataBad) must hold.
+                if (config.PercentDataGood > 100 ||
+                    config.PercentDataBad > 100 ||
+                    config.PercentDataGood < 100 - config.PercentDataBad)
+                {
+                    result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
+                    return StatusCodes.BadAggregateInvalidInputs;
+                }
             }
 
             var processedRequest = new HistorianProcessedReadRequest
@@ -431,6 +456,24 @@ namespace Opc.Ua.Server.Historian
             if (serverInternal == null)
             {
                 return StatusCodes.BadHistoryOperationUnsupported;
+            }
+
+            // Part 13 v1.05.07 §5.4.3.20: AnnotationCount counts the Annotations in each interval,
+            // not the raw data values. Compute it from the node's annotation history; the raw-value
+            // calculator path cannot produce a correct result.
+            if (aggregateId == ObjectIds.AggregateFunction_AnnotationCount)
+            {
+                return await ComputeAnnotationCountAsync(
+                    systemContext,
+                    provider,
+                    node,
+                    nodeToRead,
+                    details,
+                    processedRequest,
+                    opContext,
+                    timestampsToReturn,
+                    result,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             IAggregateCalculator? calculator = serverInternal.AggregateManager.CreateCalculator(
@@ -542,6 +585,187 @@ namespace Opc.Ua.Server.Historian
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
             result.StatusCode = StatusCodes.GoodMoreData;
             result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+        }
+
+        /// <summary>
+        /// Computes the Part 13 AnnotationCount aggregate (§5.4.3.20) from the node's annotation
+        /// history. Emits one Int32 value per processing interval (count of Annotations in the
+        /// interval, with endTime excluded). Requires an
+        /// <see cref="IHistorianAnnotationProvider"/>; otherwise the aggregate is reported as
+        /// unsupported for the node.
+        /// </summary>
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint or disposed inline by EmitProcessedPage.")]
+        private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
+            ServerSystemContext systemContext,
+            IHistorianProvider provider,
+            NodeState node,
+            HistoryReadValueId nodeToRead,
+            ReadProcessedDetails details,
+            HistorianProcessedReadRequest processedRequest,
+            HistorianOperationContext opContext,
+            TimestampsToReturn timestampsToReturn,
+            HistoryReadResult result,
+            CancellationToken cancellationToken)
+        {
+            if (provider is not IHistorianAnnotationProvider annotationProvider)
+            {
+                return StatusCodes.BadAggregateNotSupported;
+            }
+
+            DateTimeUtc startTime = details.StartTime;
+            DateTimeUtc endTime = details.EndTime;
+            bool isForward = startTime <= endTime;
+            DateTimeUtc windowStart = isForward ? startTime : endTime;
+            DateTimeUtc windowEnd = isForward ? endTime : startTime;
+
+            // Read every annotation timestamp in the window.
+            var annotationTimes = new List<DateTimeUtc>();
+            var request = new HistorianAnnotationReadRequest
+            {
+                NodeId = node.NodeId,
+                StartTime = windowStart,
+                EndTime = windowEnd,
+                MaxValues = 0,
+                IsForward = true
+            };
+
+            HistorianResumeToken token = default;
+            while (true)
+            {
+                HistorianPage<Annotation> page = await annotationProvider.ReadAnnotationsAsync(
+                    opContext, request, token, cancellationToken).ConfigureAwait(false);
+
+                foreach (Annotation annotation in page.Values)
+                {
+                    annotationTimes.Add(annotation.AnnotationTime);
+                }
+
+                if (page.IsFinal)
+                {
+                    break;
+                }
+                token = page.NextToken;
+            }
+
+            // Bucket the annotation counts per processing interval (§5.4.3.1: the timestamp is the
+            // start of the interval and endTime is excluded).
+            var outputs = new List<DataValue>();
+            if (!TryBuildAnnotationCountIntervals(
+                startTime, endTime, details.ProcessingInterval, annotationTimes, outputs))
+            {
+                return StatusCodes.BadTooManyOperations;
+            }
+
+            HistorianContinuationState state = new()
+            {
+                Id = Guid.NewGuid(),
+                Provider = provider,
+                NodeId = node.NodeId,
+                Kind = HistorianReadKind.Processed,
+                ResumeToken = default,
+                ProcessedRequest = processedRequest,
+                TimestampsToReturn = timestampsToReturn,
+                IndexRange = nodeToRead.ParsedIndexRange,
+                DataEncoding = nodeToRead.DataEncoding,
+                BufferedProcessedOutputs = outputs,
+                BufferedProcessedOffset = 0
+            };
+            EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Builds the per-interval AnnotationCount outputs. Returns false if the number of intervals
+        /// would exceed <see cref="kMaxProcessedBufferedOutputs"/>.
+        /// </summary>
+        private static bool TryBuildAnnotationCountIntervals(
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
+            double processingInterval,
+            List<DateTimeUtc> annotationTimes,
+            List<DataValue> outputs)
+        {
+            bool isForward = startTime <= endTime;
+
+            // ProcessingInterval == 0 → a single aggregate value over the entire range (§5.4.3.1).
+            if (processingInterval <= 0)
+            {
+                DateTimeUtc lo = isForward ? startTime : endTime;
+                DateTimeUtc hi = isForward ? endTime : startTime;
+                outputs.Add(CreateAnnotationCountValue(
+                    CountAnnotationsInRange(annotationTimes, lo, hi), startTime));
+                return true;
+            }
+
+            // Guard against unbounded buffering for very large windows.
+            double span = Math.Abs((endTime - startTime).TotalMilliseconds);
+            if (span / processingInterval > kMaxProcessedBufferedOutputs)
+            {
+                return false;
+            }
+
+            var interval = TimeSpan.FromMilliseconds(processingInterval);
+
+            if (isForward)
+            {
+                for (DateTimeUtc s = startTime; s < endTime; s += interval)
+                {
+                    DateTimeUtc e = s + interval;
+                    if (e > endTime)
+                    {
+                        e = endTime;
+                    }
+                    outputs.Add(CreateAnnotationCountValue(
+                        CountAnnotationsInRange(annotationTimes, s, e), s));
+                }
+            }
+            else
+            {
+                // Reverse time: intervals walk backward from startTime; each interval is timestamped
+                // with its (later) start time (§5.4.3.1).
+                for (DateTimeUtc s = startTime; s > endTime; s -= interval)
+                {
+                    DateTimeUtc e = s - interval;
+                    if (e < endTime)
+                    {
+                        e = endTime;
+                    }
+                    outputs.Add(CreateAnnotationCountValue(
+                        CountAnnotationsInRange(annotationTimes, e, s), s));
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Counts annotation timestamps in the half-open interval [loInclusive, hiExclusive).
+        /// </summary>
+        private static int CountAnnotationsInRange(
+            List<DateTimeUtc> annotationTimes,
+            DateTimeUtc loInclusive,
+            DateTimeUtc hiExclusive)
+        {
+            int count = 0;
+            for (int i = 0; i < annotationTimes.Count; i++)
+            {
+                DateTimeUtc t = annotationTimes[i];
+                if (t >= loInclusive && t < hiExclusive)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Creates an AnnotationCount aggregate value (Int32, Good, Calculated) for an interval.
+        /// </summary>
+        private static DataValue CreateAnnotationCountValue(int count, DateTimeUtc timestamp)
+        {
+            var value = new DataValue(Variant.From(count), StatusCodes.Good, timestamp, timestamp);
+            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
 
         private const int kProcessedPageSize = 1000;

@@ -44,7 +44,7 @@ namespace Opc.Ua.Server.Tests.Fluent
     /// Direct tests for <see cref="SimulationRegistry"/> — the
     /// manager-owned periodic-loop registry. Exercises lifecycle
     /// (NewSimulation/Start/Dispose) and a real-clock smoke test
-    /// to validate the <see cref="System.Threading.PeriodicTimer"/>
+    /// to validate the <see cref="PeriodicTimer"/>
     /// integration.
     /// </summary>
     [TestFixture]
@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateOwner(), NullLogger());
             registry.Start();
             // Second call must be a no-op (does not throw).
-            Assert.DoesNotThrow(() => registry.Start());
+            Assert.DoesNotThrow(registry.Start);
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             var registry = new SimulationRegistry(
                 CreateOwner(), NullLogger());
-            Assert.DoesNotThrow(() => registry.Dispose());
+            Assert.DoesNotThrow(registry.Dispose);
         }
 
         [Test]
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             registry.Start();
             registry.Dispose();
             // Second dispose must be a no-op (cts already cleared).
-            Assert.DoesNotThrow(() => registry.Dispose());
+            Assert.DoesNotThrow(registry.Dispose);
         }
 
         [Test]
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             private static IServerInternal CreateMockServer()
             {
                 var ns = new NamespaceTable();
-                ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+                ns.Append(Ua.Namespaces.OpcUa);
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var mock = new Mock<IServerInternal>();

@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Fluent
                 QualifiedName browseName)
         {
             NodeBuilder<ProgramStateMachineState> nb =
-                AttachStateMachine<ProgramStateMachineState>(
+                AttachStateMachine(
                     parent, browseName, p => new ProgramStateMachineState(p));
             return new StateMachineBuilder<ProgramStateMachineState>(nb);
         }
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Fluent
                 QualifiedName browseName)
         {
             NodeBuilder<ShelvedStateMachineState> nb =
-                AttachStateMachine<ShelvedStateMachineState>(
+                AttachStateMachine(
                     parent, browseName, p => new ShelvedStateMachineState(p));
             return new StateMachineBuilder<ShelvedStateMachineState>(nb);
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Fluent
                 QualifiedName browseName)
         {
             NodeBuilder<ExclusiveLimitStateMachineState> nb =
-                AttachStateMachine<ExclusiveLimitStateMachineState>(
+                AttachStateMachine(
                     parent, browseName, p => new ExclusiveLimitStateMachineState(p));
             return new StateMachineBuilder<ExclusiveLimitStateMachineState>(nb);
         }

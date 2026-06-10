@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -53,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void SimulationRejectsNegativeInterval()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => h.Builder.Simulation(TimeSpan.Zero));
             Assert.Throws<ArgumentOutOfRangeException>(
@@ -63,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void SimulationOnPlainBuilderThrowsBadConfigurationError()
         {
-            using SimulationHarness h = SimulationHarness.CreateWithoutFluentBase();
+            using var h = SimulationHarness.CreateWithoutFluentBase();
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => h.Builder.Simulation(TimeSpan.FromMilliseconds(10)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
@@ -72,7 +71,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public async Task OnTickFiresPeriodically()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
@@ -88,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public async Task AsyncOnTickIsAwaited()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int started = 0;
             int completed = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
@@ -108,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public async Task ExceptionInHandlerDoesNotKillLoop()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) =>
@@ -129,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void OnTickAfterSealRejected()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             ISimulationBuilder sb = h.Builder.Simulation(TimeSpan.FromMilliseconds(100));
             h.Builder.Seal();
 
@@ -142,7 +141,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void DisposeStopsRunningLoops()
         {
-            SimulationHarness h = SimulationHarness.Create();
+            var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
@@ -162,7 +161,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void MultipleOnTickHandlersAllFire()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int handlerA = 0, handlerB = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerA))
@@ -178,8 +177,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "Both handlers fire on the same tick — counts should be in lockstep.");
         }
 
-        // Test harness — a FluentNodeManagerBase subclass + a NodeManagerBuilder
-        // attached via AttachToBuilder.
+        /// <summary>
+        /// Test harness — a FluentNodeManagerBase subclass + a NodeManagerBuilder
+        /// attached via AttachToBuilder.
+        /// </summary>
         private sealed class SimulationHarness : IDisposable
         {
             internal NodeManagerBuilder Builder { get; private set; } = null!;
@@ -188,9 +189,11 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             internal static SimulationHarness Create()
             {
-                var harness = new SimulationHarness();
-                harness.m_manager = new TestFluentManager();
-                var ctx = harness.m_manager.SystemContext;
+                var harness = new SimulationHarness
+                {
+                    m_manager = new TestFluentManager()
+                };
+                ServerSystemContext ctx = harness.m_manager.SystemContext;
                 harness.Builder = new NodeManagerBuilder(
                     ctx,
                     harness.m_manager,
@@ -204,14 +207,16 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             internal static SimulationHarness CreateWithoutFluentBase()
             {
-                var harness = new SimulationHarness();
-                harness.m_plainBuilder = new NodeManagerBuilder(
-                    new SystemContext(telemetry: null!) { NamespaceUris = new NamespaceTable() },
-                    Mock.Of<IAsyncNodeManager>(),
-                    defaultNamespaceIndex: kNs,
-                    rootResolver: _ => null!,
-                    nodeIdResolver: _ => null!,
-                    typeIdResolver: _ => []);
+                var harness = new SimulationHarness
+                {
+                    m_plainBuilder = new NodeManagerBuilder(
+                        new SystemContext(telemetry: null!) { NamespaceUris = new NamespaceTable() },
+                        Mock.Of<IAsyncNodeManager>(),
+                        defaultNamespaceIndex: kNs,
+                        rootResolver: _ => null!,
+                        nodeIdResolver: _ => null!,
+                        typeIdResolver: _ => [])
+                };
                 harness.Builder = harness.m_plainBuilder;
                 return harness;
             }
@@ -235,7 +240,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             private static IServerInternal CreateMockServer()
             {
                 var ns = new NamespaceTable();
-                ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+                ns.Append(Ua.Namespaces.OpcUa);
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var mock = new Mock<IServerInternal>();

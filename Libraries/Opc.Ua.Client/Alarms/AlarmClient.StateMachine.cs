@@ -31,7 +31,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.StateMachines;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -58,8 +57,10 @@ namespace Opc.Ua.Client.Alarms
         public ValueTask<FiniteStateSnapshot> GetShelvingStateAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
-                .GetCurrentFiniteStateAsync(ct);
+        {
+            return new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                        .GetCurrentFiniteStateAsync(ct);
+        }
 
         /// <summary>
         /// Subscribes to the supplied alarm condition's
@@ -72,7 +73,9 @@ namespace Opc.Ua.Client.Alarms
             IStreamingSubscription streaming,
             MonitoringOptions? options = null,
             CancellationToken ct = default)
-            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
-                .ObserveFiniteTransitionsAsync(streaming, options, ct);
+        {
+            return new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                        .ObserveFiniteTransitionsAsync(streaming, options, ct);
+        }
     }
 }

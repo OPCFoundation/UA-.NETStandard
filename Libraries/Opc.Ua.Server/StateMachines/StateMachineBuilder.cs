@@ -416,7 +416,9 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> WhenTransition(
             uint transitionId,
             Func<ISystemContext, TState, bool> predicate)
-            => WhenTransition(transitionId, predicate, StatusCodes.BadUserAccessDenied);
+        {
+            return WhenTransition(transitionId, predicate, StatusCodes.BadUserAccessDenied);
+        }
 
         /// <summary>
         /// Overload of <see cref="WhenTransition(uint, Func{ISystemContext, TState, bool})"/>
@@ -453,7 +455,9 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> WhenCause(
             uint causeId,
             Func<ISystemContext, TState, bool> predicate)
-            => WhenCause(causeId, predicate, StatusCodes.BadUserAccessDenied);
+        {
+            return WhenCause(causeId, predicate, StatusCodes.BadUserAccessDenied);
+        }
 
         /// <summary>
         /// Overload of <see cref="WhenCause(uint, Func{ISystemContext, TState, bool})"/>
@@ -493,7 +497,9 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> WhenEnter(
             uint toStateId,
             Func<ISystemContext, TState, bool> predicate)
-            => WhenEnter(toStateId, predicate, StatusCodes.BadUserAccessDenied);
+        {
+            return WhenEnter(toStateId, predicate, StatusCodes.BadUserAccessDenied);
+        }
 
         /// <summary>
         /// Overload of <see cref="WhenEnter(uint, Func{ISystemContext, TState, bool})"/>
@@ -548,7 +554,9 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> WhenExit(
             uint fromStateId,
             Func<ISystemContext, TState, bool> predicate)
-            => WhenExit(fromStateId, predicate, StatusCodes.BadUserAccessDenied);
+        {
+            return WhenExit(fromStateId, predicate, StatusCodes.BadUserAccessDenied);
+        }
 
         /// <summary>
         /// Overload of <see cref="WhenExit(uint, Func{ISystemContext, TState, bool})"/>
@@ -662,10 +670,10 @@ namespace Opc.Ua.Server.StateMachines
             // sub-SM's NodeId is derived from the parent's NodeId so
             // it lives under the parent in the address space.
             var subHolder = new MutableStateMachineDefinition();
-            FluentFiniteStateMachineState child =
+            var child =
                 FluentFiniteStateMachineState.CreateWithHolder(m_stateMachine, subHolder);
             NodeId childNodeId = m_stateMachine.NodeId.IsNull
-                ? new NodeId(System.Guid.NewGuid())
+                ? new NodeId(Guid.NewGuid())
                 : ComposeChildNodeId(m_stateMachine.NodeId, browseName);
             child.Create(
                 m_context,
@@ -712,10 +720,7 @@ namespace Opc.Ua.Server.StateMachines
                     materializedChild.IsSuspended = false;
                 }
             });
-            m_dispatcher.AddExitStateHandler(parentStateId, (ctx, parent) =>
-            {
-                materializedChild.IsSuspended = true;
-            });
+            m_dispatcher.AddExitStateHandler(parentStateId, (ctx, parent) => materializedChild.IsSuspended = true);
 
             return this;
         }
@@ -1148,13 +1153,15 @@ namespace Opc.Ua.Server.StateMachines
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
         private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
         private readonly Dictionary<uint, TimedTransitionEntry> m_timedTransitions = [];
-        // Async observer counterparts. Scheduled fire-and-forget from
-        // the sync transition path (which itself remains sync since
-        // FiniteStateMachineState.DoTransition is sync). Each invocation
-        // runs on the thread pool with ConfigureAwait(false), so no
-        // sync-over-async wait occurs anywhere; exceptions are
-        // captured and logged via Debug.WriteLine in line with the
-        // existing SafeInvoke pattern.
+        /// <summary>
+        /// Async observer counterparts. Scheduled fire-and-forget from
+        /// the sync transition path (which itself remains sync since
+        /// FiniteStateMachineState.DoTransition is sync). Each invocation
+        /// runs on the thread pool with ConfigureAwait(false), so no
+        /// sync-over-async wait occurs anywhere; exceptions are
+        /// captured and logged via Debug.WriteLine in line with the
+        /// existing SafeInvoke pattern.
+        /// </summary>
         private readonly Dictionary<uint,
             List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>>
                 m_enterHandlersAsync = [];

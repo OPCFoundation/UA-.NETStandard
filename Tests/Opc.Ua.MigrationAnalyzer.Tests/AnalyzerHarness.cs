@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
@@ -46,14 +44,17 @@ using Microsoft.CodeAnalysis.Text;
 namespace Opc.Ua.MigrationAnalyzer.Tests
 {
     /// <summary>
+    /// <para>
     /// Lightweight, no-extra-package analyzer + code-fix test harness. Lifts the
     /// useful bits of Microsoft.CodeAnalysis.Testing without taking the dependency.
-    ///
+    /// </para>
+    /// <para>
     /// Each test feeds a small C# source snippet (concatenated with
     /// <see cref="OpcUaStubs.Source"/>) into the harness; the harness compiles
     /// the snippet, runs the given <see cref="DiagnosticAnalyzer"/>, asserts
     /// the diagnostics, optionally applies the matching <see cref="CodeFixProvider"/>,
     /// and verifies the fixed source matches an expected string.
+    /// </para>
     /// </summary>
     public static class AnalyzerHarness
     {
@@ -65,10 +66,9 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
             // platform assemblies via AppContext, which is exactly the closure of
             // reference assemblies we need to compile arbitrary test snippets.
             string trustedAssemblies = (string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? string.Empty;
-            string[] tpaList = trustedAssemblies
+            string[] tpaList = [.. trustedAssemblies
                 .Split(Path.PathSeparator)
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToArray();
+                .Where(p => !string.IsNullOrEmpty(p))];
             if (tpaList.Length > 0)
             {
                 return [.. tpaList.Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))];
@@ -91,10 +91,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
         private static bool IsBclAssembly(string path)
         {
             string name = Path.GetFileNameWithoutExtension(path);
-            return name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase)
-                || name.Equals("netstandard", StringComparison.OrdinalIgnoreCase)
-                || name.StartsWith("System", StringComparison.OrdinalIgnoreCase)
-                || name.StartsWith("Microsoft.CSharp", StringComparison.OrdinalIgnoreCase);
+            return name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("netstandard", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("System", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("Microsoft.CSharp", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -103,13 +103,13 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
         /// </summary>
         public static CSharpCompilation Compile(string userSource, string assemblyName = "TestAssembly")
         {
-            CSharpParseOptions parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
+            var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
             SyntaxTree[] trees =
             [
                 CSharpSyntaxTree.ParseText(OpcUaStubs.Source, parseOptions, "OpcUaStubs.cs"),
-                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Test.cs"),
+                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Test.cs")
             ];
-            CSharpCompilationOptions options = new CSharpCompilationOptions(
+            var options = new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 allowUnsafe: false,
                 nullableContextOptions: NullableContextOptions.Enable);
@@ -126,12 +126,12 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
         /// </summary>
         public static CSharpCompilation CompileWithoutStubs(string userSource, string assemblyName = "TestAssembly")
         {
-            CSharpParseOptions parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
+            var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
             SyntaxTree[] trees =
             [
-                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Test.cs"),
+                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Test.cs")
             ];
-            CSharpCompilationOptions options = new CSharpCompilationOptions(
+            var options = new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 allowUnsafe: false,
                 nullableContextOptions: NullableContextOptions.Enable);
@@ -162,21 +162,19 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
             return RunAsync(analyzer, compilation);
         }
 
-        private static async Task<ImmutableArray<Diagnostic>> RunAsync(
+        private static Task<ImmutableArray<Diagnostic>> RunAsync(
             DiagnosticAnalyzer analyzer,
             CSharpCompilation compilation)
         {
             CompilationWithAnalyzers withAnalyzers = compilation.WithAnalyzers(
-                ImmutableArray.Create(analyzer),
+                [analyzer],
                 new CompilationWithAnalyzersOptions(
                     options: null!,
                     onAnalyzerException: null,
                     concurrentAnalysis: true,
                     logAnalyzerExecutionTime: true,
                     reportSuppressedDiagnostics: true));
-            ImmutableArray<Diagnostic> all = await withAnalyzers.GetAnalyzerDiagnosticsAsync()
-                .ConfigureAwait(false);
-            return all;
+            return withAnalyzers.GetAnalyzerDiagnosticsAsync();
         }
 
         /// <summary>
@@ -191,7 +189,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
         {
             CSharpCompilation compilation = Compile(userSource);
             CompilationWithAnalyzers withAnalyzers = compilation.WithAnalyzers(
-                ImmutableArray.Create(analyzer),
+                [analyzer],
                 new CompilationWithAnalyzersOptions(
                     options: null!,
                     onAnalyzerException: null,
@@ -211,7 +209,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
                     continue;
                 }
                 List<CodeAction> actions = [];
-                CodeFixContext ctx = new CodeFixContext(
+                var ctx = new CodeFixContext(
                     document,
                     diag,
                     (action, _) => actions.Add(action),
@@ -246,9 +244,9 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
 
         private static Document CreateDocument(SyntaxTree tree, CodeFixProvider _)
         {
-            AdhocWorkspace workspace = new AdhocWorkspace();
-            ProjectId projectId = ProjectId.CreateNewId();
-            DocumentId documentId = DocumentId.CreateNewId(projectId);
+            var workspace = new AdhocWorkspace();
+            var projectId = ProjectId.CreateNewId();
+            var documentId = DocumentId.CreateNewId(projectId);
             Solution solution = workspace.CurrentSolution
                 .AddProject(projectId, "TestProject", "TestProject", LanguageNames.CSharp)
                 .AddMetadataReferences(projectId, s_baseReferences)

@@ -658,17 +658,14 @@ namespace Opc.Ua.Client.Subscriptions
             // pre-restart state). Opt-in policy lets the caller ask
             // for an in-place recreate instead of leaving the
             // subscription dark.
-            if (notification.Status == StatusCodes.GoodSubscriptionTransferred
-                && Options.RecoveryPolicy
-                    .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer)
-                && Created
-                && !Disposed)
-            {
-                if (Interlocked.CompareExchange(
+            if (notification.Status == StatusCodes.GoodSubscriptionTransferred &&
+                Options.RecoveryPolicy
+                    .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
+                Created &&
+                !Disposed && Interlocked.CompareExchange(
                     ref m_recreateAfterTransferInProgress, 1, 0) == 0)
-                {
-                    _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);
-                }
+            {
+                _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);
             }
             return default;
         }

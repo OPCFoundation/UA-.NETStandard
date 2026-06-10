@@ -33,7 +33,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -83,7 +82,7 @@ namespace Opc.Ua.Client.Alarms
                 streaming.SubscribeEventsAsync(notifierId, filter, options, ct);
             await foreach (EventNotification notification in source.ConfigureAwait(false))
             {
-                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
+                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? [];
                 if (registry.Decode(fields) is ConditionTypeRecord record)
                 {
                     yield return record;
@@ -145,7 +144,7 @@ namespace Opc.Ua.Client.Alarms
                 .SubscribeEventsAsync(notifierId, filter, options, ct)
                 .ConfigureAwait(false))
             {
-                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
+                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? [];
                 if (registry.Decode(fields) is DialogConditionTypeRecord dialog)
                 {
                     yield return dialog;

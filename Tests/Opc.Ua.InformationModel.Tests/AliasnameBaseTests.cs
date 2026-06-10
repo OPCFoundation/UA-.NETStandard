@@ -155,7 +155,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[] { "TIC101_Setpoint" }));
+                Is.EquivalentTo(["TIC101_Setpoint"]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, with a &quot;%&quot; replacing any character in the name. Pass in the A")]
@@ -172,7 +172,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[] { "TIC101_PV" }));
+                Is.EquivalentTo(["TIC101_PV"]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, replace the first character with a &quot;_&quot;. Pass in the AliasFor")]
@@ -190,7 +190,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[] { "TIC101_Setpoint" }));
+                Is.EquivalentTo(["TIC101_Setpoint"]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, with a &quot;_&quot; replacing any character in the name. Pass in the A")]
@@ -208,7 +208,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[] { "TIC101_Setpoint" }));
+                Is.EquivalentTo(["TIC101_Setpoint"]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, enclose the first character with &quot;[]&quot;. Pass in the AliasFor R")]
@@ -226,7 +226,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[] { "TIC101_Setpoint" }));
+                Is.EquivalentTo(["TIC101_Setpoint"]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, enclose the first character with &quot;[]&quot; include the letters ABC")]
@@ -245,12 +245,12 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[]
-                {
+                Is.EquivalentTo(
+                [
                     "TIC101_Setpoint",
                     "TIC101_PV",
                     "FIC202_Flow"
-                }));
+                ]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, enclose the first character with &quot;[^]&quot; (the ^ is before the c")]
@@ -292,15 +292,15 @@ namespace Opc.Ua.InformationModel.Tests
                 $"FindAlias('%') status: {result.StatusCode}");
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
             Assert.That(records.Select(r => r.AliasName.Name),
-                Is.EquivalentTo(new[]
-                {
+                Is.EquivalentTo(
+                [
                     "TIC101_Setpoint",
                     "TIC101_PV",
                     "FIC202_Flow",
                     "Pump1_Status",
                     "Heater_Power",
                     "MultiRefAlias"
-                }));
+                ]));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in a string of &quot;A[&quot;. Pass in the AliasFor Reference type.")]
