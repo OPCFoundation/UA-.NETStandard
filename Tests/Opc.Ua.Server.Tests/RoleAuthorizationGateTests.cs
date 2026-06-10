@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new ClaimsTestIdentity(
                 tokenType: UserTokenType.IssuedToken,
-                roles: new[] { BrowseNames.WellKnownRole_SecurityAdmin });
+                roles: [BrowseNames.WellKnownRole_SecurityAdmin]);
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, identity);
 
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);

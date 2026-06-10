@@ -50,25 +50,32 @@ namespace Opc.Ua.Di.Server.Builders
         public ISoftwareFolder? Folder { get; private set; }
 
         public Func<ISoftwareUpdateContext, CancellationToken, ValueTask>?
-            PrepareHandler { get; private set; }
+            PrepareHandler
+        { get; private set; }
 
         public Func<ISoftwareUpdateContext, SoftwarePackage, CancellationToken, ValueTask>?
-            InstallHandler { get; private set; }
+            InstallHandler
+        { get; private set; }
 
         public Func<ISoftwareUpdateContext, bool, CancellationToken, ValueTask>?
-            ConfirmHandler { get; private set; }
+            ConfirmHandler
+        { get; private set; }
 
         public Func<ISoftwareUpdateContext, CancellationToken, ValueTask>?
-            UninstallHandler { get; private set; }
+            UninstallHandler
+        { get; private set; }
 
         public Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask>?
-            PrepareStateChanged { get; private set; }
+            PrepareStateChanged
+        { get; private set; }
 
         public Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask>?
-            InstallationStateChanged { get; private set; }
+            InstallationStateChanged
+        { get; private set; }
 
         public Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask>?
-            ConfirmStateChanged { get; private set; }
+            ConfirmStateChanged
+        { get; private set; }
 
         public ISoftwareUpdateBuilder UsePackageLoading()
         {

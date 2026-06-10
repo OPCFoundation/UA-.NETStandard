@@ -82,7 +82,7 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
                 // value-typed Opc.Ua.XmlElement exists too, so the bare short name
                 // "XmlElement" resolves ambiguously. Pin the legacy interpretation
                 // (System.Xml.XmlElement) so the shim drops in for 1.5.378 callers.
-                ["XmlElementCollection"] = "global::System.Xml.XmlElement",
+                ["XmlElementCollection"] = "global::System.Xml.XmlElement"
             };
     }
 }

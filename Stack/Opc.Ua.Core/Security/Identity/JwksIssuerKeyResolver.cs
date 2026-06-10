@@ -518,7 +518,7 @@ namespace Opc.Ua.Identity
         private sealed class KeyCache : IDisposable
         {
             public static readonly KeyCache Empty = new(
-                Array.Empty<IssuerVerificationKey>(),
+                [],
                 DateTimeOffset.MinValue,
                 hasValue: false);
 
@@ -571,7 +571,7 @@ namespace Opc.Ua.Identity
 
                 return m_keysById.TryGetValue(keyId, out IReadOnlyList<IssuerVerificationKey>? keys)
                     ? keys
-                    : Array.Empty<IssuerVerificationKey>();
+                    : [];
             }
 
             public void Dispose()

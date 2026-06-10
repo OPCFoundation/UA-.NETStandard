@@ -34,7 +34,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -98,11 +97,11 @@ namespace Opc.Ua.Client.StateMachines
                     StatusCodes.BadNotFound);
             }
 
-            ArrayOf<ReadValueId> nodesToRead = ArrayOf.Wrapped(nodes.ToArray());
+            var nodesToRead = ArrayOf.Wrapped(nodes.ToArray());
             ReadResponse response = await client.Session.ReadAsync(
                 null, 0, TimestampsToReturn.Both, nodesToRead, ct)
                 .ConfigureAwait(false);
-            ClientBase.ValidateResponse<ReadValueId, DataValue>(
+            ClientBase.ValidateResponse(
                 response.Results, nodesToRead);
 
             LocalizedText currentState = LocalizedText.Null;
@@ -124,7 +123,7 @@ namespace Opc.Ua.Client.StateMachines
                 {
                     worst = dv.StatusCode;
                 }
-                DateTime ts = (DateTime)dv.SourceTimestamp;
+                var ts = (DateTime)dv.SourceTimestamp;
                 if (ts != DateTime.MinValue)
                 {
                     timestamp = ts;
@@ -293,7 +292,7 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            return BrowseChildrenAsync<FiniteStateInfo>(
+            return BrowseChildrenAsync(
                 client,
                 ObjectTypeIds.StateType,
                 BrowseNames.StateNumber,
@@ -313,7 +312,7 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            return BrowseChildrenAsync<FiniteTransitionInfo>(
+            return BrowseChildrenAsync(
                 client,
                 ObjectTypeIds.TransitionType,
                 BrowseNames.TransitionNumber,
@@ -412,8 +411,8 @@ namespace Opc.Ua.Client.StateMachines
             Func<NodeId, QualifiedName, uint, T> factory,
             CancellationToken ct)
         {
-            ArrayOf<BrowseDescription> nodesToBrowse = ArrayOf.Wrapped(new[]
-            {
+            var nodesToBrowse = ArrayOf.Wrapped(
+            [
                 new BrowseDescription
                 {
                     NodeId = client.ObjectId,
@@ -423,11 +422,11 @@ namespace Opc.Ua.Client.StateMachines
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            });
+            ]);
 
             BrowseResponse browse = await client.Session.BrowseAsync(
                 null, null, 0, nodesToBrowse, ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse<BrowseDescription, BrowseResult>(
+            ClientBase.ValidateResponse(
                 browse.Results, nodesToBrowse);
 
             ArrayOf<ReferenceDescription> refs = browse.Results[0].References;
@@ -441,7 +440,7 @@ namespace Opc.Ua.Client.StateMachines
                 {
                     continue;
                 }
-                NodeId typeDefNodeId = ExpandedNodeId.ToNodeId(
+                var typeDefNodeId = ExpandedNodeId.ToNodeId(
                     r.TypeDefinition, client.Session.MessageContext.NamespaceUris);
                 if (typeDefNodeId != typeDefinitionId)
                 {
@@ -480,7 +479,7 @@ namespace Opc.Ua.Client.StateMachines
                     }
                 };
             }
-            ArrayOf<BrowsePath> pathRequests = ArrayOf.Wrapped(pathRequestsArray);
+            var pathRequests = ArrayOf.Wrapped(pathRequestsArray);
             TranslateBrowsePathsToNodeIdsResponse pathResp = await client.Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, pathRequests, ct)
                 .ConfigureAwait(false);
@@ -503,10 +502,10 @@ namespace Opc.Ua.Client.StateMachines
                 }
             }
 
-            var numbers = new uint[childIds.Count];
+            uint[] numbers = new uint[childIds.Count];
             if (numberReads.Count > 0)
             {
-                ArrayOf<ReadValueId> wrapped = ArrayOf.Wrapped(numberReads.ToArray());
+                var wrapped = ArrayOf.Wrapped(numberReads.ToArray());
                 ReadResponse readResp = await client.Session.ReadAsync(
                     null, 0, TimestampsToReturn.Neither, wrapped, ct)
                     .ConfigureAwait(false);
@@ -564,8 +563,8 @@ namespace Opc.Ua.Client.StateMachines
                     nameof(parentStateNodeId));
             }
 
-            ArrayOf<BrowseDescription> nodesToBrowse = ArrayOf.Wrapped(new[]
-            {
+            var nodesToBrowse = ArrayOf.Wrapped(
+            [
                 new BrowseDescription
                 {
                     NodeId = parentStateNodeId,
@@ -575,11 +574,11 @@ namespace Opc.Ua.Client.StateMachines
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            });
+            ]);
 
             BrowseResponse response = await parent.Session.BrowseAsync(
                 null, null, 0, nodesToBrowse, ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse<BrowseDescription, BrowseResult>(
+            ClientBase.ValidateResponse(
                 response.Results, nodesToBrowse);
 
             if (response.Results.Count == 0 ||
@@ -589,7 +588,7 @@ namespace Opc.Ua.Client.StateMachines
             }
 
             ReferenceDescription r = response.Results[0].References[0];
-            NodeId childId = ExpandedNodeId.ToNodeId(
+            var childId = ExpandedNodeId.ToNodeId(
                 r.NodeId, parent.Session.MessageContext.NamespaceUris);
             return new FiniteStateMachineTypeClient(
                 parent.Session, childId, telemetry);
@@ -701,9 +700,8 @@ namespace Opc.Ua.Client.StateMachines
                     {
                         // Filter out cancellation noise; surface any
                         // other pump fault.
-                        Exception? real = t.Exception.Flatten().InnerExceptions
+                        fault = t.Exception.Flatten().InnerExceptions
                             .FirstOrDefault(e => e is not OperationCanceledException);
-                        fault = real;
                     }
                     channel.Writer.TryComplete(fault);
                 },
@@ -745,7 +743,7 @@ namespace Opc.Ua.Client.StateMachines
                             // sub-SM is the one currently active in
                             // the parent.
                             latestSubByState[tagged.ParentAttachedTo] = tagged.Snapshot;
-                            if (NodeId.Equals(currentParentStateId, tagged.ParentAttachedTo) &&
+                            if (Equals(currentParentStateId, tagged.ParentAttachedTo) &&
                                 latestParent != null)
                             {
                                 yield return latestParent with { SubMachine = tagged.Snapshot };

@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static SystemContext CreateContext()
         {
             var ns = new NamespaceTable();
-            ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+            ns.Append(Ua.Namespaces.OpcUa);
             return new SystemContext(telemetry: null!)
             {
                 NamespaceUris = ns
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
             Assert.Throws<ArgumentNullException>(() => nb.Organizes(NodeId.Null));
-            Assert.Throws<ArgumentNullException>(() => nb.Organizes((NodeState)null!));
+            Assert.Throws<ArgumentNullException>(() => nb.Organizes(null!));
         }
 
         [Test]
@@ -340,7 +340,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new QualifiedName("Group1", kNs));
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => child.OnRead((NodeValueSimpleEventHandler)((ISystemContext c, NodeState n, ref Variant v) => ServiceResult.Good)))!;
+                () => child.OnRead((c, n, ref v) => ServiceResult.Good))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
         }
 
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new QualifiedName("Group1", kNs));
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => child.OnCall((GenericMethodCalledEventHandler2)((_, _, _, _, _) => ServiceResult.Good)))!;
+                () => child.OnCall((_, _, _, _, _) => ServiceResult.Good))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
         }
 

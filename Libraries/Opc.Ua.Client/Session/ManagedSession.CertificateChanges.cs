@@ -44,7 +44,7 @@ namespace Opc.Ua.Client
     /// and surfaces every observed change through the
     /// <see cref="ApplicationCertificateChanged"/> event so applications
     /// can implement custom rotation policies. When
-    /// <see cref="ManagedSession.DisableAutoReconnectOnCertificateChange"/> is
+    /// <see cref="DisableAutoReconnectOnCertificateChange"/> is
     /// <c>false</c> (the default) the manager additionally reloads the
     /// instance certificate and triggers a reconnect on
     /// <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>,
@@ -53,7 +53,7 @@ namespace Opc.Ua.Client
     /// <see cref="CertificateChangeKind.CrlUpdated"/> so the session
     /// reconnects only when the cached server cert is no longer
     /// trusted under the new state. See
-    /// <see cref="RunRevalidationLoopAsync"/> for the debouncing /
+    /// <see cref="RunRevalidationLoopAsync(CancellationToken)"/> for the debouncing /
     /// single-in-flight semantics.
     /// </summary>
     public partial class ManagedSession
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client
         /// <see cref="ICertificateLifecycle.CertificateChanges"/> and
         /// cancels the background revalidation loop. Safe to call when
         /// no subscription is active. Synchronous callers (the sync
-        /// <see cref="ManagedSession.Dispose(bool)"/> path) cannot
+        /// <see cref="Dispose(bool)"/> path) cannot
         /// await the loop's exit;
         /// <see cref="StopRevalidationLoopAsync"/> handles the
         /// asynchronous wait used by <c>DisposeAsync</c>.
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
         /// Handler invoked from the <see cref="CertificateChangeObserver"/>
         /// on the certificate-manager dispatcher thread. Must NOT block
         /// or allocate per-event work — the heavy lifting runs on the
-        /// long-lived <see cref="RunRevalidationLoopAsync"/> loop, woken
+        /// long-lived <see cref="RunRevalidationLoopAsync(CancellationToken)"/> loop, woken
         /// via <see cref="SignalRevalidation"/>.
         /// </summary>
         private void OnCertificateChange(CertificateChangeEvent evt)
@@ -176,7 +176,6 @@ namespace Opc.Ua.Client
                     // ReconnectAsync (see HandleApplicationCertificateUpdatedAsync).
                     _ = Task.Run(() => HandleApplicationCertificateUpdatedAsync(evt));
                     break;
-
                 case CertificateChangeKind.TrustListUpdated:
                 case CertificateChangeKind.CrlUpdated:
                     // Wake the persistent revalidation loop. No Task is
@@ -230,7 +229,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Posts a wake-up to <see cref="RunRevalidationLoopAsync"/>.
+        /// Posts a wake-up to <see cref="RunRevalidationLoopAsync(CancellationToken)"/>.
         /// Allocation-free in the steady state — when a signal is
         /// already pending the bounded channel silently drops the
         /// duplicate, giving AutoResetEvent-like coalescing semantics.
@@ -245,7 +244,7 @@ namespace Opc.Ua.Client
         /// callers may invoke from <see cref="SubscribeCertificateChanges"/>
         /// even if the loop was previously started — the existing loop
         /// is cancelled and replaced. The pattern mirrors
-        /// <see cref="ManagedSession.StartIdentityRefreshLoop"/>.
+        /// <see cref="StartIdentityRefreshLoop"/>.
         /// </summary>
         private void StartRevalidationLoop()
         {
@@ -265,9 +264,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Cancels the revalidation loop without awaiting its exit.
-        /// Used by the synchronous <see cref="ManagedSession.Dispose(bool)"/>
+        /// Used by the synchronous <see cref="Dispose(bool)"/>
         /// path which cannot await asynchronously. Mirrors
-        /// <see cref="ManagedSession.CancelIdentityRefreshLoop"/>.
+        /// <see cref="CancelIdentityRefreshLoop"/>.
         /// </summary>
         private void CancelRevalidationLoop()
         {
@@ -283,7 +282,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Cancels the revalidation loop and awaits its exit. Used by
-        /// <see cref="ManagedSession.DisposeAsync"/> to guarantee the
+        /// <see cref="DisposeAsync"/> to guarantee the
         /// loop has released the certificate manager and any in-flight
         /// validation completed before the manager is torn down.
         /// </summary>
@@ -348,29 +347,62 @@ namespace Opc.Ua.Client
         /// honoured exactly once after the burst settles.
         /// </para>
         /// </remarks>
-        private async Task RunRevalidationLoopAsync(CancellationToken ct)
+        private Task RunRevalidationLoopAsync(CancellationToken ct)
+        {
+            return RunRevalidationLoopAsync(
+                m_revalidationSignal.Reader,
+                m_timeProvider,
+                s_revalidationDebounce,
+                RevalidateServerCertificateAsync,
+                m_logger,
+                ct);
+        }
+
+        /// <summary>
+        /// Pure loop body, factored out so it can be exercised in
+        /// isolation without standing up a connected
+        /// <see cref="ManagedSession"/>. Drains the signal channel,
+        /// debounces bursts via the injected <see cref="TimeProvider"/>,
+        /// then invokes <paramref name="revalidate"/> exactly once per
+        /// settled burst — including a re-arm when signals arrive
+        /// during the validation itself (the bounded-channel writer in
+        /// <see cref="SignalRevalidation"/> refills the channel after
+        /// the post-debounce drain, so the next iteration picks it up).
+        /// </summary>
+        /// <param name="reader">Reader for the signal channel.</param>
+        /// <param name="timeProvider">Time provider used by the debounce delay.</param>
+        /// <param name="debounce">Debounce window.</param>
+        /// <param name="revalidate">Callback that performs the actual
+        /// validation. Exceptions are caught and logged; the loop
+        /// continues so a transient failure does not break the wiring.</param>
+        /// <param name="logger">Logger for revalidation failures.</param>
+        /// <param name="ct">Cancellation token signalled at Dispose.</param>
+        internal static async Task RunRevalidationLoopAsync(
+            ChannelReader<int> reader,
+            TimeProvider timeProvider,
+            TimeSpan debounce,
+            Func<CancellationToken, Task> revalidate,
+            ILogger logger,
+            CancellationToken ct)
         {
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    await m_revalidationSignal.Reader.ReadAsync(ct)
-                        .ConfigureAwait(false);
+                    await reader.ReadAsync(ct).ConfigureAwait(false);
 
-                    await m_timeProvider.Delay(s_revalidationDebounce, ct)
-                        .ConfigureAwait(false);
+                    await timeProvider.Delay(debounce, ct).ConfigureAwait(false);
 
                     // Drain any signals that arrived during the debounce
                     // so the next ReadAsync only fires for events that
                     // post-date this validation.
-                    while (m_revalidationSignal.Reader.TryRead(out _))
+                    while (reader.TryRead(out _))
                     {
                     }
 
                     try
                     {
-                        await RevalidateServerCertificateAsync(ct)
-                            .ConfigureAwait(false);
+                        await revalidate(ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
@@ -378,7 +410,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(
+                        logger.LogWarning(
                             ex,
                             "ManagedSession: server-certificate revalidation failed; will retry on next change.");
                     }
@@ -429,7 +461,7 @@ namespace Opc.Ua.Client
             }
 
             byte[] rawData = serverCertBlob.ToArray();
-            using Certificate serverCert = Certificate.FromRawData(rawData);
+            using var serverCert = Certificate.FromRawData(rawData);
 
             CertificateValidationResult result;
             try
@@ -480,10 +512,12 @@ namespace Opc.Ua.Client
         // analyzer. Disposed in both Dispose paths.
 #pragma warning disable CA2213
         private IDisposable? m_certificateChangeSubscription;
-        // CTS owned by StartRevalidationLoop / disposed by
-        // StopRevalidationLoopAsync. CancelRevalidationLoop (sync) only
-        // cancels — the CTS is freed by the next StartRevalidationLoop
-        // or by StopRevalidationLoopAsync.
+        /// <summary>
+        /// CTS owned by StartRevalidationLoop / disposed by
+        /// StopRevalidationLoopAsync. CancelRevalidationLoop (sync) only
+        /// cancels — the CTS is freed by the next StartRevalidationLoop
+        /// or by StopRevalidationLoopAsync.
+        /// </summary>
         private CancellationTokenSource? m_revalidationCancellation;
 #pragma warning restore CA2213
 

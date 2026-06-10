@@ -62,14 +62,14 @@ namespace Opc.Ua.Server
         public StandardServer(ITelemetryContext telemetry, TimeProvider? timeProvider)
             : base(telemetry)
         {
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
         /// time / duration calculations and timer scheduling.
         /// </summary>
-        protected TimeProvider TimeProvider => m_timeProvider;
+        protected TimeProvider TimeProvider { get; }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -852,7 +852,7 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = exception.StatusCode,
 
-                Timestamp = m_timeProvider.GetUtcNow().UtcDateTime,
+                Timestamp = TimeProvider.GetUtcNow().UtcDateTime,
                 RequestHandle = requestHeader!.RequestHandle
             };
 
@@ -2550,7 +2550,7 @@ namespace Opc.Ua.Server
 
                             var requestHeader = new RequestHeader
                             {
-                                Timestamp = m_timeProvider.GetUtcNow().UtcDateTime
+                                Timestamp = TimeProvider.GetUtcNow().UtcDateTime
                             };
 
                             // create the client.
@@ -2654,7 +2654,7 @@ namespace Opc.Ua.Server
                     {
                         if (m_maxRegistrationInterval > 0)
                         {
-                            m_registrationTimer = m_timeProvider.CreateTimer(
+                            m_registrationTimer = TimeProvider.CreateTimer(
                                 OnRegisterServerAsync,
                                 this,
                                 TimeSpan.FromMilliseconds(m_maxRegistrationInterval),
@@ -2686,7 +2686,7 @@ namespace Opc.Ua.Server
                                 m_lastRegistrationInterval);
 
                             // create timer.
-                            m_registrationTimer = m_timeProvider.CreateTimer(
+                            m_registrationTimer = TimeProvider.CreateTimer(
                                 OnRegisterServerAsync,
                                 this,
                                 TimeSpan.FromMilliseconds(m_lastRegistrationInterval),
@@ -3217,7 +3217,7 @@ namespace Opc.Ua.Server
                     ServerProperties!,
                     configuration,
                     MessageContext,
-                    m_timeProvider);
+                    TimeProvider);
 
                 // create the manager responsible for providing localized string resources.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
@@ -3387,7 +3387,7 @@ namespace Opc.Ua.Server
                     if (m_maxRegistrationInterval > 0)
                     {
                         m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
-                        m_registrationTimer = m_timeProvider.CreateTimer(
+                        m_registrationTimer = TimeProvider.CreateTimer(
                             OnRegisterServerAsync,
                             this,
                             TimeSpan.FromMilliseconds(m_minRegistrationInterval),
@@ -3959,7 +3959,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new SessionManager(server, configuration, m_timeProvider);
+            return new SessionManager(server, configuration, TimeProvider);
         }
 
         /// <summary>
@@ -4077,7 +4077,6 @@ namespace Opc.Ua.Server
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;
         private ITimer? m_registrationTimer;
-        private readonly TimeProvider m_timeProvider;
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;

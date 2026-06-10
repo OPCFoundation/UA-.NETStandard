@@ -72,10 +72,10 @@ namespace Opc.Ua.Server
             }
             switch (numericId)
             {
-                // valueType == 1: StandardDeviation, valueType == 2: Variance
-
-                // includeBounds == true: sample, includeBounds == false: population
-                // (this is a strange way to distinguish between sample and population)
+                // valueType == 1: StandardDeviation, valueType == 2: Variance.
+                // isSample == true: sample (divisor n-1); isSample == false: population (divisor n).
+                // Part 13 v1.05.07 §5.4.3.37/.39: both operate on the Good raw values in the interval
+                // (UseBounds = None); only the divisor differs.
 
                 case Objects.AggregateFunction_StandardDeviationPopulation:
                     return ComputeStdDev(slice, false, 1);
@@ -224,40 +224,42 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Calculates the StdDev, Variance, StdDev2 and Variance2 aggregates for the timeslice.
+        /// Calculates the StandardDeviation/Variance (sample or population) for the timeslice.
         /// </summary>
-        protected DataValue ComputeStdDev(TimeSlice slice, bool includeBounds, int valueType)
+        /// <remarks>
+        /// Part 13 v1.05.07 §5.4.3.37 (sample) and §5.4.3.39 (population) operate on the Good raw
+        /// values in the interval (UseBounds = None). The sum of squared deviations is divided by
+        /// (n-1) for the sample variants and by n for the population variants. This is a value-count
+        /// calculation, not a time-weighted/sub-region one, so all n Good raw values participate
+        /// (computing over sub-regions would silently drop the last raw value).
+        /// </remarks>
+        protected DataValue ComputeStdDev(TimeSlice slice, bool isSample, int valueType)
         {
-            // get the values in the slice.
-            List<DataValue>? values;
-            if (includeBounds)
-            {
-                values = GetValuesWithSimpleBounds(slice);
-            }
-            else
-            {
-                values = GetValues(slice);
-            }
-
-            // check for empty slice.
+            // Good raw values in the slice (endTime exclusive, no bounds).
+            List<DataValue>? values = GetValues(slice);
             if (values == null || values.Count == 0)
             {
                 return GetNoDataValue(slice);
             }
 
-            // get the regions.
-            List<SubRegion>? regions = GetRegionsInValueSet(values, false, true);
-
-            var xData = new List<double>();
-            double average = 0;
+            var xData = new List<double>(values.Count);
+            double sum = 0;
             bool nonGoodDataExists = false;
 
-            for (int ii = 0; ii < regions!.Count; ii++)
+            for (int ii = 0; ii < values.Count; ii++)
             {
-                if (StatusCode.IsGood(regions[ii].StatusCode))
+                if (IsGood(values[ii]))
                 {
-                    xData.Add(regions[ii].StartValue);
-                    average += regions[ii].StartValue;
+                    try
+                    {
+                        double x = CastToDouble(values[ii]);
+                        xData.Add(x);
+                        sum += x;
+                    }
+                    catch (Exception)
+                    {
+                        nonGoodDataExists = true;
+                    }
                 }
                 else
                 {
@@ -271,53 +273,29 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            average /= xData.Count;
+            double average = sum / xData.Count;
 
-            // calculate variance.
+            // sum of squared deviations from the mean.
             double variance = 0;
-
             for (int ii = 0; ii < xData.Count; ii++)
             {
                 double error = xData[ii] - average;
                 variance += error * error;
             }
 
-            // use the sample variance if bounds are included.
-            if (includeBounds)
+            if (isSample)
             {
-                // Spec part 13 v105 section 5.4.3.37 and subsequent
-                if (xData.Count <= 1)
-                {
-                    variance = 0;
-                }
-                else
-                {
-                    variance /= xData.Count - 1;
-                }
+                // Part 13 §5.4.3.37: sample divides by (n-1); n == 1 yields 0.
+                variance = xData.Count <= 1 ? 0 : variance / (xData.Count - 1);
             }
-            // use the population variance if bounds are not included.
             else
             {
+                // Part 13 §5.4.3.39: population divides by n.
                 variance /= xData.Count;
             }
 
-            // select the result.
-            double result = 0;
+            double result = valueType == 1 ? Math.Sqrt(variance) : variance;
 
-            switch (valueType)
-            {
-                case 1:
-                    result = Math.Sqrt(variance);
-                    break;
-                case 2:
-                    result = variance;
-                    break;
-                default:
-                    Debug.Fail($"Unexpected value type {valueType}");
-                    break;
-            }
-
-            // set the timestamp and status.
             var value = new DataValue(
                 Variant.From(result),
                 StatusCodes.Good,
@@ -329,7 +307,6 @@ namespace Opc.Ua.Server
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            // return result.
             return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
     }

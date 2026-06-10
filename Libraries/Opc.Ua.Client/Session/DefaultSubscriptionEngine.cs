@@ -221,7 +221,7 @@ namespace Opc.Ua.Client
                 ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 IMessageAckQueue queue,
-                Subscriptions.SubscriptionLoadState? loadState = null)
+                SubscriptionLoadState? loadState = null)
             {
                 var subscriptionContext =
                     new SubscriptionContextAdapter(m_context);
@@ -540,7 +540,7 @@ namespace Opc.Ua.Client
                 IMessageAckQueue completion,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 ITelemetryContext telemetry,
-                Subscriptions.SubscriptionLoadState? loadState = null,
+                SubscriptionLoadState? loadState = null,
                 TimeProvider? timeProvider = null)
                 : base(context, handler, completion,
                        options, telemetry, loadState, timeProvider)

@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Alarms
         /// </summary>
         public AlarmGroup(AlarmGroupState state)
         {
-            m_state = state ?? throw new System.ArgumentNullException(nameof(state));
+            m_state = state ?? throw new ArgumentNullException(nameof(state));
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Alarms
 
             foreach (IReference reference in references)
             {
-                NodeId targetId = ExpandedNodeId.ToNodeId(
+                var targetId = ExpandedNodeId.ToNodeId(
                     reference.TargetId, context.NamespaceUris);
                 if (!targetId.IsNull)
                 {

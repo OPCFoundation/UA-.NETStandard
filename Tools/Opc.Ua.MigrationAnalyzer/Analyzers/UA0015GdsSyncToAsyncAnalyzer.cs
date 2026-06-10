@@ -50,11 +50,11 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         [
             "Opc.Ua.GlobalDiscoveryServerClient",
             "Opc.Ua.ServerPushConfigurationClient",
-            "Opc.Ua.LocalDiscoveryServerClient",
+            "Opc.Ua.LocalDiscoveryServerClient"
         ];
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0015_GdsSyncToAsync);
+            [DiagnosticDescriptors.UA0015_GdsSyncToAsync];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -84,7 +84,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             OperationAnalysisContext context,
             HashSet<INamedTypeSymbol> targets)
         {
-            IInvocationOperation invocation = (IInvocationOperation)context.Operation;
+            var invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
             if (method is null)
             {

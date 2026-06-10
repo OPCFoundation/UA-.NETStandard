@@ -55,7 +55,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0007 = diags.SingleOrDefault(d => d.Id == "UA0007");
             Assert.That(ua0007, Is.Not.Null);
@@ -76,7 +77,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0007 = diags.SingleOrDefault(d => d.Id == "UA0007");
             Assert.That(ua0007, Is.Not.Null);
@@ -97,7 +99,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0007"), Is.False);
         }
@@ -114,7 +117,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0007ObsoleteNodeIdStringCtorAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0007"), Is.False);
         }
@@ -140,7 +144,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0007ObsoleteNodeIdStringCtorAnalyzer(),
                 new UA0007ObsoleteNodeIdStringCtorCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

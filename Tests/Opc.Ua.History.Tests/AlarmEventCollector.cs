@@ -336,7 +336,7 @@ namespace Opc.Ua.History.Tests
 
         private async Task PublishLoopAsync()
         {
-            var acknowledgements = Array.Empty<SubscriptionAcknowledgement>().ToArrayOf();
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = Array.Empty<SubscriptionAcknowledgement>().ToArrayOf();
             while (!m_shutdown.IsCancellationRequested)
             {
                 PublishResponse publishResponse;

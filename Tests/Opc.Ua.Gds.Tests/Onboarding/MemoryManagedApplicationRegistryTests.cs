@@ -134,7 +134,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var registry = new MemoryManagedApplicationRegistry();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await registry.RegisterAsync("",
+                async () => await registry.RegisterAsync(string.Empty,
                     Array.Empty<byte>(), MakeTicket()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",

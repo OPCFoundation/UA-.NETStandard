@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
         /// <param name="logger">Logger instance.</param>
         /// <param name="maxTotalReconnectTime">Maximum total elapsed
         /// time for one reconnect cycle.</param>
-        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
         /// used for reconnect delay timing. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public ConnectionStateMachine(

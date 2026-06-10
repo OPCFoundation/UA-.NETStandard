@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static SystemContext CreateContext()
         {
             var ns = new NamespaceTable();
-            ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+            ns.Append(Ua.Namespaces.OpcUa);
             return new SystemContext(telemetry: null!)
             {
                 NamespaceUris = ns
@@ -74,21 +74,25 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
 
             PropertyState<string> stringProp =
-                new PropertyState<string>.Implementation<VariantBuilder>(root);
-            stringProp.NodeId = new NodeId("Root.Manufacturer", kNs);
-            stringProp.BrowseName = new QualifiedName("Manufacturer", kNs);
-            stringProp.DisplayName = new LocalizedText("Manufacturer");
-            stringProp.DataType = DataTypeIds.String;
-            stringProp.ValueRank = ValueRanks.Scalar;
+                new PropertyState<string>.Implementation<VariantBuilder>(root)
+                {
+                    NodeId = new NodeId("Root.Manufacturer", kNs),
+                    BrowseName = new QualifiedName("Manufacturer", kNs),
+                    DisplayName = new LocalizedText("Manufacturer"),
+                    DataType = DataTypeIds.String,
+                    ValueRank = ValueRanks.Scalar
+                };
             root.AddChild(stringProp);
 
             PropertyState<int> intProp =
-                new PropertyState<int>.Implementation<VariantBuilder>(root);
-            intProp.NodeId = new NodeId("Root.Count", kNs);
-            intProp.BrowseName = new QualifiedName("Count", kNs);
-            intProp.DisplayName = new LocalizedText("Count");
-            intProp.DataType = DataTypeIds.Int32;
-            intProp.ValueRank = ValueRanks.Scalar;
+                new PropertyState<int>.Implementation<VariantBuilder>(root)
+                {
+                    NodeId = new NodeId("Root.Count", kNs),
+                    BrowseName = new QualifiedName("Count", kNs),
+                    DisplayName = new LocalizedText("Count"),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar
+                };
             root.AddChild(intProp);
 
             var nonVar = new BaseObjectState(root)

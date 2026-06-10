@@ -51,11 +51,11 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             "CreateSigningRequest",
             "RevokeCertificate",
             "CreateCertificateWithPEMPrivateKey",
-            "CreateCertificateWithPrivateKey",
+            "CreateCertificateWithPrivateKey"
         ];
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0012_CertificateFactoryStaticToInstance);
+            [DiagnosticDescriptors.UA0012_CertificateFactoryStaticToInstance];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -66,7 +66,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeInvocation(OperationAnalysisContext context)
         {
-            IInvocationOperation invocation = (IInvocationOperation)context.Operation;
+            var invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
 
             if (!method.IsStatic || !s_targetNames.Contains(method.Name))

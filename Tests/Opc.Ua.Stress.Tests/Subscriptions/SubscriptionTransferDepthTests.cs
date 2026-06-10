@@ -50,11 +50,14 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
     [Category("SubscriptionTransferDepth")]
     public class SubscriptionTransferDepthTests : TestFixture
     {
-        // Per Part 5 §5.13.7 transferring a subscription whose owning user is
-        // anonymous requires the new session to use Sign or SignAndEncrypt.
-        // Replace the inherited None-mode Session with a signed one so the
-        // transfer test cases exercise the actual TransferSubscriptions logic
-        // rather than tripping the spec's anonymous-on-None gate.
+        /// <summary>
+        /// Per Part 5 §5.13.7 transferring a subscription whose owning user is
+        /// anonymous requires the new session to use Sign or SignAndEncrypt.
+        /// Replace the inherited None-mode Session with a signed one so the
+        /// transfer test cases exercise the actual TransferSubscriptions logic
+        /// rather than tripping the spec's anonymous-on-None gate.
+        /// </summary>
+        /// <returns></returns>
         [OneTimeSetUp]
         public async Task TransferOneTimeSetUpAsync()
         {

@@ -40,8 +40,8 @@ using Microsoft.CodeAnalysis.Text;
 namespace Opc.Ua.MigrationAnalyzer.Generator
 {
     /// <summary>
-    /// Emits an <c>internal sealed [Obsolete] class &lt;Name&gt;Collection :
-    /// List&lt;TElement&gt;</c> shim into the consumer's compilation for every
+    /// Emits an <code>internal sealed [Obsolete] class &lt;Name&gt;Collection :
+    /// List&lt;TElement&gt;</code> shim into the consumer's compilation for every
     /// <c>&lt;Name&gt;Collection</c> reference that fails to bind, so 1.5.378-style
     /// call sites compile against the 2.0 stack while UA0002 still guides the
     /// eventual rewrite to <c>List&lt;T&gt;</c> / <c>ArrayOf&lt;T&gt;</c>.
@@ -153,7 +153,7 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
 
         private static CandidateSite? TransformCandidate(GeneratorSyntaxContext ctx, CancellationToken ct)
         {
-            IdentifierNameSyntax id = (IdentifierNameSyntax)ctx.Node;
+            var id = (IdentifierNameSyntax)ctx.Node;
             string shortName = id.Identifier.ValueText;
 
             // If the type already binds in the compilation, no shim needed.
@@ -179,10 +179,9 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
             // (b) Semantic lookup for model-compiled element types (declared in the
             // consumer's source — captures the legacy model-compiler pattern where
             // Foo.BarCollection sat next to Foo.Bar in the same source tree).
-            ImmutableArray<INamedTypeSymbol> matches = ctx.SemanticModel.Compilation
+            ImmutableArray<INamedTypeSymbol> matches = [.. ctx.SemanticModel.Compilation
                 .GetSymbolsWithName(elementShortName, SymbolFilter.Type, ct)
-                .OfType<INamedTypeSymbol>()
-                .ToImmutableArray();
+                .OfType<INamedTypeSymbol>()];
             if (matches.Length == 1)
             {
                 INamedTypeSymbol elementType = matches[0];
@@ -234,7 +233,7 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
             HashSet<string> resolvedShortNames = new(System.StringComparer.Ordinal);
             Dictionary<string, (string ElementDisplay, Location Location)> emitTargets =
                 new(System.StringComparer.Ordinal);
-            List<(string ShortName, string ElementShortName, Location Location)> unresolvedSites = new();
+            List<(string ShortName, string ElementShortName, Location Location)> unresolvedSites = [];
 
             foreach (CandidateSite site in sites)
             {
@@ -348,11 +347,16 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
             public Location Location { get; }
 
             public bool Equals(CandidateSite other)
-                => string.Equals(ShortName, other.ShortName, System.StringComparison.Ordinal)
-                    && string.Equals(ElementDisplay, other.ElementDisplay, System.StringComparison.Ordinal)
-                    && Resolved == other.Resolved;
+            {
+                return string.Equals(ShortName, other.ShortName, System.StringComparison.Ordinal) &&
+                    string.Equals(ElementDisplay, other.ElementDisplay, System.StringComparison.Ordinal) &&
+                    Resolved == other.Resolved;
+            }
 
-            public override bool Equals(object? obj) => obj is CandidateSite other && Equals(other);
+            public override bool Equals(object? obj)
+            {
+                return obj is CandidateSite other && Equals(other);
+            }
 
             public override int GetHashCode()
             {
@@ -363,8 +367,15 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
                 return hash;
             }
 
-            public static bool operator ==(CandidateSite left, CandidateSite right) => left.Equals(right);
-            public static bool operator !=(CandidateSite left, CandidateSite right) => !left.Equals(right);
+            public static bool operator ==(CandidateSite left, CandidateSite right)
+            {
+                return left.Equals(right);
+            }
+
+            public static bool operator !=(CandidateSite left, CandidateSite right)
+            {
+                return !left.Equals(right);
+            }
         }
     }
 }
