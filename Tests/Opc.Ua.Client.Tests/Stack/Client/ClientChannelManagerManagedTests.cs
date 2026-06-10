@@ -773,6 +773,17 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
                 await Task.WhenAll(reconnectTask, sendTask).ConfigureAwait(false);
 
+                // RunReconnectCycleAsync.RecordReconnectDuration is emitted from a
+                // finally block AFTER tcs.TrySetResult(true) returns, so on a fast
+                // runner the test thread can race past the assertion before the
+                // measurement lands. Poll briefly for the histogram measurement.
+                await WaitForMeasurementAsync(
+                    metrics,
+                    "opcua.channel.reconnect.duration",
+                    Tag("endpoint", endpointUrl),
+                    Tag("outcome", "success"))
+                    .ConfigureAwait(false);
+
                 Assert.That(metrics.HasMeasurement(
                     "opcua.channel.reconnect.attempts",
                     Tag("endpoint", endpointUrl),
@@ -790,6 +801,21 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             {
                 await sut.DisposeAsync().ConfigureAwait(false);
                 serverCert.Dispose();
+            }
+        }
+
+        private static async Task WaitForMeasurementAsync(
+            ChannelMetricListener metrics,
+            string instrumentName,
+            params KeyValuePair<string, object?>[] tags)
+        {
+            const int kMaxPollMs = 2000;
+            const int kPollIntervalMs = 25;
+            int elapsed = 0;
+            while (!metrics.HasMeasurement(instrumentName, tags) && elapsed < kMaxPollMs)
+            {
+                await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
+                elapsed += kPollIntervalMs;
             }
         }
 
