@@ -250,3 +250,51 @@ byte-stable artifacts the harness's `Testcases.*/` discovery picks up automatica
 default output path for each area's Tools project is its own sibling
 `Opc.Ua.<Area>.Fuzz.Corpus/Testcases` folder, derived from the running Tools assembly name
 in `Common/Fuzz.Tools/Program.cs`.
+
+## Automation — `fuzz-tester` custom agent
+
+`.github/agents/fuzz-tester.agent.md` defines a GitHub Copilot custom agent that drives
+this entire toolchain autonomously. It detects the host OS, picks the available engines
+(libFuzzer everywhere, afl-fuzz on Linux when installed), publishes + SharpFuzz-instruments
+each area's host project, enumerates `FuzzableCode` targets via
+`Scripts/fuzz-menu.ps1`, launches one detached fuzz process per (area × engine × target)
+tuple, and polls the per-instance work dirs under `Fuzzing/.runs/` for new findings.
+
+When the agent picks up a novel `crash-*` / `timeout-*` / `slow-unit-*` (or afl
+`crashes/` / `hangs/`) file it:
+
+1. SHA-1 dedups against every `Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha1>` already
+   in the repo so it never re-investigates a known regression seed.
+2. Reproduces the crash locally via `dotnet run --project Fuzzing/Opc.Ua.<area>.Fuzz.Tools -- --playback --stacktrace`.
+3. Designs a minimal fix following every repo guideline (no SYNC-over-ASYNC,
+   `Span<byte>` / `ReadOnlySpan<byte>` / `ByteString` in public API, Allman + 4-space +
+   CRLF + MIT header on new files, no `#region`, no `[Obsolete]` usage, NativeAOT-safe,
+   `TreatWarningsAsErrors` clean, no exposed locks).
+4. Runs a rubber-duck agent review (max 2 rounds) on the proposed diff.
+5. Copies the failing input to `Fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha1>`
+   so the existing harness (`FuzzCrashAssets` / `FuzzTimeoutAssets` / `FuzzSlowAssets`)
+   replays it through every target on every future `dotnet test` run.
+6. Rebuilds and runs the three `*.Fuzz.Tests` projects on `net10.0`; the run must end at
+   or above the baseline 4681-test count, 0 failed.
+7. Briefly re-runs the originating fuzz instance with the new asset in its corpus to
+   confirm the same crash is no longer reachable.
+8. Commits one fix per commit (`Fuzz fix [<area>]: <root cause>`), pushes to `fuzzing`,
+   and resumes the still-running fuzz instances.
+
+If a fix introduces a regression, requires a public-API change, or breaks compatibility
+with the 1.5.378 baseline, the agent **pauses and prompts the user** via `ask_user`
+with four options (revert / accept the regression and migrate the affected seed /
+provide an alternative fix / accept the API break).
+
+Trigger phrases: *"run the fuzz tests"*, *"start fuzzing"*, *"fuzz the encoders"*,
+*"fuzz the network"*, *"fuzz the certificates"*, *"fuzz until I say stop"*,
+*"react to fuzz findings"*, *"find fuzz crashes and fix them"*,
+*"run libfuzzer and fix what it finds"*, *"autonomous fuzz loop"*. Stop the agent at
+any time with *"stop"*, *"halt"*, *"stop fuzzing"*, *"that's enough"*.
+
+The agent's own toolchain setup mirrors the manual `Installation` section above:
+`SharpFuzz.CommandLine` global tool, the `libfuzzer-dotnet` driver under
+`Fuzzing/.tools/` (gitignored), and `afl-fuzz` on PATH for the AFL engine on Linux.
+If any are missing AND cannot be auto-installed (air-gapped box, `sudo` not available,
+…), the agent surfaces the gap and asks the user how to proceed.
+
