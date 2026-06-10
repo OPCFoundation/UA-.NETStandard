@@ -1011,6 +1011,53 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         [Test]
+        [Repeat(10)]
+        public void AddRemoveDesiredTriggeredByAreThreadSafe()
+        {
+            // Stress test for the CAS-loop self-synchronization in
+            // AddDesiredTriggeredBy / RemoveDesiredTriggeredBy. Many
+            // tasks contend on the same per-item field; no lock is
+            // held by the callers (mirroring the QueuePendingChanges /
+            // OnOptionsChanged / Reset paths that mutate this field
+            // without holding any manager lock). Without the CAS loop
+            // (e.g. previous Volatile.Read + Volatile.Write code), the
+            // last-writer-wins clobber would drop add intents and the
+            // final set would have fewer than 100 names.
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            const int N = 100;
+            var addTasks = new Task[N];
+            for (int i = 0; i < N; i++)
+            {
+                int idx = i;
+                addTasks[i] = Task.Run(() => item.AddDesiredTriggeredByForTest("n" + idx));
+            }
+            Task.WaitAll(addTasks);
+            // Every distinct name must be present.
+            Assert.That(item.DesiredTriggeredByNames, Has.Count.EqualTo(N));
+
+            // Now interleave concurrent removes and adds.
+            var mixTasks = new Task[2 * N];
+            for (int i = 0; i < N; i++)
+            {
+                int idx = i;
+                mixTasks[i] = Task.Run(() => item.RemoveDesiredTriggeredByForTest("n" + idx));
+                mixTasks[N + i] = Task.Run(() => item.AddDesiredTriggeredByForTest("m" + idx));
+            }
+            Task.WaitAll(mixTasks);
+            // All "n*" gone; all "m*" present.
+            for (int i = 0; i < N; i++)
+            {
+                Assert.That(item.DesiredTriggeredByNames,
+                    Does.Not.Contain("n" + i),
+                    $"n{i} should have been removed");
+                Assert.That(item.DesiredTriggeredByNames,
+                    Contains.Item("m" + i),
+                    $"m{i} should have been added");
+            }
+            Assert.That(item.DesiredTriggeredByNames, Has.Count.EqualTo(N));
+        }
+
+        [Test]
         public void SetDesiredTriggeredByNamesDeduplicatesPreservesOrder()
         {
             TestMonitoredItem item = AddCreatedItem("item", 100);

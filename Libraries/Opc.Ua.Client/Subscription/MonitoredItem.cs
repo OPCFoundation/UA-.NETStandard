@@ -137,10 +137,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <summary>
         /// Add a triggering-item name to
         /// <see cref="DesiredTriggeredByNames"/>. Idempotent: returns
-        /// <c>false</c> if the name was already present. The caller is
-        /// expected to be holding the owning manager's monitored-items
-        /// lock so that concurrent imperative calls and
-        /// options-change deltas don't race on the per-item field.
+        /// <c>false</c> if the name was already present. This method is
+        /// self-synchronizing via a lock-free CAS loop on
+        /// <c>m_desiredTriggeredByNames</c>, so it is safe to call from
+        /// concurrent options-change deltas, imperative SetTriggering
+        /// callers, and the engine's apply-pass rollback paths without
+        /// any external lock coordination.
         /// </summary>
         internal bool AddDesiredTriggeredBy(string triggeringName)
         {
@@ -150,26 +152,37 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     "Triggering item name must not be null/empty/whitespace.",
                     nameof(triggeringName));
             }
-            IReadOnlyList<string> current = m_desiredTriggeredByNames;
-            if (ContainsOrdinal(current, triggeringName))
+            while (true)
             {
-                return false;
+                IReadOnlyList<string> current = Volatile.Read(
+                    ref m_desiredTriggeredByNames);
+                if (ContainsOrdinal(current, triggeringName))
+                {
+                    return false;
+                }
+                var updated = new string[current.Count + 1];
+                for (int i = 0; i < current.Count; i++)
+                {
+                    updated[i] = current[i];
+                }
+                updated[current.Count] = triggeringName;
+                if (ReferenceEquals(
+                        Interlocked.CompareExchange(
+                            ref m_desiredTriggeredByNames, updated, current),
+                        current))
+                {
+                    return true;
+                }
+                // Lost the race — re-read and retry.
             }
-            var updated = new string[current.Count + 1];
-            for (int i = 0; i < current.Count; i++)
-            {
-                updated[i] = current[i];
-            }
-            updated[current.Count] = triggeringName;
-            Volatile.Write(ref m_desiredTriggeredByNames, updated);
-            return true;
         }
 
         /// <summary>
         /// Remove a triggering-item name from
         /// <see cref="DesiredTriggeredByNames"/>. Returns <c>true</c> if
         /// the name was present (and removed), <c>false</c> if it was
-        /// not in the list. Caller must hold the manager lock; see
+        /// not in the list. Self-synchronizing via a lock-free CAS loop
+        /// on <c>m_desiredTriggeredByNames</c>; see
         /// <see cref="AddDesiredTriggeredBy"/>.
         /// </summary>
         internal bool RemoveDesiredTriggeredBy(string triggeringName)
@@ -178,39 +191,52 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return false;
             }
-            IReadOnlyList<string> current = m_desiredTriggeredByNames;
-            int index = -1;
-            for (int i = 0; i < current.Count; i++)
+            while (true)
             {
-                if (string.Equals(current[i], triggeringName,
-                    StringComparison.Ordinal))
+                IReadOnlyList<string> current = Volatile.Read(
+                    ref m_desiredTriggeredByNames);
+                int index = -1;
+                for (int i = 0; i < current.Count; i++)
                 {
-                    index = i;
-                    break;
+                    if (string.Equals(current[i], triggeringName,
+                        StringComparison.Ordinal))
+                    {
+                        index = i;
+                        break;
+                    }
                 }
-            }
-            if (index < 0)
-            {
-                return false;
-            }
-            if (current.Count == 1)
-            {
-                Volatile.Write(ref m_desiredTriggeredByNames,
-                    Array.Empty<string>());
-                return true;
-            }
-            var updated = new string[current.Count - 1];
-            int dst = 0;
-            for (int i = 0; i < current.Count; i++)
-            {
-                if (i == index)
+                if (index < 0)
                 {
-                    continue;
+                    return false;
                 }
-                updated[dst++] = current[i];
+                IReadOnlyList<string> updated;
+                if (current.Count == 1)
+                {
+                    updated = Array.Empty<string>();
+                }
+                else
+                {
+                    var arr = new string[current.Count - 1];
+                    int dst = 0;
+                    for (int i = 0; i < current.Count; i++)
+                    {
+                        if (i == index)
+                        {
+                            continue;
+                        }
+                        arr[dst++] = current[i];
+                    }
+                    updated = arr;
+                }
+                if (ReferenceEquals(
+                        Interlocked.CompareExchange(
+                            ref m_desiredTriggeredByNames, updated, current),
+                        current))
+                {
+                    return true;
+                }
+                // Lost the race — re-read and retry.
             }
-            Volatile.Write(ref m_desiredTriggeredByNames, updated);
-            return true;
         }
 
         /// <summary>
@@ -218,8 +244,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// supplied set. Names are validated (reject null / empty /
         /// whitespace via <see cref="ArgumentException"/>) and
         /// de-duplicated with an ordinal-case-sensitive comparer;
-        /// insertion order is preserved. Caller must hold the manager
-        /// lock; see <see cref="AddDesiredTriggeredBy"/>.
+        /// insertion order is preserved. Intended for whole-collection
+        /// replace scenarios (initial construction, snapshot apply);
+        /// concurrent callers should use
+        /// <see cref="AddDesiredTriggeredBy"/> /
+        /// <see cref="RemoveDesiredTriggeredBy"/> instead to avoid
+        /// last-writer-wins clobber semantics.
         /// </summary>
         internal void SetDesiredTriggeredByNames(IEnumerable<string>? names)
         {
