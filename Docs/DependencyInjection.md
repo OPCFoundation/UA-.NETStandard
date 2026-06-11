@@ -575,6 +575,21 @@ for details on identity, retry policy, HTTPS request resilience, and the
 shared retry budget between channel-manager reconnect and
 `ManagedSession`'s outer `IReconnectPolicy`.
 
+> **Security trade-off — OPC UA TLS validation vs the DI HttpClient pipeline.**
+> When an OPC UA `CertificateValidator` is configured for a channel
+> (the normal case for any non-`SecurityPolicies.None` HTTPS profile),
+> `HttpsTransportChannel` always takes the direct construction path so
+> the OPC UA trust list, OPC UA mutual TLS, the redirect lock, and the
+> message-size quotas are guaranteed. The named `Opc.Ua.Client`
+> HttpClient pipeline (Polly resilience handler, etc.) is **not**
+> applied to those channels and the channel emits a one-time
+> `LogWarning` to make the bypass visible. To use both the Polly
+> resilience handler AND OPC UA cert validation on the same channel,
+> register the named client with a `ConfigurePrimaryHttpMessageHandler`
+> that wires the OPC UA `ServerCertificateCustomValidationCallback` and
+> the OPC UA application instance certificate yourself. See
+> [Sessions and reconnect § HTTPS factory + OPC UA cert validation: secure-by-default fallback](Sessions.md#https-factory--opc-ua-cert-validation-secure-by-default-fallback).
+
 To override the default channel manager (e.g. to inject a custom
 `IChannelReconnectPolicy`):
 
