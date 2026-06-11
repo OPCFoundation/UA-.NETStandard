@@ -92,8 +92,14 @@
        reference. CodeFixer + Generator cannot be ProjectReferences here (the former
        back-references this analyzer for shared DiagnosticIds, which creates a NuGet
        restore cycle; the latter has no compile dependency so a ProjectReference is
-       unneeded); we invoke their builds via MSBuild tasks instead. -->
-  <Target Name="_BuildShimAllTfmsBeforePack" BeforeTargets="GenerateNuspec">
+       unneeded); we invoke their builds via MSBuild tasks instead.
+
+       Skip when NoBuild=true (i.e. `dotnet pack` with the no-build switch): in
+       that flow the caller has already built every TFM via a prior `dotnet build`
+       step on the containing solution (all four MigrationAnalyzer projects ship
+       in UA.slnx and UA Core Library.slnx), so the shim outputs already exist on
+       disk. Invoking Build under NoBuild=true would error NETSDK1085. -->
+  <Target Name="_BuildShimAllTfmsBeforePack" BeforeTargets="GenerateNuspec" Condition="'$(NoBuild)' != 'true'">
     <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
              Targets="Build"
              Properties="Configuration=$(Configuration)"
