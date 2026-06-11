@@ -309,12 +309,13 @@ namespace Opc.Ua
                 return false;
             }
 
-            return CertificateIdentifierMatches(applicationCertificate, evt);
+            return CertificateIdentifierMatches(applicationCertificate, evt, m_host.Logger);
         }
 
         private static bool CertificateIdentifierMatches(
             CertificateIdentifier applicationCertificate,
-            CertificateChangeEvent evt)
+            CertificateChangeEvent evt,
+            ILogger? logger)
         {
             if (!string.IsNullOrEmpty(applicationCertificate.Thumbprint))
             {
@@ -328,7 +329,31 @@ namespace Opc.Ua
                     CertificateRawDataMatches(applicationCertificate.RawData, evt.NewCertificate);
             }
 
-            return true;
+            if (!string.IsNullOrEmpty(applicationCertificate.SubjectName))
+            {
+                return CertificateSubjectMatches(applicationCertificate.SubjectName, evt.OldCertificate) ||
+                    CertificateSubjectMatches(applicationCertificate.SubjectName, evt.NewCertificate);
+            }
+
+            // No identity field configured at all — refuse to claim the
+            // rotation event. Returning true here would let any unrelated
+            // application's certificate update be adopted as our own (in
+            // shared-CertificateManager scenarios). The application MUST
+            // declare its identity via at least one of Thumbprint /
+            // RawData / SubjectName for cert rotation to apply.
+            logger?.LogWarning(
+                "ClientChannelManager: ApplicationCertificate has no Thumbprint, RawData, " +
+                "or SubjectName configured. Ignoring CertificateChangeEvent because the " +
+                "rotated certificate cannot be matched to this application's identity. " +
+                "Configure ApplicationCertificate.SubjectName (at minimum) to enable " +
+                "secure cert-rotation adoption.");
+            return false;
+        }
+
+        private static bool CertificateSubjectMatches(string subjectName, Certificate? certificate)
+        {
+            return certificate != null &&
+                X509Utils.CompareDistinguishedName(subjectName, certificate.Subject);
         }
 
         private static bool CertificateThumbprintMatches(string thumbprint, Certificate? certificate)
