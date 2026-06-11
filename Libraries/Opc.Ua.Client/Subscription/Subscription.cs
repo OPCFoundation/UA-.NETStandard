@@ -259,27 +259,38 @@ namespace Opc.Ua.Client.Subscriptions
             // turn into one SetTriggering RPC.
             var tcs = new TaskCompletionSource<SetTriggeringResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            m_monitoredItems.EnqueueTriggeringOperation(new MonitoredItems
-                .MonitoredItemManager.TriggeringOperation(
-                    triggeringItem, add, remove, tcs));
+            var op = new MonitoredItems.MonitoredItemManager.TriggeringOperation(
+                triggeringItem, add, remove, tcs);
+            m_monitoredItems.EnqueueTriggeringOperation(op);
             // Wake the state manager so the operations queue gets
             // drained on the next ApplyChangesAsync pass.
             m_stateControl.Set();
-            // Cancellation semantics: aborting the await only stops the
-            // caller from observing the eventual result. The queued
-            // operation remains in flight and may still execute and
-            // mutate server-side state — desired-state was already
-            // updated synchronously by ValidateBelongsAndUpdateDesired
-            // above, and that intent stands regardless of the awaiter's
-            // cancellation. The token is captured in the closure and
-            // passed to TrySetCanceled for correct cancellation
-            // metadata on the propagated exception (the
+            // Cancellation semantics (best-effort): aborting the await
+            // stops the caller from observing the eventual result AND
+            // marks the queued operation as cancelled so the next
+            // ApplyTriggeringOperationsAsync pass will skip it (no
+            // server-side SetTriggering request issued for this op).
+            // Two important caveats:
+            //  1. If the apply pass has already dispatched the RPC for
+            //     this op's group, the server-side mutation cannot be
+            //     undone — the cancel is best-effort only.
+            //  2. Desired-state mutations performed synchronously by
+            //     ValidateBelongsAndUpdateDesired stand regardless of
+            //     cancellation; to revert local intent the caller must
+            //     issue an explicit opposing SetTriggeringAsync (or
+            //     change MonitoredItemOptions.TriggeredByNames).
+            // The token is captured in the closure and passed to
+            // TrySetCanceled for correct cancellation metadata on the
+            // propagated exception (the
             // Register(Action<object?, CancellationToken>, object?)
             // overload was only added in .NET 5 and is unavailable on
             // net48/net472/netstandard2.1, so the closure capture is
             // the only portable form).
-            using CancellationTokenRegistration reg = ct.Register(
-                () => tcs.TrySetCanceled(ct));
+            using CancellationTokenRegistration reg = ct.Register(() =>
+            {
+                op.MarkCancelled();
+                tcs.TrySetCanceled(ct);
+            });
             return await tcs.Task.ConfigureAwait(false);
         }
 

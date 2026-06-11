@@ -854,6 +854,28 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TaskCompletionSource<SetTriggeringResult>? Completion = null)
         {
             internal int RetryCount;
+
+            /// <summary>
+            /// Cancellation flag set by the imperative API's
+            /// <see cref="CancellationToken"/> registration when the
+            /// caller cancels. Read by
+            /// <see cref="ApplyTriggeringOperationsAsync"/> after
+            /// draining the queue to skip the op (and its contribution
+            /// to per-edge folding) on a best-effort basis. Set via
+            /// <see cref="Interlocked.Exchange(ref int, int)"/> so the
+            /// read in the apply pass is memory-ordered without
+            /// requiring an external lock. Once the apply pass has
+            /// already dispatched the RPC for this op's group, setting
+            /// this flag has no effect — the server-side state
+            /// mutation cannot be cancelled.
+            /// </summary>
+            internal int Cancelled;
+
+            internal bool IsCancelled
+                => Volatile.Read(ref Cancelled) != 0;
+
+            internal void MarkCancelled()
+                => Interlocked.Exchange(ref Cancelled, 1);
         }
 
         /// <summary>
@@ -1228,6 +1250,27 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 drained.Add(op);
             }
+            if (drained.Count == 0)
+            {
+                return false;
+            }
+
+            // Best-effort cancellation: drop ops whose imperative
+            // caller has cancelled their CancellationToken via
+            // Subscription.SetTriggeringAsync. The op's TCS is already
+            // in the cancelled state (the registration callback set it
+            // before MarkCancelled returned), so we don't have to
+            // notify anyone here — just exclude them from per-edge
+            // folding and from the merged RPC. Once an op is filtered
+            // out, the desired-state mutations performed synchronously
+            // by ValidateBelongsAndUpdateDesired stay (matches the
+            // documented semantic that local intent stands across
+            // cancellation; the caller reverts via an explicit
+            // opposing call). Race window: an op whose group has
+            // already begun its RPC dispatch cannot be cancelled here
+            // — by that point we are inside the awaited
+            // SetTriggeringAsync call below.
+            drained.RemoveAll(o => o.IsCancelled);
             if (drained.Count == 0)
             {
                 return false;

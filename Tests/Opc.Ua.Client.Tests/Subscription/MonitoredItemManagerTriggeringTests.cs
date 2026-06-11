@@ -536,6 +536,140 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(capturedRemove, Is.EquivalentTo(new[] { x.ServerId }));
         }
 
+        // Cancellation (best-effort skip) ------------------------------
+
+        [Test]
+        public async Task CancellationBeforeApplyPassSkipsServerRpcAsync()
+        {
+            // Arrange: enqueue an op via the engine entry point that
+            // Subscription.SetTriggeringAsync uses, mark it cancelled
+            // *before* invoking the apply pass, then verify the RPC is
+            // never issued and the TCS surfaces cancellation.
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", serverId: 101);
+
+            var tcs = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var op = new MonitoredItemManager.TriggeringOperation(
+                trig,
+                new IMonitoredItem[] { tgt },
+                Array.Empty<IMonitoredItem>(), tcs);
+            m_sut.EnqueueTriggeringOperation(op);
+
+            // Simulate Subscription.SetTriggeringAsync's cancellation
+            // registration: mark the op cancelled + complete the TCS.
+            op.MarkCancelled();
+            tcs.TrySetCanceled(new CancellationToken(canceled: true));
+
+            // Act
+            bool any = await m_sut.ApplyTriggeringOperationsAsync(default)
+                .ConfigureAwait(false);
+
+            // Assert: no RPC issued; TCS is in cancelled state.
+            Assert.That(any, Is.False, "cancelled-only batch should not apply");
+            Assert.That(tcs.Task.IsCanceled, Is.True);
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task CancellationDoesNotChangeDesiredStateAsync()
+        {
+            // Arrange: walk through the imperative-API sequence —
+            // ValidateBelongsAndUpdateDesired mutates desired-state
+            // synchronously, then we enqueue, then cancel. Assert the
+            // desired-state mutation STANDS across cancellation
+            // (documented best-effort contract: server RPC may be
+            // skipped but local intent is not auto-rolled-back).
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", serverId: 101);
+
+            m_sut.ValidateBelongsAndUpdateDesired(
+                trig,
+                new IMonitoredItem[] { tgt },
+                Array.Empty<IMonitoredItem>());
+            Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
+
+            var tcs = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var op = new MonitoredItemManager.TriggeringOperation(
+                trig,
+                new IMonitoredItem[] { tgt },
+                Array.Empty<IMonitoredItem>(), tcs);
+            m_sut.EnqueueTriggeringOperation(op);
+            op.MarkCancelled();
+            tcs.TrySetCanceled(new CancellationToken(canceled: true));
+
+            // Act
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+
+            // Assert: desired-state still reflects the original intent.
+            Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
+        }
+
+        [Test]
+        public async Task MixedCancellationPreservesNonCancelledOpsAsync()
+        {
+            // Arrange: two ops against the same triggering item with
+            // disjoint triggered edges. Cancel ONE; assert the other's
+            // edge still reaches the server.
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt1 = AddCreatedItem("tgt1", serverId: 101);
+            TestMonitoredItem tgt2 = AddCreatedItem("tgt2", serverId: 102);
+
+            HashSet<uint>? capturedAdd = null;
+            m_monitoredItemServices.Setup(s => s.SetTriggeringAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader?, uint, uint, ArrayOf<uint>, ArrayOf<uint>,
+                    CancellationToken>(
+                    (h, subId, trigId, adds, rems, c) =>
+                        capturedAdd = [..(adds.ToArray() ?? [])])
+                .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
+                    ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken c) =>
+                    new SetTriggeringResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        AddResults = Enumerable.Repeat(
+                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                        RemoveResults = Enumerable.Repeat(
+                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                    });
+
+            var tcs1 = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var op1 = new MonitoredItemManager.TriggeringOperation(
+                trig,
+                new IMonitoredItem[] { tgt1 },
+                Array.Empty<IMonitoredItem>(), tcs1);
+            m_sut.EnqueueTriggeringOperation(op1);
+
+            var tcs2 = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var op2 = new MonitoredItemManager.TriggeringOperation(
+                trig,
+                new IMonitoredItem[] { tgt2 },
+                Array.Empty<IMonitoredItem>(), tcs2);
+            m_sut.EnqueueTriggeringOperation(op2);
+
+            // Cancel only the first op.
+            op1.MarkCancelled();
+            tcs1.TrySetCanceled(new CancellationToken(canceled: true));
+
+            // Act
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+
+            // Assert: only tgt2's edge was issued to the server; tgt1
+            // was dropped (op1 was cancelled). op2's TCS completed
+            // with success.
+            Assert.That(capturedAdd, Is.EquivalentTo(new[] { tgt2.ServerId }));
+            Assert.That(tcs1.Task.IsCanceled, Is.True);
+            Assert.That(tcs2.Task.IsCompletedSuccessfully, Is.True);
+        }
+
         // Helpers -------------------------------------------------------
 
         private TestMonitoredItem AddCreatedItem(string name, uint serverId)

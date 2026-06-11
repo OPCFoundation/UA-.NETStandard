@@ -204,23 +204,26 @@ Unknown names throw `ArgumentException` synchronously.
 
 ### Cancellation semantics
 
-The `CancellationToken` passed to `SetTriggeringAsync` controls *only the await*. It does **not** cancel the queued operation:
+The `CancellationToken` passed to `SetTriggeringAsync` controls the await **and** marks the queued operation as cancelled on a best-effort basis:
 
 - Cancelling the token **aborts the await** and surfaces an `OperationCanceledException` to the caller.
+- The engine attempts to **skip the queued operation on the next apply pass**. If cancellation fires before the apply pass picks the op off the queue, the server-side `SetTriggering` request is NOT issued for this op.
+- This is **best effort only**: if the apply pass has already begun dispatching the RPC for the op's group, the server-side mutation cannot be cancelled — the in-flight RPC completes regardless.
 - The desired-state mutations performed synchronously by the engine before the await (the updates that make `IMonitoredItem.TriggeringItems` / `IMonitoredItem.TriggeredItems` and any subsequent snapshot reflect the new topology) **already happened** when `SetTriggeringAsync` returned its `ValueTask`. They stand regardless of cancellation.
-- The queued operation **still runs on the next apply pass** and may still issue a `SetTriggering` request against the server, mutating server state.
-- Therefore cancellation cannot be used to "undo" or "prevent" a `SetTriggering` call. To revert intent, the caller must explicitly issue an opposing `SetTriggeringAsync` (or change the declarative `MonitoredItemOptions.TriggeredByNames`).
+- To revert local intent, the caller must explicitly issue an opposing `SetTriggeringAsync` (or change the declarative `MonitoredItemOptions.TriggeredByNames`).
 
 > [!WARNING]
-> Cancelling the `CancellationToken` does NOT cancel the server-side `SetTriggering` call; the queued operation still runs and may still mutate server state.
+> Cancelling the `CancellationToken` **cannot guarantee** the server-side `SetTriggering` call is skipped — it is best-effort; an op that has already begun its server request will still complete server-side, and local desired-state is never rolled back automatically.
 
 ```csharp
 // Original intent: when "trig" fires, also report "sensor1" and "sensor2".
 await sub.SetTriggeringAsync("trig", "sensor1", "sensor2");
 
-// To undo, issue an opposing call with the items in `remove` —
-// passing the same cancellation token to the first call would NOT
-// have prevented the link.
+// To undo, issue an opposing call with the items in `remove`. Note that
+// even if the first call's cancellation token had fired, the server
+// might still have applied the link (race with the apply pass) and the
+// local desired-state intent would have stood — so an explicit opposing
+// call is the only reliable revert path.
 await sub.SetTriggeringAsync(
     "trig",
     add: null,

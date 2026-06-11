@@ -155,13 +155,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// <paramref name="triggeringItem"/> should be removed.
         /// </param>
         /// <param name="ct">
-        /// Cancellation token observed only by the awaiter — aborting
-        /// it abandons the wait but does not cancel the underlying
-        /// queued operation, which may still execute and apply on the
-        /// server. Desired-state mutations performed synchronously by
-        /// this call (see <see cref="IMonitoredItem.TriggeringItems"/>
-        /// and <see cref="IMonitoredItem.TriggeredItems"/>) persist
-        /// regardless of cancellation.
+        /// Cancellation token. Aborting the token surfaces an
+        /// <see cref="OperationCanceledException"/> to the awaiter AND
+        /// marks the queued operation as cancelled on a best-effort
+        /// basis — if cancellation fires before the engine's apply
+        /// pass picks up the op, the server-side <c>SetTriggering</c>
+        /// request is NOT issued. Once the apply pass has begun
+        /// dispatching the RPC for this op's group, the server-side
+        /// mutation cannot be cancelled. Desired-state mutations
+        /// performed synchronously by this call (see
+        /// <see cref="IMonitoredItem.TriggeringItems"/> and
+        /// <see cref="IMonitoredItem.TriggeredItems"/>) persist
+        /// regardless of cancellation; the caller reverts local
+        /// intent by issuing an explicit opposing call.
         /// </param>
         /// <returns>
         /// A <see cref="SetTriggeringResult"/> with per-link statuses
