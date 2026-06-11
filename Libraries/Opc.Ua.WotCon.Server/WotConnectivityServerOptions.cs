@@ -61,7 +61,37 @@ namespace Opc.Ua.WotCon.Server
         /// Maximum size in bytes of a Thing Description file written via
         /// the OPC UA file primitives. Defaults to 1 MiB.
         /// </summary>
+        /// <remarks>
+        /// Enforced on both the write side (file primitives) and the read
+        /// side (<c>EnumeratePersistedAsync</c>): persisted files larger
+        /// than this limit are skipped with a warning at startup so an
+        /// adversarial persistence directory cannot wedge server startup
+        /// through memory exhaustion.
+        /// </remarks>
         public int MaxThingDescriptionSize { get; set; } = 1024 * 1024;
+
+        /// <summary>
+        /// Maximum number of persisted Thing Description files processed
+        /// from <see cref="ThingDescriptionStorageFolder"/> at startup
+        /// (defence-in-depth bound to keep startup time linear in a
+        /// known limit even when the folder grows unbounded). Defaults
+        /// to 10 000 — enough headroom for production deployments while
+        /// preventing a malicious or corrupted persistence directory
+        /// from wedging startup through CPU exhaustion. Files beyond the
+        /// limit are skipped with a single warning.
+        /// </summary>
+        public int MaxPersistedThingDescriptionFiles { get; set; } = 10_000;
+
+        /// <summary>
+        /// Maximum allowed JSON nesting depth for a persisted Thing
+        /// Description. Files exceeding this depth are skipped with a
+        /// warning rather than deserialized; this prevents
+        /// stack-overflow attacks via pathologically deep JSON.
+        /// Defaults to 64, which comfortably accommodates standard W3C
+        /// Thing Descriptions while staying well below the default .NET
+        /// recursion budget.
+        /// </summary>
+        public int MaxThingDescriptionJsonDepth { get; set; } = 64;
 
         /// <summary>
         /// Maximum number of concurrent open file handles per asset.

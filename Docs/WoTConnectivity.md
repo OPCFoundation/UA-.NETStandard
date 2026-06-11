@@ -187,7 +187,41 @@ under `WoTAssetConnectionManagement/<asset>`).
 
 ---
 
-## 4. Limitations and known issues
+## 4. Persistence limits
+
+The persisted-TD loader (`AssetRegistry.EnumeratePersistedAsync`) walks
+the configured `ThingDescriptionStorageFolder` and re-materialises every
+`*.jsonld` file at startup. The following options bound the work and
+the per-file resources so a corrupted or adversarial persistence
+directory cannot wedge startup through CPU/memory/stack exhaustion:
+
+| Option | Default | Effect |
+|---|---|---|
+| `MaxThingDescriptionSize` | `1 MiB` | Per-file size cap. Files larger than this are skipped at load time with a warning that names the file and reports the size. Also enforced on the write path via the OPC UA file primitives. |
+| `MaxPersistedThingDescriptionFiles` | `10 000` | Hard cap on the number of `*.jsonld` files processed per startup. When reached, the loader emits a single warning and stops; the server still comes up with the assets that *were* loaded. Set to `0` (or negative) to disable persistence loading entirely without removing the directory. |
+| `MaxThingDescriptionJsonDepth` | `64` | Maximum JSON nesting depth honoured by the `JsonSerializer.MaxDepth` bound. Comfortably accommodates standard W3C Thing Descriptions while staying well below the default .NET recursion budget. Files that exceed the depth are skipped with a warning (the loader does **not** throw). |
+
+Bumping the defaults is appropriate for controlled environments that
+have audited the source of the persisted files; for example:
+
+```csharp
+var options = new WotConnectivityServerOptions
+{
+    ThingDescriptionStorageFolder = "/var/lib/myapp/wot",
+    MaxThingDescriptionSize = 4 * 1024 * 1024,        // 4 MiB
+    MaxPersistedThingDescriptionFiles = 50_000,       // ~50k assets
+    MaxThingDescriptionJsonDepth = 128                // headroom for deeper TDs
+};
+```
+
+`OperationCanceledException` is propagated unmodified — cancelling the
+startup token cancels the enumeration without losing the cancellation
+type. `JsonException` and `IOException` are caught and surfaced as
+per-file warnings; no other exception type is silently swallowed.
+
+---
+
+## 5. Limitations and known issues
 
 * WoT action input/output mapping handles the flat `type:object` shape
   illustrated by Spec §6.3.9 (a `properties` bag with scalar / array
@@ -205,7 +239,7 @@ under `WoTAssetConnectionManagement/<asset>`).
 
 ---
 
-## 5. References
+## 6. References
 
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/

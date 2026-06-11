@@ -791,9 +791,38 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 yield break;
             }
+
+            int fileLimit = Math.Max(0, m_options.MaxPersistedThingDescriptionFiles);
+            int sizeLimit = m_options.MaxThingDescriptionSize;
+            ThingDescriptionJsonContext jsonContext = GetBoundedJsonContext();
+
+            // A non-positive file limit acts as an explicit kill switch:
+            // operators can drop the directory-load behaviour without
+            // removing the folder by setting the option to 0.
+            if (fileLimit == 0 && m_options.MaxPersistedThingDescriptionFiles <= 0)
+            {
+                m_logger.LogInformation(
+                    "MaxPersistedThingDescriptionFiles is {Limit}; " +
+                    "no persisted TDs will be loaded from {Folder}.",
+                    m_options.MaxPersistedThingDescriptionFiles, folder);
+                yield break;
+            }
+
+            int processed = 0;
             foreach (string file in Directory.EnumerateFiles(folder, "*.jsonld"))
             {
                 ct.ThrowIfCancellationRequested();
+
+                if (processed >= fileLimit)
+                {
+                    m_logger.LogWarning(
+                        "Reached MaxPersistedThingDescriptionFiles ({Limit}); " +
+                        "skipping the remaining persisted TDs in {Folder}.",
+                        fileLimit, folder);
+                    yield break;
+                }
+                processed++;
+
                 string name = Path.GetFileNameWithoutExtension(file);
                 if (ServiceResult.IsBad(WotAssetNameValidator.Validate(name)))
                 {
@@ -802,18 +831,55 @@ namespace Opc.Ua.WotCon.Server.Assets
                         file);
                     continue;
                 }
+
+                long size;
+                try
+                {
+                    size = new FileInfo(file).Length;
+                }
+                catch (IOException ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Skipping persisted TD {File}: file metadata could not be read.",
+                        file);
+                    continue;
+                }
+                if (sizeLimit > 0 && size > sizeLimit)
+                {
+                    m_logger.LogWarning(
+                        "Skipping persisted TD {File}: size {Bytes} exceeds " +
+                        "MaxThingDescriptionSize ({Limit}).",
+                        file, size, sizeLimit);
+                    continue;
+                }
+
                 ThingDescription? td;
                 try
                 {
                     using FileStream stream = File.OpenRead(file);
                     td = await JsonSerializer.DeserializeAsync(
                         stream,
-                        ThingDescriptionJsonContext.Default.ThingDescription,
+                        jsonContext.ThingDescription,
                         ct).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException)
                 {
-                    m_logger.LogWarning(ex, "Failed to load persisted TD {File}", file);
+                    throw;
+                }
+                catch (JsonException ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Skipping persisted TD {File}: JSON deserialization failed " +
+                        "(likely exceeds MaxThingDescriptionJsonDepth={Depth} or " +
+                        "is otherwise malformed).",
+                        file, m_options.MaxThingDescriptionJsonDepth);
+                    continue;
+                }
+                catch (IOException ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Skipping persisted TD {File}: I/O failure while reading.",
+                        file);
                     continue;
                 }
                 if (td != null)
@@ -821,6 +887,30 @@ namespace Opc.Ua.WotCon.Server.Assets
                     yield return (name, td);
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns a <see cref="ThingDescriptionJsonContext"/> wired to a
+        /// <see cref="JsonSerializerOptions"/> instance that enforces
+        /// <see cref="WotConnectivityServerOptions.MaxThingDescriptionJsonDepth"/>.
+        /// Falls back to the cached singleton context when the configured
+        /// depth equals the global default so the hot-path startup case
+        /// (no override) does not allocate a fresh context per call.
+        /// </summary>
+        private ThingDescriptionJsonContext GetBoundedJsonContext()
+        {
+            int depth = m_options.MaxThingDescriptionJsonDepth;
+            if (depth <= 0 ||
+                depth == ThingDescriptionJsonContext.Default.Options.MaxDepth)
+            {
+                return ThingDescriptionJsonContext.Default;
+            }
+            var options = new JsonSerializerOptions(
+                ThingDescriptionJsonContext.Default.Options)
+            {
+                MaxDepth = depth
+            };
+            return new ThingDescriptionJsonContext(options);
         }
 
         /// <summary>
