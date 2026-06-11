@@ -558,6 +558,49 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             return (TestMonitoredItem)item!;
         }
 
+        private static TestMonitoredItem AddCreatedItemOn(
+            MonitoredItemManager sut, string name, uint serverId)
+        {
+            sut.TryAdd(name, OptionsFactory.Create(new MonitoredItemOptions
+            {
+                StartNodeId = new NodeId(name, 0)
+            }), out IMonitoredItem? item);
+            var concrete = (TestMonitoredItem)item!;
+            concrete.SetServerIdForTest(serverId);
+            return concrete;
+        }
+
+        /// <summary>
+        /// Build an isolated MonitoredItemManager whose logger calls
+        /// are recorded into a returned <see cref="CapturingLoggerProvider"/>.
+        /// Used by the cap-bug regression tests so they can both
+        /// assert on the warning that fires when
+        /// <see cref="MonitoredItemManager.MaxPendingTriggeringEntries"/>
+        /// is reached, and avoid polluting the shared SetUp-built SUT.
+        /// </summary>
+        private (MonitoredItemManager Sut, FakeMonitoredItemManagerContext Context,
+            CapturingLoggerProvider Logs)
+            CreateSutWithCapturingLogger()
+        {
+            var capture = new CapturingLoggerProvider();
+            ITelemetryContext telemetry = new CapturingTelemetryContext(capture);
+            var monitoredItemServices =
+                new Mock<IMonitoredItemServiceSetClientMethods>();
+            var methodServices = new Mock<IMethodServiceSetClientMethods>();
+            var context = new FakeMonitoredItemManagerContext
+            {
+                Id = 9,
+                MonitoredItemServiceSet = monitoredItemServices.Object,
+                MethodServiceSet = methodServices.Object,
+                CreateMonitoredItemFactory = (n, opts, ctx) =>
+                    new TestMonitoredItem(ctx, n,
+                        (OptionsMonitor<MonitoredItemOptions>)opts,
+                        telemetry.CreateLogger("TestMonitoredItem"))
+            };
+            var sut = new MonitoredItemManager(context, telemetry);
+            return (sut, context, capture);
+        }
+
         private void ExpectSetTriggering(uint expectedTrigId,
             uint[] expectedAdd, uint[] expectedRemove,
             StatusCode[] addResults, StatusCode[] removeResults)
@@ -884,6 +927,107 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             m_sut.EnqueueTriggeringDelta(tgt, Array.Empty<string>(),
                 Array.Empty<string>());
             // No assertion needed — call must not throw.
+        }
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaPendingCapEnforcedAcrossOneTriggerNameAndFoldPreservesCountAsync()
+        {
+            // Regression for the cap-bug where the
+            // m_pendingTriggeringCount check inside
+            // AddPendingTriggeringEntry only fired on the new-outer-key
+            // path, letting subsequent inserts under an EXISTING outer
+            // key grow the per-triggering-name inner dict unbounded
+            // past MaxPendingTriggeringEntries. This test piles
+            // (cap + 5) distinct triggered items under ONE unresolved
+            // triggering name and asserts the manager refuses entries
+            // beyond the cap, emits the warning, and continues to
+            // fold (last-intent-wins) overwrites of already-tracked
+            // (triggering, triggered) pairs without bumping the count.
+            (MonitoredItemManager sut, _, CapturingLoggerProvider logs)
+                = CreateSutWithCapturingLogger();
+            await using (sut.ConfigureAwait(false))
+            {
+                const int Cap = MonitoredItemManager.MaxPendingTriggeringEntries;
+                const int Overflow = 5;
+                var triggered = new TestMonitoredItem[Cap + Overflow];
+                for (int i = 0; i < triggered.Length; i++)
+                {
+                    string name = "tgt" + i;
+                    sut.TryAdd(name,
+                        OptionsFactory.Create(new MonitoredItemOptions
+                        {
+                            StartNodeId = new NodeId(name, 0)
+                        }), out IMonitoredItem? item);
+                    triggered[i] = (TestMonitoredItem)item!;
+                    triggered[i].SetServerIdForTest((uint)(200 + i));
+                    // All distinct pairs share the same unresolved
+                    // triggering name "ghostTrigger" — exercises the
+                    // existing-outer-key insertion path that the buggy
+                    // code skipped past the cap check.
+                    sut.EnqueueTriggeringDelta(triggered[i],
+                        addedTriggeringNames: new[] { "ghostTrigger" },
+                        removedTriggeringNames: Array.Empty<string>());
+                    Assert.That(sut.PendingTriggeringEntryCount,
+                        Is.LessThanOrEqualTo(Cap),
+                        $"after enqueue #{i + 1} the count must never exceed cap");
+                }
+
+                Assert.That(sut.PendingTriggeringEntryCount, Is.EqualTo(Cap),
+                    "exactly cap entries should be retained");
+                Assert.That(
+                    logs.Entries.Count(e =>
+                        e.Level == LogLevel.Warning &&
+                        e.Message.Contains(
+                            "Pending triggering-name dictionary is full",
+                            StringComparison.Ordinal)),
+                    Is.GreaterThanOrEqualTo(1),
+                    "cap-hit warning must have been emitted at least once");
+
+                // Fold semantic: re-enqueueing an ALREADY-pending
+                // (ghostTrigger, triggered[0]) pair with the opposite
+                // isAdd value must succeed and must NOT bump the count
+                // (the pair is overwritten, not re-counted).
+                int beforeFold = sut.PendingTriggeringEntryCount;
+                sut.EnqueueTriggeringDelta(triggered[0],
+                    addedTriggeringNames: Array.Empty<string>(),
+                    removedTriggeringNames: new[] { "ghostTrigger" });
+                Assert.That(sut.PendingTriggeringEntryCount, Is.EqualTo(beforeFold),
+                    "folding an existing pair must not bump the count");
+            }
+        }
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaPendingCapEnforcedAcrossManyTriggerNamesAsync()
+        {
+            // Regression coverage for the path the original
+            // implementation DID exercise: cap + 1 distinct outer
+            // (triggering name) keys each carrying one triggered item.
+            // Locks down the "new outer key" branch so a future
+            // refactor cannot drop the cap check from the path the
+            // original code actually covered.
+            (MonitoredItemManager sut, _, CapturingLoggerProvider logs)
+                = CreateSutWithCapturingLogger();
+            await using (sut.ConfigureAwait(false))
+            {
+                const int Cap = MonitoredItemManager.MaxPendingTriggeringEntries;
+                TestMonitoredItem tgt = AddCreatedItemOn(sut, "tgt", 101);
+                for (int i = 0; i < Cap + 1; i++)
+                {
+                    sut.EnqueueTriggeringDelta(tgt,
+                        addedTriggeringNames: new[] { "ghostTrig" + i },
+                        removedTriggeringNames: Array.Empty<string>());
+                }
+                Assert.That(sut.PendingTriggeringEntryCount, Is.EqualTo(Cap),
+                    "exactly cap entries should be retained across distinct trigger names");
+                Assert.That(
+                    logs.Entries.Count(e =>
+                        e.Level == LogLevel.Warning &&
+                        e.Message.Contains(
+                            "Pending triggering-name dictionary is full",
+                            StringComparison.Ordinal)),
+                    Is.GreaterThanOrEqualTo(1),
+                    "cap-hit warning must have been emitted at least once");
+            }
         }
 
         [Test]
@@ -1243,6 +1387,78 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             m_monitoredItemServices.VerifyAll();
+        }
+
+        /// <summary>
+        /// Minimal <see cref="ILoggerProvider"/> + <see cref="ILogger"/>
+        /// implementation that records every <see cref="Log"/> call so
+        /// the cap-bug regression tests can verify a
+        /// <see cref="LogLevel.Warning"/> was emitted with the expected
+        /// substring. Single instance is returned for every category
+        /// to avoid per-category bookkeeping.
+        /// </summary>
+        private sealed class CapturingLoggerProvider : ILoggerProvider, ILogger
+        {
+            public IReadOnlyList<(LogLevel Level, string Message)> Entries
+            {
+                get
+                {
+                    lock (m_entries)
+                    {
+                        return [.. m_entries];
+                    }
+                }
+            }
+
+            public ILogger CreateLogger(string categoryName) => this;
+
+            public void Dispose()
+            {
+            }
+
+            public IDisposable BeginScope<TState>(TState state) where TState : notnull
+            {
+                return s_nullScope;
+            }
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+                Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                lock (m_entries)
+                {
+                    m_entries.Add((logLevel, formatter(state, exception)));
+                }
+            }
+
+            private readonly List<(LogLevel, string)> m_entries = [];
+
+            private sealed class NullScope : IDisposable
+            {
+                public void Dispose()
+                {
+                }
+            }
+
+            private static readonly IDisposable s_nullScope = new NullScope();
+        }
+
+        /// <summary>
+        /// <see cref="ITelemetryContext"/> wrapper that funnels every
+        /// <c>CreateLogger</c> call to the supplied
+        /// <see cref="CapturingLoggerProvider"/>. Used only by the
+        /// cap-bug regression tests.
+        /// </summary>
+        private sealed class CapturingTelemetryContext : TelemetryContextBase
+        {
+#pragma warning disable CA2000 // ownership transfers to base via the ILoggerFactory it holds for the lifetime of the test fixture
+            public CapturingTelemetryContext(CapturingLoggerProvider provider)
+                : base(Microsoft.Extensions.Logging.LoggerFactory.Create(
+                    builder => builder.AddProvider(provider)))
+            {
+            }
+#pragma warning restore CA2000
         }
 
         private ITelemetryContext m_telemetry = null!;

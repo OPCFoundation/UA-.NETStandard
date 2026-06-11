@@ -957,6 +957,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             m_triggeringOps.Enqueue(op ?? throw new ArgumentNullException(nameof(op)));
         }
 
+        /// <summary>
+        /// Test-only snapshot of the number of folded
+        /// <c>(triggeringName, triggeredItem)</c> pairs currently
+        /// tracked in <c>m_pendingByTriggeringName</c>. Used to verify
+        /// that <see cref="MaxPendingTriggeringEntries"/> is enforced
+        /// across all insertion paths (including inserts under an
+        /// existing outer key).
+        /// </summary>
+        internal int PendingTriggeringEntryCount => m_pendingTriggeringCount;
+
         /// <inheritdoc/>
         public void EnqueueTriggeringDelta(
             IMonitoredItem triggeredItem,
@@ -1049,29 +1059,42 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private void AddPendingTriggeringEntry(
             string triggeringName, IMonitoredItem triggeredItem, bool isAdd)
         {
-            if (!m_pendingByTriggeringName.TryGetValue(
-                    triggeringName,
-                    out Dictionary<IMonitoredItem, bool>? entries))
+            // Determine whether this call would introduce a brand-new
+            // (triggeringName, triggeredItem) pair BEFORE touching any
+            // state. Three shapes count as new:
+            //   1. The outer name key is missing.
+            //   2. The outer key exists but the inner dict does not
+            //      yet contain the triggered item.
+            // Only the new-pair shape consumes a slot against the cap
+            // and bumps m_pendingTriggeringCount; an existing pair gets
+            // its isAdd value overwritten (last-intent-wins fold) with
+            // no cap check and no counter bump — preserving the
+            // intentional fold semantic for already-tracked edges.
+            bool hadOuter = m_pendingByTriggeringName.TryGetValue(
+                triggeringName,
+                out Dictionary<IMonitoredItem, bool>? entries);
+            bool isNew = !hadOuter || !entries!.ContainsKey(triggeredItem);
+            if (isNew &&
+                m_pendingTriggeringCount >= MaxPendingTriggeringEntries)
             {
-                if (m_pendingTriggeringCount >= MaxPendingTriggeringEntries)
-                {
-                    m_logger.LogWarning(
-                        "Pending triggering-name dictionary is full " +
-                        "({Cap} entries); dropping unresolved {Op} of " +
-                        "triggered '{Triggered}' under triggering " +
-                        "'{Triggering}'. Add the triggering item, remove " +
-                        "stale triggered items, or call " +
-                        "SetTriggeringAsync(IMonitoredItem,...) explicitly.",
-                        MaxPendingTriggeringEntries,
-                        isAdd ? "add" : "remove",
-                        triggeredItem.Name, triggeringName);
-                    return;
-                }
+                m_logger.LogWarning(
+                    "Pending triggering-name dictionary is full " +
+                    "({Cap} entries); dropping unresolved {Op} of " +
+                    "triggered '{Triggered}' under triggering " +
+                    "'{Triggering}'. Add the triggering item, remove " +
+                    "stale triggered items, or call " +
+                    "SetTriggeringAsync(IMonitoredItem,...) explicitly.",
+                    MaxPendingTriggeringEntries,
+                    isAdd ? "add" : "remove",
+                    triggeredItem.Name, triggeringName);
+                return;
+            }
+            if (!hadOuter)
+            {
                 entries = [];
                 m_pendingByTriggeringName.Add(triggeringName, entries);
             }
-            bool isNew = !entries.ContainsKey(triggeredItem);
-            entries[triggeredItem] = isAdd;
+            entries![triggeredItem] = isAdd;
             if (isNew)
             {
                 m_pendingTriggeringCount++;
@@ -1599,7 +1622,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <c>Bad_MonitoredItemIdInvalid</c> as a fallback).
         /// </summary>
         private const int MaxTriggeringRetryCount = 10;
-        private const int MaxPendingTriggeringEntries = 256;
+        // Internal (not private) so the regression test in
+        // MonitoredItemManagerTriggeringTests can compute "cap + N"
+        // without hard-coding 256 alongside the production constant.
+        internal const int MaxPendingTriggeringEntries = 256;
         private readonly ConcurrentQueue<TriggeringOperation> m_triggeringOps = new();
         // Pending unresolved declarative-path triggering deltas keyed by
         // triggering-item name; inner dictionary folds per triggered
