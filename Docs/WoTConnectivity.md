@@ -304,7 +304,37 @@ fire when the host portion of the URI itself is an IP literal.
 
 ---
 
-## 7. Limitations and known issues
+## 7. Error reporting
+
+`AssetRegistry` never propagates the raw `Exception.Message` /
+`StackTrace` / `GetType().Name` from a discovery or provider call to
+the remote OPC UA client. The returned `ServiceResult` carries only a
+mapped `StatusCode` and a generic operation name (e.g. `"DiscoverAssets
+failed."`, `"ConnectionTest failed."`, `"Asset property read failed."`).
+The full exception detail — including the inner `ex.Message`, the
+stack trace, and the asset / endpoint context — is logged via
+`ITelemetryContext`-derived `m_logger` at `LogError` (for control-plane
+operations) or `LogWarning` (for per-property / per-action data-plane
+operations).
+
+Exception → `StatusCode` mapping:
+
+| Exception type | Status |
+|---|---|
+| `NotSupportedException` | `Bad_NotSupported` |
+| `ArgumentException` | `Bad_InvalidArgument` |
+| `IOException` | `Bad_ResourceUnavailable` |
+| any other | `Bad_InternalError` (control plane) / `Bad_CommunicationError` (data plane) |
+| `OperationCanceledException` | **rethrown unchanged** — never mapped to a status code |
+
+Internal endpoint URIs, file-system paths, provider implementation
+details, and stack-trace fragments therefore never leak across the
+OPC UA wire. Operators retain the full diagnostic detail through
+the server log.
+
+---
+
+## 8. Limitations and known issues
 
 * WoT action input/output mapping handles the flat `type:object` shape
   illustrated by Spec §6.3.9 (a `properties` bag with scalar / array
@@ -322,7 +352,7 @@ fire when the host portion of the URI itself is an IP literal.
 
 ---
 
-## 8. References
+## 9. References
 
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/
