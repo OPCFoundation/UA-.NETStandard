@@ -46,10 +46,32 @@ namespace Opc.Ua.Mcp.Tools
     /// <summary>
     /// MCP tools for exporting OPC UA server address spaces to NodeSet2 XML format.
     /// </summary>
+    /// <remarks>
+    /// All export paths are resolved against and constrained to the
+    /// <see cref="ExportRoot"/> directory. The MCP server intentionally
+    /// refuses to write outside that root so a malicious or accidental
+    /// path (e.g. injected through the LLM tool argument) cannot
+    /// overwrite arbitrary files. The root defaults to
+    /// <c>{TEMP}/Opc.Ua.Mcp/exports</c> and can be overridden by setting
+    /// the <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable before the
+    /// server is started.
+    /// </remarks>
     [McpServerToolType]
     public sealed class NodeSetExportTools
     {
         private const int kMaxBrowseDepth = 128;
+
+        /// <summary>
+        /// Environment variable that overrides the default export root.
+        /// </summary>
+        public const string ExportRootEnvironmentVariable = "OPCUA_MCP_EXPORT_ROOT";
+
+        /// <summary>
+        /// The canonicalized base directory under which all NodeSet
+        /// exports must live. See remarks on
+        /// <see cref="NodeSetExportTools"/> for how it is selected.
+        /// </summary>
+        public static string ExportRoot => s_exportRoot.Value;
 
         /// <summary>
         /// Export the address space of a connected OPC UA server to NodeSet2 XML.
@@ -61,8 +83,10 @@ namespace Opc.Ua.Mcp.Tools
             "into other tools. Returns the file path and node count.")]
         public static async Task<string> ExportNodeSetAsync(
             OpcUaSessionManager sessionManager,
-            [Description("File path to write the NodeSet2 XML to (e.g. 'C:\\export\\server.xml'). " +
-                "Directory will be created if it doesn't exist.")] string filePath,
+            [Description("File path to write the NodeSet2 XML to. Relative paths are " +
+                "resolved under the export root (see ExportRoot / " +
+                "OPCUA_MCP_EXPORT_ROOT). Absolute paths must already be inside the " +
+                "export root or the call is rejected.")] string filePath,
             [Description("Starting node ID for the export (default: 'i=84' = Root). " +
                 "Use 'i=85' for Objects folder only.")] string startingNodeId = "i=84",
             [Description("Export mode: 'Default' (schema-only, no values) or 'Complete' " +
@@ -77,6 +101,8 @@ namespace Opc.Ua.Mcp.Tools
 
             try
             {
+                string resolvedFilePath = ResolveExportPath(filePath, nameof(filePath));
+
                 var stopwatch = Stopwatch.StartNew();
 
                 // Collect all nodes via NodeCache
@@ -90,14 +116,14 @@ namespace Opc.Ua.Mcp.Tools
                     : NodeSetExportOptions.Default;
 
                 // Ensure directory exists
-                string? directory = Path.GetDirectoryName(filePath);
+                string? directory = Path.GetDirectoryName(resolvedFilePath);
                 if (!string.IsNullOrEmpty(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
                 // Export
-                using var outputStream = new FileStream(filePath, FileMode.Create);
+                using var outputStream = new FileStream(resolvedFilePath, FileMode.Create);
                 var systemContext = new SystemContext(sessionManager.Telemetry)
                 {
                     NamespaceUris = session.NamespaceUris,
@@ -108,12 +134,12 @@ namespace Opc.Ua.Mcp.Tools
                     systemContext, nodes, outputStream, options);
 
                 stopwatch.Stop();
-                long fileSize = new FileInfo(filePath).Length;
+                long fileSize = new FileInfo(resolvedFilePath).Length;
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["success"] = true,
-                    ["filePath"] = filePath,
+                    ["filePath"] = resolvedFilePath,
                     ["nodeCount"] = nodes.Count,
                     ["fileSizeBytes"] = fileSize,
                     ["exportMode"] = exportMode,
@@ -146,7 +172,10 @@ namespace Opc.Ua.Mcp.Tools
             "namespace (ns=0) by default. Returns a list of exported files.")]
         public static async Task<string> ExportNodeSetPerNamespaceAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Output directory where NodeSet2 XML files will be created")] string outputDirectory,
+            [Description("Output directory where NodeSet2 XML files will be created. " +
+                "Relative paths are resolved under the export root (see ExportRoot / " +
+                "OPCUA_MCP_EXPORT_ROOT). Absolute paths must already be inside the " +
+                "export root or the call is rejected.")] string outputDirectory,
             [Description("Starting node ID (default: 'i=84' = Root)")] string startingNodeId = "i=84",
             [Description("Optional list of namespace URIs to include. If omitted, all non-base " +
                 "namespaces are exported.")] string[]? namespaceFilter = null,
@@ -158,6 +187,9 @@ namespace Opc.Ua.Mcp.Tools
 
             try
             {
+                string resolvedOutputDirectory = ResolveExportPath(
+                    outputDirectory, nameof(outputDirectory));
+
                 var stopwatch = Stopwatch.StartNew();
 
                 // Collect all nodes
@@ -170,7 +202,7 @@ namespace Opc.Ua.Mcp.Tools
                     ? NodeSetExportOptions.Complete
                     : NodeSetExportOptions.Default;
 
-                Directory.CreateDirectory(outputDirectory);
+                Directory.CreateDirectory(resolvedOutputDirectory);
 
                 // Build namespace filter set
                 HashSet<string>? targetSet = namespaceFilter is { Length: > 0 }
@@ -204,7 +236,7 @@ namespace Opc.Ua.Mcp.Tools
 
                     string? nsUri = session.NamespaceUris.GetString(kvp.Key);
                     string fileName = CreateSafeFileName(nsUri!, kvp.Key);
-                    string filePath = Path.Combine(outputDirectory, fileName);
+                    string filePath = Path.Combine(resolvedOutputDirectory, fileName);
 
                     using var outputStream = new FileStream(filePath, FileMode.Create);
                     var systemContext = new SystemContext(sessionManager.Telemetry)
@@ -365,5 +397,61 @@ namespace Opc.Ua.Mcp.Tools
 
             return $"{fileName}_ns{namespaceIndex}.xml";
         }
+
+        /// <summary>
+        /// Resolves a caller-supplied path and constrains it to
+        /// <see cref="ExportRoot"/>. Relative paths are combined under
+        /// the root; absolute paths are accepted only when they already
+        /// resolve inside the root. Both forms are canonicalized via
+        /// <see cref="Path.GetFullPath(string)"/> so directory-traversal
+        /// sequences (<c>..</c>) cannot escape.
+        /// </summary>
+        /// <param name="requestedPath">The path supplied by the MCP tool caller.</param>
+        /// <param name="parameterName">Tool parameter name used in error messages.</param>
+        /// <returns>An absolute path inside <see cref="ExportRoot"/>.</returns>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="requestedPath"/> is empty, white-space, or
+        /// resolves outside <see cref="ExportRoot"/>.
+        /// </exception>
+        private static string ResolveExportPath(string requestedPath, string parameterName)
+        {
+            if (string.IsNullOrWhiteSpace(requestedPath))
+            {
+                throw new ArgumentException(
+                    $"{parameterName} is required.", parameterName);
+            }
+
+            string root = ExportRoot;
+            string candidate = Path.IsPathRooted(requestedPath)
+                ? Path.GetFullPath(requestedPath)
+                : Path.GetFullPath(Path.Combine(root, requestedPath));
+
+            string relative = Path.GetRelativePath(root, candidate);
+            bool escapes = relative == ".."
+                || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal)
+                || Path.IsPathRooted(relative);
+            if (escapes)
+            {
+                throw new ArgumentException(
+                    $"{parameterName} '{requestedPath}' resolves outside the export root '{root}'. " +
+                    $"Set the {ExportRootEnvironmentVariable} environment variable to allow " +
+                    "a different base directory before starting the MCP server.",
+                    parameterName);
+            }
+            return candidate;
+        }
+
+        private static string InitializeExportRoot()
+        {
+            string? configured = Environment.GetEnvironmentVariable(ExportRootEnvironmentVariable);
+            string root = !string.IsNullOrWhiteSpace(configured)
+                ? configured!
+                : Path.Combine(Path.GetTempPath(), "Opc.Ua.Mcp", "exports");
+            return Path.GetFullPath(root);
+        }
+
+        private static readonly Lazy<string> s_exportRoot = new(
+            InitializeExportRoot, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 }
