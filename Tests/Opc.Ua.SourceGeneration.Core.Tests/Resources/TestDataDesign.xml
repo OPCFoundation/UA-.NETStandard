@@ -687,6 +687,15 @@
       <opc:Field Name="ExtensionObjectMatrix" DataType="ua:Structure" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
       <opc:Field Name="VectorMatrix" DataType="Vector" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
       <opc:Field Name="AbstractVectorMatrix" DataType="Vector" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" AllowSubTypes="true" />
+      <opc:Field Name="HeaterStatusMatrix" DataType="HeaterStatus" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="HeaterStatus" BaseType="ua:Enumeration">
+    <opc:Fields>
+      <opc:Field Name="Off" Identifier="0" />
+      <opc:Field Name="Heating" Identifier="1" />
+      <opc:Field Name="Cooling" Identifier="2" />
     </opc:Fields>
   </opc:DataType>
 

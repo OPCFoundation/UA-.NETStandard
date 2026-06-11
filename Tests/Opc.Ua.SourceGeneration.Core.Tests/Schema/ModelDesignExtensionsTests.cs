@@ -9686,6 +9686,49 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// Contract test for the integration applied by
+        /// <c>ClientApiGenerator.CollectParameters</c> and
+        /// <c>ServerApiGenerator.CollectParameters</c>: the matrix opt-in
+        /// flag is gated on <see cref="ModelDesignExtensions.SupportsMatrixOf"/>
+        /// so service / method parameters with
+        /// <see cref="ValueRank.OneOrMoreDimensions"/> render as
+        /// <c>MatrixOf&lt;T&gt;</c> for every supported basic data type
+        /// and fall back to <c>Variant</c> for
+        /// <see cref="BasicDataType.DiagnosticInfo"/>.
+        /// </summary>
+        [TestCase(BasicDataType.Boolean, "global::Opc.Ua.MatrixOf<bool>")]
+        [TestCase(BasicDataType.Int32, "global::Opc.Ua.MatrixOf<int>")]
+        [TestCase(BasicDataType.String, "global::Opc.Ua.MatrixOf<string>")]
+        [TestCase(BasicDataType.NodeId, "global::Opc.Ua.MatrixOf<global::Opc.Ua.NodeId>")]
+        [TestCase(BasicDataType.Structure, "global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>")]
+        [TestCase(BasicDataType.BaseDataType, "global::Opc.Ua.MatrixOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.DiagnosticInfo, "global::Opc.Ua.Variant")]
+        public void MatrixServiceParameterContract_GetDotNetTypeNameMatchesGeneratorIntegration(
+            BasicDataType basicDataType,
+            string expectedTypeName)
+        {
+            // Arrange — mirror the exact call composition used by both
+            // Client/Server API generators in CollectParameters.
+            var dataType = new DataTypeDesign { BasicDataType = basicDataType };
+            Namespace[] namespaces = [];
+            const string targetNamespace = "http://test.namespace";
+
+            // Act — same call shape as
+            //   datatype.GetDotNetTypeName(field.ValueRank, ...,
+            //       nullable: NullableAnnotation.Nullable,
+            //       useMatrixTypeInsteadOfVariant: datatype.SupportsMatrixOf());
+            string result = dataType.GetDotNetTypeName(
+                ValueRank.OneOrMoreDimensions,
+                targetNamespace,
+                namespaces,
+                NullableAnnotation.Nullable,
+                useMatrixTypeInsteadOfVariant: dataType.SupportsMatrixOf());
+
+            // Assert
+            Assert.That(result, Is.EqualTo(expectedTypeName));
+        }
+
+        /// <summary>
         /// Tests that GetXmlDataType returns correct XML type string for Boolean scalar type.
         /// </summary>
         [Test]

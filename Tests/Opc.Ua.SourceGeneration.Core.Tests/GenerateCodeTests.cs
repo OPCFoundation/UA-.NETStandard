@@ -246,6 +246,10 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 // declared the element type as Vector.
                 Assert.That(code, Does.Contain(
                     "global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject> AbstractVectorMatrix"));
+                // Typed enum matrix surface — fully qualified to the
+                // TestData namespace where HeaterStatus is generated.
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::TestData.HeaterStatus> HeaterStatusMatrix"));
             });
 
             // Encode assertions.
@@ -273,6 +277,11 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 // as the explicit Structure field above.
                 Assert.That(code, Does.Contain(
                     """encoder.WriteVariant("AbstractVectorMatrix", global::Opc.Ua.Variant.From(AbstractVectorMatrix));"""));
+                // Typed enum matrix uses Variant.From, same shape as other
+                // primitive matrices (the enum is a value type with a
+                // generated EnumerationBuilder).
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("HeaterStatusMatrix", global::Opc.Ua.Variant.From(HeaterStatusMatrix));"""));
             });
 
             // Decode assertions.
@@ -294,6 +303,10 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                     """ExtensionObjectMatrix = decoder.ReadVariant("ExtensionObjectMatrix").GetExtensionObjectMatrix();"""));
                 Assert.That(code, Does.Contain(
                     """AbstractVectorMatrix = decoder.ReadVariant("AbstractVectorMatrix").GetExtensionObjectMatrix();"""));
+                // Typed enum matrix decodes through GetEnumerationMatrix<T>
+                // (the EnumerationBuilder<T>-backed Variant getter).
+                Assert.That(code, Does.Contain(
+                    """HeaterStatusMatrix = decoder.ReadVariant("HeaterStatusMatrix").GetEnumerationMatrix<global::TestData.HeaterStatus>();"""));
             });
         }
 

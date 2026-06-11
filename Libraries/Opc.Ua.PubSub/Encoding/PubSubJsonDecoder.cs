@@ -2417,15 +2417,29 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Encodeable matrix decoding is not yet implemented for the
+        /// PubSub JSON wire format. Calling this overload throws to
+        /// surface the gap explicitly instead of silently dropping
+        /// attacker-controlled payload content.
+        /// </remarks>
         public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            return default;
+            throw new NotSupportedException(
+                "PubSub JSON matrix encoding is not yet implemented.");
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Encodeable matrix decoding is not yet implemented for the
+        /// PubSub JSON wire format. Calling this overload throws to
+        /// surface the gap explicitly instead of silently dropping
+        /// attacker-controlled payload content.
+        /// </remarks>
         public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName) where T : IEncodeable, new()
         {
-            return default;
+            throw new NotSupportedException(
+                "PubSub JSON matrix encoding is not yet implemented.");
         }
 
         /// <inheritdoc/>
