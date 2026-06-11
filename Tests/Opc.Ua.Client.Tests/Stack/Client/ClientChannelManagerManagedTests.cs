@@ -31,6 +31,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -360,7 +361,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     sessionChannel.Dispose();
                 }
 
-                chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
+                // lease.Dispose() is non-blocking; poll for the
+                // CloseAsync invocation before the strict verify.
+                await WaitForMockInvocationAsync(
+                    () => chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once))
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -607,6 +612,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 Assert.That(newLease, Is.Not.SameAs(oldLease));
                 Assert.That(newLease.Key, Is.EqualTo(ManagedChannelKey.FromEndpoint(endpointB)));
                 Assert.That(newLease.State, Is.EqualTo(ChannelState.Ready));
+                // RecreateInPlaceAsync swaps the lease and fires the
+                // old-lease teardown asynchronously (the underlying
+                // CloseAsync runs on the thread pool). Poll for both
+                // the lease-state transition AND the underlying close
+                // before the hard assertions.
+                await WaitForConditionAsync(
+                    () => oldLease.State == ChannelState.Closed &&
+                          oldTransport.CloseCount == 1,
+                    "oldLease.State == Closed && oldTransport.CloseCount == 1").ConfigureAwait(false);
                 Assert.That(oldLease.State, Is.EqualTo(ChannelState.Closed));
                 Assert.That(oldTransport.CloseCount, Is.EqualTo(1));
                 Assert.That(harness.CreatedChannels, Has.Count.EqualTo(2));
@@ -697,6 +711,17 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
                 ch1.Dispose();
                 ch2.Dispose();
+
+                // ch.Dispose() is non-blocking (lease teardown runs on
+                // the threadpool); poll for the close metric before the
+                // hard assertion so the test does not race with the
+                // asynchronous teardown.
+                await WaitForMeasurementAsync(
+                    metrics,
+                    "opcua.channel.close",
+                    Tag("endpoint", endpointUrl),
+                    Tag("reverse", false),
+                    Tag("reason", "lease-released")).ConfigureAwait(false);
 
                 Assert.That(metrics.HasMeasurement(
                     "opcua.channel.open",
@@ -819,6 +844,52 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
         }
 
+        private static async Task WaitForMockInvocationAsync(Action verify)
+        {
+            // Used to bridge Moq.Verify against state mutated by fire-
+            // and-forget tasks (e.g. ManagedTransportChannelLease.Dispose
+            // which posts the actual underlying CloseAsync onto the
+            // thread pool). Polls the verify until it stops throwing or
+            // the budget is exhausted; the final invocation is allowed
+            // to throw and surface the failure to NUnit.
+            const int kMaxPollMs = 2000;
+            const int kPollIntervalMs = 25;
+            int elapsed = 0;
+            while (elapsed < kMaxPollMs)
+            {
+                try
+                {
+                    verify();
+                    return;
+                }
+                catch (Moq.MockException)
+                {
+                    await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
+                    elapsed += kPollIntervalMs;
+                }
+            }
+            verify();
+        }
+
+        private static async Task WaitForConditionAsync(
+            Func<bool> condition,
+            string description)
+        {
+            // Generic test-side poll for state mutated by fire-and-forget
+            // tasks. Returns once the condition holds; if the budget is
+            // exhausted the caller's subsequent assertion is allowed to
+            // run and surface the failure to NUnit.
+            const int kMaxPollMs = 2000;
+            const int kPollIntervalMs = 25;
+            int elapsed = 0;
+            while (!condition() && elapsed < kMaxPollMs)
+            {
+                await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
+                elapsed += kPollIntervalMs;
+            }
+            _ = description;
+        }
+
         [Test]
         [NonParallelizable]
         public async Task ActivitySpanIsRecordedForReconnectAsync()
@@ -882,6 +953,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
                 await sut.ReconnectAsync(ch, default).ConfigureAwait(false);
                 ch.Dispose();
+
+                // ch.Dispose() is non-blocking; the ParticipantDetached
+                // and ChannelClosed EventSource events fire from the
+                // background teardown task, so poll for them before the
+                // hard assertions.
+                await WaitForConditionAsync(
+                    () => listener.EventNames.Contains("ParticipantDetached") &&
+                          listener.EventNames.Contains("ChannelClosed"),
+                    "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
                 Assert.That(listener.EventNames, Does.Contain("StateChanged"), listener.FormatEvents());
                 Assert.That(listener.EventNames, Does.Contain("ReconnectStarted"), listener.FormatEvents());
@@ -1605,13 +1685,16 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
         private sealed class ChannelEventListener : EventListener
         {
-            public List<ChannelEventRecord> Events { get; } = [];
+            public ConcurrentQueue<ChannelEventRecord> Events { get; } = new();
 
             public IEnumerable<string> EventNames => Events.Select(e => e.Name);
 
             public string FormatEvents()
             {
                 var builder = new StringBuilder();
+                // ConcurrentQueue enumeration is snapshot-stable so it
+                // races safely with concurrent EventWritten callbacks
+                // arriving on the EventSource's worker thread.
                 foreach (ChannelEventRecord record in Events)
                 {
                     builder.Append(record.Name);
@@ -1649,7 +1732,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                         payload[key] = payloadValues[i];
                     }
                 }
-                Events.Add(new ChannelEventRecord(name, payload));
+                Events.Enqueue(new ChannelEventRecord(name, payload));
             }
         }
 
@@ -1685,7 +1768,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 m_listener.Start();
             }
 
-            public List<MeasurementRecord> Measurements { get; } = [];
+            public ConcurrentQueue<MeasurementRecord> Measurements { get; } = new();
 
             public void RecordObservableInstruments()
             {
@@ -1704,16 +1787,26 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 double? value,
                 params KeyValuePair<string, object?>[] tags)
             {
-                return Measurements.Any(m =>
-                    m.InstrumentName == instrumentName &&
-                    (value == null || m.Value == value.Value) &&
-                    tags.All(tag => m.Tags.TryGetValue(tag.Key, out object? actual) &&
-                        Equals(actual, tag.Value)));
+                // Snapshot under enumeration to avoid races with the
+                // metric callbacks that fire concurrently from the
+                // channel manager's threadpool teardown work.
+                foreach (MeasurementRecord m in Measurements)
+                {
+                    if (m.InstrumentName == instrumentName &&
+                        (value == null || m.Value == value.Value) &&
+                        tags.All(tag => m.Tags.TryGetValue(tag.Key, out object? actual) &&
+                            Equals(actual, tag.Value)))
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             public string FormatMeasurements()
             {
                 var builder = new StringBuilder();
+                // ConcurrentQueue enumeration is snapshot-stable.
                 foreach (MeasurementRecord measurement in Measurements)
                 {
                     string tags = string.Join(
@@ -1741,7 +1834,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 ReadOnlySpan<KeyValuePair<string, object?>> tags,
                 object? state)
             {
-                Measurements.Add(new MeasurementRecord(instrument.Name, measurement, tags.ToArray()));
+                Measurements.Enqueue(new MeasurementRecord(instrument.Name, measurement, tags.ToArray()));
             }
 
             private void OnDoubleMeasurementRecorded(
@@ -1750,7 +1843,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 ReadOnlySpan<KeyValuePair<string, object?>> tags,
                 object? state)
             {
-                Measurements.Add(new MeasurementRecord(instrument.Name, measurement, tags.ToArray()));
+                Measurements.Enqueue(new MeasurementRecord(instrument.Name, measurement, tags.ToArray()));
             }
 
             private readonly MeterListener m_listener;
