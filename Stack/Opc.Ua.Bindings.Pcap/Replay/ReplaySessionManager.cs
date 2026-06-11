@@ -31,12 +31,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Opc.Ua.Bindings.Pcap.Audit;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Capture.Sources;
+using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Bindings.Pcap.Models;
 
 namespace Opc.Ua.Bindings.Pcap.Replay
@@ -49,9 +52,14 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         /// <summary>
         /// Constructs a replay session manager.
         /// </summary>
-        public ReplaySessionManager(ILoggerFactory? loggerFactory = null)
+        public ReplaySessionManager(
+            ILoggerFactory? loggerFactory = null,
+            IPcapAuditSink? auditSink = null,
+            PcapOptions? options = null)
         {
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+            m_auditSink = auditSink;
+            m_options = options ?? new PcapOptions();
         }
 
         /// <summary>
@@ -65,6 +73,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         {
             ArgumentNullException.ThrowIfNull(request);
             ArgumentException.ThrowIfNullOrWhiteSpace(request.PcapFilePath);
+            ValidateSpeed(request.Speed);
 
             string id = Guid.NewGuid().ToString("N");
             ReplayCaptureSource source = new(m_loggerFactory);
@@ -82,6 +91,13 @@ namespace Opc.Ua.Bindings.Pcap.Replay
             {
                 await session.StartAsync(ct).ConfigureAwait(false);
                 m_sessions[id] = session;
+                await AuditAsync(
+                    PcapAuditEventKind.StartReplay,
+                    id,
+                    request.PcapFilePath,
+                    session.TargetEndpointUrl ?? session.ListenUri?.ToString(),
+                    properties: CreateStartReplayProperties(request),
+                    ct).ConfigureAwait(false);
                 return session;
             }
             catch
@@ -121,6 +137,13 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         {
             ReplaySession session = Get(id);
             await session.StopAsync(ct).ConfigureAwait(false);
+            await AuditAsync(
+                PcapAuditEventKind.StopReplay,
+                session.Id,
+                resourcePath: null,
+                remoteEndpoint: session.TargetEndpointUrl ?? session.ListenUri?.ToString(),
+                properties: CreateStopReplayProperties(session),
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -128,7 +151,18 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         {
             foreach (ReplaySession session in m_sessions.Values)
             {
+                bool shouldAuditStop = session.IsRunning;
                 await session.DisposeAsync().ConfigureAwait(false);
+                if (shouldAuditStop)
+                {
+                    await AuditAsync(
+                        PcapAuditEventKind.StopReplay,
+                        session.Id,
+                        resourcePath: null,
+                        remoteEndpoint: session.TargetEndpointUrl ?? session.ListenUri?.ToString(),
+                        properties: CreateStopReplayProperties(session),
+                        CancellationToken.None).ConfigureAwait(false);
+                }
             }
 
             m_sessions.Clear();
@@ -162,7 +196,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
                         throw new PcapDiagnosticsException("Mock-client replay requires 'targetEndpointUrl'.");
                     }
 
-                    var client = new MockClientReplay(source, request.TargetEndpointUrl, m_loggerFactory)
+                    var client = new MockClientReplay(source, request.TargetEndpointUrl, m_options, m_loggerFactory)
                     {
                         Speed = request.Speed
                     };
@@ -172,7 +206,80 @@ namespace Opc.Ua.Bindings.Pcap.Replay
             }
         }
 
-        private readonly ConcurrentDictionary<string, ReplaySession> m_sessions = new(StringComparer.OrdinalIgnoreCase);
+        private ValueTask AuditAsync(
+            PcapAuditEventKind kind,
+            string sessionId,
+            string? resourcePath,
+            string? remoteEndpoint,
+            IReadOnlyDictionary<string, string>? properties,
+            CancellationToken ct)
+        {
+            if (m_auditSink is null)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            return m_auditSink.OnEventAsync(
+                new PcapAuditEvent(
+                    kind,
+                    DateTimeOffset.UtcNow,
+                    sessionId,
+                    resourcePath,
+                    remoteEndpoint,
+                    properties),
+                ct);
+        }
+
+        private static Dictionary<string, string> CreateStartReplayProperties(StartReplayRequest request)
+        {
+            var properties = new Dictionary<string, string>
+            {
+                ["Mode"] = request.Mode.ToString(),
+                ["Speed"] = request.Speed.ToString(CultureInfo.InvariantCulture)
+            };
+
+            AddIfNotEmpty(properties, "KeyLogFilePath", request.KeyLogFilePath);
+            if (request.ListenPort.HasValue)
+            {
+                properties["ListenPort"] = request.ListenPort.Value.ToString(
+                    CultureInfo.InvariantCulture);
+            }
+
+            return properties;
+        }
+
+        private static Dictionary<string, string> CreateStopReplayProperties(ReplaySession session)
+        {
+            return new Dictionary<string, string>
+            {
+                ["Mode"] = session.Mode.ToString(),
+                ["IsRunning"] = session.IsRunning.ToString(CultureInfo.InvariantCulture)
+            };
+        }
+
+        private static void AddIfNotEmpty(Dictionary<string, string> properties, string name, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                properties[name] = value;
+            }
+        }
+
+        private static void ValidateSpeed(double speed)
+        {
+            if (double.IsNaN(speed) || double.IsInfinity(speed) || speed <= 0d)
+            {
+                throw new ArgumentException(
+                    $"Replay speed {speed} is not a finite positive number. " +
+                    "Provide a value > 0 (e.g., 1.0 for real-time, 2.0 for 2× faster).",
+                    nameof(speed));
+            }
+        }
+
+        private readonly ConcurrentDictionary<string, ReplaySession> m_sessions = new(
+            StringComparer.OrdinalIgnoreCase);
         private readonly ILoggerFactory m_loggerFactory;
+        private readonly IPcapAuditSink? m_auditSink;
+        private readonly PcapOptions m_options;
     }
 }

@@ -67,6 +67,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
             ArgumentException.ThrowIfNullOrWhiteSpace(id);
             ArgumentNullException.ThrowIfNull(mockServer);
             ArgumentException.ThrowIfNullOrWhiteSpace(listenScheme);
+            ValidateListenPort(listenPort);
 
             Id = id;
             Mode = ReplayMode.MockServer;
@@ -192,6 +193,34 @@ namespace Opc.Ua.Bindings.Pcap.Replay
             }
 
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Validates a TCP listen port. Accepts <c>null</c> (caller wants
+        /// the OS to pick an ephemeral port) and any value in
+        /// <c>[1024, 65535]</c>. Rejects privileged ports (0-1023),
+        /// negative values, and values above 65535.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="listenPort"/> is outside the allowed
+        /// range.
+        /// </exception>
+        private static void ValidateListenPort(int? listenPort)
+        {
+            if (listenPort is null)
+            {
+                return;
+            }
+
+            if (listenPort.Value < 1024 || listenPort.Value > 65535)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(listenPort),
+                    listenPort.Value,
+                    "Replay listenPort must be null (use ephemeral) or in the range [1024, 65535]. " +
+                    "Privileged ports (0-1023) are not permitted to avoid requiring elevated privileges " +
+                    "and to defend against port-squatting.");
+            }
         }
 
         private readonly MockServerReplay? m_mockServer;

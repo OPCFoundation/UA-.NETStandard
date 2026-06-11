@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Dissection;
+using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Bindings.Pcap.Frame;
 using Opc.Ua.Bindings.Pcap.KeyLog;
 using Opc.Ua.Client;
@@ -60,12 +61,40 @@ namespace Opc.Ua.Bindings.Pcap.Replay
             ICaptureSource source,
             string targetEndpointUrl,
             ILoggerFactory? loggerFactory = null)
+            : this(source, targetEndpointUrl, new PcapOptions(), loggerFactory, validateEndpoint: false)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a mock-client replay over an existing capture source.
+        /// </summary>
+        public MockClientReplay(
+            ICaptureSource source,
+            string targetEndpointUrl,
+            PcapOptions options,
+            ILoggerFactory? loggerFactory = null)
+            : this(source, targetEndpointUrl, options, loggerFactory, validateEndpoint: true)
+        {
+        }
+
+        private MockClientReplay(
+            ICaptureSource source,
+            string targetEndpointUrl,
+            PcapOptions options,
+            ILoggerFactory? loggerFactory,
+            bool validateEndpoint)
         {
             ArgumentNullException.ThrowIfNull(source);
             ArgumentException.ThrowIfNullOrWhiteSpace(targetEndpointUrl);
+            ArgumentNullException.ThrowIfNull(options);
+            if (validateEndpoint)
+            {
+                ValidateReplayEndpoint(options, targetEndpointUrl);
+            }
 
             m_source = source;
             m_targetEndpointUrl = targetEndpointUrl;
+            m_options = options;
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = m_loggerFactory.CreateLogger<MockClientReplay>();
             m_messageContext = new ServiceMessageContext(
@@ -82,14 +111,16 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         /// <summary>
         /// Runs the replay and returns summary statistics.
         /// </summary>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <see cref="Speed"/> is not a finite positive number.
+        /// </exception>
         /// <exception cref="PcapDiagnosticsException"></exception>
         public async ValueTask<MockReplayResult> RunAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            if (Speed <= 0)
-            {
-                throw new PcapDiagnosticsException("Replay speed must be greater than zero.");
-            }
+            ValidateSpeed(Speed);
+
+            ValidateReplayEndpoint(m_options, m_targetEndpointUrl);
 
             var stopwatch = Stopwatch.StartNew();
             IReadOnlyList<DecodedServiceCall> calls = await DecodeServiceCallsAsync(ct).ConfigureAwait(false);
@@ -462,6 +493,92 @@ namespace Opc.Ua.Bindings.Pcap.Replay
             private int LatencyCount { get; set; }
         }
 
+        private static void ValidateReplayEndpoint(
+            PcapOptions options,
+            string targetEndpointUrl)
+        {
+            if (!options.AllowMockClientReplay)
+            {
+                throw new PcapDiagnosticsException(
+                    "Mock-client replay is disabled. Set " +
+                    "PcapOptions.AllowMockClientReplay = true to enable, " +
+                    "and populate PcapOptions.AllowedReplayEndpoints with " +
+                    "the hostname(s) you intend to target.");
+            }
+
+            if (options.AllowedReplayEndpoints.Count == 0)
+            {
+                throw new PcapDiagnosticsException(
+                    "Mock-client replay is enabled but " +
+                    "PcapOptions.AllowedReplayEndpoints is empty; no " +
+                    "endpoint can be targeted. Add the intended host(s) " +
+                    "to the allow-list.");
+            }
+
+            if (!Uri.TryCreate(targetEndpointUrl, UriKind.Absolute, out Uri? uri))
+            {
+                throw new PcapDiagnosticsException(
+                    $"Replay targetEndpointUrl '{targetEndpointUrl}' is not " +
+                    "a valid absolute URI.");
+            }
+
+            if (!IsAllowedReplayScheme(uri.Scheme))
+            {
+                throw new PcapDiagnosticsException(
+                    $"Replay targetEndpointUrl scheme '{uri.Scheme}' is not " +
+                    "permitted. Only opc.tcp, opc.tcps, and opc.https are allowed.");
+            }
+
+            string host = uri.Host;
+            bool allowed = false;
+            foreach (string entry in options.AllowedReplayEndpoints)
+            {
+                if (string.Equals(entry, host, StringComparison.OrdinalIgnoreCase))
+                {
+                    allowed = true;
+                    break;
+                }
+            }
+
+            if (!allowed)
+            {
+                throw new PcapDiagnosticsException(
+                    $"Replay targetEndpointUrl host '{host}' is not in " +
+                    "PcapOptions.AllowedReplayEndpoints.");
+            }
+        }
+
+        private static bool IsAllowedReplayScheme(string scheme)
+        {
+            return scheme switch
+            {
+                Utils.UriSchemeOpcTcp => true,
+                "opc.tcps" => true,
+                Utils.UriSchemeOpcHttps => true,
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Validates that <paramref name="speed"/> is a finite positive
+        /// real number. Rejects <c>NaN</c>, ±infinity, zero, and negatives —
+        /// any of which would otherwise cause division-by-zero, infinite
+        /// loops, or rate-calculation overflow downstream.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// Thrown when the speed is not in the allowed range.
+        /// </exception>
+        private static void ValidateSpeed(double speed)
+        {
+            if (double.IsNaN(speed) || double.IsInfinity(speed) || speed <= 0d)
+            {
+                throw new ArgumentException(
+                    $"Replay speed {speed} is not a finite positive number. " +
+                    "Provide a value > 0 (e.g., 1.0 for real-time, 2.0 for 2× faster).",
+                    nameof(speed));
+            }
+        }
+
         private readonly struct CapturedRequest
         {
             public CapturedRequest(DateTimeOffset timestamp, IServiceRequest request)
@@ -497,6 +614,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
 
         private readonly ICaptureSource m_source;
         private readonly string m_targetEndpointUrl;
+        private readonly PcapOptions m_options;
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ILogger m_logger;
         private readonly ServiceMessageContext m_messageContext;

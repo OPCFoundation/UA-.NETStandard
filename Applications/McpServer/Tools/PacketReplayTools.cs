@@ -35,7 +35,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
+using Opc.Ua.Bindings.Pcap.Audit;
 using Opc.Ua.Bindings.Pcap.Capture;
+using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Bindings.Pcap.Models;
 using Opc.Ua.Bindings.Pcap.Replay;
 
@@ -72,8 +74,40 @@ namespace Opc.Ua.Mcp.Tools
             [Description("For mock-server: optional explicit port.")] int? listenPort = null,
             CancellationToken ct = default)
         {
-            ReplaySessionManager manager = GetReplayManager(services);
+            ArgumentNullException.ThrowIfNull(services);
+            if (double.IsNaN(speed) || double.IsInfinity(speed) || speed <= 0d)
+            {
+                throw new ArgumentException(
+                    $"replay_pcap speed {speed} is not a finite positive number. " +
+                    "Provide a value > 0 (e.g., 1.0 for real-time, 2.0 for 2× faster).",
+                    nameof(speed));
+            }
+
             ReplayMode replayMode = ParseReplayMode(mode);
+            PcapOptions pcapOptions = services.GetService<PcapOptions>() ?? new PcapOptions();
+            if (replayMode == ReplayMode.MockClient && !pcapOptions.AllowMockClientReplay)
+            {
+                throw new PcapDiagnosticsException(
+                    "Mock-client replay is disabled. " +
+                    "Configure PcapOptions.AllowMockClientReplay and " +
+                    "AllowedReplayEndpoints in the host's DI setup to enable.");
+            }
+
+            ReplaySessionManager manager = GetReplayManager(services);
+            await AuditAsync(
+                services,
+                new PcapAuditEvent(
+                    PcapAuditEventKind.StartReplay,
+                    DateTimeOffset.UtcNow,
+                    sessionId: null,
+                    resourcePath: pcapPath,
+                    remoteEndpoint: targetEndpointUrl,
+                    properties: new Dictionary<string, string>
+                    {
+                        ["Mode"] = replayMode.ToString(),
+                        ["Speed"] = speed.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    }),
+                ct).ConfigureAwait(false);
             ReplaySession session = await manager.StartAsync(
                 new StartReplayRequest
                 {
@@ -100,6 +134,16 @@ namespace Opc.Ua.Mcp.Tools
             CancellationToken ct)
         {
             ReplaySessionManager manager = GetReplayManager(services);
+            await AuditAsync(
+                services,
+                new PcapAuditEvent(
+                    PcapAuditEventKind.StopReplay,
+                    DateTimeOffset.UtcNow,
+                    sessionId,
+                    resourcePath: null,
+                    remoteEndpoint: null,
+                    properties: null),
+                ct).ConfigureAwait(false);
             await manager.StopAsync(sessionId, ct).ConfigureAwait(false);
             return CreateInfo(manager.Get(sessionId));
         }
@@ -127,6 +171,20 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             return manager;
+        }
+
+        private static ValueTask AuditAsync(
+            IServiceProvider services,
+            PcapAuditEvent auditEvent,
+            CancellationToken ct)
+        {
+            IPcapAuditSink? auditSink = services.GetService<IPcapAuditSink>();
+            if (auditSink is null)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            return auditSink.OnEventAsync(auditEvent, ct);
         }
 
         private static ReplayMode ParseReplayMode(string mode)

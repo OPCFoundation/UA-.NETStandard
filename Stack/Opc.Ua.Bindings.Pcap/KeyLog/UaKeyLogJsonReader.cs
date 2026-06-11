@@ -43,6 +43,49 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
     /// </summary>
     public sealed class UaKeyLogJsonReader : IKeyLogReader
     {
+        /// <summary>
+        /// Constructs a key-log reader.
+        /// </summary>
+        public UaKeyLogJsonReader()
+        {
+        }
+
+        /// <summary>
+        /// Constructs a key-log reader bound to the supplied file path.
+        /// </summary>
+        public UaKeyLogJsonReader(string filePath)
+            : this(filePath, sessionKey: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a key-log reader bound to the supplied file path.
+        /// </summary>
+        public UaKeyLogJsonReader(string filePath, byte[]? sessionKey)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            FilePath = filePath;
+            m_sessionKey = sessionKey;
+        }
+
+        /// <summary>
+        /// Gets the bound file path, if the reader was constructed with one.
+        /// </summary>
+        public string? FilePath { get; }
+
+        /// <summary>
+        /// Reads all key material from the bound file path.
+        /// </summary>
+        public IAsyncEnumerable<ChannelKeyMaterial> ReadAllAsync(CancellationToken ct)
+        {
+            if (FilePath is null)
+            {
+                throw new InvalidOperationException("The reader is not bound to a file path.");
+            }
+
+            return ReadAllAsync(FilePath, ct);
+        }
+
         /// <inheritdoc/>
         public IAsyncEnumerable<ChannelKeyMaterial> ReadAllAsync(
             string filePath,
@@ -56,52 +99,79 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
         public IAsyncEnumerable<ChannelKeyMaterial> ReadAllAsync(Stream stream, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(stream);
-            return ReadAllFromStreamAsync(stream, ct);
+            Stream readStream = CreateReadStream(stream, leaveOpen: true);
+            return ReadAllFromStreamAsync(readStream, disposeStream: !ReferenceEquals(readStream, stream), ct);
         }
 
         private async IAsyncEnumerable<ChannelKeyMaterial> ReadAllFromFileAsync(
             string filePath,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            using FileStream stream = new(
+            FileStream fileStream = new(
                 filePath,
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.ReadWrite,
                 bufferSize: 4096,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await foreach (ChannelKeyMaterial material in ReadAllFromStreamAsync(stream, ct).ConfigureAwait(false))
+            using Stream stream = CreateReadStream(fileStream, leaveOpen: false);
+            // CA2000: ReadAllFromStreamAsync returns IAsyncEnumerable; the iterator is
+            // async-disposed by `await foreach`. The stream above is disposed by `using`.
+#pragma warning disable CA2000
+            await foreach (ChannelKeyMaterial material in ReadAllFromStreamAsync(
+                stream,
+                disposeStream: false,
+                ct).ConfigureAwait(false))
             {
                 yield return material;
             }
+#pragma warning restore CA2000
+        }
+
+        private Stream CreateReadStream(Stream stream, bool leaveOpen)
+        {
+            return m_sessionKey is null ? stream : new EncryptedKeyLogStream(stream, m_sessionKey, leaveOpen);
         }
 
         private static async IAsyncEnumerable<ChannelKeyMaterial> ReadAllFromStreamAsync(
             Stream stream,
+            bool disposeStream,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            using StreamReader reader = new(stream, leaveOpen: true);
-            while (true)
+            try
             {
-                string? line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
-                if (line is null)
+                using StreamReader reader = new(stream, leaveOpen: true);
+                while (true)
                 {
-                    yield break;
-                }
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    continue;
-                }
+                    string? line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
+                    if (line is null)
+                    {
+                        yield break;
+                    }
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        continue;
+                    }
 
-                KeyLogRecord? record = JsonSerializer.Deserialize(
-                    line,
-                    UaKeyLogJsonContext.Default.KeyLogRecord);
-                if (record is null)
-                {
-                    throw new PcapDiagnosticsException("Invalid OPC UA JSON key-log record.");
+                    KeyLogRecord? record = JsonSerializer.Deserialize(
+                        line,
+                        UaKeyLogJsonContext.Default.KeyLogRecord);
+                    if (record is null)
+                    {
+                        throw new PcapDiagnosticsException("Invalid OPC UA JSON key-log record.");
+                    }
+                    yield return record.ToMaterial();
                 }
-                yield return record.ToMaterial();
+            }
+            finally
+            {
+                if (disposeStream)
+                {
+                    await stream.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
+
+        private readonly byte[]? m_sessionKey;
     }
 }

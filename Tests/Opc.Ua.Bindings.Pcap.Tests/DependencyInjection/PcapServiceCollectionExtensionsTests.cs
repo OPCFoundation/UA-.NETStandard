@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
     /// pcap binding into <c>Microsoft.Extensions.DependencyInjection</c>.
     /// </summary>
     [TestFixture]
-    public sealed class PcapServiceCollectionExtensionsTests
+    public sealed class PcapServiceCollectionExtensionsTests : TempDirectoryFixture
     {
         private Opc.Ua.Bindings.ITransportChannelFactory? m_previousBinding;
 
@@ -178,6 +178,25 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
+        [Platform("Linux,MacOSX")]
+        public async Task CaptureSessionManagerBaseFolderHasUserOnlyMode()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Ignore("Unix file modes are not available on Windows.");
+            }
+
+            string baseFolder = CreateTempPath("manager-base");
+            await using var manager = new CaptureSessionManager(
+                new DefaultCaptureSourceFactory(new ChannelCaptureRegistry()),
+                baseFolder);
+
+            Assert.That(
+                File.GetUnixFileMode(baseFolder),
+                Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
+        }
+
+        [Test]
         public async Task AddOpcUaBindingsPcapInvokesUserConfigureCallback()
         {
             var services = new ServiceCollection();
@@ -219,7 +238,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapDefaultOptionsUseSystemTemp()
+        public async Task AddOpcUaBindingsPcapDefaultOptionsUsePerUserLocalAppData()
         {
             var services = new ServiceCollection();
             services.AddOpcUaBindingsPcap();
@@ -227,7 +246,11 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
 
             var options = provider.GetRequiredService<PcapOptions>();
 
-            Assert.That(options.BaseFolder, Does.StartWith(Path.GetTempPath()));
+            Assert.That(
+                options.BaseFolder,
+                Does.StartWith(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
+            Assert.That(options.BaseFolder, Does.Contain("OPCFoundation"));
+            Assert.That(options.BaseFolder, Does.Contain("opcua-pcap"));
             Assert.That(options.MaxActiveSessions,
                 Is.EqualTo(CaptureSessionManager.DefaultMaxActiveSessions));
         }

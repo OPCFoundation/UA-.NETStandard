@@ -112,6 +112,15 @@ namespace Opc.Ua.Bindings.Pcap.Frame
     public static class PcapFileReader
     {
         /// <summary>
+        /// Maximum number of bytes allowed for a single captured packet.
+        /// Defends against a malicious pcap whose record header declares
+        /// an absurd <c>capturedLength</c> that would otherwise trigger
+        /// an <see cref="OutOfMemoryException"/> when allocating the
+        /// payload buffer.
+        /// </summary>
+        public const int MaxPacketBytes = 64 * 1024 * 1024;
+
+        /// <summary>
         /// Reads all packet records from the supplied libpcap file.
         /// </summary>
         public static IAsyncEnumerable<PcapRecord> ReadAllAsync(
@@ -154,7 +163,32 @@ namespace Opc.Ua.Bindings.Pcap.Frame
                 uint tsUsec = ReadUInt32(recordHeader.AsSpan(4, 4), littleEndian);
                 uint capturedLength = ReadUInt32(recordHeader.AsSpan(8, 4), littleEndian);
                 uint originalLength = ReadUInt32(recordHeader.AsSpan(12, 4), littleEndian);
-                byte[] data = new byte[capturedLength];
+                if (capturedLength > MaxPacketBytes)
+                {
+                    throw new PcapDiagnosticsException(
+                        $"Pcap record capturedLength {capturedLength} exceeds " +
+                        $"MaxPacketBytes ({MaxPacketBytes}). The file may be " +
+                        "malformed or hostile; refusing to allocate.");
+                }
+
+                long remaining = stream.Length - stream.Position;
+                if (capturedLength > remaining)
+                {
+                    throw new PcapDiagnosticsException("Truncated pcap packet record.");
+                }
+
+                byte[] data;
+                try
+                {
+                    data = new byte[(int)capturedLength];
+                }
+                catch (OutOfMemoryException ex)
+                {
+                    throw new PcapDiagnosticsException(
+                        $"Could not allocate {capturedLength}-byte capture frame buffer.",
+                        ex);
+                }
+
                 if (!await ReadExactOrEndAsync(stream, data, ct).ConfigureAwait(false))
                 {
                     throw new PcapDiagnosticsException("Truncated pcap packet record.");

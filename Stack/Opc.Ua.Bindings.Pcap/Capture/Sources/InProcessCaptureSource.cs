@@ -387,7 +387,11 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
             ChannelKeyMaterial material;
             try
             {
+                // CA2000: ownership of the ChannelKeyMaterial transfers to
+                // CaptureWorkItem.ForKey; it is disposed by the worker after the write.
+#pragma warning disable CA2000
                 material = ChannelKeyMaterial.From(currentToken);
+#pragma warning restore CA2000
             }
             catch (Exception ex)
             {

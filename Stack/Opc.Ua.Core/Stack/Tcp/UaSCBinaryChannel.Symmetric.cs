@@ -35,7 +35,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
-    public partial class UaSCUaBinaryChannel
+    public partial class UaSCUaBinaryChannel : IDiagnosticsChannelMutation
     {
         /// <summary>
         /// Returns the current security token.
@@ -64,12 +64,71 @@ namespace Opc.Ua.Bindings
         /// production code paths must continue to go through
         /// <see cref="ActivateToken"/>.
         /// </remarks>
+        [Obsolete(
+            "Use IDiagnosticsChannelMutation.LoadTokensForOfflineDecode via cast; " +
+            "this method will be removed in the next major version.",
+            error: false)]
         internal void OfflineLoadTokens(ChannelToken? current, ChannelToken? previous)
         {
+            ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(current, previous);
+        }
+
+        void IDiagnosticsChannelMutation.LoadTokensForOfflineDecode(ChannelToken? current, ChannelToken? previous)
+        {
+            EnsureDiagnosticsCallerIsAllowed();
+
             PreviousToken?.Dispose();
             PreviousToken = previous;
             CurrentToken = current;
             RenewedToken = null;
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void EnsureDiagnosticsCallerIsAllowed()
+        {
+            const string coreAssemblyName = "Opc.Ua.Core";
+            const string pcapAssemblyName = "Opc.Ua.Bindings.Pcap";
+            var stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
+
+            for (int ii = 0; ii < stackTrace.FrameCount; ii++)
+            {
+                System.Diagnostics.StackFrame? frame = stackTrace.GetFrame(ii);
+                string? assemblyName = GetStackFrameAssemblyName(frame);
+                if (assemblyName == null || assemblyName == coreAssemblyName)
+                {
+                    continue;
+                }
+
+                if (assemblyName == pcapAssemblyName || assemblyName.EndsWith(".Tests", StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                throw new InvalidOperationException(
+                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Bindings.Pcap binding.");
+            }
+
+            throw new InvalidOperationException(
+                "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Bindings.Pcap binding.");
+        }
+
+        private static string? GetStackFrameAssemblyName(System.Diagnostics.StackFrame? frame)
+        {
+            if (frame == null)
+            {
+                return null;
+            }
+
+#if NET10_0_OR_GREATER
+            System.Diagnostics.DiagnosticMethodInfo? methodInfo =
+                System.Diagnostics.DiagnosticMethodInfo.Create(frame);
+            string? assemblyName = methodInfo?.DeclaringAssemblyName;
+            int separatorIndex = assemblyName?.IndexOf(',', StringComparison.Ordinal) ?? -1;
+            return separatorIndex > 0 ? assemblyName![..separatorIndex] : assemblyName;
+#else
+            Type? declaringType = frame.GetMethod()?.DeclaringType;
+            return declaringType?.Assembly.GetName().Name;
+#endif
         }
 
         /// <summary>

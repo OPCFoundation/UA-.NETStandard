@@ -29,6 +29,8 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,21 +64,46 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         public const uint LinkTypeIPv4 = 228;
 
         /// <summary>
+        /// Default maximum bytes per pcap capture file.
+        /// </summary>
+        public const long DefaultMaxBytesPerCapture = 256L * 1024 * 1024;
+
+        /// <summary>
+        /// Default maximum number of retained artifacts per session.
+        /// </summary>
+        public const int DefaultMaxArtifactsPerSession = 16;
+
+        /// <summary>
         /// Constructs a pcap writer and writes the global header.
         /// </summary>
         public PcapFileWriter(string filePath, uint linkType, uint snapLen = 65535)
+            : this(filePath, linkType, snapLen, DefaultMaxBytesPerCapture, DefaultMaxArtifactsPerSession)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a pcap writer and writes the global header.
+        /// </summary>
+        public PcapFileWriter(string filePath, uint linkType, long maxBytes, int maxArtifacts)
+            : this(filePath, linkType, 65535, maxBytes, maxArtifacts)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a pcap writer and writes the global header.
+        /// </summary>
+        public PcapFileWriter(string filePath, uint linkType, uint snapLen, long maxBytes, int maxArtifacts)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            ArgumentOutOfRangeException.ThrowIfNegative(maxBytes);
+            ArgumentOutOfRangeException.ThrowIfNegative(maxArtifacts);
 
-            m_stream = new FileStream(
-                filePath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.Read,
-                bufferSize: 4096,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            m_filePath = filePath;
+            m_linkType = linkType;
             m_snapLen = snapLen;
-            WriteGlobalHeader(m_stream, linkType, snapLen);
+            m_maxBytes = maxBytes;
+            m_maxArtifacts = maxArtifacts;
+            m_stream = OpenCurrentFile();
         }
 
         /// <summary>
@@ -104,6 +131,11 @@ namespace Opc.Ua.Bindings.Pcap.Frame
                 BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(12), checked((uint)packetData.Length));
                 await m_stream.WriteAsync(header, ct).ConfigureAwait(false);
                 await m_stream.WriteAsync(packetData, ct).ConfigureAwait(false);
+                m_bytesWritten += header.Length + packetData.Length;
+                if (m_bytesWritten >= m_maxBytes && m_maxBytes > 0)
+                {
+                    await RotateAsync(ct).ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -146,9 +178,132 @@ namespace Opc.Ua.Bindings.Pcap.Frame
             stream.Write(header);
         }
 
-        private readonly FileStream m_stream;
+        private FileStream OpenCurrentFile()
+        {
+            string currentPath = GetCurrentFilePath();
+            FileStream stream = new(
+                currentPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.Read,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(currentPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+
+            WriteGlobalHeader(stream, m_linkType, m_snapLen);
+            m_bytesWritten = PcapGlobalHeaderLength;
+            return stream;
+        }
+
+        private async ValueTask RotateAsync(CancellationToken ct)
+        {
+            await m_stream.FlushAsync(ct).ConfigureAwait(false);
+            await m_stream.DisposeAsync().ConfigureAwait(false);
+            m_currentSuffix++;
+            m_stream = OpenCurrentFile();
+            PruneArtifacts();
+        }
+
+        private void PruneArtifacts()
+        {
+            if (m_maxArtifacts == 0)
+            {
+                return;
+            }
+
+            var artifacts = new List<ArtifactFile>();
+            if (File.Exists(m_filePath))
+            {
+                artifacts.Add(new ArtifactFile(0, m_filePath));
+            }
+
+            string? directory = Path.GetDirectoryName(m_filePath);
+            string searchDirectory = string.IsNullOrEmpty(directory) ? "." : directory;
+            string baseName = Path.GetFileNameWithoutExtension(m_filePath);
+            string extension = Path.GetExtension(m_filePath);
+            foreach (string filePath in Directory.GetFiles(searchDirectory, baseName + ".*" + extension))
+            {
+                if (TryGetSuffix(filePath, out int suffix))
+                {
+                    artifacts.Add(new ArtifactFile(suffix, filePath));
+                }
+            }
+
+            artifacts.Sort(static (left, right) => right.Suffix.CompareTo(left.Suffix));
+            int retainedArtifacts = 0;
+            foreach (ArtifactFile artifact in artifacts)
+            {
+                if (artifact.Suffix == m_currentSuffix)
+                {
+                    continue;
+                }
+
+                retainedArtifacts++;
+                if (retainedArtifacts >= m_maxArtifacts)
+                {
+                    File.Delete(artifact.FilePath);
+                }
+            }
+        }
+
+        private bool TryGetSuffix(string filePath, out int suffix)
+        {
+            suffix = 0;
+            string fileName = Path.GetFileName(filePath);
+            string baseName = Path.GetFileNameWithoutExtension(m_filePath);
+            string extension = Path.GetExtension(m_filePath);
+            if (!fileName.StartsWith(baseName + ".", StringComparison.Ordinal) ||
+                !fileName.EndsWith(extension, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string suffixText = fileName.Substring(
+                baseName.Length + 1,
+                fileName.Length - baseName.Length - extension.Length - 1);
+            return int.TryParse(suffixText, out suffix);
+        }
+
+        private string GetCurrentFilePath()
+        {
+            if (m_currentSuffix == 0)
+            {
+                return m_filePath;
+            }
+
+            string? directory = Path.GetDirectoryName(m_filePath);
+            string fileName = Path.GetFileNameWithoutExtension(m_filePath);
+            string extension = Path.GetExtension(m_filePath);
+            string suffix = m_currentSuffix.ToString("000", CultureInfo.InvariantCulture);
+            return Path.Combine(string.IsNullOrEmpty(directory) ? "." : directory, fileName + "." + suffix + extension);
+        }
+
+        private readonly struct ArtifactFile
+        {
+            public ArtifactFile(int suffix, string filePath)
+            {
+                Suffix = suffix;
+                FilePath = filePath;
+            }
+
+            public int Suffix { get; }
+
+            public string FilePath { get; }
+        }
+
+        private const int PcapGlobalHeaderLength = 24;
+        private FileStream m_stream;
         private readonly SemaphoreSlim m_gate = new(1, 1);
+        private readonly string m_filePath;
+        private readonly uint m_linkType;
         private readonly uint m_snapLen;
+        private readonly long m_maxBytes;
+        private readonly int m_maxArtifacts;
+        private int m_currentSuffix;
+        private long m_bytesWritten;
         private bool m_disposed;
     }
 }

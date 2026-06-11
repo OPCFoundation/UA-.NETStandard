@@ -34,6 +34,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
+using Opc.Ua.Bindings.Pcap.Capture;
 
 namespace Opc.Ua.Bindings.Pcap.Frame
 {
@@ -146,20 +147,39 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         private readonly ILogger<OpcUaFrameParser> m_logger;
         private readonly Dictionary<string, FlowBuffer> m_buffers = [];
 
-        private sealed class FlowBuffer
+        internal sealed class FlowBuffer
         {
-            public int Length { get; private set; }
+            /// <summary>
+            /// Maximum total size of the per-flow reassembly buffer. Defends
+            /// against a malicious source that emits fragmented TCP streams
+            /// designed to force unbounded buffer growth.
+            /// </summary>
+            public const int MaxBufferBytes = 256 * 1024 * 1024; // 256 MB
 
-            public ReadOnlySpan<byte> WrittenSpan => m_buffer.AsSpan(0, Length);
+            internal FlowBuffer()
+                : this(DefaultBufferBytes)
+            {
+            }
 
-            public void Append(ReadOnlySpan<byte> data)
+            internal FlowBuffer(int initialCapacity)
+            {
+                m_buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
+            }
+
+            internal int Length { get; private set; }
+
+            internal int Capacity => m_buffer.Length;
+
+            internal ReadOnlySpan<byte> WrittenSpan => m_buffer.AsSpan(0, Length);
+
+            internal void Append(ReadOnlySpan<byte> data)
             {
                 EnsureCapacity(Length + data.Length);
                 data.CopyTo(m_buffer.AsSpan(Length));
                 Length += data.Length;
             }
 
-            public void Consume(int count)
+            internal void Consume(int count)
             {
                 if (count >= Length)
                 {
@@ -171,21 +191,33 @@ namespace Opc.Ua.Bindings.Pcap.Frame
                 Length -= count;
             }
 
-            private void EnsureCapacity(int capacity)
+            internal void EnsureCapacity(int capacity)
             {
                 if (capacity <= m_buffer.Length)
                 {
                     return;
                 }
 
-                int newLength = Math.Max(capacity, m_buffer.Length * 2);
+                if (capacity > MaxBufferBytes)
+                {
+                    throw new PcapDiagnosticsException(
+                        $"FlowBuffer capacity {capacity} would exceed " +
+                        $"MaxBufferBytes ({MaxBufferBytes}). A TCP flow has " +
+                        "produced more pending reassembly bytes than the parser " +
+                        "allows; refusing to grow further.");
+                }
+
+                int newLength = Math.Min(
+                    MaxBufferBytes,
+                    Math.Max(capacity, m_buffer.Length * 2));
                 byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newLength);
                 m_buffer.AsSpan(0, Length).CopyTo(newBuffer);
                 ArrayPool<byte>.Shared.Return(m_buffer);
                 m_buffer = newBuffer;
             }
 
-            private byte[] m_buffer = ArrayPool<byte>.Shared.Rent(8192);
+            private const int DefaultBufferBytes = 8192;
+            private byte[] m_buffer;
         }
     }
 

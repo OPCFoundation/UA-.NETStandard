@@ -44,6 +44,29 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua
 {
     /// <summary>
+    /// Options for <see cref="ClientChannelManager"/>.
+    /// </summary>
+    public sealed class ChannelManagerOptions
+    {
+        /// <summary>
+        /// Maximum number of distinct transport channels the manager
+        /// may track concurrently. Each unique combination of endpoint,
+        /// configuration, client certificate, and reverse-connect flag
+        /// counts as one channel. Defaults to 256. Set to <c>0</c> to
+        /// disable the cap (legacy unbounded behavior).
+        /// </summary>
+        /// <remarks>
+        /// When the cap is reached and a new channel would have to be
+        /// created, <c>GetAsync</c> throws a
+        /// <see cref="ServiceResultException"/> with
+        /// <see cref="StatusCodes.BadResourceUnavailable"/>. Existing
+        /// channels remain available. LRU eviction is intentionally
+        /// not implemented yet; that's a follow-up.
+        /// </remarks>
+        public int MaxChannels { get; init; } = 256;
+    }
+
+    /// <summary>
     /// Client side transport channel factory. Manages creation
     /// of transport channels for clients.
     /// </summary>
@@ -60,12 +83,15 @@ namespace Opc.Ua
         /// <param name="configuration">The application configuration to use</param>
         /// <param name="channelFactory">An optional factory to create channel types
         /// from. Uses the default channel bindings if none is provided</param>
+        /// <param name="options">Optional channel manager options.</param>
         public ClientChannelManager(
             ApplicationConfiguration configuration,
-            ITransportChannelBindings? channelFactory = null)
+            ITransportChannelBindings? channelFactory = null,
+            ChannelManagerOptions? options = null)
         {
             m_configuration = configuration;
             m_channelFactory = channelFactory;
+            m_options = options ?? new ChannelManagerOptions();
             m_certRotation = new ClientChannelManagerCertRotation(this);
             WireCertificateRotation();
         }
@@ -405,13 +431,15 @@ namespace Opc.Ua
         /// historical 500&#160;ms → 30&#160;s backoff.</param>
         /// <param name="timeProvider">Optional time provider for backoff
         /// timing. Defaults to <see cref="TimeProvider.System"/>.</param>
+        /// <param name="options">Optional channel manager options.</param>
         public ClientChannelManager(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry,
             Bindings.ITransportChannelBindings? channelFactory = null,
             IChannelReconnectPolicy? reconnectPolicy = null,
-            TimeProvider? timeProvider = null)
-            : this(configuration, channelFactory)
+            TimeProvider? timeProvider = null,
+            ChannelManagerOptions? options = null)
+            : this(configuration, channelFactory, options)
         {
             m_logger = telemetry?.CreateLogger<ClientChannelManager>();
             m_meter = telemetry?.CreateMeter();
@@ -710,6 +738,11 @@ namespace Opc.Ua
                 }
                 else
                 {
+                    if (!m_entries.ContainsKey(lease.Key))
+                    {
+                        ThrowIfMaxChannelsReached();
+                    }
+
                     fresh = new ChannelEntry(this, lease.Key, lease.Endpoint, lease.ReverseConnection);
                     m_entries[lease.Key] = fresh;
                     created = true;
@@ -813,9 +846,15 @@ namespace Opc.Ua
             bool created = false;
             lock (m_entries)
             {
-                if (!m_entries.TryGetValue(key, out ChannelEntry? existing) ||
-                    existing.State is ChannelState.Closed or ChannelState.Faulted)
+                bool found = m_entries.TryGetValue(key, out ChannelEntry? existing);
+                if (!found ||
+                    existing!.State is ChannelState.Closed or ChannelState.Faulted)
                 {
+                    if (!found)
+                    {
+                        ThrowIfMaxChannelsReached();
+                    }
+
                     existing = new ChannelEntry(this, key, endpoint, reverseConnection);
                     m_entries[key] = existing;
                     created = true;
@@ -849,6 +888,19 @@ namespace Opc.Ua
             return lease;
         }
 
+        private void ThrowIfMaxChannelsReached()
+        {
+            if (m_options.MaxChannels > 0 && m_entries.Count >= m_options.MaxChannels)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadResourceUnavailable,
+                    $"ClientChannelManager has reached MaxChannels cap ({m_options.MaxChannels}). " +
+                    "Dispose unused channels or raise the limit via ChannelManagerOptions.MaxChannels.");
+            }
+
+            // TODO: Emit a debounced warning when channel count reaches 90% of MaxChannels.
+        }
+
         internal void RemoveEntryIfPresent(ManagedChannelKey key, ChannelEntry entry)
         {
             lock (m_entries)
@@ -866,6 +918,7 @@ namespace Opc.Ua
         // ClientChannel wrapper and is independent of this state.
         private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
         private readonly Lock m_certLock = new();
+        private readonly ChannelManagerOptions m_options;
         private Certificate? m_clientCertificate;
         private CertificateCollection? m_clientCertificateChain;
         private long m_clientCertificateVersion;

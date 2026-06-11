@@ -61,8 +61,8 @@ namespace Opc.Ua.Mcp.Tools
             "into other tools. Returns the file path and node count.")]
         public static async Task<string> ExportNodeSetAsync(
             OpcUaSessionManager sessionManager,
-            [Description("File path to write the NodeSet2 XML to (e.g. 'C:\\export\\server.xml'). " +
-                "Directory will be created if it doesn't exist.")] string filePath,
+            [Description("File path to write the NodeSet2 XML to under the per-user NodeSet export directory " +
+                "(e.g. 'server.xml'). Directory will be created if it doesn't exist.")] string filePath,
             [Description("Starting node ID for the export (default: 'i=84' = Root). " +
                 "Use 'i=85' for Objects folder only.")] string startingNodeId = "i=84",
             [Description("Export mode: 'Default' (schema-only, no values) or 'Complete' " +
@@ -88,6 +88,12 @@ namespace Opc.Ua.Mcp.Tools
                     "Complete", StringComparison.OrdinalIgnoreCase)
                     ? NodeSetExportOptions.Complete
                     : NodeSetExportOptions.Default;
+
+                // TODO: make configurable via McpServerOptions.
+                string allowedRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                allowedRoot = Path.Combine(allowedRoot, "OPCFoundation", "opcua-nodesets");
+                Directory.CreateDirectory(allowedRoot);
+                filePath = ResolveAndValidateExportPath(filePath, allowedRoot);
 
                 // Ensure directory exists
                 string? directory = Path.GetDirectoryName(filePath);
@@ -146,7 +152,8 @@ namespace Opc.Ua.Mcp.Tools
             "namespace (ns=0) by default. Returns a list of exported files.")]
         public static async Task<string> ExportNodeSetPerNamespaceAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Output directory where NodeSet2 XML files will be created")] string outputDirectory,
+            [Description("Output directory under the per-user NodeSet export directory where NodeSet2 XML files " +
+                "will be created")] string outputDirectory,
             [Description("Starting node ID (default: 'i=84' = Root)")] string startingNodeId = "i=84",
             [Description("Optional list of namespace URIs to include. If omitted, all non-base " +
                 "namespaces are exported.")] string[]? namespaceFilter = null,
@@ -170,6 +177,11 @@ namespace Opc.Ua.Mcp.Tools
                     ? NodeSetExportOptions.Complete
                     : NodeSetExportOptions.Default;
 
+                // TODO: make configurable via McpServerOptions.
+                string allowedRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                allowedRoot = Path.Combine(allowedRoot, "OPCFoundation", "opcua-nodesets");
+                Directory.CreateDirectory(allowedRoot);
+                outputDirectory = ResolveAndValidateExportPath(outputDirectory, allowedRoot);
                 Directory.CreateDirectory(outputDirectory);
 
                 // Build namespace filter set
@@ -247,6 +259,40 @@ namespace Opc.Ua.Mcp.Tools
                     ["message"] = ex.Message
                 });
             }
+        }
+
+        /// <summary>
+        /// Validates that <paramref name="filePath"/> resolves to a path
+        /// underneath <paramref name="allowedRoot"/>. Defends against
+        /// path-traversal in user-supplied export paths.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// Thrown if the path resolves outside <paramref name="allowedRoot"/>,
+        /// or if either argument is null/empty.
+        /// </exception>
+        internal static string ResolveAndValidateExportPath(string filePath, string allowedRoot)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            ArgumentException.ThrowIfNullOrWhiteSpace(allowedRoot);
+
+            string fullPath = Path.GetFullPath(filePath, allowedRoot);
+            string fullRoot = Path.GetFullPath(allowedRoot);
+
+            // Normalize trailing separators for the StartsWith comparison.
+            if (!fullRoot.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullRoot += Path.DirectorySeparatorChar;
+            }
+
+            if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(fullPath + Path.DirectorySeparatorChar, fullRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"Export filePath must resolve to a path under '{allowedRoot}'.",
+                    nameof(filePath));
+            }
+
+            return fullPath;
         }
 
         /// <summary>

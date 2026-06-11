@@ -317,7 +317,7 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
                 // Build the ChannelToken in-place from the snapshot. Use
                 // a very large lifetime so the live IsExpired check
                 // tolerates traces captured days ago.
-                // CA2000: ownership is transferred to the channel via OfflineLoadTokens below.
+                // CA2000: ownership is transferred to the channel via IDiagnosticsChannelMutation below.
                 // TODO: add an ownership-transfer helper when ChannelToken lifetime management is refactored.
 #pragma warning disable CA2000
                 var token = new ChannelToken
@@ -345,7 +345,7 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
                 }
 
                 ChannelToken? previous = CurrentToken;
-                OfflineLoadTokens(token, previous);
+                ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(token, previous);
                 OfflineResetRemoteSequenceNumber(0);
                 m_loadedTokenId = material.TokenId;
             }

@@ -13,6 +13,12 @@ on:
     - cron: '30 6 * * 6'
   workflow_dispatch:
 
+permissions:
+  actions: read
+  contents: read
+  packages: read
+  security-events: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

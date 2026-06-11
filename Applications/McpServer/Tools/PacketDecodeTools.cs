@@ -37,12 +37,15 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua;
 using Opc.Ua.Bindings;
+using Opc.Ua.Bindings.Pcap.Audit;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Capture.Sources;
+using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Bindings.Pcap.Dissection;
 using Opc.Ua.Bindings.Pcap.Formats;
 using Opc.Ua.Bindings.Pcap.KeyLog;
@@ -87,15 +90,30 @@ namespace Opc.Ua.Mcp.Tools
             "the .uakeys.json file; format='text' returns the Wireshark-style .uakeys.txt file. Treat the output " +
             "as a secret - it grants decryption of all captured traffic.")]
         public static async Task<IList<ContentBlock>> DumpKeysAsync(
+            IServiceProvider services,
             CaptureSessionManager manager,
             [Description("Session id.")] string sessionId,
             [Description("Output format: json | text.")] string format = "json",
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(manager);
 
             CaptureSession session = manager.Get(sessionId);
             string path = ResolveKeyLogPath(session, format);
+            await AuditAsync(
+                services,
+                new PcapAuditEvent(
+                    PcapAuditEventKind.DumpKeys,
+                    DateTimeOffset.UtcNow,
+                    session.Id,
+                    path,
+                    remoteEndpoint: null,
+                    properties: new Dictionary<string, string>
+                    {
+                        ["Format"] = format
+                    }),
+                ct).ConfigureAwait(false);
             string text = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
             return CreateText(text);
         }
@@ -109,6 +127,7 @@ namespace Opc.Ua.Mcp.Tools
             "a human-readable timeline of service calls; format='json' returns one JSON object per decoded service " +
             "call. The pcap and keys do NOT need to come from the same MCP capture session.")]
         public static async Task<IList<ContentBlock>> DecodePcapWithKeysAsync(
+            IServiceProvider services,
             TraceFormatterRegistry formatters,
             [Description("Absolute path to the pcap file.")] string pcapPath,
             [Description("Absolute path to the uakeys file.")] string keyLogPath,
@@ -116,9 +135,28 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Maximum frames to process. Default = all.")] long? maxFrames = null,
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(formatters);
             ArgumentException.ThrowIfNullOrWhiteSpace(pcapPath);
             ArgumentException.ThrowIfNullOrWhiteSpace(keyLogPath);
+
+            await AuditAsync(
+                services,
+                new PcapAuditEvent(
+                    PcapAuditEventKind.DecodePcapWithKeys,
+                    DateTimeOffset.UtcNow,
+                    sessionId: null,
+                    resourcePath: pcapPath,
+                    remoteEndpoint: null,
+                    properties: new Dictionary<string, string>
+                    {
+                        ["KeyLogPath"] = keyLogPath,
+                        ["Format"] = format
+                    }),
+                ct).ConfigureAwait(false);
+            string allowedRoot = GetDecodeAllowedRoot(services);
+            pcapPath = ResolveAndValidateDecodePath(pcapPath, allowedRoot);
+            keyLogPath = ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
 
             ReplayCaptureSource source = await CreateReplaySourceAsync(pcapPath, keyLogPath, ct).ConfigureAwait(false);
             await using var sourceDispose = source.ConfigureAwait(false);
@@ -142,6 +180,7 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Returns aggregate statistics for the OPC UA service calls observed in a capture: call counts " +
             "per service name, average latency, error rate.")]
         public static async Task<ServiceCallSummary> SummarizeServiceCallsAsync(
+            IServiceProvider services,
             CaptureSessionManager manager,
             [Description("Session id (or empty string to use pcapPath + keyLogPath instead).")]
             string sessionId,
@@ -151,6 +190,7 @@ namespace Opc.Ua.Mcp.Tools
             string? keyLogPath = null,
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(manager);
 
             IReadOnlyList<DecodedServiceCall> calls;
@@ -158,6 +198,10 @@ namespace Opc.Ua.Mcp.Tools
             {
                 ArgumentException.ThrowIfNullOrWhiteSpace(pcapPath);
                 ArgumentException.ThrowIfNullOrWhiteSpace(keyLogPath);
+
+                string allowedRoot = GetDecodeAllowedRoot(services);
+                pcapPath = ResolveAndValidateDecodePath(pcapPath, allowedRoot);
+                keyLogPath = ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
 
                 ReplayCaptureSource source = await CreateReplaySourceAsync(pcapPath, keyLogPath, ct)
                     .ConfigureAwait(false);
@@ -173,6 +217,66 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             return CreateSummary(calls);
+        }
+
+        /// <summary>
+        /// Resolves and validates a file path supplied to a packet-decode
+        /// MCP tool. The path must resolve to a file underneath the
+        /// per-user packet-capture base folder (defaults to
+        /// %LocalAppData%/OPCFoundation/opcua-pcap). Defends against
+        /// arbitrary-file-read via path-traversal in the
+        /// <c>pcapPath</c> or <c>keyLogPath</c> arguments.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="filePath"/> resolves outside
+        /// the allowed root.
+        /// </exception>
+        internal static string ResolveAndValidateDecodePath(string filePath, string allowedRoot)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            ArgumentException.ThrowIfNullOrWhiteSpace(allowedRoot);
+
+            string fullPath = Path.GetFullPath(filePath, allowedRoot);
+            string fullRoot = Path.GetFullPath(allowedRoot);
+
+            if (!fullRoot.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullRoot += Path.DirectorySeparatorChar;
+            }
+
+            if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"Decode path '{filePath}' resolves to '{fullPath}' which is " +
+                    $"outside the allowed root '{allowedRoot}'.",
+                    nameof(filePath));
+            }
+
+            return fullPath;
+        }
+
+        private static ValueTask AuditAsync(
+            IServiceProvider services,
+            PcapAuditEvent auditEvent,
+            CancellationToken ct)
+        {
+            IPcapAuditSink? auditSink = services.GetService<IPcapAuditSink>();
+            if (auditSink is null)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            return auditSink.OnEventAsync(auditEvent, ct);
+        }
+
+        private static string GetDecodeAllowedRoot(IServiceProvider services)
+        {
+            PcapOptions? options = services.GetService<PcapOptions>();
+            return options?.BaseFolder ??
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "OPCFoundation",
+                    "opcua-pcap");
         }
 
         private static ActiveChannelInfo CreateActiveChannelInfo(OpcUaSessionManager.SessionInfo info)

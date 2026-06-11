@@ -2,6 +2,124 @@
 
 The OPC UA packet-capture feature records UA traffic, stores the secure-channel keys needed for offline decoding, reconstructs service calls, and replays captured conversations. The reusable engine ships as `OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap`; the OPC UA MCP server exposes it as capture, decode, and replay tools. Decoding follows OPC UA Part 6 secure conversation framing and reuses the stack `UaSCUaBinaryChannel` path instead of reimplementing cryptography.
 
+## Security model
+
+This binding is a **diagnostics-only** tool. It captures live OPC UA traffic
+and writes both the raw frames and the symmetric channel keys (signing key,
+encryption key, IVs, nonces) to disk so that the traffic can be decrypted
+offline. **Do not enable in production.** Operators who enable any part of
+this binding should treat every output file as a secret.
+
+### Defaults — opt-in everything
+
+| Capability | Default | Opt-in mechanism |
+|---|---|---|
+| Frame capture (`start_capture`) | available | `PcapBindings.Install()` or `AddOpcUaBindingsPcap()` |
+| Keylog extraction | available when capture runs | implicit when capture is active |
+| MCP `dump_keys` / `decode_pcap_with_keys` / `replay_pcap` | **off** | `PcapOptions.EnableDiagnosticsTools = true` or env `OPCUA_PCAP_ENABLE_DIAGNOSTICS=1` |
+| Mock-client replay | **off** | `PcapOptions.AllowMockClientReplay = true` AND populate `PcapOptions.AllowedReplayEndpoints` |
+| Tamper-evident audit log | **off** | `PcapOptions.EnableTamperEvidentAudit = true` |
+| KMS-backed key escrow (instead of disk) | not registered | register your own `IKeyEscrowProvider` in DI |
+
+When any diagnostic tool is enabled the host emits a `Warning`-level log
+line at startup so the choice is observable in production logs.
+
+### File-system posture
+
+| Artifact | Mode (Unix) | Encryption-at-rest | Rotation |
+|---|---|---|---|
+| `*.pcap` capture | `0600` | none (binary frames; key material lives elsewhere) | `MaxBytesPerCapture` (default 256 MB), then `.001.pcap` etc. |
+| `*.keylog.json` / `*.keylog.txt` | `0600` | AES-256-GCM when constructed with a session key | `MaxBytesPerKeylog` (default 8 MB) |
+| `*.keylog.json.key` (session key) | `0600` | n/a | rotated alongside keylog |
+| `*.audit.jsonl` (tamper-evident audit) | `0640` | none, but hash-chained per line | append-only |
+
+`MaxArtifactsPerSession` (default 16) prunes the oldest rotated files
+when exceeded.
+
+### Default storage
+
+The base folder defaults to a per-user data directory rather than a
+shared `/tmp` directory:
+
+- Linux: `~/.local/share/OPCFoundation/opcua-pcap`
+- macOS: `~/Library/Application Support/OPCFoundation/opcua-pcap`
+- Windows: `%LOCALAPPDATA%\OPCFoundation\opcua-pcap`
+
+The base folder is created with mode `0700` on Unix and inherits the
+user profile ACL on Windows. Override via `PcapOptions.BaseFolder`.
+
+### Audit events
+
+When `IPcapAuditSink` is registered (default: `LoggerPcapAuditSink`),
+every security-relevant operation emits a structured event:
+
+- `StartCapture`, `StopCapture`
+- `DumpKeys`, `DecodePcapWithKeys`
+- `StartReplay`, `StopReplay`
+- `FrameCaptured` — rate-limited to 1/min per channel
+
+For tamper-evident storage register the optional
+`HashChainedAuditFileSink` (writes a JSONL ledger with per-line HMACs).
+
+### Operator checklist
+
+Before enabling any part of this binding in a non-development environment:
+
+1. Confirm the host process runs under a dedicated service account with
+   no shell access. Keylog files are 0600; only that account can read
+   them.
+2. Confirm `PcapOptions.BaseFolder` points to a per-user / per-service
+   directory (NOT `/tmp` or any shared directory).
+3. Confirm `EnableDiagnosticsTools` is set explicitly (not defaulted)
+   and that the MCP transport is authenticated (Bearer token / mutual
+   TLS) and audited.
+4. If using replay, populate `AllowedReplayEndpoints` with the
+   minimum set of hostnames required. Never use a wildcard.
+5. If using a KMS, register `IKeyEscrowProvider` and verify the disk
+   writer is no longer invoked.
+6. Subscribe to upstream CVE feeds for `SharpPcap` and `PacketDotNet`
+   (see the **Dependencies and governance** section near the bottom of
+   this document).
+
+### Out-of-scope (known limitations)
+
+This binding does not yet satisfy every Microsoft SFI / edge-bar
+prescription for handling secret material. The known gaps below are
+acknowledged limitations that consumers must mitigate operationally
+or accept as residual risk.
+
+- **In-process keylog writer.** `UaKeyLog{Json,Text}Writer` and the
+  per-session AES key live in the same AppDomain as the host
+  application. A host-process compromise (e.g., an unrelated
+  vulnerability in the OPC UA Client) can read keys directly from
+  process memory before the encrypt-at-rest path runs. Mitigation
+  options:
+  1. Run the host under a **dedicated service account with no
+     shell access** so a compromise can't pivot. The keylog files
+     are already mode `0600` and confined to the per-user data
+     directory; the service account boundary is the missing piece.
+  2. Register a custom `IKeyEscrowProvider` that hands keys to a
+     KMS (e.g., Azure Key Vault HSM) instead of the disk writer.
+     The disk writer is then unused.
+  3. A separate-process keylog writer is on the roadmap; until
+     then, treat option 1 or 2 as required for any non-developer
+     deployment.
+
+- **`SuppressNonceValidationErrors` is unchanged.** This OPC UA
+  Client configuration option remains as a footgun for misconfigured
+  deployments. Keep the default (`false`) and add telemetry if
+  you must override it.
+
+- **Native dependencies on libpcap / Npcap.** `SharpPcap` and
+  `PacketDotNet` are unmanaged native loads (see the **Dependencies
+  and governance** section). Subscribe to upstream CVE feeds and
+  bump within 30 days for HIGH or CRITICAL advisories.
+
+- **No automated SAST in CI.** This branch does not yet wire CodeQL
+  or `dotnet list package --vulnerable` into the GitHub Actions
+  build. Consumers should run those scans against their own
+  re-build of this binding.
+
 ## When to use it
 
 - Debug OPC UA interoperability issues that only appear on a real wire.
@@ -144,6 +262,10 @@ Every stack-supported profile can be decoded because the offline decoder reuses 
 - `opc.tcp` reverse connect: full support; the TCP stream is decoded through the same Part 6 framing.
 - `opc.https`: best-effort. The pcap can be captured, but decoding encrypted TLS payloads requires an external TLS keylog such as `SSLKEYLOGFILE`.
 
+## Storage
+
+See [Security model](#security-model) > Default storage.
+
 ## File format reference
 
 The library writes two artifacts per session: a pcap of the captured chunks and a keylog of the activated tokens.
@@ -234,9 +356,22 @@ The `.uakeys.txt` format is line-oriented and Wireshark-style so a future Lua pl
 
 This only defines the future plugin format; no delivery date is promised.
 
+## Dependencies and governance
+
+The Pcap binding has two native-code transitive dependencies:
+
+| Package | Native binding | Upstream advisories |
+|---|---|---|
+| `PacketDotNet` | Wireshark-style packet decode | https://github.com/dotpcap/packetnet/security/advisories |
+| `SharpPcap` | `libpcap` / `Npcap` capture | https://github.com/dotpcap/sharppcap/security/advisories |
+
+Both are pinned in `Directory.Packages.props` and tracked in the project SBOM. Operators deploying this binding should subscribe to the upstream advisory feeds and review at least monthly. HIGH or CRITICAL CVEs should be addressed within 30 days.
+
+Run `dotnet list package --vulnerable --include-transitive` against `Stack/Opc.Ua.Bindings.Pcap/Opc.Ua.Bindings.Pcap.csproj` in your CI pipeline; the project does this as part of its release gate.
+
 ## Security considerations
 
-> **Keylog files are secrets.** They contain symmetric keys that grant full decrypt access to captured payloads. Keep them in the per-session folder, do not commit them, restrict access, and redact before sharing.
+> **Keylog files are secrets.** See [Security model](#security-model) at the top of this document for the full posture.
 
 ## Limitations
 

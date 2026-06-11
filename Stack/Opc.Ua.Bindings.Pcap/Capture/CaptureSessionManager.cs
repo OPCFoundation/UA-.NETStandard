@@ -36,7 +36,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Opc.Ua.Bindings.Pcap.Audit;
 using Opc.Ua.Bindings.Pcap.Capture.Sources;
+using Opc.Ua.Bindings.Pcap.KeyLog;
 using Opc.Ua.Bindings.Pcap.Models;
 
 namespace Opc.Ua.Bindings.Pcap.Capture
@@ -75,9 +77,14 @@ namespace Opc.Ua.Bindings.Pcap.Capture
         private readonly ICaptureSourceFactory m_sourceFactory;
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ILogger m_logger;
+        private readonly IPcapAuditSink? m_auditSink;
+        private readonly IKeyEscrowProvider? m_escrowProvider;
         private readonly string m_baseFolder;
         private readonly Lock m_lock = new();
         private int m_disposed;
+
+        private readonly ConcurrentDictionary<string, IKeyEscrowSession> m_escrowSessions = new(
+            StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Constructs a manager that uses the supplied source factory and
@@ -94,7 +101,9 @@ namespace Opc.Ua.Bindings.Pcap.Capture
                 sourceFactory,
                 Path.Combine(Path.GetTempPath(), "opcua-pcap"),
                 loggerFactory,
-                maxActiveSessions: null)
+                maxActiveSessions: null,
+                auditSink: null,
+                escrowProvider: null)
         {
         }
 
@@ -109,7 +118,13 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             ICaptureSourceFactory sourceFactory,
             string baseFolder,
             ILoggerFactory? loggerFactory = null)
-            : this(sourceFactory, baseFolder, loggerFactory, maxActiveSessions: null)
+            : this(
+                sourceFactory,
+                baseFolder,
+                loggerFactory,
+                maxActiveSessions: null,
+                auditSink: null,
+                escrowProvider: null)
         {
         }
 
@@ -133,6 +148,37 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             string baseFolder,
             ILoggerFactory? loggerFactory,
             int? maxActiveSessions)
+            : this(
+                sourceFactory,
+                baseFolder,
+                loggerFactory,
+                maxActiveSessions,
+                auditSink: null,
+                escrowProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a manager with an explicit base folder, an optional
+        /// cap on the number of concurrent active sessions, and an optional
+        /// audit sink for security-sensitive lifecycle events.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="sourceFactory"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="baseFolder"/> is null or whitespace.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="maxActiveSessions"/> is less than 1.
+        /// </exception>
+        public CaptureSessionManager(
+            ICaptureSourceFactory sourceFactory,
+            string baseFolder,
+            ILoggerFactory? loggerFactory,
+            int? maxActiveSessions,
+            IPcapAuditSink? auditSink,
+            IKeyEscrowProvider? escrowProvider = null)
         {
             ArgumentNullException.ThrowIfNull(sourceFactory);
             ArgumentException.ThrowIfNullOrWhiteSpace(baseFolder);
@@ -149,8 +195,16 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             m_baseFolder = baseFolder;
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = m_loggerFactory.CreateLogger<CaptureSessionManager>();
+            m_auditSink = auditSink;
+            m_escrowProvider = escrowProvider;
             MaxActiveSessions = limit;
             Directory.CreateDirectory(m_baseFolder);
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(
+                    m_baseFolder,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
         }
 
         /// <summary>
@@ -170,6 +224,10 @@ namespace Opc.Ua.Bindings.Pcap.Capture
         /// <exception cref="PcapDiagnosticsException">
         /// The cap on concurrent active sessions has been reached, or the
         /// requested source cannot be created.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="request"/> specifies a session folder outside the
+        /// configured base folder.
         /// </exception>
         public async ValueTask<CaptureSession> StartAsync(
             StartCaptureRequest request,
@@ -191,33 +249,115 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             string folder = request.SessionFolder is { Length: > 0 }
                 ? request.SessionFolder
                 : Path.Combine(m_baseFolder, id);
+            folder = ValidateAndResolveSessionFolder(folder, m_baseFolder);
             Directory.CreateDirectory(folder);
+            StartCaptureRequest resolvedRequest = new()
+            {
+                Source = request.Source,
+                InterfaceName = request.InterfaceName,
+                BpfFilter = request.BpfFilter,
+                Promiscuous = request.Promiscuous,
+                PcapFilePath = request.PcapFilePath,
+                KeyLogFilePath = request.KeyLogFilePath,
+                MaxBytes = request.MaxBytes,
+                MaxFrames = request.MaxFrames,
+                MaxDurationSeconds = request.MaxDurationSeconds,
+                SessionFolder = folder
+            };
 
             ICaptureSource source = m_sourceFactory.Create(
                 request.Source,
                 folder,
                 m_loggerFactory);
+            IKeyEscrowSession? escrowSession = null;
             var session = new CaptureSession(
                 id,
                 request.Source,
                 source,
                 folder,
-                request,
+                resolvedRequest,
                 m_loggerFactory.CreateLogger<CaptureSession>());
 
             EvictIfNeeded();
 
             try
             {
+                if (m_escrowProvider is not null)
+                {
+                    escrowSession = await m_escrowProvider.BeginSessionAsync(id, folder, ct).ConfigureAwait(false);
+                }
+
                 await session.StartAsync(ct).ConfigureAwait(false);
                 m_sessions[id] = session;
+                if (escrowSession is not null)
+                {
+                    m_escrowSessions[id] = escrowSession;
+                    escrowSession = null;
+                }
+
+                await AuditAsync(
+                    PcapAuditEventKind.StartCapture,
+                    id,
+                    folder,
+                    remoteEndpoint: null,
+                    properties: CreateStartCaptureProperties(request),
+                    ct).ConfigureAwait(false);
                 return session;
             }
             catch
             {
+                // CA1508: escrowSession is non-null on the path where BeginSessionAsync
+                // succeeded but a subsequent StartAsync or dictionary insert threw; the
+                // analyzer does not model that path.
+#pragma warning disable CA1508
+                if (escrowSession is not null)
+                {
+                    await escrowSession.DisposeAsync().ConfigureAwait(false);
+                }
+#pragma warning restore CA1508
+
                 await session.DisposeAsync().ConfigureAwait(false);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Validates that <paramref name="folder"/> resolves to a path under
+        /// <paramref name="baseFolder"/>. Defends against path-traversal in
+        /// user-supplied <c>SessionFolder</c> values that could otherwise
+        /// write capture artifacts (including keylog) to arbitrary filesystem
+        /// locations.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="folder"/> resolves outside
+        /// <paramref name="baseFolder"/>.
+        /// </exception>
+        private static string ValidateAndResolveSessionFolder(
+            string folder,
+            string baseFolder)
+        {
+            string fullBase = Path.GetFullPath(baseFolder);
+            string rootedFolder = Path.IsPathRooted(folder)
+                ? folder
+                : Path.Combine(fullBase, folder);
+            string fullFolder = Path.GetFullPath(rootedFolder);
+
+            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullBase += Path.DirectorySeparatorChar;
+            }
+
+            if (!fullFolder.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(fullFolder + Path.DirectorySeparatorChar, fullBase, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"SessionFolder '{folder}' resolves to '{fullFolder}' which is " +
+                    $"outside the configured BaseFolder '{baseFolder}'. Capture " +
+                    "artifacts must remain inside the base folder.",
+                    nameof(folder));
+            }
+
+            return fullFolder;
         }
 
         /// <summary>
@@ -251,7 +391,14 @@ namespace Opc.Ua.Bindings.Pcap.Capture
         public async ValueTask<CaptureSession> StopAsync(string sessionId, CancellationToken ct)
         {
             CaptureSession session = Get(sessionId);
-            await session.StopAsync(ct).ConfigureAwait(false);
+            await StopSessionAsync(session, ct).ConfigureAwait(false);
+            await AuditAsync(
+                PcapAuditEventKind.StopCapture,
+                session.Id,
+                session.SessionFolder,
+                remoteEndpoint: null,
+                properties: CreateStopCaptureProperties(session),
+                ct).ConfigureAwait(false);
             return session;
         }
 
@@ -264,9 +411,21 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             {
                 return;
             }
+
+            bool shouldAuditStop = session.State is CaptureSessionState.Starting or CaptureSessionState.Running;
             try
             {
-                await session.StopAsync(ct).ConfigureAwait(false);
+                await StopSessionAsync(session, ct).ConfigureAwait(false);
+                if (shouldAuditStop)
+                {
+                    await AuditAsync(
+                        PcapAuditEventKind.StopCapture,
+                        session.Id,
+                        session.SessionFolder,
+                        remoteEndpoint: null,
+                        properties: CreateStopCaptureProperties(session),
+                        ct).ConfigureAwait(false);
+                }
             }
             catch
             {
@@ -286,7 +445,28 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             {
                 try
                 {
+                    bool shouldAuditStop = session.State is
+                        CaptureSessionState.Starting or CaptureSessionState.Running;
+                    if (shouldAuditStop)
+                    {
+                        await StopSessionAsync(session, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await DisposeEscrowSessionAsync(session.Id, CancellationToken.None).ConfigureAwait(false);
+                    }
+
                     await session.DisposeAsync().ConfigureAwait(false);
+                    if (shouldAuditStop)
+                    {
+                        await AuditAsync(
+                            PcapAuditEventKind.StopCapture,
+                            session.Id,
+                            session.SessionFolder,
+                            remoteEndpoint: null,
+                            properties: CreateStopCaptureProperties(session),
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
                 catch
                 {
@@ -294,6 +474,102 @@ namespace Opc.Ua.Bindings.Pcap.Capture
                 }
             }
             m_sessions.Clear();
+            m_escrowSessions.Clear();
+        }
+
+        private async ValueTask StopSessionAsync(CaptureSession session, CancellationToken ct)
+        {
+            await session.StopAsync(ct).ConfigureAwait(false);
+            await EscrowCapturedKeyMaterialAsync(session, ct).ConfigureAwait(false);
+            await DisposeEscrowSessionAsync(session.Id, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask EscrowCapturedKeyMaterialAsync(CaptureSession session, CancellationToken ct)
+        {
+            if (m_escrowProvider is null ||
+                m_escrowProvider is DiskKeyEscrowProvider ||
+                !m_escrowSessions.TryGetValue(session.Id, out IKeyEscrowSession? escrowSession))
+            {
+                return;
+            }
+
+            await foreach (ChannelKeyMaterial material in session.Source.ReadKeyMaterialAsync(ct)
+                .WithCancellation(ct)
+                .ConfigureAwait(false))
+            {
+                await escrowSession.EscrowAsync(material, ct).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask DisposeEscrowSessionAsync(string sessionId, CancellationToken ct)
+        {
+            if (!m_escrowSessions.TryRemove(sessionId, out IKeyEscrowSession? escrowSession))
+            {
+                return;
+            }
+
+            try
+            {
+                await escrowSession.FlushAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await escrowSession.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private ValueTask AuditAsync(
+            PcapAuditEventKind kind,
+            string sessionId,
+            string resourcePath,
+            string? remoteEndpoint,
+            IReadOnlyDictionary<string, string>? properties,
+            CancellationToken ct)
+        {
+            if (m_auditSink is null)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            return m_auditSink.OnEventAsync(
+                new PcapAuditEvent(
+                    kind,
+                    DateTimeOffset.UtcNow,
+                    sessionId,
+                    resourcePath,
+                    remoteEndpoint,
+                    properties),
+                ct);
+        }
+
+        private static Dictionary<string, string> CreateStartCaptureProperties(StartCaptureRequest request)
+        {
+            var properties = new Dictionary<string, string>
+            {
+                ["Source"] = request.Source.ToString()
+            };
+
+            AddIfNotEmpty(properties, "InterfaceName", request.InterfaceName);
+            AddIfNotEmpty(properties, "PcapFilePath", request.PcapFilePath);
+            return properties;
+        }
+
+        private static Dictionary<string, string> CreateStopCaptureProperties(CaptureSession session)
+        {
+            return new Dictionary<string, string>
+            {
+                ["Source"] = session.SourceKind.ToString(),
+                ["FrameCount"] = session.Source.FrameCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["ByteCount"] = session.Source.ByteCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            };
+        }
+
+        private static void AddIfNotEmpty(Dictionary<string, string> properties, string name, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                properties[name] = value;
+            }
         }
 
         private void EvictIfNeeded()

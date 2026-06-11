@@ -93,7 +93,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Replay
                 };
                 await using (replay.ConfigureAwait(false))
                 {
-                    PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
+                    ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(async () =>
                         await replay.RunAsync(CancellationToken.None).ConfigureAwait(false));
 
                     Assert.That(exception, Is.Not.Null);

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -41,6 +42,9 @@ namespace Opc.Ua.Bindings
     /// Called when a server-side <see cref="TcpListenerChannel"/>
     /// activates a new <see cref="ChannelToken"/>.
     /// </summary>
+    /// <remarks>
+    /// ⚠️ This delegate exposes symmetric channel keys. See remarks on <c>OnTokenActivated</c>.
+    /// </remarks>
     public delegate void ListenerChannelTokenActivatedEventHandler(
         TcpListenerChannel channel,
         ChannelToken? currentToken,
@@ -118,6 +122,23 @@ namespace Opc.Ua.Bindings
         /// that need offline decryption capture it through a separate
         /// stack-level diagnostics API.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// ⚠️ Registering a handler grants the consumer full access to the
+        /// symmetric channel keys carried by the activated <see cref="ChannelToken"/>
+        /// — signing key, encryption key, IV, and nonces. This is a key-disclosure
+        /// surface intended only for in-process diagnostic bindings (for example,
+        /// the <c>Opc.Ua.Bindings.Pcap</c> capture binding).
+        /// </para>
+        /// <para>
+        /// All non-diagnostic consumers MUST instead inject an
+        /// <c>IFrameCaptureSink</c> through the binding registry, which carries
+        /// the same audit semantics. Operations triggered through this event
+        /// must be recorded through <c>IPcapAuditSink</c> (or equivalent) so
+        /// key access remains observable.
+        /// </para>
+        /// </remarks>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public event ListenerChannelTokenActivatedEventHandler? OnTokenActivated
         {
             add => m_tokenActivated += value;

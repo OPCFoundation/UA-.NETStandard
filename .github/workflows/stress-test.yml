@@ -17,14 +17,14 @@ on:
         default: ''
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   chaos-tcp:
     name: Chaos TCP
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
-    permissions:
-      contents: read
 
     env:
       DOTNET_VERSION: '10.0.x'

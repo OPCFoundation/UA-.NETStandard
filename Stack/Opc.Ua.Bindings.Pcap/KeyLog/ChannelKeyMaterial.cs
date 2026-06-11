@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.KeyLog
@@ -51,7 +52,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
     /// <see cref="ChannelToken"/> has been disposed.
     /// </para>
     /// </remarks>
-    public sealed class ChannelKeyMaterial
+    public sealed class ChannelKeyMaterial : IDisposable
     {
         /// <summary>
         /// Constructs an immutable snapshot. Pass <c>null</c> for any
@@ -193,6 +194,35 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
                 serverInitializationVector: token.ServerInitializationVector);
         }
 
+        /// <summary>
+        /// Securely clears all key, nonce, and IV byte arrays held by
+        /// this instance using
+        /// <see cref="CryptographicOperations.ZeroMemory(Span{byte})"/>.
+        /// </summary>
+        /// <remarks>
+        /// Call this as soon as the material is no longer needed. After
+        /// disposal the properties continue to point to the (now zeroed)
+        /// arrays; subsequent reads will see only zero bytes.
+        /// </remarks>
+        public void Dispose()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+
+            ZeroIfNotNull(ClientNonce);
+            ZeroIfNotNull(ServerNonce);
+            ZeroIfNotNull(ClientSigningKey);
+            ZeroIfNotNull(ClientEncryptingKey);
+            ZeroIfNotNull(ClientInitializationVector);
+            ZeroIfNotNull(ServerSigningKey);
+            ZeroIfNotNull(ServerEncryptingKey);
+            ZeroIfNotNull(ServerInitializationVector);
+            m_disposed = true;
+            GC.SuppressFinalize(this);
+        }
+
         private static byte[]? Copy(byte[]? value)
         {
             if (value is null)
@@ -202,6 +232,14 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             byte[] copy = new byte[value.Length];
             Buffer.BlockCopy(value, 0, copy, 0, value.Length);
             return copy;
+        }
+
+        private static void ZeroIfNotNull(byte[]? buffer)
+        {
+            if (buffer is { Length: > 0 })
+            {
+                CryptographicOperations.ZeroMemory(buffer);
+            }
         }
 
         private static MessageSecurityMode InferSecurityMode(ChannelToken token)
@@ -220,5 +258,27 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             }
             return MessageSecurityMode.SignAndEncrypt;
         }
+
+        private bool m_disposed;
+
+#if DEBUG
+        /// <summary>
+        /// Debug-only finalizer that warns through
+        /// <see cref="System.Diagnostics.Trace.TraceWarning(string)"/> when a
+        /// <see cref="ChannelKeyMaterial"/> instance is collected without
+        /// <see cref="Dispose"/> having been called. Helps catch leaks
+        /// in tests; the finalizer is a no-op in Release builds.
+        /// </summary>
+        ~ChannelKeyMaterial()
+        {
+            if (!m_disposed)
+            {
+                System.Diagnostics.Trace.TraceWarning(
+                    "ChannelKeyMaterial finalized without Dispose; " +
+                    "key material may have persisted in heap. " +
+                    "Always Dispose ChannelKeyMaterial instances when done.");
+            }
+        }
+#endif
     }
 }
