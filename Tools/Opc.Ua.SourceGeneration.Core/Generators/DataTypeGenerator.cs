@@ -47,6 +47,7 @@ namespace Opc.Ua.SourceGeneration
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
+            m_logger = context.Telemetry.CreateLogger<DataTypeGenerator>();
         }
 
         /// <inheritdoc/>
@@ -223,7 +224,11 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                dataType.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.XmlNamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
@@ -257,7 +262,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                dataType.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
 
             if (dataType.BasicDataType != BasicDataType.UserDefined)
@@ -527,9 +536,11 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
                     dataType.SymbolicId.Namespace));
 
-            context.Template.AddReplacement(
+            context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
-                dataType.SymbolicName.Name);
+                Tokens.BrowseNameLiteral,
+                dataType.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.ClassName,
                 dataType.SymbolicName.Name);
@@ -1282,9 +1293,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.Description,
                 field.Description != null ? field.Description.Value : string.Empty);
-            context.Template.AddReplacement(
+            context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
-                field.Name);
+                Tokens.BrowseNameLiteral,
+                field.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.EnumerationName,
                 field.EnsureUniqueEnumName());
@@ -1498,5 +1511,6 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;
+        private readonly Microsoft.Extensions.Logging.ILogger m_logger;
     }
 }

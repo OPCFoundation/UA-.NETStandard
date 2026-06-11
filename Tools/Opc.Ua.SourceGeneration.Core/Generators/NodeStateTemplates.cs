@@ -1181,7 +1181,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString FindChildCase = TemplateString.Parse(
             $$"""
-            case "{{Tokens.ChildBrowseName}}":
+            case "{{Tokens.ChildBrowseNameLiteral}}":
             {
                 instance = !createOrReplace ?
                     {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);

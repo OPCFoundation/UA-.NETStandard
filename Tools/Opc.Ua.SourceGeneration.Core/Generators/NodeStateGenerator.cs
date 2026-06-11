@@ -197,7 +197,11 @@ namespace Opc.Ua.SourceGeneration
             }
             string nodeClass = node.Design.GetNodeClassAsString();
             context.Template.AddReplacement(Tokens.NodeClass, nodeClass);
-            context.Template.AddReplacement(Tokens.BrowseName, node.Design.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                node.Design.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.SymbolicId, node.Design.SymbolicId.Name);
             if (node.Design is TypeDesign type)
             {
@@ -248,7 +252,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.NodeClass, root.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.TypeName, root.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.SymbolicId, root.SymbolicId.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, root.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                root.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.Description,
                 root.Description != null ? root.Description.Value : string.Empty);
@@ -427,7 +435,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.NodeClass, type.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.TypeName, type.SymbolicName.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, type.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                type.SymbolicName.Name,
+                m_logger);
 
             return context.Template.Render();
         }
@@ -1209,13 +1221,20 @@ namespace Opc.Ua.SourceGeneration
             // Boiler's "InputPipe" InstanceDesign with BrowseName "PipeX001").
             // FindChild switches on the runtime browse name, so the case
             // label must use that string verbatim.
-            context.Template.AddReplacement(Tokens.ChildBrowseName,
+            context.Template.AddBrowseNameReplacement(
+                Tokens.ChildBrowseName,
+                Tokens.ChildBrowseNameLiteral,
                 !string.IsNullOrEmpty(instance.BrowseName)
                     ? instance.BrowseName
-                    : instance.SymbolicName.Name);
+                    : instance.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.FieldName, instance.GetChildFieldName());
             context.Template.AddReplacement(Tokens.NodeClass, instance.GetNodeClassAsString());
-            context.Template.AddReplacement(Tokens.BrowseName, instance.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                instance.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespacePrefix,
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
@@ -1336,7 +1355,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.SymbolicName,
                 root.SymbolicName.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, root.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                root.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.NumericIdValue, root.FindNumericIdentifier() ?? 0);
             context.Template.AddReplacement(
                 Tokens.TypeName,

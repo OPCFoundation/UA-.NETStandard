@@ -1237,7 +1237,7 @@ namespace Opc.Ua.SourceGeneration
             /// {{Tokens.BrowseName}} property
             /// </summary>
             [global::System.Runtime.Serialization.DataMember(
-                Name = "{{Tokens.BrowseName}}",
+                Name = "{{Tokens.BrowseNameLiteral}}",
                 IsRequired = {{Tokens.IsRequired}},
                 EmitDefaultValue = {{Tokens.EmitDefaultValue}},
                 Order = {{Tokens.FieldIndex}})]
@@ -1258,7 +1258,7 @@ namespace Opc.Ua.SourceGeneration
             /// {{Tokens.BrowseName}} property
             /// </summary>
             [global::System.Runtime.Serialization.DataMember(
-                Name = "{{Tokens.BrowseName}}",
+                Name = "{{Tokens.BrowseNameLiteral}}",
                 IsRequired = {{Tokens.IsRequired}},
                 EmitDefaultValue = {{Tokens.EmitDefaultValue}},
                 Order = {{Tokens.FieldIndex}})]
@@ -1289,7 +1289,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString AddPropertyToStringBuilder = TemplateString.Parse(
             $$"""
             sb = sb
-                .AppendFormat("{{Tokens.BrowseName}}={0}", {{Tokens.FieldName}})
+                .AppendFormat("{{Tokens.BrowseNameLiteral}}={0}", {{Tokens.FieldName}})
                 .AppendLine();
 
             """);

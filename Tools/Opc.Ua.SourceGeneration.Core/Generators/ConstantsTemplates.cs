@@ -82,7 +82,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString BrowseName = TemplateString.Parse(
             $$"""
-            public const string {{Tokens.SymbolicName}} = "{{Tokens.BrowseName}}";
+            public const string {{Tokens.SymbolicName}} = "{{Tokens.BrowseNameLiteral}}";
 
             """);
     }

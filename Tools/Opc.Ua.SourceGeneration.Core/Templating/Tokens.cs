@@ -39,6 +39,7 @@ namespace Opc.Ua.SourceGeneration
         public static string BaseTypeNamespaceUri => nameof(BaseTypeNamespaceUri);
         public static string BinaryEncodingId => nameof(BinaryEncodingId);
         public static string BrowseName => nameof(BrowseName);
+        public static string BrowseNameLiteral => nameof(BrowseNameLiteral);
         public static string BrowseNameNamespacePrefix => nameof(BrowseNameNamespacePrefix);
         public static string BrowseNameNamespaceUri => nameof(BrowseNameNamespaceUri);
         public static string BrowseNameSymbol => nameof(BrowseNameSymbol);
@@ -49,6 +50,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ValueComparison => nameof(ValueComparison);
         public static string ChildName => nameof(ChildName);
         public static string ChildBrowseName => nameof(ChildBrowseName);
+        public static string ChildBrowseNameLiteral => nameof(ChildBrowseNameLiteral);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
         public static string ClassFactory => nameof(ClassFactory);
