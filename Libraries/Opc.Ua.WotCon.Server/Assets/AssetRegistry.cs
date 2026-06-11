@@ -363,6 +363,16 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Rebuilds the variable + method children of an asset from a TD,
         /// reconnecting (or replacing) its provider as appropriate.
         /// </summary>
+        /// <remarks>
+        /// TD property / action keys flow through
+        /// <see cref="WotChildNameValidator.Validate"/> before they
+        /// become <see cref="NodeId"/> path segments or
+        /// <see cref="QualifiedName"/> browse names. Names that fail
+        /// validation (or duplicate an earlier valid name) are skipped
+        /// with a per-child warning; the remaining valid children
+        /// still materialise so a single bad TD entry does not poison
+        /// the whole asset.
+        /// </remarks>
         /// <param name="entry">The asset entry to rebuild.</param>
         /// <param name="td">The thing description to materialise.</param>
         /// <param name="persistOnSuccess">
@@ -439,15 +449,45 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 if (td.Properties != null)
                 {
-                    foreach (KeyValuePair<string, WotProperty> kv in td.Properties)
+                    var seen = new System.Collections.Generic.HashSet<string>(
+                        System.StringComparer.Ordinal);
+                    foreach (System.Collections.Generic.KeyValuePair<string, WotProperty> kv
+                        in td.Properties)
                     {
+                        if (!TryValidateChildName(entry.Name, "property", kv.Key))
+                        {
+                            continue;
+                        }
+                        if (!seen.Add(kv.Key))
+                        {
+                            m_logger.LogWarning(
+                                "Skipping duplicate TD property '{ChildName}' for asset {AssetName}.",
+                                WotChildNameValidator.SanitiseForLog(kv.Key),
+                                entry.Name);
+                            continue;
+                        }
                         BuildPropertyNode(entry, kv.Key, kv.Value);
                     }
                 }
                 if (td.Actions != null)
                 {
-                    foreach (KeyValuePair<string, WotAction> kv in td.Actions)
+                    var seen = new System.Collections.Generic.HashSet<string>(
+                        System.StringComparer.Ordinal);
+                    foreach (System.Collections.Generic.KeyValuePair<string, WotAction> kv
+                        in td.Actions)
                     {
+                        if (!TryValidateChildName(entry.Name, "action", kv.Key))
+                        {
+                            continue;
+                        }
+                        if (!seen.Add(kv.Key))
+                        {
+                            m_logger.LogWarning(
+                                "Skipping duplicate TD action '{ChildName}' for asset {AssetName}.",
+                                WotChildNameValidator.SanitiseForLog(kv.Key),
+                                entry.Name);
+                            continue;
+                        }
                         BuildActionNode(entry, kv.Key, kv.Value);
                     }
                 }
@@ -488,6 +528,31 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.RemoveChild(kv.Value.Method);
             }
             entry.Actions.Clear();
+        }
+
+        /// <summary>
+        /// Runs the TD child name through <see cref="WotChildNameValidator"/>
+        /// before it is used to mint a NodeId / QualifiedName. On
+        /// rejection a single warning is logged (with the name
+        /// sanitised via <see cref="WotChildNameValidator.SanitiseForLog"/>
+        /// so a hostile name can't reshape the log line) and the
+        /// caller skips the child.
+        /// </summary>
+        private bool TryValidateChildName(string assetName, string kind, string? childName)
+        {
+            ServiceResult result = WotChildNameValidator.Validate(childName);
+            if (ServiceResult.IsGood(result))
+            {
+                return true;
+            }
+            LocalizedText reason = result.LocalizedText;
+            m_logger.LogWarning(
+                "Skipping TD {Kind} '{ChildName}' on asset {AssetName}: {Reason}",
+                kind,
+                WotChildNameValidator.SanitiseForLog(childName),
+                assetName,
+                reason.IsNull ? "name validation failed" : reason.Text);
+            return false;
         }
 
         private void BuildPropertyNode(AssetEntry entry, string name, WotProperty property)

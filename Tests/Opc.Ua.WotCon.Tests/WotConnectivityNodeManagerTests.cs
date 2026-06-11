@@ -749,6 +749,98 @@ namespace Opc.Ua.WotCon.Tests
         // ----------------------------------------------------------------
 
         [Test]
+        public async Task RebuildAsync_SkipsTdChildrenWithInvalidNames_AndMaterialisesValidOnes()
+        {
+            // Defence-in-depth: a hostile Thing Description that mixes
+            // valid and invalid property / action names must materialise
+            // only the safe entries — invalid names are skipped, never
+            // turned into NodeIds / QualifiedNames.
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Properties = new Dictionary<string, WotProperty>(StringComparer.Ordinal)
+                {
+                    ["Voltage"] = new WotProperty { Type = "number" },
+                    ["temp/erature"] = new WotProperty { Type = "number" }, // path sep
+                    ["with.dot"] = new WotProperty { Type = "number" },     // browse-path token
+                    ["\u202Eevil"] = new WotProperty { Type = "number" },   // RTL spoof
+                    ["bad\u0001ctrl"] = new WotProperty { Type = "number" },// control char
+                    [" leading"] = new WotProperty { Type = "number" },     // leading space
+                    ["Set-Point"] = new WotProperty { Type = "number" }
+                },
+                Actions = new Dictionary<string, WotAction>(StringComparer.Ordinal)
+                {
+                    ["Reset"] = new WotAction { Title = "Reset" },
+                    ["bad:ns"] = new WotAction(),
+                    ["bad!ref"] = new WotAction()
+                }
+            };
+
+            await harness.Registry.RebuildAsync(
+                entry, td, persistOnSuccess: false, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            string?[] propNames = entry.Properties.Values
+                .Select(v => v.Variable.BrowseName.Name)
+                .ToArray();
+            Assert.That(propNames, Is.EquivalentTo(s_validPropertyAndActionMix_ExpectedProps));
+
+            string?[] actionNames = entry.Actions.Values
+                .Select(a => a.Method.BrowseName.Name)
+                .ToArray();
+            Assert.That(actionNames, Is.EquivalentTo(s_validPropertyAndActionMix_ExpectedActions));
+        }
+
+        [Test]
+        public async Task RebuildAsync_TooLongChildName_IsSkipped()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+
+            string longName = new('a', WotChildNameValidator.MaxLength + 1);
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Properties = new Dictionary<string, WotProperty>(StringComparer.Ordinal)
+                {
+                    ["Voltage"] = new WotProperty { Type = "number" },
+                    [longName] = new WotProperty { Type = "number" }
+                }
+            };
+
+            await harness.Registry.RebuildAsync(
+                entry, td, persistOnSuccess: false, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            string?[] propNames = entry.Properties.Values
+                .Select(v => v.Variable.BrowseName.Name)
+                .ToArray();
+            Assert.That(propNames, Is.EquivalentTo(s_tooLongChildName_ExpectedProps));
+        }
+
+        private static readonly string[] s_validPropertyAndActionMix_ExpectedProps =
+            ["Voltage", "Set-Point"];
+        private static readonly string[] s_validPropertyAndActionMix_ExpectedActions =
+            ["Reset"];
+        private static readonly string[] s_tooLongChildName_ExpectedProps =
+            ["Voltage"];
+
+        [Test]
         public async Task PersistedThingDescriptionsAreRestoredOnStartup()
         {
             // Round 1: create an asset, materialise it with a TD, persist to disk.

@@ -187,6 +187,7 @@ under `WoTAssetConnectionManagement/<asset>`).
 
 ---
 
+<<<<<<< HEAD
 ## 4. Persistence limits
 
 The persisted-TD loader (`AssetRegistry.EnumeratePersistedAsync`) walks
@@ -221,7 +222,41 @@ per-file warnings; no other exception type is silently swallowed.
 
 ---
 
-## 5. Limitations and known issues
+## 5. Name validation
+
+Two validators harden the path from third-party input to address-space
+nodes:
+
+* **`WotAssetNameValidator`** (asset names from
+  `CreateAsset` / `CreateAssetForEndpoint`) — rejects names that would
+  escape the persistence folder, contain NUL bytes, hit a Windows
+  reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1..9`,
+  `LPT1..9`), start with `.`, ` `, or `~`, or end with `.` or ` `.
+* **`WotChildNameValidator`** (TD `properties` / `actions` keys) —
+  rejects names that would corrupt the OPC UA address space or enable
+  visual-spoofing in a browse viewer:
+  * empty / whitespace-only / `> 128` chars,
+  * leading or trailing whitespace,
+  * any `char.IsControl` or BIDI / format character (LRM, RLM, LRE,
+    RLE, PDF, LRO, RLO, LRI, RLI, FSI, PDI — see [Unicode TR9 §2.1](
+    https://www.unicode.org/reports/tr9/#Bidirectional_Character_Types)),
+  * any of `/`, `\`, `.`, `#`, `:`, `!` — characters that have
+    syntactic meaning in `NodeId` / browse-path expressions or that
+    re-interpret to a path separator at the file-system layer.
+
+Invalid names produce a single `LogWarning` (with the offending name
+passed through `WotChildNameValidator.SanitiseForLog` so a hostile
+name cannot reshape the rendered log line) and are skipped — the
+remaining valid children still materialise so one bad TD entry does
+not poison the whole asset.
+
+Duplicate child names (case-sensitive) are also rejected after
+validation: only the first occurrence wins, the rest are logged as
+duplicates.
+
+---
+
+## 6. Limitations and known issues
 
 * WoT action input/output mapping handles the flat `type:object` shape
   illustrated by Spec §6.3.9 (a `properties` bag with scalar / array
@@ -239,7 +274,7 @@ per-file warnings; no other exception type is silently swallowed.
 
 ---
 
-## 6. References
+## 7. References
 
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/
