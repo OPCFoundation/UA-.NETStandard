@@ -639,21 +639,17 @@ The metric tag set is also bounded for routine operation:
 `manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the
 number of distinct OPC UA endpoint URLs the application connects to.
 
-> ⚠ The `participant` tag currently carries the full per-instance
-> `IReconnectParticipant.Id` (e.g.
-> `idPrefix + "-" + Guid.NewGuid().ToString("N")` for clients, and a
-> bare per-instance GUID for `Session`). For long-lived sessions in a
-> stable topology the cardinality is bounded by the participant count,
-> but workloads that repeatedly create and dispose participants — for
-> instance reconnect storms or short-lived test harnesses — accumulate
-> permanent time-series in metric stores that retain
-> historical labels (Prometheus, Application Insights, OTLP).
-> Operators that surface these counters to such backends should drop
-> or rewrite the `participant` tag at the metric processor (e.g. an
-> OpenTelemetry view that strips the suffix after the first `-`).
-> Activity tags and EventSource events continue to receive the full
-> per-instance ID, which keeps end-to-end distributed traces
-> correlatable.
+> The `participant` tag carries the **kind prefix** of the
+> participant identifier (e.g. `"Session"`, `"Client"`), not the
+> per-instance suffix. This keeps cardinality bounded by the small set
+> of participant kinds rather than growing with every session /
+> reconnect-storm participant ever created. The full per-instance
+> `IReconnectParticipant.Id` is preserved on Activity tags and
+> EventSource events so individual sessions remain correlatable in
+> distributed traces. Custom participants that don't use the
+> "kind-`-`-instance" naming convention contribute their full id to
+> the tag, so prefer the prefix-then-suffix shape for new participant
+> types.
 
 ### DI registration
 

@@ -168,7 +168,7 @@ namespace Opc.Ua
         {
             return new TagList(
                 new KeyValuePair<string, object?>("endpoint", entry.EndpointUrl),
-                new KeyValuePair<string, object?>("participant", participantId));
+                new KeyValuePair<string, object?>("participant", GetParticipantKind(participantId)));
         }
 
         private static TagList CreateEndpointParticipantSuccessTags(
@@ -178,8 +178,27 @@ namespace Opc.Ua
         {
             return new TagList(
                 new KeyValuePair<string, object?>("endpoint", entry.EndpointUrl),
-                new KeyValuePair<string, object?>("participant", participantId),
+                new KeyValuePair<string, object?>("participant", GetParticipantKind(participantId)),
                 new KeyValuePair<string, object?>("success", success));
+        }
+
+        /// <summary>
+        /// Extracts the bounded "kind" prefix from a per-instance
+        /// participant ID (e.g. <c>"Session-deadbeef…"</c> →
+        /// <c>"Session"</c>). Used to keep the <c>participant</c> metric
+        /// tag at per-kind cardinality instead of accumulating one
+        /// permanent time-series per participant instance in metric
+        /// backends. The full per-instance ID is preserved on Activity
+        /// tags and EventSource events for correlation.
+        /// </summary>
+        private static string GetParticipantKind(string participantId)
+        {
+            if (string.IsNullOrEmpty(participantId))
+            {
+                return string.Empty;
+            }
+            int dash = participantId.IndexOf('-', StringComparison.Ordinal);
+            return dash > 0 ? participantId.Substring(0, dash) : participantId;
         }
 
         private static KeyValuePair<string, object?>[] CreateEndpointTagsArray(ChannelEntry entry)

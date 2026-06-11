@@ -42,7 +42,17 @@ namespace Opc.Ua.Client
         /// <see cref="IClientChannelManager"/> for diagnostics. Set
         /// during construction.
         /// </summary>
-        public string ParticipantId { get; } = Guid.NewGuid().ToString("N");
+        /// <remarks>
+        /// The <c>"Session-"</c> prefix is significant: the channel
+        /// manager strips the suffix when emitting the bounded
+        /// <c>participant</c> metric tag, so the metric stays at
+        /// per-kind cardinality (one series per "Session", "Client",
+        /// …) instead of accumulating one permanent series per session
+        /// instance. The full per-instance identifier is preserved on
+        /// distributed-trace Activity tags and EventSource events so
+        /// individual sessions remain correlatable in traces.
+        /// </remarks>
+        public string ParticipantId { get; } = "Session-" + Guid.NewGuid().ToString("N");
 
         /// <inheritdoc/>
         string IReconnectParticipant.Id => ParticipantId;
