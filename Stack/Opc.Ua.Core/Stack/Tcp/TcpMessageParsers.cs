@@ -456,13 +456,16 @@ namespace Opc.Ua.Bindings
         /// </returns>
         /// <exception cref="ServiceResultException">
         /// The body is malformed
-        /// (<see cref="StatusCodes.BadDecodingError"/>).
+        /// (<see cref="StatusCodes.BadDecodingError"/>) or either of the
+        /// length-prefixed string fields exceeds
+        /// <see cref="TcpMessageLimits.MaxEndpointUrlLength"/>
+        /// (<see cref="StatusCodes.BadEncodingLimitsExceeded"/>).
         /// </exception>
         public static ReverseHelloMessage ReadReverseHelloMessage(ArraySegment<byte> body)
         {
             using var decoder = CreateDecoder(body);
-            string? serverUri = decoder.ReadString(null);
-            string? endpointUrl = decoder.ReadString(null);
+            string? serverUri = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
+            string? endpointUrl = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
 
             return new ReverseHelloMessage(serverUri, endpointUrl);
         }
