@@ -334,7 +334,57 @@ the server log.
 
 ---
 
-## 8. Limitations and known issues
+## 8. Security: management access policy
+
+The five management methods on the standard
+`WoTAssetConnectionManagement` object — `CreateAsset`, `DeleteAsset`,
+`DiscoverAssets`, `CreateAssetForEndpoint`, `ConnectionTest` — mutate
+the asset registry and trigger outbound network activity. Anonymous,
+unauthenticated callers must not be able to reach them.
+
+The node manager therefore enforces a
+`WotManagementAccessPolicy` as the very first action of every method
+handler. Defaults:
+
+| Knob | Default | Rationale |
+|---|---|---|
+| `MinimumSecurityMode` | `SignAndEncrypt` | Confidentiality + integrity required. |
+| `AllowAnonymous` | `false` | Anonymous identity rejected even on encrypted channels. |
+| `RequiredRoleId` | `WellKnownRole_SecurityAdmin` | Mirrors `Opc.Ua.Server.ConfigurationNodeManager` for the equivalent `ServerConfiguration` methods. |
+
+On denial the handler logs a warning (with operation, token type and
+granted-role list) and throws
+`ServiceResultException(BadUserAccessDenied)`. Internal callers that
+invoke the underlying `AssetRegistry` APIs directly — startup
+restoration, persisted-asset replay, in-process tests — flow an
+`OperationContext`-less `SystemContext`; the policy check is skipped
+in that path so server bootstrap continues to work.
+
+Override the policy via DI:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(...)
+    .AddWotConServer(opts =>
+    {
+        opts.ManagementAccess = new WotManagementAccessPolicy
+        {
+            RequiredRoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+            MinimumSecurityMode = MessageSecurityMode.SignAndEncrypt,
+            AllowAnonymous = false
+        };
+    });
+```
+
+To loosen the policy (for example a closed lab deployment where the
+client cannot present a non-anonymous identity), set
+`AllowAnonymous = true` and grant the anonymous identity the chosen
+role via your role-mapping layer; do not weaken `MinimumSecurityMode`
+in production.
+
+---
+
+## 9. Limitations and known issues
 
 * WoT action input/output mapping handles the flat `type:object` shape
   illustrated by Spec §6.3.9 (a `properties` bag with scalar / array
@@ -352,7 +402,7 @@ the server log.
 
 ---
 
-## 9. References
+## 10. References
 
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/

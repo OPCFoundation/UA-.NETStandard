@@ -140,6 +140,18 @@ namespace Opc.Ua.WotCon.Server
         /// of the <c>Configuration</c> object.
         /// </summary>
         public string? License { get; set; }
+
+        /// <summary>
+        /// Access policy applied to the standard
+        /// <c>WoTAssetConnectionManagement</c> methods (CreateAsset,
+        /// DeleteAsset, DiscoverAssets, CreateAssetForEndpoint,
+        /// ConnectionTest). Defaults to a restrictive policy that
+        /// requires <see cref="MessageSecurityMode.SignAndEncrypt"/>,
+        /// a non-anonymous identity, and the
+        /// <c>WellKnownRole_SecurityAdmin</c> role.
+        /// </summary>
+        public WotManagementAccessPolicy ManagementAccess { get; set; }
+            = new WotManagementAccessPolicy();
     }
 
     /// <summary>
