@@ -366,6 +366,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     monitoredItem = null;
                     return false;
                 }
+                if (decision.RejectMaxPartitionCountReached)
+                {
+                    // DoS guard: the wrapper has reached its hard
+                    // partition-count cap. Refuse to grow further so
+                    // a hostile server cannot amplify every
+                    // Bad_TooManyMonitoredItems reply into unbounded
+                    // partition fan-out.
+                    monitoredItem = null;
+                    return false;
+                }
 
                 IManagedSubscription chosen;
                 if (decision.UseExistingPartition)

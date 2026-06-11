@@ -68,6 +68,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// limit is lower than the advertised
     /// <see cref="ServerCapabilities.MaxMonitoredItemsPerSubscription"/>.
     /// </para>
+    /// <para>
+    /// DoS guard: the policy enforces
+    /// <see cref="MaxPartitionCount"/> as a hard upper bound on the
+    /// number of partitions a single logical subscription is
+    /// allowed to grow to. Once that count is reached the policy
+    /// stops minting and returns
+    /// <see cref="PlacementDecision.RejectMaxPartitionCountReached"/>
+    /// — preventing a hostile or buggy server from amplifying every
+    /// <c>Bad_TooManyMonitoredItems</c> reply into unbounded
+    /// client-side memory and server-side subscription handle
+    /// growth.
+    /// </para>
     /// </summary>
     internal sealed class PartitionPlacementPolicy
     {
@@ -83,11 +95,27 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Upper bound on the number of monitored items per partition
         /// (inclusive). When zero, treated as <see cref="uint.MaxValue"/>.
         /// </param>
-        public PartitionPlacementPolicy(uint maxItemsPerPartition)
+        /// <param name="maxPartitionCount">
+        /// Hard upper bound on the number of partitions the logical
+        /// subscription is allowed to grow to. When the policy would
+        /// otherwise mint a new partition past this count it returns
+        /// <see cref="PlacementDecision.RejectMaxPartitionCountReached"/>.
+        /// <c>0</c> is treated as <see cref="uint.MaxValue"/> (no
+        /// hard cap) for back-compat with construction sites that
+        /// do not yet thread the value through; production wiring
+        /// must always supply the configured cap from
+        /// <see cref="SubscriptionOptions.MaxPartitionCount"/>.
+        /// </param>
+        public PartitionPlacementPolicy(
+            uint maxItemsPerPartition,
+            uint maxPartitionCount = 0)
         {
             m_maxItemsPerPartition = maxItemsPerPartition == 0
                 ? uint.MaxValue
                 : maxItemsPerPartition;
+            m_maxPartitionCount = maxPartitionCount == 0
+                ? uint.MaxValue
+                : maxPartitionCount;
         }
 
         /// <summary>
@@ -97,6 +125,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// when the constructor received <c>0</c>).
         /// </summary>
         public uint MaxItemsPerPartition => m_maxItemsPerPartition;
+
+        /// <summary>
+        /// Effective hard upper bound on the number of partitions
+        /// the logical subscription may grow to. Exposed for
+        /// diagnostics and tests; matches the value passed to the
+        /// constructor (or <see cref="uint.MaxValue"/> when the
+        /// constructor received <c>0</c>).
+        /// </summary>
+        public uint MaxPartitionCount => m_maxPartitionCount;
 
         /// <summary>
         /// Decide which existing partition should host a monitored
@@ -150,7 +187,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
             }
 
-            // No existing partition can accept the item.
+            // No existing partition can accept the item. Enforce
+            // the hard partition-count cap before signalling that
+            // a fresh partition must be minted; once the cap is hit
+            // the wrapper must refuse further growth (DoS guard
+            // against a hostile or buggy server amplifying every
+            // Bad_TooManyMonitoredItems reply into unbounded
+            // partition fan-out).
+            if ((uint)partitions.Count >= m_maxPartitionCount)
+            {
+                return PlacementDecision.CreateRejectMaxPartitionCountReached();
+            }
+
             return PlacementDecision.CreateNeedNewPartition();
         }
 
@@ -334,6 +382,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private readonly uint m_maxItemsPerPartition;
+        private readonly uint m_maxPartitionCount;
         private readonly Dictionary<IManagedSubscription, uint> m_perPartitionCount = [];
         private readonly Dictionary<string, IManagedSubscription> m_affinityIndex
             = new(StringComparer.Ordinal);
@@ -342,7 +391,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
     /// <summary>
     /// Outcome of <see cref="PartitionPlacementPolicy.Decide"/>. One
-    /// of three mutually exclusive states.
+    /// of four mutually exclusive states.
     /// </summary>
     internal readonly struct PlacementDecision
     {
@@ -369,10 +418,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool RejectStrictAffinityFull { get; }
 
         /// <summary>
+        /// The logical subscription has hit its
+        /// <see cref="PartitionPlacementPolicy.MaxPartitionCount"/>
+        /// guard and may not grow further. The caller must reject
+        /// the TryAdd. Acts as the DoS safeguard against hostile or
+        /// buggy servers that reply
+        /// <c>Bad_TooManyMonitoredItems</c> to every
+        /// <c>CreateMonitoredItems</c> request.
+        /// </summary>
+        public bool RejectMaxPartitionCountReached { get; }
+
+        /// <summary>
         /// Target partition for
         /// <see cref="UseExistingPartition"/>; pinned partition for
         /// <see cref="RejectStrictAffinityFull"/>; <c>null</c> for
-        /// <see cref="RequiresNewPartition"/>.
+        /// <see cref="RequiresNewPartition"/> and
+        /// <see cref="RejectMaxPartitionCountReached"/>.
         /// </summary>
         public IManagedSubscription? Partition { get; }
 
@@ -380,27 +441,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             bool useExisting,
             bool requiresNew,
             bool rejectStrict,
+            bool rejectMaxPartitions,
             IManagedSubscription? partition)
         {
             UseExistingPartition = useExisting;
             RequiresNewPartition = requiresNew;
             RejectStrictAffinityFull = rejectStrict;
+            RejectMaxPartitionCountReached = rejectMaxPartitions;
             Partition = partition;
         }
 
         internal static PlacementDecision CreateUseExisting(IManagedSubscription partition)
         {
-            return new PlacementDecision(true, false, false, partition);
+            return new PlacementDecision(true, false, false, false, partition);
         }
 
         internal static PlacementDecision CreateNeedNewPartition()
         {
-            return new PlacementDecision(false, true, false, null);
+            return new PlacementDecision(false, true, false, false, null);
         }
 
         internal static PlacementDecision CreateRejectStrictAffinityFull(IManagedSubscription pinned)
         {
-            return new PlacementDecision(false, false, true, pinned);
+            return new PlacementDecision(false, false, true, false, pinned);
+        }
+
+        internal static PlacementDecision CreateRejectMaxPartitionCountReached()
+        {
+            return new PlacementDecision(false, false, false, true, null);
         }
     }
 }

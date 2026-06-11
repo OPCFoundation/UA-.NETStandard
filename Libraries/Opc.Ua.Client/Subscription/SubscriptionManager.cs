@@ -455,7 +455,8 @@ namespace Opc.Ua.Client.Subscriptions
             else
             {
                 policy = new PartitionPlacementPolicy(
-                    snapshot.MaxMonitoredItemsPerPartition ?? 0);
+                    snapshot.MaxMonitoredItemsPerPartition ?? 0,
+                    snapshot.MaxPartitionCount);
                 // Capture the wrapper into the factory closure so newly
                 // minted secondary partitions can route their reactive-
                 // fallback callbacks back to the same logical.
@@ -765,7 +766,8 @@ namespace Opc.Ua.Client.Subscriptions
             else
             {
                 policy = new PartitionPlacementPolicy(
-                    options.MaxMonitoredItemsPerPartition ?? 0);
+                    options.MaxMonitoredItemsPerPartition ?? 0,
+                    options.MaxPartitionCount);
                 LogicalSubscription? created = null;
                 partitionFactory = () =>
                 {
@@ -981,9 +983,18 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Mint the partition via the preloaded-variant factory so
             // it is wired into the dispatch registry from the moment
-            // it is constructed.
+            // it is constructed. Route the partition's notification
+            // callbacks through the wrapper's forwarding handler so
+            // restored secondaries observe the same serialization and
+            // logical-subscription identity contract that fresh-Add
+            // secondaries get; without this the raw user handler is
+            // invoked concurrently from multiple partitions on the
+            // restore path, breaking the single-threaded dispatch
+            // guarantee callers rely on.
+            ISubscriptionNotificationHandler effective =
+                wrapper.ForwardingHandler ?? handler;
             IManagedSubscription partition = MintPreloadedPartition(
-                handler, optionsMonitor, loadState);
+                effective, optionsMonitor, loadState);
             AttachReactiveFallback(partition, wrapper);
 
             // Append to the wrapper's partition list so the composite

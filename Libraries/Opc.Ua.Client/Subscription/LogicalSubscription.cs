@@ -146,6 +146,18 @@ namespace Opc.Ua.Client.Subscriptions
             m_forwardingHandler = handler;
         }
 
+        /// <summary>
+        /// Forwarding handler installed by
+        /// <see cref="AttachForwardingHandler"/>; <c>null</c> when
+        /// the wrapper was constructed in single-partition fast-path
+        /// mode (i.e. <see cref="SubscriptionOptions.DisableUnboundedItemMode"/>
+        /// is <c>true</c>). Exposed so the manager can route
+        /// late-attached partitions (snapshot-restore secondaries)
+        /// through the same wrapper that serializes notifications
+        /// across the primary partition.
+        /// </summary>
+        internal PartitionForwardingHandler? ForwardingHandler => m_forwardingHandler;
+
         /// <inheritdoc/>
         public bool Created
         {

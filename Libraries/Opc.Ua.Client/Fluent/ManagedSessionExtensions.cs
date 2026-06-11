@@ -370,7 +370,66 @@ namespace Opc.Ua.Client
                         groupId, i, bucket[i].PartitionIndex);
                 }
             }
+
+            // Snapshot-trust guard: a multi-partition group must
+            // share identical subscription-wide options across every
+            // partition (the wrapper assumes the partitions are
+            // siblings of a single logical subscription). Reject the
+            // load if the partitions disagree on any setting that
+            // affects publish behaviour, durability, or transfer
+            // semantics so an attacker-controlled or corrupted
+            // snapshot file cannot smuggle a non-durable partition
+            // into a durable logical (or vice versa), nor cause the
+            // wrapper to mix partitions with diverging publishing
+            // cadences.
+            if (bucket.Count > 1)
+            {
+                SubscriptionStateSnapshot primary = bucket[0];
+                for (int i = 1; i < bucket.Count; i++)
+                {
+                    SubscriptionStateSnapshot secondary = bucket[i];
+                    AssertSameOption(groupId, "PublishingIntervalMs",
+                        primary.PublishingIntervalMs, secondary.PublishingIntervalMs);
+                    AssertSameOption(groupId, "KeepAliveCount",
+                        primary.KeepAliveCount, secondary.KeepAliveCount);
+                    AssertSameOption(groupId, "LifetimeCount",
+                        primary.LifetimeCount, secondary.LifetimeCount);
+                    AssertSameOption(groupId, "MaxNotificationsPerPublish",
+                        primary.MaxNotificationsPerPublish,
+                        secondary.MaxNotificationsPerPublish);
+                    AssertSameOption(groupId, "MinLifetimeIntervalMs",
+                        primary.MinLifetimeIntervalMs,
+                        secondary.MinLifetimeIntervalMs);
+                    AssertSameOption(groupId, "Priority",
+                        primary.Priority, secondary.Priority);
+                    AssertSameOption(groupId, "PublishingEnabled",
+                        primary.PublishingEnabled, secondary.PublishingEnabled);
+                    AssertSameOption(groupId, "Disabled",
+                        primary.Disabled, secondary.Disabled);
+                    AssertSameOption(groupId, "SendInitialValuesOnTransfer",
+                        primary.SendInitialValuesOnTransfer,
+                        secondary.SendInitialValuesOnTransfer);
+                }
+            }
+
             return bucket;
+        }
+
+        private static void AssertSameOption<T>(
+            string groupId, string optionName, T primary, T secondary)
+            where T : IEquatable<T>
+        {
+            if (!EqualityComparer<T>.Default.Equals(primary, secondary))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Multi-partition snapshot group '{0}' has " +
+                    "inconsistent option '{1}' across partitions " +
+                    "(primary={2}, secondary={3}). All partitions " +
+                    "in a logical subscription must agree on " +
+                    "subscription-wide options.",
+                    groupId, optionName, primary, secondary);
+            }
         }
     }
 }

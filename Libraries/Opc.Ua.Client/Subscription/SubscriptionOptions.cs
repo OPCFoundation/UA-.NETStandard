@@ -165,6 +165,34 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// <para>
+        /// Hard upper bound on the number of partitions a single
+        /// logical subscription is allowed to grow to. The wrapper
+        /// refuses to mint a new partition once the count reaches
+        /// this value; the failed <c>TryAdd</c> returns <c>false</c>
+        /// and the caller observes the standard add-failed path.
+        /// </para>
+        /// <para>
+        /// This cap exists primarily as a denial-of-service
+        /// safeguard: a hostile or buggy server that rejects every
+        /// <c>CreateMonitoredItems</c> request with
+        /// <c>Bad_TooManyMonitoredItems</c> would otherwise cause
+        /// the wrapper's reactive fallback to mint a fresh server-
+        /// side subscription per add attempt, growing client memory
+        /// and server handle space without bound. The cap defaults
+        /// to <c>32</c>, which comfortably covers legitimate
+        /// fan-out scenarios (a server allowing 1000 items per
+        /// subscription supports 32k items per logical subscription)
+        /// but stops runaway growth.
+        /// </para>
+        /// <para>
+        /// Has no effect when <see cref="DisableUnboundedItemMode"/>
+        /// is <c>true</c>.
+        /// </para>
+        /// </summary>
+        public uint MaxPartitionCount { get; init; } = 32;
+
+        /// <summary>
+        /// <para>
         /// Idle timeout before a secondary (non-primary) partition
         /// subscription is deleted on the server after its last
         /// monitored item is removed. The primary partition is never
