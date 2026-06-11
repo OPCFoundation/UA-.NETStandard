@@ -353,7 +353,7 @@ namespace Opc.Ua.Client
             return result;
         }
 
-        private static List<SubscriptionStateSnapshot> ValidateAndSortGroup(
+        internal static List<SubscriptionStateSnapshot> ValidateAndSortGroup(
             string groupId,
             List<SubscriptionStateSnapshot> bucket)
         {

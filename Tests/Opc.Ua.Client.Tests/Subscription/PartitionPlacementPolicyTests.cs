@@ -254,6 +254,120 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        [Test]
+        public void ConstructorTreatsZeroMaxPartitionCountAsUnbounded()
+        {
+            // DoS guard: 0 means uint.MaxValue (no cap) so legacy
+            // callers that do not yet thread the option through
+            // keep their old behaviour.
+            var policy = new PartitionPlacementPolicy(
+                maxItemsPerPartition: 5, maxPartitionCount: 0);
+
+            Assert.That(policy.MaxPartitionCount, Is.EqualTo(uint.MaxValue));
+        }
+
+        [Test]
+        public void ConstructorPreservesExplicitMaxPartitionCount()
+        {
+            var policy = new PartitionPlacementPolicy(
+                maxItemsPerPartition: 5, maxPartitionCount: 4);
+
+            Assert.That(policy.MaxPartitionCount, Is.EqualTo(4u));
+        }
+
+        [Test]
+        public void DecideRejectsOnceMaxPartitionCountReached()
+        {
+            // DoS guard: once partitions == maxPartitionCount and no
+            // existing partition has capacity, Decide must surface
+            // RejectMaxPartitionCountReached instead of asking for a
+            // new partition. This is what stops a hostile or buggy
+            // server returning Bad_TooManyMonitoredItems on every
+            // CreateMonitoredItems reply from causing unbounded
+            // client memory + server handle growth.
+            var policy = new PartitionPlacementPolicy(
+                maxItemsPerPartition: 1, maxPartitionCount: 2);
+            var p1 = NewFake(id: 1);
+            var p2 = NewFake(id: 2);
+            policy.OnPartitionAdded(p1);
+            policy.OnPartitionAdded(p2);
+            policy.OnItemAdded(new V2Options(), p1);
+            policy.OnItemAdded(new V2Options(), p2);
+
+            // Both partitions full. Adding a third would require
+            // minting a new partition past the cap.
+            PlacementDecision decision = policy.Decide(
+                new V2Options(),
+                new[] { (IManagedSubscription)p1, p2 });
+
+            Assert.That(decision.RejectMaxPartitionCountReached, Is.True);
+            Assert.That(decision.RequiresNewPartition, Is.False);
+            Assert.That(decision.UseExistingPartition, Is.False);
+            Assert.That(decision.RejectStrictAffinityFull, Is.False);
+            Assert.That(decision.Partition, Is.Null);
+        }
+
+        [Test]
+        public void DecideAllowsExistingPartitionEvenAtMaxPartitionCount()
+        {
+            // The DoS guard only blocks NEW partition mints. If an
+            // existing partition can host the item, the cap does
+            // not apply.
+            var policy = new PartitionPlacementPolicy(
+                maxItemsPerPartition: 5, maxPartitionCount: 2);
+            var p1 = NewFake(id: 1);
+            var p2 = NewFake(id: 2);
+            policy.OnPartitionAdded(p1);
+            policy.OnPartitionAdded(p2);
+            // p1 has room (count=0, cap=5)
+            PlacementDecision decision = policy.Decide(
+                new V2Options(),
+                new[] { (IManagedSubscription)p1, p2 });
+
+            Assert.That(decision.UseExistingPartition, Is.True);
+            Assert.That(decision.Partition, Is.SameAs(p1));
+        }
+
+        [Test]
+        public void DecideAllowsMintUntilMaxPartitionCount()
+        {
+            // First mint up to N-1 succeeds (RequiresNewPartition);
+            // mint N is blocked.
+            var policy = new PartitionPlacementPolicy(
+                maxItemsPerPartition: 1, maxPartitionCount: 3);
+            var p1 = NewFake(id: 1);
+            policy.OnPartitionAdded(p1);
+            policy.OnItemAdded(new V2Options(), p1);
+
+            // 1 existing partition, full. Mint 2nd → allowed.
+            PlacementDecision d2 = policy.Decide(
+                new V2Options(),
+                new[] { (IManagedSubscription)p1 });
+            Assert.That(d2.RequiresNewPartition, Is.True);
+
+            var p2 = NewFake(id: 2);
+            policy.OnPartitionAdded(p2);
+            policy.OnItemAdded(new V2Options(), p2);
+
+            // 2 existing partitions, both full. Mint 3rd → allowed
+            // (count==2 < cap==3).
+            PlacementDecision d3 = policy.Decide(
+                new V2Options(),
+                new[] { (IManagedSubscription)p1, p2 });
+            Assert.That(d3.RequiresNewPartition, Is.True);
+
+            var p3 = NewFake(id: 3);
+            policy.OnPartitionAdded(p3);
+            policy.OnItemAdded(new V2Options(), p3);
+
+            // 3 existing partitions, all full. Mint 4th would
+            // exceed cap → reject.
+            PlacementDecision d4 = policy.Decide(
+                new V2Options(),
+                new[] { (IManagedSubscription)p1, p2, p3 });
+            Assert.That(d4.RejectMaxPartitionCountReached, Is.True);
+        }
+
         private static FakeManagedSubscription NewFake(uint id)
         {
             return new FakeManagedSubscription
