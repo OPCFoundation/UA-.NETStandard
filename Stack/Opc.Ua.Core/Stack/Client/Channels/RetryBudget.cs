@@ -121,8 +121,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Reset()
         {
-            Volatile.Write(ref m_started, 0);
+            // Order matters: clear m_startTicks BEFORE m_started so a concurrent
+            // EnsureStarted observer cannot see "started=1" with a stale tick value.
+            // EnsureStarted writes m_started=1 only after the CAS on m_startTicks
+            // succeeds, so resetting m_startTicks first preserves that invariant.
             Interlocked.Exchange(ref m_startTicks, kNotStarted);
+            Volatile.Write(ref m_started, 0);
         }
 
         private long EnsureStarted()

@@ -35,6 +35,24 @@ using ChannelCloseReason = Opc.Ua.ClientChannelManager.ChannelCloseReason;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Emits OPC UA channel-manager diagnostic signals (Activities and an
+    /// <see cref="EventSource"/>) for the client channel manager.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Tag values surfaced through distributed tracing are restricted to
+    /// OPC UA-protocol-level details (<see cref="StatusCode"/>,
+    /// <see cref="ServiceResult.SymbolicId"/>,
+    /// <see cref="ServiceResult.LocalizedText"/>). Full
+    /// <see cref="ServiceResult"/> contents — including
+    /// <see cref="ServiceResult.AdditionalInfo"/> and inner .NET exception
+    /// data such as messages, file paths and stack traces — are emitted
+    /// only via local <c>ILogger</c> debug logs, never through Activity
+    /// tags or EventSource events, to avoid leaking internal diagnostics
+    /// to external tracing backends.
+    /// </para>
+    /// </remarks>
     internal sealed class ClientChannelManagerDiagnostics
     {
         public IReadOnlyList<ManagedChannelDiagnostic> GetDiagnostics(ChannelEntry[] snapshot)
@@ -76,7 +94,7 @@ namespace Opc.Ua
             if (error != null)
             {
                 activity?.SetTag("error.status_code", GetStatusCode(error));
-                activity?.SetTag("error.message", error.ToString());
+                activity?.SetTag("error.message", GetSafeErrorMessage(error));
             }
 
             if (outcome == kReconnectOutcomeSuccess)
@@ -90,7 +108,7 @@ namespace Opc.Ua
                 attemptCount,
                 outcome,
                 GetStatusCode(error),
-                GetErrorMessage(error));
+                GetSafeErrorMessage(error));
         }
 
         public void EmitReconnectFailed(
@@ -104,7 +122,7 @@ namespace Opc.Ua
                 attempt,
                 outcome,
                 GetStatusCode(error),
-                GetErrorMessage(error));
+                GetSafeErrorMessage(error));
         }
 
         public void EmitStateChanged(ChannelEntry entry, ChannelStateChange change)
@@ -115,7 +133,7 @@ namespace Opc.Ua
                 change.NewState.ToString(),
                 change.ReconnectAttempt,
                 GetStatusCode(change.Error),
-                GetErrorMessage(change.Error));
+                GetSafeErrorMessage(change.Error));
         }
 
         public void EmitChannelOpened(ChannelEntry entry)
@@ -167,9 +185,30 @@ namespace Opc.Ua
             return error?.StatusCode.ToString() ?? string.Empty;
         }
 
-        private static string GetErrorMessage(ServiceResult? error)
+        /// <summary>
+        /// Returns a SAFE error message suitable for distributed-tracing
+        /// tags and EventSource events. Only OPC UA-protocol-level fields
+        /// are surfaced: <see cref="ServiceResult.LocalizedText"/> if
+        /// present, otherwise <see cref="ServiceResult.SymbolicId"/>. The
+        /// full <see cref="ServiceResult"/> (including
+        /// <see cref="ServiceResult.AdditionalInfo"/> and inner .NET
+        /// exception data) is intentionally never returned here — that
+        /// detail is routed through local <c>ILogger.LogDebug</c> only.
+        /// </summary>
+        private static string GetSafeErrorMessage(ServiceResult? error)
         {
-            return error?.ToString() ?? string.Empty;
+            if (error == null)
+            {
+                return string.Empty;
+            }
+
+            LocalizedText localized = error.LocalizedText;
+            if (!localized.IsNull && !string.IsNullOrEmpty(localized.Text))
+            {
+                return localized.Text!;
+            }
+
+            return error.SymbolicId ?? string.Empty;
         }
 
         private static string GetCloseReason(ChannelCloseReason reason)

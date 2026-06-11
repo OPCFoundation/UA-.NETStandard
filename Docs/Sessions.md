@@ -469,6 +469,73 @@ ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
     .ConnectAsync(ct);
 ```
 
+### HTTPS factory + OPC UA cert validation: secure-by-default fallback
+
+`HttpsTransportChannel.CreateHttpClient` chooses between two `HttpClient`
+construction paths:
+
+- **Direct path** (`CreateDirectHttpClient`) — builds an
+  `HttpClientHandler` configured with:
+  - `ServerCertificateCustomValidationCallback` wired to the OPC UA
+    `ICertificateValidatorEx` / `CertificateValidator` (validates against
+    the OPC UA trust list / issuer chain).
+  - The OPC UA application instance certificate attached as a client
+    certificate (mutual TLS using the OPC UA application identity).
+  - `AllowAutoRedirect = false` so an attacker-controlled redirect cannot
+    silently move the OPC UA call to a different host.
+  - `MaxConnectionsPerServer` and `MaxRequestContentBufferSize` quotas
+    enforced at the HTTP layer.
+- **Factory path** — calls `IOpcUaHttpClientFactory.CreateClient(...)`
+  and uses the returned named `HttpClient` (its primary handler is owned
+  by `IHttpClientFactory` and CANNOT be reconfigured by
+  `HttpsTransportChannel` after the fact).
+
+When an OPC UA `CertificateValidator` is configured for a channel — the
+normal case for any non-`SecurityPolicies.None` HTTPS profile —
+`HttpsTransportChannel.CanUseHttpClientFactory()` returns `false` and
+the direct path is always taken. This is the secure default: it
+guarantees that the OPC UA trust list, OPC UA mTLS, and the redirect
+lock are in effect on every OPC UA HTTPS connection. If a non-`Shared`
+factory was supplied but bypassed for security reasons,
+`CreateHttpClient` emits a one-time `LogWarning` so operators see that
+the named HttpClient pipeline (Polly resilience handler, etc.) is NOT
+applied to this OPC UA HTTPS channel.
+
+To keep BOTH Polly resilience AND OPC UA cert validation on the same
+channel, register the named `Opc.Ua.Client` HttpClient with a
+configured primary handler that wires OPC UA validation in yourself.
+The handler must be re-buildable per channel from the configuration
+because the OPC UA validator and client certificate are channel-bound,
+not process-bound:
+
+```csharp
+services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+    {
+        // Resolve the per-application validator and client cert from
+        // your DI container, then build a handler the same way
+        // CreateDirectHttpClient does.
+        ApplicationConfiguration config = sp.GetRequiredService<ApplicationConfiguration>();
+        ICertificateValidatorEx validator = config.CertificateValidator;
+        return new HttpClientHandler
+        {
+            ClientCertificateOptions = ClientCertificateOption.Manual,
+            AllowAutoRedirect = false,
+            ServerCertificateCustomValidationCallback = (_, cert, chain, _) =>
+            {
+                // … delegate to `validator.ValidateAsync(...)` synchronously.
+            },
+            // … and attach the OPC UA client instance certificate.
+        };
+    })
+    .AddStandardResilienceHandler();
+```
+
+Without that explicit primary-handler configuration, OPC UA HTTPS
+channels deliberately ignore the named-client pipeline and use the
+direct path — preserving OPC UA security at the cost of Polly resilience
+on those channels.
+
 ### Shared retry budget with `ManagedSession`
 
 When `ManagedSession` is constructed with `WithChannelManager(...)`,
@@ -525,6 +592,64 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 For migration notes on the budget-aware APIs, see
 [the migration guide](MigrationGuide.md#shared-reconnect-budget-for-managedsession-and-the-channel-manager).
+
+### Diagnostics surface contract — what tags and EventSource fields carry
+
+The channel manager emits diagnostics through three independent
+channels: `System.Diagnostics.Activity` tags (distributed tracing),
+the `Opc.Ua.ChannelManager` `EventSource` (ETW / `dotnet-trace`), and
+`System.Diagnostics.Metrics` instruments. Tag and field values surfaced
+through any of these are restricted to **OPC UA-protocol-level fields
+only**:
+
+- `StatusCode` (numeric / symbolic), e.g. `BadSecureChannelClosed`
+- `ServiceResult.SymbolicId`
+- `ServiceResult.LocalizedText.Text` — the operator-facing message
+
+Notably, the following are **never** sent to Activity tags or to
+`EventSource` events:
+
+- The full `ServiceResult.ToString()` serialization
+- `ServiceResult.AdditionalInfo` — typically carries inner-exception
+  messages, file paths, internal IDs
+- `Exception.StackTrace`, `Exception.Message`, or any other inner .NET
+  exception detail
+- `Inner` recursion into `ServiceResult.InnerResult`
+
+This keeps internal client/server diagnostics out of distributed
+tracing backends where operators with telemetry-read access (but no
+production-debug access) should not be able to read internal failure
+detail. Full failure context — including stack traces and
+`AdditionalInfo` — flows only through the local `ILogger.LogDebug`
+path on the manager, where it stays under the host's log-access
+controls.
+
+The metric tag set is also bounded for routine operation:
+
+| Instrument | Tag keys |
+|---|---|
+| `opcua.channel.open` / `opcua.channel.close` | `endpoint`, `reverse` (+ `reason` on close) |
+| `opcua.channel.active` / `opcua.channel.refcount` / `opcua.channel.participants` | `endpoint` |
+| `opcua.channel.reconnect.attempts` / `opcua.channel.reconnect.duration` | `endpoint`, `outcome` |
+| `opcua.channel.gate.wait` | `endpoint` |
+| `opcua.channel.participant.timeout.count` / `opcua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
+
+`outcome` is one of `success`, `transient-failure`, `policy-exhausted`,
+`fatal-channel`. `reason` is one of `lease-released`,
+`manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the
+number of distinct OPC UA endpoint URLs the application connects to.
+
+> The `participant` tag carries the **kind prefix** of the
+> participant identifier (e.g. `"Session"`, `"Client"`), not the
+> per-instance suffix. This keeps cardinality bounded by the small set
+> of participant kinds rather than growing with every session /
+> reconnect-storm participant ever created. The full per-instance
+> `IReconnectParticipant.Id` is preserved on Activity tags and
+> EventSource events so individual sessions remain correlatable in
+> distributed traces. Custom participants that don't use the
+> "kind-`-`-instance" naming convention contribute their full id to
+> the tag, so prefer the prefix-then-suffix shape for new participant
+> types.
 
 ### DI registration
 

@@ -275,10 +275,42 @@ namespace Opc.Ua
             return DisposeAsyncCore();
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Synchronous dispose. Begins lease teardown asynchronously on
+        /// a thread-pool thread and returns immediately. Callers that
+        /// need to observe teardown completion or surface failures MUST
+        /// use <see cref="CloseAsync(CancellationToken)"/>. The
+        /// synchronous path exists only for compatibility with the
+        /// <see cref="IDisposable"/> contract and the legacy
+        /// <c>using</c> statement, and never blocks on network I/O —
+        /// blocking would deadlock callers running under a synchronization
+        /// context (legacy ASP.NET, WPF, WinForms).
+        /// </summary>
         public void Dispose()
         {
-            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
+            // Sync Dispose is best-effort. Mark the lease released
+            // immediately (preventing any further SendRequestAsync /
+            // ReconnectAsync calls), then push the actual network I/O
+            // onto the thread pool. This decouples the synchronous
+            // caller from the TCP FIN handshake — see
+            // ChannelEntry.TearDownAsync — and avoids deadlocking
+            // callers running under a synchronization context.
+            if (Interlocked.Exchange(ref m_active, 0) == 0)
+            {
+                return;
+            }
+            ChannelEntry entry = Entry;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await entry.ReleaseLeaseAsync(this).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // best effort — sync Dispose cannot surface async failures
+                }
+            });
         }
 
         private async ValueTask DisposeAsyncCore()

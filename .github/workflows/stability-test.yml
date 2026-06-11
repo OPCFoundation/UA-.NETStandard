@@ -50,7 +50,7 @@ jobs:
 
     - name: Run Connection Stability Test
       run: |
-        echo "Starting connection stability test for ${{ env.TEST_DURATION_MINUTES }} minutes"
+        echo "Starting connection stability test for $TEST_DURATION_MINUTES minutes"
         dotnet test ./Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj \
           --configuration ${{ env.CONFIGURATION }} \
           --no-build \
