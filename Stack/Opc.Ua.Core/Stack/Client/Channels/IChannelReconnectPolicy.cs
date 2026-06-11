@@ -157,7 +157,7 @@ namespace Opc.Ua
 
             return budget.TryConsume(out TimeSpan remaining)
                 ? TimeSpan.FromTicks(Math.Min(delay.Ticks, remaining.Ticks))
-                : delay;
+                : Timeout.InfiniteTimeSpan;
         }
     }
 

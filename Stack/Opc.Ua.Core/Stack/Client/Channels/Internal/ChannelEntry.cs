@@ -337,11 +337,29 @@ namespace Opc.Ua
         /// Request a reconnect cycle. Multiple concurrent callers
         /// coalesce into one cycle.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// When multiple callers request a reconnect concurrently, the
+        /// first call starts a single underlying cycle and subsequent
+        /// callers join the same cycle (they all share the resulting
+        /// <see cref="Task{Boolean}"/>). The
+        /// <see cref="IRetryBudget"/> supplied by EACH caller is
+        /// coalesced into a single "effective" budget — the tightest of
+        /// all participating budgets wins, so a joiner with a stricter
+        /// deadline can shorten an in-flight cycle that the starter
+        /// began without a budget (or with a looser one). A
+        /// <see langword="null"/> budget is treated as "no constraint"
+        /// and never tightens. The effective budget is consulted by
+        /// the running cycle on every iteration and is cleared when
+        /// the cycle completes.
+        /// </para>
+        /// </remarks>
         public Task<bool> RequestReconnectAsync(CancellationToken ct)
         {
             return RequestReconnectAsync(budget: null, ct);
         }
 
+        /// <inheritdoc cref="RequestReconnectAsync(CancellationToken)"/>
         public Task<bool> RequestReconnectAsync(IRetryBudget? budget, CancellationToken ct)
         {
             TaskCompletionSource<bool> tcs;
@@ -355,6 +373,13 @@ namespace Opc.Ua
                             StatusCodes.BadSecureChannelClosed,
                             "Channel is {0}.", m_state));
                 }
+
+                // Coalesce budgets: every caller's budget tightens the
+                // running cycle. The cycle reads m_effectiveBudget on
+                // each iteration so joiners can shorten an in-flight
+                // cycle that the starter began with a looser (or null)
+                // budget.
+                m_effectiveBudget = TighterOf(m_effectiveBudget, budget);
 
                 if (m_reconnectCoalescer != null)
                 {
@@ -376,10 +401,53 @@ namespace Opc.Ua
 
             if (starter)
             {
-                _ = Task.Run(() => RunReconnectCycleAsync(tcs, budget), CancellationToken.None);
+                _ = Task.Run(() => RunReconnectCycleAsync(tcs), CancellationToken.None);
             }
 
             return tcs.Task.WaitAsync(ct);
+        }
+
+        private IRetryBudget? GetEffectiveBudget()
+        {
+            lock (m_lock)
+            {
+                return m_effectiveBudget;
+            }
+        }
+
+        private static IRetryBudget? TighterOf(IRetryBudget? a, IRetryBudget? b)
+        {
+            // null = "no constraint" — the non-null side wins; if both
+            // null the result stays null.
+            if (a == null)
+            {
+                return b;
+            }
+            if (b == null)
+            {
+                return a;
+            }
+            if (ReferenceEquals(a, b))
+            {
+                return a;
+            }
+
+            // Compare current remaining time as a best-effort tightness
+            // ordering. TryConsume reports current remaining without
+            // consuming a fixed slice; on RetryBudget it starts the
+            // monotonic clock on first call, which is the intended
+            // semantic when a budget attaches to an in-flight cycle.
+            bool aOk = a.TryConsume(out TimeSpan remA);
+            bool bOk = b.TryConsume(out TimeSpan remB);
+            if (!aOk)
+            {
+                return a;
+            }
+            if (!bOk)
+            {
+                return b;
+            }
+            return remA <= remB ? a : b;
         }
 
         /// <summary>
@@ -534,8 +602,7 @@ namespace Opc.Ua
         }
 
         private async Task RunReconnectCycleAsync(
-            TaskCompletionSource<bool> tcs,
-            IRetryBudget? budget)
+            TaskCompletionSource<bool> tcs)
         {
             using Activity? activity = m_host.StartReconnectActivity(this);
             long startingTimestamp = m_host.TimeProvider.GetTimestamp();
@@ -570,6 +637,9 @@ namespace Opc.Ua
                 while (true)
                 {
                     shutdownToken.ThrowIfCancellationRequested();
+                    // Re-read the effective budget every iteration so a
+                    // late joiner can tighten an in-flight cycle.
+                    IRetryBudget? budget = GetEffectiveBudget();
                     if (budget != null && budget.IsExhausted)
                     {
                         ServiceResult error = ServiceResult.Create(
@@ -625,6 +695,10 @@ namespace Opc.Ua
                         }
                     }
 
+                    // Re-read after the delay: a joiner that arrived
+                    // while we were sleeping may have tightened the
+                    // budget, or the existing budget may have expired.
+                    budget = GetEffectiveBudget();
                     if (budget != null && budget.IsExhausted)
                     {
                         ServiceResult error = ServiceResult.Create(
@@ -741,6 +815,9 @@ namespace Opc.Ua
                 lock (m_lock)
                 {
                     m_reconnectCoalescer = null;
+                    // Clear the coalesced budget so a brand-new cycle
+                    // starts unconstrained until its own callers tighten it.
+                    m_effectiveBudget = null;
                     m_operationRef--;
                     teardown = m_refcount == 0
                         && m_operationRef == 0
@@ -1198,5 +1275,6 @@ namespace Opc.Ua
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;
         private TaskCompletionSource<bool>? m_reconnectCoalescer;
+        private IRetryBudget? m_effectiveBudget;
     }
 }
