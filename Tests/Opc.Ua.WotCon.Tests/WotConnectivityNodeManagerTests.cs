@@ -937,6 +937,11 @@ namespace Opc.Ua.WotCon.Tests
                     AssetNamespaceUri = AssetNamespace,
                     ThingDescriptionStorageFolder = thingDescriptionFolder
                 };
+                // Test scheme: the simulated discovery provider returns
+                // sim:// endpoints. Opt the harness's policy into that
+                // scheme so the SSRF allow-list does not reject the
+                // happy-path tests.
+                Options.AssetEndpointPolicy.AllowedSchemes.Add("sim");
                 if (binding != null)
                 {
                     Options.Bindings.Add(binding);

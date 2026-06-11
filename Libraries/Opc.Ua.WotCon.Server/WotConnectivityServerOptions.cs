@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.WotCon.Server.Assets;
 
 namespace Opc.Ua.WotCon.Server
 {
@@ -112,6 +113,18 @@ namespace Opc.Ua.WotCon.Server
         /// (Discover / CreateForEndpoint / ConnectionTest).
         /// </summary>
         public IWotAssetDiscoveryProvider? Discovery { get; set; }
+
+        /// <summary>
+        /// Allow-list / deny-list policy applied to every endpoint URI
+        /// that flows from a remote OPC UA client through
+        /// <c>CreateAssetForEndpoint</c> or <c>ConnectionTest</c>.
+        /// Defaults are safe: only <c>http</c>, <c>https</c>,
+        /// <c>opc.tcp</c> schemes; loopback and private-range hosts
+        /// blocked; 30 s per-operation timeout. See
+        /// <see cref="AssetEndpointPolicy"/> for the full default set.
+        /// </summary>
+        public AssetEndpointPolicy AssetEndpointPolicy { get; set; }
+            = new AssetEndpointPolicy();
 
         /// <summary>
         /// Vendor-specific configuration parameters exposed under the

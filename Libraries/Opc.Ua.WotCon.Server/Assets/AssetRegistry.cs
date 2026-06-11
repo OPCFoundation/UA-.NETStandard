@@ -268,6 +268,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return (StatusCodes.BadNotSupported, NodeId.Null);
             }
+            ServiceResult policyCheck = AssetEndpointValidator.Validate(
+                assetEndpoint, m_options.AssetEndpointPolicy, out Uri? normalizedEndpoint);
+            if (ServiceResult.IsBad(policyCheck))
+            {
+                m_logger.LogWarning(
+                    "CreateAssetForEndpoint rejected by AssetEndpointPolicy: {Status}",
+                    policyCheck.StatusCode);
+                return (policyCheck, NodeId.Null);
+            }
             (ServiceResult createResult, NodeId assetId) = await CreateAssetAsync(assetName, ct)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(createResult))
@@ -276,9 +285,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             try
             {
-                ThingDescription td = await m_options.Discovery
-                    .CreateThingDescriptionAsync(assetName, assetEndpoint, ct)
-                    .ConfigureAwait(false);
+                ThingDescription td = await RunWithPolicyTimeoutAsync(
+                    inner => m_options.Discovery.CreateThingDescriptionAsync(
+                        assetName, normalizedEndpoint!.AbsoluteUri, inner),
+                    ct).ConfigureAwait(false);
                 AssetEntry entry = FindByNodeId(assetId)
                     ?? throw new InvalidOperationException("Asset disappeared after creation.");
 
@@ -295,6 +305,17 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
                 return (ServiceResult.Create(ex, StatusCodes.BadNotSupported, ex.Message), NodeId.Null);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                // Policy timeout fired; caller's token is still alive.
+                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                m_logger.LogWarning(ex,
+                    "CreateAssetForEndpoint timed out after {Timeout} for {AssetName}",
+                    m_options.AssetEndpointPolicy.MaxOperationTimeout, assetName);
+                return (ServiceResult.Create(StatusCodes.BadTimeout,
+                    "Discovery provider exceeded AssetEndpointPolicy.MaxOperationTimeout."),
+                    NodeId.Null);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -347,16 +368,63 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return (StatusCodes.BadNotSupported, false, string.Empty);
             }
+            ServiceResult policyCheck = AssetEndpointValidator.Validate(
+                assetEndpoint, m_options.AssetEndpointPolicy, out Uri? normalizedEndpoint);
+            if (ServiceResult.IsBad(policyCheck))
+            {
+                m_logger.LogWarning(
+                    "ConnectionTest rejected by AssetEndpointPolicy: {Status}",
+                    policyCheck.StatusCode);
+                return (policyCheck, false, string.Empty);
+            }
             try
             {
-                (bool success, string status) = await m_options.Discovery
-                    .TestAsync(assetEndpoint, ct).ConfigureAwait(false);
+                (bool success, string status) = await RunWithPolicyTimeoutAsync(
+                    inner => m_options.Discovery.TestAsync(
+                        normalizedEndpoint!.AbsoluteUri, inner),
+                    ct).ConfigureAwait(false);
                 return (ServiceResult.Good, success, status ?? string.Empty);
             }
             catch (NotSupportedException ex)
             {
                 return (ServiceResult.Create(ex, StatusCodes.BadNotSupported, ex.Message), false, string.Empty);
             }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                m_logger.LogWarning(ex,
+                    "ConnectionTest timed out after {Timeout}",
+                    m_options.AssetEndpointPolicy.MaxOperationTimeout);
+                return (ServiceResult.Create(StatusCodes.BadTimeout,
+                    "Discovery provider exceeded AssetEndpointPolicy.MaxOperationTimeout."),
+                    false, string.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Runs <paramref name="work"/> under a linked cancellation
+        /// source that fires after
+        /// <see cref="AssetEndpointPolicy.MaxOperationTimeout"/> on top
+        /// of the caller's <paramref name="ct"/>. A
+        /// <see cref="TimeSpan.Zero"/> timeout disables the
+        /// per-operation bound. When the timeout fires the inner
+        /// task's <see cref="OperationCanceledException"/> is rethrown
+        /// — the caller's catch filter
+        /// (<c>when (!ct.IsCancellationRequested)</c>) distinguishes
+        /// policy-timeout from caller-cancellation.
+        /// </summary>
+        /// <typeparam name="T">Return type of the inner work.</typeparam>
+        private async ValueTask<T> RunWithPolicyTimeoutAsync<T>(
+            Func<CancellationToken, ValueTask<T>> work,
+            CancellationToken ct)
+        {
+            TimeSpan timeout = m_options.AssetEndpointPolicy.MaxOperationTimeout;
+            if (timeout <= TimeSpan.Zero)
+            {
+                return await work(ct).ConfigureAwait(false);
+            }
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linked.CancelAfter(timeout);
+            return await work(linked.Token).ConfigureAwait(false);
         }
 
         /// <summary>

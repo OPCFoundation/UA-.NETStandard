@@ -187,7 +187,6 @@ under `WoTAssetConnectionManagement/<asset>`).
 
 ---
 
-<<<<<<< HEAD
 ## 4. Persistence limits
 
 The persisted-TD loader (`AssetRegistry.EnumeratePersistedAsync`) walks
@@ -256,7 +255,56 @@ duplicates.
 
 ---
 
-## 6. Limitations and known issues
+## 6. Endpoint policy
+
+`CreateAssetForEndpoint` and `ConnectionTest` accept an endpoint URI
+from a remote OPC UA client. Before that string flows into the
+discovery provider, it passes through `AssetEndpointValidator` against
+the configured `WotConnectivityServerOptions.AssetEndpointPolicy`.
+
+Safe defaults:
+
+* `AllowedSchemes` = `{ http, https, opc.tcp }` — anything else
+  (`file:`, `gopher:`, `javascript:`, custom OS-vendor schemes, …)
+  returns `Bad_SecurityChecksFailed`.
+* `AllowLoopback = false` — blocks `127.0.0.0/8`, `::1`, and the
+  literal host names `localhost`, `ip6-localhost`, `ip6-loopback`.
+* `AllowPrivateAddresses = false` — blocks RFC1918 (10/8,
+  172.16/12, 192.168/16), IPv4 link-local (169.254/16 — including the
+  AWS / Azure IMDS address `169.254.169.254`), IPv6 ULA (`fc00::/7`),
+  and IPv6 link-local (`fe80::/10`).
+* `AllowedHosts` (empty) and `BlockedHosts` (empty) — optional
+  exclusive allow-list and always-deny list of host names.
+* `MaxOperationTimeout = 30 s` — wraps every provider call with a
+  linked `CancellationTokenSource.CancelAfter`; on expiry the call
+  returns `Bad_Timeout` even when the upstream provider hangs.
+
+Opening up a single internal device while keeping the global block-list:
+
+```csharp
+var options = new WotConnectivityServerOptions
+{
+    AssetEndpointPolicy = new AssetEndpointPolicy
+    {
+        // Default safe scheme list; add a private-network device
+        // explicitly via AllowedHosts.
+        AllowPrivateAddresses = false
+    }
+};
+options.AssetEndpointPolicy.AllowedHosts.Add("10.20.30.40");
+```
+
+**Security note.** The validator does NOT resolve DNS. Resolving a
+host name to an IP at validation time and then re-resolving it at
+connect time is itself a TOCTOU SSRF vector — a hostile DNS could
+return a public IP to the validator and a private IP to the
+connector. Operators who need IP-range enforcement must either pin
+`AllowedHosts` to IP literals or accept that the IP-range gates only
+fire when the host portion of the URI itself is an IP literal.
+
+---
+
+## 7. Limitations and known issues
 
 * WoT action input/output mapping handles the flat `type:object` shape
   illustrated by Spec §6.3.9 (a `properties` bag with scalar / array
@@ -274,7 +322,7 @@ duplicates.
 
 ---
 
-## 7. References
+## 8. References
 
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/
