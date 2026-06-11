@@ -41,16 +41,12 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Bindings.Pcap.Audit
 {
     /// <summary>
-    ///
     /// Verification result for a tamper-evident Pcap audit ledger.
-    ///
     /// </summary>
     public sealed record AuditChainVerification
     {
         /// <summary>
-        ///
         /// Constructs an audit chain verification result.
-        ///
         /// </summary>
         public AuditChainVerification(int linesVerified, int firstCorruptLine, string? corruptionReason)
         {
@@ -60,31 +56,23 @@ namespace Opc.Ua.Bindings.Pcap.Audit
         }
 
         /// <summary>
-        ///
         /// Gets the number of lines verified before corruption was detected.
-        ///
         /// </summary>
         public int LinesVerified { get; init; }
 
         /// <summary>
-        ///
         /// Gets the first corrupt line number, or -1 when the chain is valid.
-        ///
         /// </summary>
         public int FirstCorruptLine { get; init; }
 
         /// <summary>
-        ///
         /// Gets the corruption reason, or <c>null</c> when the chain is valid.
-        ///
         /// </summary>
         public string? CorruptionReason { get; init; }
     }
 
     /// <summary>
-    ///
     /// Writes Pcap audit events to a JSON-lines ledger with per-line HMAC chaining.
-    ///
     /// </summary>
     public sealed class HashChainedAuditFileSink : IPcapAuditSink, IAsyncDisposable
     {
@@ -97,9 +85,7 @@ namespace Opc.Ua.Bindings.Pcap.Audit
         private bool m_disposed;
 
         /// <summary>
-        ///
         /// Constructs a tamper-evident audit sink for the supplied JSON-lines ledger.
-        ///
         /// </summary>
         public HashChainedAuditFileSink(
             string filePath,
@@ -190,9 +176,7 @@ namespace Opc.Ua.Bindings.Pcap.Audit
         }
 
         /// <summary>
-        ///
         /// Verifies every line in a tamper-evident audit ledger.
-        ///
         /// </summary>
         public static AuditChainVerification VerifyChain(string filePath, byte[] hmacKey)
         {

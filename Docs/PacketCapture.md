@@ -83,7 +83,7 @@ Before enabling any part of this binding in a non-development environment:
 
 ### Out-of-scope (known limitations)
 
-This binding does not yet satisfy every Microsoft SFI / edge-bar
+This binding does not yet satisfy a strong, production-grade security bar
 prescription for handling secret material. The known gaps below are
 acknowledged limitations that consumers must mitigate operationally
 or accept as residual risk.
@@ -114,11 +114,6 @@ or accept as residual risk.
   `PacketDotNet` are unmanaged native loads (see the **Dependencies
   and governance** section). Subscribe to upstream CVE feeds and
   bump within 30 days for HIGH or CRITICAL advisories.
-
-- **No automated SAST in CI.** This branch does not yet wire CodeQL
-  or `dotnet list package --vulnerable` into the GitHub Actions
-  build. Consumers should run those scans against their own
-  re-build of this binding.
 
 ## When to use it
 

@@ -41,6 +41,10 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
     /// </summary>
     internal sealed class EncryptedKeyLogStream : Stream
     {
+        /// <summary>
+        /// Constructs an AES-256-GCM wrapper around <paramref name="inner"/>
+        /// keyed by <paramref name="sessionKey"/>.
+        /// </summary>
         public EncryptedKeyLogStream(Stream inner, byte[] sessionKey, bool leaveOpen)
         {
             ArgumentNullException.ThrowIfNull(inner);
@@ -55,38 +59,47 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             m_leaveOpen = leaveOpen;
         }
 
+        /// <inheritdoc/>
         public override bool CanRead => m_inner.CanRead;
 
+        /// <inheritdoc/>
         public override bool CanSeek => false;
 
+        /// <inheritdoc/>
         public override bool CanWrite => m_inner.CanWrite;
 
+        /// <inheritdoc/>
         public override long Length => throw new NotSupportedException();
 
+        /// <inheritdoc/>
         public override long Position
         {
             get => throw new NotSupportedException();
             set => throw new NotSupportedException();
         }
 
+        /// <inheritdoc/>
         public override void Flush()
         {
             FlushPendingWrite();
             m_inner.Flush();
         }
 
+        /// <inheritdoc/>
         public override Task FlushAsync(CancellationToken cancellationToken)
         {
             FlushPendingWrite();
             return m_inner.FlushAsync(cancellationToken);
         }
 
+        /// <inheritdoc/>
         public override int Read(byte[] buffer, int offset, int count)
         {
             ValidateBuffer(buffer, offset, count);
             return Read(buffer.AsSpan(offset, count));
         }
 
+        /// <inheritdoc/>
         public override int Read(Span<byte> buffer)
         {
             if (buffer.Length == 0)
@@ -102,6 +115,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             return CopyPlaintext(buffer);
         }
 
+        /// <inheritdoc/>
         public override async ValueTask<int> ReadAsync(
             Memory<byte> buffer,
             CancellationToken cancellationToken = default)
@@ -119,6 +133,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             return CopyPlaintext(buffer.Span);
         }
 
+        /// <inheritdoc/>
         public override Task<int> ReadAsync(
             byte[] buffer,
             int offset,
@@ -129,22 +144,26 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             return ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
         }
 
+        /// <inheritdoc/>
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException();
         }
 
+        /// <inheritdoc/>
         public override void SetLength(long value)
         {
             throw new NotSupportedException();
         }
 
+        /// <inheritdoc/>
         public override void Write(byte[] buffer, int offset, int count)
         {
             ValidateBuffer(buffer, offset, count);
             Write(buffer.AsSpan(offset, count));
         }
 
+        /// <inheritdoc/>
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             while (!buffer.IsEmpty)
@@ -161,6 +180,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             }
         }
 
+        /// <inheritdoc/>
         public override ValueTask WriteAsync(
             ReadOnlyMemory<byte> buffer,
             CancellationToken cancellationToken = default)
@@ -170,6 +190,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             return ValueTask.CompletedTask;
         }
 
+        /// <inheritdoc/>
         public override Task WriteAsync(
             byte[] buffer,
             int offset,
@@ -180,6 +201,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             return WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -195,6 +217,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
             base.Dispose(disposing);
         }
 
+        /// <inheritdoc/>
         public override async ValueTask DisposeAsync()
         {
             FlushPendingWrite();
