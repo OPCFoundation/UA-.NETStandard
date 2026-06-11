@@ -63,16 +63,24 @@
        nuspec; we need its package restored (for transitive metadata) and we want
        NuGet to track it as a build dependency for ordering, but we do NOT want
        MSBuild's regular ProjectReference resolution to trigger a multi-TFM build
-       here. Pin the negotiation to net10.0: it always exists in Core's
-       $(LibTargetFrameworks), is what every test CI matrix targets (so its
-       assets file is always populated), and SetTargetFramework bypasses NuGet's
-       NS2.0->net10.0 compatibility check entirely (safe because
-       ReferenceOutputAssembly=false means no compile reference flows through).
-       The full multi-TFM build (needed by the nuspec) is performed explicitly
-       by _BuildShimAllTfmsBeforePack during pack. -->
+       here. Pin the negotiation to a single TFM that always exists in Core's
+       $(LibTargetFrameworks):
+
+       * Full multi-TFM build (CustomTestTarget unset)  -> net10.0
+       * Per-TFM matrix entry (CustomTestTarget=<tfm>)  -> use that <tfm>, which
+         is exactly the TFM Core actually builds for that matrix entry.
+
+       SetTargetFramework bypasses NuGet's compat negotiation entirely (safe
+       because ReferenceOutputAssembly=false means no compile reference flows
+       through). The full multi-TFM build (needed by the nuspec) is performed
+       explicitly by _BuildShimAllTfmsBeforePack during pack. -->
+  <PropertyGroup>
+    <_MigrationAnalyzerCorePinnedTfm Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</_MigrationAnalyzerCorePinnedTfm>
+    <_MigrationAnalyzerCorePinnedTfm Condition="'$(_MigrationAnalyzerCorePinnedTfm)' == ''">net10.0</_MigrationAnalyzerCorePinnedTfm>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
-                      SetTargetFramework="TargetFramework=net10.0">
+                      SetTargetFramework="TargetFramework=$(_MigrationAnalyzerCorePinnedTfm)">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
