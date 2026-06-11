@@ -3022,8 +3022,8 @@ namespace Opc.Ua.Server
         /// <see cref="DeleteNodeAsync(ServerSystemContext, NodeId, CancellationToken)"/>
         /// to batch address-space changes per publish cycle.
         /// </summary>
-        protected Opc.Ua.Server.NodeManager.ModelChangeAggregator ModelChangeAggregator { get; }
-            = new Opc.Ua.Server.NodeManager.ModelChangeAggregator();
+        protected ModelChangeAggregator ModelChangeAggregator { get; }
+            = new ModelChangeAggregator();
 
         /// <summary>
         /// Gets or sets whether the framework automatically emits
@@ -6468,7 +6468,7 @@ namespace Opc.Ua.Server
         /// task handling. Nodes in this set will use dynamic scaling of
         /// consumer tasks based on the number of event monitored items.
         /// </summary>
-        internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = new();
+        internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
 
         /// <summary>
         /// Counter for the NodeIdFactory.New Method

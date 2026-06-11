@@ -131,6 +131,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calculates the AnnotationCount aggregate for the timeslice.
         /// </summary>
+        /// <remarks>
+        /// Part 13 v1.05.07 §5.4.3.20 defines AnnotationCount as the number of <c>Annotation</c>s in
+        /// the interval, which live on a separate annotation stream that this calculator is not fed.
+        /// The authoritative AnnotationCount computation for history reads is performed by
+        /// <c>HistorianDispatcher</c> using <c>IHistorianAnnotationProvider</c>; this method counts
+        /// whatever values it is given and is retained only for direct/standalone calculator use.
+        /// </remarks>
         protected DataValue ComputeAnnotationCount(TimeSlice slice)
         {
             // get the values in the slice.

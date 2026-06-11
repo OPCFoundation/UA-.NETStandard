@@ -48,9 +48,7 @@ namespace Opc.Ua.InformationModel.Tests
         {
             // Issue #3720: CTT walks the StateMachineType hierarchy for a
             // forward GeneratesEvent reference with IncludeSubtypes=true.
-            NodeId[] typesToCheck = [ObjectTypeIds.StateMachineType, ObjectTypeIds.FiniteStateMachineType];
-
-            foreach (NodeId typeId in typesToCheck)
+            foreach (NodeId typeId in (NodeId[])[ObjectTypeIds.StateMachineType, ObjectTypeIds.FiniteStateMachineType])
             {
                 List<ReferenceDescription> references = await BrowseReferencesAsync(
                     typeId,

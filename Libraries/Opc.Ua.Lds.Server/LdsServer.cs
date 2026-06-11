@@ -169,7 +169,9 @@ namespace Opc.Ua.Lds.Server
                 : ArrayOf.Combine(existing, [.. additions]);
         }
 
-        // OPC 10000-12 Annex D capability identifiers exposed by an LDS.
+        /// <summary>
+        /// OPC 10000-12 Annex D capability identifiers exposed by an LDS.
+        /// </summary>
         private const string s_ldsCapability = "LDS";
         private const string s_ldsMeCapability = "LDS-ME";
 

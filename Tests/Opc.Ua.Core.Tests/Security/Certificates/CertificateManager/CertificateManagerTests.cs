@@ -298,8 +298,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TrustListMasks.TrustedCertificates).ConfigureAwait(false);
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated
-                    && evt.TrustList == TrustListIdentifier.Peers));
+                evt => evt.Kind == CertificateChangeKind.TrustListUpdated &&
+                    evt.TrustList == TrustListIdentifier.Peers));
             Assert.That(received, Has.None.Matches<CertificateChangeEvent>(
                 evt => evt.Kind == CertificateChangeKind.CrlUpdated));
         }
@@ -354,8 +354,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated
-                    && evt.TrustList == TrustListIdentifier.Peers));
+                evt => evt.Kind == CertificateChangeKind.TrustListUpdated &&
+                    evt.TrustList == TrustListIdentifier.Peers));
         }
 
         [Test]

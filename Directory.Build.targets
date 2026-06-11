@@ -1,0 +1,59 @@
+<Project>
+  <!--
+    Per-project opt-in for the CI per-TFM build matrix: when a `.csproj`
+    sets `<RestrictForLegacyTfm>true</RestrictForLegacyTfm>` in its main
+    `PropertyGroup`, this Directory.Build.targets makes the project a
+    no-op build (empty Library, no compile items, no references) for
+    `dotnet build … /p:CustomTestTarget=<legacy>` invocations where
+    `<legacy>` is one of `net472` / `net48` / `netstandard2.0` /
+    `netstandard2.1`.  Use this for projects that are `.NET 8+` only
+    (e.g. `PublishAot=true`, `ModelContextProtocol` server, TUnit AOT
+    tests) and therefore can't participate in a `UA.slnx` build pinned
+    to a legacy TFM via `CustomTestTarget`.
+
+    The project still loads in the `.slnx` graph so the matrix prep
+    script discovers it, but `Compile` / `ProjectReference` /
+    `PackageReference` / `AdditionalFiles` / `None` / `Content` are all
+    cleared and `OutputType` flips to `Library`, producing an empty
+    assembly without dragging the project's `.NET 8+` source through
+    the C# compiler against the restricted dependency set.
+
+    Targets are deliberately NOT overridden here - same-named targets
+    in `Directory.Build.targets` ALWAYS replace the SDK definitions
+    (the `Condition` only gates execution, not registration), which
+    would silently break the SDK's restore in unrestricted builds
+    (e.g. the GitHub Actions `dotnet publish` / `dotnet test` flows
+    that don't pass `CustomTestTarget`).
+
+    Projects that don't set `RestrictForLegacyTfm` are completely
+    unaffected by this file - every condition below evaluates to
+    false and no items / properties / targets are touched.
+  -->
+  <PropertyGroup>
+    <_RestrictedToLegacyTfm
+        Condition="'$(RestrictForLegacyTfm)' == 'true' and ('$(CustomTestTarget)' == 'net48' or '$(CustomTestTarget)' == 'net472' or '$(CustomTestTarget)' == 'netstandard2.0' or '$(CustomTestTarget)' == 'netstandard2.1')">true</_RestrictedToLegacyTfm>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+    <OutputType>Library</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <IsPackable>false</IsPackable>
+    <PackAsTool>false</PackAsTool>
+    <PublishAot>false</PublishAot>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+    <Compile Remove="@(Compile)" />
+    <ProjectReference Remove="@(ProjectReference)" />
+    <PackageReference Remove="@(PackageReference)" />
+    <AdditionalFiles Remove="@(AdditionalFiles)" />
+    <None Remove="@(None)" />
+    <Content Remove="@(Content)" />
+  </ItemGroup>
+  <Target Name="_LogSkippedForLegacyTfm" BeforeTargets="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
+    <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
+  </Target>
+</Project>

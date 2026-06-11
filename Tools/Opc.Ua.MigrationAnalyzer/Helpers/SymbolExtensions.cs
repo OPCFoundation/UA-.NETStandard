@@ -156,8 +156,7 @@ namespace Opc.Ua.MigrationAnalyzer.Helpers
         /// type name is the second tuple item.
         /// </summary>
         public static IReadOnlyList<(string CollectionName, string ElementName)> RemovedCollectionTypes { get; } =
-            new[]
-            {
+            [
                 ("Opc.Ua.BooleanCollection", "bool"),
                 ("Opc.Ua.SByteCollection", "sbyte"),
                 ("Opc.Ua.ByteCollection", "byte"),
@@ -186,8 +185,8 @@ namespace Opc.Ua.MigrationAnalyzer.Helpers
                 ("Opc.Ua.ArgumentCollection", "Opc.Ua.Argument"),
                 ("Opc.Ua.ServerSecurityPolicyCollection", "Opc.Ua.ServerSecurityPolicy"),
                 ("Opc.Ua.TransportConfigurationCollection", "Opc.Ua.TransportConfiguration"),
-                ("Opc.Ua.ReverseConnectClientCollection", "Opc.Ua.ReverseConnectClient"),
-            };
+                ("Opc.Ua.ReverseConnectClientCollection", "Opc.Ua.ReverseConnectClient")
+            ];
 
         /// <summary>
         /// Convenience: returns the element type metadata name if

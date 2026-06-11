@@ -241,8 +241,10 @@ namespace Opc.Ua.Gds.Server.Database
             return default;
         }
 
-        // OPC 10000-12 §6.5.5: reverse-connect DiscoveryUrls are prefixed
-        // with "rcp+"; reverse-connect capability identifier is "RCP".
+        /// <summary>
+        /// OPC 10000-12 §6.5.5: reverse-connect DiscoveryUrls are prefixed
+        /// with "rcp+"; reverse-connect capability identifier is "RCP".
+        /// </summary>
         private const string s_reverseConnectPrefix = "rcp+";
         private const string s_reverseConnectCapability = "RCP";
 

@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Historian
             {
                 lock (m_lock)
                 {
-                    return m_providers.ToArray();
+                    return [.. m_providers];
                 }
             }
         }

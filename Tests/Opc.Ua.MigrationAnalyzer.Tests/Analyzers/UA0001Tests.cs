@@ -56,7 +56,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0001 = diags.SingleOrDefault(d => d.Id == "UA0001");
             Assert.That(ua0001, Is.Not.Null, "Expected UA0001 to fire on Utils.Trace(...).");
@@ -77,7 +78,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0001 = diags.SingleOrDefault(d => d.Id == "UA0001");
             Assert.That(ua0001, Is.Not.Null, "Expected UA0001 to fire on Utils.LogError(...).");
@@ -98,7 +100,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0001"), Is.True,
                 "Expected UA0001 to fire on Utils.LogInformation(...).");
@@ -116,7 +119,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0001"), Is.False,
                 "Instance ILogger.LogInformation must not trigger UA0001.");
@@ -137,7 +141,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0001UtilsTraceToILoggerAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0001"), Is.False,
                 "A user-defined static Trace on an unrelated class must not trigger UA0001.");

@@ -1,19 +1,26 @@
 #
-# Build a matrix of (solution × configuration) on windows.
+# Build a matrix of (solution × tfm × configuration) on windows.
 # Each matrix entry becomes a parallel job with its own 60-minute timeout.
 #
 # Parameters:
 #   solutions  - Comma-separated list of .slnx paths to build. When empty,
 #                every .slnx file in the repository is discovered and built.
+#   tfms       - Comma-separated list of target frameworks. When non-empty,
+#                each matrix entry restricts the solution build to a single
+#                TFM via `/p:CustomTestTarget=$(targetTfm)`.  When empty the
+#                matrix only spans solution × configuration and the solution
+#                is built for every TFM declared by its projects.
 #
 # Matrix entries supply these variables:
 #   file           - path of the .slnx file
 #   configuration  - Debug or Release
+#   targetTfm      - target framework moniker (only when 'tfms' is non-empty)
 #
 parameters:
   poolImage: 'windows-2025-vs2026'
   jobnamesuffix: ''
   solutions: ''
+  tfms: ''
   # See ci.yml: passing pool config via parameter because root-pipeline
   # variables defined in ${{ if ... }}: blocks aren't reliably visible to
   # included templates at compile-time.
@@ -36,7 +43,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName '*.slnx' -Configurations 'Debug,Release' -Files "${{ parameters.solutions }}"
+      arguments: -FileName '*.slnx' -ExcludeFileName 'UA Core Library.slnx' -Configurations 'Debug,Release' -Files "${{ parameters.solutions }}" -Tfms "${{ parameters.tfms }}"
 
 - job: buildallsln${{ parameters.jobnamesuffix }}
   displayName: Build Solution
@@ -51,6 +58,13 @@ jobs:
         - ImageOverride -equals ${{ parameters.poolImage }}
     ${{ else }}:
       vmImage: ${{ parameters.poolImage }}
+  variables:
+    # When the matrix supplies a per-entry `targetTfm`, pass it through to
+    # `dotnet build` so the solution build is restricted to that single TFM
+    # (the repo's targets.props maps `CustomTestTarget=<tfm>` onto every
+    # `*TargetFrameworks` MSBuild property).  When `targetTfm` is empty the
+    # property expansion is harmless and projects build all their TFMs.
+    TfmBuildProperty: /p:CustomTestTarget=$(targetTfm)
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
@@ -65,18 +79,24 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
-  - task: NuGetCommand@2
-    displayName: Restore $(configuration) $(file)
+  - task: DotNetCoreCLI@2
+    displayName: Restore $(configuration) $(file) $(targetTfm)
     inputs:
-      command: restore
-      restoreSolution: $(file)
-      configuration: $(configuration)
-  - task: MSBuild@1
-    displayName: MS Build $(configuration) $(file)
+      # Use `command: custom` instead of `command: restore` so the `arguments`
+      # input is actually forwarded - the built-in `restore` command silently
+      # ignores `arguments` and would drop `$(TfmBuildProperty)`, leaving
+      # `obj/project.assets.json` populated with the default multi-TFM set
+      # rather than the matrix entry's TFM.
+      # NOTE: `dotnet restore` does NOT accept `--configuration`; only build /
+      # test / publish do.  Pass the configuration as a `/p:` property instead
+      # so per-config restore behaviour (when projects gate on $(Configuration))
+      # still works.
+      command: custom
+      custom: restore
+      arguments: '$(file) /p:Configuration=$(configuration) $(TfmBuildProperty)'
+  - task: DotNetCoreCLI@2
+    displayName: Build $(configuration) $(file) $(targetTfm)
     inputs:
-      solution: $(file)
-      msbuildVersion: 'latest'
-      configuration: $(configuration)
-      platform: 'Any CPU'
-      maximumCpuCount: true
-      msbuildArguments: '/p:BuildInParallel=true'
+      command: build
+      projects: $(file)
+      arguments: '--no-restore --configuration $(configuration) $(TfmBuildProperty) /p:Platform="Any CPU" /p:BuildInParallel=true'

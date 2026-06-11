@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -53,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void SimulationRejectsNegativeInterval()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => h.Builder.Simulation(TimeSpan.Zero));
             Assert.Throws<ArgumentOutOfRangeException>(
@@ -63,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void SimulationOnPlainBuilderThrowsBadConfigurationError()
         {
-            using SimulationHarness h = SimulationHarness.CreateWithoutFluentBase();
+            using var h = SimulationHarness.CreateWithoutFluentBase();
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => h.Builder.Simulation(TimeSpan.FromMilliseconds(10)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
@@ -72,23 +71,22 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public async Task OnTickFiresPeriodically()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
             h.Builder.Seal();
 
-            await Task.Delay(150).ConfigureAwait(false);
-            int observed = Volatile.Read(ref ticks);
-
-            Assert.That(observed, Is.GreaterThanOrEqualTo(2),
-                "Tick should fire at least twice in 150ms with a 25ms interval.");
+            await WaitForAsync(
+                () => Volatile.Read(ref ticks) >= 2,
+                "Tick should fire at least twice with a 25ms interval.")
+                .ConfigureAwait(false);
         }
 
         [Test]
         public async Task AsyncOnTickIsAwaited()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int started = 0;
             int completed = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
@@ -100,15 +98,14 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             h.Builder.Seal();
 
-            await Task.Delay(150).ConfigureAwait(false);
-            Assert.That(Volatile.Read(ref started), Is.GreaterThanOrEqualTo(2));
-            Assert.That(Volatile.Read(ref completed), Is.GreaterThanOrEqualTo(2));
+            await WaitForAsync(() => Volatile.Read(ref started) >= 2).ConfigureAwait(false);
+            await WaitForAsync(() => Volatile.Read(ref completed) >= 2).ConfigureAwait(false);
         }
 
         [Test]
         public async Task ExceptionInHandlerDoesNotKillLoop()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) =>
@@ -121,15 +118,16 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             h.Builder.Seal();
 
-            await Task.Delay(200).ConfigureAwait(false);
-            Assert.That(Volatile.Read(ref ticks), Is.GreaterThanOrEqualTo(3),
-                "Handler-thrown exception must not stop subsequent ticks.");
+            await WaitForAsync(
+                () => Volatile.Read(ref ticks) >= 3,
+                "Handler-thrown exception must not stop subsequent ticks.")
+                .ConfigureAwait(false);
         }
 
         [Test]
         public void OnTickAfterSealRejected()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             ISimulationBuilder sb = h.Builder.Simulation(TimeSpan.FromMilliseconds(100));
             h.Builder.Seal();
 
@@ -142,7 +140,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void DisposeStopsRunningLoops()
         {
-            SimulationHarness h = SimulationHarness.Create();
+            var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
@@ -160,26 +158,45 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void MultipleOnTickHandlersAllFire()
+        public async Task MultipleOnTickHandlersAllFire()
         {
-            using SimulationHarness h = SimulationHarness.Create();
+            using var h = SimulationHarness.Create();
             int handlerA = 0, handlerB = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerA))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerB));
             h.Builder.Seal();
 
-            Thread.Sleep(150);
-            Assert.That(Volatile.Read(ref handlerA), Is.GreaterThanOrEqualTo(2));
-            Assert.That(Volatile.Read(ref handlerB), Is.GreaterThanOrEqualTo(2));
+            await WaitForAsync(
+                () => Volatile.Read(ref handlerA) >= 2 && Volatile.Read(ref handlerB) >= 2)
+                .ConfigureAwait(false);
             Assert.That(
                 Math.Abs(Volatile.Read(ref handlerA) - Volatile.Read(ref handlerB)),
                 Is.LessThanOrEqualTo(1),
                 "Both handlers fire on the same tick — counts should be in lockstep.");
         }
 
-        // Test harness — a FluentNodeManagerBase subclass + a NodeManagerBuilder
-        // attached via AttachToBuilder.
+        private static async Task WaitForAsync(
+            Func<bool> condition,
+            string? message = null,
+            int timeoutMs = 5000)
+        {
+            DateTime end = DateTime.UtcNow + TimeSpan.FromMilliseconds(timeoutMs);
+            while (!condition())
+            {
+                if (DateTime.UtcNow > end)
+                {
+                    Assert.Fail(
+                        message ?? $"Condition not satisfied within {timeoutMs}ms.");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Test harness — a FluentNodeManagerBase subclass + a NodeManagerBuilder
+        /// attached via AttachToBuilder.
+        /// </summary>
         private sealed class SimulationHarness : IDisposable
         {
             internal NodeManagerBuilder Builder { get; private set; } = null!;
@@ -188,9 +205,11 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             internal static SimulationHarness Create()
             {
-                var harness = new SimulationHarness();
-                harness.m_manager = new TestFluentManager();
-                var ctx = harness.m_manager.SystemContext;
+                var harness = new SimulationHarness
+                {
+                    m_manager = new TestFluentManager()
+                };
+                ServerSystemContext ctx = harness.m_manager.SystemContext;
                 harness.Builder = new NodeManagerBuilder(
                     ctx,
                     harness.m_manager,
@@ -204,14 +223,16 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             internal static SimulationHarness CreateWithoutFluentBase()
             {
-                var harness = new SimulationHarness();
-                harness.m_plainBuilder = new NodeManagerBuilder(
-                    new SystemContext(telemetry: null!) { NamespaceUris = new NamespaceTable() },
-                    Mock.Of<IAsyncNodeManager>(),
-                    defaultNamespaceIndex: kNs,
-                    rootResolver: _ => null!,
-                    nodeIdResolver: _ => null!,
-                    typeIdResolver: _ => []);
+                var harness = new SimulationHarness
+                {
+                    m_plainBuilder = new NodeManagerBuilder(
+                        new SystemContext(telemetry: null!) { NamespaceUris = new NamespaceTable() },
+                        Mock.Of<IAsyncNodeManager>(),
+                        defaultNamespaceIndex: kNs,
+                        rootResolver: _ => null!,
+                        nodeIdResolver: _ => null!,
+                        typeIdResolver: _ => [])
+                };
                 harness.Builder = harness.m_plainBuilder;
                 return harness;
             }
@@ -235,7 +256,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             private static IServerInternal CreateMockServer()
             {
                 var ns = new NamespaceTable();
-                ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+                ns.Append(Ua.Namespaces.OpcUa);
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var mock = new Mock<IServerInternal>();

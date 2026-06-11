@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder parent,
             QualifiedName browseName)
         {
-            NonExclusiveLimitAlarmState alarm = AttachAlarm<NonExclusiveLimitAlarmState>(
+            NonExclusiveLimitAlarmState alarm = AttachAlarm(
                 parent, browseName, p => new NonExclusiveLimitAlarmState(p));
             return new AlarmBuilder<NonExclusiveLimitAlarmState>(parent, alarm);
         }
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder parent,
             QualifiedName browseName)
         {
-            ExclusiveLimitAlarmState alarm = AttachAlarm<ExclusiveLimitAlarmState>(
+            ExclusiveLimitAlarmState alarm = AttachAlarm(
                 parent, browseName, p => new ExclusiveLimitAlarmState(p));
             return new AlarmBuilder<ExclusiveLimitAlarmState>(parent, alarm);
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder parent,
             QualifiedName browseName)
         {
-            OffNormalAlarmState alarm = AttachAlarm<OffNormalAlarmState>(
+            OffNormalAlarmState alarm = AttachAlarm(
                 parent, browseName, p => new OffNormalAlarmState(p));
             return new AlarmBuilder<OffNormalAlarmState>(parent, alarm);
         }
@@ -259,7 +259,7 @@ namespace Opc.Ua.Server.Fluent
                     Alarm.GetType().Name);
             }
 
-            ISystemContext ctx = Builder.Builder.Context;
+            _ = Builder.Builder.Context;
             if (!double.IsNaN(highHigh))
             {
                 limit.HighHighLimit ??=
@@ -301,10 +301,6 @@ namespace Opc.Ua.Server.Fluent
 
         public IAlarmBuilder<TState> OnAcknowledge(ConditionAddCommentEventHandler handler)
         {
-            if (handler == null)
-            {
-                throw new ArgumentNullException(nameof(handler));
-            }
             if (Alarm is not AcknowledgeableConditionState ack)
             {
                 throw ServiceResultException.Create(
@@ -313,16 +309,12 @@ namespace Opc.Ua.Server.Fluent
                     Alarm.BrowseName,
                     Alarm.GetType().Name);
             }
-            ack.OnAcknowledge = handler;
+            ack.OnAcknowledge = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
 
         public IAlarmBuilder<TState> OnConfirm(ConditionAddCommentEventHandler handler)
         {
-            if (handler == null)
-            {
-                throw new ArgumentNullException(nameof(handler));
-            }
             if (Alarm is not AcknowledgeableConditionState ack)
             {
                 throw ServiceResultException.Create(
@@ -331,7 +323,7 @@ namespace Opc.Ua.Server.Fluent
                     Alarm.BrowseName,
                     Alarm.GetType().Name);
             }
-            ack.OnConfirm = handler;
+            ack.OnConfirm = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
     }

@@ -58,7 +58,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0008 = diags.SingleOrDefault(d => d.Id == "UA0008");
             Assert.That(ua0008, Is.Not.Null,
@@ -84,7 +85,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0008"), Is.True,
                 "Expected UA0008 to fire on Session.CallAsync with a raw int arg.");
@@ -105,7 +107,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0008"), Is.False,
                 "All-Variant arguments must not trigger UA0008.");
@@ -126,7 +129,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0008"), Is.False,
                 "Session.Call with no variadic args must not trigger UA0008.");
@@ -159,7 +163,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0008SessionCallParamsObjectAnalyzer(),
                 new UA0008SessionCallParamsObjectCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }
@@ -181,7 +185,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0008"), Is.True,
                 "Expected UA0008 to fire on a call resolving to a [OpcUaShim(\"UA0008\")] member.");

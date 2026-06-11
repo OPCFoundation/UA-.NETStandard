@@ -119,7 +119,7 @@ namespace Opc.Ua.Di.Tests
         {
             var store = new MemoryPackageStore();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.GetAsync(""));
+                async () => await store.GetAsync(string.Empty));
             Assert.ThrowsAsync<ArgumentException>(
                 async () => await store.ExistsAsync("   "));
         }

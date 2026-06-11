@@ -399,6 +399,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// fluent helpers and the serializer cast to the concrete
         /// <see cref="SubscriptionManager"/> to reach this method.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="handler"/> is <c>null</c>.</exception>
         internal ValueTask<ISubscription> RestoreAsync(
             ISubscriptionNotificationHandler handler,
             SubscriptionStateSnapshot state,
@@ -487,7 +488,7 @@ namespace Opc.Ua.Client.Subscriptions
             // emitted values, so requesting initial values is only
             // useful when the caller wants the server to re-emit them
             // to a fresh notification handler.
-            var ids = new uint[] { state.ServerId };
+            uint[] ids = [state.ServerId];
             TransferSubscriptionsResponse response = await m_session
                 .TransferSubscriptionsAsync(
                     null,
