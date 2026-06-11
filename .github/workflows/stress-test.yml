@@ -63,8 +63,10 @@ jobs:
     - name: Generate ChaosTCP seed
       id: seed
       shell: pwsh
+      env:
+        INPUT_SEED: ${{ github.event.inputs.seed }}
       run: |
-        $configuredSeed = '${{ github.event.inputs.seed }}'
+        $configuredSeed = $env:INPUT_SEED
         if ([string]::IsNullOrWhiteSpace($configuredSeed))
         {
           $seed = [System.Security.Cryptography.RandomNumberGenerator]::GetInt32([int]::MaxValue)
