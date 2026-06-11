@@ -442,6 +442,22 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
+                if (m_httpClientFactory != null &&
+                    !ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared) &&
+                    m_quotas?.CertificateValidator != null)
+                {
+                    // Tell operators that the DI-registered HttpClient pipeline
+                    // (e.g. AddStandardResilienceHandler) is intentionally NOT
+                    // applied to this channel — see CanUseHttpClientFactory.
+                    m_logger.LogWarning(
+                        "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
+                        "CertificateValidator is configured for this channel; using a direct " +
+                        "HttpClient with OPC UA TLS server-cert validation and the OPC UA " +
+                        "client instance certificate for mTLS. The named HttpClient pipeline " +
+                        "is NOT applied to this OPC UA HTTPS channel.",
+                        nameof(HttpsTransportChannel));
+                }
+
                 m_client = CreateDirectHttpClient();
                 m_disposeClient = true;
             }
@@ -454,17 +470,32 @@ namespace Opc.Ua.Bindings
 
         private bool CanUseHttpClientFactory()
         {
-            // The factory path is opt-in: only callers that explicitly
-            // supplied a non-default IOpcUaHttpClientFactory get the
-            // shared HttpClient pipeline (with its standard resilience
-            // handler). The DefaultOpcUaHttpClientFactory.Shared
-            // instance is a fallback that does NOT have custom OPC UA
-            // TLS server-certificate validation wired in, so for direct
-            // (non-DI) consumers we always fall back to
-            // CreateDirectHttpClient which configures the
-            // ServerCertificateCustomValidationCallback against the
-            // ICertificateValidatorEx supplied via TransportChannelSettings.
-            return !ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared);
+            // SECURITY: The factory path returns a named HttpClient configured
+            // purely with standard HTTP middleware (e.g. Polly resilience). Its
+            // underlying HttpClientHandler is NOT exposed for us to attach the
+            // OPC UA ServerCertificateCustomValidationCallback or the OPC UA
+            // client application instance certificate to. Consequently a
+            // channel that needs OPC UA-specific server-certificate validation
+            // (validation against the OPC UA trust list / ICertificateValidatorEx)
+            // and OPC UA mutual TLS MUST go through CreateDirectHttpClient.
+            // Bypassing the factory in that case is REQUIRED for security:
+            // otherwise the channel would silently fall back to the OS trust
+            // chain only — dropping the OPC UA trust list — and would never
+            // send the OPC UA client cert for mTLS.
+            //
+            // The DefaultOpcUaHttpClientFactory.Shared instance is the
+            // well-known sentinel used by direct (non-DI) consumers. It
+            // ALWAYS triggers the CreateDirectHttpClient path so the OPC UA
+            // security wiring runs.
+            if (ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared))
+            {
+                return false;
+            }
+            if (m_quotas?.CertificateValidator != null)
+            {
+                return false;
+            }
+            return true;
         }
 
         private HttpClient CreateDirectHttpClient()
