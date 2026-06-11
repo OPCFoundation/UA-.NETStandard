@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Types;
 using Opc.Ua.X509StoreExtensions;
 
 namespace Opc.Ua
@@ -476,6 +479,80 @@ namespace Opc.Ua
             int maxCertificates,
             CancellationToken ct = default)
         {
+            if (certificates == null)
+            {
+                throw new ArgumentNullException(nameof(certificates));
+            }
+
+            // negative maxCertificates: caller wants no rejected history kept.
+            if (maxCertificates < 0)
+            {
+                return Task.CompletedTask;
+            }
+
+            using (var store = new X509Store(m_storeName, m_storeLocation))
+            {
+                store.Open(OpenFlags.ReadWrite);
+
+                int processed = 0;
+                foreach (Certificate certificate in certificates)
+                {
+                    // limit the number of certificates processed per call when a cap is set.
+                    if (maxCertificates != 0 && processed >= maxCertificates)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        if (!store.Certificates.Contains(certificate.X509))
+                        {
+                            store.Add(certificate.X509);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex, "Failed to add certificate with thumbprint {Certificate} to store {StorePath}.",
+                            certificate.Thumbprint,
+                            StorePath);
+                        throw;
+                    }
+
+                    processed++;
+                }
+
+                // trim store to maxCertificates when a positive limit is set.
+                // X509Store: certificates with the earliest NotBefore are removed first.
+                if (maxCertificates > 0)
+                {
+                    X509Certificate2Collection allCerts = store.Certificates;
+                    int excess = allCerts.Count - maxCertificates;
+                    if (excess > 0)
+                    {
+                        List<X509Certificate2> toRemove = allCerts
+                            .Cast<X509Certificate2>()
+                            .OrderBy(c => c.NotBefore)
+                            .Take(excess)
+                            .ToList();
+
+                        foreach (X509Certificate2 old in toRemove)
+                        {
+                            try
+                            {
+                                store.Remove(old);
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.LogError(ex, "Failed to remove certificate with thumbprint {Certificate} from store {StorePath}.",
+                                    old.Thumbprint,
+                                    StorePath);
+                                throw;
+                            }
+                        }
+                    }
+                }
+            }
+
             return Task.CompletedTask;
         }
 
