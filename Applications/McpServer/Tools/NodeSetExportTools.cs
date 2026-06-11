@@ -35,11 +35,13 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Opc.Ua.Client;
 using Opc.Ua.Mcp.Serialization;
 
 using ISession = Opc.Ua.Client.ISession;
+using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -82,6 +84,7 @@ namespace Opc.Ua.Mcp.Tools
             "standard NodeSet2 XML. The file can be used for documentation, analysis, or import " +
             "into other tools. Returns the file path and node count.")]
         public static async Task<string> ExportNodeSetAsync(
+            IServiceProvider services,
             OpcUaSessionManager sessionManager,
             [Description("File path to write the NodeSet2 XML to. Relative paths are " +
                 "resolved under the export root (see ExportRoot / " +
@@ -97,11 +100,14 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(sessionManager);
+
             ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
-                string resolvedFilePath = ResolveExportPath(filePath, nameof(filePath));
+                string resolvedFilePath = ResolveExportPath(services, filePath, nameof(filePath));
 
                 var stopwatch = Stopwatch.StartNew();
 
@@ -171,6 +177,7 @@ namespace Opc.Ua.Mcp.Tools
             "Useful for exporting companion specifications individually. Skips the OPC UA base " +
             "namespace (ns=0) by default. Returns a list of exported files.")]
         public static async Task<string> ExportNodeSetPerNamespaceAsync(
+            IServiceProvider services,
             OpcUaSessionManager sessionManager,
             [Description("Output directory where NodeSet2 XML files will be created. " +
                 "Relative paths are resolved under the export root (see ExportRoot / " +
@@ -183,12 +190,15 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(sessionManager);
+
             ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
                 string resolvedOutputDirectory = ResolveExportPath(
-                    outputDirectory, nameof(outputDirectory));
+                    services, outputDirectory, nameof(outputDirectory));
 
                 var stopwatch = Stopwatch.StartNew();
 
@@ -413,15 +423,36 @@ namespace Opc.Ua.Mcp.Tools
         /// <paramref name="requestedPath"/> is empty, white-space, or
         /// resolves outside <see cref="ExportRoot"/>.
         /// </exception>
-        private static string ResolveExportPath(string requestedPath, string parameterName)
+        /// <summary>
+        /// Resolves <paramref name="requestedPath"/> against the
+        /// configured export root and rejects any path that would
+        /// escape it.
+        /// </summary>
+        /// <param name="services">DI service provider used to look
+        /// up <see cref="McpServerOptions.NodeSetExportRoot"/>.
+        /// </param>
+        /// <param name="requestedPath">Caller-supplied path.</param>
+        /// <param name="parameterName">Tool parameter name used in
+        /// error messages.</param>
+        /// <returns>An absolute path inside the resolved export
+        /// root.</returns>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="requestedPath"/> is empty, white-space, or
+        /// resolves outside the export root.
+        /// </exception>
+        internal static string ResolveExportPath(
+            IServiceProvider services,
+            string requestedPath,
+            string parameterName)
         {
+            ArgumentNullException.ThrowIfNull(services);
             if (string.IsNullOrWhiteSpace(requestedPath))
             {
                 throw new ArgumentException(
                     $"{parameterName} is required.", parameterName);
             }
 
-            string root = ExportRoot;
+            string root = ResolveExportRoot(services);
             string candidate = Path.IsPathRooted(requestedPath)
                 ? Path.GetFullPath(requestedPath)
                 : Path.GetFullPath(Path.Combine(root, requestedPath));
@@ -435,11 +466,32 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentException(
                     $"{parameterName} '{requestedPath}' resolves outside the export root '{root}'. " +
-                    $"Set the {ExportRootEnvironmentVariable} environment variable to allow " +
-                    "a different base directory before starting the MCP server.",
+                    $"Configure McpServerOptions.NodeSetExportRoot or set the " +
+                    $"{ExportRootEnvironmentVariable} environment variable to allow a different " +
+                    "base directory before starting the MCP server.",
                     parameterName);
             }
             return candidate;
+        }
+
+        /// <summary>
+        /// Resolves the active export-root directory using the
+        /// precedence: <see cref="McpServerOptions.NodeSetExportRoot"/>
+        /// from DI &gt; <c>OPCUA_MCP_EXPORT_ROOT</c> environment
+        /// variable &gt; per-user default.
+        /// </summary>
+        internal static string ResolveExportRoot(IServiceProvider services)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+
+            OpcUaMcpServerOptions? mcpOptions = services.GetService<OpcUaMcpServerOptions>();
+            if (mcpOptions is not null &&
+                !string.IsNullOrWhiteSpace(mcpOptions.NodeSetExportRoot))
+            {
+                return Path.GetFullPath(mcpOptions.NodeSetExportRoot!);
+            }
+
+            return ExportRoot;
         }
 
         private static string InitializeExportRoot()

@@ -134,6 +134,7 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
 {
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
+    services.AddSingleton(_ => CreateMcpServerOptions());
     services.AddOpcUaBindingsPcap(options =>
     {
         options.BaseFolder = pcapOptions.BaseFolder;
@@ -142,6 +143,15 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
     });
     services.AddOpcUaBindingsPcapFormatters();
     services.AddOpcUaBindingsPcapReplay();
+}
+
+static Opc.Ua.Mcp.McpServerOptions CreateMcpServerOptions()
+{
+    return new Opc.Ua.Mcp.McpServerOptions
+    {
+        NodeSetExportRoot = Environment.GetEnvironmentVariable("OPCUA_MCP_NODESET_EXPORT_ROOT"),
+        PcapBaseFolder = Environment.GetEnvironmentVariable("OPCUA_MCP_PCAP_BASE_FOLDER")
+    };
 }
 
 static PcapOptions CreatePcapOptions(IConfiguration configuration)
