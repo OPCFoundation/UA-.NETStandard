@@ -664,10 +664,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert: only tgt2's edge was issued to the server; tgt1
             // was dropped (op1 was cancelled). op2's TCS completed
-            // with success.
+            // with success. Use Status == RanToCompletion rather than
+            // Task.IsCompletedSuccessfully which is .NET 5+ only and
+            // would break the net48/net472 builds.
             Assert.That(capturedAdd, Is.EquivalentTo(new[] { tgt2.ServerId }));
             Assert.That(tcs1.Task.IsCanceled, Is.True);
-            Assert.That(tcs2.Task.IsCompletedSuccessfully, Is.True);
+            Assert.That(tcs2.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
         }
 
         // Helpers -------------------------------------------------------
