@@ -99,8 +99,12 @@ namespace Opc.Ua.Fuzzing
 
         internal static bool IsExpected(Exception ex)
         {
+            // IndexOutOfRangeException is intentionally NOT in this whitelist:
+            // an OOB read in the binding is a real bug that fuzz should surface,
+            // not swallow as an "expected" parser-rejected-input outcome
+            // (security audit recommendation §7.2 #3).
             if (ex is PcapDiagnosticsException or ServiceResultException or CryptographicException or IOException or
-                InvalidOperationException or ArgumentException or IndexOutOfRangeException or OverflowException or
+                InvalidOperationException or ArgumentException or OverflowException or
                 FormatException)
             {
                 return true;
