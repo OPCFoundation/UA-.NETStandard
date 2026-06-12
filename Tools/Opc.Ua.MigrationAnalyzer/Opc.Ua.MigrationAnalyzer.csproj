@@ -75,7 +75,11 @@
        through). The full multi-TFM build (needed by the nuspec) is performed
        explicitly by _BuildShimAllTfmsBeforePack during pack. -->
   <PropertyGroup>
-    <_MigrationAnalyzerCorePinnedTfm Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</_MigrationAnalyzerCorePinnedTfm>
+    <!-- targets.props remaps LibTargetFrameworks=net48 when CustomTestTarget=netstandard2.0
+         (the netstandard2.0 surface is exercised through the net48 head). Mirror that
+         remap so the ProjectReference pin doesn't request a TFM Core never built. -->
+    <_MigrationAnalyzerCorePinnedTfm Condition="'$(CustomTestTarget)' == 'netstandard2.0'">net48</_MigrationAnalyzerCorePinnedTfm>
+    <_MigrationAnalyzerCorePinnedTfm Condition="'$(CustomTestTarget)' != '' AND '$(_MigrationAnalyzerCorePinnedTfm)' == ''">$(CustomTestTarget)</_MigrationAnalyzerCorePinnedTfm>
     <_MigrationAnalyzerCorePinnedTfm Condition="'$(_MigrationAnalyzerCorePinnedTfm)' == ''">net10.0</_MigrationAnalyzerCorePinnedTfm>
   </PropertyGroup>
   <ItemGroup>
