@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,8 +39,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Tests;
-
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -1353,6 +1353,102 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(monitoredItem.ServerId, Is.EqualTo(44444));
 
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+                m_mockMonitoredItemServices.Verify();
+            }
+        }
+
+        [Test]
+        public async Task SetTriggeringAsyncShouldThrowOnNullTriggeringItemAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                // Act + Assert
+                Assert.That(async () => await sut.SetTriggeringAsync(
+                    null!, null, null, default).ConfigureAwait(false),
+                    Throws.TypeOf<ArgumentNullException>());
+            }
+        }
+
+        [Test]
+        public async Task SetTriggeringAsyncShouldThrowWhenItemNotInSubscriptionAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                bool added = sut.MonitoredItems.TryAdd("trig",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                    out IMonitoredItem trig);
+                Assert.That(added, Is.True);
+
+                // Construct a stray item that belongs to a different
+                // subscription's MonitoredItemManager.
+                var strayContext = new FakeMonitoredItemContext();
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> strayOpts =
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                var stray = new TestMonitoredItem(strayContext, "stray",
+                    strayOpts, m_telemetry.CreateLogger("stray"));
+
+                // Act + Assert: validation by reference identity
+                // rejects the stray item.
+                Assert.That(async () => await sut.SetTriggeringAsync(
+                    trig, new IMonitoredItem[] { stray }, null, default)
+                    .ConfigureAwait(false),
+                    Throws.ArgumentException);
+            }
+        }
+
+        [Test]
+        public async Task SetTriggeringAsyncShouldQueueAndApplyAsync()
+        {
+            // Arrange — set up the SetTriggering RPC mock first so
+            // the apply pass succeeds when the queued op fires.
+            m_mockMonitoredItemServices
+                .Setup(s => s.SetTriggeringAsync(
+                    It.IsAny<RequestHeader?>(), 22u, It.IsAny<uint>(),
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1),
+                    It.Is<ArrayOf<uint>>(r => r.Count == 0),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new SetTriggeringResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    AddResults = new[] { (StatusCode)StatusCodes.Good }.ToArrayOf(),
+                    RemoveResults = Array.Empty<StatusCode>().ToArrayOf()
+                })
+                .Verifiable(Times.Once);
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                bool addedTrig = sut.MonitoredItems.TryAdd("trig",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                    out IMonitoredItem trig);
+                bool addedTgt = sut.MonitoredItems.TryAdd("tgt",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                    out IMonitoredItem tgt);
+                Assert.That(addedTrig && addedTgt, Is.True);
+                Assert.That(trig.Created, Is.True);
+                Assert.That(tgt.Created, Is.True);
+
+                // Act
+                SetTriggeringResult result = await sut.SetTriggeringAsync(
+                    trig,
+                    new IMonitoredItem[] { tgt },
+                    null,
+                    default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.TriggeringItem, Is.SameAs(trig));
+                Assert.That(result.AddResults, Has.Count.EqualTo(1));
+                Assert.That(StatusCode.IsGood(result.AddResults[0].Status), Is.True);
+                Assert.That(result.RemoveResults, Is.Empty);
+                Assert.That(tgt.TriggeringItems, Contains.Item(trig));
                 m_mockMonitoredItemServices.Verify();
             }
         }

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -101,5 +102,40 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Auto calculate a queue size and apply
         /// </summary>
         public bool AutoSetQueueSize { get; init; }
+
+        /// <summary>
+        /// Initial declarative set of monitored-item names that
+        /// trigger this item (OPC UA Part 4 §5.13.5 SetTriggering).
+        /// Each entry must be a stable monitored-item name registered
+        /// with the owning subscription's
+        /// <see cref="IMonitoredItemCollection.TryGetMonitoredItemByName"/>.
+        /// <para>
+        /// The OPC UA spec supports an N:M triggering topology — a
+        /// triggered item may be linked to more than one triggering
+        /// item. Use this list to declare every triggering item that
+        /// should cause this item to report; the subscription engine
+        /// batches one <c>SetTriggering</c> RPC per distinct triggering
+        /// item when applying changes.
+        /// </para>
+        /// <para>
+        /// This field is the **initial declarative input**. The
+        /// canonical runtime source of truth is the subscription
+        /// engine's per-item desired-state runtime field, initialized
+        /// from this list at construction and mutated by both
+        /// imperative <c>SetTriggeringAsync</c> calls and subsequent
+        /// options-change events.
+        /// </para>
+        /// <para>
+        /// Validation (applied at options-change time): null, empty,
+        /// and whitespace-only entries are rejected with
+        /// <see cref="ArgumentException"/>. Duplicate entries are
+        /// silently de-duplicated using an ordinal case-sensitive
+        /// comparer (matching the subscription's name dictionary).
+        /// Insertion order is preserved for deterministic snapshot
+        /// output.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<string> TriggeredByNames { get; init; } = [];
     }
 }
+
