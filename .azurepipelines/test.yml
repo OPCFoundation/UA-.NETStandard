@@ -144,7 +144,13 @@ jobs:
     inputs:
       command: test
       projects: $(file)
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress"'
+      # --blame-hang-timeout/--blame-hang-dump-type: kill (and name) any single test
+      # that exceeds 10 min so silent hangs surface as "Test <Name> exceeded the
+      # configured timeout" instead of burning the full 90-min step timeout with no
+      # diagnostic info (observed on mac PR build 14598 log 933: 28 min of silence
+      # after the previous test before the step timeout fired). LongRunning/Stress
+      # tests are already filtered out, so 10 min is well above any legitimate run.
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type none'
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
     condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
