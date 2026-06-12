@@ -454,7 +454,7 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Configure triggering relationships between monitored items
-        /// in this logical subscription. Per OPC UA Part 4 §5.13.6
+        /// in this logical subscription. Per OPC UA Part 4 §5.13.5
         /// the OPC UA SetTriggering service is scoped to a single
         /// server-side subscription. When the logical subscription
         /// spans multiple partitions, this method rejects calls that
@@ -463,22 +463,23 @@ namespace Opc.Ua.Client.Subscriptions
         /// can guarantee co-location by pinning items via
         /// <see cref="MonitoredItems.MonitoredItemOptions.Affinity"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException">When
+        /// <paramref name="triggeringItem"/> or any entry of
+        /// <paramref name="linksToAdd"/> / <paramref name="linksToRemove"/>
+        /// is <c>null</c>.</exception>
         /// <exception cref="ArgumentException">When the triggering
-        /// item or any of the linked items resolves to a different
-        /// partition.</exception>
-        public ValueTask<SetTriggeringResponse> SetTriggeringAsync(
-            uint triggeringItemClientHandle,
-            IReadOnlyList<uint> linksToAdd,
-            IReadOnlyList<uint> linksToRemove,
+        /// item or any of the linked items is not part of this
+        /// subscription, or when items resolve to different
+        /// partitions.</exception>
+        public ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            MonitoredItems.IMonitoredItem triggeringItem,
+            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToAdd = null,
+            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
-            if (linksToAdd == null)
+            if (triggeringItem == null)
             {
-                throw new ArgumentNullException(nameof(linksToAdd));
-            }
-            if (linksToRemove == null)
-            {
-                throw new ArgumentNullException(nameof(linksToRemove));
+                throw new ArgumentNullException(nameof(triggeringItem));
             }
 
             // Resolve the triggering item's owning partition. If we
@@ -487,11 +488,10 @@ namespace Opc.Ua.Client.Subscriptions
             // boundary check.
             IReadOnlyList<IManagedSubscription> snapshot = SnapshotPartitions();
             IManagedSubscription owner = ResolveOwningPartition(
-                triggeringItemClientHandle, snapshot)
+                triggeringItem, snapshot)
                 ?? throw new ArgumentException(
-                    $"Triggering item with client handle {triggeringItemClientHandle} " +
-                    "is not part of this subscription.",
-                    nameof(triggeringItemClientHandle));
+                    "Triggering item is not part of this subscription.",
+                    nameof(triggeringItem));
 
             if (snapshot.Count > 1)
             {
@@ -501,23 +501,26 @@ namespace Opc.Ua.Client.Subscriptions
                     nameof(linksToRemove));
             }
 
-            if (owner is Subscription concrete)
-            {
-                return concrete.SetTriggeringAsync(
-                    triggeringItemClientHandle, linksToAdd, linksToRemove, ct);
-            }
-            throw new InvalidOperationException(
-                "Owning partition does not support SetTriggering.");
+            // Delegate to the owning partition's SetTriggeringAsync.
+            // The partition's MonitoredItemManager owns the item
+            // identity (reference) and enforces the spec-correct
+            // Part 4 §5.13.5 semantics (batching, retry while
+            // triggering item not Created, per-link result mapping).
+            return owner.SetTriggeringAsync(
+                triggeringItem, linksToAdd, linksToRemove, ct);
         }
 
         private static IManagedSubscription? ResolveOwningPartition(
-            uint clientHandle,
+            MonitoredItems.IMonitoredItem item,
             IReadOnlyList<IManagedSubscription> partitions)
         {
             foreach (IManagedSubscription partition in partitions)
             {
                 if (partition.MonitoredItems
-                    .TryGetMonitoredItemByClientHandle(clientHandle, out _))
+                    .TryGetMonitoredItemByClientHandle(
+                        item.ClientHandle,
+                        out MonitoredItems.IMonitoredItem? candidate)
+                    && ReferenceEquals(candidate, item))
                 {
                     return partition;
                 }
@@ -527,28 +530,35 @@ namespace Opc.Ua.Client.Subscriptions
 
         private static void EnsureSamePartition(
             IManagedSubscription owner,
-            IReadOnlyList<uint> handles,
+            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? items,
             IReadOnlyList<IManagedSubscription> partitions,
             string paramName)
         {
-            foreach (uint handle in handles)
+            if (items == null)
             {
+                return;
+            }
+            foreach (MonitoredItems.IMonitoredItem item in items)
+            {
+                if (item == null)
+                {
+                    throw new ArgumentNullException(paramName,
+                        "Triggered item entries must not be null.");
+                }
                 IManagedSubscription? itemPartition = ResolveOwningPartition(
-                    handle, partitions);
+                    item, partitions);
                 if (itemPartition == null)
                 {
                     throw new ArgumentException(
-                        $"Monitored item with client handle {handle} " +
-                        "is not part of this subscription.",
+                        "Monitored item is not part of this subscription.",
                         paramName);
                 }
                 if (!ReferenceEquals(itemPartition, owner))
                 {
                     throw new ArgumentException(
-                        $"Monitored item with client handle {handle} " +
-                        "is in a different partition than the triggering item. " +
-                        "Use MonitoredItemOptions.Affinity to pin triggering " +
-                        "and triggered items into the same partition.",
+                        "Monitored item is in a different partition than the " +
+                        "triggering item. Use MonitoredItemOptions.Affinity to " +
+                        "pin triggering and triggered items into the same partition.",
                         paramName);
                 }
             }

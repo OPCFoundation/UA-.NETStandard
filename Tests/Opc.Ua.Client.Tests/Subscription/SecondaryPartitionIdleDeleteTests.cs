@@ -318,7 +318,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public TimeSpan CurrentSamplingInterval => TimeSpan.Zero;
             public uint CurrentQueueSize => 0;
             public uint ClientHandle { get; }
-            public IMonitoredItem? TriggeringItem => null;
+            public IEnumerable<IMonitoredItem> TriggeringItems => Array.Empty<IMonitoredItem>();
+            public IEnumerable<IMonitoredItem> TriggeredItems => Array.Empty<IMonitoredItem>();
             public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
             {
                 return default;

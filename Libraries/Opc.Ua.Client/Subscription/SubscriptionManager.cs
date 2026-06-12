@@ -718,12 +718,15 @@ namespace Opc.Ua.Client.Subscriptions
                 state.MonitoredItems.Count);
             foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
             {
+                IReadOnlyList<string> triggeredBy = item.TriggeredByNames.IsNull
+                    ? []
+                    : item.TriggeredByNames.ToArray() ?? [];
                 itemLoadStates.Add(new MonitoredItemLoadState(
                     item.Name,
                     new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     item.ClientHandle,
                     item.ServerId,
-                    item.TriggeringItemClientHandle));
+                    triggeredBy));
             }
             var loadState = new SubscriptionLoadState(
                 state.ServerId, itemLoadStates);
@@ -977,7 +980,9 @@ namespace Opc.Ua.Client.Subscriptions
                     new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     item.ClientHandle,
                     item.ServerId,
-                    item.TriggeringItemClientHandle));
+                    item.TriggeredByNames.IsNull
+                        ? []
+                        : item.TriggeredByNames.ToArray() ?? []));
             }
             var loadState = new SubscriptionLoadState(snap.ServerId, itemLoadStates);
 

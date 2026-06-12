@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -114,7 +115,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <para>
         /// Co-location is required for cross-item OPC UA features
         /// that are scoped to a single subscription on the server,
-        /// most notably <c>SetTriggering</c> (OPC UA Part 4 §5.13.6).
+        /// most notably <c>SetTriggering</c> (OPC UA Part 4 §5.13.5):
+        /// the imperative <see cref="ISubscription.SetTriggeringAsync"/>
+        /// rejects calls whose triggering and triggered items live in
+        /// different partitions, and the declarative
+        /// <see cref="TriggeredByNames"/> list only resolves names
+        /// inside the same partition. Tagging every member of a
+        /// triggering relationship with the same
+        /// <see cref="Affinity"/> value guarantees they cannot be
+        /// split.
         /// </para>
         /// <para>
         /// The affinity contract is <em>strict</em>: once an affinity
@@ -131,5 +140,48 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </para>
         /// </summary>
         public string? Affinity { get; init; }
+
+        /// <summary>
+        /// Initial declarative set of monitored-item names that
+        /// trigger this item (OPC UA Part 4 §5.13.5 SetTriggering).
+        /// Each entry must be a stable monitored-item name registered
+        /// with the owning subscription's
+        /// <see cref="IMonitoredItemCollection.TryGetMonitoredItemByName"/>.
+        /// <para>
+        /// The OPC UA spec supports an N:M triggering topology — a
+        /// triggered item may be linked to more than one triggering
+        /// item. Use this list to declare every triggering item that
+        /// should cause this item to report; the subscription engine
+        /// batches one <c>SetTriggering</c> RPC per distinct triggering
+        /// item when applying changes.
+        /// </para>
+        /// <para>
+        /// This field is the **initial declarative input**. The
+        /// canonical runtime source of truth is the subscription
+        /// engine's per-item desired-state runtime field, initialized
+        /// from this list at construction and mutated by both
+        /// imperative <c>SetTriggeringAsync</c> calls and subsequent
+        /// options-change events.
+        /// </para>
+        /// <para>
+        /// Validation (applied at options-change time): null, empty,
+        /// and whitespace-only entries are rejected with
+        /// <see cref="ArgumentException"/>. Duplicate entries are
+        /// silently de-duplicated using an ordinal case-sensitive
+        /// comparer (matching the subscription's name dictionary).
+        /// Insertion order is preserved for deterministic snapshot
+        /// output.
+        /// </para>
+        /// <para>
+        /// When the V2 unbounded-item mode is active and the
+        /// triggering item lands in a different partition from the
+        /// triggered item, the link resolves to
+        /// <c>Bad_MonitoredItemIdInvalid</c> because OPC UA
+        /// <c>SetTriggering</c> is per-subscription. Use a shared
+        /// <see cref="Affinity"/> value to keep the items co-located.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<string> TriggeredByNames { get; init; } = [];
     }
 }
+
