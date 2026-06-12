@@ -47,8 +47,17 @@ namespace Opc.Ua.Bindings.Pcap.Tests.McpServerTools
         {
             string allowedRoot = CreateAllowedRoot();
 
+            // Build the traversal path with Path.Combine so it works on
+            // both Windows (separator = '\') and Linux (separator = '/').
+            // A hard-coded "..\..\etc\passwd" is treated as a single
+            // filename on Linux (backslash is a valid filename character
+            // on POSIX) and therefore Path.GetFullPath does not actually
+            // escape the allowed root, so the test would erroneously
+            // pass through the validator without throwing.
+            string traversalPath = Path.Combine("..", "..", "etc", "passwd");
+
             Assert.That(
-                () => InvokeResolveAndValidateDecodePath(@"..\..\etc\passwd", allowedRoot),
+                () => InvokeResolveAndValidateDecodePath(traversalPath, allowedRoot),
                 Throws.InstanceOf<ArgumentException>());
         }
 

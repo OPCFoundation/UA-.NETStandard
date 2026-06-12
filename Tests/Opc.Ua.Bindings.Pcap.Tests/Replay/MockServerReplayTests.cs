@@ -57,7 +57,12 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Replay
                 var replay = new MockServerReplay(source);
                 await using (replay.ConfigureAwait(false))
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+                    // Pre-cancel the token so the test is deterministic
+                    // on fast machines. A 20 ms time-based cancel races
+                    // with a single-frame replay that finishes loading
+                    // in well under 20 ms; the cancel never fires.
+                    using var cts = new CancellationTokenSource();
+                    cts.Cancel();
 
                     Exception? exception = Assert.CatchAsync(async () =>
                         await replay.StartAsync("opc.tcp", null, cts.Token).ConfigureAwait(false));

@@ -66,7 +66,12 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Replay
             await using (manager.ConfigureAwait(false))
             {
                 StartReplayRequest request = await CreateServerRequestAsync().ConfigureAwait(false);
-                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+                // Pre-cancel the token so the test is deterministic on
+                // fast machines. A 20 ms time-based cancel races with a
+                // single-frame replay that loads in well under 20 ms;
+                // the cancel never fires before the operation completes.
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
 
                 Exception? exception = Assert.CatchAsync(async () =>
                     await manager.StartAsync(request, cts.Token).ConfigureAwait(false));
