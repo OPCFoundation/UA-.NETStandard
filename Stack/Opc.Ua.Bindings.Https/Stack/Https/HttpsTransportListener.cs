@@ -802,11 +802,7 @@ namespace Opc.Ua.Bindings
             }
             if (string.Equals(selected, Profiles.OpcUaWsSubProtocolUaJson, StringComparison.Ordinal))
             {
-                // Phase 3 (p3-wss-json-handler) lands the JSON sub-protocol.
-                await WriteResponseAsync(
-                    context.Response,
-                    "HTTPSLISTENER - opcua+uajson sub-protocol not yet implemented.",
-                    HttpStatusCode.NotImplemented).ConfigureAwait(false);
+                await AcceptWebSocketJsonAsync(context).ConfigureAwait(false);
                 return;
             }
 
@@ -992,6 +988,154 @@ namespace Opc.Ua.Bindings
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Handles a WebSocket upgrade for the <c>opcua+uajson</c>
+        /// sub-protocol (Part 6 §7.5.2). Each WS message carries one
+        /// JSON-encoded OPC UA request; the JSON sub-protocol does not
+        /// use the UA Secure Conversation layer so only Security Mode
+        /// None is supported (transport security is TLS).
+        /// </summary>
+        private async Task AcceptWebSocketJsonAsync(HttpContext context)
+        {
+            WebSocket ws = await context.WebSockets
+                .AcceptWebSocketAsync(Profiles.OpcUaWsSubProtocolUaJson)
+                .ConfigureAwait(false);
+
+            CancellationToken ct = context.RequestAborted;
+
+            // Pick the JSON endpoint description for the active scheme.
+            EndpointDescription? endpoint = null;
+            foreach (EndpointDescription ep in m_descriptions)
+            {
+                if (ep.TransportProfileUri == Profiles.UaWssJsonTransport &&
+                    ep.SecurityMode == MessageSecurityMode.None)
+                {
+                    endpoint = ep;
+                    break;
+                }
+            }
+
+            var channelContext = new SecureChannelContext(
+                ListenerId,
+                endpoint,
+                RequestEncoding.Json,
+                context.Connection.ClientCertificate?.RawData,
+                ServerChannelCertificate);
+
+            byte[]? receiveBuffer = null;
+            try
+            {
+                while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+                {
+                    receiveBuffer ??= m_bufferManager.TakeBuffer(
+                        m_quotas.MaxBufferSize,
+                        nameof(AcceptWebSocketJsonAsync));
+
+                    int totalRead = 0;
+                    bool completed;
+                    do
+                    {
+                        WebSocketReceiveResult result = await ws
+                            .ReceiveAsync(
+                                new ArraySegment<byte>(
+                                    receiveBuffer,
+                                    totalRead,
+                                    receiveBuffer.Length - totalRead),
+                                ct)
+                            .ConfigureAwait(false);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.NormalClosure,
+                                "Client requested close.",
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
+                        totalRead += result.Count;
+                        if (totalRead > m_quotas.MaxBufferSize)
+                        {
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.MessageTooBig,
+                                "Message exceeded configured limit.",
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
+                        completed = result.EndOfMessage;
+                    }
+                    while (!completed);
+
+                    IServiceResponse responseToSend;
+                    try
+                    {
+                        IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
+                            new ArraySegment<byte>(receiveBuffer, 0, totalRead).ToArray(),
+                            m_quotas.MessageContext);
+                        request.RequestHeader ??= new RequestHeader();
+
+                        responseToSend = await m_callback!
+                            .ProcessRequestAsync(channelContext, request, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        responseToSend = EndpointBase.CreateFault(m_logger, null, sre);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex, "WSSLISTENER - error processing JSON request.");
+                        responseToSend = EndpointBase.CreateFault(m_logger, null, ex);
+                    }
+
+                    byte[] responseBytes = JsonRequestMapper.EncodeResponse(
+                        responseToSend,
+                        m_quotas.MessageContext);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                    await ws.SendAsync(
+                        new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
+                        WebSocketMessageType.Text,
+                        endOfMessage: true,
+                        ct).ConfigureAwait(false);
+#else
+                    await ws.SendAsync(
+                        new ArraySegment<byte>(responseBytes, 0, responseBytes.Length),
+                        WebSocketMessageType.Text,
+                        endOfMessage: true,
+                        ct).ConfigureAwait(false);
+#endif
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Request aborted; normal shutdown.
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "WSSLISTENER - unexpected JSON WebSocket error.");
+            }
+            finally
+            {
+                if (receiveBuffer != null)
+                {
+                    m_bufferManager.ReturnBuffer(receiveBuffer, nameof(AcceptWebSocketJsonAsync));
+                }
+                try
+                {
+                    if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                    {
+                        await ws.CloseAsync(
+                            WebSocketCloseStatus.NormalClosure,
+                            string.Empty,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    // Best-effort.
+                }
+                ws.Dispose();
+            }
         }
 
         /// <summary>
