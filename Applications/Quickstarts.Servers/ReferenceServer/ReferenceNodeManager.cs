@@ -5354,6 +5354,15 @@ namespace Quickstarts.ReferenceServer
                     m_semaphore.Release();
                 }
             }
+            catch (ObjectDisposedException) when (m_simulationTimer is null)
+            {
+                // Expected during teardown: Dispose() nulls m_simulationTimer and
+                // then disposes m_semaphore (see the Dispose() comment). A timer
+                // callback already in flight past the m_simulationEnabled guard
+                // will see the disposed semaphore - not a bug, just a documented
+                // race. Filter it out so the test log doesn't get a misleading
+                // "Unexpected error doing simulation" entry on every server teardown.
+            }
             catch (Exception e)
             {
                 m_logger.LogError(e, "Unexpected error doing simulation #{Count}.", running);
