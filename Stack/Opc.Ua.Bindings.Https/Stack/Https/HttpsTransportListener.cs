@@ -63,6 +63,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public override string UriScheme => Utils.UriSchemeHttps;
 
+        /// <inheritdoc/>
+        protected override string? JsonTransportProfileUri => Profiles.HttpsJsonTransport;
+
         /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
@@ -83,6 +86,9 @@ namespace Opc.Ua.Bindings
         /// The protocol supported by the listener.
         /// </summary>
         public override string UriScheme => Utils.UriSchemeOpcHttps;
+
+        /// <inheritdoc/>
+        protected override string? JsonTransportProfileUri => Profiles.HttpsJsonTransport;
 
         /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
@@ -108,6 +114,9 @@ namespace Opc.Ua.Bindings
         protected override string TransportProfileUri => Profiles.UaWssTransport;
 
         /// <inheritdoc/>
+        protected override string? JsonTransportProfileUri => Profiles.UaWssJsonTransport;
+
+        /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
             return new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
@@ -126,6 +135,9 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         protected override string TransportProfileUri => Profiles.UaWssTransport;
+
+        /// <inheritdoc/>
+        protected override string? JsonTransportProfileUri => Profiles.UaWssJsonTransport;
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
