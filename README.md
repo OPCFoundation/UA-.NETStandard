@@ -111,13 +111,12 @@ repository.
 
 ## 🔧 Migrating from 1.5.378 to 2.0
 
-The 2.0 release introduces breaking API changes. The full prescriptive
-guide is **[Docs/MigrationGuide.md](Docs/MigrationGuide.md)** — a thin
-landing page that points at the per-area sub-docs in
-**[Docs/migrate/2.0.x/](Docs/migrate/2.0.x/README.md)** (telemetry,
-packages, source-generation, types, encoders, node-states, identity,
-certificates, configuration, sessions / subscriptions,
-alarms / model-change, TimeProvider).
+The 2.0 release introduces breaking API changes, and comes with a full
+[prescriptive migration guide](Docs/MigrationGuide.md) that links to
+[per-area documentation](Docs/migrate/2.0.x/README.md) covering
+telemetry, packages, source generation, types, encoders, node states,
+identity, certificates, configuration, sessions / subscriptions,
+alarms / model change, and TimeProvider.
 
 Most of the mechanical migration work is automated:
 
