@@ -639,16 +639,126 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Handles HTTPS POST requests carrying an OPC UA JSON message
-        /// (Part 6 §7.4.5 — <c>application/opcua+uajson</c>). Returns
-        /// <c>501 Not Implemented</c> until the HTTPS-JSON handler lands in
-        /// <c>p3-https-json-handler</c>.
+        /// (Part 6 §7.4.5 — <c>application/opcua+uajson</c>). JSON over
+        /// HTTPS does not use the UA SecureChannel layer, so only the
+        /// <see cref="MessageSecurityMode.None"/> policy is accepted;
+        /// transport security is provided by TLS at the HTTPS layer.
         /// </summary>
-        public Task SendJsonAsync(HttpContext context)
+        public async Task SendJsonAsync(HttpContext context)
         {
-            return WriteResponseAsync(
-                context.Response,
-                "HTTPSLISTENER - HTTPS-JSON transport not yet implemented.",
-                HttpStatusCode.NotImplemented);
+            string message = string.Empty;
+            CancellationToken ct = context.RequestAborted;
+            try
+            {
+                if (m_callback == null)
+                {
+                    await WriteResponseAsync(
+                        context.Response,
+                        message,
+                        HttpStatusCode.NotImplemented).ConfigureAwait(false);
+                    return;
+                }
+
+                // Optional JWT extraction (same as the binary path).
+                NodeId authenticationToken = NodeId.Null;
+                if (context.Request.Headers.TryGetValue(
+                        kAuthorizationKey,
+                        out Microsoft.Extensions.Primitives.StringValues keys))
+                {
+                    foreach (string? value in keys)
+                    {
+                        if (value != null &&
+                            value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
+                        {
+                            authenticationToken = new NodeId(
+                                value[(kBearerKey.Length + 1)..].Trim(),
+                                0);
+                        }
+                    }
+                }
+
+                IServiceRequest input;
+                try
+                {
+                    input = await JsonRequestMapper
+                        .DecodeRequestAsync(context.Request.Body, m_quotas.MessageContext, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre)
+                {
+                    IServiceResponse fault = EndpointBase.CreateFault(
+                        m_logger,
+                        null,
+                        sre);
+                    await WriteJsonResponseAsync(context, fault, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                input.RequestHeader ??= new RequestHeader();
+                if (input.RequestHeader.AuthenticationToken.IsNull && !authenticationToken.IsNull &&
+                    input.TypeId != DataTypeIds.CreateSessionRequest)
+                {
+                    input.RequestHeader.AuthenticationToken = authenticationToken;
+                }
+
+                // The JSON sub-protocol is restricted to SecurityPolicy = None
+                // (Part 6 §7.4.5); pick the matching endpoint up front.
+                EndpointDescription? endpoint = null;
+                foreach (EndpointDescription ep in m_descriptions)
+                {
+                    if (ep.TransportProfileUri == Profiles.HttpsJsonTransport &&
+                        ep.SecurityMode == MessageSecurityMode.None)
+                    {
+                        endpoint = ep;
+                        break;
+                    }
+                }
+
+                var secureChannelContext = new SecureChannelContext(
+                    ListenerId,
+                    endpoint,
+                    RequestEncoding.Json,
+                    context.Connection.ClientCertificate?.RawData,
+                    ServerChannelCertificate);
+
+                IServiceResponse output = await m_callback
+                    .ProcessRequestAsync(secureChannelContext, input, ct)
+                    .ConfigureAwait(false);
+
+                if (!ct.IsCancellationRequested)
+                {
+                    await WriteJsonResponseAsync(context, output, ct).ConfigureAwait(false);
+                }
+                return;
+            }
+            catch (Exception e)
+            {
+                message = "HTTPSLISTENER - Unexpected error processing JSON request.";
+                m_logger.LogError(e, "{Message}", message);
+            }
+
+            await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
+                .ConfigureAwait(false);
+        }
+
+        private async Task WriteJsonResponseAsync(
+            HttpContext context,
+            IServiceResponse response,
+            CancellationToken ct)
+        {
+            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+            context.Response.ContentLength = payload.Length;
+            context.Response.ContentType = Profiles.OpcUaJsonContentType;
+            context.Response.StatusCode = (int)HttpStatusCode.OK;
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+            await context.Response.Body
+                .WriteAsync(payload.AsMemory(0, payload.Length), ct)
+                .ConfigureAwait(false);
+#else
+            await context.Response.Body
+                .WriteAsync(payload, 0, payload.Length, ct)
+                .ConfigureAwait(false);
+#endif
         }
 
         /// <summary>
