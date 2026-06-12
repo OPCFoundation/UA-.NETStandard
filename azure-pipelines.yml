@@ -72,7 +72,10 @@ stages:
 - stage: buildnohttps
   dependsOn: []
   displayName: 'Build NoHttps .NET Core Samples'
-  condition: ne(variables.FullBuild, 'False')
+  # succeeded() wraps the gate so a user-issued build cancellation propagates;
+  # without it the bare condition re-evaluates to true on cancel and the stage
+  # keeps running.
+  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
   jobs:
   - template: .azurepipelines/ci.yml
     parameters:
