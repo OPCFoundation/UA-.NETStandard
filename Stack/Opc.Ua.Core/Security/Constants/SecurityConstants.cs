@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -130,6 +132,20 @@ namespace Opc.Ua
             = "http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary";
 
         /// <summary>
+        /// Communicates with UA JSON over secure Websockets.
+        /// </summary>
+        /// <remarks>
+        /// Per OPC UA Part 6 §7.5.2 each WebSocket sub-protocol has its own
+        /// TransportProfileUri defined in OPC 10000-7. The URI here follows the
+        /// established naming pattern of <see cref="UaWssTransport"/> (and matches
+        /// the WebSocket sub-protocol identifier <c>opcua+uajson</c>). The JSON
+        /// sub-protocol does not use UA Secure Conversation and is therefore
+        /// restricted to <see cref="MessageSecurityMode.None"/>.
+        /// </remarks>
+        public const string UaWssJsonTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/uawss-uajson";
+
+        /// <summary>
         /// Communicates with UA Binary over HTTPS.
         /// </summary>
         public const string HttpsBinaryTransport
@@ -173,6 +189,94 @@ namespace Opc.Ua
         /// The security policy header used by the Https transport.
         /// </summary>
         public const string HttpsSecurityPolicyHeader = "OPCUA-SecurityPolicy";
+
+        /// <summary>
+        /// HTTP <c>Content-Type</c> value identifying an OPC UA binary-encoded message body
+        /// for the https-uabinary transport (OPC UA Part 6 §7.4.4).
+        /// </summary>
+        public const string OpcUaBinaryContentType = "application/opcua+uabinary";
+
+        /// <summary>
+        /// HTTP <c>Content-Type</c> value identifying an OPC UA JSON-encoded message body
+        /// for the https-uajson transport (OPC UA Part 6 §7.4.5).
+        /// </summary>
+        public const string OpcUaJsonContentType = "application/opcua+uajson";
+
+        /// <summary>
+        /// WebSocket sub-protocol identifier (<c>Sec-WebSocket-Protocol</c>) for the
+        /// UA Connection Protocol over secure WebSockets carrying UA Binary
+        /// SecureChannel chunks (OPC UA Part 6 §7.5.2). All MessageSecurityModes
+        /// are supported under this sub-protocol.
+        /// </summary>
+        public const string OpcUaWsSubProtocolUacp = "opcua+uacp";
+
+        /// <summary>
+        /// WebSocket sub-protocol identifier (<c>Sec-WebSocket-Protocol</c>) for the
+        /// UA JSON encoding over secure WebSockets (OPC UA Part 6 §7.5.2). This
+        /// sub-protocol does not use UA Secure Conversation and is therefore
+        /// restricted to <see cref="MessageSecurityMode.None"/>; transport
+        /// security is provided exclusively by TLS at the WebSocket layer.
+        /// </summary>
+        public const string OpcUaWsSubProtocolUaJson = "opcua+uajson";
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
+        /// HTTPS binary transport profile (<see cref="HttpsBinaryTransport"/>).
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsHttpsBinary(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, HttpsBinaryTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
+        /// HTTPS JSON transport profile (<see cref="HttpsJsonTransport"/>).
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsHttpsJson(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, HttpsJsonTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
+        /// WebSocket Secure UA Binary transport profile (<see cref="UaWssTransport"/>).
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsWssBinary(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, UaWssTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
+        /// WebSocket Secure UA JSON transport profile (<see cref="UaWssJsonTransport"/>).
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsWssJson(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, UaWssJsonTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns the WebSocket sub-protocol identifier (<c>Sec-WebSocket-Protocol</c>)
+        /// that corresponds to the supplied WebSocket-based <paramref name="transportProfileUri"/>,
+        /// or <c>null</c> if the URI is not a WebSocket profile.
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI.</param>
+        public static string? ToWebSocketSubProtocol(string? transportProfileUri)
+        {
+            if (IsWssBinary(transportProfileUri))
+            {
+                return OpcUaWsSubProtocolUacp;
+            }
+            if (IsWssJson(transportProfileUri))
+            {
+                return OpcUaWsSubProtocolUaJson;
+            }
+            return null;
+        }
 
         /// <summary>
         /// Converts the URI to a URI that can be used for comparison.

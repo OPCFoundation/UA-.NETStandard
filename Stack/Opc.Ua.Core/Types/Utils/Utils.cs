@@ -82,6 +82,16 @@ namespace Opc.Ua
         public const string UriSchemeOpcWss = "opc.wss";
 
         /// <summary>
+        /// The URI scheme for the standard Secure WebSockets protocol.
+        /// </summary>
+        public const string UriSchemeWss = "wss";
+
+        /// <summary>
+        /// The URI scheme for the standard WebSockets protocol (insecure).
+        /// </summary>
+        public const string UriSchemeWs = "ws";
+
+        /// <summary>
         /// The URI scheme for the UDP protocol.
         /// </summary>
         public const string UriSchemeOpcUdp = "opc.udp";
@@ -104,7 +114,8 @@ namespace Opc.Ua
             UriSchemeOpcTcp,
             UriSchemeOpcHttps,
             UriSchemeHttps,
-            UriSchemeOpcWss
+            UriSchemeOpcWss,
+            UriSchemeWss
         ];
 
         /// <summary>
@@ -203,6 +214,17 @@ namespace Opc.Ua
         {
             return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
                 url.StartsWith(UriSchemeOpcHttps, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with opc.wss or wss.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriWssScheme(string url)
+        {
+            return url.StartsWith(UriSchemeOpcWss, StringComparison.Ordinal) ||
+                url.StartsWith(UriSchemeWss + ":", StringComparison.Ordinal) ||
+                url.StartsWith(UriSchemeWss + "/", StringComparison.Ordinal);
         }
 
         /// <summary>

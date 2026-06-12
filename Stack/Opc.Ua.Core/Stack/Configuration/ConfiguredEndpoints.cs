@@ -704,7 +704,7 @@ namespace Opc.Ua
             else if (description.EndpointUrl
                 .StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
             {
-                description.TransportProfileUri = Profiles.UaTcpTransport;
+                description.TransportProfileUri = Profiles.UaWssTransport;
                 description.Server.DiscoveryUrls =
                     description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
