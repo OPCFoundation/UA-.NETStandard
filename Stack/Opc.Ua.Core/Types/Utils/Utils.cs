@@ -203,7 +203,9 @@ namespace Opc.Ua
             new Dictionary<string, string>
             {
                 { UriSchemeHttps, OpcUaHttpsAssemblyName() },
-                { UriSchemeOpcHttps, OpcUaHttpsAssemblyName() }
+                { UriSchemeOpcHttps, OpcUaHttpsAssemblyName() },
+                { UriSchemeWss, OpcUaHttpsAssemblyName() },
+                { UriSchemeOpcWss, OpcUaHttpsAssemblyName() }
             });
 
         /// <summary>
