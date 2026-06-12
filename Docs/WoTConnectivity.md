@@ -187,7 +187,204 @@ under `WoTAssetConnectionManagement/<asset>`).
 
 ---
 
-## 4. Limitations and known issues
+## 4. Persistence limits
+
+The persisted-TD loader (`AssetRegistry.EnumeratePersistedAsync`) walks
+the configured `ThingDescriptionStorageFolder` and re-materialises every
+`*.jsonld` file at startup. The following options bound the work and
+the per-file resources so a corrupted or adversarial persistence
+directory cannot wedge startup through CPU/memory/stack exhaustion:
+
+| Option | Default | Effect |
+|---|---|---|
+| `MaxThingDescriptionSize` | `1 MiB` | Per-file size cap. Files larger than this are skipped at load time with a warning that names the file and reports the size. Also enforced on the write path via the OPC UA file primitives. |
+| `MaxPersistedThingDescriptionFiles` | `10 000` | Hard cap on the number of `*.jsonld` files processed per startup. When reached, the loader emits a single warning and stops; the server still comes up with the assets that *were* loaded. Set to `0` (or negative) to disable persistence loading entirely without removing the directory. |
+| `MaxThingDescriptionJsonDepth` | `64` | Maximum JSON nesting depth honoured by the `JsonSerializer.MaxDepth` bound. Comfortably accommodates standard W3C Thing Descriptions while staying well below the default .NET recursion budget. Files that exceed the depth are skipped with a warning (the loader does **not** throw). |
+
+Bumping the defaults is appropriate for controlled environments that
+have audited the source of the persisted files; for example:
+
+```csharp
+var options = new WotConnectivityServerOptions
+{
+    ThingDescriptionStorageFolder = "/var/lib/myapp/wot",
+    MaxThingDescriptionSize = 4 * 1024 * 1024,        // 4 MiB
+    MaxPersistedThingDescriptionFiles = 50_000,       // ~50k assets
+    MaxThingDescriptionJsonDepth = 128                // headroom for deeper TDs
+};
+```
+
+`OperationCanceledException` is propagated unmodified — cancelling the
+startup token cancels the enumeration without losing the cancellation
+type. `JsonException` and `IOException` are caught and surfaced as
+per-file warnings; no other exception type is silently swallowed.
+
+---
+
+## 5. Name validation
+
+Two validators harden the path from third-party input to address-space
+nodes:
+
+* **`WotAssetNameValidator`** (asset names from
+  `CreateAsset` / `CreateAssetForEndpoint`) — rejects names that would
+  escape the persistence folder, contain NUL bytes, hit a Windows
+  reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1..9`,
+  `LPT1..9`), start with `.`, ` `, or `~`, or end with `.` or ` `.
+* **`WotChildNameValidator`** (TD `properties` / `actions` keys) —
+  rejects names that would corrupt the OPC UA address space or enable
+  visual-spoofing in a browse viewer:
+  * empty / whitespace-only / `> 128` chars,
+  * leading or trailing whitespace,
+  * any `char.IsControl` or BIDI / format character (LRM, RLM, LRE,
+    RLE, PDF, LRO, RLO, LRI, RLI, FSI, PDI — see [Unicode TR9 §2.1](
+    https://www.unicode.org/reports/tr9/#Bidirectional_Character_Types)),
+  * any of `/`, `\`, `.`, `#`, `:`, `!` — characters that have
+    syntactic meaning in `NodeId` / browse-path expressions or that
+    re-interpret to a path separator at the file-system layer.
+
+Invalid names produce a single `LogWarning` (with the offending name
+passed through `WotChildNameValidator.SanitiseForLog` so a hostile
+name cannot reshape the rendered log line) and are skipped — the
+remaining valid children still materialise so one bad TD entry does
+not poison the whole asset.
+
+Duplicate child names (case-sensitive) are also rejected after
+validation: only the first occurrence wins, the rest are logged as
+duplicates.
+
+---
+
+## 6. Endpoint policy
+
+`CreateAssetForEndpoint` and `ConnectionTest` accept an endpoint URI
+from a remote OPC UA client. Before that string flows into the
+discovery provider, it passes through `AssetEndpointValidator` against
+the configured `WotConnectivityServerOptions.AssetEndpointPolicy`.
+
+Safe defaults:
+
+* `AllowedSchemes` = `{ http, https, opc.tcp }` — anything else
+  (`file:`, `gopher:`, `javascript:`, custom OS-vendor schemes, …)
+  returns `Bad_SecurityChecksFailed`.
+* `AllowLoopback = false` — blocks `127.0.0.0/8`, `::1`, and the
+  literal host names `localhost`, `ip6-localhost`, `ip6-loopback`.
+* `AllowPrivateAddresses = false` — blocks RFC1918 (10/8,
+  172.16/12, 192.168/16), IPv4 link-local (169.254/16 — including the
+  AWS / Azure IMDS address `169.254.169.254`), IPv6 ULA (`fc00::/7`),
+  and IPv6 link-local (`fe80::/10`).
+* `AllowedHosts` (empty) and `BlockedHosts` (empty) — optional
+  exclusive allow-list and always-deny list of host names.
+* `MaxOperationTimeout = 30 s` — wraps every provider call with a
+  linked `CancellationTokenSource.CancelAfter`; on expiry the call
+  returns `Bad_Timeout` even when the upstream provider hangs.
+
+Opening up a single internal device while keeping the global block-list:
+
+```csharp
+var options = new WotConnectivityServerOptions
+{
+    AssetEndpointPolicy = new AssetEndpointPolicy
+    {
+        // Default safe scheme list; add a private-network device
+        // explicitly via AllowedHosts.
+        AllowPrivateAddresses = false
+    }
+};
+options.AssetEndpointPolicy.AllowedHosts.Add("10.20.30.40");
+```
+
+**Security note.** The validator does NOT resolve DNS. Resolving a
+host name to an IP at validation time and then re-resolving it at
+connect time is itself a TOCTOU SSRF vector — a hostile DNS could
+return a public IP to the validator and a private IP to the
+connector. Operators who need IP-range enforcement must either pin
+`AllowedHosts` to IP literals or accept that the IP-range gates only
+fire when the host portion of the URI itself is an IP literal.
+
+---
+
+## 7. Error reporting
+
+`AssetRegistry` never propagates the raw `Exception.Message` /
+`StackTrace` / `GetType().Name` from a discovery or provider call to
+the remote OPC UA client. The returned `ServiceResult` carries only a
+mapped `StatusCode` and a generic operation name (e.g. `"DiscoverAssets
+failed."`, `"ConnectionTest failed."`, `"Asset property read failed."`).
+The full exception detail — including the inner `ex.Message`, the
+stack trace, and the asset / endpoint context — is logged via
+`ITelemetryContext`-derived `m_logger` at `LogError` (for control-plane
+operations) or `LogWarning` (for per-property / per-action data-plane
+operations).
+
+Exception → `StatusCode` mapping:
+
+| Exception type | Status |
+|---|---|
+| `NotSupportedException` | `Bad_NotSupported` |
+| `ArgumentException` | `Bad_InvalidArgument` |
+| `IOException` | `Bad_ResourceUnavailable` |
+| any other | `Bad_InternalError` (control plane) / `Bad_CommunicationError` (data plane) |
+| `OperationCanceledException` | **rethrown unchanged** — never mapped to a status code |
+
+Internal endpoint URIs, file-system paths, provider implementation
+details, and stack-trace fragments therefore never leak across the
+OPC UA wire. Operators retain the full diagnostic detail through
+the server log.
+
+---
+
+## 8. Security: management access policy
+
+The five management methods on the standard
+`WoTAssetConnectionManagement` object — `CreateAsset`, `DeleteAsset`,
+`DiscoverAssets`, `CreateAssetForEndpoint`, `ConnectionTest` — mutate
+the asset registry and trigger outbound network activity. Anonymous,
+unauthenticated callers must not be able to reach them.
+
+The node manager therefore enforces a
+`WotManagementAccessPolicy` as the very first action of every method
+handler. Defaults:
+
+| Knob | Default | Rationale |
+|---|---|---|
+| `MinimumSecurityMode` | `SignAndEncrypt` | Confidentiality + integrity required. |
+| `AllowAnonymous` | `false` | Anonymous identity rejected even on encrypted channels. |
+| `RequiredRoleId` | `WellKnownRole_SecurityAdmin` | Mirrors `Opc.Ua.Server.ConfigurationNodeManager` for the equivalent `ServerConfiguration` methods. |
+
+On denial the handler logs a warning (with operation, token type and
+granted-role list) and throws
+`ServiceResultException(BadUserAccessDenied)`. Internal callers that
+invoke the underlying `AssetRegistry` APIs directly — startup
+restoration, persisted-asset replay, in-process tests — flow an
+`OperationContext`-less `SystemContext`; the policy check is skipped
+in that path so server bootstrap continues to work.
+
+Override the policy via DI:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(...)
+    .AddWotConServer(opts =>
+    {
+        opts.ManagementAccess = new WotManagementAccessPolicy
+        {
+            RequiredRoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+            MinimumSecurityMode = MessageSecurityMode.SignAndEncrypt,
+            AllowAnonymous = false
+        };
+    });
+```
+
+To loosen the policy (for example a closed lab deployment where the
+client cannot present a non-anonymous identity), set
+`AllowAnonymous = true` and grant the anonymous identity the chosen
+role via your role-mapping layer; do not weaken `MinimumSecurityMode`
+in production.
+
+---
+
+## 9. Limitations and known issues
 
 * WoT action input/output mapping handles the flat `type:object` shape
   illustrated by Spec §6.3.9 (a `properties` bag with scalar / array
@@ -205,7 +402,7 @@ under `WoTAssetConnectionManagement/<asset>`).
 
 ---
 
-## 5. References
+## 10. References
 
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/

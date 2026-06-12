@@ -7,3 +7,4 @@ Rule ID | Category | Severity | Notes
 STACKGEN001 | StackSourceGenerator | Error | StackSourceGenerator
 STACKGEN002 | StackSourceGenerator | Warning | StackSourceGenerator
 STACKGEN003 | StackSourceGenerator | Error | StackSourceGenerator
+STACKGEN020 | StackSourceGenerator | Warning | BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)

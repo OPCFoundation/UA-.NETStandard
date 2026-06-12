@@ -209,7 +209,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     MaxThingDescriptionSize = configured.MaxThingDescriptionSize,
                     MaxOpenFileHandlesPerAsset = configured.MaxOpenFileHandlesPerAsset,
                     Discovery = configured.Discovery,
-                    License = configured.License
+                    License = configured.License,
+                    ManagementAccess = configured.ManagementAccess
                 };
                 foreach (IWotAssetProviderFactory binding in configured.Bindings)
                 {

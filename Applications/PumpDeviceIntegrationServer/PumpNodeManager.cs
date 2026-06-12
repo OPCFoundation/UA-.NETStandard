@@ -259,35 +259,33 @@ namespace Pumps
         private void MaterialisePumpOptionalChildren(
             Opc.Ua.Pumps.PumpState pump)
         {
-            Opc.Ua.Pumps.OperationalGroupState operational =
-                pump.AddOperational(SystemContext);
-            Opc.Ua.Pumps.MeasurementsState measurements =
-                operational.AddMeasurements(SystemContext);
+            pump.AddOperational(SystemContext);
+            Opc.Ua.Pumps.OperationalGroupState operational = pump.Operational!;
+            operational.AddMeasurements(SystemContext);
+            Opc.Ua.Pumps.MeasurementsState measurements = operational.Measurements!;
 
             // Analog measurements wired by Configure.WithMeasurements.
-            measurements.AddDifferentialPressure(SystemContext);
-            measurements.AddFluidTemperature(SystemContext);
-            measurements.AddBearingTemperature(SystemContext);
-            measurements.AddPumpPowerInput(SystemContext);
-            measurements.AddMassFlow(SystemContext);
-            measurements.AddPumpEfficiency(SystemContext);
-            measurements.AddLevel(SystemContext);
-
-            // Discrete count exposed via Configure.WithMaintenance.
-            measurements.AddNumberOfStarts(SystemContext);
+            measurements
+                .AddDifferentialPressure(SystemContext)
+                .AddFluidTemperature(SystemContext)
+                .AddBearingTemperature(SystemContext)
+                .AddPumpPowerInput(SystemContext)
+                .AddMassFlow(SystemContext)
+                .AddPumpEfficiency(SystemContext)
+                .AddLevel(SystemContext)
+                // Discrete count exposed via Configure.WithMaintenance.
+                .AddNumberOfStarts(SystemContext);
 
             // Supervision subtree wired by Configure.WithSupervision —
             // Cavitation under SupervisionProcessFluid, MotorOverheat
             // under SupervisionPumpOperation.
-            Opc.Ua.Pumps.SupervisionState events =
-                pump.AddEvents(SystemContext);
-            Opc.Ua.Pumps.SupervisionProcessFluidState processFluid =
-                events.AddSupervisionProcessFluid(SystemContext);
-            processFluid.AddCavitation(SystemContext);
+            pump.AddEvents(SystemContext);
+            Opc.Ua.Pumps.SupervisionState events = pump.Events!;
+            events.AddSupervisionProcessFluid(SystemContext);
+            events.SupervisionProcessFluid!.AddCavitation(SystemContext);
 
-            Opc.Ua.Pumps.SupervisionPumpOperationState pumpOperation =
-                events.AddSupervisionPumpOperation(SystemContext);
-            pumpOperation.AddMotorOverheat(SystemContext);
+            events.AddSupervisionPumpOperation(SystemContext);
+            events.SupervisionPumpOperation!.AddMotorOverheat(SystemContext);
 
             // Maintenance container — leaf wiring deferred until the
             // typed-accessor generator (FB-3 phase 3) ships materialisable
