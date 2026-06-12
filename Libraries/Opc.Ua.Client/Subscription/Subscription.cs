@@ -223,145 +223,75 @@ namespace Opc.Ua.Client.Subscriptions
                 ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Configure triggering relationships between monitored items
-        /// in this subscription. Per OPC UA Part 4 §5.13.5, the service
-        /// call reports per-link status; this implementation updates
-        /// the triggered items' <see cref="IMonitoredItem.TriggeringItem"/>
-        /// link only for results whose status is Good. Partial failures
-        /// do not corrupt local state; callers inspect the returned
-        /// <see cref="SetTriggeringResponse"/> for per-link results.
-        /// </summary>
-        /// <remarks>
-        /// Kept on the concrete <see cref="Subscription"/> class (not on
-        /// <see cref="ISubscription"/>) — the API surface is too
-        /// low-level for the SDK contract; per-item link/unlink methods
-        /// are tracked as a follow-up.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="linksToAdd"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        public async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
-            uint triggeringItemClientHandle,
-            IReadOnlyList<uint> linksToAdd,
-            IReadOnlyList<uint> linksToRemove,
+        /// <inheritdoc/>
+        public async ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            MonitoredItems.IMonitoredItem triggeringItem,
+            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToAdd = null,
+            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
-            if (linksToAdd == null)
+            if (triggeringItem == null)
             {
-                throw new ArgumentNullException(nameof(linksToAdd));
+                throw new ArgumentNullException(nameof(triggeringItem));
             }
-            if (linksToRemove == null)
-            {
-                throw new ArgumentNullException(nameof(linksToRemove));
-            }
-            if (!Created)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSubscriptionIdInvalid,
-                    "Subscription has not been created.");
-            }
-            if (!m_monitoredItems.TryGetMonitoredItemByClientHandle(
-                triggeringItemClientHandle, out IMonitoredItem? triggeringItem) ||
-                triggeringItem is null)
-            {
-                throw new ArgumentException(
-                    $"Triggering item with client handle {triggeringItemClientHandle} " +
-                    "is not part of this subscription.",
-                    nameof(triggeringItemClientHandle));
-            }
-            if (!triggeringItem.Created)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadMonitoredItemIdInvalid,
-                    "Triggering item has not been created on the server yet.");
-            }
+            IReadOnlyList<MonitoredItems.IMonitoredItem> add =
+                linksToAdd is null
+                    ? Array.Empty<MonitoredItems.IMonitoredItem>()
+                    : linksToAdd as IReadOnlyList<MonitoredItems.IMonitoredItem>
+                        ?? [.. linksToAdd];
+            IReadOnlyList<MonitoredItems.IMonitoredItem> remove =
+                linksToRemove is null
+                    ? Array.Empty<MonitoredItems.IMonitoredItem>()
+                    : linksToRemove as IReadOnlyList<MonitoredItems.IMonitoredItem>
+                        ?? [.. linksToRemove];
 
-            // Resolve client handles → server monitored item ids while
-            // keeping a parallel list of the client handles for the
-            // post-call local update. Skipping items not in the
-            // subscription would silently lose links — instead we throw
-            // so the caller can fix the call site.
-            uint[] addServerIds = new uint[linksToAdd.Count];
-            for (int i = 0; i < linksToAdd.Count; i++)
-            {
-                addServerIds[i] = ResolveServerId(linksToAdd[i], nameof(linksToAdd));
-            }
-            uint[] removeServerIds = new uint[linksToRemove.Count];
-            for (int i = 0; i < linksToRemove.Count; i++)
-            {
-                removeServerIds[i] = ResolveServerId(linksToRemove[i], nameof(linksToRemove));
-            }
+            // Eager validation by reference identity under the manager
+            // lock — rejects items from other subscriptions and items
+            // that have already been removed. Per Part 4 §5.13.5.1
+            // both ends of every link must belong to the same
+            // subscription.
+            m_monitoredItems.ValidateBelongsAndUpdateDesired(
+                triggeringItem, add, remove);
 
-            SetTriggeringResponse response = await m_context.MonitoredItemServiceSet
-                .SetTriggeringAsync(
-                    null,
-                    Id,
-                    triggeringItem.ServerId,
-                    addServerIds.ToArrayOf(),
-                    removeServerIds.ToArrayOf(),
-                    ct)
-                .ConfigureAwait(false);
-
-            // Update local state only for results with a Good status —
-            // partial failure must not corrupt the in-process tracking.
-            // The triggered items remember who triggers them; the
-            // reverse list (triggered-by-this) is resolved on demand via
-            // the manager when callers ask for "what does this item
-            // trigger".
-            ArrayOf<StatusCode> addResults = response.AddResults;
-            for (int i = 0; i < linksToAdd.Count; i++)
+            // Enqueue a single operation that the batched
+            // ApplyMonitoredItemChangesAsync pass will pick up, merge with
+            // other operations targeting the same triggering item, and
+            // turn into one SetTriggering RPC.
+            var tcs = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var op = new MonitoredItems.MonitoredItemManager.TriggeringOperation(
+                triggeringItem, add, remove, tcs);
+            m_monitoredItems.EnqueueTriggeringOperation(op);
+            // Wake the state manager so the operations queue gets
+            // drained on the next ApplyChangesAsync pass.
+            m_stateControl.Set();
+            // Cancellation semantics (best-effort): aborting the await
+            // stops the caller from observing the eventual result AND
+            // marks the queued operation as cancelled so the next
+            // ApplyTriggeringOperationsAsync pass will skip it (no
+            // server-side SetTriggering request issued for this op).
+            // Two important caveats:
+            //  1. If the apply pass has already dispatched the RPC for
+            //     this op's group, the server-side mutation cannot be
+            //     undone — the cancel is best-effort only.
+            //  2. Desired-state mutations performed synchronously by
+            //     ValidateBelongsAndUpdateDesired stand regardless of
+            //     cancellation; to revert local intent the caller must
+            //     issue an explicit opposing SetTriggeringAsync (or
+            //     change MonitoredItemOptions.TriggeredByNames).
+            // The token is captured in the closure and passed to
+            // TrySetCanceled for correct cancellation metadata on the
+            // propagated exception (the
+            // Register(Action<object?, CancellationToken>, object?)
+            // overload was only added in .NET 5 and is unavailable on
+            // net48/net472/netstandard2.1, so the closure capture is
+            // the only portable form).
+            using CancellationTokenRegistration reg = ct.Register(() =>
             {
-                StatusCode status = addResults.Count > i ? addResults[i] : StatusCodes.Bad;
-                if (!StatusCode.IsGood(status))
-                {
-                    continue;
-                }
-                if (m_monitoredItems.TryGetMonitoredItemByClientHandle(
-                    linksToAdd[i], out IMonitoredItem? triggered) &&
-                    triggered is MonitoredItems.MonitoredItem triggeredInternal)
-                {
-                    triggeredInternal.TriggeringItemClientHandle =
-                        triggeringItemClientHandle;
-                }
-            }
-            ArrayOf<StatusCode> removeResults = response.RemoveResults;
-            for (int i = 0; i < linksToRemove.Count; i++)
-            {
-                StatusCode status = removeResults.Count > i ? removeResults[i] : StatusCodes.Bad;
-                if (!StatusCode.IsGood(status))
-                {
-                    continue;
-                }
-                if (m_monitoredItems.TryGetMonitoredItemByClientHandle(
-                    linksToRemove[i], out IMonitoredItem? triggered) &&
-                    triggered is MonitoredItems.MonitoredItem triggeredInternal &&
-                    triggeredInternal.TriggeringItemClientHandle ==
-                        triggeringItemClientHandle)
-                {
-                    triggeredInternal.TriggeringItemClientHandle = 0;
-                }
-            }
-
-            return response;
-
-            uint ResolveServerId(uint clientHandle, string paramName)
-            {
-                if (!m_monitoredItems.TryGetMonitoredItemByClientHandle(
-                    clientHandle, out IMonitoredItem? item) ||
-                    item == null)
-                {
-                    throw new ArgumentException(
-                        $"Monitored item with client handle {clientHandle} " +
-                        "is not part of this subscription.",
-                        paramName);
-                }
-                if (!item.Created)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadMonitoredItemIdInvalid,
-                        $"Monitored item {clientHandle} has not been created on the server yet.");
-                }
-                return item.ServerId;
-            }
+                op.MarkCancelled();
+                tcs.TrySetCanceled(ct);
+            });
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
