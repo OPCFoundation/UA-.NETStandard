@@ -95,6 +95,24 @@ This document outlines the breaking changes introduced from version to version. 
 
 Version 2.0 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
 
+### Transports: WSS and HTTPS-JSON, `IMessageSocket` removed
+
+Version 2.0 adds the two transport profiles defined in OPC UA Part 6 that 1.5.378 did not support: **WebSocket Secure** (`opc.wss://` / `wss://`, Part 6 §7.5) and **HTTPS JSON** (`application/opcua+uajson`, Part 6 §7.4.5). The WSS sub-protocols `opcua+uacp` (binary + UASC SecureChannel, all security modes) and `opcua+uajson` (compact JSON, Security Mode None only) are both supported on the same `wss://` listener. See [`Docs/Profiles.md`](Profiles.md) for the full transport matrix.
+
+Internally the runtime transport boundary moved from `IMessageSocket` to the new public `IUaSCByteTransport` (`Opc.Ua.Bindings`). This let us share one UASC pipeline across raw TCP and WebSocket connections and let JSON profiles bypass UASC entirely. As part of this change the entire `IMessageSocket` family was **removed** from the public API surface — this is a breaking change versus 1.5.378.
+
+| Removed type | Replacement |
+|---|---|
+| `IMessageSocket`, `IMessageSocketAsyncEventArgs`, `IMessageSink`, `IMessageSocketChannel` | `IUaSCByteTransport` (chunk-level send / receive); typical consumers use `ITransportChannel` instead |
+| `IMessageSocketFactory` | `IUaSCByteTransportFactory` |
+| `MessageSocketExtensions` (e.g. `BeginConnect`) | `IUaSCByteTransport.ConnectAsync` |
+| `TcpMessageSocket`, `TcpMessageSocketFactory`, `TcpMessageSocketAsyncEventArgs` | `TcpByteTransport` (sealed; `TcpByteTransportFactory` for client-side construction). The public `TcpTransportChannel` / `TcpTransportChannelFactory` shapes are unchanged. |
+| `UaSCUaBinaryTransportChannel.Socket` (`IMessageSocket?`) | `UaSCUaBinaryTransportChannel.Transport` (`IUaSCByteTransport?`) |
+| `UaSCUaBinaryClientChannel(..., IMessageSocketFactory, ...)` ctor | `UaSCUaBinaryClientChannel(..., IUaSCByteTransportFactory, ...)` ctor |
+| `ITcpChannelListener.ReconnectToExistingChannel(IMessageSocket, ...)` | `ITcpChannelListener.ReconnectToExistingChannel(IUaSCByteTransport, ...)` |
+
+**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): file a feature request describing your use case so we can plan a public extension surface on top of `IUaSCByteTransport`. In the meantime the legacy types are gone; the recommended migration path is to plug into the existing `ITransportChannel` / `ITransportListener` surfaces, which now route through the unified UASC pipeline.
+
 ### Telemetry and Logging
 
 Observability in 2.0 is plumbed through `ITelemetryContext`. Loggers are resolved from the telemetry context via `telemetry.CreateLogger<T>()` rather than from `Utils.Trace` / `Utils.LogX`. The static logging helpers remain compilable but are `[Obsolete]`; consumers should resolve `ILogger` from `ITelemetryContext` instead.
