@@ -38,7 +38,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Creates a transport channel for the ITransportChannel interface.
     /// Implements the UA-SC security and UA Binary encoding.
-    /// The socket layer requires a IMessageSocketFactory implementation.
+    /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
     public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel,
         IMessageSocketChannel
@@ -46,29 +46,29 @@ namespace Opc.Ua.Bindings
         private const int kChannelCloseDefault = 1_000;
 
         /// <summary>
-        /// Create a transport channel from a message socket factory.
+        /// Create a transport channel from a byte transport factory.
         /// </summary>
-        /// <param name="messageSocketFactory">The message socket factory.</param>
+        /// <param name="transportFactory">The byte transport factory.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         public UaSCUaBinaryTransportChannel(
-            IMessageSocketFactory messageSocketFactory,
+            IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry)
-            : this(messageSocketFactory, telemetry, null)
+            : this(transportFactory, telemetry, null)
         {
         }
 
         /// <summary>
-        /// Create a transport channel from a message socket factory.
+        /// Create a transport channel from a byte transport factory.
         /// </summary>
-        /// <param name="messageSocketFactory">The message socket factory.</param>
+        /// <param name="transportFactory">The byte transport factory.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="timeProvider">Time provider to use for timers and durations.</param>
         public UaSCUaBinaryTransportChannel(
-            IMessageSocketFactory messageSocketFactory,
+            IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
         {
-            m_messageSocketFactory = messageSocketFactory;
+            m_transportFactory = transportFactory;
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
@@ -110,7 +110,11 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Returns the channel's underlying message socket if connected / available.
+        /// Returns the channel's underlying message socket if connected and
+        /// the transport is socket-backed (legacy compat). Returns <c>null</c>
+        /// when the underlying byte transport is not an
+        /// <see cref="IMessageSocket"/> wrapper (e.g. WebSocket transports
+        /// added in this release).
         /// </summary>
         public IMessageSocket? Socket => m_channel?.Socket;
 
@@ -123,7 +127,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            Socket?.MessageSocketFeatures ?? TransportChannelFeatures.None;
+            m_channel?.Transport?.Features ?? TransportChannelFeatures.None;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription
@@ -473,7 +477,7 @@ namespace Opc.Ua.Bindings
             var channel = new UaSCUaBinaryClientChannel(
                 id,
                 m_bufferManager,
-                m_messageSocketFactory,
+                m_transportFactory,
                 m_quotas,
                 m_settings.ClientCertificate,
                 m_settings.ClientCertificateChain,
@@ -516,7 +520,7 @@ namespace Opc.Ua.Bindings
         private UaSCUaBinaryClientChannel? m_channel;
         private bool m_disposed;
         private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
-        private readonly IMessageSocketFactory m_messageSocketFactory;
+        private readonly IUaSCByteTransportFactory m_transportFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
     }

@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
         /// Create a Tcp transport channel.
         /// </summary>
         public TcpTransportChannel(ITelemetryContext telemetry)
-            : base(new TcpMessageSocketFactory(telemetry), telemetry)
+            : base(new TcpByteTransportFactory(telemetry), telemetry)
         {
         }
     }
