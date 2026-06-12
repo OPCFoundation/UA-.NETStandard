@@ -237,9 +237,8 @@ namespace Opc.Ua.Bindings
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
-                using var content = new ByteArrayContent(
-                    BinaryEncoder.EncodeMessage(request, context));
-                content.Headers.ContentType = s_mediaTypeHeaderValue;
+                using var content = new ByteArrayContent(EncodeRequest(request, context));
+                content.Headers.ContentType = MediaType;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(
                         EndpointDescription.SecurityPolicyUri,
@@ -265,9 +264,7 @@ namespace Opc.Ua.Bindings
                 Stream responseContent = await response.Content.ReadAsStreamAsync()
                     .ConfigureAwait(false);
 #endif
-                IServiceResponse serviceResponse = BinaryDecoder.DecodeMessage<IServiceResponse>(
-                    responseContent,
-                    context);
+                IServiceResponse serviceResponse = DecodeResponse(responseContent, context);
                 if (serviceResponse != null)
                 {
                     return serviceResponse;
@@ -567,6 +564,66 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+        /// <summary>
+        /// Media type written to the HTTP <c>Content-Type</c> header on
+        /// outbound requests. Defaults to <c>application/octet-stream</c>
+        /// for the binary profile (Part 6 §7.4.4); switches to
+        /// <c>application/opcua+uajson</c> when the endpoint advertises
+        /// the JSON profile (§7.4.5).
+        /// </summary>
+        protected virtual MediaTypeHeaderValue MediaType =>
+            IsJsonProfile ? s_jsonMediaTypeHeaderValue : s_binaryMediaTypeHeaderValue;
+
+        /// <summary>
+        /// Encodes a service request to the wire bytes posted in the HTTP
+        /// body. Binary (default) uses <see cref="BinaryEncoder"/>; the
+        /// JSON profile uses <see cref="JsonEncoder"/> with
+        /// <see cref="JsonEncoderOptions.Compact"/> (Part 6 §5.4.9).
+        /// </summary>
+        protected virtual byte[] EncodeRequest(
+            IServiceRequest request,
+            IServiceMessageContext context)
+        {
+            if (IsJsonProfile)
+            {
+                using var memory = new MemoryStream();
+                using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
+                {
+                    encoder.EncodeMessage(request, request.TypeId);
+                    encoder.Close();
+                }
+                return memory.ToArray();
+            }
+            return BinaryEncoder.EncodeMessage(request, context);
+        }
+
+        /// <summary>
+        /// Decodes a service response from the HTTP body stream. Binary
+        /// (default) uses <see cref="BinaryDecoder"/>; the JSON profile
+        /// uses <see cref="JsonDecoder"/>.
+        /// </summary>
+        protected virtual IServiceResponse DecodeResponse(
+            Stream stream,
+            IServiceMessageContext context)
+        {
+            if (IsJsonProfile)
+            {
+                using var memory = new MemoryStream();
+                stream.CopyTo(memory);
+                return JsonDecoder.DecodeMessage<IServiceResponse>(memory.ToArray(), context);
+            }
+            return BinaryDecoder.DecodeMessage<IServiceResponse>(stream, context);
+        }
+
+        /// <summary>
+        /// True when the endpoint advertises <see cref="Profiles.HttpsJsonTransport"/>.
+        /// </summary>
+        private bool IsJsonProfile =>
+            string.Equals(
+                m_settings?.Description?.TransportProfileUri,
+                Profiles.HttpsJsonTransport,
+                StringComparison.Ordinal);
+
         private Certificate? m_pinnedClientCert;
         private X509Certificate2? m_pinnedClientCertX509;
         private bool m_disposed;
@@ -574,7 +631,9 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
 
-        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new(
+        private static readonly MediaTypeHeaderValue s_binaryMediaTypeHeaderValue = new(
             "application/octet-stream");
+        private static readonly MediaTypeHeaderValue s_jsonMediaTypeHeaderValue = new(
+            Profiles.OpcUaJsonContentType);
     }
 }
