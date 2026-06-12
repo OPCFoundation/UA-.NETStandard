@@ -68,13 +68,13 @@ namespace Opc.Ua.Di.Server.Builders
                 SymbolicName = browseName.Name ?? string.Empty,
                 BrowseName = browseName,
                 DisplayName = new LocalizedText(browseName.Name ?? string.Empty),
-                DataType = Opc.Ua.Types.DataTypeIds.Double,
+                DataType = Types.DataTypeIds.Double,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
                 Value = startValue,
                 Historizing = false,
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent
+                ReferenceTypeId = Types.ReferenceTypeIds.HasComponent
             };
             variable.NodeId = device.Context.NodeIdFactory.New(device.Context, variable);
 

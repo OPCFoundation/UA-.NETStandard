@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.ModelChange
             IReadOnlyList<ModelChange> changes,
             bool requiresFullCacheInvalidation)
         {
-            Changes = changes ?? Array.Empty<ModelChange>();
+            Changes = changes ?? [];
             RequiresFullCacheInvalidation = requiresFullCacheInvalidation;
         }
     }

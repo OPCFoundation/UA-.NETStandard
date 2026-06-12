@@ -358,7 +358,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> referencedDependencies = null)
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null)
         {
             if (nodesets.Files.Count == 0)
             {

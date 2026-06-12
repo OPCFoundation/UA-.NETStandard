@@ -180,11 +180,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// <summary>
         /// Input arguments (methods only).
         /// </summary>
-        public IReadOnlyList<DependencyMethodArg> InputArguments { get; set; } = Array.Empty<DependencyMethodArg>();
+        public IReadOnlyList<DependencyMethodArg> InputArguments { get; set; } = [];
         /// <summary>
         /// Output arguments (methods only).
         /// </summary>
-        public IReadOnlyList<DependencyMethodArg> OutputArguments { get; set; } = Array.Empty<DependencyMethodArg>();
+        public IReadOnlyList<DependencyMethodArg> OutputArguments { get; set; } = [];
     }
 
     /// <summary>
@@ -238,11 +238,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// <summary>
         /// DataType fields (empty for non-DataType kinds).
         /// </summary>
-        public IReadOnlyList<DependencyDataField> Fields { get; set; } = Array.Empty<DependencyDataField>();
+        public IReadOnlyList<DependencyDataField> Fields { get; set; } = [];
         /// <summary>
         /// Declared instance children (empty for DataType / no-child types).
         /// </summary>
-        public IReadOnlyList<DependencyChild> Children { get; set; } = Array.Empty<DependencyChild>();
+        public IReadOnlyList<DependencyChild> Children { get; set; } = [];
     }
 
     /// <summary>
@@ -415,7 +415,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             using var reader = new BinaryReader(source, Encoding.UTF8, leaveOpen: true);
             ModelUri = ReadString(reader);
             int typeCount = reader.ReadInt32();
-            if (typeCount < 0 || typeCount > 1_000_000)
+            if (typeCount is < 0 or > 1_000_000)
             {
                 throw new InvalidDataException(
                     "ModelDependencyV1: invalid type count " + typeCount);
@@ -438,7 +438,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 node.IsAbstract = (flags & 0x01) != 0;
                 node.IsEnumeration = (flags & 0x02) != 0;
                 int fieldCount = reader.ReadInt32();
-                if (fieldCount < 0 || fieldCount > 100_000)
+                if (fieldCount is < 0 or > 100_000)
                 {
                     throw new InvalidDataException(
                         "ModelDependencyV1: invalid field count " + fieldCount);
@@ -457,7 +457,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     node.Fields = fields;
                 }
                 int childCount = reader.ReadInt32();
-                if (childCount < 0 || childCount > 100_000)
+                if (childCount is < 0 or > 100_000)
                 {
                     throw new InvalidDataException(
                         "ModelDependencyV1: invalid child count " + childCount);
@@ -480,7 +480,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                             InstanceKind = reader.ReadByte()
                         };
                         int inCount = reader.ReadInt32();
-                        if (inCount < 0 || inCount > 100)
+                        if (inCount is < 0 or > 100)
                         {
                             throw new InvalidDataException(
                                 "ModelDependencyV1: invalid input arg count " + inCount);
@@ -499,7 +499,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                             c.InputArguments = args;
                         }
                         int outCount = reader.ReadInt32();
-                        if (outCount < 0 || outCount > 100)
+                        if (outCount is < 0 or > 100)
                         {
                             throw new InvalidDataException(
                                 "ModelDependencyV1: invalid output arg count " + outCount);

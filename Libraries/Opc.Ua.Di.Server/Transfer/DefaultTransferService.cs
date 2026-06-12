@@ -49,7 +49,7 @@ namespace Opc.Ua.Di.Server.Transfer
     /// <see cref="RegisterImporter"/>. If no exporter is registered
     /// for an element, <see cref="ITransferService.TransferFromDeviceAsync"/>
     /// returns a transfer ID that will surface
-    /// <see cref="Opc.Ua.StatusCodes.BadNotSupported"/> on the first
+    /// <see cref="StatusCodes.BadNotSupported"/> on the first
     /// <see cref="ITransferService.FetchAsync"/>. Same for importer.
     /// </para>
     /// </remarks>
@@ -89,11 +89,8 @@ namespace Opc.Ua.Di.Server.Transfer
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
-            if (exporter == null)
-            {
-                throw new ArgumentNullException(nameof(exporter));
-            }
-            m_exporters[elementId] = exporter;
+
+            m_exporters[elementId] = exporter ?? throw new ArgumentNullException(nameof(exporter));
         }
 
         /// <summary>
@@ -112,11 +109,8 @@ namespace Opc.Ua.Di.Server.Transfer
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
-            if (importer == null)
-            {
-                throw new ArgumentNullException(nameof(importer));
-            }
-            m_importers[elementId] = importer;
+
+            m_importers[elementId] = importer ?? throw new ArgumentNullException(nameof(importer));
         }
 
         /// <inheritdoc/>
@@ -151,7 +145,7 @@ namespace Opc.Ua.Di.Server.Transfer
                 catch (Exception ex)
                 {
                     m_transfers[transferId] = new TransferState(
-                        elementId, Array.Empty<ParameterEntry>(),
+                        elementId, [],
                         new ServiceResult(ex).StatusCode,
                         m_time.GetUtcNow().UtcDateTime);
                     return transferId;
@@ -168,7 +162,7 @@ namespace Opc.Ua.Di.Server.Transfer
             }
             else
             {
-                resultEntries = Array.Empty<ParameterEntry>();
+                resultEntries = [];
                 m_transfers[transferId] = new TransferState(
                     elementId, resultEntries,
                     StatusCodes.BadNotSupported,
@@ -214,13 +208,13 @@ namespace Opc.Ua.Di.Server.Transfer
                 }
                 catch (Exception ex)
                 {
-                    entries = Array.Empty<ParameterEntry>();
+                    entries = [];
                     error = new ServiceResult(ex).StatusCode;
                 }
             }
             else
             {
-                entries = Array.Empty<ParameterEntry>();
+                entries = [];
                 error = StatusCodes.BadNotSupported;
             }
 
@@ -263,7 +257,7 @@ namespace Opc.Ua.Di.Server.Transfer
                 return new ValueTask<FetchResult>(new FetchResult(
                     sequenceNumber,
                     EndOfResults: true,
-                    Entries: Array.Empty<ParameterEntry>(),
+                    Entries: [],
                     TransferError: StatusCodes.BadNotFound));
             }
 
@@ -273,7 +267,7 @@ namespace Opc.Ua.Di.Server.Transfer
                 return new ValueTask<FetchResult>(new FetchResult(
                     sequenceNumber,
                     EndOfResults: true,
-                    Entries: Array.Empty<ParameterEntry>(),
+                    Entries: [],
                     TransferError: state.TransferError));
             }
 
@@ -284,7 +278,7 @@ namespace Opc.Ua.Di.Server.Transfer
                 return new ValueTask<FetchResult>(new FetchResult(
                     sequenceNumber,
                     EndOfResults: true,
-                    Entries: Array.Empty<ParameterEntry>(),
+                    Entries: [],
                     TransferError: StatusCodes.Good));
             }
 
@@ -312,7 +306,7 @@ namespace Opc.Ua.Di.Server.Transfer
             return new ValueTask<FetchResult>(new FetchResult(
                 nextOffset,
                 endOfResults,
-                chunk.ToArray(),
+                [.. chunk],
                 StatusCodes.Good));
         }
 

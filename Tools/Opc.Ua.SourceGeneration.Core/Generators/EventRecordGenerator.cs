@@ -107,15 +107,14 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(
                 Tokens.ListOfActivatorRegistrations,
                 EventRecordTemplates.RegistrationExtension,
-                new[]
-                {
+                [
                     new RegistrationContext
                     {
                         Types = types,
                         ClassName = registrationClassName,
                         MethodName = registrationMethodName
                     }
-                },
+                ],
                 WriteTemplate_RegistrationExtension);
 
             template.Render();
@@ -355,7 +354,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            var seen = new HashSet<string>(System.StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
             var fields = new List<FieldEntry>();
             foreach (ObjectTypeDesign level in chain)
             {
@@ -527,7 +526,7 @@ namespace Opc.Ua.SourceGeneration
         {
             if (typeName != null && typeName.EndsWith('?'))
             {
-                return typeName.Substring(0, typeName.Length - 1);
+                return typeName[..^1];
             }
             return typeName;
         }
@@ -768,7 +767,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static readonly XmlQualifiedName kBaseEventTypeId =
-            new XmlQualifiedName("BaseEventType", Namespaces.OpcUa);
+            new("BaseEventType", Namespaces.OpcUa);
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaRecordNamespace = "Opc.Ua";

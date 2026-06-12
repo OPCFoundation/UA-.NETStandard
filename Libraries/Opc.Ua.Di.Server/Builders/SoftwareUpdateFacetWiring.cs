@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -101,7 +100,7 @@ namespace Opc.Ua.Di.Server.Builders
             su.BrowseName = new QualifiedName(SoftwareUpdateBrowseName, diNs);
             su.DisplayName = new LocalizedText(SoftwareUpdateBrowseName);
             su.NodeId = context.NodeIdFactory.New(context, su);
-            su.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            su.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
             su.ModellingRuleId = NodeId.Null;
 
             // Loading subtype (the address-space slot is non-abstract;
@@ -240,11 +239,8 @@ namespace Opc.Ua.Di.Server.Builders
                 FinaliseChild(context, sm.Abort,
                     new QualifiedName("Abort", diNs));
             }
-            if (sm.Resume != null)
-            {
-                sm.Resume.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
+            sm.Resume?.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
                     InvokePrepareAsync(config, callbackContext, sm, diNs, logger, ct);
-            }
 
             SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
                 sm,
@@ -397,7 +393,7 @@ namespace Opc.Ua.Di.Server.Builders
             child.BrowseName = browseName;
             child.DisplayName = new LocalizedText(browseName.Name);
             child.NodeId = context.NodeIdFactory.New(context, child);
-            child.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            child.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
             child.ModellingRuleId = NodeId.Null;
         }
 

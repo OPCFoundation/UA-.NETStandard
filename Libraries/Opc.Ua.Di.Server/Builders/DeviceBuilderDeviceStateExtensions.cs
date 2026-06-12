@@ -63,17 +63,12 @@ namespace Opc.Ua.Di.Server.Builders
                 throw new ArgumentNullException(nameof(builder));
             }
             BaseDataVariableState<DeviceHealthEnumeration>? deviceHealth =
-                builder.Device.DeviceHealth;
-
-            if (deviceHealth == null)
-            {
-                throw ServiceResultException.Create(
+                builder.Device.DeviceHealth ?? throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
                     "Device '{0}' does not expose a DeviceHealth variable. " +
                     "Use a typed factory that instantiates the DeviceType children, " +
                     "or pre-populate DeviceHealth via Configure().",
                     builder.Device.BrowseName);
-            }
 
             deviceHealth.Value = health;
             deviceHealth.ClearChangeMasks(builder.Context, false);

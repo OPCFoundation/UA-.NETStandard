@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 using Opc.Ua.Server;
@@ -111,17 +110,8 @@ namespace Opc.Ua.Di.Server.Builders
             m_packageStore = packageStore ?? throw new ArgumentNullException(nameof(packageStore));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            if (m_fileTransfer.GenerateFileForWrite != null)
-
-            {
-
-                m_fileTransfer.GenerateFileForWrite.OnCall = OnGenerateFileForWrite;
-
-            }
-            if (m_fileTransfer.CloseAndCommit != null)
-            {
-                m_fileTransfer.CloseAndCommit.OnCall = OnCloseAndCommit;
-            }
+            m_fileTransfer.GenerateFileForWrite?.OnCall = OnGenerateFileForWrite;
+            m_fileTransfer.CloseAndCommit?.OnCall = OnCloseAndCommit;
         }
 
         public void Dispose()
@@ -488,7 +478,7 @@ namespace Opc.Ua.Di.Server.Builders
             }
             foreach (UploadSlot slot in m_slots.Values)
             {
-                if (object.ReferenceEquals(slot.FileObject, parent))
+                if (ReferenceEquals(slot.FileObject, parent))
                 {
                     return slot;
                 }
@@ -563,59 +553,20 @@ namespace Opc.Ua.Di.Server.Builders
                 file.BrowseName = browseName;
                 file.DisplayName = new LocalizedText(browseName.Name);
                 file.NodeId = ctx.NodeIdFactory.New(ctx, file);
-                file.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+                file.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
                 file.ModellingRuleId = NodeId.Null;
 
-                if (file.Writable != null)
-
-                {
-
-                    file.Writable.Value = true;
-
-                }
-                if (file.UserWritable != null)
-                {
-                    file.UserWritable.Value = true;
-                }
-                if (file.Size != null)
-                {
-                    file.Size.Value = 0;
-                }
-                if (file.OpenCount != null)
-                {
-                    file.OpenCount.Value = 0;
-                }
-                if (file.MimeType != null)
-                {
-                    file.MimeType.Value = "application/octet-stream";
-                }
-                if (file.Open != null)
-
-                {
-
-                    file.Open.OnCall = openHandler;
-
-                }
-                if (file.Write != null)
-                {
-                    file.Write.OnCall = writeHandler;
-                }
-                if (file.Read != null)
-                {
-                    file.Read.OnCall = readHandler;
-                }
-                if (file.Close != null)
-                {
-                    file.Close.OnCall = closeHandler;
-                }
-                if (file.GetPosition != null)
-                {
-                    file.GetPosition.OnCall = getPositionHandler;
-                }
-                if (file.SetPosition != null)
-                {
-                    file.SetPosition.OnCall = setPositionHandler;
-                }
+                file.Writable?.Value = true;
+                file.UserWritable?.Value = true;
+                file.Size?.Value = 0;
+                file.OpenCount?.Value = 0;
+                file.MimeType?.Value = "application/octet-stream";
+                file.Open?.OnCall = openHandler;
+                file.Write?.OnCall = writeHandler;
+                file.Read?.OnCall = readHandler;
+                file.Close?.OnCall = closeHandler;
+                file.GetPosition?.OnCall = getPositionHandler;
+                file.SetPosition?.OnCall = setPositionHandler;
                 parent.AddChild(file);
                 manager.AddPredefinedNodeAsync(file, CancellationToken.None)
                     .AsTask()

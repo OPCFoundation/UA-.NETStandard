@@ -29,7 +29,6 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
@@ -138,11 +137,11 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            return builder.ConfigureDevicesFor<TNodeManager>((Func<IDiPostSetupContext, ValueTask>)(ctx =>
+            return builder.ConfigureDevicesFor<TNodeManager>(ctx =>
             {
                 configure(ctx);
                 return default;
-            }));
+            });
         }
 
         /// <summary>

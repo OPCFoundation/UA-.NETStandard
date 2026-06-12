@@ -31,15 +31,11 @@
 
 #pragma warning disable CA2016
 
-
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Subscriptions.Tests
 {

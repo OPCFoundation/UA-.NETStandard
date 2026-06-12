@@ -27,12 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.StateMachines;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 

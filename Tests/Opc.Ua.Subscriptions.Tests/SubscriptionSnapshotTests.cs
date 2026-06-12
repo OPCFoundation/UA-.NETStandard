@@ -272,7 +272,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // triggered side; the reverse "items I trigger" set is
                 // reconstructed on demand from sibling items.
                 Assert.That(triggeredSnap!.TriggeredByNames.ToArray(),
-                    Is.EqualTo(new[] { "Trigger" }));
+                    Is.EqualTo(["Trigger"]));
 
                 await sub.DisposeAsync().ConfigureAwait(false);
             }

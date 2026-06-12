@@ -231,10 +231,10 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task TriggeringSnapshotBinaryRoundTripAotAsync()
         {
-            var original = Opc.Ua.Client.Subscriptions.MonitoredItems
+            var original = Client.Subscriptions.MonitoredItems
                 .MonitoredItemStateSnapshot.AsOptions(
                     name: "triggered",
-                    options: new Opc.Ua.Client.Subscriptions.MonitoredItems
+                    options: new Client.Subscriptions.MonitoredItems
                         .MonitoredItemOptions
                     {
                         StartNodeId = VariableIds.Server_ServerStatus_State,
@@ -254,9 +254,9 @@ namespace Opc.Ua.Aot.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, fixture.Session.MessageContext, true);
-            Opc.Ua.Client.Subscriptions.MonitoredItems
+            Client.Subscriptions.MonitoredItems
                 .MonitoredItemStateSnapshot decoded =
-                decoder.ReadEncodeable<Opc.Ua.Client.Subscriptions
+                decoder.ReadEncodeable<Client.Subscriptions
                     .MonitoredItems.MonitoredItemStateSnapshot>(null);
 
             await Assert.That(decoded.Name).IsEqualTo("triggered");
@@ -269,7 +269,7 @@ namespace Opc.Ua.Aot.Tests
 
             // The ToOptions() projection rebuilds a live
             // MonitoredItemOptions with TriggeredByNames populated.
-            Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+            Client.Subscriptions.MonitoredItems.MonitoredItemOptions
                 options = decoded.ToOptions();
             await Assert.That(options.TriggeredByNames.Count).IsEqualTo(2);
             await Assert.That(options.TriggeredByNames[0]).IsEqualTo("trig1");

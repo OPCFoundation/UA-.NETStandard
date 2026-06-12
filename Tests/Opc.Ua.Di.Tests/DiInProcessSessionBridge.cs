@@ -27,10 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using Moq;
 using Opc.Ua.Client;
 using Opc.Ua.Tests;
@@ -51,7 +49,7 @@ namespace Opc.Ua.Di.Tests
             var mock = new Mock<ISession>();
             NamespaceTable nsTable = fixture.Manager.Server.NamespaceUris;
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
-            ServiceMessageContext ctx = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             ctx.NamespaceUris = nsTable;
             mock.SetupGet(s => s.MessageContext).Returns(ctx);
 
@@ -108,7 +106,7 @@ namespace Opc.Ua.Di.Tests
                 return new BrowsePathResult
                 {
                     StatusCode = StatusCodes.BadNodeIdUnknown,
-                    Targets = global::Opc.Ua.ArrayOf.Empty<BrowsePathTarget>(),
+                    Targets = [],
                 };
             }
             foreach (RelativePathElement element in path.RelativePath.Elements)
@@ -120,7 +118,7 @@ namespace Opc.Ua.Di.Tests
                     return new BrowsePathResult
                     {
                         StatusCode = StatusCodes.BadNoMatch,
-                        Targets = global::Opc.Ua.ArrayOf.Empty<BrowsePathTarget>(),
+                        Targets = [],
                     };
                 }
                 current = next;
@@ -128,14 +126,14 @@ namespace Opc.Ua.Di.Tests
             return new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
-                Targets = ArrayOf.Wrapped(new[]
-                {
+                Targets = ArrayOf.Wrapped(
+                [
                     new BrowsePathTarget
                     {
                         TargetId = (ExpandedNodeId)current.NodeId,
                         RemainingPathIndex = uint.MaxValue,
                     }
-                }),
+                ]),
             };
         }
 
@@ -149,9 +147,9 @@ namespace Opc.Ua.Di.Tests
                 return new CallMethodResult
                 {
                     StatusCode = StatusCodes.BadMethodInvalid,
-                    InputArgumentResults = global::Opc.Ua.ArrayOf.Empty<StatusCode>(),
+                    InputArgumentResults = [],
                     InputArgumentDiagnosticInfos = default,
-                    OutputArguments = global::Opc.Ua.ArrayOf.Empty<Variant>(),
+                    OutputArguments = [],
                 };
             }
 

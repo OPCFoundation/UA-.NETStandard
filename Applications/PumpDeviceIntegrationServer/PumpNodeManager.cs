@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -134,7 +133,7 @@ namespace Pumps
             // against the predefined nodes.
             ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
-            this.CreateFluentBuilder(nsIndex)
+            CreateFluentBuilder(nsIndex)
                 .Configure(Configure)
                 .Seal();
 
@@ -219,7 +218,7 @@ namespace Pumps
                 return;
             }
 
-            Opc.Ua.Pumps.PumpState pump = SystemContext
+            PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
@@ -257,11 +256,11 @@ namespace Pumps
         /// transparently.
         /// </summary>
         private void MaterialisePumpOptionalChildren(
-            Opc.Ua.Pumps.PumpState pump)
+            PumpState pump)
         {
-            Opc.Ua.Pumps.OperationalGroupState operational =
+            OperationalGroupState operational =
                 pump.AddOperational(SystemContext);
-            Opc.Ua.Pumps.MeasurementsState measurements =
+            MeasurementsState measurements =
                 operational.AddMeasurements(SystemContext);
 
             // Analog measurements wired by Configure.WithMeasurements.
@@ -279,13 +278,13 @@ namespace Pumps
             // Supervision subtree wired by Configure.WithSupervision —
             // Cavitation under SupervisionProcessFluid, MotorOverheat
             // under SupervisionPumpOperation.
-            Opc.Ua.Pumps.SupervisionState events =
+            SupervisionState events =
                 pump.AddEvents(SystemContext);
-            Opc.Ua.Pumps.SupervisionProcessFluidState processFluid =
+            SupervisionProcessFluidState processFluid =
                 events.AddSupervisionProcessFluid(SystemContext);
             processFluid.AddCavitation(SystemContext);
 
-            Opc.Ua.Pumps.SupervisionPumpOperationState pumpOperation =
+            SupervisionPumpOperationState pumpOperation =
                 events.AddSupervisionPumpOperation(SystemContext);
             pumpOperation.AddMotorOverheat(SystemContext);
 
@@ -320,10 +319,10 @@ namespace Pumps
         /// the simulated cavitation / motor-overheat flags. The
         /// companion-spec PumpType does not itself expose
         /// <c>DeviceHealth</c> (it inherits from
-        /// <see cref="Opc.Ua.Di.TopologyElementState"/>, not
-        /// <see cref="Opc.Ua.Di.DeviceState"/>); callers can
+        /// <see cref="TopologyElementState"/>, not
+        /// <see cref="DeviceState"/>); callers can
         /// attach <c>DeviceHealth</c> to a sibling
-        /// <see cref="Opc.Ua.Di.DeviceState"/> (e.g. the
+        /// <see cref="DeviceState"/> (e.g. the
         /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
         /// and register it here to participate in the simulation loop.
         /// </summary>
@@ -331,7 +330,7 @@ namespace Pumps
         /// The variable to drive; pass <see langword="null"/> to detach.
         /// </param>
         public void RegisterSupervisedDeviceHealth(
-            BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>? health)
+            BaseDataVariableState<DeviceHealthEnumeration>? health)
         {
             m_supervisedDeviceHealth = health;
         }

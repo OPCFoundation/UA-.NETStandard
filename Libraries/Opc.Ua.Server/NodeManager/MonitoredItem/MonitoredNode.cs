@@ -342,7 +342,6 @@ namespace Opc.Ua.Server
                     m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
-
                 (_, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
                     context,
                     attributeId,

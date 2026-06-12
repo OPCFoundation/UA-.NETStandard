@@ -60,7 +60,7 @@ namespace Pumps
         /// simulation tick can mutate its DI properties in response to
         /// supervision flags. Set by CreatePumpInstanceAsync.
         /// </summary>
-        private Opc.Ua.Pumps.PumpState? m_pump1;
+        private PumpState? m_pump1;
 
         /// <summary>
         /// Optional DI DeviceHealth variable supplied by a declarative
@@ -208,8 +208,8 @@ namespace Pumps
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
 
-            Opc.Ua.Server.Fluent.INodeBuilder<Opc.Ua.Pumps.PumpState> pump =
-                builder.Node<Opc.Ua.Pumps.PumpState>("Pump #1");
+            INodeBuilder<PumpState> pump =
+                builder.Node<PumpState>("Pump #1");
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = pump
                 .Components().Events()

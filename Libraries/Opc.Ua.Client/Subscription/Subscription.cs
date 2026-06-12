@@ -225,24 +225,24 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <inheritdoc/>
         public async ValueTask<SetTriggeringResult> SetTriggeringAsync(
-            MonitoredItems.IMonitoredItem triggeringItem,
-            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToAdd = null,
-            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToRemove = null,
+            IMonitoredItem triggeringItem,
+            IReadOnlyCollection<IMonitoredItem>? linksToAdd = null,
+            IReadOnlyCollection<IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
             if (triggeringItem == null)
             {
                 throw new ArgumentNullException(nameof(triggeringItem));
             }
-            IReadOnlyList<MonitoredItems.IMonitoredItem> add =
+            IReadOnlyList<IMonitoredItem> add =
                 linksToAdd is null
-                    ? Array.Empty<MonitoredItems.IMonitoredItem>()
-                    : linksToAdd as IReadOnlyList<MonitoredItems.IMonitoredItem>
+                    ? []
+                    : linksToAdd as IReadOnlyList<IMonitoredItem>
                         ?? [.. linksToAdd];
-            IReadOnlyList<MonitoredItems.IMonitoredItem> remove =
+            IReadOnlyList<IMonitoredItem> remove =
                 linksToRemove is null
-                    ? Array.Empty<MonitoredItems.IMonitoredItem>()
-                    : linksToRemove as IReadOnlyList<MonitoredItems.IMonitoredItem>
+                    ? []
+                    : linksToRemove as IReadOnlyList<IMonitoredItem>
                         ?? [.. linksToRemove];
 
             // Eager validation by reference identity under the manager
@@ -259,7 +259,7 @@ namespace Opc.Ua.Client.Subscriptions
             // turn into one SetTriggering RPC.
             var tcs = new TaskCompletionSource<SetTriggeringResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var op = new MonitoredItems.MonitoredItemManager.TriggeringOperation(
+            var op = new MonitoredItemManager.TriggeringOperation(
                 triggeringItem, add, remove, tcs);
             m_monitoredItems.EnqueueTriggeringOperation(op);
             // Wake the state manager so the operations queue gets

@@ -169,8 +169,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             }
             return new ValueTask<SetTriggeringResult>(new SetTriggeringResult(
                 triggeringItem,
-                Array.Empty<(IMonitoredItem, StatusCode)>(),
-                Array.Empty<(IMonitoredItem, StatusCode)>(),
+                [],
+                [],
                 StatusCodes.Good));
         }
 

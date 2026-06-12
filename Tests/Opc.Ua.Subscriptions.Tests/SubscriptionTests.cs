@@ -35,7 +35,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -655,7 +654,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -669,7 +668,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.TryAddMonitoredItem("DeclTrig",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? trig), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? trig), Is.True);
 
                 // Add the triggered item with TriggeredByNames declared
                 // in its options — the engine should reconcile and
@@ -682,7 +681,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         MonitoringMode = MonitoringMode.Sampling,
                         TriggeredByNames = ["DeclTrig"]
                     },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? tgt), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? tgt), Is.True);
 
                 Assert.That(await WaitForAsync(
                     () => trig!.Created && tgt!.Created,
@@ -713,7 +712,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -726,15 +725,15 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.TryAddMonitoredItem("nmTrigA",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? trigA), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? trigA), Is.True);
                 Assert.That(subscription.TryAddMonitoredItem("nmTrigB",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? trigB), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? trigB), Is.True);
                 Assert.That(subscription.TryAddMonitoredItem("nmShared",
                     VariableIds.Server_ServerStatus_BuildInfo,
                     o => o with { MonitoringMode = MonitoringMode.Sampling },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? shared), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? shared), Is.True);
 
                 Assert.That(await WaitForAsync(
                     () => trigA!.Created && trigB!.Created && shared!.Created,

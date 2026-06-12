@@ -287,7 +287,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
             var result = new List<ISubscription>(states.Count);
-            SubscriptionManager manager =
+            var manager =
                 (SubscriptionManager)session.SubscriptionManager;
             foreach (SubscriptionStateSnapshot state in states)
             {
@@ -302,7 +302,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Convenience overload of
-        /// <see cref="Subscriptions.ISubscription.SetTriggeringAsync"/>
+        /// <see cref="ISubscription.SetTriggeringAsync"/>
         /// that resolves the triggering item and triggered items by
         /// stable name against the subscription's
         /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
@@ -317,8 +317,8 @@ namespace Opc.Ua.Client
         /// added; pass an empty array to query an existing trigger
         /// without adding new links.
         /// </param>
-        public static ValueTask<Subscriptions.SetTriggeringResult> SetTriggeringAsync(
-            this Subscriptions.ISubscription subscription,
+        public static ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            this ISubscription subscription,
             string triggeringItemName,
             params string[] triggeredItemNames)
         {
@@ -331,14 +331,14 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Convenience overload of
-        /// <see cref="Subscriptions.ISubscription.SetTriggeringAsync"/>
+        /// <see cref="ISubscription.SetTriggeringAsync"/>
         /// that resolves the triggering item and triggered items by
         /// stable name against the subscription's
         /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
         /// Unknown names cause <see cref="ArgumentException"/>.
         /// </summary>
-        public static ValueTask<Subscriptions.SetTriggeringResult> SetTriggeringAsync(
-            this Subscriptions.ISubscription subscription,
+        public static ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            this ISubscription subscription,
             string triggeringItemName,
             IReadOnlyCollection<string>? add = null,
             IReadOnlyCollection<string>? remove = null,

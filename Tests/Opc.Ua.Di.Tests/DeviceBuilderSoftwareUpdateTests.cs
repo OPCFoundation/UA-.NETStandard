@@ -30,7 +30,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 

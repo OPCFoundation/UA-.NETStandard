@@ -605,7 +605,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 // GDS-specific membership API directly.
                 if (typeof(IGdsUserDatabase).IsAssignableFrom(typeof(T)))
                 {
-                    Services.AddSingleton<IGdsUserDatabase>(
+                    Services.AddSingleton(
                         sp => (IGdsUserDatabase)sp.GetRequiredService<T>());
                 }
                 return this;

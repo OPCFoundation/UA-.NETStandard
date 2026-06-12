@@ -376,7 +376,6 @@ namespace Opc.Ua.Server.Historian
             HistorianContinuationState? cont = TryRestoreContinuation(
                 systemContext, nodeToRead, HistorianReadKind.Processed);
 
-
             // Resume from buffered output if a continuation already exists.
             if (cont?.BufferedProcessedOutputs is { })
             {
@@ -2071,7 +2070,7 @@ namespace Opc.Ua.Server.Historian
 
         private static IReadOnlyList<DataValue> ToReadOnlyList(IList<DataValue> values)
         {
-            return values is IReadOnlyList<DataValue> rol ? rol : new List<DataValue>(values);
+            return values is IReadOnlyList<DataValue> rol ? rol : [.. values];
         }
 
         private static StatusCode[] RepeatStatus(StatusCode code, int count)

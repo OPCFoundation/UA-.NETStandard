@@ -29,11 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
@@ -176,7 +174,7 @@ namespace Opc.Ua.Di.Tests
             ServiceResult result = TryInvokeGenerateFileForWrite(
                 loading.FileTransfer!, Variant.Null);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadTooManyOperations));
+                Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
         [Test]
@@ -191,7 +189,7 @@ namespace Opc.Ua.Di.Tests
 
             ServiceResult result = TryInvokeOpen(fileObject, mode: 1); // Read
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -203,7 +201,7 @@ namespace Opc.Ua.Di.Tests
             ServiceResult result = TryInvokeCloseAndCommit(
                 loading.FileTransfer!, fileHandle: 99u);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -219,7 +217,7 @@ namespace Opc.Ua.Di.Tests
 
             ServiceResult result = TryInvokeRead(fileObject, openHandle, length: 16);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         // ------------------------------------------------------------------
@@ -309,7 +307,7 @@ namespace Opc.Ua.Di.Tests
 
         private uint InvokeOpen(NodeState fileObject, byte mode)
         {
-            FileState file = (FileState)fileObject;
+            var file = (FileState)fileObject;
             uint handle = 0;
             ServiceResult result = file.Open!.OnCall!(
                 m_fixture.Manager.SystemContext,
@@ -324,7 +322,7 @@ namespace Opc.Ua.Di.Tests
 
         private ServiceResult TryInvokeOpen(NodeState fileObject, byte mode)
         {
-            FileState file = (FileState)fileObject;
+            var file = (FileState)fileObject;
             uint handle = 0;
             return file.Open!.OnCall!(
                 m_fixture.Manager.SystemContext,
@@ -336,7 +334,7 @@ namespace Opc.Ua.Di.Tests
 
         private void InvokeWrite(NodeState fileObject, uint fileHandle, byte[] data)
         {
-            FileState file = (FileState)fileObject;
+            var file = (FileState)fileObject;
             ServiceResult result = file.Write!.OnCall!(
                 m_fixture.Manager.SystemContext,
                 file.Write,
@@ -350,7 +348,7 @@ namespace Opc.Ua.Di.Tests
         private ServiceResult TryInvokeRead(
             NodeState fileObject, uint fileHandle, int length)
         {
-            FileState file = (FileState)fileObject;
+            var file = (FileState)fileObject;
             ByteString data = default;
             return file.Read!.OnCall!(
                 m_fixture.Manager.SystemContext,
@@ -363,7 +361,7 @@ namespace Opc.Ua.Di.Tests
 
         private void InvokeClose(NodeState fileObject, uint fileHandle)
         {
-            FileState file = (FileState)fileObject;
+            var file = (FileState)fileObject;
             ServiceResult result = file.Close!.OnCall!(
                 m_fixture.Manager.SystemContext,
                 file.Close,

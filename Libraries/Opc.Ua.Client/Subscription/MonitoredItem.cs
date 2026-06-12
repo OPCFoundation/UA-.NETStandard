@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     return false;
                 }
-                var updated = new string[current.Count + 1];
+                string[] updated = new string[current.Count + 1];
                 for (int i = 0; i < current.Count; i++)
                 {
                     updated[i] = current[i];
@@ -212,11 +212,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 IReadOnlyList<string> updated;
                 if (current.Count == 1)
                 {
-                    updated = Array.Empty<string>();
+                    updated = [];
                 }
                 else
                 {
-                    var arr = new string[current.Count - 1];
+                    string[] arr = new string[current.Count - 1];
                     int dst = 0;
                     for (int i = 0; i < current.Count; i++)
                     {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             if (names == null)
             {
                 Volatile.Write(ref m_desiredTriggeredByNames,
-                    Array.Empty<string>());
+                    []);
                 return;
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -275,7 +275,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
             }
             Volatile.Write(ref m_desiredTriggeredByNames,
-                list.Count == 0 ? Array.Empty<string>() : list.ToArray());
+                list.Count == 0 ? Array.Empty<string>() : [.. list]);
         }
 
         private static bool ContainsOrdinal(
@@ -632,7 +632,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Context.EnqueueTriggeringDelta(
                     this,
                     desired,
-                    Array.Empty<string>());
+                    []);
             }
         }
 
@@ -708,8 +708,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     Context.EnqueueTriggeringDelta(
                         this,
-                        (IReadOnlyList<string>?)diff.Add ?? Array.Empty<string>(),
-                        (IReadOnlyList<string>?)diff.Remove ?? Array.Empty<string>());
+                        (IReadOnlyList<string>?)diff.Add ?? [],
+                        (IReadOnlyList<string>?)diff.Remove ?? []);
                 }
             }
 
@@ -1194,6 +1194,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;
         private IReadOnlyList<string> m_desiredTriggeredByNames
-            = Array.Empty<string>();
+            = [];
     }
 }

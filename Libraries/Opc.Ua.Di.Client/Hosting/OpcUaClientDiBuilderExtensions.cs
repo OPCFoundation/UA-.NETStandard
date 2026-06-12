@@ -97,7 +97,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             builder.Services.TryAddSingleton<IDiDiscoveryService>(sp =>
             {
-                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                Func<CancellationToken, Task<ManagedSession>> accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires AddClient() to be called first. " +
                         "The managed-session factory was not registered.");
@@ -115,7 +115,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<
                 Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>>(sp =>
             {
-                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                Func<CancellationToken, Task<ManagedSession>> accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires AddClient() to be called first. " +
                         "The managed-session factory was not registered.");
@@ -123,7 +123,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires an ITelemetryContext.");
 
-                return async (NodeId deviceNodeId, CancellationToken ct) =>
+                return async (deviceNodeId, ct) =>
                 {
                     ManagedSession session = await accessor(ct).ConfigureAwait(false);
                     return await DiDeviceClient
@@ -138,14 +138,14 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<
                 Func<NodeId, CancellationToken, ValueTask<DiLockClient>>>(sp =>
             {
-                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                Func<CancellationToken, Task<ManagedSession>> accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires AddClient() to be called first.");
                 ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires an ITelemetryContext.");
 
-                return async (NodeId lockNodeId, CancellationToken ct) =>
+                return async (lockNodeId, ct) =>
                 {
                     ManagedSession session = await accessor(ct).ConfigureAwait(false);
                     return new DiLockClient(session, lockNodeId, telemetry);
@@ -157,14 +157,14 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<
                 Func<CancellationToken, ValueTask<DiTopologyClient>>>(sp =>
             {
-                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                Func<CancellationToken, Task<ManagedSession>> accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires AddClient() to be called first.");
                 ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires an ITelemetryContext.");
 
-                return async (CancellationToken ct) =>
+                return async ct =>
                 {
                     ManagedSession session = await accessor(ct).ConfigureAwait(false);
                     return new DiTopologyClient(session, telemetry);
@@ -176,14 +176,14 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<
                 Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>>(sp =>
             {
-                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                Func<CancellationToken, Task<ManagedSession>> accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires AddClient() to be called first.");
                 ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
                     ?? throw new InvalidOperationException(
                         "AddOpcUaDi() requires an ITelemetryContext.");
 
-                return async (NodeId softwareUpdateNodeId, CancellationToken ct) =>
+                return async (softwareUpdateNodeId, ct) =>
                 {
                     ManagedSession session = await accessor(ct).ConfigureAwait(false);
                     return new SoftwareUpdateClient(session, softwareUpdateNodeId, telemetry);

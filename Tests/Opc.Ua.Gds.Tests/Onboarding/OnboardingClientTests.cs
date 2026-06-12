@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("Onboarding")]
     public sealed class OnboardingClientTests
     {
-        private static readonly NodeId kRegistrarId = new NodeId("Reg", 2);
+        private static readonly NodeId kRegistrarId = new("Reg", 2);
 
         private static Mock<ISession> CreateSessionMock()
         {
@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             // resolves method NodeIds via browse-path translation, not
             // by namespace-constant lookup, so this is only here to
             // give the mocked session a non-empty namespace table.
-            nsTable.GetIndexOrAppend(global::Opc.Ua.Gds.Namespaces.OpcUaGds);
+            nsTable.GetIndexOrAppend(Namespaces.OpcUaGds);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
             return mock;
         }
@@ -80,13 +80,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     Results = new BrowsePathResult[]
                     {
-                        new BrowsePathResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             Targets = new BrowsePathTarget[]
                             {
-                                new BrowsePathTarget
-                                {
+                                new() {
                                     TargetId = new ExpandedNodeId(methodId)
                                 }
                             }.ToArrayOf()
@@ -107,12 +105,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     Results = new CallMethodResult[]
                     {
-                        new CallMethodResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             OutputArguments = new Variant[]
                             {
-                                new Variant(statuses.ToArrayOf())
+                                new(statuses.ToArrayOf())
                             }.ToArrayOf()
                         }
                     }.ToArrayOf()
@@ -147,20 +144,20 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             Mock<ISession> session = CreateSessionMock();
             SetupTranslateToMethod(session, new NodeId("Reg_Register", 2));
-            SetupCallReturnsStatuses(session, new[]
-            {
+            SetupCallReturnsStatuses(session,
+            [
                 (int)(uint)StatusCodes.Good,
                 (int)(uint)StatusCodes.BadEntryExists
-            });
+            ]);
 
             var client = new OnboardingClient(
                 session.Object, kRegistrarId, NullTelemetry());
 
-            int[] statuses = await client.RegisterTicketsAsync(new[]
-            {
+            int[] statuses = await client.RegisterTicketsAsync(
+            [
                 new byte[] { 1, 2 },
-                new byte[] { 3, 4 }
-            }).ConfigureAwait(false);
+                [3, 4]
+            ]).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Length.EqualTo(2));
             Assert.That(statuses[0], Is.EqualTo((int)(uint)StatusCodes.Good));
@@ -172,18 +169,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             Mock<ISession> session = CreateSessionMock();
             SetupTranslateToMethod(session, new NodeId("Reg_Unregister", 2));
-            SetupCallReturnsStatuses(session, new[]
-            {
+            SetupCallReturnsStatuses(session,
+            [
                 (int)(uint)StatusCodes.Good
-            });
+            ]);
 
             var client = new OnboardingClient(
                 session.Object, kRegistrarId, NullTelemetry());
 
-            int[] statuses = await client.UnregisterTicketsAsync(new[]
-            {
-                new byte[] { 9 }
-            }).ConfigureAwait(false);
+            int[] statuses = await client.UnregisterTicketsAsync(
+            [
+                "\t"u8.ToArray()
+            ]).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Length.EqualTo(1));
             Assert.That(statuses[0], Is.EqualTo((int)(uint)StatusCodes.Good));
@@ -202,10 +199,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     Results = new BrowsePathResult[]
                     {
-                        new BrowsePathResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.BadNotFound,
-                            Targets = global::Opc.Ua.ArrayOf.Empty<BrowsePathTarget>()
+                            Targets = ArrayOf.Empty<BrowsePathTarget>()
                         }
                     }.ToArrayOf()
                 });
@@ -214,10 +210,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 session.Object, kRegistrarId, NullTelemetry());
 
             Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RegisterTicketsAsync(new[]
-                {
+                async () => await client.RegisterTicketsAsync(
+                [
                     new byte[] { 1 }
-                }).ConfigureAwait(false));
+                ]).ConfigureAwait(false));
         }
 
         [Test]

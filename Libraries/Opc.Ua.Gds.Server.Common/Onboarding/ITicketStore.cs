@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// <summary>
     /// Classifies a ticket as identifying a single device or a
     /// composite. Mirrors the
-    /// <see cref="Opc.Ua.Gds.Server.Onboarding.ITicketStore"/>'s
+    /// <see cref="ITicketStore"/>'s
     /// view of the OPC 10000-100 ticket subtypes.
     /// </summary>
     public enum TicketKind

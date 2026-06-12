@@ -61,8 +61,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 throw new ArgumentNullException(nameof(target));
             }
-            Group.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, target.NodeId);
-            target.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, Group.NodeId);
+            Group.AddReference(Types.ReferenceTypeIds.Organizes, false, target.NodeId);
+            target.AddReference(Types.ReferenceTypeIds.Organizes, true, Group.NodeId);
             return this;
         }
 
@@ -72,7 +72,7 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 throw new ArgumentNullException(nameof(targetNodeId));
             }
-            Group.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, targetNodeId);
+            Group.AddReference(Types.ReferenceTypeIds.Organizes, false, targetNodeId);
             return this;
         }
 

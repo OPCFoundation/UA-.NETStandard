@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
         /// remain unaffected.
         /// </remarks>
         public IReadOnlyList<ITransportListener> TransportListeners
-            => m_transportListeners ?? (IReadOnlyList<ITransportListener>)Array.Empty<ITransportListener>();
+            => m_transportListeners ?? [];
 
         /// <summary>
         /// Called by <see cref="StandardServer"/> after listeners are
@@ -199,7 +199,6 @@ namespace Opc.Ua.Server
         {
             m_transportListeners = listeners;
         }
-
 
         /// <summary>
         /// The server-wide registry of Part 11 historian providers.
@@ -770,10 +769,7 @@ namespace Opc.Ua.Server
 
             BaseVariableState conformanceUnits = DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
                 VariableIds.Server_ServerCapabilities_ConformanceUnits);
-            if (conformanceUnits != null)
-            {
-                conformanceUnits.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
-            }
+            conformanceUnits?.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
 
             serverCapabilities.MinSupportedSampleRate!.Value = 0;
             serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)

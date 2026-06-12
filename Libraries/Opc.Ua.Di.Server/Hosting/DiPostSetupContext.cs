@@ -58,12 +58,8 @@ namespace Opc.Ua.Di.Server.Hosting
 
         public T GetRequiredService<T>() where T : notnull
         {
-            object? svc = m_services.GetService(typeof(T));
-            if (svc is null)
-            {
-                throw new InvalidOperationException(
+            object? svc = m_services.GetService(typeof(T)) ?? throw new InvalidOperationException(
                     $"No service for type '{typeof(T).FullName}' has been registered.");
-            }
             return (T)svc;
         }
 
@@ -80,17 +76,23 @@ namespace Opc.Ua.Di.Server.Hosting
             Func<NodeState, TDevice> factory,
             NodeState? parent = null)
             where TDevice : ComponentState
-            => Manager.CreateDeviceAsync(
-                browseName, typeDefinitionId, factory, parent, CancellationToken);
+        {
+            return Manager.CreateDeviceAsync(
+                        browseName, typeDefinitionId, factory, parent, CancellationToken);
+        }
 
         public IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId)
             where TDevice : ComponentState
-            => Manager.Device<TDevice>(nodeId);
+        {
+            return Manager.Device<TDevice>(nodeId);
+        }
 
         public IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
             QualifiedName browseName,
             NodeState? parent = null)
             where TDevice : ComponentState
-            => Manager.DeviceByBrowseName<TDevice>(browseName, parent);
+        {
+            return Manager.DeviceByBrowseName<TDevice>(browseName, parent);
+        }
     }
 }

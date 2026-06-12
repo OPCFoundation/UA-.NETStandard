@@ -95,16 +95,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Arrange: two created items.
             TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
             TestMonitoredItem tgt = AddCreatedItem("tgt", serverId: 101);
-            ExpectSetTriggering(trig.ServerId, new uint[] { tgt.ServerId },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.Good },
-                removeResults: Array.Empty<StatusCode>());
+            ExpectSetTriggering(trig.ServerId, [tgt.ServerId],
+                [],
+                addResults: [StatusCodes.Good],
+                removeResults: []);
 
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(
-                    trig, new IMonitoredItem[] { tgt },
-                    Array.Empty<IMonitoredItem>(), tcs));
+                    trig, [tgt],
+                    [], tcs));
 
             // Act
             bool any = await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
@@ -143,8 +143,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         callCount++;
                         capturedTrig = trigId;
-                        capturedAdd = [.. (adds.ToArray() ?? [])];
-                        capturedRemove = [.. (rems.ToArray() ?? [])];
+                        capturedAdd = [.. adds.ToArray() ?? []];
+                        capturedRemove = [.. rems.ToArray() ?? []];
                     })
                 .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
                     ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken ct) =>
@@ -152,21 +152,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         ResponseHeader = new ResponseHeader(),
                         AddResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                            StatusCodes.Good, adds.Count).ToArrayOf(),
                         RemoveResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                            StatusCodes.Good, rems.Count).ToArrayOf()
                     });
 
             var tcs1 = new TaskCompletionSource<SetTriggeringResult>();
             var tcs2 = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { a },
-                    Array.Empty<IMonitoredItem>(), tcs1));
+                    [a],
+                    [], tcs1));
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { b },
-                    Array.Empty<IMonitoredItem>(), tcs2));
+                    [b],
+                    [], tcs2));
 
             // Act
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert: exactly one RPC, with merged add list.
             Assert.That(callCount, Is.EqualTo(1));
             Assert.That(capturedTrig, Is.EqualTo(trig.ServerId));
-            Assert.That(capturedAdd, Is.EquivalentTo(new[] { a.ServerId, b.ServerId }));
+            Assert.That(capturedAdd, Is.EquivalentTo([a.ServerId, b.ServerId]));
             Assert.That(capturedRemove, Is.Empty);
 
             // Each TCS gets per-link results scoped to its own inputs.
@@ -207,18 +207,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         ResponseHeader = new ResponseHeader(),
                         AddResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                            StatusCodes.Good, adds.Count).ToArrayOf(),
                         RemoveResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                            StatusCodes.Good, rems.Count).ToArrayOf()
                     });
 
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(t1,
-                    new IMonitoredItem[] { x }, Array.Empty<IMonitoredItem>(),
+                    [x], [],
                     null));
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(t2,
-                    new IMonitoredItem[] { y }, Array.Empty<IMonitoredItem>(),
+                    [y], [],
                     null));
 
             // Act
@@ -238,7 +238,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { tgt }, Array.Empty<IMonitoredItem>(),
+                    [tgt], [],
                     tcs));
 
             // Act: first pass — trig not Created, op re-queued.
@@ -254,10 +254,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Simulate the trig getting Created on the server (test
             // hook), then run another pass.
             trig.SetServerIdForTest(100);
-            ExpectSetTriggering(trig.ServerId, new uint[] { tgt.ServerId },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.Good },
-                removeResults: Array.Empty<StatusCode>());
+            ExpectSetTriggering(trig.ServerId, [tgt.ServerId],
+                [],
+                addResults: [StatusCodes.Good],
+                removeResults: []);
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             Assert.That(tcs.Task.IsCompleted, Is.True);
@@ -275,18 +275,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Simulate the ImperativeAPI mutation step (which Subscription's
             // SetTriggeringAsync does under the manager lock).
             tgt.AddDesiredTriggeredByForTest(trig.Name);
-            Assert.That(tgt.DesiredTriggeredByNames, Is.EqualTo(new[] { trig.Name }));
+            Assert.That(tgt.DesiredTriggeredByNames, Is.EqualTo([trig.Name]));
 
-            ExpectSetTriggering(trig.ServerId, new uint[] { tgt.ServerId },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.BadMonitoredItemIdInvalid },
-                removeResults: Array.Empty<StatusCode>());
+            ExpectSetTriggering(trig.ServerId, [tgt.ServerId],
+                [],
+                addResults: [StatusCodes.BadMonitoredItemIdInvalid],
+                removeResults: []);
 
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { tgt },
-                    Array.Empty<IMonitoredItem>(), tcs));
+                    [tgt],
+                    [], tcs));
 
             // Act
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
@@ -314,15 +314,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .ReturnsAsync(new SetTriggeringResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    AddResults = new[] { (StatusCode)StatusCodes.Good }.ToArrayOf(),
+                    AddResults = new[] { StatusCodes.Good }.ToArrayOf(),
                     RemoveResults = Array.Empty<StatusCode>().ToArrayOf()
                 });
 
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { tgt },
-                    Array.Empty<IMonitoredItem>(), tcs));
+                    [tgt],
+                    [], tcs));
 
             // Act: first pass — BadSubscriptionIdInvalid → re-queue,
             // TCS NOT completed. Second pass — succeeds.
@@ -345,8 +345,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    Array.Empty<IMonitoredItem>(),
-                    new IMonitoredItem[] { deletedTgt }, tcs));
+                    [],
+                    [deletedTgt], tcs));
 
             // Mock returns success on the assumption that addList +
             // removeList is empty (both pre-resolve client-side).
@@ -384,16 +384,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem tgt = AddItemNoServerId("tgt");
 
             ExpectSetTriggering(100,
-                new uint[] { 101 },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.Good },
-                removeResults: Array.Empty<StatusCode>());
+                [101],
+                [],
+                addResults: [StatusCodes.Good],
+                removeResults: []);
 
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { tgt },
-                    Array.Empty<IMonitoredItem>(), tcs));
+                    [tgt],
+                    [], tcs));
 
             // First pass: tgt not Created → entire op deferred,
             // TCS not yet completed.
@@ -429,8 +429,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var tcs = new TaskCompletionSource<SetTriggeringResult>();
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { tgt },
-                    Array.Empty<IMonitoredItem>(), tcs));
+                    [tgt],
+                    [], tcs));
 
             // Apply 11 times (MaxTriggeringRetryCount=10, so the 11th
             // pass terminates the op).
@@ -474,8 +474,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(trig,
-                    new IMonitoredItem[] { tgt },
-                    Array.Empty<IMonitoredItem>(), null));
+                    [tgt],
+                    [], null));
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
@@ -503,8 +503,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     CancellationToken>(
                     (h, subId, trigId, adds, rems, ct) =>
                     {
-                        capturedAdd = [.. (adds.ToArray() ?? [])];
-                        capturedRemove = [.. (rems.ToArray() ?? [])];
+                        capturedAdd = [.. adds.ToArray() ?? []];
+                        capturedRemove = [.. rems.ToArray() ?? []];
                     })
                 .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
                     ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken ct) =>
@@ -512,28 +512,28 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         ResponseHeader = new ResponseHeader(),
                         AddResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                            StatusCodes.Good, adds.Count).ToArrayOf(),
                         RemoveResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                            StatusCodes.Good, rems.Count).ToArrayOf()
                     });
 
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(t,
-                    new IMonitoredItem[] { x },
-                    Array.Empty<IMonitoredItem>(), null));
+                    [x],
+                    [], null));
             // Second op REMOVES x — last intent wins, so per-edge
             // state is "remove".
             m_sut.EnqueueTriggeringOperation(
                 new MonitoredItemManager.TriggeringOperation(t,
-                    Array.Empty<IMonitoredItem>(),
-                    new IMonitoredItem[] { x }, null));
+                    [],
+                    [x], null));
 
             // Act
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: only "remove" sent to the server (last wins).
             Assert.That(capturedAdd, Is.Empty);
-            Assert.That(capturedRemove, Is.EquivalentTo(new[] { x.ServerId }));
+            Assert.That(capturedRemove, Is.EquivalentTo([x.ServerId]));
         }
 
         // Cancellation (best-effort skip) ------------------------------
@@ -552,8 +552,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var op = new MonitoredItemManager.TriggeringOperation(
                 trig,
-                new IMonitoredItem[] { tgt },
-                Array.Empty<IMonitoredItem>(), tcs);
+                [tgt],
+                [], tcs);
             m_sut.EnqueueTriggeringOperation(op);
 
             // Simulate Subscription.SetTriggeringAsync's cancellation
@@ -588,16 +588,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             m_sut.ValidateBelongsAndUpdateDesired(
                 trig,
-                new IMonitoredItem[] { tgt },
-                Array.Empty<IMonitoredItem>());
+                [tgt],
+                []);
             Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
 
             var tcs = new TaskCompletionSource<SetTriggeringResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var op = new MonitoredItemManager.TriggeringOperation(
                 trig,
-                new IMonitoredItem[] { tgt },
-                Array.Empty<IMonitoredItem>(), tcs);
+                [tgt],
+                [], tcs);
             m_sut.EnqueueTriggeringOperation(op);
             op.MarkCancelled();
             tcs.TrySetCanceled(new CancellationToken(canceled: true));
@@ -627,32 +627,32 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .Callback<RequestHeader?, uint, uint, ArrayOf<uint>, ArrayOf<uint>,
                     CancellationToken>(
                     (h, subId, trigId, adds, rems, c) =>
-                        capturedAdd = [.. (adds.ToArray() ?? [])])
+                        capturedAdd = [.. adds.ToArray() ?? []])
                 .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
                     ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken c) =>
                     new SetTriggeringResponse
                     {
                         ResponseHeader = new ResponseHeader(),
                         AddResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                            StatusCodes.Good, adds.Count).ToArrayOf(),
                         RemoveResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                            StatusCodes.Good, rems.Count).ToArrayOf()
                     });
 
             var tcs1 = new TaskCompletionSource<SetTriggeringResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var op1 = new MonitoredItemManager.TriggeringOperation(
                 trig,
-                new IMonitoredItem[] { tgt1 },
-                Array.Empty<IMonitoredItem>(), tcs1);
+                [tgt1],
+                [], tcs1);
             m_sut.EnqueueTriggeringOperation(op1);
 
             var tcs2 = new TaskCompletionSource<SetTriggeringResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var op2 = new MonitoredItemManager.TriggeringOperation(
                 trig,
-                new IMonitoredItem[] { tgt2 },
-                Array.Empty<IMonitoredItem>(), tcs2);
+                [tgt2],
+                [], tcs2);
             m_sut.EnqueueTriggeringOperation(op2);
 
             // Cancel only the first op.
@@ -667,7 +667,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // with success. Use Status == RanToCompletion rather than
             // Task.IsCompletedSuccessfully which is .NET 5+ only and
             // would break the net48/net472 builds.
-            Assert.That(capturedAdd, Is.EquivalentTo(new[] { tgt2.ServerId }));
+            Assert.That(capturedAdd, Is.EquivalentTo([tgt2.ServerId]));
             Assert.That(tcs1.Task.IsCanceled, Is.True);
             Assert.That(tcs2.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
         }
@@ -817,7 +817,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 SetDesiredTriggeredByNames(names);
             }
 
-            internal void ResetForTest() => Reset();
+            internal void ResetForTest()
+            {
+                Reset();
+            }
         }
 
         // ----- ValidateBelongsAndUpdateDesired (imperative-API entry validation) -----
@@ -827,8 +830,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
                 null!,
-                Array.Empty<IMonitoredItem>(),
-                Array.Empty<IMonitoredItem>()),
+                [],
+                []),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -847,8 +850,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_telemetry.CreateLogger("stray"));
 
             Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
-                stray, Array.Empty<IMonitoredItem>(),
-                Array.Empty<IMonitoredItem>()),
+                stray, [],
+                []),
                 Throws.ArgumentException);
             // Sanity: the real item is unaffected.
             Assert.That(real.DesiredTriggeredByNames, Is.Empty);
@@ -860,8 +863,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem trig = AddCreatedItem("trig", 100);
             Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
                 trig,
-                new IMonitoredItem[] { null! },
-                Array.Empty<IMonitoredItem>()),
+                [null!],
+                []),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -871,8 +874,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem trig = AddCreatedItem("trig", 100);
             Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
                 trig,
-                Array.Empty<IMonitoredItem>(),
-                new IMonitoredItem[] { null! }),
+                [],
+                [null!]),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -890,8 +893,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
                 trig,
-                new IMonitoredItem[] { stray },
-                Array.Empty<IMonitoredItem>()),
+                [stray],
+                []),
                 Throws.ArgumentException);
         }
 
@@ -903,13 +906,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             m_sut.ValidateBelongsAndUpdateDesired(
                 trig,
-                new IMonitoredItem[] { tgt },
-                Array.Empty<IMonitoredItem>());
+                [tgt],
+                []);
 
             // Imperative-write semantics: the desired state mutates
             // synchronously under the manager lock, before the
             // SetTriggering RPC fires.
-            Assert.That(tgt.DesiredTriggeredByNames, Is.EqualTo(new[] { "trig" }));
+            Assert.That(tgt.DesiredTriggeredByNames, Is.EqualTo(["trig"]));
         }
 
         [Test]
@@ -921,8 +924,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             m_sut.ValidateBelongsAndUpdateDesired(
                 trig,
-                Array.Empty<IMonitoredItem>(),
-                new IMonitoredItem[] { tgt });
+                [],
+                [tgt]);
 
             Assert.That(tgt.DesiredTriggeredByNames, Is.Empty);
         }
@@ -940,8 +943,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
 
             m_sut.EnqueueTriggeringDelta(tgt,
-                addedTriggeringNames: new[] { "trig" },
-                removedTriggeringNames: Array.Empty<string>());
+                addedTriggeringNames: ["trig"],
+                removedTriggeringNames: []);
 
             // First apply pass — no triggering item yet, no RPC.
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
@@ -957,10 +960,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             tgt.AddDesiredTriggeredByForTest("trig");
 
             ExpectSetTriggering(100,
-                new uint[] { 101 },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.Good },
-                removeResults: Array.Empty<StatusCode>());
+                [101],
+                [],
+                addResults: [StatusCodes.Good],
+                removeResults: []);
 
             // Now add the triggering item — pending materializes.
             AddCreatedItem("trig", 100);
@@ -979,8 +982,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
 
             m_sut.EnqueueTriggeringDelta(tgt,
-                addedTriggeringNames: new[] { "trig" },
-                removedTriggeringNames: Array.Empty<string>());
+                addedTriggeringNames: ["trig"],
+                removedTriggeringNames: []);
 
             // Remove the triggered item (purges pending entries).
             m_sut.TryRemove(tgt.ClientHandle);
@@ -1007,11 +1010,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Two declarative deltas in opposite directions for the
             // same edge — pending folds last-intent (remove) wins.
             m_sut.EnqueueTriggeringDelta(tgt,
-                addedTriggeringNames: new[] { "trig" },
-                removedTriggeringNames: Array.Empty<string>());
+                addedTriggeringNames: ["trig"],
+                removedTriggeringNames: []);
             m_sut.EnqueueTriggeringDelta(tgt,
-                addedTriggeringNames: Array.Empty<string>(),
-                removedTriggeringNames: new[] { "trig" });
+                addedTriggeringNames: [],
+                removedTriggeringNames: ["trig"]);
 
             // Add triggering item — pending materializes a single
             // remove edge. Since tgt is Created the remove resolves
@@ -1021,10 +1024,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             AddCreatedItem("trig", 100);
 
             ExpectSetTriggering(100,
-                Array.Empty<uint>(),
-                new uint[] { 101 },
-                addResults: Array.Empty<StatusCode>(),
-                removeResults: new[] { (StatusCode)StatusCodes.Good });
+                [],
+                [101],
+                addResults: [],
+                removeResults: [StatusCodes.Good]);
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             m_monitoredItemServices.VerifyAll();
@@ -1041,8 +1044,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             tgt.AddDesiredTriggeredByForTest("trig");
 
             m_sut.EnqueueTriggeringDelta(tgt,
-                addedTriggeringNames: new[] { "trig" },
-                removedTriggeringNames: Array.Empty<string>());
+                addedTriggeringNames: ["trig"],
+                removedTriggeringNames: []);
 
             // Revoke before the trigger appears.
             tgt.RemoveDesiredTriggeredByForTest("trig");
@@ -1060,8 +1063,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void EnqueueTriggeringDeltaEmptyListsIsNoOp()
         {
             TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
-            m_sut.EnqueueTriggeringDelta(tgt, Array.Empty<string>(),
-                Array.Empty<string>());
+            m_sut.EnqueueTriggeringDelta(tgt, [],
+                []);
             // No assertion needed — call must not throw.
         }
 
@@ -1101,8 +1104,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     // existing-outer-key insertion path that the buggy
                     // code skipped past the cap check.
                     sut.EnqueueTriggeringDelta(triggered[i],
-                        addedTriggeringNames: new[] { "ghostTrigger" },
-                        removedTriggeringNames: Array.Empty<string>());
+                        addedTriggeringNames: ["ghostTrigger"],
+                        removedTriggeringNames: []);
                     Assert.That(sut.PendingTriggeringEntryCount,
                         Is.LessThanOrEqualTo(Cap),
                         $"after enqueue #{i + 1} the count must never exceed cap");
@@ -1125,8 +1128,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // (the pair is overwritten, not re-counted).
                 int beforeFold = sut.PendingTriggeringEntryCount;
                 sut.EnqueueTriggeringDelta(triggered[0],
-                    addedTriggeringNames: Array.Empty<string>(),
-                    removedTriggeringNames: new[] { "ghostTrigger" });
+                    addedTriggeringNames: [],
+                    removedTriggeringNames: ["ghostTrigger"]);
                 Assert.That(sut.PendingTriggeringEntryCount, Is.EqualTo(beforeFold),
                     "folding an existing pair must not bump the count");
             }
@@ -1150,8 +1153,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 for (int i = 0; i < Cap + 1; i++)
                 {
                     sut.EnqueueTriggeringDelta(tgt,
-                        addedTriggeringNames: new[] { "ghostTrig" + i },
-                        removedTriggeringNames: Array.Empty<string>());
+                        addedTriggeringNames: ["ghostTrig" + i],
+                        removedTriggeringNames: []);
                 }
                 Assert.That(sut.PendingTriggeringEntryCount, Is.EqualTo(Cap),
                     "exactly cap entries should be retained across distinct trigger names");
@@ -1170,7 +1173,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void EnqueueTriggeringDeltaThrowsOnNullTriggeredItem()
         {
             Assert.That(() => m_sut.EnqueueTriggeringDelta(
-                null!, Array.Empty<string>(), Array.Empty<string>()),
+                null!, [], []),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -1179,9 +1182,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
             Assert.That(() => m_sut.EnqueueTriggeringDelta(tgt, null!,
-                Array.Empty<string>()), Throws.TypeOf<ArgumentNullException>());
+                []), Throws.TypeOf<ArgumentNullException>());
             Assert.That(() => m_sut.EnqueueTriggeringDelta(tgt,
-                Array.Empty<string>(), null!),
+                [], null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -1195,11 +1198,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             tgt2.AddDesiredTriggeredByForTest("trig");
 
             m_sut.EnqueueTriggeringDelta(tgt1,
-                addedTriggeringNames: new[] { "trig" },
-                removedTriggeringNames: Array.Empty<string>());
+                addedTriggeringNames: ["trig"],
+                removedTriggeringNames: []);
             m_sut.EnqueueTriggeringDelta(tgt2,
-                addedTriggeringNames: Array.Empty<string>(),
-                removedTriggeringNames: new[] { "trig" });
+                addedTriggeringNames: [],
+                removedTriggeringNames: ["trig"]);
 
             HashSet<uint>? capturedAdd = null;
             HashSet<uint>? capturedRemove = null;
@@ -1220,15 +1223,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         ResponseHeader = new ResponseHeader(),
                         AddResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                            StatusCodes.Good, adds.Count).ToArrayOf(),
                         RemoveResults = Enumerable.Repeat(
-                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                            StatusCodes.Good, rems.Count).ToArrayOf()
                     });
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
-            Assert.That(capturedAdd, Is.EquivalentTo(new[] { tgt1.ServerId }));
-            Assert.That(capturedRemove, Is.EquivalentTo(new[] { tgt2.ServerId }));
+            Assert.That(capturedAdd, Is.EquivalentTo([tgt1.ServerId]));
+            Assert.That(capturedRemove, Is.EquivalentTo([tgt2.ServerId]));
         }
 
         // ----- DesiredTriggeredByNames runtime mutations -----
@@ -1239,7 +1242,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem item = AddCreatedItem("item", 100);
             Assert.That(item.AddDesiredTriggeredByForTest("a"), Is.True);
             Assert.That(item.AddDesiredTriggeredByForTest("a"), Is.False);
-            Assert.That(item.DesiredTriggeredByNames, Is.EqualTo(new[] { "a" }));
+            Assert.That(item.DesiredTriggeredByNames, Is.EqualTo(["a"]));
         }
 
         [Test]
@@ -1262,7 +1265,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             item.AddDesiredTriggeredByForTest("a");
             item.AddDesiredTriggeredByForTest("m");
             Assert.That(item.DesiredTriggeredByNames,
-                Is.EqualTo(new[] { "z", "a", "m" }));
+                Is.EqualTo(["z", "a", "m"]));
         }
 
         [Test]
@@ -1275,7 +1278,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(item.RemoveDesiredTriggeredByForTest("a"), Is.True);
             Assert.That(item.RemoveDesiredTriggeredByForTest("a"), Is.False);
             Assert.That(item.RemoveDesiredTriggeredByForTest("missing"), Is.False);
-            Assert.That(item.DesiredTriggeredByNames, Is.EqualTo(new[] { "b" }));
+            Assert.That(item.DesiredTriggeredByNames, Is.EqualTo(["b"]));
 
             // Removing the last element drops to empty.
             Assert.That(item.RemoveDesiredTriggeredByForTest("b"), Is.True);
@@ -1341,9 +1344,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void SetDesiredTriggeredByNamesDeduplicatesPreservesOrder()
         {
             TestMonitoredItem item = AddCreatedItem("item", 100);
-            item.SetDesiredTriggeredByNamesForTest(new[] { "x", "y", "x", "z", "y" });
+            item.SetDesiredTriggeredByNamesForTest(["x", "y", "x", "z", "y"]);
             Assert.That(item.DesiredTriggeredByNames,
-                Is.EqualTo(new[] { "x", "y", "z" }));
+                Is.EqualTo(["x", "y", "z"]));
         }
 
         [Test]
@@ -1360,7 +1363,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             TestMonitoredItem item = AddCreatedItem("item", 100);
             Assert.That(() =>
-                item.SetDesiredTriggeredByNamesForTest(new[] { "valid", "  " }),
+                item.SetDesiredTriggeredByNamesForTest(["valid", "  "]),
                 Throws.ArgumentException);
         }
 
@@ -1402,7 +1405,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             tgt2.AddDesiredTriggeredByForTest("trig");
 
             HashSet<IMonitoredItem> downstream = [.. trig.TriggeredItems];
-            Assert.That(downstream, Is.EquivalentTo(new[] { tgt1, tgt2 }));
+            Assert.That(downstream, Is.EquivalentTo([tgt1, tgt2]));
             Assert.That(downstream, Does.Not.Contain(unrelated));
             Assert.That(downstream, Does.Not.Contain(trig));
         }
@@ -1435,10 +1438,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // server id matches the actual RPC parameters.
             tgt.SetServerIdForTest(101);
             ExpectSetTriggering(trig.ServerId,
-                new uint[] { tgt.ServerId },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.Good },
-                removeResults: Array.Empty<StatusCode>());
+                [tgt.ServerId],
+                [],
+                addResults: [StatusCodes.Good],
+                removeResults: []);
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
@@ -1458,13 +1461,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(snap.TriggeredByNames.IsNull, Is.False);
             Assert.That(snap.TriggeredByNames.Count, Is.EqualTo(2));
             Assert.That(snap.TriggeredByNames.ToArray(),
-                Is.EqualTo(new[] { "trigA", "trigB" }));
+                Is.EqualTo(["trigA", "trigB"]));
         }
 
         [Test]
         public void SnapshotAsOptionsNullTriggeredByNamesProducesEmptyArray()
         {
-            MonitoredItemStateSnapshot snap = MonitoredItemStateSnapshot.AsOptions(
+            var snap = MonitoredItemStateSnapshot.AsOptions(
                 "name",
                 new MonitoredItemOptions { StartNodeId = new NodeId("x", 0) },
                 clientHandle: 1,
@@ -1477,7 +1480,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void SnapshotToOptionsRoundTripsTriggeredByNames()
         {
-            MonitoredItemStateSnapshot snap = MonitoredItemStateSnapshot.AsOptions(
+            var snap = MonitoredItemStateSnapshot.AsOptions(
                 "name",
                 new MonitoredItemOptions
                 {
@@ -1490,7 +1493,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             MonitoredItemOptions options = snap.ToOptions();
             Assert.That(options.TriggeredByNames,
-                Is.EqualTo(new[] { "a", "b" }));
+                Is.EqualTo(["a", "b"]));
         }
 
         // ----- TryAdd / Update initial-triggering enqueue -----
@@ -1516,10 +1519,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             ((TestMonitoredItem)tgt!).SetServerIdForTest(101);
 
             ExpectSetTriggering(100,
-                new uint[] { 101 },
-                Array.Empty<uint>(),
-                addResults: new[] { (StatusCode)StatusCodes.Good },
-                removeResults: Array.Empty<StatusCode>());
+                [101],
+                [],
+                addResults: [StatusCodes.Good],
+                removeResults: []);
 
             await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             m_monitoredItemServices.VerifyAll();
@@ -1546,7 +1549,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
             }
 
-            public ILogger CreateLogger(string categoryName) => this;
+            public ILogger CreateLogger(string categoryName)
+            {
+                return this;
+            }
 
             public void Dispose()
             {
@@ -1557,7 +1563,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return s_nullScope;
             }
 
-            public bool IsEnabled(LogLevel logLevel) => true;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
                 Exception? exception, Func<TState, Exception?, string> formatter)

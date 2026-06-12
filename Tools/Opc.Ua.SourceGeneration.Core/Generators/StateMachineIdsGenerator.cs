@@ -169,7 +169,7 @@ namespace Opc.Ua.SourceGeneration
                 parent.AddReplacement(
                     token,
                     StateMachineIdsTemplates.EmptySectionComment,
-                    new object[] { EmptyMarker.Instance },
+                    [EmptyMarker.Instance],
                     null,
                     static ctx => ctx.Template.Render());
                 return;

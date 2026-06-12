@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             return new TicketRecord(
                 TicketId: $"ticket-{serial}",
-                EncodedTicket: new byte[] { 0xAB },
+                EncodedTicket: [0xAB],
                 Metadata: new TicketMetadata(
                     Kind: TicketKind.DeviceIdentity,
                     ManufacturerName: "Acme",
@@ -65,9 +65,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var registry = new MemoryManagedApplicationRegistry(applicationNamespaceIndex: 2);
 
             NodeId first = await registry.RegisterAsync(
-                "urn:acme:device:1", new byte[] { 1, 2, 3 }, MakeTicket("1")).ConfigureAwait(false);
+                "urn:acme:device:1", [1, 2, 3], MakeTicket("1")).ConfigureAwait(false);
             NodeId second = await registry.RegisterAsync(
-                "urn:acme:device:1", new byte[] { 4, 5, 6 }, MakeTicket("1")).ConfigureAwait(false);
+                "urn:acme:device:1", [4, 5, 6], MakeTicket("1")).ConfigureAwait(false);
 
             Assert.That(first, Is.Not.EqualTo(NodeId.Null));
             Assert.That(second, Is.EqualTo(first),
@@ -81,9 +81,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var registry = new MemoryManagedApplicationRegistry();
 
             await registry.RegisterAsync(
-                "urn:acme:device:1", new byte[] { 1 }, MakeTicket("orig")).ConfigureAwait(false);
+                "urn:acme:device:1", [1], MakeTicket("orig")).ConfigureAwait(false);
             await registry.RegisterAsync(
-                "urn:acme:device:1", new byte[] { 2 }, MakeTicket("new")).ConfigureAwait(false);
+                "urn:acme:device:1", [2], MakeTicket("new")).ConfigureAwait(false);
 
             var seen = new List<ManagedApplication>();
             await foreach (ManagedApplication app in registry.ListAsync().ConfigureAwait(false))
@@ -102,7 +102,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var registry = new MemoryManagedApplicationRegistry();
 
             NodeId nodeId = await registry.RegisterAsync(
-                "urn:acme:device:1", new byte[] { 1 }, MakeTicket()).ConfigureAwait(false);
+                "urn:acme:device:1", [1], MakeTicket()).ConfigureAwait(false);
 
             Assert.That(await registry.UnregisterAsync(nodeId).ConfigureAwait(false), Is.True);
             Assert.That(await registry.UnregisterAsync(nodeId).ConfigureAwait(false), Is.False);
@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var registry = new MemoryManagedApplicationRegistry();
             NodeId registered = await registry.RegisterAsync(
-                "urn:acme:device:1", new byte[] { 1 }, MakeTicket()).ConfigureAwait(false);
+                "urn:acme:device:1", [1], MakeTicket()).ConfigureAwait(false);
 
             NodeId? found = await registry.FindAsync("urn:acme:device:1").ConfigureAwait(false);
             Assert.That(found, Is.Not.Null);
@@ -135,13 +135,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var registry = new MemoryManagedApplicationRegistry();
             Assert.ThrowsAsync<ArgumentException>(
                 async () => await registry.RegisterAsync(string.Empty,
-                    Array.Empty<byte>(), MakeTicket()).ConfigureAwait(false));
+                    [], MakeTicket()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",
                     null!, MakeTicket()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",
-                    Array.Empty<byte>(), null!).ConfigureAwait(false));
+                    [], null!).ConfigureAwait(false));
         }
     }
 }

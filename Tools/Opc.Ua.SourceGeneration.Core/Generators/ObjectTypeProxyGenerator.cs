@@ -500,7 +500,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return s;
             }
-            return char.ToLowerInvariant(s[0]) + s.Substring(1);
+            return char.ToLowerInvariant(s[0]) + s[1..];
         }
 
         /// <summary>

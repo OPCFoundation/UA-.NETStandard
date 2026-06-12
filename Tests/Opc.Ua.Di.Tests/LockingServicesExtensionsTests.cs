@@ -30,7 +30,6 @@
 using System;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Locking;
 
 namespace Opc.Ua.Di.Tests
@@ -104,7 +103,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesInitLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.InitLock(ctx, s_elementId, "tag")).Returns(42);
 
@@ -127,7 +126,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesRenewLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.RenewLock(ctx, s_elementId)).Returns(7);
 
@@ -150,7 +149,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesExitLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.ExitLock(ctx, s_elementId)).Returns(13);
 
@@ -173,7 +172,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesBreakLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.BreakLock(ctx, s_elementId)).Returns(99);
 
@@ -199,7 +198,7 @@ namespace Opc.Ua.Di.Tests
             // Mixed scenario: only InitLock + ExitLock are attached.
             // The other two must remain null after binding (i.e. no
             // method-state is fabricated by BindToLockService).
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>();
             service.Setup(s => s.InitLock(It.IsAny<ISystemContext>(),
                 It.IsAny<NodeId>(), It.IsAny<string>())).Returns(1);
