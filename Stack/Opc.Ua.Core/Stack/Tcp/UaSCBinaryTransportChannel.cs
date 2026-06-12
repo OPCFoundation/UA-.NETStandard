@@ -459,12 +459,12 @@ namespace Opc.Ua.Bindings
                 throw BadNotConnected();
             }
 
-            IMessageSocket? socket = null;
+            IUaSCByteTransport? transport = null;
             if (connection != null)
             {
-                socket = connection.Handle as IMessageSocket
+                transport = connection.Handle as IUaSCByteTransport
                     ?? throw ServiceResultException.Unexpected(
-                        "Waiting Connection Handle is not of type IMessageSocket.");
+                        "Waiting Connection Handle is not of type IUaSCByteTransport.");
             }
 
             string id = Guid.NewGuid().ToString();
@@ -482,11 +482,11 @@ namespace Opc.Ua.Bindings
                 telemetry,
                 m_timeProvider);
 
-            // use socket for reverse connections, ignore otherwise
-            if (socket != null)
+            // use transport for reverse connections, ignore otherwise
+            if (transport != null)
             {
-                channel.Socket = socket;
-                channel.Socket.ChangeSink(channel);
+                channel.Transport = transport;
+                channel.StartReceiveLoop();
                 channel.ReverseSocket = true;
             }
 

@@ -51,9 +51,11 @@ namespace Opc.Ua.Bindings
     /// <para>
     /// Implementations exist for raw TCP sockets and for secure WebSocket
     /// connections; both feed the same channel implementation. The interface
-    /// is internal so that it can evolve freely across minor releases; the
-    /// public extensibility points remain <see cref="ITransportChannel"/> and
-    /// <see cref="ITransportListener"/>.
+    /// is exposed publicly for use by custom transport listener / channel
+    /// implementations (see <see cref="ITcpChannelListener.ReconnectToExistingChannel"/>),
+    /// but is otherwise considered an advanced extension point: typical
+    /// consumers use <see cref="ITransportChannel"/> and
+    /// <see cref="ITransportListener"/> instead.
     /// </para>
     /// <para>
     /// Lifetime: <see cref="Close"/> fully releases the underlying connection
@@ -61,7 +63,7 @@ namespace Opc.Ua.Bindings
     /// to call from a synchronous <c>Dispose</c> on the owning channel.
     /// </para>
     /// </remarks>
-    internal interface IUaSCByteTransport
+    public interface IUaSCByteTransport
     {
         /// <summary>
         /// The local endpoint of the underlying connection, when known.
@@ -154,7 +156,7 @@ namespace Opc.Ua.Bindings
     /// connections (sockets, WebSockets) and therefore do not use this
     /// factory.
     /// </remarks>
-    internal interface IUaSCByteTransportFactory
+    public interface IUaSCByteTransportFactory
     {
         /// <summary>
         /// A short, stable identifier describing the implementation

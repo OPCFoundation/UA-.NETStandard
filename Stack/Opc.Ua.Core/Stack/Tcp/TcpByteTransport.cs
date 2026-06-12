@@ -40,15 +40,21 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Factory for the TCP-backed <see cref="IUaSCByteTransport"/>.
     /// </summary>
-    internal sealed class TcpByteTransportFactory : IUaSCByteTransportFactory
+    public sealed class TcpByteTransportFactory : IUaSCByteTransportFactory
     {
+        /// <summary>
+        /// Creates a factory that uses the supplied telemetry context as the
+        /// default for transports created without an explicit context.
+        /// </summary>
         public TcpByteTransportFactory(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry;
         }
 
+        /// <inheritdoc/>
         public string Implementation => "UA-TCP";
 
+        /// <inheritdoc/>
         public IUaSCByteTransport Create(
             BufferManager bufferManager,
             int receiveBufferSize,
@@ -73,7 +79,7 @@ namespace Opc.Ua.Bindings
     /// <see cref="ReceiveChunkAsync"/>; the channel is responsible for
     /// returning them.
     /// </remarks>
-    internal sealed class TcpByteTransport : IUaSCByteTransport, IDisposable
+    public sealed class TcpByteTransport : IUaSCByteTransport, IDisposable
     {
         /// <summary>
         /// Creates an unconnected client transport.

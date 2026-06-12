@@ -138,7 +138,7 @@ namespace Opc.Ua.Bindings
             {
             }
 
-            public IMessageSocket? Socket;
+            public IUaSCByteTransport? Transport;
         }
 
         /// <summary>
@@ -157,17 +157,33 @@ namespace Opc.Ua.Bindings
 
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger);
 
-            var tcpMessageSocketFactory = new TcpMessageSocketFactory(Telemetry);
-            ar.Socket = Socket = tcpMessageSocketFactory.Create(
-                this,
-                BufferManager,
-                ReceiveBufferSize);
+            var transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
+            ar.Transport = transport;
+            Transport = transport;
 
-            var connectComplete = new EventHandler<IMessageSocketAsyncEventArgs>(
-                OnReverseConnectComplete);
-            Socket.BeginConnect(endpointUrl, connectComplete, ar);
+            _ = ReverseConnectAsync(transport, endpointUrl, ar);
 
             return ar;
+        }
+
+        private async Task ReverseConnectAsync(
+            TcpByteTransport transport,
+            Uri endpointUrl,
+            ReverseConnectAsyncResult ar)
+        {
+            try
+            {
+                await transport.ConnectAsync(endpointUrl, CancellationToken.None).ConfigureAwait(false);
+                OnReverseConnectComplete(ar);
+            }
+            catch (Exception ex)
+            {
+                ar.Exception = new ServiceResultException(
+                    StatusCodes.BadNotConnected,
+                    ex.Message,
+                    ex);
+                ar.OperationCompleted();
+            }
         }
 
         /// <summary>
@@ -193,21 +209,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Reverse client is connected, send reverse hello message.
         /// </summary>
-        private void OnReverseConnectComplete(object? sender, IMessageSocketAsyncEventArgs result)
+        private void OnReverseConnectComplete(ReverseConnectAsyncResult ar)
         {
-            var ar = (ReverseConnectAsyncResult?)result.UserToken;
-
             if (ar == null || m_pendingReverseHello != null)
             {
-                return;
-            }
-
-            if (result.IsSocketError)
-            {
-                ar.Exception = new ServiceResultException(
-                    StatusCodes.BadNotConnected,
-                    result.SocketErrorString);
-                ar.OperationCompleted();
                 return;
             }
 
@@ -218,7 +223,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 // start reading messages.
-                ar.Socket!.ReadNextMessage();
+                StartReceiveLoop();
 
                 // send reverse hello message.
                 using var encoder = new BinaryEncoder(
@@ -257,19 +262,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a reconnect request.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="transport"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public override void Reconnect(
-            IMessageSocket socket,
+            IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            if (socket == null)
+            if (transport == null)
             {
-                throw new ArgumentNullException(nameof(socket));
+                throw new ArgumentNullException(nameof(transport));
             }
 
             lock (DataLock)
@@ -286,14 +291,14 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     m_logger.LogInformation(
-                        "{Channel} SOCKET RECONNECTED: {SocketHandle:X8}, ChannelId={ChannelId}",
+                        "{Channel} TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}",
                         ChannelName,
-                        socket.Handle,
+                        transport.RemoteEndpoint,
                         ChannelId);
 
-                    // replace the socket.
-                    Socket = socket;
-                    Socket.ChangeSink(this);
+                    // replace the transport and (re)start the receive loop on it.
+                    Transport = transport;
+                    StartReceiveLoop();
 
                     // need to assign a new token id.
                     token.TokenId = GetNewTokenId();
@@ -759,7 +764,7 @@ namespace Opc.Ua.Bindings
                     {
                         // tell the listener to find the channel that can process the request.
                         Listener.ReconnectToExistingChannel(
-                            Socket!,
+                            Transport!,
                             requestId,
                             sequenceNumber,
                             channelId,
@@ -770,9 +775,9 @@ namespace Opc.Ua.Bindings
                         token = null;
 
                         m_logger.LogInformation(
-                            "{Channel} ReconnectToExistingChannel Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}",
+                            "{Channel} ReconnectToExistingChannel Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}",
                             ChannelName,
-                            (Socket?.Handle) ?? 0,
+                            Transport?.RemoteEndpoint,
                             CurrentToken != null ? CurrentToken.ChannelId : 0,
                             CurrentToken != null ? CurrentToken.TokenId : 0);
 

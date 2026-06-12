@@ -432,11 +432,11 @@ namespace Opc.Ua.Bindings
         public Uri EndpointUrl { get; private set; } = default!;
 
         /// <summary>
-        /// Binds a new socket to an existing channel.
+        /// Binds a new transport to an existing channel.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public bool ReconnectToExistingChannel(
-            IMessageSocket socket,
+            IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             uint channelId,
@@ -456,7 +456,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            channel!.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
+            channel!.Reconnect(transport, requestId, sequenceNumber, clientCertificate, token, request);
 
             m_logger.LogInformation("ChannelId {Id}: reconnected", channelId);
             return true;
@@ -780,12 +780,28 @@ namespace Opc.Ua.Bindings
                 // notify the application.
                 if (ConnectionWaiting != null)
                 {
-                    var args = new TcpConnectionWaitingEventArgs(
-                        serverUri,
-                        endpointUrl,
-                        channel!.Socket!);
-                    await ConnectionWaiting(this, args).ConfigureAwait(false);
-                    accepted = args.Accepted;
+                    // Detach the transport (and stop the channel's receive loop)
+                    // before handing it off: otherwise this server-side channel
+                    // would race the new client-side channel for chunks on the
+                    // same socket.
+                    IUaSCByteTransport? transport = await channel!.DetachTransportAsync()
+                        .ConfigureAwait(false);
+                    if (transport != null)
+                    {
+                        var args = new TcpConnectionWaitingEventArgs(
+                            serverUri,
+                            endpointUrl,
+                            transport);
+                        await ConnectionWaiting(this, args).ConfigureAwait(false);
+                        accepted = args.Accepted;
+                        if (!accepted)
+                        {
+                            // Caller rejected the handoff: re-attach the transport so
+                            // the existing channel keeps working on retry.
+                            channel!.Transport = transport;
+                            channel!.StartReceiveLoop();
+                        }
+                    }
                 }
 
                 if (!accepted)
@@ -1328,16 +1344,18 @@ namespace Opc.Ua.Bindings
         internal TcpConnectionWaitingEventArgs(
             string serverUrl,
             Uri endpointUrl,
-            IMessageSocket socket)
+            IUaSCByteTransport transport)
             : base(serverUrl, endpointUrl)
         {
-            Socket = socket;
+            Transport = transport;
         }
 
         /// <inheritdoc/>
-        public override object Handle => Socket;
+        public override object Handle => Transport;
 
-        /// <inheritdoc/>
-        internal IMessageSocket Socket { get; }
+        /// <summary>
+        /// The byte-level transport carrying the inbound reverse-connection.
+        /// </summary>
+        internal IUaSCByteTransport Transport { get; }
     }
 }

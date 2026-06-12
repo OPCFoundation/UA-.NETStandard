@@ -636,7 +636,7 @@ namespace Opc.Ua.Bindings
         /// calls are no-ops while a loop is already running on the current
         /// transport.
         /// </summary>
-        internal void StartReceiveLoop()
+        protected internal void StartReceiveLoop()
         {
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
@@ -650,7 +650,44 @@ namespace Opc.Ua.Bindings
             m_receiveLoopCts?.Dispose();
             m_receiveLoopCts = new CancellationTokenSource();
             CancellationToken ct = m_receiveLoopCts.Token;
-            _ = Task.Run(() => RunReceiveLoopAsync(transport, ct), ct);
+            m_receiveLoopTask = Task.Run(() => RunReceiveLoopAsync(transport, ct), ct);
+        }
+
+        /// <summary>
+        /// Stops the channel's receive loop (if running), detaches the current
+        /// <see cref="Transport"/> from the channel, and returns it. The
+        /// returned transport is the caller's responsibility — the channel's
+        /// own <see cref="Dispose(bool)"/> will no longer close it.
+        /// </summary>
+        /// <remarks>
+        /// Used by the reverse-connect handoff in
+        /// <c>TcpTransportListener.TransferListenerChannelAsync</c> so that
+        /// the listener-side channel releases the socket cleanly before the
+        /// client side starts its own receive loop on the same transport.
+        /// </remarks>
+        internal async ValueTask<IUaSCByteTransport?> DetachTransportAsync()
+        {
+            IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+
+            CancellationTokenSource? cts = m_receiveLoopCts;
+            cts?.Cancel();
+
+            Task? loop = m_receiveLoopTask;
+            if (loop != null)
+            {
+                try
+                {
+                    await loop.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The loop's exit path catches its own exceptions; any escapes
+                    // here are last-resort and must not block the handoff.
+                }
+                m_receiveLoopTask = null;
+            }
+
+            return transport;
         }
 
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
@@ -951,7 +988,7 @@ namespace Opc.Ua.Bindings
         /// client channels after <c>ConnectAsync</c>, or by reverse-connect
         /// flows after the inbound TCP handshake completes.
         /// </summary>
-        internal IUaSCByteTransport? Transport
+        protected internal IUaSCByteTransport? Transport
         {
             get => m_transport;
             set => m_transport = value;
@@ -1179,6 +1216,7 @@ namespace Opc.Ua.Bindings
 
         private IUaSCByteTransport? m_transport;
         private CancellationTokenSource? m_receiveLoopCts;
+        private Task? m_receiveLoopTask;
         private int m_receiveLoopRunning;
 
         private TcpChannelStateEventHandler? m_stateChanged;

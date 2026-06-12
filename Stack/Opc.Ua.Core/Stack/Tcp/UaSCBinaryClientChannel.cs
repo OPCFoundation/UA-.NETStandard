@@ -186,6 +186,7 @@ namespace Opc.Ua.Bindings
 
             WriteOperation operation;
             IMessageSocket? socket;
+            IUaSCByteTransport? transport;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
@@ -230,13 +231,14 @@ namespace Opc.Ua.Bindings
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
                 }
                 socket = Socket;
+                transport = Transport;
             }
             try
             {
-                if (socket == null)
+                if (transport == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadNotConnected,
-                        "Could not create or get connected socket.");
+                        "Could not create or get connected transport.");
                 }
                 else if (ReverseSocket)
                 {
@@ -245,12 +247,12 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    await socket.ConnectAsync(url, ct).ConfigureAwait(false);
+                    await transport.ConnectAsync(url, ct).ConfigureAwait(false);
 
                     m_logger.LogInformation(
-                        "CLIENTCHANNEL SOCKET CONNECTED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                        "CLIENTCHANNEL CONNECTED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}",
                         url,
-                        Socket?.Handle,
+                        transport.RemoteEndpoint,
                         ChannelId);
 
                     CompleteConnect(operation);
@@ -262,9 +264,9 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.LogError(e,
-                    "CLIENTCHANNEL SOCKET CONNECT FAILED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                    "CLIENTCHANNEL CONNECT FAILED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}",
                     url,
-                    Socket?.Handle,
+                    transport?.RemoteEndpoint,
                     ChannelId);
 
                 operation.Fault(StatusCodes.BadNotConnected);

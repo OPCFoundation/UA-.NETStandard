@@ -171,24 +171,24 @@ namespace Opc.Ua.Bindings
 
             lock (DataLock)
             {
-                // check for existing socket.
-                if (Socket != null)
+                // check for existing transport.
+                if (Transport != null)
                 {
-                    throw new InvalidOperationException("Channel is already attached to a socket.");
+                    throw new InvalidOperationException("Channel is already attached to a transport.");
                 }
 
                 ChannelId = channelId;
                 State = TcpChannelState.Connecting;
 
-                Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+                Transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
 
                 m_logger.LogDebug(
-                    "{Channel} SOCKET ATTACHED: {SocketHandle:X8}, ChannelId={ChannelId}",
+                    "{Channel} TRANSPORT ATTACHED: {RemoteEndpoint}, ChannelId={ChannelId}",
                     ChannelName,
-                    Socket.Handle,
+                    Transport.RemoteEndpoint,
                     ChannelId);
 
-                Socket.ReadNextMessage();
+                StartReceiveLoop();
             }
         }
 
@@ -656,7 +656,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
         public virtual void Reconnect(
-            IMessageSocket socket,
+            IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             Certificate clientCertificate,

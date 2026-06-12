@@ -44,10 +44,10 @@ namespace Opc.Ua.Bindings
         Uri EndpointUrl { get; }
 
         /// <summary>
-        /// Binds a new socket to an existing channel.
+        /// Binds a new transport to an existing channel.
         /// </summary>
         bool ReconnectToExistingChannel(
-            IMessageSocket socket,
+            IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             uint channelId,
