@@ -185,7 +185,6 @@ namespace Opc.Ua.Bindings
             }
 
             WriteOperation operation;
-            IMessageSocket? socket;
             IUaSCByteTransport? transport;
             lock (DataLock)
             {
@@ -233,7 +232,6 @@ namespace Opc.Ua.Bindings
                         Quotas.MaxBufferSize,
                         m_telemetry);
                 }
-                socket = Socket;
                 transport = Transport;
             }
             try

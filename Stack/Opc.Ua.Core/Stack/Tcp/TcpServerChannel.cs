@@ -1122,11 +1122,11 @@ namespace Opc.Ua.Bindings
                 chunksToProcess?.Release(BufferManager, "ProcessCloseSecureChannelRequest");
 
                 m_logger.LogInformation(
-                    "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, TokenId={TokenId}, Socket={SocketHandle:X8}",
+                    "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, TokenId={TokenId}, Transport={RemoteEndpoint}",
                     ChannelName,
                     CurrentToken?.ChannelId,
                     CurrentToken?.TokenId,
-                    Socket?.Handle);
+                    Transport?.RemoteEndpoint);
 
                 // close the channel.
                 ChannelClosed();

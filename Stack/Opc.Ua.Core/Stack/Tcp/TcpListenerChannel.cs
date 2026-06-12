@@ -323,7 +323,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadCertificateInvalid,
                     "Server certificate rotated. Renegotiate the SecureChannel.");
 
-                if (Socket != null)
+                if (Transport != null)
                 {
                     try
                     {
@@ -410,13 +410,13 @@ namespace Opc.Ua.Bindings
                 bool close = false;
                 if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
                 {
-                    int? socketHandle = Socket?.Handle;
-                    if (socketHandle is not null and not -1)
+                    EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
+                    if (remoteEndpoint != null)
                     {
                         m_logger.LogError(
-                            "{Channel} ForceChannelFault Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
+                            "{Channel} ForceChannelFault Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
                             ChannelName,
-                            socketHandle,
+                            remoteEndpoint,
                             CurrentToken != null ? CurrentToken.ChannelId : 0,
                             CurrentToken != null ? CurrentToken.TokenId : 0,
                             reason);
@@ -429,7 +429,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // send error and close response.
-                if (Socket != null && m_responseRequired)
+                if (Transport != null && m_responseRequired)
                 {
                     SendErrorMessage(reason);
                 }
@@ -446,8 +446,10 @@ namespace Opc.Ua.Bindings
                             reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
                         var tcpTransportListener = Listener as TcpTransportListener;
-                        tcpTransportListener?.MarkAsPotentialProblematic(
-                            ((IPEndPoint)Socket!.RemoteEndpoint!).Address);
+                        if (Transport?.RemoteEndpoint is IPEndPoint ipEndpoint)
+                        {
+                            tcpTransportListener?.MarkAsPotentialProblematic(ipEndpoint.Address);
+                        }
                     }
 
                     // close channel immediately.
@@ -479,9 +481,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_logger.LogInformation(
-                    "{Channel} Cleanup Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
+                    "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
                     ChannelName,
-                    (Socket?.Handle) ?? 0,
+                    Transport?.RemoteEndpoint,
                     CurrentToken != null ? CurrentToken.ChannelId : 0,
                     CurrentToken != null ? CurrentToken.TokenId : 0,
                     reason.ToString());
@@ -499,7 +501,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Socket?.Close();
+                Transport?.Close();
             }
             finally
             {
@@ -519,7 +521,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Socket?.Close();
+                Transport?.Close();
             }
             finally
             {

@@ -40,7 +40,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
-    public partial class UaSCUaBinaryChannel : IMessageSink, IDisposable
+    public partial class UaSCUaBinaryChannel : IDisposable
     {
         /// <summary>
         /// Attaches the object to an existing socket.
@@ -536,14 +536,6 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public virtual bool ChannelFull => m_activeWriteRequests > 100;
 
-        /// <inheritdoc/>
-        void IMessageSink.OnMessageReceived(IMessageSocket source, ArraySegment<byte> message)
-            => OnChunkReceived(message);
-
-        /// <inheritdoc/>
-        void IMessageSink.OnReceiveError(IMessageSocket source, ServiceResult result)
-            => OnTransportError(result);
-
         /// <summary>
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
         /// transport's receive loop into the channel pipeline.
@@ -992,39 +984,6 @@ namespace Opc.Ua.Bindings
         {
             get => m_transport;
             set => m_transport = value;
-        }
-
-        /// <summary>
-        /// Backwards-compatibility accessor for the legacy
-        /// <see cref="IMessageSocket"/> shape. Setting this property wraps the
-        /// supplied socket in an internal adapter and stores it as
-        /// <see cref="Transport"/>; getting it unwraps the adapter when
-        /// possible and returns <c>null</c> for transports that are not
-        /// backed by an <see cref="IMessageSocket"/> (e.g. WebSocket).
-        /// </summary>
-        /// <remarks>
-        /// This shim is part of the staged migration off
-        /// <see cref="IMessageSocket"/> (see <c>plan.md</c> tasks
-        /// <c>p1-tcp-transport-listener-rewire</c>,
-        /// <c>p1-tcp-transport-channel-rewire</c>, and finally
-        /// <c>p1-remove-imessagesocket</c>). It will be removed once all
-        /// listener and client code paths construct
-        /// <see cref="IUaSCByteTransport"/> implementations directly.
-        /// </remarks>
-        protected internal IMessageSocket? Socket
-        {
-            get => (m_transport as MessageSocketByteTransport)?.InnerSocket;
-            set
-            {
-                if (value == null)
-                {
-                    m_transport = null;
-                }
-                else
-                {
-                    m_transport = new MessageSocketByteTransport(value);
-                }
-            }
         }
 
         /// <summary>

@@ -40,8 +40,7 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel,
-        IMessageSocketChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -110,13 +109,11 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Returns the channel's underlying message socket if connected and
-        /// the transport is socket-backed (legacy compat). Returns <c>null</c>
-        /// when the underlying byte transport is not an
-        /// <see cref="IMessageSocket"/> wrapper (e.g. WebSocket transports
-        /// added in this release).
+        /// Returns the channel's underlying byte transport (TCP, WebSocket,
+        /// etc.) if connected, or <c>null</c> otherwise. Useful for advanced
+        /// scenarios — typical consumers should use <see cref="ITransportChannel"/>.
         /// </summary>
-        public IMessageSocket? Socket => m_channel?.Socket;
+        public IUaSCByteTransport? Transport => m_channel?.Transport;
 
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated

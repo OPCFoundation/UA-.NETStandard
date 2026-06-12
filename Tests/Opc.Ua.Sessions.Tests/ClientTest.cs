@@ -565,7 +565,7 @@ namespace Opc.Ua.Sessions.Tests
             // Channel handling checked for TcpTransportChannel only
             if (channel is TcpTransportChannel tcp)
             {
-                Assert.That(tcp.Socket, Is.Null);
+                Assert.That(tcp.Transport, Is.Null);
             }
         }
 

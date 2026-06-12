@@ -27,54 +27,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Net;
-using Moq;
-using NUnit.Framework;
-using Opc.Ua.Bindings;
-
-namespace Opc.Ua.Core.Tests.Stack.Transport
+namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Tests for the BuiltIn Types.
+    /// Creates a transport channel with UA-TCP transport, UA-SC security
+    /// and UA Binary encoding.
     /// </summary>
-    [TestFixture]
-    [Category("MessageSocketTests")]
-    [SetCulture("en-us")]
-    [SetUICulture("en-us")]
-    [Parallelizable]
-    public class MessageSocketTests
+    public class TcpTransportChannel : UaSCUaBinaryTransportChannel
     {
-        [OneTimeSetUp]
-        protected void OneTimeSetUp()
+        /// <summary>
+        /// Create a Tcp transport channel.
+        /// </summary>
+        public TcpTransportChannel(ITelemetryContext telemetry)
+            : base(new TcpByteTransportFactory(telemetry), telemetry)
         {
         }
+    }
 
-        [OneTimeTearDown]
-        protected void OneTimeTearDown()
+    /// <summary>
+    /// Creates a new <see cref="TcpTransportChannel"/> with <see cref="ITransportChannel"/> interface.
+    /// </summary>
+    public class TcpTransportChannelFactory : ITransportChannelFactory
+    {
+        /// <summary>
+        /// The protocol supported by the channel.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeOpcTcp;
+
+        /// <summary>
+        /// Creates a new instance of a TCP transport channel.
+        /// </summary>
+        /// <returns>The transport channel.</returns>
+        public ITransportChannel Create(ITelemetryContext telemetry)
         {
-        }
-
-        [SetUp]
-        protected void SetUp()
-        {
-        }
-
-        [TearDown]
-        protected void TearDown()
-        {
-        }
-
-        [Test]
-        public void IMessageSocketIPEndpointReturned()
-        {
-            var messageSocketMock = new Mock<IMessageSocket>();
-            var endPoint = new IPEndPoint(IPAddress.Parse("192.168.0.1"), 55062);
-            messageSocketMock.Setup(x => x.LocalEndpoint).Returns(endPoint);
-
-            IMessageSocket messageSocket = messageSocketMock.Object;
-            EndPoint gotEndpoint = messageSocket.LocalEndpoint;
-
-            Assert.That(gotEndpoint, Is.EqualTo(endPoint));
+            return new TcpTransportChannel(telemetry);
         }
     }
 }
