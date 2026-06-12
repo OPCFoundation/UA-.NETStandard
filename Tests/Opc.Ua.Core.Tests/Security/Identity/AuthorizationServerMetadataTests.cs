@@ -86,7 +86,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseExtractsCanonicalFields()
         {
-            const string payload = """
+            const string payload = /*lang=json,strict*/ """
                 {
                     "authorityUri": "https://login.microsoftonline.com/contoso.onmicrosoft.com",
                     "ua:resourceUri": "urn:opcfoundation:test:server",
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseAcceptsResourceUriWithoutUaPrefix()
         {
-            const string payload = """{"resourceUri":"urn:opcfoundation:test"}""";
+            const string payload = /*lang=json,strict*/ """{"resourceUri":"urn:opcfoundation:test"}""";
 
             var metadata = AuthorizationServerMetadata.Parse(payload);
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseAcceptsOidcStyleFieldNames()
         {
-            const string payload = """
+            const string payload = /*lang=json,strict*/ """
                 {
                     "issuer": "https://idp.example.com",
                     "token_endpoint": "https://idp.example.com/token",
@@ -144,7 +144,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             // Servers that emit a single value as a bare string (not an array)
             // are still tolerated.
-            const string payload = """{"requestTypes":"client_credentials"}""";
+            const string payload = /*lang=json,strict*/ """{"requestTypes":"client_credentials"}""";
 
             var metadata = AuthorizationServerMetadata.Parse(payload);
 
@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseCapturesUnknownFieldsIntoAdditionalFields()
         {
-            const string payload = """
+            const string payload = /*lang=json,strict*/ """
                 {
                     "authorityUri": "https://idp.example.com",
                     "tenant_id": "0001-aaaa",
@@ -212,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             {
                 PolicyId = "Jwt_Aad",
                 IssuedTokenType = Profiles.JwtUserToken,
-                IssuerEndpointUrl = """{"authorityUri":"https://idp.example.com"}"""
+                IssuerEndpointUrl = /*lang=json,strict*/ """{"authorityUri":"https://idp.example.com"}"""
             };
 
             bool result = AuthorizationServerMetadata.TryFromPolicy(

@@ -52,11 +52,15 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public INodeManagerBuilder Builder => m_parent;
 
-        // Explicit INodeStateBuilder bridging: the Core marker uses
-        // INodeStateBuilder return types; the server-side INodeBuilder
-        // narrows those to INodeBuilder. Forward the marker methods to
-        // the typed implementations so the same builder satisfies both
-        // shapes without forcing every caller through a cast.
+        /// <summary>
+        /// Explicit INodeStateBuilder bridging: the Core marker uses
+        /// INodeStateBuilder return types; the server-side INodeBuilder
+        /// narrows those to INodeBuilder. Forward the marker methods to
+        /// the typed implementations so the same builder satisfies both
+        /// shapes without forcing every caller through a cast.
+        /// </summary>
+        /// <param name="browseName"></param>
+        /// <returns></returns>
         INodeStateBuilder INodeStateBuilder.Child(QualifiedName browseName)
         {
             return Child(browseName);
@@ -306,9 +310,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             // Try exact-namespace match first.
-            BaseInstanceState? child =
-                Node.FindChild(m_parent.Context, browseName) as BaseInstanceState;
-            if (child != null)
+            if (Node.FindChild(m_parent.Context, browseName) is BaseInstanceState child)
             {
                 return child;
             }
@@ -330,7 +332,7 @@ namespace Opc.Ua.Server.Fluent
                 BaseInstanceState sibling = siblings[i];
                 if (sibling.BrowseName.IsNull || !string.Equals(
                         sibling.BrowseName.Name, browseName.Name,
-                        System.StringComparison.Ordinal))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }

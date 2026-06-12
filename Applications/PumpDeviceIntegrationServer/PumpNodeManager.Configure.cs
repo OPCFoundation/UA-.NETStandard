@@ -49,24 +49,32 @@ namespace Pumps
     /// </remarks>
     public partial class PumpNodeManager
     {
-        // ── Simulation state ────────────────────────────────────────
+        /// <summary>
+        /// ── Simulation state ────────────────────────────────────────
+        /// </summary>
         private long m_simulationTicks;
         private long m_numberOfStarts;
 
-        // Reference to the hand-rolled Pump #1 instance so the
-        // simulation tick can mutate its DI properties in response to
-        // supervision flags. Set by CreatePumpInstanceAsync.
+        /// <summary>
+        /// Reference to the hand-rolled Pump #1 instance so the
+        /// simulation tick can mutate its DI properties in response to
+        /// supervision flags. Set by CreatePumpInstanceAsync.
+        /// </summary>
         private Opc.Ua.Pumps.PumpState? m_pump1;
 
-        // Optional DI DeviceHealth variable supplied by a declarative
-        // DeviceState device (e.g. Pump #2). Set via
-        // RegisterSupervisedDeviceHealth and toggled by AdvanceSimulation
-        // to reflect cavitation / motor-overheat states using the NAMUR
-        // NE 107 enumeration.
+        /// <summary>
+        /// Optional DI DeviceHealth variable supplied by a declarative
+        /// DeviceState device (e.g. Pump #2). Set via
+        /// RegisterSupervisedDeviceHealth and toggled by AdvanceSimulation
+        /// to reflect cavitation / motor-overheat states using the NAMUR
+        /// NE 107 enumeration.
+        /// </summary>
         private BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>?
             m_supervisedDeviceHealth;
 
-        // ── Latest simulated values, updated by the simulation tick. ──
+        /// <summary>
+        /// ── Latest simulated values, updated by the simulation tick. ──
+        /// </summary>
         private double m_currentPressure;
         private double m_currentTemperature = 313.15;
         private double m_currentBearingTemp = 333.15;
@@ -93,13 +101,16 @@ namespace Pumps
                 .OnTick((ctx, elapsed) => AdvanceSimulation());
         }
 
-        // ── Identification properties via WithProperty ──────────────
-        // PumpType.Identification is a mandatory child of PumpType so
-        // it is materialised by the source-generated factory used in
-        // CreatePumpInstanceAsync. BrowsePathResolver's cross-namespace
-        // name-only fallback (FB-3 phase 1) resolves the unqualified
-        // 'Identification' segment to the DI-namespace child without
-        // requiring an explicit ns= prefix in the path.
+        /// <summary>
+        /// ── Identification properties via WithProperty ──────────────
+        /// PumpType.Identification is a mandatory child of PumpType so
+        /// it is materialised by the source-generated factory used in
+        /// CreatePumpInstanceAsync. BrowsePathResolver's cross-namespace
+        /// name-only fallback (FB-3 phase 1) resolves the unqualified
+        /// 'Identification' segment to the DI-namespace child without
+        /// requiring an explicit ns= prefix in the path.
+        /// </summary>
+        /// <param name="builder"></param>
         private void WithIdentification(INodeManagerBuilder builder)
         {
             builder.Node("Pump #1/Identification")
@@ -109,14 +120,17 @@ namespace Pumps
                     "urn:simdevice:SimPump:PumpX-2000:SN-001");
         }
 
-        // ── Measurements with engineering units ─────────────────────
-        // All seven analog measurements live under
-        // PumpType.Operational.Measurements and are materialised by
-        // CreatePumpInstanceAsync via the generator-emitted AddXxx
-        // helpers. The cross-namespace name-only resolver fallback
-        // means the unqualified browse path resolves through the
-        // Pumps -> Machinery (Operational) -> Pumps (Measurements +
-        // analog states) namespace transitions transparently.
+        /// <summary>
+        /// ── Measurements with engineering units ─────────────────────
+        /// All seven analog measurements live under
+        /// PumpType.Operational.Measurements and are materialised by
+        /// CreatePumpInstanceAsync via the generator-emitted AddXxx
+        /// helpers. The cross-namespace name-only resolver fallback
+        /// means the unqualified browse path resolves through the
+        /// Pumps -> Machinery (Operational) -> Pumps (Measurements +
+        /// analog states) namespace transitions transparently.
+        /// </summary>
+        /// <param name="builder"></param>
         private void WithMeasurements(INodeManagerBuilder builder)
         {
             AddMeasurement(builder,
@@ -176,16 +190,19 @@ namespace Pumps
                 new("m", "Metre", "http://www.opcfoundation.org/UA/units/un/cefact");
         }
 
-        // ── Supervision flags wired to NAMUR alarms ─────────────────
-        // Demonstrates the FB-3 phase 3 typed accessor API: starting
-        // from a typed INodeBuilder<PumpState> root, the generator-
-        // emitted PumpStateComponents.Events extension walks to
-        // SupervisionState (the type of PumpType.Events), and from
-        // there the typed SupervisionStateComponents accessor walks
-        // to SupervisionProcessFluid and SupervisionPumpOperation —
-        // each step is compile-time checked against the model and
-        // namespace-aware without forcing the author to spell out
-        // browse-paths or QualifiedNames.
+        /// <summary>
+        /// ── Supervision flags wired to NAMUR alarms ─────────────────
+        /// Demonstrates the FB-3 phase 3 typed accessor API: starting
+        /// from a typed INodeBuilder<PumpState> root, the generator-
+        /// emitted PumpStateComponents.Events extension walks to
+        /// SupervisionState (the type of PumpType.Events), and from
+        /// there the typed SupervisionStateComponents accessor walks
+        /// to SupervisionProcessFluid and SupervisionPumpOperation —
+        /// each step is compile-time checked against the model and
+        /// namespace-aware without forcing the author to spell out
+        /// browse-paths or QualifiedNames.
+        /// </summary>
+        /// <param name="builder"></param>
         private void WithSupervision(INodeManagerBuilder builder)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
@@ -212,13 +229,21 @@ namespace Pumps
                 .OnRead(() => m_motorOverheat);
         }
 
-        // Direct measurement wiring — failures now propagate as
-        // BadNodeIdUnknown ServiceResultException so wiring errors
-        // surface at configuration time rather than getting silently
-        // logged. The legacy TryAdd* helpers and their per-method
-        // try/catch blocks were necessary while the optional pump
-        // subtree was unmaterialised; CreatePumpInstanceAsync now
-        // materialises every wired leaf so the wiring is unconditional.
+        /// <summary>
+        /// Direct measurement wiring — failures now propagate as
+        /// BadNodeIdUnknown ServiceResultException so wiring errors
+        /// surface at configuration time rather than getting silently
+        /// logged. The legacy TryAdd* helpers and their per-method
+        /// try/catch blocks were necessary while the optional pump
+        /// subtree was unmaterialised; CreatePumpInstanceAsync now
+        /// materialises every wired leaf so the wiring is unconditional.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="browsePath"></param>
+        /// <param name="getter"></param>
+        /// <param name="units"></param>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
         private static void AddMeasurement(
             INodeManagerBuilder builder,
             string browsePath,
@@ -233,7 +258,9 @@ namespace Pumps
                 .WithEURange(min, max);
         }
 
-        // ── Simulation tick — advances all live measurements ────────
+        /// <summary>
+        /// ── Simulation tick — advances all live measurements ────────
+        /// </summary>
         private void AdvanceSimulation()
         {
             long t = Interlocked.Increment(ref m_simulationTicks);

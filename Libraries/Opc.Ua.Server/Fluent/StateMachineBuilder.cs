@@ -60,11 +60,7 @@ namespace Opc.Ua.Server.Fluent
     {
         public StateMachineBuilder(INodeBuilder<TState> nodeBuilder)
         {
-            if (nodeBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(nodeBuilder));
-            }
-            m_nodeBuilder = nodeBuilder;
+            m_nodeBuilder = nodeBuilder ?? throw new ArgumentNullException(nameof(nodeBuilder));
             StateMachine = nodeBuilder.Node;
 
             m_existingBefore = StateMachine.OnBeforeTransition;
@@ -108,7 +104,7 @@ namespace Opc.Ua.Server.Fluent
             }
             if (!m_onEnter.TryGetValue(stateId, out List<Action<ISystemContext, TState>>? list))
             {
-                list = new List<Action<ISystemContext, TState>>();
+                list = [];
                 m_onEnter[stateId] = list;
             }
             list.Add(handler);
@@ -130,7 +126,7 @@ namespace Opc.Ua.Server.Fluent
             }
             if (!m_onExit.TryGetValue(stateId, out List<Action<ISystemContext, TState>>? list))
             {
-                list = new List<Action<ISystemContext, TState>>();
+                list = [];
                 m_onExit[stateId] = list;
             }
             list.Add(handler);
@@ -192,15 +188,12 @@ namespace Opc.Ua.Server.Fluent
             uint capturedCauseId = causeId;
             TState machine = StateMachine;
             method.OnCallMethod2 = (
-                ISystemContext context,
-                MethodState m,
-                NodeId objectId,
-                ArrayOf<Variant> inputArguments,
-                List<Variant> outputArguments) =>
-            {
-                return machine.DoCause(
+                context,
+                m,
+                objectId,
+                inputArguments,
+                outputArguments) => machine.DoCause(
                     context, m, capturedCauseId, inputArguments, outputArguments);
-            };
             return this;
         }
 
@@ -337,8 +330,7 @@ namespace Opc.Ua.Server.Fluent
             // arming state.
             if (m_timedTransitions.Count > 0)
             {
-                long now = Stopwatch.GetTimestamp();
-                m_currentStateEnteredAt = now;
+                m_currentStateEnteredAt = Stopwatch.GetTimestamp();
                 m_currentStateForTimer = toStateId;
             }
 
@@ -417,7 +409,7 @@ namespace Opc.Ua.Server.Fluent
                         causeMethod: null!,
                         t.CauseId,
                         inputArguments: default,
-                        outputArguments: new List<Variant>());
+                        outputArguments: []);
                 }
                 catch
                 {
@@ -491,14 +483,14 @@ namespace Opc.Ua.Server.Fluent
         private readonly StateMachineTransitionHandler? m_existingBefore;
         private readonly StateMachineTransitionHandler? m_existingAfter;
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_onEnter
-            = new();
+            = [];
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_onExit
-            = new();
+            = [];
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_onTransition
-            = new();
+            = [];
         private readonly List<Func<ISystemContext, TState, uint, ServiceResult>> m_guards
-            = new();
-        private readonly List<TimedTransition> m_timedTransitions = new();
+            = [];
+        private readonly List<TimedTransition> m_timedTransitions = [];
         private uint m_pendingFromStateId;
         private uint m_currentStateForTimer;
         private long m_currentStateEnteredAt;

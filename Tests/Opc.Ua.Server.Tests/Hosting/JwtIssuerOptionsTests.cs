@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static string CreateJwt(RSA rsa, string audience)
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            const string header = "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
+            const string header = /*lang=json,strict*/ "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
             string payload = "{\"iss\":\"" +
                 Issuer +
                 "\",\"sub\":\"subject-1\",\"aud\":\"" +

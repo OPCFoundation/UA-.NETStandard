@@ -46,13 +46,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// <c>Variant.From(...)</c>, wrapping DateTime/Guid/byte[] arguments with
     /// the appropriate strongly-typed surface (DateTimeUtc, Uuid, ByteString).
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0006ObsoleteVariantCtorCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0006ObsoleteVariantCtorCodeFix))]
+    [Shared]
     public sealed class UA0006ObsoleteVariantCtorCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0006);
+            [DiagnosticIds.UA0006];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

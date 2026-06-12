@@ -217,5 +217,63 @@ namespace Opc.Ua.Aot.Tests
             await fixture.Session.RemoveSubscriptionAsync(subscription)
                 .ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// AOT smoke test for the V2 <c>MonitoredItemStateSnapshot</c>
+        /// (the wire-encoded record used by the
+        /// <c>SubscriptionManagerSerializer</c> for save/load) — checks
+        /// that <c>TriggeredByNames</c> (the OPC UA Part 4 §5.13.5
+        /// triggering set introduced for V2) round-trips through the
+        /// binary encoder/decoder under AOT. The source-generator-
+        /// emitted <c>IEncodeable</c> for the snapshot is fully AOT-
+        /// friendly; this test guards against future regressions.
+        /// </summary>
+        [Test]
+        public async Task TriggeringSnapshotBinaryRoundTripAotAsync()
+        {
+            var original = Opc.Ua.Client.Subscriptions.MonitoredItems
+                .MonitoredItemStateSnapshot.AsOptions(
+                    name: "triggered",
+                    options: new Opc.Ua.Client.Subscriptions.MonitoredItems
+                        .MonitoredItemOptions
+                    {
+                        StartNodeId = VariableIds.Server_ServerStatus_State,
+                        TriggeredByNames = ["trig1", "trig2"]
+                    },
+                    clientHandle: 42,
+                    serverId: 100,
+                    triggeredByNames: ["trig1", "trig2"]);
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(
+                stream, fixture.Session.MessageContext, true))
+            {
+                encoder.WriteEncodeable(null, original);
+            }
+
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(
+                stream, fixture.Session.MessageContext, true);
+            Opc.Ua.Client.Subscriptions.MonitoredItems
+                .MonitoredItemStateSnapshot decoded =
+                decoder.ReadEncodeable<Opc.Ua.Client.Subscriptions
+                    .MonitoredItems.MonitoredItemStateSnapshot>(null);
+
+            await Assert.That(decoded.Name).IsEqualTo("triggered");
+            await Assert.That(decoded.ClientHandle).IsEqualTo(42u);
+            await Assert.That(decoded.ServerId).IsEqualTo(100u);
+            await Assert.That(decoded.TriggeredByNames.IsNull).IsFalse();
+            await Assert.That(decoded.TriggeredByNames.Count).IsEqualTo(2);
+            await Assert.That(decoded.TriggeredByNames[0]).IsEqualTo("trig1");
+            await Assert.That(decoded.TriggeredByNames[1]).IsEqualTo("trig2");
+
+            // The ToOptions() projection rebuilds a live
+            // MonitoredItemOptions with TriggeredByNames populated.
+            Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+                options = decoded.ToOptions();
+            await Assert.That(options.TriggeredByNames.Count).IsEqualTo(2);
+            await Assert.That(options.TriggeredByNames[0]).IsEqualTo("trig1");
+            await Assert.That(options.TriggeredByNames[1]).IsEqualTo("trig2");
+        }
     }
 }

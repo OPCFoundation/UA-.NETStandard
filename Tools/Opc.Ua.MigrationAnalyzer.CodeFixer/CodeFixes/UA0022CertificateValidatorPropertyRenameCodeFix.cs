@@ -47,15 +47,19 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// renamed; downstream member access on the (now differently-typed)
     /// <c>ICertificateManager</c> result may still need manual review.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0022CertificateValidatorPropertyRenameCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0022CertificateValidatorPropertyRenameCodeFix))]
+    [Shared]
     public sealed class UA0022CertificateValidatorPropertyRenameCodeFix : CodeFixProvider
     {
         private const string NewPropertyName = "CertificateManager";
 
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0022);
+            [DiagnosticIds.UA0022];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

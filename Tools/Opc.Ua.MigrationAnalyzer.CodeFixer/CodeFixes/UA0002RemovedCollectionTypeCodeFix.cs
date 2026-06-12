@@ -46,15 +46,19 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// UA0002 code fix: rewrite every reference to a removed
     /// <c>&lt;Type&gt;Collection</c> wrapper as <c>List&lt;TElement&gt;</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0002RemovedCollectionTypeCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0002RemovedCollectionTypeCodeFix))]
+    [Shared]
     public sealed class UA0002RemovedCollectionTypeCodeFix : CodeFixProvider
     {
         private static readonly Dictionary<string, string> s_shortNameToElement = BuildShortNameMap();
 
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0002);
+            [DiagnosticIds.UA0002];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override Task RegisterCodeFixesAsync(CodeFixContext context)
         {
@@ -73,19 +77,18 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
         private static async Task<Document> ApplyAsync(Document document, CancellationToken cancellationToken)
         {
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            CollectionRewriter rewriter = new CollectionRewriter();
+            var rewriter = new CollectionRewriter();
             SyntaxNode newRoot = rewriter.Visit(root);
             return document.WithSyntaxRoot(newRoot);
         }
 
         private static Dictionary<string, string> BuildShortNameMap()
         {
-            Dictionary<string, string> map = new Dictionary<string, string>();
+            Dictionary<string, string> map = [];
             foreach ((string collectionName, string elementName) in SymbolExtensions.RemovedCollectionTypes)
             {
                 string shortCollection = StripNamespace(collectionName);
-                string shortElement = StripNamespace(elementName);
-                map[shortCollection] = shortElement;
+                map[shortCollection] = StripNamespace(elementName);
             }
             return map;
         }
@@ -105,7 +108,7 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
                     GenericNameSyntax replacement = SyntaxFactory.GenericName(
                         SyntaxFactory.Identifier("List"),
                         SyntaxFactory.TypeArgumentList(
-                            SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                            SyntaxFactory.SingletonSeparatedList(
                                 SyntaxFactory.ParseTypeName(elementName))));
                     return replacement.WithTriviaFrom(node);
                 }

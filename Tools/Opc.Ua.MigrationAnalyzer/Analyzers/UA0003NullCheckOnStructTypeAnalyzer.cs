@@ -45,7 +45,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0003NullCheckOnStructTypeAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0003_NullCheckOnStructType);
+            [DiagnosticDescriptors.UA0003_NullCheckOnStructType];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -57,7 +57,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         private static void OnCompilationStart(CompilationStartAnalysisContext context)
         {
             Dictionary<Compilation, UaSymbols> cache = [];
-            UaSymbols symbols = UaSymbols.For(context.Compilation, cache);
+            var symbols = UaSymbols.For(context.Compilation, cache);
             if (!symbols.ReferencesOpcUa)
             {
                 return;
@@ -67,9 +67,9 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeBinary(OperationAnalysisContext context, UaSymbols symbols)
         {
-            IBinaryOperation op = (IBinaryOperation)context.Operation;
-            if (op.OperatorKind != BinaryOperatorKind.Equals &&
-                op.OperatorKind != BinaryOperatorKind.NotEquals)
+            var op = (IBinaryOperation)context.Operation;
+            if (op.OperatorKind is not BinaryOperatorKind.Equals and
+                not BinaryOperatorKind.NotEquals)
             {
                 return;
             }
@@ -86,7 +86,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 return;
             }
             if (valueType.OriginalDefinition?.SpecialType == SpecialType.System_Nullable_T &&
-                valueType is INamedTypeSymbol named && named.TypeArguments.Length == 1)
+                valueType is INamedTypeSymbol named &&
+                named.TypeArguments.Length == 1)
             {
                 valueType = named.TypeArguments[0];
             }

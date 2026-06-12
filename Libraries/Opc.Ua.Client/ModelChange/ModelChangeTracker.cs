@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -181,14 +180,14 @@ namespace Opc.Ua.Client.ModelChange
                 QualifiedName.From(BrowseNames.Changes));
 
             filter.WhereClause.Push(FilterOperator.OfType,
-                Variant.From((NodeId)ObjectTypeIds.BaseModelChangeEventType));
+                Variant.From(ObjectTypeIds.BaseModelChangeEventType));
 
             return filter;
         }
 
         private void HandleNotification(EventNotification notification)
         {
-            Variant[] fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
+            Variant[] fields = notification.Fields.ToArray() ?? [];
             if (fields.Length < 3)
             {
                 return;

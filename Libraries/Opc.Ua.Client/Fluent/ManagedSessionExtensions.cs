@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
@@ -55,9 +54,9 @@ namespace Opc.Ua.Client
         /// asynchronously.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
-        public static Subscriptions.ISubscription AddSubscription(
+        public static ISubscription AddSubscription(
             this ManagedSession session,
-            Subscriptions.ISubscriptionNotificationHandler handler,
+            ISubscriptionNotificationHandler handler,
             Subscriptions.SubscriptionOptions options)
         {
             if (session == null)
@@ -82,9 +81,9 @@ namespace Opc.Ua.Client
         /// record.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
-        public static Subscriptions.ISubscription AddSubscription(
+        public static ISubscription AddSubscription(
             this ManagedSession session,
-            Subscriptions.ISubscriptionNotificationHandler handler,
+            ISubscriptionNotificationHandler handler,
             Func<Subscriptions.SubscriptionOptions, Subscriptions.SubscriptionOptions> configure)
         {
             if (session == null)
@@ -109,7 +108,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public static bool TryAddMonitoredItem(
-            this Subscriptions.ISubscription subscription,
+            this ISubscription subscription,
             string name,
             Subscriptions.MonitoredItems.MonitoredItemOptions options,
             out Subscriptions.MonitoredItems.IMonitoredItem? monitoredItem)
@@ -139,7 +138,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public static bool TryAddMonitoredItem(
-            this Subscriptions.ISubscription subscription,
+            this ISubscription subscription,
             string name,
             NodeId nodeId,
             Func<Subscriptions.MonitoredItems.MonitoredItemOptions, Subscriptions.MonitoredItems.MonitoredItemOptions> configure,
@@ -288,8 +287,8 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
             var result = new List<ISubscription>(states.Count);
-            Subscriptions.SubscriptionManager manager =
-                (Subscriptions.SubscriptionManager)session.SubscriptionManager;
+            SubscriptionManager manager =
+                (SubscriptionManager)session.SubscriptionManager;
             foreach (SubscriptionStateSnapshot state in states)
             {
                 result.Add(await manager.RestoreAsync(
@@ -299,6 +298,110 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false));
             }
             return result;
+        }
+
+        /// <summary>
+        /// Convenience overload of
+        /// <see cref="Subscriptions.ISubscription.SetTriggeringAsync"/>
+        /// that resolves the triggering item and triggered items by
+        /// stable name against the subscription's
+        /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
+        /// Unknown names cause <see cref="ArgumentException"/>.
+        /// </summary>
+        /// <param name="subscription">Owning V2 subscription.</param>
+        /// <param name="triggeringItemName">
+        /// Stable name of the triggering item.
+        /// </param>
+        /// <param name="triggeredItemNames">
+        /// Stable names of items to be triggered. All entries are
+        /// added; pass an empty array to query an existing trigger
+        /// without adding new links.
+        /// </param>
+        public static ValueTask<Subscriptions.SetTriggeringResult> SetTriggeringAsync(
+            this Subscriptions.ISubscription subscription,
+            string triggeringItemName,
+            params string[] triggeredItemNames)
+        {
+            return subscription.SetTriggeringAsync(
+                triggeringItemName,
+                triggeredItemNames,
+                null,
+                default);
+        }
+
+        /// <summary>
+        /// Convenience overload of
+        /// <see cref="Subscriptions.ISubscription.SetTriggeringAsync"/>
+        /// that resolves the triggering item and triggered items by
+        /// stable name against the subscription's
+        /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
+        /// Unknown names cause <see cref="ArgumentException"/>.
+        /// </summary>
+        public static ValueTask<Subscriptions.SetTriggeringResult> SetTriggeringAsync(
+            this Subscriptions.ISubscription subscription,
+            string triggeringItemName,
+            IReadOnlyCollection<string>? add = null,
+            IReadOnlyCollection<string>? remove = null,
+            CancellationToken ct = default)
+        {
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+            if (string.IsNullOrEmpty(triggeringItemName))
+            {
+                throw new ArgumentException(
+                    "Triggering item name must not be null/empty.",
+                    nameof(triggeringItemName));
+            }
+            Subscriptions.MonitoredItems.IMonitoredItemCollection items =
+                subscription.MonitoredItems;
+            if (!items.TryGetMonitoredItemByName(triggeringItemName,
+                    out Subscriptions.MonitoredItems.IMonitoredItem? trig) ||
+                trig == null)
+            {
+                throw new ArgumentException(
+                    $"Triggering item '{triggeringItemName}' was not found " +
+                    "in the subscription. Add it first via TryAddMonitoredItem.",
+                    nameof(triggeringItemName));
+            }
+            List<Subscriptions.MonitoredItems.IMonitoredItem>? addItems = null;
+            if (add != null)
+            {
+                addItems = new List<Subscriptions.MonitoredItems.IMonitoredItem>(add.Count);
+                foreach (string name in add)
+                {
+                    if (!items.TryGetMonitoredItemByName(name,
+                            out Subscriptions.MonitoredItems.IMonitoredItem? item) ||
+                        item == null)
+                    {
+                        throw new ArgumentException(
+                            $"Triggered item '{name}' was not found in the " +
+                            "subscription. Add it first via TryAddMonitoredItem.",
+                            nameof(add));
+                    }
+                    addItems.Add(item);
+                }
+            }
+            List<Subscriptions.MonitoredItems.IMonitoredItem>? removeItems = null;
+            if (remove != null)
+            {
+                removeItems = new List<Subscriptions.MonitoredItems.IMonitoredItem>(remove.Count);
+                foreach (string name in remove)
+                {
+                    if (!items.TryGetMonitoredItemByName(name,
+                            out Subscriptions.MonitoredItems.IMonitoredItem? item) ||
+                        item == null)
+                    {
+                        throw new ArgumentException(
+                            $"Triggered item '{name}' was not found in the " +
+                            "subscription. Add it first via TryAddMonitoredItem.",
+                            nameof(remove));
+                    }
+                    removeItems.Add(item);
+                }
+            }
+            return subscription.SetTriggeringAsync(trig, addItems, removeItems, ct);
         }
     }
 }

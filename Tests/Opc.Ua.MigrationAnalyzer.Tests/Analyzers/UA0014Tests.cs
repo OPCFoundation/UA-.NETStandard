@@ -55,7 +55,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0014 = diags.SingleOrDefault(d => d.Id == "UA0014");
             Assert.That(ua0014, Is.Not.Null, "Expected UA0014 to fire on DataValue.IsGood(dv).");
@@ -74,7 +75,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0014"),
                 "Expected UA0014 to fire on DataValueExtensions.IsBad(dv).");
@@ -92,7 +94,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0014"), Is.False,
                 "Instance property access dv.IsGood must not trigger UA0014.");
@@ -111,7 +114,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0014DataValueIsGoodAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0014"), Is.False,
                 "A user-defined static IsGood on an unrelated class must not trigger UA0014.");
@@ -138,7 +142,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0014DataValueIsGoodAnalyzer(),
                 new UA0014DataValueIsGoodCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }

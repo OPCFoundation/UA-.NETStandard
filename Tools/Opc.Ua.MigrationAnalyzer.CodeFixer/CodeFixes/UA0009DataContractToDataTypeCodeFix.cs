@@ -48,13 +48,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// <c>[DataType]</c>/<c>[DataTypeField]</c> equivalents, mark the class
     /// <c>partial</c>, and add <c>using Opc.Ua;</c> when missing.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0009DataContractToDataTypeCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0009DataContractToDataTypeCodeFix))]
+    [Shared]
     public sealed class UA0009DataContractToDataTypeCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0009);
+            [DiagnosticIds.UA0009];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
@@ -111,7 +115,7 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
                 result = result.WithModifiers(result.Modifiers.Add(partialToken));
             }
 
-            List<MemberDeclarationSyntax> newMembers = new List<MemberDeclarationSyntax>(result.Members.Count);
+            var newMembers = new List<MemberDeclarationSyntax>(result.Members.Count);
             foreach (MemberDeclarationSyntax member in result.Members)
             {
                 if (member is PropertyDeclarationSyntax property)
@@ -130,10 +134,10 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
         private static SyntaxList<AttributeListSyntax> RewriteAttributeLists(
             SyntaxList<AttributeListSyntax> attributeLists)
         {
-            List<AttributeListSyntax> newLists = new List<AttributeListSyntax>(attributeLists.Count);
+            var newLists = new List<AttributeListSyntax>(attributeLists.Count);
             foreach (AttributeListSyntax list in attributeLists)
             {
-                List<AttributeSyntax> newAttrs = new List<AttributeSyntax>(list.Attributes.Count);
+                var newAttrs = new List<AttributeSyntax>(list.Attributes.Count);
                 foreach (AttributeSyntax attr in list.Attributes)
                 {
                     newAttrs.Add(RewriteAttribute(attr));
@@ -146,12 +150,12 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
         private static AttributeSyntax RewriteAttribute(AttributeSyntax attribute)
         {
             string simpleName = GetSimpleAttributeName(attribute.Name);
-            if (simpleName == "DataContract" || simpleName == "DataContractAttribute")
+            if (simpleName is "DataContract" or "DataContractAttribute")
             {
                 return SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("DataType"))
                     .WithTriviaFrom(attribute);
             }
-            if (simpleName == "DataMember" || simpleName == "DataMemberAttribute")
+            if (simpleName is "DataMember" or "DataMemberAttribute")
             {
                 AttributeArgumentListSyntax argList = FilterToOrderArgument(attribute.ArgumentList);
                 AttributeSyntax replacement = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("DataTypeField"));
@@ -185,7 +189,7 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
             {
                 return null;
             }
-            List<AttributeArgumentSyntax> kept = new List<AttributeArgumentSyntax>();
+            List<AttributeArgumentSyntax> kept = [];
             foreach (AttributeArgumentSyntax arg in argumentList.Arguments)
             {
                 if (arg.NameEquals?.Name.Identifier.ValueText == "Order")

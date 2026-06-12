@@ -230,8 +230,11 @@ namespace Opc.Ua.InformationModel.Tests
                 if (!methodNames.Contains(expected))
                 {
                     Assert.Fail(
-                        "Mandatory method '" + expected + "' is missing from " +
-                        folderName + ".");
+                        "Mandatory method '" +
+                        expected +
+                        "' is missing from " +
+                        folderName +
+                        ".");
                 }
             }
         }

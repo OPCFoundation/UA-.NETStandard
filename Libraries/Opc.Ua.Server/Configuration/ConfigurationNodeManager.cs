@@ -29,14 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Diagnostics;
 #if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
@@ -199,7 +199,20 @@ namespace Opc.Ua.Server
                         {
                             var activeNode = new ServerConfigurationState(passiveNode.Parent);
 
-                            activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
+                            // Optional ServerConfigurationType methods this
+                            // SDK wires in CreateServerConfiguration but that
+                            // are no longer emitted by the singleton factory
+                            // (Optional per Part 12). Use the idempotent
+                            // generated Add{Method} helpers so the typed
+                            // slot is initialised with the type-level
+                            // factory (BrowseName, InputArguments, etc.)
+                            // before Create() copies the loaded passive
+                            // node into the active subtree. The new
+                            // Add{Method}(context, nodeId?) chains via the
+                            // owner state for fluent usage.
+                            activeNode
+                                .AddGetCertificates(context)
+                                .AddCreateSelfSignedCertificate(context);
 
                             activeNode.Create(context, passiveNode);
 
@@ -547,7 +560,8 @@ namespace Opc.Ua.Server
             }
 
             NodeState? node = FindPredefinedNode<NodeState>(
-                KeyCredentialPushSubject.StandardConfigurationFolderNodeId) ?? await Server.NodeManager
+                KeyCredentialPushSubject.StandardConfigurationFolderNodeId) ??
+                await Server.NodeManager
                     .FindNodeInAddressSpaceAsync(KeyCredentialPushSubject.StandardConfigurationFolderNodeId, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1207,6 +1221,7 @@ namespace Opc.Ua.Server
         /// certificate with the requested subject / DNS / IP and lifetime,
         /// stores it, and returns the DER-encoded public certificate.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ValueTask<CreateSelfSignedCertificateMethodStateResult>
             CreateSelfSignedCertificateAsync(
             ISystemContext context,
@@ -1581,7 +1596,7 @@ namespace Opc.Ua.Server
                     // ITransportListenerCertificateRotation.
                     IReadOnlyList<ITransportListener> listeners
                         = (Server as ITransportListenerRegistryProvider)?.TransportListeners
-                          ?? [];
+                            ?? [];
 
                     int totalCut = 0;
                     foreach (PendingCertificateRotation rotation in rotations)

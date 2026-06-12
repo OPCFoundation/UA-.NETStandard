@@ -245,5 +245,100 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.Zero.Within(0.0001));
         }
+
+        [Test]
+        public void Minimum2_ReturnsSmallestValueIncludingSimpleBounds()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [50, 3, 20, 40, 15, 15];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Minimum2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
+        }
+
+        [Test]
+        public void Maximum2_ReturnsLargestValueIncludingSimpleBounds()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 30, 15, 15];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Maximum2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
+        }
+
+        [Test]
+        public void Range2_ReturnsMaximum2MinusMinimum2()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 3, 15, 15];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Range2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(47.0).Within(0.0001));
+        }
+
+        [Test]
+        public void MinimumActualTime2_ReturnsMinimumValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [50, 3, 20, 40, 15, 15];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_MinimumActualTime2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
+            // Part 13 §5.4.3.17: timestamp is the actual time of the minimum value (within the range).
+            Assert.That(result.SourceTimestamp, Is.GreaterThanOrEqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.LessThanOrEqualTo(endTime));
+        }
+
+        [Test]
+        public void MaximumActualTime2_ReturnsMaximumValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 30, 15, 15];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_MaximumActualTime2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
+            Assert.That(result.SourceTimestamp, Is.GreaterThanOrEqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.LessThanOrEqualTo(endTime));
+        }
     }
 }

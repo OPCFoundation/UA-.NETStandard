@@ -2,26 +2,53 @@
 # Test all .Net Core projects on all platforms
 #
 parameters:
-  configuration: 'Release'
-  framework: net8.0
-  agents: '@{}'
-  jobnamesuffix: ''
-  customtestarget: ''
-  # Set hosted=true to force all jobs in this template invocation onto
-  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
-  # Use this for stages that target macOS, which the managed pool does not
-  # provide.
-  hosted: false
-  # See ci.yml: passing pool config via parameters because root-pipeline
-  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
-  # included templates at compile-time.
-  poolName: ''
-  windowsImage: 'windows-2025-vs2026'
+- name: configuration
+  type: string
+  default: 'Release'
+- name: framework
+  type: string
+  default: net8.0
+- name: agents
+  type: string
+  default: '@{}'
+- name: jobnamesuffix
+  type: string
+  default: ''
+- name: customtestarget
+  type: string
+  default: ''
+# Set hosted=true to force all jobs in this template invocation onto
+# Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+# Use this for stages that target macOS, which the managed pool does not
+# provide.
+- name: hosted
+  type: boolean
+  default: false
+# See ci.yml: passing pool config via parameters because root-pipeline
+# variables defined in ${{ if ... }}: blocks aren't reliably visible to
+# included templates at compile-time.
+- name: poolName
+  type: string
+  default: ''
+- name: windowsImage
+  type: string
+  default: 'windows-2025-vs2026'
+# Optional job-level condition forwarded to both the testprep… and testall… jobs.
+# When unset (the overwhelming majority of callers) no `condition:` line is
+# emitted - preserves today's "always run" behaviour exactly.  When set, both
+# jobs receive the same condition so the entire test invocation is gated
+# together (used by the root pipeline to skip macOS test invocations on draft
+# GitHub PRs).
+- name: condition
+  type: string
+  default: ''
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
+  ${{ if ne(parameters.condition, '') }}:
+    condition: ${{ parameters.condition }}
   pool:
-    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+    ${{ if ne(parameters.poolName, '') }}:
       name: ${{ parameters.poolName }}
       demands:
         - ImageOverride -equals ${{ parameters.windowsImage }}
@@ -41,6 +68,8 @@ jobs:
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
+  ${{ if ne(parameters.condition, '') }}:
+    condition: ${{ parameters.condition }}
   timeoutInMinutes: 180
   strategy:
     matrix: $[dependencies.testprep${{ parameters.jobnamesuffix }}.outputs['testmatrix.jobMatrix'] ]

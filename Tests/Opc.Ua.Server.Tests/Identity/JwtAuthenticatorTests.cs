@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests.Identity
             public StaticKeyResolver(string issuerUri, IssuerVerificationKey key)
             {
                 IssuerUri = issuerUri;
-                m_keys = new[] { key };
+                m_keys = [key];
             }
 
             public string IssuerUri { get; }

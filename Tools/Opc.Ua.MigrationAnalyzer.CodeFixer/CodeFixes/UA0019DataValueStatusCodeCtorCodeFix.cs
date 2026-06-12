@@ -45,13 +45,17 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixer
     /// UA0019 code fix: rewrite <c>new DataValue(sc)</c> / <c>new DataValue(sc, ts)</c>
     /// as <c>DataValue.FromStatusCode(sc)</c> / <c>DataValue.FromStatusCode(sc, ts)</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0019DataValueStatusCodeCtorCodeFix)), Shared]
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0019DataValueStatusCodeCtorCodeFix))]
+    [Shared]
     public sealed class UA0019DataValueStatusCodeCtorCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0019);
+            [DiagnosticIds.UA0019];
 
-        public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+        public override FixAllProvider GetFixAllProvider()
+        {
+            return WellKnownFixAllProviders.BatchFixer;
+        }
 
         public override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {

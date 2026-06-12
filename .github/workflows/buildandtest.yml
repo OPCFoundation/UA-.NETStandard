@@ -94,7 +94,7 @@ jobs:
       if: ${{ always() }}
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         name: codecov-umbrella
         token: ${{ secrets.CODECOV_TOKEN }}

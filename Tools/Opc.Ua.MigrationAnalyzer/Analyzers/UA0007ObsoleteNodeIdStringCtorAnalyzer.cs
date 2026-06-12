@@ -43,7 +43,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     public sealed class UA0007ObsoleteNodeIdStringCtorAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0007_ObsoleteNodeIdStringCtor);
+            [DiagnosticDescriptors.UA0007_ObsoleteNodeIdStringCtor];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -54,7 +54,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeObjectCreation(OperationAnalysisContext context)
         {
-            IObjectCreationOperation creation = (IObjectCreationOperation)context.Operation;
+            var creation = (IObjectCreationOperation)context.Operation;
             IMethodSymbol ctor = creation.Constructor;
             if (ctor is null || ctor.Parameters.Length != 1)
             {
@@ -67,7 +67,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 return;
             }
             string containingName = containing.ToDisplayString();
-            if (containingName != "Opc.Ua.NodeId" && containingName != "Opc.Ua.ExpandedNodeId")
+            if (containingName is not "Opc.Ua.NodeId" and not "Opc.Ua.ExpandedNodeId")
             {
                 return;
             }
