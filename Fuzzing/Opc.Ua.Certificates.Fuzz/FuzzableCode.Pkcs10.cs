@@ -73,6 +73,16 @@ namespace Opc.Ua.Fuzzing
             catch (AsnContentException)
             {
             }
+            catch (NotSupportedException)
+            {
+                // Pkcs10CertificationRequest.Verify() deliberately rethrows
+                // NotSupportedException to inform the caller when the key
+                // algorithm is unsupported or platform-specific support is
+                // missing (e.g. ECDSA CSR verification on .NET Framework 4.8
+                // and .NET Standard 2.x throws because ImportSubjectPublicKeyInfo
+                // is unavailable). Treat as a parser-rejected input rather than
+                // a fuzz finding.
+            }
         }
     }
 }
