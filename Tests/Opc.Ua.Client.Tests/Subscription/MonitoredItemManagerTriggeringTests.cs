@@ -143,8 +143,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         callCount++;
                         capturedTrig = trigId;
-                        capturedAdd = [..(adds.ToArray() ?? [])];
-                        capturedRemove = [..(rems.ToArray() ?? [])];
+                        capturedAdd = [.. (adds.ToArray() ?? [])];
+                        capturedRemove = [.. (rems.ToArray() ?? [])];
                     })
                 .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
                     ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken ct) =>
@@ -503,8 +503,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     CancellationToken>(
                     (h, subId, trigId, adds, rems, ct) =>
                     {
-                        capturedAdd = [..(adds.ToArray() ?? [])];
-                        capturedRemove = [..(rems.ToArray() ?? [])];
+                        capturedAdd = [.. (adds.ToArray() ?? [])];
+                        capturedRemove = [.. (rems.ToArray() ?? [])];
                     })
                 .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
                     ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken ct) =>
@@ -627,7 +627,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .Callback<RequestHeader?, uint, uint, ArrayOf<uint>, ArrayOf<uint>,
                     CancellationToken>(
                     (h, subId, trigId, adds, rems, c) =>
-                        capturedAdd = [..(adds.ToArray() ?? [])])
+                        capturedAdd = [.. (adds.ToArray() ?? [])])
                 .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
                     ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken c) =>
                     new SetTriggeringResponse
