@@ -144,6 +144,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// callers, and the engine's apply-pass rollback paths without
         /// any external lock coordination.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal bool AddDesiredTriggeredBy(string triggeringName)
         {
             if (string.IsNullOrWhiteSpace(triggeringName))
@@ -251,6 +252,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <see cref="RemoveDesiredTriggeredBy"/> instead to avoid
         /// last-writer-wins clobber semantics.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal void SetDesiredTriggeredByNames(IEnumerable<string>? names)
         {
             if (names == null)

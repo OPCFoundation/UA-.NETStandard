@@ -58,7 +58,8 @@ namespace Opc.Ua.Di.Server.Hosting
 
         public T GetRequiredService<T>() where T : notnull
         {
-            object? svc = m_services.GetService(typeof(T)) ?? throw new InvalidOperationException(
+            object? svc = m_services.GetService(typeof(T)) ??
+                throw new InvalidOperationException(
                     $"No service for type '{typeof(T).FullName}' has been registered.");
             return (T)svc;
         }

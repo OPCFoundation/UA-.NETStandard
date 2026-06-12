@@ -46,26 +46,31 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Unknown — invalid in a well-formed dependency payload.
         /// </summary>
         Unknown = 0,
+
         /// <summary>
         /// ObjectType.
         /// </summary>
         ObjectType = 1,
+
         /// <summary>
         /// VariableType.
         /// </summary>
         VariableType = 2,
+
         /// <summary>
         /// ReferenceType.
         /// </summary>
         ReferenceType = 3,
+
         /// <summary>
         /// DataType.
         /// </summary>
         DataType = 4,
+
         /// <summary>
         /// Method (when carried as standalone declaration).
         /// </summary>
-        Method = 5,
+        Method = 5
     }
 
     /// <summary>
@@ -77,14 +82,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Field name.
         /// </summary>
         public string Name { get; }
+
         /// <summary>
         /// DataType name (qualified).
         /// </summary>
         public string DataTypeName { get; }
+
         /// <summary>
         /// DataType namespace URI.
         /// </summary>
         public string DataTypeNamespace { get; }
+
         /// <summary>Value rank (<see cref="ValueRanks"/>).</summary>
         public int ValueRank { get; }
 
@@ -109,14 +117,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Argument name.
         /// </summary>
         public string Name { get; }
+
         /// <summary>
         /// DataType name (qualified).
         /// </summary>
         public string DataTypeName { get; }
+
         /// <summary>
         /// DataType namespace URI.
         /// </summary>
         public string DataTypeNamespace { get; }
+
         /// <summary>
         /// Value rank.
         /// </summary>
@@ -147,40 +158,50 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Browse name of the child.
         /// </summary>
         public string BrowseName { get; set; } = string.Empty;
+
         /// <summary>
         /// Symbolic name (often equal to BrowseName).
         /// </summary>
         public string SymbolicName { get; set; } = string.Empty;
+
         /// <summary>
         /// TypeDefinition name (for all kinds). Empty when not declared.
         /// </summary>
         public string TypeDefinitionName { get; set; } = string.Empty;
+
         /// <summary>
         /// TypeDefinition namespace URI.
         /// </summary>
         public string TypeDefinitionNamespace { get; set; } = string.Empty;
+
         /// <summary>
         /// DataType name (variables only). Empty when not applicable.
         /// </summary>
         public string DataTypeName { get; set; } = string.Empty;
+
         /// <summary>
         /// DataType namespace URI (variables only).
         /// </summary>
         public string DataTypeNamespace { get; set; } = string.Empty;
+
         /// <summary>Value rank (variables only; <c>Scalar = 0</c> per <c>Opc.Ua.ValueRanks</c>).</summary>
         public int ValueRank { get; set; }
+
         /// <summary>
         /// Modelling rule (0=None, 1=Mandatory, 2=Optional, 3=OptionalPlaceholder, 4=MandatoryPlaceholder, 5=ExposesItsArray).
         /// </summary>
         public byte ModellingRule { get; set; }
+
         /// <summary>
         /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
         /// </summary>
         public byte InstanceKind { get; set; }
+
         /// <summary>
         /// Input arguments (methods only).
         /// </summary>
         public IReadOnlyList<DependencyMethodArg> InputArguments { get; set; } = [];
+
         /// <summary>
         /// Output arguments (methods only).
         /// </summary>
@@ -199,46 +220,57 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Symbolic name.
         /// </summary>
         public string SymbolicName { get; set; } = string.Empty;
+
         /// <summary>
         /// Symbolic namespace URI.
         /// </summary>
         public string SymbolicNamespace { get; set; } = string.Empty;
+
         /// <summary>
         /// Emitted C# class name (post-Type-suffix-stripping).
         /// </summary>
         public string ClassName { get; set; } = string.Empty;
+
         /// <summary>
         /// Node kind.
         /// </summary>
         public DependencyNodeKind Kind { get; set; }
+
         /// <summary>
         /// Base type name (null for root types).
         /// </summary>
         public string? BaseTypeName { get; set; }
+
         /// <summary>
         /// Base type namespace URI (null for root types).
         /// </summary>
         public string? BaseTypeNamespace { get; set; }
+
         /// <summary>
         /// Numeric NodeId (0 when not assigned).
         /// </summary>
         public uint NumericId { get; set; }
+
         /// <summary>
         /// Optional string NodeId.
         /// </summary>
         public string? StringId { get; set; }
+
         /// <summary>
         /// True when the type is abstract.
         /// </summary>
         public bool IsAbstract { get; set; }
+
         /// <summary>
         /// True when the entry represents an enumeration DataType.
         /// </summary>
         public bool IsEnumeration { get; set; }
+
         /// <summary>
         /// DataType fields (empty for non-DataType kinds).
         /// </summary>
         public IReadOnlyList<DependencyDataField> Fields { get; set; } = [];
+
         /// <summary>
         /// Declared instance children (empty for DataType / no-child types).
         /// </summary>
@@ -308,7 +340,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public static ModelDependencyV1? FromBase64Payload(string base64)
         {
             if (string.IsNullOrEmpty(base64))
-            { return null; }
+            {
+                return null;
+            }
             byte[] bytes;
             try
             {
@@ -432,7 +466,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     BaseTypeName = ReadNullableString(reader),
                     BaseTypeNamespace = ReadNullableString(reader),
                     NumericId = reader.ReadUInt32(),
-                    StringId = ReadNullableString(reader),
+                    StringId = ReadNullableString(reader)
                 };
                 byte flags = reader.ReadByte();
                 node.IsAbstract = (flags & 0x01) != 0;

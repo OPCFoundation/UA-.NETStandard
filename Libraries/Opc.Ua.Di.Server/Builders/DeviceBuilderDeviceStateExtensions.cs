@@ -53,6 +53,8 @@ namespace Opc.Ua.Di.Server.Builders
         /// <param name="builder">The device builder.</param>
         /// <param name="health">The DI health enumeration value.</param>
         /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static IDeviceBuilder<TDevice> WithDeviceHealth<TDevice>(
             this IDeviceBuilder<TDevice> builder,
             DeviceHealthEnumeration health)
@@ -63,7 +65,8 @@ namespace Opc.Ua.Di.Server.Builders
                 throw new ArgumentNullException(nameof(builder));
             }
             BaseDataVariableState<DeviceHealthEnumeration>? deviceHealth =
-                builder.Device.DeviceHealth ?? throw ServiceResultException.Create(
+                builder.Device.DeviceHealth ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
                     "Device '{0}' does not expose a DeviceHealth variable. " +
                     "Use a typed factory that instantiates the DeviceType children, " +

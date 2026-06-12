@@ -132,4 +132,3 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             System.Threading.CancellationToken ct = default);
     }
 }
-

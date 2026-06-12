@@ -69,7 +69,7 @@ namespace Opc.Ua.Di.Tests
                     {
                         ResponseHeader = new ResponseHeader(),
                         Results = ArrayOf.Wrapped(results),
-                        DiagnosticInfos = default,
+                        DiagnosticInfos = default
                     };
                 });
 
@@ -89,7 +89,7 @@ namespace Opc.Ua.Di.Tests
                     {
                         ResponseHeader = new ResponseHeader(),
                         Results = ArrayOf.Wrapped(results),
-                        DiagnosticInfos = default,
+                        DiagnosticInfos = default
                     };
                 });
 
@@ -106,7 +106,7 @@ namespace Opc.Ua.Di.Tests
                 return new BrowsePathResult
                 {
                     StatusCode = StatusCodes.BadNodeIdUnknown,
-                    Targets = [],
+                    Targets = []
                 };
             }
             foreach (RelativePathElement element in path.RelativePath.Elements)
@@ -118,7 +118,7 @@ namespace Opc.Ua.Di.Tests
                     return new BrowsePathResult
                     {
                         StatusCode = StatusCodes.BadNoMatch,
-                        Targets = [],
+                        Targets = []
                     };
                 }
                 current = next;
@@ -131,9 +131,9 @@ namespace Opc.Ua.Di.Tests
                     new BrowsePathTarget
                     {
                         TargetId = (ExpandedNodeId)current.NodeId,
-                        RemainingPathIndex = uint.MaxValue,
+                        RemainingPathIndex = uint.MaxValue
                     }
-                ]),
+                ])
             };
         }
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Di.Tests
                     StatusCode = StatusCodes.BadMethodInvalid,
                     InputArgumentResults = [],
                     InputArgumentDiagnosticInfos = default,
-                    OutputArguments = [],
+                    OutputArguments = []
                 };
             }
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Di.Tests
                 StatusCode = status.StatusCode,
                 InputArgumentResults = ArrayOf.Wrapped(inputResults),
                 InputArgumentDiagnosticInfos = default,
-                OutputArguments = ArrayOf.Wrapped(outputs.ToArray()),
+                OutputArguments = ArrayOf.Wrapped(outputs.ToArray())
             };
         }
     }

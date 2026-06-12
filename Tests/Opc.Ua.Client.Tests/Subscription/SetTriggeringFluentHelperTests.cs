@@ -151,10 +151,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void ThrowsOnEmptyTriggeringName()
         {
-            Assert.That(() => m_subscription.SetTriggeringAsync(""),
+            Assert.That(() => m_subscription.SetTriggeringAsync(string.Empty),
                 Throws.ArgumentException);
             Assert.That(() => m_subscription.SetTriggeringAsync(
-                "", add: []),
+                string.Empty, add: []),
                 Throws.ArgumentException);
         }
 

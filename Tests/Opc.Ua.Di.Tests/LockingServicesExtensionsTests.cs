@@ -109,7 +109,7 @@ namespace Opc.Ua.Di.Tests
 
             var lockState = new LockingServicesState(parent: null)
             {
-                InitLock = new InitLockMethodState(parent: null),
+                InitLock = new InitLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -132,7 +132,7 @@ namespace Opc.Ua.Di.Tests
 
             var lockState = new LockingServicesState(parent: null)
             {
-                RenewLock = new RenewLockMethodState(parent: null),
+                RenewLock = new RenewLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Di.Tests
 
             var lockState = new LockingServicesState(parent: null)
             {
-                ExitLock = new ExitLockMethodState(parent: null),
+                ExitLock = new ExitLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -178,7 +178,7 @@ namespace Opc.Ua.Di.Tests
 
             var lockState = new LockingServicesState(parent: null)
             {
-                BreakLock = new BreakLockMethodState(parent: null),
+                BreakLock = new BreakLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -208,7 +208,7 @@ namespace Opc.Ua.Di.Tests
             var lockState = new LockingServicesState(parent: null)
             {
                 InitLock = new InitLockMethodState(parent: null),
-                ExitLock = new ExitLockMethodState(parent: null),
+                ExitLock = new ExitLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);

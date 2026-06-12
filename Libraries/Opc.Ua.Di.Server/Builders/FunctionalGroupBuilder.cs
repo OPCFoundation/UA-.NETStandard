@@ -39,20 +39,18 @@ namespace Opc.Ua.Di.Server.Builders
     /// </summary>
     internal sealed class FunctionalGroupBuilder : IFunctionalGroupBuilder
     {
-        private readonly INodeBuilder m_node;
-
         internal FunctionalGroupBuilder(
             FunctionalGroupState group,
             INodeBuilder node,
             ISystemContext context)
         {
             Group = group ?? throw new ArgumentNullException(nameof(group));
-            m_node = node ?? throw new ArgumentNullException(nameof(node));
+            Node = node ?? throw new ArgumentNullException(nameof(node));
             Context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         public FunctionalGroupState Group { get; }
-        public INodeBuilder Node => m_node;
+        public INodeBuilder Node { get; }
         public ISystemContext Context { get; }
 
         public IFunctionalGroupBuilder Organizes(NodeState target)
@@ -82,7 +80,7 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            configure(m_node);
+            configure(Node);
             return this;
         }
     }

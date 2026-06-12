@@ -62,6 +62,7 @@ namespace Opc.Ua.Server.Historian
         /// utility refreshes the value-bearing properties but does not
         /// add new children.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public static async ValueTask<HistoricalDataConfigurationState> EnsureInstalledAsync(
             ISystemContext context,
             BaseVariableState variable,

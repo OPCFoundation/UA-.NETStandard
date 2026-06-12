@@ -178,14 +178,19 @@ namespace Pumps
         {
             public static readonly EUInformation Pascal =
                 new("Pa", "Pascal", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Kelvin =
                 new("K", "Kelvin", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Watt =
                 new("W", "Watt", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation KilogramsPerSecond =
                 new("kg/s", "Kilograms per Second", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Percent =
                 new("%", "Percent", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Metre =
                 new("m", "Metre", "http://www.opcfoundation.org/UA/units/un/cefact");
         }

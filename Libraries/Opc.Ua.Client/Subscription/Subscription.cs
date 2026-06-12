@@ -673,7 +673,8 @@ namespace Opc.Ua.Client.Subscriptions
                 Options.RecoveryPolicy
                     .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
                 Created &&
-                !Disposed && Interlocked.CompareExchange(
+                !Disposed &&
+                Interlocked.CompareExchange(
                     ref m_recreateAfterTransferInProgress, 1, 0) == 0)
             {
                 _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);

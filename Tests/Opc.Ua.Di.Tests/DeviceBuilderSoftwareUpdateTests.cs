@@ -220,7 +220,7 @@ namespace Opc.Ua.Di.Tests
                 new Variant("urn:acme:firmware"),
                 new Variant("2.0.0"),
                 new Variant(System.Array.Empty<string>()),
-                new Variant(System.Array.Empty<byte>()),
+                new Variant(System.Array.Empty<byte>())
             });
 
             ServiceResult result = await InvokeMethodAsync(

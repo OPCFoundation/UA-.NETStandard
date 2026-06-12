@@ -587,9 +587,7 @@ namespace Opc.Ua.SourceGeneration
                         if (parameter.IsOptional)
 
                         {
-
                             completeListOfFields.Add(parameter);
-
                         }
                     }
                 }
@@ -943,9 +941,7 @@ namespace Opc.Ua.SourceGeneration
             if (field.ValueRank == ValueRank.Array)
 
             {
-
                 functionName += "Array";
-
             }
             else if (field.ValueRank != ValueRank.Scalar)
             {
@@ -1329,9 +1325,7 @@ namespace Opc.Ua.SourceGeneration
             if (field.IdentifierInName)
 
             {
-
                 context.Template.AddReplacement(Tokens.XmlIdentifier, field.Name);
-
             }
             else
             {
@@ -1397,9 +1391,7 @@ namespace Opc.Ua.SourceGeneration
             if (dataType.Fields == null)
 
             {
-
                 return [.. fields];
-
             }
             foreach (Parameter child in dataType.Fields)
             {

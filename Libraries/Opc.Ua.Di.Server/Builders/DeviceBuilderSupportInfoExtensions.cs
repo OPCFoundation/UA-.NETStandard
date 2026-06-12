@@ -63,6 +63,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// browse-name <c>"SupportInfo"</c> in the device's namespace.
         /// </summary>
         /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="device"/> is <c>null</c>.</exception>
         public static IDeviceBuilder<TDevice> WithSupportInfo<TDevice>(
             this IDeviceBuilder<TDevice> device,
             Action<ISupportInfoState> configure)

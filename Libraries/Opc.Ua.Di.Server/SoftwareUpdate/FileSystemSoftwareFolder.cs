@@ -140,7 +140,9 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             }
 
             if (string.IsNullOrEmpty(version))
-            { return null; }
+            {
+                return null;
+            }
             return await TryReadMetadataAsync(version, cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -282,7 +284,8 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
 
             // Ensure the version exists before marking it active.
             SoftwarePackage? existing = await TryReadMetadataAsync(
-                version, cancellationToken).ConfigureAwait(false) ?? throw new ArgumentException(
+                version, cancellationToken).ConfigureAwait(false) ??
+                throw new ArgumentException(
                     $"Cannot set unknown version '{version}' as current.",
                     nameof(version));
 

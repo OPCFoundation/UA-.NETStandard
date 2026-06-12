@@ -41,7 +41,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
@@ -333,8 +332,8 @@ namespace Opc.Ua.Sessions.Tests
                         }
                         catch (ServiceResultException sre)
                             when (sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                                  sre.StatusCode == StatusCodes.BadNotConnected ||
-                                  sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                                sre.StatusCode == StatusCodes.BadNotConnected ||
+                                sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                         {
                             // Expected when fault injection breaks the
                             // channel mid-write; the next iteration will
@@ -391,7 +390,9 @@ namespace Opc.Ua.Sessions.Tests
                             TestContext.Out.WriteLine(
                                 $"FAULT INJECTION #{faultCount}: closing subscriber transport channel");
                             try
-                            { channel.Dispose(); }
+                            {
+                                channel.Dispose();
+                            }
                             catch (Exception ex)
                             {
                                 TestContext.Out.WriteLine(
@@ -438,24 +439,38 @@ namespace Opc.Ua.Sessions.Tests
                         TimeSpan.FromSeconds(testDurationSeconds), ct)
                         .ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) { /* timeout fired */ }
+                catch (OperationCanceledException)
+                { /* timeout fired */
+                }
 
                 // Stop background tasks.
                 await writerCts.CancelAsync().ConfigureAwait(false);
                 await faultCts.CancelAsync().ConfigureAwait(false);
                 await statusCts.CancelAsync().ConfigureAwait(false);
                 try
-                { await writerTask.ConfigureAwait(false); }
-                catch { /* ok */ }
+                {
+                    await writerTask.ConfigureAwait(false);
+                }
+                catch
+                { /* ok */
+                }
                 if (faultTask != null)
                 {
                     try
-                    { await faultTask.ConfigureAwait(false); }
-                    catch { /* ok */ }
+                    {
+                        await faultTask.ConfigureAwait(false);
+                    }
+                    catch
+                    { /* ok */
+                    }
                 }
                 try
-                { await statusTask.ConfigureAwait(false); }
-                catch { /* ok */ }
+                {
+                    await statusTask.ConfigureAwait(false);
+                }
+                catch
+                { /* ok */
+                }
 
                 // Drain the last few publishes.
                 await Task.Delay(publishingIntervalMs * 4).ConfigureAwait(false);
@@ -511,19 +526,35 @@ namespace Opc.Ua.Sessions.Tests
             finally
             {
                 try
-                { await subscriber.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await subscriber.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await subscriber.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await subscriber.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (writer != null)
                 {
                     try
-                    { await writer.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await writer.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                     try
-                    { await writer.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await writer.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                 }
             }
         }
@@ -558,7 +589,8 @@ namespace Opc.Ua.Sessions.Tests
                 return defaultValue;
             }
             return int.TryParse(raw, NumberStyles.Integer,
-                CultureInfo.InvariantCulture, out int parsed) && parsed > 0
+                CultureInfo.InvariantCulture, out int parsed) &&
+                parsed > 0
                 ? parsed
                 : defaultValue;
         }
@@ -591,6 +623,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             private long m_receivedCount;
             private long m_errorCount;
+
             /// <summary>
             /// Stored as long so Interlocked.Exchange / Volatile.Read have
             /// overloads on net4x (the typed uint overload is .NET 5+).

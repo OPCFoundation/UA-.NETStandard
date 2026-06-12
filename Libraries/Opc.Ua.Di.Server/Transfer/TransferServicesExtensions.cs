@@ -67,6 +67,7 @@ namespace Opc.Ua.Di.Server.Transfer
         /// Thrown when the supplied node does not expose the three
         /// expected child methods.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="transferServices"/> is <c>null</c>.</exception>
         public static void BindToTransferService(
             this BaseObjectState transferServices,
             NodeId elementId,

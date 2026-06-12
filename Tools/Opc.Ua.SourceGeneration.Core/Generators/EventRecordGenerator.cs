@@ -393,9 +393,7 @@ namespace Opc.Ua.SourceGeneration
                 if (child is MethodDesign)
 
                 {
-
                     continue;
-
                 }
                 string browseName = child.SymbolicName?.Name;
                 if (string.IsNullOrEmpty(browseName))
@@ -533,8 +531,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string MapScalarDataType(DataTypeDesign dataType)
         {
-            string id = dataType.SymbolicId?.Name;
-            switch (id)
+            switch (dataType.SymbolicId?.Name)
             {
                 case "Boolean":
                     return "bool?";
@@ -669,9 +666,7 @@ namespace Opc.Ua.SourceGeneration
             if (objectType.BaseTypeNode is not ObjectTypeDesign parent)
 
             {
-
                 return kRootBaseRecord;
-
             }
             string parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))

@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             TestMonitoredItem item = AddCreatedItem("item", 100);
             Assert.That(() => item.AddDesiredTriggeredByForTest(null!),
                 Throws.ArgumentException);
-            Assert.That(() => item.AddDesiredTriggeredByForTest(""),
+            Assert.That(() => item.AddDesiredTriggeredByForTest(string.Empty),
                 Throws.ArgumentException);
             Assert.That(() => item.AddDesiredTriggeredByForTest("   "),
                 Throws.ArgumentException);
@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             TestMonitoredItem item = AddCreatedItem("item", 100);
             Assert.That(item.RemoveDesiredTriggeredByForTest(null!), Is.False);
-            Assert.That(item.RemoveDesiredTriggeredByForTest(""), Is.False);
+            Assert.That(item.RemoveDesiredTriggeredByForTest(string.Empty), Is.False);
         }
 
         [Test]

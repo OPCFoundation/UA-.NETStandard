@@ -565,7 +565,8 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken != null &&
+            else if (RenewedToken != null &&
+                CurrentToken != null &&
                 CurrentToken.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);

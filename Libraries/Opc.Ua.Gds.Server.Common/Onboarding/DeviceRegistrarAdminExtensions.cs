@@ -61,6 +61,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Thrown when the supplied node does not expose the two
         /// expected child methods.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="registrar"/> is <c>null</c>.</exception>
         public static void BindToTicketStore(
             this BaseObjectState registrar,
             ITicketStore store)

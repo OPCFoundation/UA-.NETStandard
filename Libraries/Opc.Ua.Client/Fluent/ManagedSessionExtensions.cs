@@ -178,6 +178,7 @@ namespace Opc.Ua.Client
         /// to include. When <c>null</c> every subscription currently
         /// managed by <paramref name="session"/> is included.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static ValueTask SaveSubscriptionsAsync(
             this ManagedSession session,
             Stream destination,
@@ -212,6 +213,7 @@ namespace Opc.Ua.Client
         /// state via <c>TransferSubscriptions</c>; if that fails for any
         /// subscription the V2 manager falls back to recreate.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<ISubscription>> LoadSubscriptionsAsync(
             this ManagedSession session, Stream source,
             Func<string, ISubscriptionNotificationHandler> handlerFactory,
@@ -233,6 +235,7 @@ namespace Opc.Ua.Client
         /// the caller in any format and later passed to
         /// <see cref="RestoreSubscriptionsAsync"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static IReadOnlyList<SubscriptionStateSnapshot> SnapshotSubscriptions(
             this ManagedSession session)
         {
@@ -267,6 +270,7 @@ namespace Opc.Ua.Client
         /// state via <c>TransferSubscriptions</c>; if that fails for
         /// any subscription the V2 manager falls back to recreate.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static async ValueTask<IReadOnlyList<ISubscription>> RestoreSubscriptionsAsync(
             this ManagedSession session,
             IReadOnlyList<SubscriptionStateSnapshot> states,
@@ -337,6 +341,8 @@ namespace Opc.Ua.Client
         /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
         /// Unknown names cause <see cref="ArgumentException"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static ValueTask<SetTriggeringResult> SetTriggeringAsync(
             this ISubscription subscription,
             string triggeringItemName,

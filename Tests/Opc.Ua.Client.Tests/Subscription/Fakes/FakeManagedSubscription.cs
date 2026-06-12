@@ -128,14 +128,16 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public SubscriptionStateSnapshot Snapshot()
         {
-            return OnSnapshot?.Invoke() ?? SubscriptionStateSnapshot.AsOptions(
-                new SubscriptionOptions(),
-                Id,
-                Array.Empty<uint>().ToArrayOf(),
-                Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf());
+            return OnSnapshot?.Invoke() ??
+                SubscriptionStateSnapshot.AsOptions(
+                    new SubscriptionOptions(),
+                    Id,
+                    Array.Empty<uint>().ToArrayOf(),
+                    Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf());
         }
 
         public List<SetAsDurableCall> SetAsDurableCalls { get; } = [];
+
         public Func<TimeSpan, CancellationToken, ValueTask<TimeSpan>>? OnSetAsDurableAsync
         { get; set; }
 
@@ -149,6 +151,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         public List<SetTriggeringCall> SetTriggeringCalls { get; } = [];
+
         public Func<IMonitoredItem, IReadOnlyCollection<IMonitoredItem>?,
             IReadOnlyCollection<IMonitoredItem>?, CancellationToken,
             ValueTask<SetTriggeringResult>>? OnSetTriggeringAsync

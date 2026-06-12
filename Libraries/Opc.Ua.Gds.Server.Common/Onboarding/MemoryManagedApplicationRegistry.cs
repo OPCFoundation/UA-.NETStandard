@@ -138,6 +138,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         private readonly ushort m_namespaceIndex;
+
         private readonly ConcurrentDictionary<string, ManagedApplication> m_apps
             = new(StringComparer.Ordinal);
     }

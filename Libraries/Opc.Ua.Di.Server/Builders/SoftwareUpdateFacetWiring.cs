@@ -189,8 +189,8 @@ namespace Opc.Ua.Di.Server.Builders
             var browseName = new QualifiedName(FileTransferBrowseName, diNs);
             TemporaryFileTransferState fileTransfer =
                 packageLoading.FileTransfer
-                    ?? context.CreateInstanceOfTemporaryFileTransferType(
-                        packageLoading, browseName);
+                ?? context.CreateInstanceOfTemporaryFileTransferType(
+                    packageLoading, browseName);
 
             FinaliseChild(context, fileTransfer, browseName);
             packageLoading.FileTransfer = fileTransfer;

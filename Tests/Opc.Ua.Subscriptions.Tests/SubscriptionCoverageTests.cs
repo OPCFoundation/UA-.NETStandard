@@ -40,7 +40,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -205,19 +204,35 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await originSession.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await originSession.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await originSession.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await originSession.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (targetSession != null)
                 {
                     try
-                    { await targetSession.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await targetSession.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                     try
-                    { await targetSession.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await targetSession.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                 }
             }
         }
@@ -299,20 +314,36 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await originSession.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await originSession.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (targetSession != null)
                 {
                     try
-                    { await targetSession.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await targetSession.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                     try
-                    { await targetSession.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await targetSession.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                 }
                 try
-                { File.Delete(saveFile); }
-                catch { /* best effort */ }
+                {
+                    File.Delete(saveFile);
+                }
+                catch
+                { /* best effort */
+                }
             }
         }
 
@@ -366,19 +397,35 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await session.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (target != null)
                 {
                     try
-                    { await target.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await target.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                     try
-                    { await target.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await target.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                 }
             }
         }
@@ -456,19 +503,35 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await session.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (target != null)
                 {
                     try
-                    { await target.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await target.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                     try
-                    { await target.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    {
+                        await target.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                 }
             }
         }

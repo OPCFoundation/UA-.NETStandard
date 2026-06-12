@@ -140,7 +140,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Maps to <c>CompositeIdentityTicketType</c> — identifies a
         /// composite (collection) by <c>CompositeInstanceUri</c>.
         /// </summary>
-        CompositeIdentity = 2,
+        CompositeIdentity = 2
     }
 
     /// <summary>

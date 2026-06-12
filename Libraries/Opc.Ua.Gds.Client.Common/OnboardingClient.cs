@@ -89,6 +89,7 @@ namespace Opc.Ua.Gds.Client
         /// Invokes <c>RegisterTickets</c>. Returns the per-ticket
         /// status array reported by the server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="tickets"/> is <c>null</c>.</exception>
         public ValueTask<int[]> RegisterTicketsAsync(
             byte[][] tickets, CancellationToken ct = default)
         {
@@ -103,6 +104,7 @@ namespace Opc.Ua.Gds.Client
         /// Invokes <c>UnregisterTickets</c>. Returns the per-ticket
         /// status array.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="tickets"/> is <c>null</c>.</exception>
         public ValueTask<int[]> UnregisterTicketsAsync(
             byte[][] tickets, CancellationToken ct = default)
         {
@@ -160,9 +162,7 @@ namespace Opc.Ua.Gds.Client
             if (result.OutputArguments.Count == 0)
 
             {
-
                 return [];
-
             }
             object? boxed = result.OutputArguments[0].AsBoxedObject();
             return boxed switch

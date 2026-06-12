@@ -883,7 +883,9 @@ namespace Opc.Ua.Server
                             {
                                 Task.WaitAll(tasks);
                             }
-                            catch { }
+                            catch
+                            {
+                            }
                         }
                     }
                     catch (Exception ex)

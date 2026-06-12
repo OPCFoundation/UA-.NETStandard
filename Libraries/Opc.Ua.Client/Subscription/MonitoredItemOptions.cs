@@ -138,4 +138,3 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public IReadOnlyList<string> TriggeredByNames { get; init; } = [];
     }
 }
-

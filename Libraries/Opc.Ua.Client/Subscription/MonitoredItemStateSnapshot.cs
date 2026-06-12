@@ -221,6 +221,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Runtime desired triggering set captured at snapshot time.
         /// Stored on the wire as <see cref="TriggeredByNames"/>.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static MonitoredItemStateSnapshot AsOptions(
             string name,
             MonitoredItemOptions options,

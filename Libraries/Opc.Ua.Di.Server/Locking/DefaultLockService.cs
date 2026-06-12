@@ -89,6 +89,8 @@ namespace Opc.Ua.Di.Server.Locking
         /// Call once during DI node-manager startup; calling twice
         /// throws.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public void AttachToSessionManager(ISessionManager sessionManager)
         {
             if (m_sessionManager != null)

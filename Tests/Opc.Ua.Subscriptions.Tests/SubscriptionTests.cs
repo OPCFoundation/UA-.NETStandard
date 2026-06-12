@@ -40,7 +40,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -88,6 +87,7 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             return base.TearDownAsync();
         }
+
         [Test]
         [Order(100)]
         [CancelAfter(60_000)]
@@ -175,6 +175,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         [Test]
         [Order(200)]
         [CancelAfter(60_000)]
@@ -288,6 +289,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
+
         [Test]
         [Order(300)]
         [CancelAfter(60_000)]
@@ -422,6 +424,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
+
         [Test]
         [Order(400)]
         [CancelAfter(60_000)]
@@ -485,6 +488,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         [Test]
         [Order(500)]
         [CancelAfter(60_000)]
@@ -560,6 +564,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         [Test]
         [Order(600)]
         [CancelAfter(60_000)]
@@ -642,6 +647,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         [Test]
         [Order(601)]
         [CancelAfter(60_000)]
@@ -700,6 +706,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         [Test]
         [Order(602)]
         [CancelAfter(60_000)]
@@ -773,6 +780,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         [Test]
         [Order(700)]
         [CancelAfter(60_000)]
@@ -861,6 +869,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
+
         private async Task<ManagedSession> ConnectV2Async(
             string sessionName, CancellationToken ct)
         {

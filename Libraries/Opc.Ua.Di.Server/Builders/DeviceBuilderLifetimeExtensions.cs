@@ -44,6 +44,8 @@ namespace Opc.Ua.Di.Server.Builders
         /// classifier kind.
         /// </summary>
         /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="device"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static LifetimeVariableState AddLifetimeIndication<TDevice>(
             this IDeviceBuilder<TDevice> device,
             QualifiedName browseName,
@@ -90,6 +92,8 @@ namespace Opc.Ua.Di.Server.Builders
         /// Resolves the <c>BaseLifetimeIndicationType</c> subtype
         /// NodeId for the given <paramref name="kind"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static NodeId ResolveIndicationTypeId(
             LifetimeIndicationKind kind,
             NamespaceTable namespaceUris)

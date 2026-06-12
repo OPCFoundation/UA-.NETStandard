@@ -81,6 +81,7 @@ namespace Opc.Ua.Di.Server.Transfer
         /// <see cref="ITransferService.TransferFromDeviceAsync"/>
         /// call.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RegisterExporter(
             NodeId elementId,
             Func<ISystemContext, CancellationToken, ValueTask<ParameterSet>> exporter)
@@ -101,6 +102,7 @@ namespace Opc.Ua.Di.Server.Transfer
         /// returns the per-entry status codes (must match the input
         /// <see cref="ParameterSet.Entries"/> count and order).
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RegisterImporter(
             NodeId elementId,
             Func<ISystemContext, ParameterSet, CancellationToken, ValueTask<StatusCode[]>> importer)
@@ -324,12 +326,15 @@ namespace Opc.Ua.Di.Server.Transfer
 
         private readonly TimeProvider m_time;
         private readonly TimeSpan m_timeout;
+
         private readonly ConcurrentDictionary<NodeId,
             Func<ISystemContext, CancellationToken, ValueTask<ParameterSet>>> m_exporters
             = new();
+
         private readonly ConcurrentDictionary<NodeId,
             Func<ISystemContext, ParameterSet, CancellationToken, ValueTask<StatusCode[]>>>
             m_importers = new();
+
         private readonly ConcurrentDictionary<int, TransferState> m_transfers = new();
         private int m_nextTransferId;
 

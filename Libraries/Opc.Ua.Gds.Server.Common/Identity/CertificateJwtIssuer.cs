@@ -124,6 +124,7 @@ namespace Opc.Ua.Gds.Server.Identity
         /// Supplies hosted-GDS defaults after the application certificate
         /// has been created.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificateProvider"/> is <c>null</c>.</exception>
         internal void Initialize(
             ICertificateProvider certificateProvider,
             CertificateIdentifier? defaultSigningCertificate,
@@ -273,6 +274,7 @@ namespace Opc.Ua.Gds.Server.Identity
         /// <c>kid</c> is set to the certificate's SHA-1 thumbprint. Cross-stack tooling that expects
         /// JWKS <c>kid</c> or SKI-derived identifiers must be configured to match.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private static string CreateHeader(Certificate certificate, out string algorithm)
         {
             using ECDsa? ecdsa = certificate.GetECDsaPrivateKey();
@@ -282,7 +284,8 @@ namespace Opc.Ua.Gds.Server.Identity
             }
             else
             {
-                using RSA? rsa = certificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(
+                using RSA? rsa = certificate.GetRSAPrivateKey() ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "AuthorizationService signing certificate must use ECDSA or RSA.");
                 algorithm = "RS256";

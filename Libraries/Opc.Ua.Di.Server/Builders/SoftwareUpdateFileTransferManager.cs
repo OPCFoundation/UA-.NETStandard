@@ -288,8 +288,9 @@ namespace Opc.Ua.Di.Server.Builders
                     return StatusCodes.BadNotFound;
                 }
                 NodeId? sessionId = SessionIdOf(context);
-                if (slot.OwnerSessionId != null && sessionId != null
-                    && slot.OwnerSessionId != sessionId)
+                if (slot.OwnerSessionId != null &&
+                    sessionId != null &&
+                    slot.OwnerSessionId != sessionId)
                 {
                     fileHandle = 0;
                     return ServiceResult.Create(
@@ -456,8 +457,9 @@ namespace Opc.Ua.Di.Server.Builders
                 return false;
             }
             NodeId? expected = SessionIdOf(context);
-            if (located.OwnerSessionId != null && expected != null
-                && located.OwnerSessionId != expected)
+            if (located.OwnerSessionId != null &&
+                expected != null &&
+                located.OwnerSessionId != expected)
             {
                 slot = null!;
                 error = ServiceResult.Create(

@@ -124,6 +124,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configuration delegate.</param>
         /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder ConfigureDevicesFor<TNodeManager>(
             this IOpcUaServerBuilder builder,
             Action<IDiPostSetupContext> configure)
@@ -151,6 +152,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// by the runner; thrown exceptions abort hosted-server startup.
         /// </summary>
         /// <typeparam name="TNodeManager">Target node-manager subclass.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder ConfigureDevicesFor<TNodeManager>(
             this IOpcUaServerBuilder builder,
             Func<IDiPostSetupContext, ValueTask> configure)
