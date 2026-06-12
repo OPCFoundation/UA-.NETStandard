@@ -41,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using IChannel = Opc.Ua.Client.Tests.Stack.Client.ClientChannelManagerManagedTests.IChannel;
 
 namespace Opc.Ua.Client.Tests.Channels
 {
