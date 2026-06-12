@@ -25,7 +25,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   PubSub / GDS / LDS / Complex Types / Device Integration libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
-  .NET Framework 4.8, and .NET Standard 2.0 / 2.1; ships
+  .NET Framework 4.8, and .NET Standard 2.1; ships
   Native-AOT-friendly assemblies.
 - **Certified for compliance** — the reference server has been
   certified through an OPC Foundation Certification Test Lab and is
@@ -56,17 +56,15 @@ dotnet build UA.slnx
 ```
 
 For the supported target frameworks and platform notes see
-[Docs/PlatformBuild.md](Docs/PlatformBuild.md). For the official
-NuGet packages see
+[Platform Support](Docs/PlatformBuild.md). The official NuGet packages
+are published to nuget.org under the `OPCFoundation.NetStandard`
+prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-(meta) and the split
-[Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)
-/ [Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/)
-/ [Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/)
-packages, plus the optional
-[HTTPS binding](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/).
-A preview feed is available on
-[Azure DevOps](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local).
+pulls in everything, or pick the split
+`OPCFoundation.NetStandard.Opc.Ua.Core` / `.Client` / `.Server` /
+`.Bindings.Https` packages directly. Preview builds for every successful
+`master` build are available in the
+[Azure DevOps opcua-preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local).
 
 ### Sample applications
 
