@@ -25,7 +25,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * SHA-2 support (up to SHA512) including security profile Basic256Sha256, Aes128Sha256RsaOaep and  Aes256Sha256RsaPss for configurations with high security needs.
 * ECC Security policies ECC_nistP256, ECC_nistP384, ECC_brainpoolP256r1 and ECC_brainpoolP384r1.
 * Anonymous, username and X.509 certificate user authentication.
-* UA-TCP & HTTPS transports (client and server).
+* UA-TCP, HTTPS and (new in 2.0) WSS transports (client and server). HTTPS supports both binary (`application/octet-stream`) and JSON (`application/opcua+uajson`) wire formats; WSS supports both `opcua+uacp` (binary + UASC) and `opcua+uajson` (JSON, Security Mode None) sub-protocols per OPC UA Part 6 §7.4 / §7.5.
 * [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
 * Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
 * Sessions and (durable) Subscriptions.
@@ -33,6 +33,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 #### **New in 2.0**
 
+* **WSS (`opc.wss://` / `wss://`) and HTTPS JSON transport profiles** — full server and client support for the OPC UA Part 6 §7.5 (WebSocket Secure with `opcua+uacp` and `opcua+uajson` sub-protocols) and §7.4.5 (HTTPS JSON) profiles. See [`Docs/Profiles.md`](Docs/Profiles.md). The legacy `IMessageSocket` public API was removed in favour of the new internal-to-runtime, externally-stable `IUaSCByteTransport` boundary — see the [migration guide](Docs/MigrationGuide.md) for the breaking change and the recommended migration path.
 * **Type safe built in types**
 * Source generator generated code behind during build
 * See [MigrationGuide](Docs/MigrationGuide.md) for details.
