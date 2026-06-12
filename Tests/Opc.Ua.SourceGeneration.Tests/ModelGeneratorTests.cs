@@ -173,7 +173,12 @@ namespace Opc.Ua.SourceGeneration
 
             // There will be 120 errors due to missing Opc.Ua dll reference
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(8));
+            // Adding the HeaterStatus enum (used by HeaterStatusMatrix in
+            // MatrixValueDataType to exercise the typed-enum matrix codegen
+            // path) caused the generator to emit one additional output file
+            // for TestDataDesign, bringing the total from 8 to 9 (the same
+            // per-model count that DemoModel produces above).
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(9));
 
             string testDataXmlSchema = ValidateXmlSchema(languageVersion, generatorResult);
             Assert.That(testDataXmlSchema,

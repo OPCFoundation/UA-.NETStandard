@@ -676,6 +676,19 @@
     </opc:Fields>
   </opc:DataType>
 
+  <opc:DataType SymbolicName="MatrixValueDataType" BaseType="ua:Structure" >
+    <opc:Fields>
+      <opc:Field Name="BooleanMatrix" DataType="ua:Boolean" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="Int32Matrix" DataType="ua:Int32" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="StringMatrix" DataType="ua:String" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="NodeIdMatrix" DataType="ua:NodeId" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="VariantMatrix" DataType="ua:BaseDataType" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="ExtensionObjectMatrix" DataType="ua:Structure" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="VectorMatrix" DataType="Vector" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
+      <opc:Field Name="AbstractVectorMatrix" DataType="Vector" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" AllowSubTypes="true" />
+    </opc:Fields>
+  </opc:DataType>
+
 <!--
   <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>

@@ -914,6 +914,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName)
+            where T : IEncodeable, new()
+        {
+            if (TryGetEncodeableMatrixFromElement(
+                GetPropertyElement(fieldName),
+                out MatrixOf<T> values))
+            {
+                return values;
+            }
+            return DefaultOrThrow(values);
+        }
+
+        /// <inheritdoc/>
         public ushort ReadUInt16(string? fieldName)
         {
             if (TryGetUInt16FromElement(
@@ -2963,6 +2976,46 @@ namespace Opc.Ua
                             TryGetEncodeableArrayFromElement(
                                 GetPropertyElement(JsonProperties.Array),
                                 encodeableTypeId,
+                                out ArrayOf<T> structures))
+                        {
+                            values = structures.ToMatrix(dimensions);
+                            return true;
+                        }
+                        values = default;
+                        return false;
+                    }
+                    finally
+                    {
+                        m_stack.Pop();
+                    }
+                default:
+                    values = default;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Get structure matrix from element
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private bool TryGetEncodeableMatrixFromElement<T>(
+            JsonElement element,
+            out MatrixOf<T> values) where T : IEncodeable, new()
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Null or JsonValueKind.Undefined:
+                    values = default;
+                    return true;
+                case JsonValueKind.Object:
+                    m_stack.Push(element);
+                    try
+                    {
+                        if (TryGetInt32ArrayFromElement(
+                                GetPropertyElement(JsonProperties.Dimensions),
+                                out ArrayOf<int> dimensions) &&
+                            TryGetEncodeableArrayFromElement(
+                                GetPropertyElement(JsonProperties.Array),
                                 out ArrayOf<T> structures))
                         {
                             values = structures.ToMatrix(dimensions);

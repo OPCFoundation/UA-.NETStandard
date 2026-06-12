@@ -4659,13 +4659,14 @@ namespace Quickstarts.ReferenceServer
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.Historizing = false;
-            variable.Value = Variant.FromStructure(ArrayOf.Wrapped(
-                new XVType { X = 0.0, Value = 0.0f },
-                new XVType { X = 1.0, Value = 1.0f },
-                new XVType { X = 2.0, Value = 4.0f },
-                new XVType { X = 3.0, Value = 9.0f },
-                new XVType { X = 4.0, Value = 16.0f }
-            ));
+            variable.Value = new XVType[]
+            {
+                new() { X = 0.0, Value = 0.0f },
+                new() { X = 1.0, Value = 1.0f },
+                new() { X = 2.0, Value = 4.0f },
+                new() { X = 3.0, Value = 9.0f },
+                new() { X = 4.0, Value = 16.0f }
+            }.ToMatrixOf(5);
             variable.StatusCode = StatusCodes.Good;
 
             if (variable.XAxisDefinition != null)
