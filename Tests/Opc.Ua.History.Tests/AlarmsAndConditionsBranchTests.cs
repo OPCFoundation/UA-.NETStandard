@@ -125,7 +125,7 @@ namespace Opc.Ua.History.Tests
         [Retry(2)]
         public async Task ConfirmBranchAsync()
         {
-            NodeId alarmId = RequireAlarm();
+            NodeId alarmId = RequireAlarm("AlarmConditionType");
             await Task.Delay(1500).ConfigureAwait(false);
 
             ByteString eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
