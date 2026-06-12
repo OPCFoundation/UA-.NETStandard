@@ -221,7 +221,9 @@ namespace Opc.Ua
             {
                 Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
                 Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
                 Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                Profiles.UaWssJsonTransport => "opc.wss+json",
                 _ => endpointUrl.Scheme
             };
 

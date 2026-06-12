@@ -1069,8 +1069,10 @@ namespace Opc.Ua.Bindings
                     IServiceResponse responseToSend;
                     try
                     {
+                        byte[] messageBytes = new byte[totalRead];
+                        Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                         IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
-                            new ArraySegment<byte>(receiveBuffer, 0, totalRead).ToArray(),
+                            messageBytes,
                             m_quotas.MessageContext);
                         request.RequestHeader ??= new RequestHeader();
 
