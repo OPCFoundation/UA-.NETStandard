@@ -32,9 +32,11 @@ using System.CommandLine;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
@@ -89,15 +91,17 @@ static async Task RunStdioServerAsync(CancellationToken ct)
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
     ConfigureLogging(builder.Logging);
 
-    ConfigureServices(builder.Services);
+    PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
+    bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
+    ConfigureServices(builder.Services, pcapOptions);
 
-    builder.Services
+    IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
-        .WithStdioServerTransport()
-        .WithToolsFromAssembly()
-        .WithResources<SessionResources>();
+        .WithStdioServerTransport();
+    ConfigureMcpTools(mcpServerBuilder, diagnosticsToolsEnabled);
 
     IHost app = builder.Build();
+    LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
     await app.RunAsync(ct).ConfigureAwait(false);
 }
 
@@ -109,25 +113,113 @@ static async Task RunSseServerAsync(int port, CancellationToken ct)
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
     ConfigureLogging(builder.Logging);
 
-    ConfigureServices(builder.Services);
+    PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
+    bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
+    ConfigureServices(builder.Services, pcapOptions);
 
-    builder.Services
+    IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
-        .WithHttpTransport()
-        .WithToolsFromAssembly()
-        .WithResources<SessionResources>();
+        .WithHttpTransport();
+    ConfigureMcpTools(mcpServerBuilder, diagnosticsToolsEnabled);
 
     WebApplication app = builder.Build();
+    LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
     app.MapMcp();
     app.Urls.Add($"http://localhost:{port}");
 
     await app.RunAsync(ct).ConfigureAwait(false);
 }
 
-static void ConfigureServices(IServiceCollection services)
+static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptions)
 {
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
+    services.AddSingleton(_ => CreateMcpServerOptions());
+    services.AddOpcUaBindingsPcap(options =>
+    {
+        options.BaseFolder = pcapOptions.BaseFolder;
+        options.MaxActiveSessions = pcapOptions.MaxActiveSessions;
+        options.EnableDiagnosticsTools = pcapOptions.EnableDiagnosticsTools;
+    });
+    services.AddOpcUaBindingsPcapFormatters();
+    services.AddOpcUaBindingsPcapReplay();
+}
+
+static Opc.Ua.Mcp.McpServerOptions CreateMcpServerOptions()
+{
+    return new Opc.Ua.Mcp.McpServerOptions
+    {
+        NodeSetExportRoot = Environment.GetEnvironmentVariable("OPCUA_MCP_NODESET_EXPORT_ROOT"),
+        PcapBaseFolder = Environment.GetEnvironmentVariable("OPCUA_MCP_PCAP_BASE_FOLDER")
+    };
+}
+
+static PcapOptions CreatePcapOptions(IConfiguration configuration)
+{
+    var options = new PcapOptions();
+
+    string? enableDiagnosticsTools = configuration["Pcap:EnableDiagnosticsTools"];
+    if (bool.TryParse(enableDiagnosticsTools, out bool parsedEnableDiagnosticsTools))
+    {
+        options.EnableDiagnosticsTools = parsedEnableDiagnosticsTools;
+    }
+
+    return options;
+}
+
+static bool AreDiagnosticsToolsEnabled(PcapOptions pcapOptions)
+{
+    return pcapOptions.EnableDiagnosticsTools ||
+        string.Equals(
+            Environment.GetEnvironmentVariable("OPCUA_PCAP_ENABLE_DIAGNOSTICS"),
+            "1",
+            StringComparison.Ordinal) ||
+        string.Equals(
+            Environment.GetEnvironmentVariable("OPCUA_PCAP_ENABLE_DIAGNOSTICS"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+}
+
+static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosticsToolsEnabled)
+{
+    mcpServerBuilder
+        .WithTools<AttributeServiceTools>()
+        .WithTools<ConfigurationTools>()
+        .WithTools<ConnectionTools>()
+        .WithTools<ConvenienceTools>()
+        .WithTools<DiscoveryServiceTools>()
+        .WithTools<MethodServiceTools>()
+        .WithTools<MonitoredItemServiceTools>()
+        .WithTools<NodeManagementServiceTools>()
+        .WithTools<NodeSetExportTools>()
+        .WithTools<PacketCaptureTools>()
+        .WithTools<PkiTools>()
+        .WithTools<SubscriptionServiceTools>()
+        .WithTools<ViewServiceTools>();
+
+    if (diagnosticsToolsEnabled)
+    {
+        mcpServerBuilder
+            .WithTools<PacketDecodeTools>()
+            .WithTools<PacketReplayTools>();
+    }
+
+    mcpServerBuilder.WithResources<SessionResources>();
+}
+
+static void LogDiagnosticsToolsWarning(IServiceProvider services, bool diagnosticsToolsEnabled)
+{
+    if (!diagnosticsToolsEnabled)
+    {
+        return;
+    }
+
+    ILoggerFactory loggerFactory = services.GetRequiredService<ILoggerFactory>();
+    ILogger logger = loggerFactory.CreateLogger("Opc.Ua.Mcp.Program");
+    logger.LogWarning(
+        "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +
+        "These tools disclose symmetric channel keys and can be used to replay captured traffic. " +
+        "Ensure the MCP transport is authenticated and audited.");
 }
 
 static void ConfigureLogging(ILoggingBuilder logging)
