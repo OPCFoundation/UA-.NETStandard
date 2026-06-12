@@ -55,8 +55,13 @@ namespace Opc.Ua.Bindings
     /// public extensibility points remain <see cref="ITransportChannel"/> and
     /// <see cref="ITransportListener"/>.
     /// </para>
+    /// <para>
+    /// Lifetime: <see cref="Close"/> fully releases the underlying connection
+    /// and any managed resources (locks, buffers); it is idempotent and safe
+    /// to call from a synchronous <c>Dispose</c> on the owning channel.
+    /// </para>
     /// </remarks>
-    internal interface IUaSCByteTransport : IAsyncDisposable
+    internal interface IUaSCByteTransport
     {
         /// <summary>
         /// The local endpoint of the underlying connection, when known.
@@ -131,8 +136,10 @@ namespace Opc.Ua.Bindings
         ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct);
 
         /// <summary>
-        /// Forcefully closes the underlying connection without sending a
-        /// graceful close frame. Idempotent.
+        /// Forcefully closes the underlying connection and releases all
+        /// managed resources held by the transport (e.g. socket / WebSocket
+        /// handles, synchronization primitives). Idempotent and safe to call
+        /// from a synchronous <c>Dispose</c> on the owning channel.
         /// </summary>
         void Close();
     }

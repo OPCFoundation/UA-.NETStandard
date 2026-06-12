@@ -73,7 +73,7 @@ namespace Opc.Ua.Bindings
     /// <see cref="ReceiveChunkAsync"/>; the channel is responsible for
     /// returning them.
     /// </remarks>
-    internal sealed class TcpByteTransport : IUaSCByteTransport
+    internal sealed class TcpByteTransport : IUaSCByteTransport, IDisposable
     {
         /// <summary>
         /// Creates an unconnected client transport.
@@ -372,20 +372,26 @@ namespace Opc.Ua.Bindings
             {
                 socket = m_socket;
                 m_socket = null;
+                if (m_closed)
+                {
+                    return;
+                }
                 m_closed = true;
             }
             if (socket != null)
             {
                 ShutdownAndDispose(socket);
             }
+            m_sendLock.Dispose();
         }
 
-        /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        /// <summary>
+        /// Releases the underlying socket and synchronization primitives.
+        /// Equivalent to calling <see cref="Close"/>.
+        /// </summary>
+        public void Dispose()
         {
             Close();
-            m_sendLock.Dispose();
-            return default;
         }
 
         private Socket RequireConnectedSocket()
