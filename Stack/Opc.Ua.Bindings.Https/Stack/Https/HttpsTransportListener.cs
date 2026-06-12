@@ -114,8 +114,20 @@ namespace Opc.Ua.Bindings
         /// <param name="listener">The transport listener that handles OPC UA requests.</param>
         public void Configure(IApplicationBuilder appBuilder, HttpsTransportListener listener)
         {
+            // Enable WebSocket upgrades so the WSS handler added in p2-wss-listener-handler
+            // can accept opcua+uacp / opcua+uajson sub-protocols.
+            appBuilder.UseWebSockets();
+
             appBuilder.Run(context =>
             {
+                // 1) WSS opcua+uacp / opcua+uajson upgrade (Part 6 §7.5.2)
+                if (context.WebSockets.IsWebSocketRequest)
+                {
+                    return listener.AcceptWebSocketAsync(context);
+                }
+
+                // 2) HTTP POST is the only verb defined for HTTPS binary / JSON
+                //    (Part 6 §7.4.2 + §7.4.5).
                 if (context.Request.Method != "POST")
                 {
                     context.Response.ContentLength = 0;
@@ -124,7 +136,20 @@ namespace Opc.Ua.Bindings
                     return context.Response.WriteAsync(string.Empty);
                 }
 
-                return listener.SendAsync(context);
+                // 3) Dispatch on Content-Type: 'application/opcua+uajson' is the
+                //    HTTPS-JSON sub-protocol (Part 6 §7.4.5); anything else is
+                //    treated as binary by SendBinaryAsync (which itself enforces
+                //    the 'application/octet-stream' contract per Part 6 §7.4.4).
+                string? contentType = context.Request.ContentType;
+                if (!string.IsNullOrEmpty(contentType) &&
+                    contentType!.StartsWith(
+                        Profiles.OpcUaJsonContentType,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return listener.SendJsonAsync(context);
+                }
+
+                return listener.SendBinaryAsync(context);
             });
         }
     }
@@ -390,9 +415,12 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Handles requests arriving from a channel.
+        /// Handles HTTPS POST requests carrying an OPC UA binary message
+        /// (Part 6 §7.4.4 — <c>application/octet-stream</c>). Public for
+        /// backwards compatibility with the previous <c>SendAsync</c> name;
+        /// <see cref="SendAsync"/> remains as a thin synonym.
         /// </summary>
-        public async Task SendAsync(HttpContext context)
+        public async Task SendBinaryAsync(HttpContext context)
         {
             string message = string.Empty;
             CancellationToken ct = context.RequestAborted;
@@ -554,6 +582,38 @@ namespace Opc.Ua.Bindings
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Backward-compatible alias for <see cref="SendBinaryAsync"/>.
+        /// </summary>
+        public Task SendAsync(HttpContext context) => SendBinaryAsync(context);
+
+        /// <summary>
+        /// Handles HTTPS POST requests carrying an OPC UA JSON message
+        /// (Part 6 §7.4.5 — <c>application/opcua+uajson</c>). Returns
+        /// <c>501 Not Implemented</c> until the HTTPS-JSON handler lands in
+        /// <c>p3-https-json-handler</c>.
+        /// </summary>
+        public Task SendJsonAsync(HttpContext context)
+        {
+            return WriteResponseAsync(
+                context.Response,
+                "HTTPSLISTENER - HTTPS-JSON transport not yet implemented.",
+                HttpStatusCode.NotImplemented);
+        }
+
+        /// <summary>
+        /// Handles WebSocket upgrade requests for the WSS transport
+        /// (Part 6 §7.5). Returns <c>501 Not Implemented</c> until the WSS
+        /// handler lands in <c>p2-wss-listener-handler</c>.
+        /// </summary>
+        public Task AcceptWebSocketAsync(HttpContext context)
+        {
+            return WriteResponseAsync(
+                context.Response,
+                "HTTPSLISTENER - WSS transport not yet implemented.",
+                HttpStatusCode.NotImplemented);
         }
 
         /// <summary>
