@@ -80,6 +80,21 @@ The stack implements the following transport profiles:
   - Binary encoding over HTTPS
   - TLS/SSL encryption
 
+- **[HTTPS JSON Transport](http://opcfoundation.org/UA-Profile/Transport/https-uajson)** (`opc.https://` and `https://`) - OPC UA JSON (compact / reversible) over HTTPS (OPC UA Part 6 §7.4.5)
+  - Compact JSON encoding (`application/opcua+uajson`)
+  - TLS/SSL encryption only — no UA SecureChannel layer
+  - Restricted to `MessageSecurityMode.None`; transport security is provided exclusively by TLS
+
+- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
+  - Same UASC SecureChannel pipeline as `opc.tcp` carried over WebSocket binary frames (one frame per MessageChunk)
+  - Supports all security modes (None / Sign / SignAndEncrypt)
+  - TLS/SSL encryption at the WebSocket layer
+
+- **WebSocket Secure (JSON)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
+  - Compact JSON encoding per WebSocket text frame
+  - TLS/SSL encryption only — no UA SecureChannel layer
+  - Restricted to `MessageSecurityMode.None`
+
 ### PubSub Transport Support
 
 The [PubSub library](PubSub.md) supports the following transport profiles:
@@ -90,8 +105,10 @@ The [PubSub library](PubSub.md) supports the following transport profiles:
 
 ### Currently Not Supported (Transport)
 
-- **WebSocket Transport** (`opc.wss://`) - UA WebSocket Secure (WSS) transport is not currently supported
-- **HTTPS JSON Transport** - JSON encoding over HTTPS is not currently supported
+All transport profiles defined in OPC UA Part 6 §7.4 (HTTPS) and §7.5
+(WebSockets) are now supported. The `opcua+openapi` and
+`opcua+openapi+<accesstoken>` WebSocket sub-protocols (Part 6 §7.5.2
+Table 81) are tracked as a future enhancement.
 
 ## Security Profiles
 
