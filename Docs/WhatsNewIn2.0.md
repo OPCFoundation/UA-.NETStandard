@@ -182,9 +182,10 @@ Other server-side feature work:
 [Model Change Tracking](ModelChangeTracking.md) (server-side
 `ModelChangeAggregator` and auto-emitted `GeneralModelChangeEvent`s, with
 client-side per-node `INodeCache.InvalidateNode`), and the
-[Streaming Subscription](StreamingSubscription.md) API
-(`IAsyncEnumerable`-based subscriptions for state-machine waits and
-short-lived monitoring).
+[Subscriptions and Monitored Items](Subscriptions.md) service set
+(V2 subscription engine, declarative + imperative `SetTriggering` with
+N:M support, and `IAsyncEnumerable`-based streaming subscriptions for
+state-machine waits and short-lived monitoring).
 
 ### Performance, memory, and pooling
 
@@ -334,7 +335,7 @@ projects.
   [Device Integration](DeviceIntegration.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
-  [Streaming Subscription](StreamingSubscription.md),
+  [Subscriptions and Monitored Items](Subscriptions.md),
   [Node Management](NodeManagement.md),
   [Model Change Tracking](ModelChangeTracking.md),
   [Model Dependencies](ModelDependencies.md).

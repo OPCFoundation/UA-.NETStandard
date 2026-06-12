@@ -142,11 +142,17 @@ through two coexisting paths:
 
 Client-side feature coverage:
 
-- **Subscriptions** — Both the classic publish engine and the V2
-  subscription engine (`DefaultSubscriptionEngine`) are supported and
-  selectable per session. Includes streaming subscriptions
-  (`IAsyncEnumerable`-based) for state-machine waits and short-lived
-  monitoring; see [Streaming Subscriptions](StreamingSubscription.md).
+- **Subscriptions and monitored items** — Both the classic publish
+  engine and the V2 subscription engine (`ISubscriptionManager` /
+  `DefaultSubscriptionEngine`) are supported and selectable per session.
+  The V2 surface includes a declarative + imperative
+  [`SetTriggering`](Subscriptions.md#triggering-settriggering) API with
+  N:M support and automatic replay on recreate / reconnect, plus an
+  `IStreamingSubscription` (`IAsyncEnumerable`-based) facade for
+  state-machine waits and short-lived monitoring
+  (`ManagedSession.DefaultStreaming`, `TakeUntilAsync` /
+  `WithTimeoutAsync` helpers). See
+  [Subscriptions and Monitored Items](Subscriptions.md).
 - **Transfer Subscriptions** — Subscription transfer between servers;
   see [Transfer Subscriptions](TransferSubscription.md). An opt-in
   `SubscriptionRecoveryPolicy` lets the client tolerate
@@ -498,6 +504,9 @@ for the variant selected by `--ctt`.
   reference.
 - [Sessions, Reconnection, and Subscription Engines](Sessions.md) —
   `Session`, `ManagedSession`, classic vs V2 subscription engine.
+- [Subscriptions and Monitored Items](Subscriptions.md) —
+  V2 `ISubscriptionManager`, declarative + imperative `SetTriggering`
+  (N:M, replay on recreate / reconnect), and `IStreamingSubscription`.
 - [Async Server Support](AsyncServerSupport.md) — TAP-based
   `AsyncCustomNodeManager` and the `IAsyncNodeManager` family.
 - [Dependency Injection](DependencyInjection.md) — `services.AddOpcUa()`
@@ -525,7 +534,6 @@ for the variant selected by `--ctt`.
 - [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
 - [Model Change Tracking](ModelChangeTracking.md)
-- [Streaming Subscription](StreamingSubscription.md)
 - [Transfer Subscription](TransferSubscription.md)
 - [Durable Subscription](DurableSubscription.md)
 - [Complex Types](ComplexTypes.md)

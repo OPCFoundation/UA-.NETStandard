@@ -117,6 +117,65 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => new MatrixOf<int>(memory, dimensions));
         }
 
+        /// <summary>
+        /// Attacker-controlled wire dimensions whose product overflows
+        /// Int32 must be rejected before reaching the
+        /// <c>length != m_memory.Length</c> guard. Without checked
+        /// arithmetic, <c>[65536, 65537]</c> silently wraps to
+        /// <c>65536</c> and could accept a malformed matrix whose
+        /// declared shape disagrees with the element count.
+        /// </summary>
+        [Test]
+        public void CreateMatrixShouldThrowOnDimensionProductOverflow()
+        {
+            int[] array = new int[65536];
+            var memory = new ReadOnlyMemory<int>(array);
+            int[] dimensions = [65536, 65537];
+
+            ArgumentException ex = Assert.Throws<ArgumentException>(
+                () => new MatrixOf<int>(memory, dimensions));
+            Assert.That(ex.ParamName, Is.EqualTo("dimensions"));
+            Assert.That(ex.InnerException, Is.TypeOf<OverflowException>());
+        }
+
+        /// <summary>
+        /// A 3-dimensional overflow case
+        /// (<c>[40000, 40000, 40000]</c> &gt; Int32.MaxValue) must be
+        /// caught even when the first multiplication does not overflow.
+        /// </summary>
+        [Test]
+        public void CreateMatrixShouldThrowOnMultiDimensionProductOverflow()
+        {
+            int[] array = new int[8];
+            var memory = new ReadOnlyMemory<int>(array);
+            int[] dimensions = [40000, 40000, 40000];
+
+            ArgumentException ex = Assert.Throws<ArgumentException>(
+                () => new MatrixOf<int>(memory, dimensions));
+            Assert.That(ex.ParamName, Is.EqualTo("dimensions"));
+            Assert.That(ex.InnerException, Is.TypeOf<OverflowException>());
+        }
+
+        /// <summary>
+        /// Negative individual dimensions are semantically invalid and
+        /// must be rejected. Without the explicit guard, a
+        /// <c>[-1, -1]</c> dimension array would multiply to a positive
+        /// <c>1</c> and could be accepted with a single-element
+        /// payload, only to crash deep in
+        /// <c>Array.CreateInstance</c> downstream.
+        /// </summary>
+        [Test]
+        public void CreateMatrixShouldThrowOnNegativeDimension()
+        {
+            int[] array = [42];
+            var memory = new ReadOnlyMemory<int>(array);
+            int[] dimensions = [-1, -1];
+
+            ArgumentException ex = Assert.Throws<ArgumentException>(
+                () => new MatrixOf<int>(memory, dimensions));
+            Assert.That(ex.ParamName, Is.EqualTo("dimensions"));
+        }
+
         [Test]
         public void EqualsMatrixOfTest()
         {

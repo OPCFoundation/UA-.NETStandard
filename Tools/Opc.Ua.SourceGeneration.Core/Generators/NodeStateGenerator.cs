@@ -3211,9 +3211,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 return $"<global::Opc.Ua.ArrayOf<{scalarName}>>";
             }
-            if (variableType.ValueRank == ValueRank.OneOrMoreDimensions)
+            if (variableType.ValueRank == ValueRank.OneOrMoreDimensions &&
+                variableType.DataTypeNode.SupportsMatrixOf())
             {
-                // TODO: matrixOf;
+                return $"<global::Opc.Ua.MatrixOf<{scalarName}>>";
             }
             variantBuilder = "global::Opc.Ua.VariantBuilder";
             return "<global::Opc.Ua.Variant>";

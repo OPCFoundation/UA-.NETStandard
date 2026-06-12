@@ -8,6 +8,10 @@
     <Nullable>disable</Nullable>
     <!-- Suppress IL2104 from third-party packages that are not trim-compatible -->
     <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <!-- Opt into the root Directory.Build.targets no-op shape on
+         per-TFM CI matrix entries that pin CustomTestTarget to a
+         legacy TFM this test project cannot target. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />

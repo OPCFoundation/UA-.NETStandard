@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -81,11 +83,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             bool itemDisposed = false);
 
         /// <summary>
-        /// Resolve a sibling monitored item by client handle. Used by
-        /// <see cref="IMonitoredItem.TriggeringItem"/> to expose the
-        /// triggering relationship as a concrete item reference rather
-        /// than a raw handle, and by reverse lookups that find the set
-        /// of items triggered by a given item.
+        /// Resolve a sibling monitored item by client handle. Used in
+        /// the dispatch path where notifications arrive keyed by
+        /// client handle.
         /// </summary>
         /// <param name="clientHandle">Client-assigned handle of the
         /// item to resolve.</param>
@@ -93,6 +93,57 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// item with that handle is currently registered.</param>
         bool TryGetMonitoredItemByClientHandle(
             uint clientHandle,
-            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IMonitoredItem? item);
+            [MaybeNullWhen(false)] out IMonitoredItem? item);
+
+        /// <summary>
+        /// Resolve a sibling monitored item by stable name. Used by
+        /// <see cref="IMonitoredItem.TriggeringItems"/> /
+        /// <see cref="IMonitoredItem.TriggeredItems"/> to expose
+        /// triggering relationships as concrete item references rather
+        /// than raw names, and by the engine to resolve triggering
+        /// operations queued before the named item exists in the
+        /// subscription.
+        /// </summary>
+        /// <param name="name">Manager-unique monitored-item name.</param>
+        /// <param name="item">The resolved item, or <c>null</c> if no
+        /// item with that name is currently registered.</param>
+        bool TryGetMonitoredItemByName(
+            string name,
+            [MaybeNullWhen(false)] out IMonitoredItem? item);
+
+        /// <summary>
+        /// Enumerate every monitored item currently registered with
+        /// the owning subscription. Used by
+        /// <see cref="IMonitoredItem.TriggeredItems"/> to find the
+        /// siblings whose runtime desired triggering set names this
+        /// item. The returned enumerable is a snapshot — siblings
+        /// may be added or removed between successive reads.
+        /// </summary>
+        IEnumerable<IMonitoredItem> Items { get; }
+
+        /// <summary>
+        /// Enqueue a per-edge triggering delta originating from an
+        /// item-level event (options change with a different
+        /// <c>TriggeredByNames</c>, or a <c>Reset</c> that needs to
+        /// replay the entire desired set after a recreate). The
+        /// triggering items are resolved by name against the owning
+        /// subscription's collection; entries that don't currently
+        /// resolve are still enqueued and the batched apply pass
+        /// retries them on subsequent runs (with a bounded retry
+        /// budget) until the named item appears or the budget is
+        /// exhausted.
+        /// </summary>
+        /// <param name="triggeredItem">The triggered item.</param>
+        /// <param name="addedTriggeringNames">
+        /// Names to add the triggered item under (i.e. the triggering
+        /// items that should now report through this triggered item).
+        /// </param>
+        /// <param name="removedTriggeringNames">
+        /// Names from which the triggered item is removed.
+        /// </param>
+        void EnqueueTriggeringDelta(
+            IMonitoredItem triggeredItem,
+            IReadOnlyList<string> addedTriggeringNames,
+            IReadOnlyList<string> removedTriggeringNames);
     }
 }
