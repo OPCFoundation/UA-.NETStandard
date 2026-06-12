@@ -241,21 +241,18 @@ have been audited for sync-over-async and converted to TAP. See
 [Sessions](Sessions.md) for the matching session-/subscription-engine
 story.
 
-### Client, sessions, subscriptions
+### Client
 
 The client now offers two coexisting paths. The
 [classic `Session`](Sessions.md#1-session--the-opc-ua-session-primitive)
-remains for callers that own session lifecycle, with a fixed
-`SessionReconnectHandler` (the infinite-loop on endpoint changes is gone,
-and excessive task spawning on connection loss has been eliminated). The
+remains for callers that own session lifecycle. The
 new [`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
 encapsulates the connection state machine, reconnect policy, and pluggable
 subscription engine behind a fluent builder; it is the recommended path for
 new code. The **V2 subscription engine** runs alongside the classic engine
-and now has feature and test parity with it; an opt-in
+and has feature and test parity with it; an opt-in
 `SubscriptionRecoveryPolicy` lets servers signal `Good_SubscriptionTransferred`
-without surprising the client; sequential publishing no longer freezes;
-deadband handling on `MonitoredItem` has been corrected; and the user
+without surprising the client; and the user
 token policy used on `Connect` is now re-used during `Reconnect` /
 `ReactivateSession`. New client-side features include
 [`FileSystemClient`](FileSystemClient.md) (a `System.IO`-style async client
@@ -266,12 +263,6 @@ a server's address space to NodeSet2 XML, and
 [`ModelChangeTracking`](ModelChangeTracking.md) keeps the local
 `INodeCache` consistent with server-side model changes.
 
-### PubSub
-
-PubSub gains certificate-based MQTT authentication, considers MQTT
-`WriterGroup`s in keep-alive calculations, and stops `MqttPubSubConnection`
-gracefully without spurious error logs. See [PubSub](PubSub.md).
-
 ### Global Discovery Server
 
 The GDS implementation is now **full OPC UA Part 12 compliance**, including
@@ -280,8 +271,7 @@ modern `StartRequestToken` / `FinishRequestToken` flows
 [KeyCredentialService](KeyCredentialService.md). The client supports
 pushing to arbitrary certificate groups; the server supports custom
 certificate groups; SubCAs can be revoked without auto-creating an empty
-CRL; the applications-database `QueryServers` pagination has been
-corrected; and method-call validation is strict. The full developer guide
+CRL; and method-call validation is strict. The full developer guide
 is in [GDS](GDS.md).
 
 ### Tooling

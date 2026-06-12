@@ -4,12 +4,13 @@ This document describes which [OPC UA Profiles and Facets](https://profiles.opcf
 
 ## Overview
 
-The OPC UA .NET Standard Stack v2 is a reference implementation that targets
+The OPC UA .NET Standard Stack is a reference implementation that targets
 **OPC UA specification version 1.05.07**. The stack has been certified for
 compliance through an OPC Foundation Certification Test Lab and is
 continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
-Version 2.0 substantially extends companion-spec coverage. The stack now
+Version 2.0 substantially extends companion-spec coverage over the
+previous 1.5.378 version. The stack now
 ships full server- and client-side support for: Part 9 (Alarms &
 Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
 (State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
@@ -212,8 +213,10 @@ considers `WriterGroup`s in MQTT keep-alive calculations.
 ### Currently not supported
 
 - **WebSocket Transport** (`opc.wss://`) — UA WebSocket Secure (WSS) is
-  not currently supported.
-- **HTTPS JSON Transport** (`http://opcfoundation.org/UA-Profile/Transport/https-uajson`) — JSON encoding over HTTPS is not currently supported.
+  not currently supported; tracked in
+  [#3876](https://github.com/OPCFoundation/UA-.NETStandard/issues/3876).
+- **HTTPS JSON Transport** (`http://opcfoundation.org/UA-Profile/Transport/https-uajson`) — JSON encoding over HTTPS is not currently supported; tracked in
+  [#3877](https://github.com/OPCFoundation/UA-.NETStandard/issues/3877).
 
 ## Security Profiles
 
@@ -374,66 +377,6 @@ for the encoder/decoder migration details and
 [Complex Types](ComplexTypes.md) for client-side decode of
 server-defined types.
 
-## Reference Applications
-
-The repository ships several reference applications under `Applications/`.
-
-### Reference Server (`ConsoleReferenceServer`)
-
-Cross-platform reference server using the `Quickstarts.Servers` building
-blocks (Reference, MemoryBuffer, TestData, Alarms, Boiler with state
-machine, DurableSubscription, optional FileSystem and GDS). The project
-ships **three** configuration files:
-
-- `Quickstarts.ReferenceServer.Config.xml` — default cross-platform
-  configuration loaded when no flag is given.
-- `Ctt.ReferenceServer.Config.xml` — selected via the `--ctt` command
-  line flag. Used during Compliance Test Tool runs. Includes alarm
-  pre-loading and CTT-specific tweaks applied via
-  `Quickstarts.Servers.Utils.ApplyCTTModeAsync`.
-- `Quickstarts.MonoReferenceServer.Config.xml` — Mono-compat
-  configuration that uses legacy human-readable profile names; loaded
-  by the `MonoReferenceServer` project flavour. See
-  [Reference Server documentation](../Applications/README.md) for
-  invocation.
-
-### Reference Client (`ConsoleReferenceClient`)
-
-Cross-platform reference client demonstrating session creation,
-subscriptions, browsing, and method calls. See
-[Reference Client documentation](../Applications/ConsoleReferenceClient/README.md).
-
-### Local Discovery Server (`ConsoleLdsServer`)
-
-LDS implementation built on `Opc.Ua.Lds.Server`. Configuration in
-`Applications/ConsoleLdsServer/Lds.Server.Config.xml` advertises the
-[Local Discovery Server 2017](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017) facet.
-
-### MCP Server (`McpServer`)
-
-A Model Context Protocol server that exposes OPC UA client operations as
-MCP tools so an LLM or Copilot can browse, read, write, subscribe to, and
-call methods on any OPC UA server. See [MCP Server](McpServer.md).
-
-### Reference Publisher / Subscriber
-
-`ConsoleReferencePublisher` and `ConsoleReferenceSubscriber` demonstrate
-the PubSub stack against the supported PubSub transport profiles. See
-[PubSub](PubSub.md).
-
-### Minimal samples
-
-- `MinimalCalcServer` — minimal server built on source-generated
-  NodeManagers (Calc model).
-- `MinimalBoilerServer` — minimal Boiler-model server with the fluent
-  state-machine builder; AOT-publishable.
-- `PumpDeviceIntegrationServer` — minimal Device Integration (Part 100)
-  server using the `Opc.Ua.Di.Server` fluent builder.
-
-These minimal samples are end-to-end examples of the
-[Source-Generated NodeManagers](SourceGeneratedNodeManagers.md) and
-[Device Integration](DeviceIntegration.md) developer experiences.
-
 ## Specification Compliance
 
 - **OPC UA Specification:** Version 1.05.07.
@@ -467,7 +410,10 @@ Conditions, File Access, Auditing, NodeManagement, State Machine, etc.)
 look up the canonical URI for the facet on
 <https://profiles.opcfoundation.org/> and add it to `ServerProfileArray`.
 Only advertise a facet that the application genuinely implements — the
-Compliance Test Tool will exercise every claimed facet.
+Compliance Test Tool will exercise every claimed facet. Bringing the
+reference-server and CTT configs in line with the facets the stack
+actually implements is tracked in
+[#3875](https://github.com/OPCFoundation/UA-.NETStandard/issues/3875).
 
 ### Security policy configuration
 
@@ -502,8 +448,6 @@ for the variant selected by `--ctt`.
   1.5.378 → 2.0 changes, grouped by theme and layer.
 - [Migration Guide](MigrationGuide.md) — Prescriptive, per-API migration
   reference.
-- [Sessions, Reconnection, and Subscription Engines](Sessions.md) —
-  `Session`, `ManagedSession`, classic vs V2 subscription engine.
 - [Subscriptions and Monitored Items](Subscriptions.md) —
   V2 `ISubscriptionManager`, declarative + imperative `SetTriggering`
   (N:M, replay on recreate / reconnect), and `IStreamingSubscription`.
@@ -513,10 +457,8 @@ for the variant selected by `--ctt`.
   and the `IOpcUaBuilder` hosting surface.
 - [Native AOT](NativeAoT.md) — AOT publishing, AOT-clean source
   generators, and the AOT test matrix.
-- [Observability](Observability.md) — `ITelemetryContext` (loggers,
-  meters, activities) and the redaction APIs.
 
-### Companion-spec docs
+### Core and companion spec related documentation
 
 - [Alarms and Conditions](AlarmsAndConditions.md) (Part 9)
 - [Historical Access](HistoricalAccess.md) (Part 11)
@@ -533,24 +475,6 @@ for the variant selected by `--ctt`.
 - [Software Update](SoftwareUpdate.md)
 - [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
-- [Model Change Tracking](ModelChangeTracking.md)
-- [Transfer Subscription](TransferSubscription.md)
-- [Durable Subscription](DurableSubscription.md)
-- [Complex Types](ComplexTypes.md)
-- [NodeSet Export](NodeSetExport.md)
-- [Model Dependencies](ModelDependencies.md)
-- [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md)
-- [Source-Generated DataTypes](SourceGeneratedDataTypes.md)
-
-### Other
-
-- [Certificates](Certificates.md) and [Certificate Manager](CertificateManager.md) — certificate management and storage.
-- [Reverse Connect](ReverseConnect.md) — reverse-connection configuration.
-- [PubSub](PubSub.md) — Publisher / Subscriber pattern.
-- [ECC Profiles](EccProfiles.md) — ECC certificate and security policy detail.
-- [Provisioning Mode](ProvisioningMode.md) — secure provisioning of the reference server.
-- [Container Reference Server](ContainerReferenceServer.md) — running the reference server in a container.
-- [MCP Server](McpServer.md) — Model Context Protocol server for LLM-driven OPC UA clients.
 
 ## References
 

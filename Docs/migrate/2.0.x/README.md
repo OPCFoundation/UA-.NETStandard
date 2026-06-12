@@ -4,17 +4,17 @@ Version **2.0** introduces a major architectural change from pre-generated
 code files to runtime source generation and more efficient memory use,
 with several major breaking changes requiring changes to your applications.
 
-This folder splits the 1.5.378 → 2.0 migration content into a set of
-focused sub-documents so you can read only the parts that affect your
-application. Start with the **Migration sub-doc index** below to find the
-sub-doc that matches the symptom you are seeing.
+This folder includes all of the 1.5.378 → 2.0 migration content as a
+set of focused sub-documents so you can read only the parts that affect
+your application. Start with the **Migration sub-doc index** below to
+find the sub-doc that matches the symptom you are seeing.
 
 > **Automate the migration.** Add the
 > [`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer)
 > analyzer package to your projects to receive analyzer warnings and
-> one-click fixes for the patterns in these sub-docs. Rule IDs `UA0001`
-> – `UA0020` map directly to the type-safety patterns described in
-> [`types.md`](types.md).
+> one-click fixes for many of the patterns in these sub-docs. Rule IDs
+> `UA0001` – `UA0020` map directly to the type-safety patterns
+> described in [`types.md`](types.md).
 
 > **Pro TIP.** Point your favorite coding agent at the
 > [`opcua-v20-migration`](../../../.agents/skills/opcua-v20-migration/SKILL.md)
