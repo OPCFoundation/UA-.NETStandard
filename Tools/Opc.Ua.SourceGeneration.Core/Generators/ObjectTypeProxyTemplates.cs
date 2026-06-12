@@ -132,7 +132,7 @@ namespace Opc.Ua.SourceGeneration
                     return {{Tokens.FieldName}};
                 }
                 global::Opc.Ua.NodeId childId = await ResolveChildNodeIdAsync(
-                    "{{Tokens.BrowseNameNamespaceUri}}", "{{Tokens.BrowseName}}", ct).ConfigureAwait(false);
+                    "{{Tokens.BrowseNameNamespaceUri}}", "{{Tokens.BrowseNameLiteral}}", ct).ConfigureAwait(false);
                 if (childId.IsNull)
                 {
                     return null;

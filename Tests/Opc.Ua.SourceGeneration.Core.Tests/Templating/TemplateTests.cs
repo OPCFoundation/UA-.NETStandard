@@ -487,7 +487,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
                 // Act
                 template.AddReplacement(Tokens.SymbolicName, "MyTestName");
-                template.AddReplacement(Tokens.BrowseName, "MyTestBrowseName");
+                template.AddBrowseNameReplacement(
+                    Tokens.BrowseName,
+                    Tokens.BrowseNameLiteral,
+                    "MyTestBrowseName");
 
                 template.Render();
             }
@@ -686,7 +689,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 var template = new Template(templateWriter, templateString);
 
                 template.AddReplacement(Tokens.SymbolicName, "MyBrowseName");
-                template.AddReplacement(Tokens.BrowseName, "MyBrowseName");
+                template.AddBrowseNameReplacement(
+                    Tokens.BrowseName,
+                    Tokens.BrowseNameLiteral,
+                    "MyBrowseName");
 
                 template.Render();
             }
