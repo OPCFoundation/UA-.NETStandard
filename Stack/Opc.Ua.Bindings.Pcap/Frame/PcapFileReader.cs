@@ -214,7 +214,15 @@ namespace Opc.Ua.Bindings.Pcap.Frame
                 int read = await stream.ReadAsync(buffer[offset..], ct).ConfigureAwait(false);
                 if (read == 0)
                 {
-                    return offset == 0;
+                    // EOF reached before the buffer was filled. Whether
+                    // this is a clean EOF (offset == 0, no bytes consumed)
+                    // or a truncated record (offset > 0, partial read) is
+                    // up to the caller to interpret. The contract here is
+                    // simply: return true only when the full buffer was
+                    // read; otherwise return false so the caller can
+                    // either break out of a record loop (clean EOF) or
+                    // throw a "truncated" diagnostic (data read).
+                    return false;
                 }
                 offset += read;
             }

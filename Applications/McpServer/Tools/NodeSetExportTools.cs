@@ -478,7 +478,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Resolves the active export-root directory using the
         /// precedence: <see cref="McpServerOptions.NodeSetExportRoot"/>
         /// from DI &gt; <c>OPCUA_MCP_EXPORT_ROOT</c> environment
-        /// variable &gt; per-user default.
+        /// variable &gt; per-user default. The environment variable and
+        /// default are re-evaluated on every call so a host that
+        /// changes the env var at runtime (or test code that toggles
+        /// it across test cases) sees the new value reflected.
         /// </summary>
         internal static string ResolveExportRoot(IServiceProvider services)
         {
@@ -491,7 +494,11 @@ namespace Opc.Ua.Mcp.Tools
                 return Path.GetFullPath(mcpOptions.NodeSetExportRoot!);
             }
 
-            return ExportRoot;
+            // Re-read the env var on each call: the static ExportRoot
+            // property caches via Lazy<string> for tools that take the
+            // simpler synchronous path, but the DI-aware variant is
+            // expected to honor runtime env-var updates.
+            return InitializeExportRoot();
         }
 
         private static string InitializeExportRoot()

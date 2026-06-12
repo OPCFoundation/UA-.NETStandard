@@ -46,5 +46,21 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Core.TestFramework\Opc.Ua.Core.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+    <!--
+      McpServerOptionsTests / PacketDecodePathValidationTests
+      reflectively load the Opc.Ua.Mcp assembly from
+      Applications/McpServer/bin via Assembly.LoadFrom. On CI the
+      per-project build (dotnet build $CSPROJECT) only builds projects
+      that this Pcap.Tests csproj transitively references — so without
+      this ProjectReference the McpServer DLL would never be produced
+      before Pcap.Tests runs and LoadMcpAssembly would fail with the
+      assembly missing. Reference it as a project so MSBuild builds it
+      before this test assembly. ReferenceOutputAssembly=false keeps
+      it out of the test's compile-time reference set (tests load it
+      reflectively, deliberately).
+    -->
+    <ProjectReference Include="..\..\Applications\McpServer\Opc.Ua.Mcp.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
   </ItemGroup>
 </Project>

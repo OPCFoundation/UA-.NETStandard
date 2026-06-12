@@ -90,6 +90,14 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
             Opc.Ua.Bindings.Pcap.Bindings.PcapBindings.Install(registry);
 
             services.AddSingleton(options);
+            // LoggerPcapAuditSink (and HashChainedAuditFileSink when
+            // EnableTamperEvidentAudit is true) take ILogger<T> in their
+            // constructors. Ensure a default logger factory is present so
+            // the resulting IPcapAuditSink resolves out of the container
+            // even when the host application has not called
+            // services.AddLogging() itself. TryAdd semantics inside
+            // AddLogging mean the host's own logging configuration wins.
+            services.AddLogging();
             services.AddSingleton<IPcapAuditSink, LoggerPcapAuditSink>();
             if (options.EnableTamperEvidentAudit)
             {

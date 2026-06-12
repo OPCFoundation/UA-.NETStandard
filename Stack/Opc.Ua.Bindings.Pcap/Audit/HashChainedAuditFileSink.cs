@@ -191,7 +191,18 @@ namespace Opc.Ua.Bindings.Pcap.Audit
             int linesVerified = 0;
             byte[]? expectedPreviousHmac = null;
 
-            using var reader = new StreamReader(filePath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            // Open with FileShare.ReadWrite so verification can run
+            // while another process — or another component in the same
+            // process such as the live HashChainedAuditFileSink — still
+            // holds the file open for append. The writer uses
+            // FileShare.Read so the only side that needs the extra
+            // permissiveness is THIS reader.
+            using var fileStream = new FileStream(
+                filePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite);
+            using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
             for (int lineNumber = 1; ; lineNumber++)
             {
                 string? line = reader.ReadLine();
@@ -244,7 +255,13 @@ namespace Opc.Ua.Bindings.Pcap.Audit
             }
 
             string? lastLine = null;
-            using (var reader = new StreamReader(filePath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
+            // Open with FileShare.ReadWrite for symmetry with VerifyChain.
+            using (var fileStream = new FileStream(
+                filePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite))
+            using (var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
             {
                 while (reader.ReadLine() is { } line)
                 {
@@ -325,10 +342,16 @@ namespace Opc.Ua.Bindings.Pcap.Audit
             {
                 writer.WriteStartObject();
                 writer.WritePropertyName("event");
-                using (JsonDocument document = JsonDocument.Parse(eventBytes))
-                {
-                    document.RootElement.WriteTo(writer);
-                }
+                // Write the event payload as raw UTF-8 JSON so the bytes
+                // embedded in the ledger line are byte-identical to the
+                // bytes that ComputeHmac saw on the write path. A
+                // round-trip through JsonDocument.Parse + WriteTo would
+                // re-emit via the writer's own encoder and could differ
+                // by character escaping or member ordering — that breaks
+                // HMAC chain verification because VerifyChain recovers
+                // the event bytes via JsonElement.GetRawText() which
+                // returns the exact substring stored in the line.
+                writer.WriteRawValue(eventBytes, skipInputValidation: true);
 
                 writer.WriteString("hmac", Convert.ToBase64String(hmac));
                 writer.WriteString("prev", Convert.ToBase64String(previousHmac));
