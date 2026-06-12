@@ -369,8 +369,8 @@ The stack supports the following message encoding formats:
 
 The 2.0 release ships a new JSON decoder / encoder, array / matrix
 abstractions, and a first-class `ByteString` type. See the
-[Migration Guide](MigrationGuide.md#encoders-and-decoders) for the
-encoder/decoder migration details and
+[2.0 migration guide — Encoders and Complex Types](migrate/2.0.x/encoders.md#encoders-and-decoders)
+for the encoder/decoder migration details and
 [Complex Types](ComplexTypes.md) for client-side decode of
 server-defined types.
 

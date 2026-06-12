@@ -53,8 +53,15 @@ opcua-v20-migration/
 This skill **distils** the following authoritative repo files. When you update
 the skill, also update them (and vice versa) so the views stay in sync:
 
-- [`Docs/MigrationGuide.md`](../../../Docs/MigrationGuide.md) — the human-facing
-  migration guide.
+- [`Docs/MigrationGuide.md`](../../../Docs/MigrationGuide.md) — the migration
+  guide landing page (small; just an index across versions).
+- [`Docs/migrate/2.0.x/README.md`](../../../Docs/migrate/2.0.x/README.md) —
+  the 2.0 version landing page + the same symptom → sub-doc table this skill
+  uses to load only what's needed.
+- [`Docs/migrate/2.0.x/`](../../../Docs/migrate/2.0.x/) — the 12 thematic
+  sub-docs (telemetry, packages, source-generation, types, encoders,
+  node-states, identity, certificates, configuration, sessions-subscriptions,
+  alarms-model-change, timeprovider).
 - [`Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](../../../Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
   — the package's own NuGet README.
 

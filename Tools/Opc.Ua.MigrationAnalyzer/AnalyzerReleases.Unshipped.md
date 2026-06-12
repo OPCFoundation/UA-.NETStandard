@@ -22,5 +22,5 @@ UA0015  | Migration | Info     | Replace sync/APM members on GDS/LDS clients wit
 UA0018  | Migration | Info     | Replace `CertificateIdentifier.Certificate` getter with `CertificateIdentifierResolver.ResolveAsync(...)`.
 UA0019  | Migration | Warning  | Replace `new DataValue(StatusCode[, ts])` with `DataValue.FromStatusCode(...)`.
 UA0020  | Migration | Warning  | Replace `EncodeableFactory.GlobalFactory` / `EncodeableFactory.Create()` with `ServiceMessageContext.Factory` / `Fork()`.
-UA0021  | Migration | Info     | Replace `CertificateValidator` / `CertificateValidationEventArgs` with the 1.6 `ICertificateManager` / `ICertificateValidatorEx` / `CertificateValidationResult` pipeline. See MigrationGuide.md.
+UA0021  | Migration | Info     | Replace `CertificateValidator` / `CertificateValidationEventArgs` with the 1.6 `ICertificateManager` / `ICertificateValidatorEx` / `CertificateValidationResult` pipeline. See Docs/migrate/2.0.x/certificates.md.
 UA0022  | Migration | Warning  | Replace `ApplicationConfiguration.CertificateValidator` / `ServerBase.CertificateValidator` property access with `.CertificateManager`.

@@ -65,9 +65,9 @@ replaced with `IsNull` / `.Null` to align with `INullable`. A new
 stack and in source-generated code, eliminating boxing in encoders, decoders,
 and node-state read/write paths. Equality on `ExtensionObject`,
 `StatusCode`, and numeric ranges has been tightened, and `DateTimeUtc`
-makes timestamp intent explicit. See the [Migration Guide — Improved Type
-Safety](MigrationGuide.md#improved-type-safety) section for the per-type
-deltas.
+makes timestamp intent explicit. See the
+[2.0 migration guide — Improved Type Safety](migrate/2.0.x/types.md)
+section for the per-type deltas.
 
 ### Async, cancellation, and `TimeProvider`
 
