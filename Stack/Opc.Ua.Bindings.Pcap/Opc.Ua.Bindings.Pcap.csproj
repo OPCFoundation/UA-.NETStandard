@@ -1,6 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <!-- Pcap binding requires .NET 8+ APIs (AesGcm tag size, File.SetUnixFileMode,
+         OperatingSystem.IsWindows). Multi-target when not pinned by CI; otherwise
+         follow $(CustomTestTarget) so we stay in sync with Opc.Ua.Core's per-CI
+         TFM set (Core only exposes the CustomTestTarget TFM at restore time and
+         a static net8/9/10 list here would trigger NU1201). For legacy CI runs
+         (net472/net48/netstandard2.x), Directory.Build.targets strips this
+         project to an empty no-op shell via $(RestrictForLegacyTfm). -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>$(AssemblyPrefix).Bindings.Pcap</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Pcap</PackageId>
     <RootNamespace>Opc.Ua.Bindings.Pcap</RootNamespace>
