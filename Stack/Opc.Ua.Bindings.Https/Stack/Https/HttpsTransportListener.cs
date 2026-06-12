@@ -95,6 +95,46 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Creates a new <see cref="HttpsTransportListener"/> bound to the
+    /// standard <c>wss://</c> URL scheme for the
+    /// <see cref="Profiles.UaWssTransport"/> profile.
+    /// </summary>
+    public class WssTransportListenerFactory : HttpsServiceHost
+    {
+        /// <inheritdoc/>
+        public override string UriScheme => Utils.UriSchemeWss;
+
+        /// <inheritdoc/>
+        protected override string TransportProfileUri => Profiles.UaWssTransport;
+
+        /// <inheritdoc/>
+        public override ITransportListener Create(ITelemetryContext telemetry)
+        {
+            return new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="HttpsTransportListener"/> bound to the
+    /// OPC UA <c>opc.wss://</c> URL scheme alias for the
+    /// <see cref="Profiles.UaWssTransport"/> profile.
+    /// </summary>
+    public class OpcWssTransportListenerFactory : HttpsServiceHost
+    {
+        /// <inheritdoc/>
+        public override string UriScheme => Utils.UriSchemeOpcWss;
+
+        /// <inheritdoc/>
+        protected override string TransportProfileUri => Profiles.UaWssTransport;
+
+        /// <inheritdoc/>
+        public override ITransportListener Create(ITelemetryContext telemetry)
+        {
+            return new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry);
+        }
+    }
+
+    /// <summary>
     /// Implements the kestrel startup of the Https listener.
     /// </summary>
     public class Startup

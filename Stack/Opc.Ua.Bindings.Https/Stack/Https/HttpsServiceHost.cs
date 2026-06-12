@@ -46,6 +46,14 @@ namespace Opc.Ua.Bindings
         public abstract string UriScheme { get; }
 
         /// <summary>
+        /// The OPC UA <c>TransportProfileUri</c> reported on the
+        /// <see cref="EndpointDescription.TransportProfileUri"/> emitted for
+        /// this factory's base addresses. Defaults to the HTTPS binary
+        /// profile; the WSS overrides return <c>UaWssTransport</c>.
+        /// </summary>
+        protected virtual string TransportProfileUri => Profiles.HttpsBinaryTransport;
+
+        /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
@@ -89,12 +97,11 @@ namespace Opc.Ua.Bindings
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
-                if (!Utils.IsUriHttpsScheme(baseAddresses[ii]))
-                {
-                    continue;
-                }
-
-                if (!baseAddresses[ii].StartsWith(UriScheme, StringComparison.Ordinal))
+                // The factory's UriScheme already encodes whether this is an
+                // HTTPS or WSS endpoint (https / opc.https / wss / opc.wss).
+                // Each factory only handles base addresses with a matching
+                // scheme prefix so duplicate descriptions are not emitted.
+                if (!baseAddresses[ii].StartsWith(UriScheme + "://", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -177,7 +184,7 @@ namespace Opc.Ua.Bindings
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                     configuration,
                     description);
-                description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+                description.TransportProfileUri = TransportProfileUri;
 
                 // if no mutual TLS authentication is used, anonymous user tokens are not allowed
                 if (!httpsMutualTls)
