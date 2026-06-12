@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Security;
+using System.Net.WebSockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -255,6 +256,13 @@ namespace Opc.Ua.Bindings
             m_serverCertProvider = settings.ServerCertificates!;
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
+
+            // buffer manager used by the WSS path to rent send / receive chunks.
+            m_bufferManager = new BufferManager(
+                "HttpsListener",
+                m_quotas.MaxBufferSize,
+                m_telemetry);
+
             // start the listener
             Start();
         }
@@ -605,15 +613,297 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Handles WebSocket upgrade requests for the WSS transport
-        /// (Part 6 §7.5). Returns <c>501 Not Implemented</c> until the WSS
-        /// handler lands in <c>p2-wss-listener-handler</c>.
+        /// (Part 6 §7.5). Negotiates the <c>opcua+uacp</c> sub-protocol
+        /// (binary + UASC SecureChannel); the <c>opcua+uajson</c>
+        /// sub-protocol returns 501 until <c>p3-wss-json-handler</c>.
         /// </summary>
-        public Task AcceptWebSocketAsync(HttpContext context)
+        public async Task AcceptWebSocketAsync(HttpContext context)
         {
-            return WriteResponseAsync(
-                context.Response,
-                "HTTPSLISTENER - WSS transport not yet implemented.",
-                HttpStatusCode.NotImplemented);
+            if (m_callback == null)
+            {
+                await WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - listener is not open.",
+                    HttpStatusCode.NotImplemented).ConfigureAwait(false);
+                return;
+            }
+
+            string? selected = SelectWebSocketSubProtocol(context);
+            if (selected == null)
+            {
+                await WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - no supported WebSocket sub-protocol requested. " +
+                    "Use 'opcua+uacp' or 'opcua+uajson'.",
+                    HttpStatusCode.BadRequest).ConfigureAwait(false);
+                return;
+            }
+            if (string.Equals(selected, Profiles.OpcUaWsSubProtocolUaJson, StringComparison.Ordinal))
+            {
+                // Phase 3 (p3-wss-json-handler) lands the JSON sub-protocol.
+                await WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - opcua+uajson sub-protocol not yet implemented.",
+                    HttpStatusCode.NotImplemented).ConfigureAwait(false);
+                return;
+            }
+
+            // selected == opcua+uacp
+            WebSocket ws = await context.WebSockets
+                .AcceptWebSocketAsync(selected)
+                .ConfigureAwait(false);
+
+            EndPoint? localEndpoint = MakeEndpoint(
+                context.Connection.LocalIpAddress,
+                context.Connection.LocalPort);
+            EndPoint? remoteEndpoint = MakeEndpoint(
+                context.Connection.RemoteIpAddress,
+                context.Connection.RemotePort);
+
+#pragma warning disable CA2000 // transport disposed in the finally block below
+            var transport = new WebSocketServerByteTransport(
+                ws,
+                localEndpoint,
+                remoteEndpoint,
+                m_bufferManager,
+                m_quotas.MaxBufferSize,
+                m_telemetry);
+#pragma warning restore CA2000
+
+            var perWsListener = new WssChannelListener(this);
+            uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
+
+            var channel = new TcpServerChannel(
+                ListenerId,
+                perWsListener,
+                m_bufferManager,
+                m_quotas,
+                m_serverCertProvider,
+                m_descriptions,
+                m_telemetry);
+
+            channel.SetRequestReceivedCallback(
+                new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
+            channel.SetReportOpenSecureChannelAuditCallback(
+                new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+            channel.SetReportCloseSecureChannelAuditCallback(
+                new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+            channel.SetReportCertificateAuditCallback(
+                new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+
+            perWsListener.AttachChannel(channelId, channel);
+
+            try
+            {
+                channel.Attach(channelId, transport);
+
+                // Hold the request open until the channel is torn down (the
+                // listener closes the channel when the WebSocket sees Close or
+                // a fatal UASC error). Honor request abort to allow shutdown.
+                await perWsListener
+                    .WaitForChannelClosedAsync(context.RequestAborted)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Connection torn down by the request abort token; normal shutdown.
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "WSSLISTENER - unexpected error on WebSocket session.");
+            }
+            finally
+            {
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // Dispose is best-effort.
+                }
+                try
+                {
+                    transport.Close();
+                }
+                catch
+                {
+                    // Close is best-effort.
+                }
+            }
+        }
+
+        private async Task<IServiceResponse> OnRequestReceivedAsyncShim(
+            SecureChannelContext channelContext,
+            IServiceRequest request)
+        {
+            return await m_callback!.ProcessRequestAsync(channelContext, request).ConfigureAwait(false);
+        }
+
+        private async void OnRequestReceivedAsync(
+            TcpListenerChannel channel,
+            uint requestId,
+            IServiceRequest request)
+        {
+            try
+            {
+                if (m_callback == null)
+                {
+                    return;
+                }
+                var serverChannel = channel as TcpServerChannel;
+                if (serverChannel == null)
+                {
+                    return;
+                }
+
+                var context = new SecureChannelContext(
+                    channel.GlobalChannelId,
+                    channel.EndpointDescription,
+                    RequestEncoding.Binary,
+                    channel.ClientCertificate?.RawData,
+                    channel.ServerCertificate?.RawData,
+                    channel.ChannelThumbprint);
+
+                IServiceResponse response = await m_callback
+                    .ProcessRequestAsync(context, request)
+                    .ConfigureAwait(false);
+
+                serverChannel.SendResponse(requestId, response);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "WSSLISTENER - error processing request {RequestId}.", requestId);
+            }
+        }
+
+        private void OnReportAuditOpenSecureChannelEvent(
+            TcpServerChannel channel,
+            OpenSecureChannelRequest request,
+            Certificate? clientCertificate,
+            Exception? exception)
+        {
+            if (m_callback == null)
+            {
+                return;
+            }
+            m_callback.ReportAuditOpenSecureChannelEvent(
+                channel.GlobalChannelId,
+                channel.EndpointDescription!,
+                request,
+                clientCertificate!,
+                exception!);
+        }
+
+        private void OnReportAuditCloseSecureChannelEvent(
+            TcpServerChannel channel,
+            Exception? exception)
+        {
+            m_callback?.ReportAuditCloseSecureChannelEvent(
+                channel.GlobalChannelId,
+                exception!);
+        }
+
+        private void OnReportAuditCertificateEvent(
+            Certificate? clientCertificate,
+            Exception? exception)
+        {
+            m_callback?.ReportAuditCertificateEvent(clientCertificate!, exception!);
+        }
+
+        private static IPEndPoint? MakeEndpoint(IPAddress? address, int port)
+        {
+            return address == null ? null : new IPEndPoint(address, port);
+        }
+
+        private static string? SelectWebSocketSubProtocol(HttpContext context)
+        {
+            foreach (string requested in context.WebSockets.WebSocketRequestedProtocols)
+            {
+                if (string.Equals(requested, Profiles.OpcUaWsSubProtocolUacp, StringComparison.Ordinal))
+                {
+                    return Profiles.OpcUaWsSubProtocolUacp;
+                }
+                if (string.Equals(requested, Profiles.OpcUaWsSubProtocolUaJson, StringComparison.Ordinal))
+                {
+                    return Profiles.OpcUaWsSubProtocolUaJson;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Per-WebSocket adapter that lets a single <see cref="TcpServerChannel"/>
+        /// run inside the HTTPS listener without needing a full
+        /// <see cref="ITcpChannelListener"/>-shaped lifecycle. There is one
+        /// <see cref="WssChannelListener"/> per accepted WebSocket; it tracks
+        /// exactly one channel and signals the request handler when the
+        /// channel closes so the request pipeline can clean up.
+        /// </summary>
+        private sealed class WssChannelListener : ITcpChannelListener
+        {
+            internal WssChannelListener(HttpsTransportListener owner)
+            {
+                m_owner = owner;
+                m_closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+
+            public Uri EndpointUrl => m_owner.EndpointUrl;
+
+            internal void AttachChannel(uint channelId, TcpServerChannel channel)
+            {
+                m_channelId = channelId;
+                m_channel = channel;
+            }
+
+            public bool ReconnectToExistingChannel(
+                IUaSCByteTransport transport,
+                uint requestId,
+                uint sequenceNumber,
+                uint channelId,
+                Certificate clientCertificate,
+                ChannelToken token,
+                OpenSecureChannelRequest request)
+            {
+                // Each WSS upgrade owns exactly one channel; reconnect over a
+                // different WebSocket would require a different listener.
+                throw new ServiceResultException(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Reconnect is not supported on the WSS transport.");
+            }
+
+            [Obsolete("Use TransferListenerChannelAsync instead.")]
+            public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
+            {
+                return Task.FromResult(false);
+            }
+
+            public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
+            {
+                // Reverse-connect handoff is not applicable to a single WSS upgrade.
+                return Task.FromResult(false);
+            }
+
+            public void ChannelClosed(uint channelId)
+            {
+                if (channelId == m_channelId)
+                {
+                    m_closed.TrySetResult(true);
+                }
+            }
+
+            internal async Task WaitForChannelClosedAsync(CancellationToken ct)
+            {
+                using (ct.Register(static s => ((TaskCompletionSource<bool>)s!).TrySetResult(true), m_closed))
+                {
+                    await m_closed.Task.ConfigureAwait(false);
+                }
+            }
+
+            private readonly HttpsTransportListener m_owner;
+            private readonly TaskCompletionSource<bool> m_closed;
+            private uint m_channelId;
+            private TcpServerChannel? m_channel;
         }
 
         /// <summary>
@@ -755,6 +1045,7 @@ namespace Opc.Ua.Bindings
 
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;
+        private BufferManager m_bufferManager = null!;
         private ITransportListenerCallback? m_callback;
 #if NET8_0_OR_GREATER
         private IHost? m_host;
@@ -765,6 +1056,7 @@ namespace Opc.Ua.Bindings
         private Certificate? m_pinnedServerCert;
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
+        private int m_nextChannelId;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
     }

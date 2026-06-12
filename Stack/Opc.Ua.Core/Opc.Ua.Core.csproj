@@ -18,6 +18,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

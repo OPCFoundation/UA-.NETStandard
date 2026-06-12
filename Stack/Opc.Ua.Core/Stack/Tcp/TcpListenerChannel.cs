@@ -168,10 +168,28 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(socket));
             }
+#pragma warning disable CA2000 // transport ownership is transferred to Attach below
+            var transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+            Attach(channelId, transport);
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Attaches the channel to an existing byte transport (TCP, WebSocket,
+        /// or any other <see cref="IUaSCByteTransport"/> implementation) and
+        /// starts the channel's receive loop.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="transport"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void Attach(uint channelId, IUaSCByteTransport transport)
+        {
+            if (transport == null)
+            {
+                throw new ArgumentNullException(nameof(transport));
+            }
 
             lock (DataLock)
             {
-                // check for existing transport.
                 if (Transport != null)
                 {
                     throw new InvalidOperationException("Channel is already attached to a transport.");
@@ -180,7 +198,7 @@ namespace Opc.Ua.Bindings
                 ChannelId = channelId;
                 State = TcpChannelState.Connecting;
 
-                Transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+                Transport = transport;
 
                 m_logger.LogDebug(
                     "{Channel} TRANSPORT ATTACHED: {RemoteEndpoint}, ChannelId={ChannelId}",
