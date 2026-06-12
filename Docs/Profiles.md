@@ -1,22 +1,37 @@
 # OPC UA Profiles and Facets Support
 
-This document describes which [OPC UA Profiles and Facets](https://profiles.opcfoundation.org/) are implemented in the OPC UA .NET Standard Stack.
+This document describes which [OPC UA Profiles and Facets](https://profiles.opcfoundation.org/) are implemented in the OPC UA .NET Standard Stack, and where in the codebase / documentation each one lives.
 
 ## Overview
 
-The OPC UA .NET Standard Stack v2 is a reference implementation that targets OPC UA specification version 1.05.07. The stack has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
+The OPC UA .NET Standard Stack v2 is a reference implementation that targets
+**OPC UA specification version 1.05.07**. The stack has been certified for
+compliance through an OPC Foundation Certification Test Lab and is
+continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
-Version 2.0 includes significant improvements and new features for address space management, security, and integration scenarios, including Alias Names (Part 17), WoT Connectivity (OPC 10100-1), Key Credential Service and Authorization Service (Part 12), Model Change Tracking, and enhanced client APIs for streaming subscriptions and file system operations.
+Version 2.0 substantially extends companion-spec coverage. The stack now
+ships full server- and client-side support for: Part 9 (Alarms &
+Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
+(State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
+(File Transfer), Part 100 (Device Integration / Software Update), OPC
+10100-1 (WoT Connectivity), and the Local Discovery Server. See
+[What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
 
-For a complete list of all OPC UA profiles, visit the [OPC Foundation Profile Reporting](https://profiles.opcfoundation.org/profile/) website.
+The canonical list of all OPC UA profile and facet URIs is maintained by the
+OPC Foundation at <https://profiles.opcfoundation.org/>. Where this document
+hyperlinks a URI, that URI is the same string the reference server
+advertises in `ServerProfileArray`; URIs not yet present in a shipping
+config are referred to *by name* and the reader should consult the OPC
+Foundation registry for the canonical URI form.
 
 ## Server Profiles
 
-The Reference Server implementation supports the following OPC UA Server profiles:
+The reference server (`Applications/ConsoleReferenceServer`) advertises the
+following profiles in its `ServerProfileArray`:
 
 ### Core Server Profiles
 
-- **[Standard UA Server Profile (2017)](http://opcfoundation.org/UA-Profile/Server/StandardUA2017)** - The core OPC UA Server profile that includes:
+- **[Standard UA Server Profile (2017)](http://opcfoundation.org/UA-Profile/Server/StandardUA2017)** — The core OPC UA Server profile that includes:
   - Basic server capabilities
   - Discovery services
   - Session management
@@ -28,203 +43,409 @@ The Reference Server implementation supports the following OPC UA Server profile
 
 ### Functional Facets
 
-- **[Data Access Server Facet](http://opcfoundation.org/UA-Profile/Server/DataAccess)** - Support for data access functionality including variables, data types, and data change notifications
+- **[Data Access Server Facet](http://opcfoundation.org/UA-Profile/Server/DataAccess)** — Variables, data types, and data-change notifications.
+- **[Method Server Facet](http://opcfoundation.org/UA-Profile/Server/Methods)** — Method calls on objects in the address space.
+- **[Reverse Connect Facet](http://opcfoundation.org/UA-Profile/Server/ReverseConnect)** — Server-initiated connections to a client (see [Reverse Connect documentation](ReverseConnect.md)).
+- **[Client Redundancy Facet](http://opcfoundation.org/UA-Profile/Server/ClientRedundancy)** — Subscription transfer between sessions/servers; see [Transfer Subscriptions](TransferSubscription.md).
 
-- **[Method Server Facet](http://opcfoundation.org/UA-Profile/Server/Methods)** - Support for calling methods on objects in the address space
+### Local Discovery Server (LDS) Profile
 
-- **[Reverse Connect Facet](http://opcfoundation.org/UA-Profile/Server/ReverseConnect)** - Server can initiate connections to clients (see [Reverse Connect documentation](ReverseConnect.md))
+The `Opc.Ua.Lds.Server` library plus the `ConsoleLdsServer` reference
+application implement the Local Discovery Server. The LDS application
+advertises the **[Local Discovery Server 2017 Facet](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017)**
+(see `Applications/ConsoleLdsServer/Lds.Server.Config.xml`).
 
-- **[Client Redundancy Facet](http://opcfoundation.org/UA-Profile/Server/ClientRedundancy)** - Support for client redundancy features including:
-  - Transfer subscriptions between servers
-  - Session management for redundant connections
-  - See [Transfer Subscriptions documentation](TransferSubscription.md)
+### Additional facets supported by the implementation (beyond the default advertised set)
 
-### Additional Features
+Beyond the five facets advertised by default in the reference server's
+`ServerProfileArray`, the master branch implements the following facets in
+the SDK. They can be enabled per-application by registering the
+corresponding NodeManager and, where applicable, adding the matching URI to
+`ServerProfileArray` (consult <https://profiles.opcfoundation.org/> for the
+canonical URI string before claiming a facet):
 
-The server implementation also provides support for:
-
-- **Durable Subscriptions** - Subscriptions that persist across reconnections (see [Durable Subscriptions documentation](DurableSubscription.md))
-- **Complex Types** - Custom structures and enumerations (see [Complex Types documentation](ComplexTypes.md))
-- **Role-Based Access Control** - WellKnownRoles and RoleBasedUserManagement (see [Role-Based User Management documentation](RoleBasedUserManagement.md))
-- **Async Server Support** - Asynchronous node managers using Task-based Asynchronous Pattern (TAP) (see [Async Server Support documentation](AsyncServerSupport.md))
-- **Alias Names (Part 17)** - Human-readable name hierarchies for address space navigation with wildcard search and non-hierarchical references (see [Alias Names documentation](AliasNames.md))
-- **WoT Connectivity (OPC 10100-1)** - Integration with Web of Things assets and Thing Descriptions for IoT connectivity (see [WoT Connectivity documentation](WoTConnectivity.md))
-- **Model Change Tracking** - Address space change notifications and client-side cache invalidation (see [Model Change Tracking documentation](ModelChangeTracking.md))
-
-These features are configured and registered using the fluent API and dependency injection patterns (see individual feature documentation for examples).
+- **Historical Access** (Part 11) — `IHistorianProvider` provider model in
+  `Libraries/Opc.Ua.Server/Historian/`, with a `InMemoryHistorianProvider`
+  enabled by the reference server (`ReferenceNodeManager.cs`). Covers raw,
+  modified, at-time, processed (aggregate), and annotation reads / updates.
+  See [Historical Access](HistoricalAccess.md).
+- **Aggregates** (Part 13) — `AggregateManager` and the
+  `AggregateCalculator` family in `Libraries/Opc.Ua.Server/Aggregates/`.
+  All **37 standard aggregate functions** of v1.05.07 are implemented;
+  servers can additionally push down aggregation by implementing
+  `IHistorianProcessedProvider`. See [Aggregates](Aggregates.md).
+- **Alarms and Conditions** (Part 9) — Full server-side implementation
+  with latched / silenced / out-of-service alarms, alarm groups, a
+  suppression engine, and rate metrics. The reference server's
+  `AlarmNodeManager` exposes a working sample. See
+  [Alarms and Conditions](AlarmsAndConditions.md).
+- **State Machine** (Part 16) — `StateMachineBuilder` and the
+  `FluentFiniteStateMachineState` extensibility in
+  `Libraries/Opc.Ua.Server/StateMachines/`. The reference server's
+  `BoilerStateMachineState` is an end-to-end sample. See
+  [State Machines](StateMachines.md).
+- **File Access** (Part 20) — Server-side `FileSystemNodeManager` +
+  `IFileSystemProvider` in `Libraries/Opc.Ua.Server/FileSystem/`. The
+  reference server enables it via the `EnableFileSystemNodeManager`
+  option. The matching System.IO-style client lives in
+  [`FileSystemClient`](FileSystemClient.md).
+- **Node Management** (Part 4 service set) —
+  `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
+  `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
+  `AddReferences` / `DeleteReferences`. See
+  [Node Management](NodeManagement.md).
+- **Alias Names** (Part 17) — `AliasNameStore` and the optional
+  `AliasNameNodeManager` for `AliasNameCategory` / `FindAlias` /
+  `FindAliasVerbose` / `AddAliasesToCategory` / `DeleteAliasesFromCategory`
+  / `LastChange`. The reference server wires the standard Aliases and
+  Topics nodes via `ConfigureAliasNameStore`. See
+  [Alias Names](AliasNames.md).
+- **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
+  `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
+  surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
+  [WoT Connectivity](WoTConnectivity.md).
+- **Device Integration** (Part 100) — `Opc.Ua.Di` / `Opc.Ua.Di.Server` /
+  `Opc.Ua.Di.Client` library trio, including the lock service and the
+  software-update package store. See [Device Integration](DeviceIntegration.md)
+  and [Software Update](SoftwareUpdate.md).
+- **Role Management** (Part 18) — Server-side role administration plus a
+  pluggable [identity-provider model](IdentityProviders.md) for anonymous,
+  username, X.509, and token-issuer flows. The server automatically
+  assigns the OPC UA Part 3 §4.9 `TrustedApplication` role; see also
+  [Role-Based User Management](RoleBasedUserManagement.md).
+- **Auditing** — The server raises audit events for security-relevant
+  service calls (channel/secure-channel/session/activate/cancel). The
+  audit and redaction APIs are provided by `Opc.Ua.Server`.
+- **Model Change Tracking** — Server-side `ModelChangeAggregator` with
+  auto-emitted `GeneralModelChangeEvent` from `CustomNodeManager`;
+  client-side per-node `INodeCache.InvalidateNode`. See
+  [Model Change Tracking](ModelChangeTracking.md).
+- **Durable Subscriptions** — Subscriptions that persist across reconnects.
+  See [Durable Subscriptions](DurableSubscription.md).
+- **Complex Types** — Custom structures and enumerations; see
+  [Complex Types](ComplexTypes.md).
+- **Async server NodeManagers** — TAP-based `AsyncCustomNodeManager` is the
+  recommended base for new NodeManagers, and every NodeManager shipped with
+  the stack has migrated to it. See [Async Server Support](AsyncServerSupport.md).
 
 ## Client Profiles
 
-The Client implementation supports:
+The client (`Opc.Ua.Client`) supports the standard UA Client functionality
+through two coexisting paths:
 
-- **Standard UA Client Profile** - Full client functionality for connecting to OPC UA servers
-- **Subscription management** - Creating and managing subscriptions and monitored items, including streaming subscriptions with async enumerable-based API for state-machine waits and short-lived monitoring (see [Streaming Subscriptions documentation](StreamingSubscription.md))
-- **Transfer Subscriptions** - Support for transferring subscriptions between servers (see [Transfer Subscriptions documentation](TransferSubscription.md))
-- **Reverse Connect** - Client can accept connections initiated by servers (see [Reverse Connect documentation](ReverseConnect.md))
-- **Model Change Tracking** - Track address space changes and invalidate cached nodes (see [Model Change Tracking documentation](ModelChangeTracking.md))
-- **File System Operations** - Ergonomic async API for remote OPC UA file system operations, mirroring System.IO semantics (see [FileSystemClient documentation](FileSystemClient.md))
-- **Alarms and Conditions** - Client-side support for subscribing to and processing OPC UA alarms and condition events provided by the server, with typed event records and filtering (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Classic `Session`** — the lowest-level OPC UA session primitive,
+  paired with `SessionReconnectHandler` for caller-driven reconnect.
+- **`ManagedSession`** — recommended for new code. Encapsulates the
+  connection state machine, reconnect policy, and pluggable subscription
+  engine behind a fluent builder. See [Sessions, Reconnection, and
+  Subscription Engines](Sessions.md).
+
+Client-side feature coverage:
+
+- **Subscriptions** — Both the classic publish engine and the V2
+  subscription engine (`DefaultSubscriptionEngine`) are supported and
+  selectable per session. Includes streaming subscriptions
+  (`IAsyncEnumerable`-based) for state-machine waits and short-lived
+  monitoring; see [Streaming Subscriptions](StreamingSubscription.md).
+- **Transfer Subscriptions** — Subscription transfer between servers;
+  see [Transfer Subscriptions](TransferSubscription.md). An opt-in
+  `SubscriptionRecoveryPolicy` lets the client tolerate
+  `Good_SubscriptionTransferred` notifications from the server.
+- **Reverse Connect** — Client can accept connections initiated by the
+  server; see [Reverse Connect](ReverseConnect.md).
+- **Model Change Tracking** — Client-side per-node cache invalidation
+  driven by server-emitted model-change events; see
+  [Model Change Tracking](ModelChangeTracking.md).
+- **File System Operations** — Async, `System.IO`-style client over OPC
+  UA file methods; see [FileSystemClient](FileSystemClient.md).
+- **Alarms and Conditions** — Typed `AlarmClient` event records, fluent
+  `AlarmEventFilterBuilder`, and `IAsyncEnumerable` alarm streaming via
+  `AlarmStreamExtensions`; see
+  [Alarms and Conditions](AlarmsAndConditions.md).
+- **Historical Access** — `HistoryClient` (`session.Historian()`) for
+  raw, modified, at-time, processed (aggregate), and annotation reads /
+  updates; see [Historical Access](HistoricalAccess.md).
+- **State Machines** — Streaming and read helpers
+  (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`,
+  `WaitForStateAsync`) on the source-generated `*TypeClient` proxies;
+  see [State Machines](StateMachines.md).
+- **NodeSet Export** — Extract a server's address space to NodeSet2 XML;
+  see [NodeSet Export](NodeSetExport.md).
+- **Source-generated typed proxies** — `*TypeClient` proxies for
+  ObjectTypes inside loaded models give strongly-typed method-call
+  signatures; see [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md).
+- **Complex types** — Decode and consume server-defined structures and
+  enumerations on the client; see [Complex Types](ComplexTypes.md).
 
 ## Transport Profiles
 
 The stack implements the following transport profiles:
 
-### Client and Server Transport Support
+### Client and server transports
 
-- **[UA TCP Transport](http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary)** (`opc.tcp://`) - The primary OPC UA binary transport protocol over TCP
-  - Full support for UA Secure Conversation (UASC)
+- **[UA TCP Transport](http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary)** (`opc.tcp://`) — Primary OPC UA binary transport over TCP.
+  - Full UA Secure Conversation (UASC)
   - Binary encoding
-  - Reverse connect capability
+  - Reverse-connect capability
 
-- **[HTTPS Binary Transport](http://opcfoundation.org/UA-Profile/Transport/https-uabinary)** (`opc.https://` and `https://`) - OPC UA binary protocol over HTTPS
-  - Binary encoding over HTTPS
-  - TLS/SSL encryption
+- **[HTTPS Binary Transport](http://opcfoundation.org/UA-Profile/Transport/https-uabinary)** (`opc.https://` and `https://`) — OPC UA binary protocol over HTTPS with TLS.
 
-### PubSub Transport Support
+### PubSub transports
 
-The [PubSub library](PubSub.md) supports the following transport profiles:
+The [PubSub library](PubSub.md) supports the following PubSub transport
+facets (URIs surfaced by `Profiles.PubSub*Transport` constants in
+`Stack/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`):
 
-- **[PubSub UDP UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp)** - UDP transport with UADP message encoding
-- **[PubSub MQTT UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp)** - MQTT transport with UADP message encoding
-- **[PubSub MQTT JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json)** - MQTT transport with JSON message encoding
+- **[PubSub UDP UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp)** — UDP transport with UADP message encoding.
+- **[PubSub MQTT UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp)** — MQTT transport with UADP message encoding.
+- **[PubSub MQTT JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json)** — MQTT transport with JSON message encoding.
 
-### Currently Not Supported (Transport)
+PubSub additionally supports certificate-based MQTT authentication and
+considers `WriterGroup`s in MQTT keep-alive calculations.
 
-- **WebSocket Transport** (`opc.wss://`) - UA WebSocket Secure (WSS) transport is not currently supported
-- **HTTPS JSON Transport** - JSON encoding over HTTPS is not currently supported
+### Currently not supported
+
+- **WebSocket Transport** (`opc.wss://`) — UA WebSocket Secure (WSS) is
+  not currently supported.
+- **HTTPS JSON Transport** (`http://opcfoundation.org/UA-Profile/Transport/https-uajson`) — JSON encoding over HTTPS is not currently supported.
 
 ## Security Profiles
 
-The stack supports the following OPC UA security profiles for secure communication:
+The stack supports the following security profiles for secure
+communication. The canonical set is defined in
+`Stack/Opc.Ua.Core/Security/Constants/SecurityPolicies.cs`.
 
-### RSA-Based Security Policies
+### RSA-based security policies
 
-- **[Basic256Sha256](http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256)** - RSA encryption with SHA-256
+- **[Basic256Sha256](http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256)**
   - 256-bit AES encryption
   - RSA-OAEP for key encryption
   - HMAC-SHA256 for message authentication
   - Minimum key size: 2048 bits
-
-- **[Aes128_Sha256_RsaOaep](http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep)** - 128-bit AES with SHA-256
+- **[Aes128_Sha256_RsaOaep](http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep)**
   - 128-bit AES encryption
   - RSA-OAEP for key encryption
   - HMAC-SHA256 for message authentication
-
-- **[Aes256_Sha256_RsaPss](http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss)** - 256-bit AES with RSA-PSS signatures
+- **[Aes256_Sha256_RsaPss](http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss)**
   - 256-bit AES encryption
   - RSA-PSS signatures
   - HMAC-SHA256 for message authentication
 
-### ECC-Based Security Policies
+### ECC-based security policies
 
-Support for Elliptic Curve Cryptography (ECC) security policies (see [ECC Profiles documentation](EccProfiles.md)):
+ECC support is documented in detail in [ECC Profiles](EccProfiles.md).
 
-#### Traditional ECC Curves
-- **[ECC_nistP256](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256)** - NIST P-256 curve with SHA-256 signatures
-- **[ECC_nistP384](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384)** - NIST P-384 curve with SHA-384 signatures
-- **[ECC_brainpoolP256r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1)** - Brainpool P-256r1 curve with SHA-256 signatures
-- **[ECC_brainpoolP384r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1)** - Brainpool P-384r1 curve with SHA-384 signatures
+#### Traditional ECC curves
 
-#### Modern ECC Curves (v2.0)
-- **[ECC_curve25519](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519)** - Curve25519 with ChaCha20-Poly1305
-- **[ECC_curve25519_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519_AesGcm)** - Curve25519 with AES-GCM
-- **[ECC_curve448](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448)** - Curve448 with ChaCha20-Poly1305
-- **[ECC_curve448_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448_AesGcm)** - Curve448 with AES-GCM
+- **[ECC_nistP256](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256)** — NIST P-256 with SHA-256
+- **[ECC_nistP384](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384)** — NIST P-384 with SHA-384
+- **[ECC_brainpoolP256r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1)** — Brainpool P-256r1 with SHA-256
+- **[ECC_brainpoolP384r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1)** — Brainpool P-384r1 with SHA-384
 
-#### AES-GCM and ChaCha20-Poly1305 Variants (v2.0)
+#### Modern ECC curves (v2.0)
+
+- **[ECC_curve25519](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519)** — Curve25519 with ChaCha20-Poly1305
+- **[ECC_curve25519_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519_AesGcm)** — Curve25519 with AES-GCM
+- **[ECC_curve448](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448)** — Curve448 with ChaCha20-Poly1305
+- **[ECC_curve448_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448_AesGcm)** — Curve448 with AES-GCM
+
+#### AES-GCM and ChaCha20-Poly1305 variants (v2.0)
+
 Modern AEAD cipher alternatives for traditional ECC curves:
+
 - **ECC_nistP256_AesGcm**, **ECC_nistP256_ChaChaPoly**
 - **ECC_nistP384_AesGcm**, **ECC_nistP384_ChaChaPoly**
 - **ECC_brainpoolP256r1_AesGcm**, **ECC_brainpoolP256r1_ChaChaPoly**
 - **ECC_brainpoolP384r1_AesGcm**, **ECC_brainpoolP384r1_ChaChaPoly**
 
 #### RSA Diffie-Hellman (v2.0)
-- **RSA_DH_AesGcm** - RSA Diffie-Hellman key agreement with AES-GCM
-- **RSA_DH_ChaChaPoly** - RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
-**Platform Requirements for ECC:** ECC support is available on .NET Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Modern curves (Curve25519, Curve448) and AEAD ciphers (AES-GCM, ChaCha20-Poly1305) require .NET 5.0 or later. Not all curves are supported by all OS platforms and .NET implementations.
+- **RSA_DH_AesGcm** — RSA Diffie-Hellman key agreement with AES-GCM
+- **RSA_DH_ChaChaPoly** — RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
-### Deprecated Security Policies
+**Platform requirements for ECC.** ECC support is available on .NET
+Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Modern curves
+(Curve25519, Curve448) and AEAD ciphers (AES-GCM, ChaCha20-Poly1305)
+require .NET 8.0 or later (`AesGcm.IsSupported` /
+`ChaCha20Poly1305.IsSupported` guard the runtime registration). Not all
+curves are supported by every OS platform and .NET implementation.
 
-The following security policies are deprecated but still supported for backward compatibility:
+### Deprecated security policies
 
-- **[Basic256](http://opcfoundation.org/UA/SecurityPolicy#Basic256)** - Deprecated, uses SHA-1
-- **[Basic128Rsa15](http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15)** - Deprecated, uses SHA-1 and RSA-PKCS#1 v1.5
+The following security policies are deprecated but still supported for
+backward compatibility:
 
-**Note:** SHA-1 signed certificates are rejected by default (`RejectSHA1SignedCertificates` configuration option). These deprecated policies should only be enabled for compatibility with legacy systems.
+- **[Basic256](http://opcfoundation.org/UA/SecurityPolicy#Basic256)** — uses SHA-1
+- **[Basic128Rsa15](http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15)** — uses SHA-1 and RSA-PKCS#1 v1.5
 
-### Security Policy None
+**Note.** SHA-1 signed certificates are rejected by default
+(`RejectSHA1SignedCertificates` configuration option). These deprecated
+policies should only be enabled for compatibility with legacy systems.
 
-- **[None](http://opcfoundation.org/UA/SecurityPolicy#None)** - No security
-  - Should only be used for testing or on isolated networks
-  - Not recommended for production environments
+### Security policy None
+
+- **[None](http://opcfoundation.org/UA/SecurityPolicy#None)** — No security.
+  - For testing or isolated networks only.
+  - Not recommended for production environments.
 
 ## User Authentication
 
 The stack supports the following user authentication mechanisms:
 
-- **Anonymous** - No user authentication
-- **Username/Password** - User credentials encrypted using the active security policy
-- **X.509 Certificate** - User authentication via X.509 certificates
-
-Additional token types:
-
-- **JWT (JSON Web Tokens)** - Support for issued tokens complying with JWT specification
+- **Anonymous** — No user authentication.
+- **Username / Password** — User credentials encrypted using the active
+  security policy.
+- **X.509 Certificate** — User authentication via X.509 certificates.
+- **Issued Token** — Includes **JSON Web Tokens (JWT)** and other
+  IssuerEndpointUrl-driven flows (OAuth2 / OIDC / Entra). The
+  [Identity Providers](IdentityProviders.md) pluggable model
+  (`IClientIdentityProvider`, `IUserTokenAuthenticator`,
+  `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) is the
+  recommended way to wire these in.
 
 ## Certificate Types
 
-The stack supports the following certificate types for application authentication:
+The stack supports the following certificate types for application
+authentication:
 
-### RSA Certificates
+### RSA certificates
 
-- **RsaSha256ApplicationCertificateType** - RSA certificates with SHA-256 signatures
+- **RsaSha256ApplicationCertificateType** — RSA with SHA-256 signatures
   - Default minimum key size: 2048 bits
   - Recommended for production use
 
-### ECC Certificates
+### ECC certificates
 
-- **EccNistP256ApplicationCertificateType** - ECC certificates with NIST P-256 curve
-- **EccNistP384ApplicationCertificateType** - ECC certificates with NIST P-384 curve
-- **EccBrainpoolP256r1ApplicationCertificateType** - ECC certificates with Brainpool P-256r1 curve
-- **EccBrainpoolP384r1ApplicationCertificateType** - ECC certificates with Brainpool P-384r1 curve
+- **EccNistP256ApplicationCertificateType**
+- **EccNistP384ApplicationCertificateType**
+- **EccBrainpoolP256r1ApplicationCertificateType**
+- **EccBrainpoolP384r1ApplicationCertificateType**
 
-See [Certificates documentation](Certificates.md) for more information on certificate management.
+The `RejectSHA1SignedCertificates` configuration option (on by default)
+prevents SHA-1 signed certificates from being accepted. See
+[Certificates](Certificates.md) and [Certificate Manager](CertificateManager.md)
+for storage, ref-counted lifetime, and the segregated-interface design.
 
 ## Global Discovery Server (GDS)
 
-The stack includes a Global Discovery Server implementation that supports:
+The stack ships a Global Discovery Server implementation that is
+**full OPC UA Part 12 compliance**, including:
 
-- Application registration and discovery
-- Certificate management
-- Pull and Push certificate management models
-- Support for both RSA and ECC certificate types
-- Certificate revocation lists (CRL)
-- **Authorization Service (OPC 10000-12 Part 12 §9)** - OAuth2-style access token issuance and management (see [AuthorizationService documentation](AuthorizationService.md))
-- **Key Credential Service (OPC 10000-12 Part 12 §8)** - Credential issuance for non-OPC UA services such as MQTT brokers and REST APIs (see [KeyCredentialService documentation](KeyCredentialService.md))
+- Application registration and discovery.
+- Pull and Push certificate-management models, including pushing to
+  arbitrary certificate groups and custom certificate groups on the GDS
+  itself.
+- Sub-CA revocation without auto-creating an empty CRL.
+- Support for both RSA and ECC certificate types and CRLs.
+- **[AuthorizationService](AuthorizationService.md)** (OPC 10000-12 §9) —
+  OAuth2-style `StartRequestToken` / `FinishRequestToken` issuance with a
+  pluggable `IAccessTokenProvider` / `ITokenIssuer`.
+- **[KeyCredentialService](KeyCredentialService.md)** (OPC 10000-12 §8) —
+  Credential issuance for non-OPC UA services such as MQTT brokers and
+  REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
+
+See the [GDS Developer Guide](GDS.md) for the full feature breakdown and
+hosting integration. The Local Discovery Server is a separate library
+(`Opc.Ua.Lds.Server`) and reference application (`ConsoleLdsServer`) that
+advertises the
+[Local Discovery Server 2017](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017)
+facet.
 
 ## Message Encoding
 
 The stack supports the following message encoding formats:
 
-- **UA Binary** - OPC UA binary encoding (primary encoding used for UA-TCP and HTTPS)
-- **UADP** - UA Data Protocol for PubSub
-- **JSON** - JSON encoding for PubSub MQTT
+- **UA Binary** — OPC UA binary encoding (primary for UA-TCP and HTTPS).
+- **UA XML** — OPC UA XML encoding (for configuration import / export and
+  PubSub Dataset XML).
+- **UA JSON** — OPC UA JSON encoding for PubSub MQTT.
+- **UADP** — UA Data Protocol for PubSub.
+
+The 2.0 release ships a new JSON decoder / encoder, array / matrix
+abstractions, and a first-class `ByteString` type. See the
+[Migration Guide](MigrationGuide.md#encoders-and-decoders) for the
+encoder/decoder migration details and
+[Complex Types](ComplexTypes.md) for client-side decode of
+server-defined types.
+
+## Reference Applications
+
+The repository ships several reference applications under `Applications/`.
+
+### Reference Server (`ConsoleReferenceServer`)
+
+Cross-platform reference server using the `Quickstarts.Servers` building
+blocks (Reference, MemoryBuffer, TestData, Alarms, Boiler with state
+machine, DurableSubscription, optional FileSystem and GDS). The project
+ships **three** configuration files:
+
+- `Quickstarts.ReferenceServer.Config.xml` — default cross-platform
+  configuration loaded when no flag is given.
+- `Ctt.ReferenceServer.Config.xml` — selected via the `--ctt` command
+  line flag. Used during Compliance Test Tool runs. Includes alarm
+  pre-loading and CTT-specific tweaks applied via
+  `Quickstarts.Servers.Utils.ApplyCTTModeAsync`.
+- `Quickstarts.MonoReferenceServer.Config.xml` — Mono-compat
+  configuration that uses legacy human-readable profile names; loaded
+  by the `MonoReferenceServer` project flavour. See
+  [Reference Server documentation](../Applications/README.md) for
+  invocation.
+
+### Reference Client (`ConsoleReferenceClient`)
+
+Cross-platform reference client demonstrating session creation,
+subscriptions, browsing, and method calls. See
+[Reference Client documentation](../Applications/ConsoleReferenceClient/README.md).
+
+### Local Discovery Server (`ConsoleLdsServer`)
+
+LDS implementation built on `Opc.Ua.Lds.Server`. Configuration in
+`Applications/ConsoleLdsServer/Lds.Server.Config.xml` advertises the
+[Local Discovery Server 2017](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017) facet.
+
+### MCP Server (`McpServer`)
+
+A Model Context Protocol server that exposes OPC UA client operations as
+MCP tools so an LLM or Copilot can browse, read, write, subscribe to, and
+call methods on any OPC UA server. See [MCP Server](McpServer.md).
+
+### Reference Publisher / Subscriber
+
+`ConsoleReferencePublisher` and `ConsoleReferenceSubscriber` demonstrate
+the PubSub stack against the supported PubSub transport profiles. See
+[PubSub](PubSub.md).
+
+### Minimal samples
+
+- `MinimalCalcServer` — minimal server built on source-generated
+  NodeManagers (Calc model).
+- `MinimalBoilerServer` — minimal Boiler-model server with the fluent
+  state-machine builder; AOT-publishable.
+- `PumpDeviceIntegrationServer` — minimal Device Integration (Part 100)
+  server using the `Opc.Ua.Di.Server` fluent builder.
+
+These minimal samples are end-to-end examples of the
+[Source-Generated NodeManagers](SourceGeneratedNodeManagers.md) and
+[Device Integration](DeviceIntegration.md) developer experiences.
 
 ## Specification Compliance
 
-- **OPC UA Specification:** Version 1.05
-- **Certification:** The Reference Server has been certified for compliance through an OPC Foundation Certification Test Lab
-- **Testing:** All releases are verified for compliance using the latest Compliance Test Tool (CTT)
+- **OPC UA Specification:** Version 1.05.07.
+- **Certification:** The reference server has been certified for
+  compliance through an OPC Foundation Certification Test Lab.
+- **Testing:** All releases are verified for compliance using the latest
+  Compliance Test Tool (CTT).
 
 ## Configuration
 
-### Server Profile Configuration
+### Server profile configuration
 
-Server profiles are configured in the server configuration file using the `ServerProfileArray` element:
+Server profiles are configured in the server configuration file using the
+`ServerProfileArray` element. The reference server's default array is:
 
 ```xml
 <ServerConfiguration>
-  <!-- see https://profiles.opcfoundation.org/ for list of available profiles -->
+  <!-- see https://profiles.opcfoundation.org/ for the canonical list of profile and facet URIs -->
   <ServerProfileArray>
     <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
     <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
@@ -235,7 +456,14 @@ Server profiles are configured in the server configuration file using the `Serve
 </ServerConfiguration>
 ```
 
-### Security Policy Configuration
+To advertise additional facets (Historical Access, Aggregates, Alarms &
+Conditions, File Access, Auditing, NodeManagement, State Machine, etc.)
+look up the canonical URI for the facet on
+<https://profiles.opcfoundation.org/> and add it to `ServerProfileArray`.
+Only advertise a facet that the application genuinely implements — the
+Compliance Test Tool will exercise every claimed facet.
+
+### Security policy configuration
 
 Security policies are configured in the `SecurityPolicies` section:
 
@@ -249,7 +477,7 @@ Security policies are configured in the `SecurityPolicies` section:
     <SecurityMode>SignAndEncrypt_3</SecurityMode>
     <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
   </ServerSecurityPolicy>
-  <!-- ECC Security Policies -->
+  <!-- ECC security policies -->
   <ServerSecurityPolicy>
     <SecurityMode>SignAndEncrypt_3</SecurityMode>
     <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256</SecurityPolicyUri>
@@ -257,31 +485,67 @@ Security policies are configured in the `SecurityPolicies` section:
 </SecurityPolicies>
 ```
 
-See the [Reference Server configuration file](../Applications/ConsoleReferenceServer/Quickstarts.ReferenceServer.Config.xml) for a complete example.
+See the [reference server configuration file](../Applications/ConsoleReferenceServer/Quickstarts.ReferenceServer.Config.xml)
+for a complete example, or the
+[CTT configuration file](../Applications/ConsoleReferenceServer/Ctt.ReferenceServer.Config.xml)
+for the variant selected by `--ctt`.
 
 ## Related Documentation
 
-- [ECC Profiles](EccProfiles.md) - Detailed information about ECC certificate and security policy support
-- [Certificates](Certificates.md) - Certificate management and storage
-- [Reverse Connect](ReverseConnect.md) - Reverse connection configuration and usage
-- [Transfer Subscriptions](TransferSubscription.md) - Subscription transfer between servers
-- [Durable Subscriptions](DurableSubscription.md) - Persistent subscriptions across reconnections
-- [Complex Types](ComplexTypes.md) - Custom structures and enumerations
-- [Role-Based User Management](RoleBasedUserManagement.md) - Role-based access control
-- [PubSub](PubSub.md) - Publisher-Subscriber pattern implementation
-- [Async Server Support](AsyncServerSupport.md) - Asynchronous node manager implementation
-- [Alias Names](AliasNames.md) - OPC UA Part 17 alias-name model and address space naming
-- [Alarms and Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
-- [Model Change Tracking](ModelChangeTracking.md) - Address space change notifications and client-side cache management
-- [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 Web of Things connectivity integration
-- [Streaming Subscriptions](StreamingSubscription.md) - Async enumerable subscription API for state machines and short-lived monitoring
-- [FileSystemClient](FileSystemClient.md) - System.IO-style async client for OPC UA file systems
-- [AuthorizationService](AuthorizationService.md) - OAuth2-style access token issuance (OPC 10000-12 Part 12 §9)
-- [KeyCredentialService](KeyCredentialService.md) - Credential issuance for non-OPC UA services (OPC 10000-12 Part 12 §8)
-- [GDS Developer Guide](GDS.md) - Global Discovery Server implementation and configuration
+- [What's New in 2.0](WhatsNewIn2.0.md) — Narrative tour of the
+  1.5.378 → 2.0 changes, grouped by theme and layer.
+- [Migration Guide](MigrationGuide.md) — Prescriptive, per-API migration
+  reference.
+- [Sessions, Reconnection, and Subscription Engines](Sessions.md) —
+  `Session`, `ManagedSession`, classic vs V2 subscription engine.
+- [Async Server Support](AsyncServerSupport.md) — TAP-based
+  `AsyncCustomNodeManager` and the `IAsyncNodeManager` family.
+- [Dependency Injection](DependencyInjection.md) — `services.AddOpcUa()`
+  and the `IOpcUaBuilder` hosting surface.
+- [Native AOT](NativeAoT.md) — AOT publishing, AOT-clean source
+  generators, and the AOT test matrix.
+- [Observability](Observability.md) — `ITelemetryContext` (loggers,
+  meters, activities) and the redaction APIs.
+
+### Companion-spec docs
+
+- [Alarms and Conditions](AlarmsAndConditions.md) (Part 9)
+- [Historical Access](HistoricalAccess.md) (Part 11)
+- [Aggregates](Aggregates.md) (Part 13)
+- [State Machines](StateMachines.md) (Part 16)
+- [Alias Names](AliasNames.md) (Part 17)
+- [Role-Based User Management](RoleBasedUserManagement.md) (Part 18)
+- [Identity Providers](IdentityProviders.md)
+- [Authorization Service](AuthorizationService.md) (Part 12 §9)
+- [Key Credential Service](KeyCredentialService.md) (Part 12 §8)
+- [GDS Developer Guide](GDS.md) (Part 12 full compliance)
+- [File System Client](FileSystemClient.md) (Part 20)
+- [Device Integration](DeviceIntegration.md) (Part 100)
+- [Software Update](SoftwareUpdate.md)
+- [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
+- [Node Management](NodeManagement.md) (Part 4)
+- [Model Change Tracking](ModelChangeTracking.md)
+- [Streaming Subscription](StreamingSubscription.md)
+- [Transfer Subscription](TransferSubscription.md)
+- [Durable Subscription](DurableSubscription.md)
+- [Complex Types](ComplexTypes.md)
+- [NodeSet Export](NodeSetExport.md)
+- [Model Dependencies](ModelDependencies.md)
+- [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md)
+- [Source-Generated DataTypes](SourceGeneratedDataTypes.md)
+
+### Other
+
+- [Certificates](Certificates.md) and [Certificate Manager](CertificateManager.md) — certificate management and storage.
+- [Reverse Connect](ReverseConnect.md) — reverse-connection configuration.
+- [PubSub](PubSub.md) — Publisher / Subscriber pattern.
+- [ECC Profiles](EccProfiles.md) — ECC certificate and security policy detail.
+- [Provisioning Mode](ProvisioningMode.md) — secure provisioning of the reference server.
+- [Container Reference Server](ContainerReferenceServer.md) — running the reference server in a container.
+- [MCP Server](McpServer.md) — Model Context Protocol server for LLM-driven OPC UA clients.
 
 ## References
 
-- [OPC Foundation Profile Reporting](https://profiles.opcfoundation.org/)
-- [OPC UA Specification](https://reference.opcfoundation.org/)
-- [OPC UA Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/)
+- [OPC Foundation Profile Reporting](https://profiles.opcfoundation.org/) — canonical profile and facet URI registry.
+- [OPC UA Specification](https://reference.opcfoundation.org/) — online reference for the OPC 10000 series.
+- [OPC UA Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) — official conformance test tool.
