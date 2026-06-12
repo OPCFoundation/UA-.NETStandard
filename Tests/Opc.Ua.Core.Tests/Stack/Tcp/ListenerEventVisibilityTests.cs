@@ -32,6 +32,8 @@ using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
+#nullable enable
+
 namespace Opc.Ua.Core.Tests.Stack.Tcp
 {
     [TestFixture]

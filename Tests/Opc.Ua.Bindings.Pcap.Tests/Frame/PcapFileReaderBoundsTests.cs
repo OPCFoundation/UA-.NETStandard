@@ -33,6 +33,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Frame;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Frame

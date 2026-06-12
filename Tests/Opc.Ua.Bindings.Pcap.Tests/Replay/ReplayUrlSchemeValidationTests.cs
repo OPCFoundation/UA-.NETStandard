@@ -29,6 +29,7 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Bindings.Pcap.Replay;
 
