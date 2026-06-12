@@ -46,6 +46,18 @@ namespace Opc.Ua.History.Tests
     public abstract class AlarmsAndConditionsTestFixture : TestFixture
     {
         /// <summary>
+        /// Default timeout for AlarmEventCollector.WaitForEventAsync calls in
+        /// the Alarms &amp; Conditions test suite. 30 s gives ample headroom
+        /// for slow CI runners (notably macOS hosted agents under load) while
+        /// remaining unnoticeable on healthy systems because WaitForEventAsync
+        /// polls at 50 ms intervals and returns as soon as the predicate
+        /// matches. Observed flake before this constant existed: build 14598
+        /// log 652, ConfirmAlreadyConfirmedAcrossSessionsReturnsBranchAlready-
+        /// ConfirmedAsync timed out at 5 s on a Mac PR run.
+        /// </summary>
+        protected static readonly TimeSpan DefaultEventWaitTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
         /// NodeId of the Alarms folder created by AlarmNodeManager.
         /// Discovered on first use by browsing the Objects folder.
         /// </summary>
