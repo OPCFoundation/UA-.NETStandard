@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <AssemblyName>Opc.Ua.Network.Fuzz</AssemblyName>
+    <RootNamespace>Network.Fuzz</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(LibFuzzer)' == 'true'">
+    <DefineConstants>$(DefineConstants);LIBFUZZER</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\Program.cs" Link="Program.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Pcap\Opc.Ua.Bindings.Pcap.csproj" />
+  </ItemGroup>
+</Project>
