@@ -375,7 +375,7 @@ spec-defined `*2` method when a non-empty comment is supplied
 ### Subscribing to alarms with `IAsyncEnumerable`
 
 Alarm events flow through the [streaming subscription
-API](StreamingSubscription.md). The
+API](Subscriptions.md#streaming-subscriptions). The
 `AlarmStreamExtensions.SubscribeAlarmsAsync` extension returns
 strongly-typed records:
 
@@ -588,7 +588,7 @@ session.
 - [OPC UA Part 9 — Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9/full)
 - [IEC 62682](https://webstore.iec.ch/publication/61256) — Management of alarm systems for the process industries
 - [ISA 18.2](https://www.isa.org/products/ansi-isa-18-2-2016-management-of-alarm-systems-) — Management of Alarm Systems for the Process Industries
-- [Streaming Subscriptions](StreamingSubscription.md) — `IStreamingSubscription`
+- [Subscriptions and Monitored Items Service Set](Subscriptions.md) — `IStreamingSubscription` and the V2 subscription engine
 - [State Machines](StateMachines.md) — generic Part 16 state-machine API used by
   `AlarmClient.GetShelvingStateAsync` / `ObserveShelvingTransitionsAsync`
 - [Model Change Tracking](ModelChangeTracking.md) — client cache invalidation on address-space changes

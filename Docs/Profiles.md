@@ -58,7 +58,7 @@ These features are configured and registered using the fluent API and dependency
 The Client implementation supports:
 
 - **Standard UA Client Profile** - Full client functionality for connecting to OPC UA servers
-- **Subscription management** - Creating and managing subscriptions and monitored items, including streaming subscriptions with async enumerable-based API for state-machine waits and short-lived monitoring (see [Streaming Subscriptions documentation](StreamingSubscription.md))
+- **Subscription management** - Creating and managing subscriptions and monitored items, including streaming subscriptions with async enumerable-based API for state-machine waits and short-lived monitoring (see [Subscriptions and Monitored Items documentation](Subscriptions.md))
 - **Transfer Subscriptions** - Support for transferring subscriptions between servers (see [Transfer Subscriptions documentation](TransferSubscription.md))
 - **Reverse Connect** - Client can accept connections initiated by servers (see [Reverse Connect documentation](ReverseConnect.md))
 - **Model Change Tracking** - Track address space changes and invalidate cached nodes (see [Model Change Tracking documentation](ModelChangeTracking.md))
@@ -274,7 +274,7 @@ See the [Reference Server configuration file](../Applications/ConsoleReferenceSe
 - [Alarms and Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
 - [Model Change Tracking](ModelChangeTracking.md) - Address space change notifications and client-side cache management
 - [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 Web of Things connectivity integration
-- [Streaming Subscriptions](StreamingSubscription.md) - Async enumerable subscription API for state machines and short-lived monitoring
+- [Subscriptions and Monitored Items Service Set](Subscriptions.md) - V2 subscription engine, declarative+imperative SetTriggering API with N:M support, and `IAsyncEnumerable`-based streaming subscriptions for state machines and short-lived monitoring
 - [FileSystemClient](FileSystemClient.md) - System.IO-style async client for OPC UA file systems
 - [AuthorizationService](AuthorizationService.md) - OAuth2-style access token issuance (OPC 10000-12 Part 12 §9)
 - [KeyCredentialService](KeyCredentialService.md) - Credential issuance for non-OPC UA services (OPC 10000-12 Part 12 §8)
