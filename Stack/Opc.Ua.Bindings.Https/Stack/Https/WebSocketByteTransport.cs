@@ -406,4 +406,46 @@ namespace Opc.Ua.Bindings
 
         private EndPoint? m_remoteEndpoint;
     }
+
+    /// <summary>
+    /// Server-side <see cref="IUaSCByteTransport"/> built from an already-
+    /// accepted <see cref="WebSocket"/> (returned by Kestrel's
+    /// <c>HttpContext.WebSockets.AcceptWebSocketAsync(subProtocol)</c>).
+    /// </summary>
+    internal sealed class WebSocketServerByteTransport : WebSocketByteTransportBase
+    {
+        public WebSocketServerByteTransport(
+            WebSocket socket,
+            EndPoint? localEndpoint,
+            EndPoint? remoteEndpoint,
+            BufferManager bufferManager,
+            int receiveBufferSize,
+            ITelemetryContext telemetry)
+            : base(bufferManager, receiveBufferSize, telemetry)
+        {
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
+            m_localEndpoint = localEndpoint;
+            m_remoteEndpoint = remoteEndpoint;
+            AttachSocket(socket);
+        }
+
+        /// <inheritdoc/>
+        public override EndPoint? LocalEndpoint => m_localEndpoint;
+
+        /// <inheritdoc/>
+        public override EndPoint? RemoteEndpoint => m_remoteEndpoint;
+
+        /// <inheritdoc/>
+        public override ValueTask ConnectAsync(Uri url, CancellationToken ct)
+        {
+            throw new NotSupportedException(
+                "WebSocketServerByteTransport is constructed from an accepted WebSocket and cannot connect outbound.");
+        }
+
+        private readonly EndPoint? m_localEndpoint;
+        private readonly EndPoint? m_remoteEndpoint;
+    }
 }
