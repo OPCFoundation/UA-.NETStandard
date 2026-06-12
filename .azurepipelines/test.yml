@@ -121,11 +121,18 @@ jobs:
   - task: DownloadSecureFile@1
     name: fuzzingartifacts
     displayName: 'Download Fuzzing artifacts'
+    # Only the Opc.Ua.Encoders.Fuzz.Tests matrix entry consumes these crash-seed
+    # assets; gating the download saves a secure-file fetch + ~28k 'inflating:
+    # crash-*' log lines on every other matrix entry (observed pre-fix on mac
+    # build 14598 log 652).  testcc.yml still pulls the artifacts unconditionally
+    # because that single combined coverage job runs every *.Tests.csproj
+    # including Fuzz.Tests in one go.
+    condition: contains(variables['file'], 'Fuzz.Tests')
     inputs:
       secureFile: 'FuzzingArtifacts.zip'
   - task: ExtractFiles@1
     displayName: 'Extract Fuzzing artifacts'
-    condition: ne(variables['fuzzingartifacts.secureFilePath'], '')
+    condition: and(contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
       destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests
@@ -175,6 +182,6 @@ jobs:
       testRunTitle: '${{ parameters.framework }} ${{ parameters.configuration }} - $(Agent.JobName)'
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
-    condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
+    condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
