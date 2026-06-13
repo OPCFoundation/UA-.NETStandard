@@ -471,6 +471,71 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(body, Does.Contain("Unsupported content type"));
         }
 
+        /// <summary>
+        /// SendJsonAsync returns 501 NotImplemented when no listener callback
+        /// has been wired (mirror of the binary path).
+        /// </summary>
+        [Test]
+        public async Task SendJsonAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = Profiles.OpcUaJsonContentType;
+            context.Response.Body = new MemoryStream();
+
+            await listener.SendJsonAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotImplemented));
+        }
+
+        /// <summary>
+        /// SendJsonAsync responds with an OPC UA JSON ServiceFault carrying
+        /// BadDecodingError when the request body is not a valid JSON envelope.
+        /// </summary>
+        [Test]
+        public async Task SendJsonAsyncRespondsWithServiceFaultForMalformedBodyAsync()
+        {
+            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = Profiles.OpcUaJsonContentType;
+            context.Request.ContentLength = 5;
+            context.Request.Body = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("junk!"));
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendJsonAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+            Assert.That(context.Response.ContentType, Is.EqualTo(Profiles.OpcUaJsonContentType));
+
+            responseBody.Position = 0;
+            using var reader = new StreamReader(responseBody);
+            string body = await reader.ReadToEndAsync().ConfigureAwait(false);
+            Assert.That(body, Does.Contain("UaTypeId"));
+            Assert.That(body, Does.Contain("UaBody"));
+            // The fault payload's StringTable carries the BadDecodingError
+            // symbolic name and the mapper's failure description.
+            Assert.That(body, Does.Contain("BadDecodingError"));
+        }
+
+        /// <summary>
+        /// AcceptWebSocketAsync returns 501 NotImplemented when no listener
+        /// callback has been wired (analogous to SendAsync's behaviour).
+        /// </summary>
+        [Test]
+        public async Task AcceptWebSocketAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var context = new DefaultHttpContext();
+            context.Response.Body = new MemoryStream();
+
+            await listener.AcceptWebSocketAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotImplemented));
+        }
+
         private HttpsTransportListener CreatePartiallyOpenedListener()
         {
             var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
