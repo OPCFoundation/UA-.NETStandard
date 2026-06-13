@@ -142,7 +142,8 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Begin a reverse connect.
+        /// Begin a reverse connect using the default TCP byte transport
+        /// (<see cref="TcpByteTransport"/>).
         /// </summary>
         public IAsyncResult BeginReverseConnect(
             uint channelId,
@@ -151,13 +152,34 @@ namespace Opc.Ua.Bindings
             object callbackData,
             int timeout)
         {
+            var transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
+            return BeginReverseConnect(channelId, endpointUrl, transport, callback, callbackData, timeout);
+        }
+
+        /// <summary>
+        /// Begin a reverse connect using the supplied byte transport.
+        /// Used by non-TCP listeners (e.g. WSS) to plug in their own
+        /// outbound transport while reusing the rest of the reverse-hello
+        /// machinery.
+        /// </summary>
+        public IAsyncResult BeginReverseConnect(
+            uint channelId,
+            Uri endpointUrl,
+            IUaSCByteTransport transport,
+            AsyncCallback callback,
+            object callbackData,
+            int timeout)
+        {
+            if (transport == null)
+            {
+                throw new ArgumentNullException(nameof(transport));
+            }
+
             ChannelId = channelId;
             ReverseConnectionUrl = endpointUrl;
             SetEndpointUrl(Listener.EndpointUrl.ToString());
 
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger);
-
-            var transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
             ar.Transport = transport;
             Transport = transport;
 
@@ -167,7 +189,7 @@ namespace Opc.Ua.Bindings
         }
 
         private async Task ReverseConnectAsync(
-            TcpByteTransport transport,
+            IUaSCByteTransport transport,
             Uri endpointUrl,
             ReverseConnectAsyncResult ar)
         {

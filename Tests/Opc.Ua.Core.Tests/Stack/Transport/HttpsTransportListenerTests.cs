@@ -177,7 +177,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// Verify CreateReverseConnection throws NotImplementedException.
+        /// Verify CreateReverseConnection throws NotImplementedException
+        /// for the HTTPS binary variants (Part 6 §7.4.4 does not define
+        /// reverse connect for HTTPS-uabinary or HTTPS-JSON).
         /// </summary>
         [Test]
         public void CreateReverseConnectionThrowsNotImplementedException()
@@ -185,6 +187,33 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var uri = new Uri("https://localhost:4840");
             Assert.Throws<NotImplementedException>(() => listener.CreateReverseConnection(uri, 30000));
+        }
+
+        /// <summary>
+        /// Verify CreateReverseConnection accepts the WSS variants but
+        /// fails fast with BadInvalidState until the listener is opened
+        /// (m_bufferManager/m_quotas are still null).
+        /// </summary>
+        [Test]
+        public void CreateReverseConnectionForWssRequiresOpenedListener()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeOpcWss, m_telemetry);
+            var uri = new Uri("opc.wss://localhost:4840/SomeClient");
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => listener.CreateReverseConnection(uri, 30000))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// Null URL must be rejected early with ArgumentNullException
+        /// regardless of scheme.
+        /// </summary>
+        [Test]
+        public void CreateReverseConnectionRejectsNullUrl()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeOpcWss, m_telemetry);
+            Assert.Throws<ArgumentNullException>(
+                () => listener.CreateReverseConnection(null!, 30000));
         }
 
         /// <summary>
@@ -293,13 +322,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// Verify CreateReverseConnection with null uri throws NotImplementedException.
+        /// Verify CreateReverseConnection with null uri throws
+        /// ArgumentNullException (the null-arg guard now precedes the
+        /// scheme/unsupported-scheme NotImplementedException check).
         /// </summary>
         [Test]
-        public void CreateReverseConnectionWithNullUriThrowsNotImplementedException()
+        public void CreateReverseConnectionWithNullUriThrowsArgumentNullException()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.Throws<NotImplementedException>(() => listener.CreateReverseConnection(null, 0));
+            Assert.Throws<ArgumentNullException>(() => listener.CreateReverseConnection(null!, 0));
         }
 
         /// <summary>

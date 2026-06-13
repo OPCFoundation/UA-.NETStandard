@@ -403,11 +403,169 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Reverse connect for the https transport listener is not implemented.
+        /// Reverse connect is supported for the WSS scheme variants
+        /// (<c>opc.wss://</c>, <c>wss://</c>) only. Outbound HTTPS-binary
+        /// reverse-connect is not defined by Part 6.
         /// </remarks>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            throw new NotImplementedException();
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+            if (!Utils.IsUriWssScheme(url.AbsoluteUri))
+            {
+                throw new NotImplementedException(
+                    "Reverse connect is only implemented for the WSS transport variants.");
+            }
+            if (m_bufferManager == null || m_quotas == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "HttpsTransportListener must be opened before initiating a reverse connection.");
+            }
+
+#pragma warning disable CA2000 // Ownership of channel + transport transfers to async callback via BeginReverseConnect
+            TcpServerChannel? channel = null;
+            WebSocketClientByteTransport? transport = null;
+            try
+            {
+                channel = new TcpServerChannel(
+                    ListenerId,
+                    new ReverseConnectChannelOwner(this),
+                    m_bufferManager,
+                    m_quotas,
+                    m_serverCertProvider,
+                    m_descriptions,
+                    m_telemetry);
+
+                transport = new WebSocketClientByteTransport(
+                    m_bufferManager,
+                    m_quotas.MaxBufferSize,
+                    m_telemetry)
+                {
+                    CertificateValidator = m_quotas.CertificateValidator,
+                    ClientTlsCertificate = m_pinnedServerCert
+                };
+
+                uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
+                channel.StatusChanged += OnReverseConnectChannelStatusChanged;
+                channel.BeginReverseConnect(
+                    channelId,
+                    url,
+                    transport,
+                    OnHttpsReverseHelloComplete,
+                    channel,
+                    Math.Min(timeout, m_quotas.ChannelLifetime));
+                channel = null; // ownership transferred to async operation
+                transport = null; // owned by the channel now
+            }
+            finally
+            {
+                channel?.Dispose();
+                transport?.Close();
+            }
+#pragma warning restore CA2000
+        }
+
+        private void OnReverseConnectChannelStatusChanged(
+            TcpServerChannel channel,
+            ServiceResult status,
+            bool closed)
+        {
+            ConnectionStatusChanged?.Invoke(
+                this,
+                new ConnectionStatusEventArgs(channel.ReverseConnectionUrl!, status, closed));
+        }
+
+        /// <summary>
+        /// Completion callback for the WSS reverse-hello handshake.
+        /// </summary>
+        private void OnHttpsReverseHelloComplete(IAsyncResult result)
+        {
+            var channel = (TcpServerChannel?)result.AsyncState;
+            try
+            {
+                channel!.EndReverseConnect(result);
+                if (m_callback != null)
+                {
+                    channel.SetRequestReceivedCallback(
+                        new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
+                    channel.SetReportOpenSecureChannelAuditCallback(
+                        new ReportAuditOpenSecureChannelEventHandler(
+                            OnReportAuditOpenSecureChannelEvent));
+                    channel.SetReportCloseSecureChannelAuditCallback(
+                        new ReportAuditCloseSecureChannelEventHandler(
+                            OnReportAuditCloseSecureChannelEvent));
+                    channel.SetReportCertificateAuditCallback(
+                        new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                }
+                channel = null; // ownership transferred to the channel registry
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "HTTPSLISTENER reverse connect handshake failed.");
+                ConnectionStatusChanged?.Invoke(
+                    this,
+                    new ConnectionStatusEventArgs(
+                        channel!.ReverseConnectionUrl!,
+                        new ServiceResult(e),
+                        true));
+            }
+            finally
+            {
+                channel?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Minimal <see cref="ITcpChannelListener"/> adapter that the WSS
+        /// reverse-connect uses to give the <see cref="TcpServerChannel"/>
+        /// a back-reference to this listener without going through the
+        /// shared multi-channel <see cref="WssChannelListener"/> path.
+        /// </summary>
+        private sealed class ReverseConnectChannelOwner : ITcpChannelListener
+        {
+            internal ReverseConnectChannelOwner(HttpsTransportListener owner)
+            {
+                m_owner = owner;
+            }
+
+            public Uri EndpointUrl => m_owner.EndpointUrl;
+
+            public void ChannelClosed(uint channelId)
+            {
+                // No-op: the WSS reverse channel is per-connection; the
+                // listener does not maintain a channel registry for it.
+            }
+
+            public bool ReconnectToExistingChannel(
+                IUaSCByteTransport transport,
+                uint requestId,
+                uint sequenceNumber,
+                uint channelId,
+                Certificate clientCertificate,
+                ChannelToken token,
+                OpenSecureChannelRequest request)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Reverse-connect WSS channels do not support reconnect-to-existing-channel.");
+            }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
+            {
+                return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+            }
+#pragma warning restore CS0618
+
+            public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
+            {
+                return Task.FromResult(false);
+            }
+
+            private readonly HttpsTransportListener m_owner;
         }
 
         /// <inheritdoc/>
