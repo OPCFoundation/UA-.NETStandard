@@ -178,6 +178,9 @@ a follow-up; for now clients that want JSON construct the
 
 * [`Profiles.md`](Profiles.md) — supported profiles, security policies,
   message encodings.
+* [`CustomTransport.md`](CustomTransport.md) — implementing
+  `IUaSCByteTransport` for a custom byte transport (named pipes, QUIC,
+  in-process bridges, etc.). Includes a worked example.
 * [`MigrationGuide.md`](MigrationGuide.md) — note on the breaking
   removal of `IMessageSocket` and the new `IUaSCByteTransport`
   contract.

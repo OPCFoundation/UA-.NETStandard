@@ -111,7 +111,7 @@ Internally the runtime transport boundary moved from `IMessageSocket` to the new
 | `UaSCUaBinaryClientChannel(..., IMessageSocketFactory, ...)` ctor | `UaSCUaBinaryClientChannel(..., IUaSCByteTransportFactory, ...)` ctor |
 | `ITcpChannelListener.ReconnectToExistingChannel(IMessageSocket, ...)` | `ITcpChannelListener.ReconnectToExistingChannel(IUaSCByteTransport, ...)` |
 
-**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): file a feature request describing your use case so we can plan a public extension surface on top of `IUaSCByteTransport`. In the meantime the legacy types are gone; the recommended migration path is to plug into the existing `ITransportChannel` / `ITransportListener` surfaces, which now route through the unified UASC pipeline.
+**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](../Stack/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`Docs/CustomTransport.md`](CustomTransport.md) for the contract, an implementation checklist, and a worked example (in-process loopback transport) that consumes only the public surface. The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
 
 ### Telemetry and Logging
 
