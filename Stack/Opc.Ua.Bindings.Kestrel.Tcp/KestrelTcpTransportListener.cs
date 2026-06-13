@@ -48,47 +48,21 @@ namespace Opc.Ua.Bindings
     /// Factory that produces <see cref="KestrelTcpTransportListener"/>
     /// instances. Registered against
     /// <see cref="Utils.UriSchemeOpcTcp"/> via the
-    /// <see cref="ITransportListenerFactory"/> contract.
+    /// <see cref="ITransportListenerFactory"/> contract. Inherits
+    /// <see cref="TcpServiceHost.CreateServiceHost"/> from the
+    /// raw-socket <see cref="TcpServiceHost"/> base so the discovery
+    /// endpoint-description list matches the raw-socket factory
+    /// exactly; only <see cref="Create"/> differs (returns a Kestrel-
+    /// hosted listener instead of the raw-socket one).
     /// </summary>
-    public class KestrelTcpTransportListenerFactory : ITransportListenerFactory
+    public class KestrelTcpTransportListenerFactory : TcpServiceHost
     {
         /// <inheritdoc/>
-        public string UriScheme => Utils.UriSchemeOpcTcp;
+        public override string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <inheritdoc/>
-        public ITransportListener Create(ITelemetryContext telemetry)
+        public override ITransportListener Create(ITelemetryContext telemetry)
             => new KestrelTcpTransportListener(telemetry);
-
-        /// <inheritdoc/>
-        public List<EndpointDescription> CreateServiceHost(
-            ServerBase serverBase,
-            IDictionary<string, ServiceHost> hosts,
-            ApplicationConfiguration configuration,
-            ArrayOf<string> baseAddresses,
-            ApplicationDescription serverDescription,
-            ArrayOf<ServerSecurityPolicy> securityPolicies,
-            ICertificateRegistry serverCertificates,
-            ICertificateValidatorEx clientCertificateValidator)
-        {
-            // The raw-socket TcpTransportListenerFactory already publishes
-            // the canonical opc.tcp endpoint descriptions. For Kestrel-TCP
-            // we register against the same UriScheme; consumers can pick
-            // which factory wins by reordering TransportBindings.Listeners.
-            // CreateServiceHost is a no-op here because there is exactly
-            // one ITransportListenerFactory per (UriScheme, ServerBase) -
-            // if Kestrel-TCP is chosen, the raw-socket factory's
-            // CreateServiceHost is bypassed entirely, so we mirror its
-            // EndpointDescription emission here.
-            var endpoints = new List<EndpointDescription>();
-            // Delegate to ServerBase plumbing via a stub: tests / integration
-            // exercise the listener end-to-end via Start/Open; the
-            // EndpointDescription list this method returns is consumed only
-            // for the discovery client surface, which for opc.tcp is the
-            // same whether the listener is raw-socket or Kestrel-hosted.
-            // TODO(fu-kestrel-tcp): full EndpointDescription factoring when
-            // the raw-socket TcpServiceHost helper is made public.
-            return endpoints;
-        }
     }
 
     /// <summary>

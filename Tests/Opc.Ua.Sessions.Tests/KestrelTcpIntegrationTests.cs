@@ -64,6 +64,22 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(factory.UriScheme, Is.EqualTo(Utils.UriSchemeOpcTcp));
         }
 
+        /// <summary>
+        /// The Kestrel-TCP factory must inherit from
+        /// <see cref="TcpServiceHost"/> so it reuses the same
+        /// <see cref="ITransportListenerFactory.CreateServiceHost"/>
+        /// EndpointDescription emission logic the raw-socket factory
+        /// uses. Without this both the Reference server and any
+        /// discovery client wired up against the Kestrel binding would
+        /// see an empty endpoint list.
+        /// </summary>
+        [Test]
+        public void KestrelTcpFactoryInheritsFromTcpServiceHost()
+        {
+            var factory = new KestrelTcpTransportListenerFactory();
+            Assert.That(factory, Is.InstanceOf<TcpServiceHost>());
+        }
+
         [Test]
         public void KestrelTcpListenerOpensAndAcceptsTcpConnectionsAsync()
         {
