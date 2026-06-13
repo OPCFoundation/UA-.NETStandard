@@ -29,11 +29,14 @@
 
 using System;
 using System.Net;
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -337,6 +340,21 @@ namespace Opc.Ua.Bindings
         {
         }
 
+        /// <summary>
+        /// Optional OPC UA certificate validator invoked by the
+        /// <c>RemoteCertificateValidationCallback</c> hook installed on
+        /// <see cref="ClientWebSocket"/>. When <c>null</c> the .NET default
+        /// TLS validation (system root trust) is used.
+        /// </summary>
+        public ICertificateValidatorEx? CertificateValidator { get; set; }
+
+        /// <summary>
+        /// Optional client TLS certificate added to
+        /// <c>ClientWebSocketOptions.ClientCertificates</c> for servers
+        /// that require mutual TLS authentication.
+        /// </summary>
+        public Certificate? ClientTlsCertificate { get; set; }
+
         /// <inheritdoc/>
         public override EndPoint? LocalEndpoint => null;
 
@@ -359,6 +377,24 @@ namespace Opc.Ua.Bindings
             try
             {
                 ws.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUacp);
+
+#if NET5_0_OR_GREATER
+                if (CertificateValidator != null)
+                {
+                    ICertificateValidatorEx validator = CertificateValidator;
+                    ws.Options.RemoteCertificateValidationCallback =
+                        (sender, cert, chain, errors) => ValidateRemoteCertificate(
+                            validator,
+                            cert as X509Certificate2,
+                            chain);
+                }
+                if (ClientTlsCertificate != null)
+                {
+                    using X509Certificate2 clientCert = ClientTlsCertificate.AsX509Certificate2();
+                    ws.Options.ClientCertificates ??= new X509CertificateCollection();
+                    ws.Options.ClientCertificates.Add(clientCert);
+                }
+#endif
 
                 await ws.ConnectAsync(wsUrl, ct).ConfigureAwait(false);
 
@@ -387,6 +423,50 @@ namespace Opc.Ua.Bindings
             finally
             {
                 ws?.Dispose();
+            }
+        }
+
+        private bool ValidateRemoteCertificate(
+            ICertificateValidatorEx validator,
+            X509Certificate2? cert,
+            System.Security.Cryptography.X509Certificates.X509Chain? chain)
+        {
+            if (cert == null)
+            {
+                return false;
+            }
+            try
+            {
+                var collection = new X509Certificate2Collection();
+                if (chain != null && chain.ChainElements != null)
+                {
+                    foreach (X509ChainElement element in chain.ChainElements)
+                    {
+                        collection.Add(element.Certificate);
+                    }
+                }
+                else
+                {
+                    collection.Add(cert);
+                }
+                using var validation = CertificateCollection.From(collection);
+                // Run the async validator from the sync TLS callback; the
+                // BCL TLS handshake plumbing is itself synchronous here so
+                // there is no easier way to bridge it.
+#pragma warning disable CA2025
+                CertificateValidationResult result = validator
+                    .ValidateAsync(validation, ct: default)
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
+                return result.IsValid;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "WebSocketClientByteTransport: failed to validate server TLS certificate.");
+                return false;
             }
         }
 

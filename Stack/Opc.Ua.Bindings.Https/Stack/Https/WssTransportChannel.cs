@@ -43,6 +43,23 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public string Implementation => "UA-WSS";
 
+        /// <summary>
+        /// Optional OPC UA certificate validator invoked from the
+        /// <c>RemoteCertificateValidationCallback</c> wired into every
+        /// <see cref="System.Net.WebSockets.ClientWebSocket"/> the factory
+        /// produces; set by <see cref="WssTransportChannel"/> after channel
+        /// settings are bound.
+        /// </summary>
+        internal ICertificateValidatorEx? CertificateValidator { get; set; }
+
+        /// <summary>
+        /// Optional client TLS certificate added to
+        /// <c>ClientWebSocketOptions.ClientCertificates</c> for servers
+        /// that require mutual TLS authentication; set by
+        /// <see cref="WssTransportChannel"/> after channel settings are bound.
+        /// </summary>
+        internal Opc.Ua.Security.Certificates.Certificate? ClientTlsCertificate { get; set; }
+
         /// <inheritdoc/>
         public IUaSCByteTransport Create(
             BufferManager bufferManager,
@@ -52,7 +69,11 @@ namespace Opc.Ua.Bindings
             return new WebSocketClientByteTransport(
                 bufferManager,
                 receiveBufferSize,
-                telemetry ?? m_telemetry);
+                telemetry ?? m_telemetry)
+            {
+                CertificateValidator = CertificateValidator,
+                ClientTlsCertificate = ClientTlsCertificate
+            };
         }
 
         private readonly ITelemetryContext m_telemetry;
@@ -69,9 +90,31 @@ namespace Opc.Ua.Bindings
         /// Create a new WSS transport channel.
         /// </summary>
         public WssTransportChannel(ITelemetryContext telemetry)
-            : base(new WebSocketClientByteTransportFactory(telemetry), telemetry)
+            : this(new WebSocketClientByteTransportFactory(telemetry), telemetry)
         {
         }
+
+        private WssTransportChannel(
+            WebSocketClientByteTransportFactory factory,
+            ITelemetryContext telemetry)
+            : base(factory, telemetry)
+        {
+            m_factory = factory;
+        }
+
+        /// <inheritdoc/>
+        protected override void OnSettingsSaved(
+            TransportChannelSettings settings,
+            ChannelQuotas quotas)
+        {
+            // Push the OPC UA certificate validator + (optional) client TLS
+            // certificate down to the factory so every ClientWebSocket
+            // produced for this channel uses them at the TLS layer.
+            m_factory.CertificateValidator = quotas?.CertificateValidator;
+            m_factory.ClientTlsCertificate = settings?.ClientCertificate;
+        }
+
+        private readonly WebSocketClientByteTransportFactory m_factory;
     }
 
     /// <summary>

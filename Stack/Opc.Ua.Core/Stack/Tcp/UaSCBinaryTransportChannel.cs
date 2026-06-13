@@ -440,6 +440,30 @@ namespace Opc.Ua.Bindings
                 "Client",
                 configuration.MaxBufferSize,
                 m_telemetry);
+
+            // notify derived classes - e.g. WSS - that settings have been
+            // bound so they can push channel-level options (TLS cert validator,
+            // client TLS certificate) into the byte-transport factory before
+            // the channel attempts to connect.
+            OnSettingsSaved(settings, m_quotas);
+        }
+
+        /// <summary>
+        /// Hook called by the channel immediately after its settings and
+        /// quotas have been bound, but before any connect attempt. The
+        /// default implementation is a no-op; derived classes override to
+        /// push channel-level options into the byte-transport factory. For
+        /// example, the WSS channel uses this to propagate the OPC UA
+        /// certificate validator and the client TLS certificate into
+        /// <c>ClientWebSocketOptions.RemoteCertificateValidationCallback</c>
+        /// and <c>ClientWebSocketOptions.ClientCertificates</c>.
+        /// </summary>
+        /// <param name="settings">The bound transport channel settings.</param>
+        /// <param name="quotas">The bound channel quotas.</param>
+        protected virtual void OnSettingsSaved(
+            TransportChannelSettings settings,
+            ChannelQuotas quotas)
+        {
         }
 
         /// <summary>

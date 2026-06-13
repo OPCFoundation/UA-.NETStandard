@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.TestFramework
             {
                 serverConfig.AddUnsecurePolicyNone();
             }
-            if (Utils.IsUriHttpsScheme(endpointUrl))
+            if (Utils.IsUriHttpsScheme(endpointUrl) || Utils.IsUriWssScheme(endpointUrl))
             {
                 serverConfig.AddPolicy(
                     MessageSecurityMode.SignAndEncrypt,
