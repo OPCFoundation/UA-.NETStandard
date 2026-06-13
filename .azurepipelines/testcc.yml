@@ -5,7 +5,7 @@ parameters:
   configuration: 'Release'
   framework: net10.0
   agent: 'linux'
-  poolImage: 'ubuntu-22.04'
+  poolImage: 'ubuntu-24.04'
   jobnamesuffix: 'net100cc'
   customtestarget: ''
   # See ci.yml: passing pool config via parameter because root-pipeline
@@ -67,7 +67,7 @@ jobs:
     condition: ne(variables['fuzzingartifacts.secureFilePath'], '')
     inputs:
       archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
-      destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests
+      destinationFolder: ./Fuzzing/Opc.Ua.Encoders.Fuzz.Tests
       cleanDestinationFolder: false
       overwriteExistingFiles: true
     continueOnError: true
@@ -85,8 +85,11 @@ jobs:
       projects: |
         **/*.Tests.csproj
         !**/Opc.Ua.Aot.Tests.csproj
+      # --blame-hang-timeout/--blame-hang-dump-type: kill (and name) any single test
+      # that exceeds 10 min so silent hangs surface as a named test failure instead
+      # of burning the step timeout with no diagnostic info. See test.yml for context.
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory) --blame-hang-timeout 10m --blame-hang-dump-type none'
       publishTestResults: false
   - script: |
       bash <(curl -s https://codecov.io/bash) -s $(Agent.TempDirectory)

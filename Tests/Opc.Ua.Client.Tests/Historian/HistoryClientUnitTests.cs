@@ -191,14 +191,13 @@ namespace Opc.Ua.Client.Tests.Historian
 
             IList<StatusCode> result = await client.InsertAsync(
                 new NodeId("TestNode", 2),
-                new[]
-                {
+                [
                     new DataValue(
                         new Variant(1.0),
                         StatusCodes.Good,
                         sourceTimestamp: now,
                         serverTimestamp: now)
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty,
                 "When HistoryUpdate returns an empty Results array, InsertAsync should return an empty list.");

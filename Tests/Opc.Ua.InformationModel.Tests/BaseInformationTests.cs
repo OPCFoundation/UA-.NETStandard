@@ -229,12 +229,12 @@ namespace Opc.Ua.InformationModel.Tests
             {
                 if (!methodNames.Contains(expected))
                 {
-                    Assert.Ignore(
+                    Assert.Fail(
                         "Mandatory method '" +
                         expected +
                         "' is missing from " +
                         folderName +
-                        " — issue #3719 still open.");
+                        ".");
                 }
             }
         }

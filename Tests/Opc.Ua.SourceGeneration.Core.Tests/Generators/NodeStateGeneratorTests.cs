@@ -233,6 +233,55 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the standard-model source generator declares typed
+        /// <c>MatrixOf&lt;T&gt;</c> State classes for the matrix-rank
+        /// VariableType (<c>XYArrayItemType</c>) and matrix-rank
+        /// Property / Variable instances
+        /// (<c>EnumDictionaryEntries</c>,
+        /// <c>FailureSystemIdentifier</c>).
+        /// </summary>
+        [Test]
+        public void NodeStateGeneratorEmitsMatrixOfTemplateParameterForStandardModel()
+        {
+            // Arrange
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            using var fileSystem = new VirtualFileSystem();
+
+            // Act
+            Generators.GenerateStack(StackGenerationType.All, fileSystem, string.Empty, telemetry,
+                new GeneratorOptions
+                {
+                    OmitFluentApi = true
+                });
+
+            // Concatenate every generated source file so the snippet match
+            // is resilient to whichever file each declaration lives in.
+            string code = string.Join("\n", fileSystem.CreatedFiles
+                .Where(c => Path.GetExtension(c) == ".cs")
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c))));
+
+            Assert.Multiple(() =>
+            {
+                // VariableType template specialization: XYArrayItemType
+                // inherits the generic ArrayItemState chain with a
+                // MatrixOf<XVType> template parameter.
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.ArrayItemState<global::Opc.Ua.MatrixOf<global::Opc.Ua.XVType>>"),
+                    "XYArrayItemState should inherit ArrayItemState<MatrixOf<XVType>>.");
+
+                // Property-state instance matrix branch.
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.PropertyState<global::Opc.Ua.MatrixOf<global::Opc.Ua.NodeId>>"),
+                    "EnumDictionaryEntries should declare PropertyState<MatrixOf<NodeId>>.");
+
+                // BaseDataVariableState-instance matrix branch.
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.BaseDataVariableState<global::Opc.Ua.MatrixOf<byte>>"),
+                    "FailureSystemIdentifier should declare BaseDataVariableState<MatrixOf<byte>>.");
+            });
+        }
+
         private Mock<IFileSystem> m_mockFileSystem;
         private Mock<IModelDesign> m_mockModelDesign;
         private Mock<ITelemetryContext> m_mockTelemetry;

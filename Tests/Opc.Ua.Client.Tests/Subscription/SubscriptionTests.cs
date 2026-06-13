@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,8 +39,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Tests;
-
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -1357,6 +1357,270 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        [Test]
+        public async Task SetTriggeringAsyncShouldThrowOnNullTriggeringItemAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                // Act + Assert
+                Assert.That(async () => await sut.SetTriggeringAsync(
+                    null!, null, null, default).ConfigureAwait(false),
+                    Throws.TypeOf<ArgumentNullException>());
+            }
+        }
+
+        [Test]
+        public async Task SetTriggeringAsyncShouldThrowWhenItemNotInSubscriptionAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                bool added = sut.MonitoredItems.TryAdd("trig",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                    out IMonitoredItem trig);
+                Assert.That(added, Is.True);
+
+                // Construct a stray item that belongs to a different
+                // subscription's MonitoredItemManager.
+                var strayContext = new FakeMonitoredItemContext();
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> strayOpts =
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                var stray = new TestMonitoredItem(strayContext, "stray",
+                    strayOpts, m_telemetry.CreateLogger("stray"));
+
+                // Act + Assert: validation by reference identity
+                // rejects the stray item.
+                Assert.That(async () => await sut.SetTriggeringAsync(
+                    trig, new IMonitoredItem[] { stray }, null, default)
+                    .ConfigureAwait(false),
+                    Throws.ArgumentException);
+            }
+        }
+
+        [Test]
+        public async Task SetTriggeringAsyncShouldQueueAndApplyAsync()
+        {
+            // Arrange — set up the SetTriggering RPC mock first so
+            // the apply pass succeeds when the queued op fires.
+            m_mockMonitoredItemServices
+                .Setup(s => s.SetTriggeringAsync(
+                    It.IsAny<RequestHeader?>(), 22u, It.IsAny<uint>(),
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1),
+                    It.Is<ArrayOf<uint>>(r => r.Count == 0),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new SetTriggeringResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    AddResults = new[] { (StatusCode)StatusCodes.Good }.ToArrayOf(),
+                    RemoveResults = Array.Empty<StatusCode>().ToArrayOf()
+                })
+                .Verifiable(Times.Once);
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                bool addedTrig = sut.MonitoredItems.TryAdd("trig",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                    out IMonitoredItem trig);
+                bool addedTgt = sut.MonitoredItems.TryAdd("tgt",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                    out IMonitoredItem tgt);
+                Assert.That(addedTrig && addedTgt, Is.True);
+                Assert.That(trig.Created, Is.True);
+                Assert.That(tgt.Created, Is.True);
+
+                // Act
+                SetTriggeringResult result = await sut.SetTriggeringAsync(
+                    trig,
+                    new IMonitoredItem[] { tgt },
+                    null,
+                    default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.TriggeringItem, Is.SameAs(trig));
+                Assert.That(result.AddResults, Has.Count.EqualTo(1));
+                Assert.That(StatusCode.IsGood(result.AddResults[0].Status), Is.True);
+                Assert.That(result.RemoveResults, Is.Empty);
+                Assert.That(tgt.TriggeringItems, Contains.Item(trig));
+                m_mockMonitoredItemServices.Verify();
+            }
+        }
+
+        /// <summary>
+        /// Regression coverage for OPCFoundation/UA-.NETStandard#3540.
+        /// The V2 engine's <c>OnStatusChangeNotificationAsync</c> must
+        /// always surface the
+        /// <see cref="PublishState.Transferred"/> flag via
+        /// <c>OnPublishStateChanged</c> so listeners can react —
+        /// previously the override was a no-op TODO that swallowed the
+        /// flag.
+        /// </summary>
+        [Test]
+        public async Task GoodSubscriptionTransferredRaisesPublishStateTransferredAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                Assert.That(sut.Created, Is.True);
+                sut.PublishStateChanged.Reset();
+
+                await sut.OnPublishReceivedAsync(BuildStatusChangeMessage(
+                    sequenceNumber: 1,
+                    StatusCodes.GoodSubscriptionTransferred), null, []).ConfigureAwait(false);
+
+                await sut.PublishStateChanged.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.LastPublishState & PublishState.Transferred,
+                    Is.EqualTo(PublishState.Transferred));
+                Assert.That(sut.Id, Is.EqualTo(22u),
+                    "ReportOnly default must not recreate the subscription.");
+            }
+        }
+
+        /// <summary>
+        /// Regression coverage for OPCFoundation/UA-.NETStandard#3540.
+        /// With <see cref="SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer"/>
+        /// the V2 engine must recreate the subscription in place on the
+        /// same session (driven through <c>ResetToRecreateAsync</c>) so
+        /// the application keeps receiving data after a server-side
+        /// quirk emits Good_SubscriptionTransferred against a freshly
+        /// created subscription.
+        /// </summary>
+        [Test]
+        public async Task GoodSubscriptionTransferredRecreatesSubscriptionWhenPolicyEnabledAsync()
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                    TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
+                    3, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 33,
+                    RevisedLifetimeCount = 10,
+                    RevisedMaxKeepAliveCount = 5,
+                    RevisedPublishingInterval = 10000
+                })
+                .Verifiable(Times.Once);
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22,
+                SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer);
+            await using (sut.ConfigureAwait(false))
+            {
+                Assert.That(sut.Created, Is.True);
+                Assert.That(sut.Id, Is.EqualTo(22u));
+
+                // Queue a stale ack for the doomed id so we can assert
+                // the ack-pruning step ran before recreate.
+                await m_completion.QueueAsync(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = 22u,
+                    SequenceNumber = 7u
+                }).ConfigureAwait(false);
+
+                await sut.OnPublishReceivedAsync(BuildStatusChangeMessage(
+                    sequenceNumber: 1,
+                    StatusCodes.GoodSubscriptionTransferred), null, []).ConfigureAwait(false);
+
+                await WaitForAsync(() => sut.Id == 33u, TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.Id, Is.EqualTo(33u),
+                    "Recovery must assign the new server-side id.");
+                Assert.That(m_completion.DroppedSubscriptions,
+                    Does.Contain(22u),
+                    "Ack-pruning must run for the dead subscription id before recreate.");
+                m_mockSubscriptionServices.Verify();
+            }
+        }
+
+        /// <summary>
+        /// A burst of unsolicited Good_SubscriptionTransferred messages
+        /// must collapse into a single recreate via the
+        /// <c>m_recreateAfterTransferInProgress</c> guard — the
+        /// service set must see exactly one CreateSubscriptionAsync
+        /// call.
+        /// </summary>
+        [Test]
+        public async Task GoodSubscriptionTransferredCollapsesConcurrentRecreatesAsync()
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                    TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
+                    3, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 44,
+                    RevisedLifetimeCount = 10,
+                    RevisedMaxKeepAliveCount = 5,
+                    RevisedPublishingInterval = 10000
+                })
+                .Verifiable(Times.Once);
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22,
+                SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer);
+            await using (sut.ConfigureAwait(false))
+            {
+                for (uint i = 1; i <= 3; i++)
+                {
+                    await sut.OnPublishReceivedAsync(BuildStatusChangeMessage(
+                        sequenceNumber: i,
+                        StatusCodes.GoodSubscriptionTransferred), null, [])
+                        .ConfigureAwait(false);
+                }
+
+                await WaitForAsync(() => sut.Id == 44u, TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                await Task.Delay(300).ConfigureAwait(false);
+
+                Assert.That(sut.Id, Is.EqualTo(44u));
+                m_mockSubscriptionServices.Verify(s =>
+                    s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                        It.IsAny<double>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                        It.IsAny<uint>(), It.IsAny<bool>(), It.IsAny<byte>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once,
+                    "Idempotency guard must prevent duplicate recreates from the burst.");
+            }
+        }
+
+        private static NotificationMessage BuildStatusChangeMessage(
+            uint sequenceNumber, StatusCode status)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData =
+                [
+                    new ExtensionObject(new StatusChangeNotification
+                    {
+                        Status = status
+                    })
+                ]
+            };
+        }
+
+        private static async Task WaitForAsync(
+            Func<bool> predicate, TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (!predicate() && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+        }
+
         private sealed class TestMonitoredItem : MonitoredItems.MonitoredItem
         {
             public static MonitoredItems.MonitoredItemOptions CreatedOptions => new()
@@ -1422,14 +1686,15 @@ namespace Opc.Ua.Client.Subscriptions
 
             public TestSubscription(ISubscriptionContext session, ISubscriptionNotificationHandler handler,
                 IMessageAckQueue completion, OptionsMonitor<SubscriptionOptions> options,
-                ITelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null)
+                ITelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null,
+                SubscriptionRecoveryPolicy recoveryPolicy = SubscriptionRecoveryPolicy.ReportOnly)
                 : base(session, handler, completion, !subscriptionIdForAlreadyCreatedState.HasValue ?
                       options : options.Configure(o => o with { Disabled = true }), telemetry)
             {
                 // Let the subscription create itself
                 if (subscriptionIdForAlreadyCreatedState.HasValue)
                 {
-                    Options = SubscriptionOptions;
+                    Options = SubscriptionOptions with { RecoveryPolicy = recoveryPolicy };
                     OnSubscriptionUpdateComplete(true, subscriptionIdForAlreadyCreatedState.Value,
                         TimeSpan.FromSeconds(100), 7, 21, 3, 10, false);
                     // Now we have a created subscription
@@ -1438,6 +1703,8 @@ namespace Opc.Ua.Client.Subscriptions
 
             public SemaphoreSlim Block { get; } = new(0, 1);
             public AsyncManualResetEvent SubscriptionStateChanged { get; } = new();
+            public AsyncManualResetEvent PublishStateChanged { get; } = new();
+            public PublishState LastPublishState { get; private set; }
 
             public async ValueTask WaitAsync()
             {
@@ -1452,6 +1719,13 @@ namespace Opc.Ua.Client.Subscriptions
                     SubscriptionStateChanged.Set();
                 }
                 base.OnSubscriptionStateChanged(state);
+            }
+
+            protected override void OnPublishStateChanged(PublishState stateMask)
+            {
+                LastPublishState = stateMask;
+                PublishStateChanged.Set();
+                base.OnPublishStateChanged(stateMask);
             }
 
             protected override MonitoredItems.MonitoredItem CreateMonitoredItem(string name,

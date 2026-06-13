@@ -297,12 +297,21 @@ namespace Opc.Ua.PubSub.Tests
             await WaitForAsync(() => Volatile.Read(ref executionCount) >= afterStart + 1)
                 .ConfigureAwait(false);
 
-            // Advance three intervals at once; expect three more actions.
+            // Advance three intervals (one at a time) and wait for the runner
+            // to register and fire each new Delay; a single Advance(300) would
+            // race because each subsequent Delay is only registered after the
+            // previous timer's continuation resumes on the thread pool.
             int afterFirstAdvance = Volatile.Read(ref executionCount);
-            fake.Advance(TimeSpan.FromMilliseconds(300));
-            await WaitForAsync(
-                () => Volatile.Read(ref executionCount) >= afterFirstAdvance + 3)
-                .ConfigureAwait(false);
+            for (int i = 0; i < 3; i++)
+            {
+                int before = Volatile.Read(ref executionCount);
+                fake.Advance(TimeSpan.FromMilliseconds(100));
+                await WaitForAsync(() => Volatile.Read(ref executionCount) >= before + 1)
+                    .ConfigureAwait(false);
+            }
+            Assert.That(
+                Volatile.Read(ref executionCount),
+                Is.GreaterThanOrEqualTo(afterFirstAdvance + 3));
 
             runner.Stop();
         }

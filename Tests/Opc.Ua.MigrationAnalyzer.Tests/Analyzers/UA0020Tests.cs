@@ -59,7 +59,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0020 = diags.SingleOrDefault(d => d.Id == "UA0020");
             Assert.That(ua0020, Is.Not.Null,
@@ -81,7 +82,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Diagnostic? ua0020 = diags.SingleOrDefault(d => d.Id == "UA0020");
             Assert.That(ua0020, Is.Not.Null,
@@ -103,7 +105,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0020"), Is.False,
                 "factory.Fork() must not trigger UA0020.");
@@ -121,7 +124,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0020"), Is.False,
                 "ServiceMessageContext.Factory access must not trigger UA0020.");
@@ -148,7 +152,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string fixedSource = await AnalyzerHarness.ApplyFixAsync(
                 new UA0020EncodeableFactoryRenameAnalyzer(),
                 new UA0020EncodeableFactoryRenameCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }
@@ -167,7 +171,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             CodeAction[] actions = await CollectFixActionsAsync(
                 new UA0020EncodeableFactoryRenameAnalyzer(),
                 new UA0020EncodeableFactoryRenameCodeFix(),
-                source);
+                source).ConfigureAwait(false);
 
             Assert.That(actions, Is.Empty,
                 "Form A (GlobalFactory) must not register any code-fix actions.");
@@ -190,7 +194,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0020"), Is.True,
                 "Expected UA0020 to fire on a property carrying [OpcUaShim(\"UA0020\")].");
@@ -213,7 +218,8 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 """;
 
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source)
+                .ConfigureAwait(false);
 
             Assert.That(diags.Any(d => d.Id == "UA0020"), Is.True,
                 "Expected UA0020 to fire on a Create invocation carrying [OpcUaShim(\"UA0020\")].");
@@ -225,37 +231,36 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             string source)
         {
             ImmutableArray<Diagnostic> diags = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(analyzer, source);
-            Diagnostic[] userDiags = diags
-                .Where(d => d.Location.SourceTree?.FilePath == "Test.cs")
-                .ToArray();
+                .GetAnalyzerDiagnosticsAsync(analyzer, source)
+                .ConfigureAwait(false);
+            Diagnostic[] userDiags = [.. diags.Where(d => d.Location.SourceTree?.FilePath == "Test.cs")];
             Assert.That(userDiags, Is.Not.Empty,
                 "Expected at least one diagnostic on Test.cs for the fix-actions probe.");
 
             Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation =
                 AnalyzerHarness.Compile(source);
-            Microsoft.CodeAnalysis.SyntaxTree testTree = compilation.SyntaxTrees
+            SyntaxTree testTree = compilation.SyntaxTrees
                 .First(t => t.FilePath == "Test.cs");
 
-            AdhocWorkspace workspace = new AdhocWorkspace();
-            ProjectId projectId = ProjectId.CreateNewId();
-            DocumentId documentId = DocumentId.CreateNewId(projectId);
+            var workspace = new AdhocWorkspace();
+            var projectId = ProjectId.CreateNewId();
+            var documentId = DocumentId.CreateNewId(projectId);
             Solution solution = workspace.CurrentSolution
                 .AddProject(projectId, "TestProject", "TestProject", LanguageNames.CSharp)
                 .AddDocument(documentId, "Test.cs", testTree.GetText());
             Document document = solution.GetDocument(documentId)!;
 
-            List<CodeAction> actions = new List<CodeAction>();
+            var actions = new List<CodeAction>();
             foreach (Diagnostic diag in userDiags)
             {
-                CodeFixContext ctx = new CodeFixContext(
+                var ctx = new CodeFixContext(
                     document,
                     diag,
                     (action, _) => actions.Add(action),
                     CancellationToken.None);
                 await codeFix.RegisterCodeFixesAsync(ctx).ConfigureAwait(false);
             }
-            return actions.ToArray();
+            return [.. actions];
         }
     }
 }

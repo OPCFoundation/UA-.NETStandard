@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests.Identity
             };
             return new IdentitySelectionContext(
                 endpoint,
-                new[] { policy },
+                [policy],
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
@@ -126,9 +126,9 @@ namespace Opc.Ua.Client.Tests.Identity
 
             public int GetIdentityCallCount { get; private set; }
 
-            public IReadOnlyList<UserTokenType> SupportedTokenTypes => new[] { TokenType };
+            public IReadOnlyList<UserTokenType> SupportedTokenTypes => [TokenType];
 
-            public IReadOnlyList<string> SupportedIssuedTokenProfileUris => Array.Empty<string>();
+            public IReadOnlyList<string> SupportedIssuedTokenProfileUris => [];
 
             public DateTime ExpiresAt { get; }
 

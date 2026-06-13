@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Identity;
 
@@ -278,11 +279,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(factory));
             }
 
-            builder.Services.AddSingleton(sp =>
-            {
-                return factory(sp) ?? throw new InvalidOperationException(
-                        "Access-token provider factory returned null.");
-            });
+            builder.Services.AddSingleton(sp => factory(sp) ?? throw new InvalidOperationException(
+                        "Access-token provider factory returned null."));
             return builder;
         }
 
@@ -566,6 +564,31 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
 
+            services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
+                .AddStandardResilienceHandler();
+            services.TryAddSingleton<IOpcUaHttpClientFactory, DefaultOpcUaHttpClientFactory>();
+
+            services.TryAddSingleton<IClientChannelManager>(sp =>
+            {
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                TimeProvider? timeProvider = sp.GetService<TimeProvider>();
+                ApplicationConfiguration configuration = options.Configuration
+                    ?? throw new InvalidOperationException(
+                        "OpcUaClientOptions.Configuration is required to construct " +
+                        "the IClientChannelManager.");
+                IOpcUaHttpClientFactory? httpClientFactory = sp.GetService<IOpcUaHttpClientFactory>();
+                ITransportChannelBindings? channelBindings = httpClientFactory == null
+                    ? null
+                    : new HttpsTransportChannelBindings(httpClientFactory);
+                return new ClientChannelManager(
+                    configuration,
+                    telemetry,
+                    channelFactory: channelBindings,
+                    reconnectPolicy: null,
+                    timeProvider: timeProvider);
+            });
+
             services.TryAddSingleton<ISessionFactory>(sp =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
@@ -752,6 +775,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (options.Session.PoolNotifications)
                 {
                     builder.WithPoolNotifications();
+                }
+
+                IClientChannelManager? mgr = m_sp.GetService<IClientChannelManager>();
+                if (mgr != null)
+                {
+                    builder.WithChannelManager(mgr);
                 }
 
                 return builder.ConnectAsync(ct);

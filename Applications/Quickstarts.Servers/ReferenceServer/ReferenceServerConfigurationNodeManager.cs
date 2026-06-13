@@ -201,6 +201,8 @@ namespace Quickstarts.ReferenceServer
                 addedNodes.Add(euProperty);
             }
 
+            await RemovePubSubKeyServiceFoldersAsync(cancellationToken).ConfigureAwait(false);
+
             // Push any newly added namespace-0 nodes into the CoreNodeManager
             // so they are reachable via Browse from the standard address
             // space (base.CreateAddressSpaceAsync already performed the bulk
@@ -214,5 +216,37 @@ namespace Quickstarts.ReferenceServer
                     cancellationToken).ConfigureAwait(false);
             }
         }
+
+        /// <summary>
+        /// Issue #3719: the standard NodeSet declares SecurityGroups
+        /// (<c>i=15443</c>) and KeyPushTargets (<c>i=25440</c>) under
+        /// PublishSubscribe and each carries a set of mandatory methods
+        /// (<c>AddSecurityGroup</c>, <c>RemoveSecurityGroup</c>,
+        /// <c>AddPushTarget</c>, <c>RemovePushTarget</c>). The reference
+        /// server does not implement PubSub key services, so the folders
+        /// are removed entirely rather than carrying no-op method stubs
+        /// that would only exist to satisfy the mandatory-method check.
+        /// Both folders are optional under <c>PublishSubscribe</c> per
+        /// Part 14, so removing them is spec-compliant.
+        /// </summary>
+        private async ValueTask RemovePubSubKeyServiceFoldersAsync(CancellationToken cancellationToken)
+        {
+            foreach (NodeId folderNodeId in s_optionalPubSubFolders)
+            {
+                if (FindPredefinedNode<NodeState>(folderNodeId) != null)
+                {
+                    await DeleteNodeAsync(SystemContext, folderNodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static readonly NodeId[] s_optionalPubSubFolders =
+        [
+            // PublishSubscribe.SecurityGroups instance (NodeId i=15443).
+            new NodeId(15443u),
+            // PublishSubscribe.KeyPushTargets instance (NodeId i=25440).
+            new NodeId(25440u)
+        ];
     }
 }

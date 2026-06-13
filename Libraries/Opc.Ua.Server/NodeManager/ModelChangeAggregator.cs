@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.NodeManager
             {
                 if (m_pending.Count == 0)
                 {
-                    return ArrayOf<ModelChangeStructureDataType>.Empty;
+                    return [];
                 }
 
                 List<ModelChangeStructureDataType> drained = m_pending;

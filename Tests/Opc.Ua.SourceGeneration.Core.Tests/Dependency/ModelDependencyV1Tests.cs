@@ -80,7 +80,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string payload = dependency.ToBase64Payload();
             Assert.That(payload, Is.Not.Null.And.Not.Empty);
 
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.ModelUri, Is.EqualTo("http://example.org/UA/Demo/"));
             Assert.That(decoded.Nodes, Has.Count.EqualTo(2));
@@ -115,7 +115,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string payload = dependency.ToBase64Payload();
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes[0].SymbolicName, Is.EqualTo("Größentyp"));
             Assert.That(decoded.Nodes[0].ClassName, Is.EqualTo("Größentyp"));
@@ -124,9 +124,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void Read_ReturnsNullForWrongMagic()
         {
-            var bogus = new byte[] { 0x00, 0x00, 0x01, 0x01 };
+            byte[] bogus = new byte[] { 0x00, 0x00, 0x01, 0x01 };
             string payload = Convert.ToBase64String(bogus);
-            ModelDependencyV1 result = ModelDependencyV1.FromBase64Payload(payload);
+            var result = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(result, Is.Null);
         }
 
@@ -134,9 +134,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Read_ReturnsNullForFutureVersion()
         {
             // Header with version=2 (unknown) — reader should refuse.
-            var bogus = new byte[] { 0xAA, 0xC7, 0x02, 0x01 };
+            byte[] bogus = new byte[] { 0xAA, 0xC7, 0x02, 0x01 };
             string payload = Convert.ToBase64String(bogus);
-            ModelDependencyV1 result = ModelDependencyV1.FromBase64Payload(payload);
+            var result = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(result, Is.Null);
         }
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 BaseTypeNamespace = null
             });
             string payload = dependency.ToBase64Payload();
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes[0].BaseTypeName, Is.Null);
             Assert.That(decoded.Nodes[0].BaseTypeNamespace, Is.Null);
@@ -230,7 +230,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string payload = dependency.ToBase64Payload();
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes, Has.Count.EqualTo(1));
             Assert.That(decoded.Nodes[0].Children, Has.Count.EqualTo(3));
@@ -284,7 +284,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string payload = dependency.ToBase64Payload();
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             DependencyChild method = decoded.Nodes[0].Children[0];
             Assert.That(method.InstanceKind, Is.EqualTo((byte)4));

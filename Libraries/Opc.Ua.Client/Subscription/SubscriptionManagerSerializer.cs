@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -90,14 +89,23 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             // Capture a snapshot per selected subscription. Default =
-            // all subscriptions managed by this instance. Snapshot is
-            // taken from the concrete subscription type.
+            // all subscriptions managed by this instance. The public
+            // surface is the LogicalSubscription wrapper, which may
+            // own multiple partitions — emit one snapshot per
+            // partition so a later LoadAsync can regroup via
+            // SubscriptionStateSnapshot.LogicalGroupId. The older
+            // concrete Subscription path is retained for tests /
+            // direct usage.
             IEnumerable<ISubscription> selected =
                 subscriptions ?? manager.Items;
             var snapshots = new List<SubscriptionStateSnapshot>();
             foreach (ISubscription s in selected)
             {
-                if (s is Subscription concrete)
+                if (s is LogicalSubscription logical)
+                {
+                    snapshots.AddRange(logical.SnapshotAllPartitions());
+                }
+                else if (s is Subscription concrete)
                 {
                     snapshots.Add(concrete.Snapshot());
                 }
@@ -161,27 +169,113 @@ namespace Opc.Ua.Client.Subscriptions
                 return [];
             }
 
-            var restored = new List<ISubscription>(count);
+            // Read every snapshot off the wire first; we group by
+            // LogicalGroupId before restoring so multi-partition
+            // wrappers come back as one logical subscription.
+            var raw = new List<SubscriptionStateSnapshot>(count);
             for (int i = 0; i < count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                // Schema identity is implicit in the call: we always
-                // read a SubscriptionStateSnapshot. Future schema evolution
-                // happens by adding optional fields recognized via
-                // HasField on the decoder side.
-                SubscriptionStateSnapshot state =
-                    decoder.ReadEncodeable<SubscriptionStateSnapshot>(null);
-                string syntheticName = i.ToString(CultureInfo.InvariantCulture);
-                ISubscriptionNotificationHandler handler =
-                    handlerFactory(syntheticName);
+                raw.Add(decoder.ReadEncodeable<SubscriptionStateSnapshot>(null));
+            }
+
+            var restored = new List<ISubscription>();
+            int handlerIndex = 0;
+
+            // 1) Standalone snapshots (LogicalGroupId == null) keep
+            //    today's behavior — one wrapper per snapshot. This
+            //    covers V1 snapshot files where LogicalGroupId did
+            //    not exist on the wire (decodes as null).
+            // 2) Grouped snapshots are validated as a contiguous
+            //    0..N-1 PartitionIndex sequence with exactly one
+            //    primary and the same LogicalGroupId. Any
+            //    discrepancy throws BadDecodingError so a corrupted
+            //    snapshot fails loudly rather than silently
+            //    fragmenting state.
+            var groups = new Dictionary<string, List<SubscriptionStateSnapshot>>(
+                StringComparer.Ordinal);
+            var standalone = new List<SubscriptionStateSnapshot>();
+            foreach (SubscriptionStateSnapshot snap in raw)
+            {
+                if (string.IsNullOrEmpty(snap.LogicalGroupId))
+                {
+                    standalone.Add(snap);
+                }
+                else
+                {
+                    if (!groups.TryGetValue(snap.LogicalGroupId,
+                        out List<SubscriptionStateSnapshot>? bucket))
+                    {
+                        bucket = [];
+                        groups[snap.LogicalGroupId] = bucket;
+                    }
+                    bucket.Add(snap);
+                }
+            }
+
+            foreach (SubscriptionStateSnapshot snap in standalone)
+            {
+                ct.ThrowIfCancellationRequested();
+                string syntheticName = handlerIndex.ToString(
+                    CultureInfo.InvariantCulture);
+                handlerIndex++;
                 ISubscription subscription = await manager.RestoreAsync(
-                    handler,
-                    state,
+                    handlerFactory(syntheticName),
+                    snap,
+                    transferSubscriptions,
+                    ct).ConfigureAwait(false);
+                restored.Add(subscription);
+            }
+            foreach (KeyValuePair<string, List<SubscriptionStateSnapshot>> entry in groups)
+            {
+                ct.ThrowIfCancellationRequested();
+                List<SubscriptionStateSnapshot> ordered =
+                    ValidateAndSortGroup(entry.Key, entry.Value);
+                string syntheticName = handlerIndex.ToString(
+                    CultureInfo.InvariantCulture);
+                handlerIndex++;
+                ISubscription subscription = await manager.RestoreGroupAsync(
+                    handlerFactory(syntheticName),
+                    ordered,
                     transferSubscriptions,
                     ct).ConfigureAwait(false);
                 restored.Add(subscription);
             }
             return restored;
+        }
+
+        /// <summary>
+        /// Validate that <paramref name="bucket"/> forms a coherent
+        /// multi-partition snapshot group: every snapshot must carry
+        /// the same <paramref name="groupId"/>, the
+        /// <c>PartitionIndex</c> values must be a contiguous
+        /// <c>0..N-1</c> sequence with no duplicates and exactly one
+        /// primary (<c>PartitionIndex == 0</c>). Returns the
+        /// snapshots sorted by <c>PartitionIndex</c>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadDecodingError"/> when the group
+        /// is malformed.
+        /// </exception>
+        private static List<SubscriptionStateSnapshot> ValidateAndSortGroup(
+            string groupId,
+            List<SubscriptionStateSnapshot> bucket)
+        {
+            bucket.Sort(static (a, b) => a.PartitionIndex.CompareTo(b.PartitionIndex));
+
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                if (bucket[i].PartitionIndex != i)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Multi-partition snapshot group '{0}' has " +
+                        "non-contiguous or duplicated PartitionIndex " +
+                        "values (expected {1} at position {1}, got {2}).",
+                        groupId, i, bucket[i].PartitionIndex);
+                }
+            }
+            return bucket;
         }
     }
 }

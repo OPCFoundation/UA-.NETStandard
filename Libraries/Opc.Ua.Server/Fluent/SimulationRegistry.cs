@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 cts = m_cts;
                 m_cts = null;
-                snapshot = new List<SimulationLoop>(m_loops);
+                snapshot = [.. m_loops];
                 m_loops.Clear();
             }
 
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Fluent
                 cts.Cancel();
                 // Bound the dispose wait so a misbehaving handler can't
                 // stall manager teardown indefinitely.
-                Task drain = Task.WhenAll(snapshot.ConvertAll(l => l.RunningTask));
+                var drain = Task.WhenAll(snapshot.ConvertAll(l => l.RunningTask));
                 drain.Wait(TimeSpan.FromSeconds(5));
             }
             catch (AggregateException ex) when (

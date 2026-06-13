@@ -175,9 +175,41 @@ namespace Opc.Ua
                     "A matrix cannot have 0 dimensions. It must have at least 2 to be a matrix.",
                     nameof(dimensions));
             }
-            int length = dimensions.Length == 1 ?
-                dimensions[0] :
-                dimensions.Aggregate((a, b) => a * b);
+            int length;
+            try
+            {
+                length = dimensions.Length == 1 ?
+                    dimensions[0] :
+                    checked(dimensions.Aggregate((a, b) => checked(a * b)));
+            }
+            catch (OverflowException ex)
+            {
+                // An attacker-controlled wire-format matrix could otherwise
+                // submit dimensions like [65536, 65537] whose unchecked
+                // product silently wraps to a small (or negative) Int32
+                // and the length-mismatch guard below would no longer
+                // reject the message. Convert the overflow to a clear
+                // validation error.
+                throw new ArgumentException(
+                    "The product of the matrix dimensions exceeds Int32.MaxValue.",
+                    nameof(dimensions),
+                    ex);
+            }
+            // Reject negative individual dimensions explicitly. With
+            // checked multiplication a pair like [-1,-1] still produces
+            // a positive product (1) that could pass the length-match
+            // guard for a single-element payload, but a negative
+            // dimension is semantically invalid and would crash
+            // downstream Array.CreateInstance / Span<T> callers.
+            for (int i = 0; i < dimensions.Length; i++)
+            {
+                if (dimensions[i] < 0)
+                {
+                    throw new ArgumentException(
+                        "Matrix dimensions must be non-negative.",
+                        nameof(dimensions));
+                }
+            }
             if (length != m_memory.Length)
             {
                 throw new ArgumentException(

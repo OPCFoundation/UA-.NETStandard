@@ -559,7 +559,9 @@ namespace Opc.Ua.Client
                         else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
                         {
                             transportChannel = Session.NullableTransportChannel;
+#pragma warning disable CS0618 // legacy reconnect flow still uses Detach to keep channel
                             Session.DetachChannel();
+#pragma warning restore CS0618
                         }
                         else
                         {

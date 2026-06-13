@@ -78,7 +78,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             bool checkDomain,
             bool transferSubscriptionsOnRecreate,
-            bool poolNotifications)
+            bool poolNotifications,
+            IClientChannelManager? channelManager)
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
@@ -94,17 +95,25 @@ namespace Opc.Ua.Client
             m_identity = identity;
             m_identityProvider = identityProvider;
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_maxTotalReconnectTime = reconnectPolicy is ReconnectPolicy policy
+                ? policy.MaxTotalReconnectTime
+                : ReconnectPolicy.DefaultMaxTotalReconnectTime;
             m_preferredLocales = preferredLocales;
             m_sessionName = sessionName;
             m_sessionTimeout = sessionTimeout;
             m_checkDomain = checkDomain;
             m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
             m_poolNotifications = poolNotifications;
+            m_channelManager = channelManager;
 
             StateMachine = new ConnectionStateMachine(
-                reconnectPolicy, logger, m_timeProvider);
+                reconnectPolicy,
+                logger,
+                m_maxTotalReconnectTime,
+                m_timeProvider);
 
             WireStateMachineCallbacks();
+            SubscribeCertificateChanges();
         }
 
         /// <summary>
@@ -118,7 +127,6 @@ namespace Opc.Ua.Client
         /// <param name="sessionFactory">The session factory to use for
         /// creating sessions.</param>
         /// <param name="identity">Optional user identity.</param>
-        /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="reconnectPolicy">Optional reconnect policy.
         /// Defaults to <see cref="ReconnectPolicy"/>.</param>
         /// <param name="redundancyHandler">Optional redundancy handler.
@@ -137,7 +145,7 @@ namespace Opc.Ua.Client
         /// <param name="transferSubscriptionsOnRecreate">When
         /// <c>true</c>, opt the V2 subscription engine into
         /// transfer-on-recreate. After a session re-create (e.g. a
-        /// failover via <see cref="Session.RecreateInPlaceAsync"/>)
+        /// failover via <c>Session.RecreateInPlaceAsync</c>)
         /// the V2 manager attempts to transfer existing server-side
         /// subscriptions before falling back to per-subscription
         /// recreate. Default <c>false</c> — recreate is the universal
@@ -148,7 +156,13 @@ namespace Opc.Ua.Client
         /// release them back to their activator pools. Default
         /// <c>false</c>. See <c>ManagedSessionOptions.PoolNotifications</c>
         /// for the retain-by-copy contract.</param>
+        /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="timeProvider">Optional time provider for proactive refresh.</param>
+        /// <param name="channelManager">Optional central
+        /// <see cref="IClientChannelManager"/>. When supplied, the
+        /// inner Session shares its transport channel with any other
+        /// session/discovery client targeting the same endpoint, and
+        /// channel reconnect is coordinated centrally.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -168,6 +182,7 @@ namespace Opc.Ua.Client
             bool poolNotifications = false,
             IClientIdentityProvider? identityProvider = null,
             TimeProvider? timeProvider = null,
+            IClientChannelManager? channelManager = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -207,7 +222,10 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 checkDomain,
                 transferSubscriptionsOnRecreate,
-                poolNotifications);
+                poolNotifications,
+                channelManager);
+
+            managed.m_engineFactory = engineFactory;
 
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
@@ -570,10 +588,19 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Raised when the connection state changes.
+        /// Raised when the outer connection state changes. Subscribe to
+        /// <see cref="ChannelStateChanged"/> for underlying channel-manager
+        /// state transitions that do not change the outer state.
         /// </summary>
         public event EventHandler<ConnectionStateChangedEventArgs>?
             ConnectionStateChanged;
+
+        /// <summary>
+        /// Raised when the underlying managed transport channel state changes.
+        /// This event is only raised when the inner session uses an
+        /// <see cref="IManagedTransportChannel"/> supplied by a channel manager.
+        /// </summary>
+        public event Action<ManagedSession, ChannelStateChange>? ChannelStateChanged;
 
         /// <inheritdoc/>
         public async Task ReconnectAsync(
@@ -832,12 +859,20 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void AttachChannel(ITransportChannel channel)
         {
             InnerSession.AttachChannel(channel);
         }
 
         /// <inheritdoc/>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void DetachChannel()
         {
             InnerSession.DetachChannel();
@@ -867,6 +902,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Refreshes the user identity on the connected inner session.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         public async ValueTask UpdateIdentityAsync(
             IClientIdentityProvider provider,
             CancellationToken ct = default)
@@ -888,8 +924,8 @@ namespace Opc.Ua.Client
         private void WireStateMachineCallbacks()
         {
             StateMachine.ConnectAsync = HandleConnectAsync;
-            StateMachine.ReconnectAsync = HandleReconnectAsync;
-            StateMachine.FailoverAsync = HandleFailoverAsync;
+            StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
+            StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
             StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
             StateMachine.StateChanged += OnStateChanged;
         }
@@ -903,16 +939,40 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
-                var session = (Session)await SessionFactory.CreateAsync(
-                    m_configuration,
-                    ConfiguredEndpoint,
-                    updateBeforeConnect: true,
-                    m_checkDomain,
-                    m_sessionName,
-                    m_sessionTimeout,
-                    m_identityProvider == null ? m_identity : null,
-                    m_preferredLocales,
-                    ct).ConfigureAwait(false);
+                Session session;
+                if (m_channelManager != null)
+                {
+                    // Channel-manager-aware path: acquire a shared
+                    // managed channel and let the manager drive any
+                    // future reconnect transparently. Other sessions
+                    // sharing this endpoint join the same channel.
+                    session = await Session.CreateAsync(
+                        m_channelManager,
+                        m_configuration,
+                        ConfiguredEndpoint,
+                        updateBeforeConnect: true,
+                        m_checkDomain,
+                        m_sessionName,
+                        m_sessionTimeout,
+                        m_identityProvider == null ? m_identity : null,
+                        m_preferredLocales,
+                        m_engineFactory,
+                        m_timeProvider,
+                        ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    session = (Session)await SessionFactory.CreateAsync(
+                        m_configuration,
+                        ConfiguredEndpoint,
+                        updateBeforeConnect: true,
+                        m_checkDomain,
+                        m_sessionName,
+                        m_sessionTimeout,
+                        m_identityProvider == null ? m_identity : null,
+                        m_preferredLocales,
+                        ct).ConfigureAwait(false);
+                }
 
                 WireSessionEvents(session);
                 m_session = session;
@@ -974,6 +1034,7 @@ namespace Opc.Ua.Client
         }
 
         private async Task<ServiceResult> HandleReconnectAsync(
+            IRetryBudget budget,
             CancellationToken ct)
         {
             try
@@ -987,10 +1048,26 @@ namespace Opc.Ua.Client
                     Session? session = m_session;
                     if (session != null)
                     {
-                        await session.ReconnectAsync(
-                            connection: null,
-                            channel: null,
-                            ct).ConfigureAwait(false);
+                        try
+                        {
+                            await session.ReconnectAsync(
+                                    budget,
+                                    ct)
+                                .ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException sre) when (
+                            sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                            session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                        {
+                            m_logger.LogInformation(
+                                sre,
+                                "ManagedSession: managed channel is faulted; recreating session in place.");
+                            await session.RecreateInPlaceAsync(
+                                    endpoint: null,
+                                    budget: budget,
+                                    ct: ct)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -1011,6 +1088,7 @@ namespace Opc.Ua.Client
         }
 
         private async Task<ServiceResult> HandleFailoverAsync(
+            IRetryBudget budget,
             CancellationToken ct)
         {
             if (m_redundancyHandler == null || m_redundancyInfo == null)
@@ -1056,8 +1134,9 @@ namespace Opc.Ua.Client
                     // the new engine.
                     await session
                         .RecreateInPlaceAsync(
-                            endpoint: failoverEndpoint,
-                            ct: ct)
+                            failoverEndpoint,
+                            budget,
+                            ct)
                         .ConfigureAwait(false);
                 }
 
@@ -1118,6 +1197,11 @@ namespace Opc.Ua.Client
                 OnInnerSessionConfigurationChanged;
             session.RenewUserIdentity +=
                 OnInnerRenewUserIdentity;
+            if (session.ManagedChannel != null)
+            {
+                session.ManagedChannel.StateChanged
+                    += OnManagedChannelStateChanged;
+            }
         }
 
         private void UnwireSessionEvents(Session session)
@@ -1134,6 +1218,11 @@ namespace Opc.Ua.Client
                 OnInnerSessionConfigurationChanged;
             session.RenewUserIdentity -=
                 OnInnerRenewUserIdentity;
+            if (session.ManagedChannel != null)
+            {
+                session.ManagedChannel.StateChanged
+                    -= OnManagedChannelStateChanged;
+            }
         }
 
         private void OnInnerKeepAlive(ISession session, KeepAliveEventArgs e)
@@ -1141,10 +1230,82 @@ namespace Opc.Ua.Client
             if (e.Status != null &&
                 ServiceResult.IsBad(e.Status))
             {
-                StateMachine.TriggerReconnect();
+                // When the channel manager is wired AND it already
+                // reports the channel as not Ready (TransportReconnecting
+                // or TransportConnectedSessionReactivating), it is
+                // already handling the reconnect. Suppress the outer
+                // state-machine churn — the manager will drive the
+                // inner Session reactivation transparently via
+                // OnReconnectAsync. The outer state machine only takes
+                // over when the channel manager terminally faults the
+                // channel.
+                if (Volatile.Read(ref m_channelReconnectInProgress) > 0)
+                {
+                    m_logger.LogDebug(
+                        "ManagedSession: keep-alive failure suppressed " +
+                        "while channel manager reconnect is in progress.");
+                }
+                else
+                {
+                    StateMachine.TriggerReconnect();
+                }
             }
 
             m_keepAlive?.Invoke(this, e);
+        }
+
+        private void OnManagedChannelStateChanged(
+            IManagedTransportChannel channel,
+            ChannelStateChange change)
+        {
+            RaiseChannelStateChanged(change);
+
+            // Track whether the manager is in the middle of a
+            // reconnect cycle. When entering reconnect, we want to
+            // suppress OnInnerKeepAlive-triggered outer reconnects so
+            // both layers don't race. When the manager terminally
+            // faults the channel, surface that to the outer state
+            // machine so the higher-level retry policy can take over.
+            switch (change.NewState)
+            {
+                case ChannelState.TransportReconnecting:
+                case ChannelState.TransportConnectedSessionReactivating:
+                    Interlocked.Increment(ref m_channelReconnectInProgress);
+                    break;
+                case ChannelState.Ready:
+                    Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    break;
+                case ChannelState.Faulted:
+                    Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    // Channel-mgr gave up. Surface to outer state
+                    // machine so the IReconnectPolicy / failover path
+                    // can run.
+                    StateMachine.TriggerReconnect(change);
+                    break;
+                case ChannelState.Closed:
+                    Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    // Channel-mgr closed. Surface to outer state
+                    // machine so the IReconnectPolicy / failover path
+                    // can run.
+                    StateMachine.TriggerReconnect();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void RaiseChannelStateChanged(ChannelStateChange change)
+        {
+            try
+            {
+                ChannelStateChanged?.Invoke(this, change);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "ManagedSession: ChannelStateChanged handler threw an exception.");
+            }
         }
 
         private void OnInnerNotification(ISession session, NotificationEventArgs e)
@@ -1201,7 +1362,7 @@ namespace Opc.Ua.Client
             var cts = new CancellationTokenSource();
             Task task = RunIdentityRefreshLoopAsync(m_identityProvider, cts.Token);
 
-            CancellationTokenSource? previousCts = null;
+            CancellationTokenSource? previousCts;
             lock (m_identityRefreshLock)
             {
                 previousCts = m_identityRefreshCancellation;
@@ -1455,6 +1616,7 @@ namespace Opc.Ua.Client
             if (disposing)
             {
                 CancelIdentityRefreshLoop();
+                UnsubscribeCertificateChanges();
                 StateMachine.RequestClose();
 
                 Session? session = m_session;
@@ -1479,6 +1641,8 @@ namespace Opc.Ua.Client
             }
 
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+            UnsubscribeCertificateChanges();
+            await StopRevalidationLoopAsync().ConfigureAwait(false);
 
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work
@@ -1559,12 +1723,16 @@ namespace Opc.Ua.Client
         private readonly IUserIdentity? m_identity;
         private readonly IClientIdentityProvider? m_identityProvider;
         private readonly TimeProvider m_timeProvider;
+        private readonly TimeSpan m_maxTotalReconnectTime;
         private readonly ArrayOf<string> m_preferredLocales;
         private readonly string m_sessionName;
         private readonly uint m_sessionTimeout;
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
+        private readonly IClientChannelManager? m_channelManager;
+        private ISubscriptionEngineFactory? m_engineFactory;
+        private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213

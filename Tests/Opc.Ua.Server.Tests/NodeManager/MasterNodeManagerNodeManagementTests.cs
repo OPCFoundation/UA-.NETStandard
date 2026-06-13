@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.EqualTo(1));
-            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Test]
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
                 ctx, new AddNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameInvalid));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
 
         [Test]
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
                 ctx, new AddNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadParentNodeIdInvalid));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadParentNodeIdInvalid));
         }
 
         [Test]
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
                 ctx, new AddNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
 
         [Test]
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
                 ctx, new AddNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadReferenceNotAllowed));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
         }
 
         [Test]
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests
                 new DeleteNodesItem[] { null! }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.DeleteNodesAsync(
                 ctx, new DeleteNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadNodeIdInvalid));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
         [Test]
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.DeleteNodesAsync(
                 ctx, new DeleteNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -222,7 +222,7 @@ namespace Opc.Ua.Server.Tests
                 new AddReferencesItem[] { null! }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Test]
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.AddReferencesAsync(
                 ctx, new AddReferencesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadSourceNodeIdInvalid));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadSourceNodeIdInvalid));
         }
 
         [Test]
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.AddReferencesAsync(
                 ctx, new AddReferencesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadTargetNodeIdInvalid));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadTargetNodeIdInvalid));
         }
 
         [Test]
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.AddReferencesAsync(
                 ctx, new AddReferencesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
 
         [Test]
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests
                 new DeleteReferencesItem[] { null! }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Test]
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.DeleteReferencesAsync(
                 ctx, new DeleteReferencesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadSourceNodeIdInvalid));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadSourceNodeIdInvalid));
         }
 
         [Test]
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.DeleteReferencesAsync(
                 ctx, new DeleteReferencesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
 
         [Test]

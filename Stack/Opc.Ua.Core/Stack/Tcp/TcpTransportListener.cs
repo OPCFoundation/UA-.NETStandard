@@ -253,7 +253,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the transport for a UA TCP server.
     /// </summary>
-    public class TcpTransportListener : ITransportListener, ITcpChannelListener
+    public class TcpTransportListener : ITransportListener, ITcpChannelListener, ITransportListenerCertificateRotation
     {
         /// <summary>
         /// The limit of queued connections for the listener socket..
@@ -835,6 +835,66 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
+        public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+        {
+            if (oldCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(oldCertificate));
+            }
+
+            string oldThumbprint = oldCertificate.Thumbprint;
+            if (string.IsNullOrEmpty(oldThumbprint))
+            {
+                return [];
+            }
+
+            // Snapshot the channel map so we can iterate without holding
+            // m_lock while invoking per-channel close paths (each channel
+            // acquires its own DataLock internally — avoid lock inversion).
+            TcpListenerChannel[] channels;
+            lock (m_lock)
+            {
+                channels = m_channels?.Values.ToArray() ?? [];
+            }
+
+            if (channels.Length == 0)
+            {
+                return [];
+            }
+
+            var closed = new List<string>(channels.Length);
+            foreach (TcpListenerChannel channel in channels)
+            {
+                try
+                {
+                    if (channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
+                        !string.IsNullOrEmpty(globalChannelId))
+                    {
+                        closed.Add(globalChannelId!);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort: log and continue closing remaining
+                    // channels. Failure to close one channel must not
+                    // block others from being renegotiated.
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to close channel for certificate rotation (thumbprint {Thumbprint}).",
+                        oldThumbprint);
+                }
+            }
+
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).",
+                closed.Count,
+                oldThumbprint);
+
+            return closed;
+        }
+
         /// <summary>
         /// Mark a remote endpoint as potential problematic
         /// </summary>
@@ -887,42 +947,48 @@ namespace Opc.Ua.Bindings
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;
 
-                        // Remove oldest channel that does not have a session attached to it
-                        // before reaching m_maxChannelCount
-                        if (MaxChannelCount > 0 && MaxChannelCount == channelCount)
+                        // Remove oldest channels that do not have a session attached to them
+                        // before reaching m_maxChannelCount.
+                        while (MaxChannelCount > 0 && channelCount >= MaxChannelCount)
                         {
                             KeyValuePair<uint, TcpListenerChannel>[] snapshot = [.. channels];
+                            bool foundIdleChannel = false;
+                            KeyValuePair<uint, TcpListenerChannel> oldestIdChannel = default;
 
-                            // Identify channels without established sessions
-                            KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels =
-                            [
-                                .. snapshot.Where(ch => !ch.Value.UsedBySession)
-                            ];
-
-                            if (nonSessionChannels.Length != 0)
+                            foreach (KeyValuePair<uint, TcpListenerChannel> current in snapshot)
                             {
-                                KeyValuePair<uint, TcpListenerChannel> oldestIdChannel
-                                    = nonSessionChannels.Aggregate(
-                                    (max, current) =>
-                                        current.Value.ElapsedSinceLastActiveTime > max.Value
-                                            .ElapsedSinceLastActiveTime
-                                            ? current
-                                            : max);
+                                if (current.Value.UsedBySession)
+                                {
+                                    continue;
+                                }
 
-                                m_logger.LogInformation(
-                                    "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.",
-                                    oldestIdChannel.Value.Id);
-                                oldestIdChannel.Value.IdleCleanup();
-                                m_logger.LogInformation(
-                                    "TCPLISTENER: Channel Id {Id} finished IdleCleanup - Oldest without established session.",
-                                    oldestIdChannel.Value.Id);
-
-                                channelCount--;
+                                int elapsedSinceLastActiveTime = current.Value.ElapsedSinceLastActiveTime;
+                                if (!foundIdleChannel ||
+                                    elapsedSinceLastActiveTime > oldestIdChannel.Value.ElapsedSinceLastActiveTime)
+                                {
+                                    oldestIdChannel = current;
+                                    foundIdleChannel = true;
+                                }
                             }
+
+                            if (!foundIdleChannel)
+                            {
+                                break;
+                            }
+
+                            m_logger.LogInformation(
+                                "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.",
+                                oldestIdChannel.Value.Id);
+                            oldestIdChannel.Value.IdleCleanup();
+                            m_logger.LogInformation(
+                                "TCPLISTENER: Channel Id {Id} finished IdleCleanup - Oldest without established session.",
+                                oldestIdChannel.Value.Id);
+
+                            channelCount--;
                         }
 
                         bool serveChannel = !(MaxChannelCount > 0 &&
-                            MaxChannelCount < channelCount);
+                            MaxChannelCount <= channelCount);
                         if (!serveChannel)
                         {
                             m_logger.LogError(

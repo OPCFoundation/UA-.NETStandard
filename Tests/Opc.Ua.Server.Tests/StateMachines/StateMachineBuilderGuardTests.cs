@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using NUnit.Framework;
 using Opc.Ua.Server.StateMachines;
 
@@ -65,7 +64,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             ServiceResult result = sm.DoTransition(m_context, 10, 0, default, []);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
-            Assert.That((uint)result.Code,
+            Assert.That(result.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(CurrentStateId(sm), Is.EqualTo(1u));
         }
@@ -140,7 +139,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             // First produce a definition-mode machine, then adopt it
             // via For (lifecycle mode).
             FluentFiniteStateMachineState sm = BuildOnOffMachine().StateMachine;
-            StateMachineBuilder<FluentFiniteStateMachineState> lifecycle =
+            var lifecycle =
                 StateMachineBuilder.For(sm, m_context);
 
             Assert.That(() => lifecycle.WhenEnter(2, (ctx, m) => true),
@@ -194,7 +193,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
             ServiceResult result = sm.DoTransition(m_context, 10, 0, default, []);
 
-            Assert.That((uint)result.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]

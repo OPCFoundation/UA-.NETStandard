@@ -48,7 +48,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         public const string ElementTypeProperty = "ElementType";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            ImmutableArray.Create(DiagnosticDescriptors.UA0002_RemovedCollectionType);
+            [DiagnosticDescriptors.UA0002_RemovedCollectionType];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -59,7 +59,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static void AnalyzeIdentifier(SyntaxNodeAnalysisContext context)
         {
-            IdentifierNameSyntax id = (IdentifierNameSyntax)context.Node;
+            var id = (IdentifierNameSyntax)context.Node;
 
             SymbolInfo info = context.SemanticModel.GetSymbolInfo(id, context.CancellationToken);
             if (info.Symbol is not INamedTypeSymbol named)

@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/Generators/">
+    <Project Path="../Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
+    <Project Path="../Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="../.editorconfig" />
+    <File Path="../.github/copilot-instructions.md" />
+    <File Path="../.gitignore" />
+    <File Path="../common.props" />
+    <File Path="../Directory.Build.props" />
+    <File Path="../Directory.Packages.props" />
+    <File Path="../targets.props" />
+    <File Path="../version.json" />
+    <File Path="../version.props" />
+  </Folder>
+  <Folder Name="/Core/">
+    <Project Path="../Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Tester/Opc.Ua.SourceGeneration.Tester.csproj" />
+  </Folder>
+  <Folder Name="/Stack/">
+    <Project Path="../Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
+  </Folder>
+</Solution>

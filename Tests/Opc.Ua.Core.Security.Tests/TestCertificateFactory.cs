@@ -229,7 +229,7 @@ namespace Opc.Ua.Core.Security.Tests
             string applicationUri,
             string hostName)
         {
-            return new X509SubjectAltNameExtension(applicationUri, new[] { hostName });
+            return new X509SubjectAltNameExtension(applicationUri, [hostName]);
         }
     }
 }

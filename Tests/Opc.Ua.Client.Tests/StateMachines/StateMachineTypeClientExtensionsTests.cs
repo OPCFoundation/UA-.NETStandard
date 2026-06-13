@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -38,7 +37,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Tests;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
@@ -133,7 +131,7 @@ namespace Opc.Ua.Client.Tests.StateMachines
 
             Assert.That(snapshot.StateMachineId, Is.EqualTo(client.ObjectId));
             Assert.That(snapshot.CurrentState.IsNull, Is.True);
-            Assert.That(snapshot.Status, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(snapshot.Status, Is.EqualTo(StatusCodes.BadNotFound));
             // ReadAsync must NOT be called when no current-state node is resolved.
             sessionMock.Verify(s => s.ReadAsync(
                 It.IsAny<RequestHeader>(),
@@ -219,7 +217,10 @@ namespace Opc.Ua.Client.Tests.StateMachines
                 yield break;
             }
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }
