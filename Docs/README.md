@@ -5,6 +5,7 @@ Here is a list of available documentation for different topics:
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
+* [Transport Profiles](Transports.md) - Developer guide for the wire transports: `opc.tcp` / HTTPS (binary + JSON) / WSS (binary + JSON), including server hosting and client connect examples.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
