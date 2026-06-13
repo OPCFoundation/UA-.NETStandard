@@ -243,8 +243,10 @@ namespace Quickstarts.ReferenceServer
 
         private static readonly NodeId[] s_optionalPubSubFolders =
         [
-            new(15443),
-            new(25440)
+            // PublishSubscribe.SecurityGroups instance (NodeId i=15443).
+            new NodeId(15443u),
+            // PublishSubscribe.KeyPushTargets instance (NodeId i=25440).
+            new NodeId(25440u)
         ];
     }
 }

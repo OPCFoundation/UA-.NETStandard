@@ -209,12 +209,18 @@ namespace Opc.Ua
         public int DefaultTimeoutHint { get; set; }
 
         /// <inheritdoc/>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public virtual void AttachChannel(ITransportChannel channel)
         {
             InitializeChannel(channel);
         }
 
         /// <inheritdoc/>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public virtual void DetachChannel()
         {
             Interlocked.Exchange(ref m_channel, null);
