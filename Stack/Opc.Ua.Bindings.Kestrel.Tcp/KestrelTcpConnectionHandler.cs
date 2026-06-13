@@ -42,10 +42,12 @@ namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// Kestrel <see cref="ConnectionHandler"/> that pumps an accepted
-    /// <see cref="ConnectionContext"/> through a UA-SC binary
-    /// <see cref="TcpServerChannel"/>. One handler instance per
-    /// <see cref="KestrelTcpTransportListener"/>; one connection per
-    /// invocation of <see cref="OnConnectedAsync"/>.
+    /// <see cref="ConnectionContext"/> through a UA-SC binary channel
+    /// (<see cref="TcpServerChannel"/> in forward mode,
+    /// <see cref="TcpReverseConnectChannel"/> when the listener was
+    /// opened with <c>settings.ReverseConnectListener = true</c>). One
+    /// handler instance per <see cref="KestrelTcpTransportListener"/>;
+    /// one connection per invocation of <see cref="OnConnectedAsync"/>.
     /// </summary>
     internal sealed class KestrelTcpConnectionHandler : ConnectionHandler
     {
@@ -63,13 +65,17 @@ namespace Opc.Ua.Bindings
                 m_owner.Telemetry);
 
             uint channelId = m_owner.NextChannelId();
-            var channel = m_owner.CreateChannel();
+            TcpListenerChannel channel = m_owner.CreateChannel();
             try
             {
                 m_owner.RegisterChannel(channelId, channel);
                 channel.Attach(channelId, transport);
 
-                // Hold the connection open until either side tears it down.
+                // Hold the connection open until either side tears it down,
+                // OR (in reverse-connect mode) until TransferListenerChannelAsync
+                // hands the transport off to the application AND the new
+                // owner closes the underlying pipe (Kestrel disposes the
+                // ConnectionContext the instant this method returns).
                 await m_owner.WaitForConnectionAsync(channelId, connection.ConnectionClosed)
                     .ConfigureAwait(false);
             }
@@ -80,8 +86,12 @@ namespace Opc.Ua.Bindings
             finally
             {
                 m_owner.UnregisterChannel(channelId);
+                // channel.Dispose() closes the transport if the channel
+                // still owns it. In reverse-connect mode after a successful
+                // handoff the transport has been detached and a NEW owner
+                // is responsible for it; channel.Dispose() is a no-op for
+                // that transport in that case.
                 channel.Dispose();
-                transport.Close();
             }
         }
 

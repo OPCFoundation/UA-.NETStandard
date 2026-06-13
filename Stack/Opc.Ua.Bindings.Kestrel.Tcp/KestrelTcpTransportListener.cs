@@ -136,13 +136,13 @@ namespace Opc.Ua.Bindings
         public Uri EndpointUrl { get; private set; } = null!;
 
         /// <inheritdoc/>
-        // CS0067: ConnectionWaiting/ConnectionStatusChanged are part of the
-        // ITransportListener contract; the Kestrel listener is forward-only
-        // and does not raise them.
-#pragma warning disable CS0067
+        // CS0067 was historical - the events ARE now raised (ConnectionWaiting
+        // by the reverse-connect transfer path and ConnectionStatusChanged by
+        // future channel-status reporting once implemented).
         public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
 
         /// <inheritdoc/>
+#pragma warning disable CS0067 // future use; not raised yet by the Kestrel listener.
         public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
 #pragma warning restore CS0067
 
@@ -189,8 +189,9 @@ namespace Opc.Ua.Bindings
 
             m_serverCertificates = settings.ServerCertificates!;
             m_bufferManager = new BufferManager("KestrelTcpServer", m_quotas.MaxBufferSize, Telemetry);
-            m_channels = new ConcurrentDictionary<uint, (TcpServerChannel Channel, TaskCompletionSource<bool> Done)>();
+            m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
+            m_reverseConnectListener = settings.ReverseConnectListener;
 
             m_host = BuildHost(baseAddress);
             m_host.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -219,7 +220,7 @@ namespace Opc.Ua.Bindings
 
             if (m_channels != null)
             {
-                foreach (KeyValuePair<uint, (TcpServerChannel Channel, TaskCompletionSource<bool> Done)> kv in m_channels)
+                foreach (KeyValuePair<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)> kv in m_channels)
                 {
                     kv.Value.Done.TrySetResult(true);
                 }
@@ -278,15 +279,41 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
-            => Task.FromResult(false);
+            => TransferReverseConnectChannelAsync(channelId, serverUri, endpointUrl);
 
         /// <inheritdoc/>
         public void ChannelClosed(uint channelId) => UnregisterChannel(channelId);
 
         internal uint NextChannelId() => (uint)Interlocked.Increment(ref m_nextChannelId);
 
-        internal TcpServerChannel CreateChannel()
+        /// <summary>
+        /// True when <see cref="Open"/> was called with
+        /// <see cref="TransportListenerSettings.ReverseConnectListener"/>
+        /// set; controls which kind of channel
+        /// <see cref="CreateChannel"/> produces.
+        /// </summary>
+        internal bool IsReverseConnectListener => m_reverseConnectListener;
+
+        /// <summary>
+        /// Creates the per-connection channel; <see cref="TcpServerChannel"/>
+        /// for the regular forward path or
+        /// <see cref="TcpReverseConnectChannel"/> when
+        /// <see cref="IsReverseConnectListener"/> is set. The Kestrel
+        /// connection handler invokes this once per accepted
+        /// <c>ConnectionContext</c>.
+        /// </summary>
+        internal TcpListenerChannel CreateChannel()
         {
+            if (m_reverseConnectListener)
+            {
+                return new TcpReverseConnectChannel(
+                    ListenerId,
+                    this,
+                    m_bufferManager!,
+                    m_quotas!,
+                    m_descriptions!,
+                    Telemetry);
+            }
             return new TcpServerChannel(
                 ListenerId,
                 this,
@@ -297,11 +324,16 @@ namespace Opc.Ua.Bindings
                 Telemetry);
         }
 
-        internal void RegisterChannel(uint channelId, TcpServerChannel channel)
+        internal void RegisterChannel(uint channelId, TcpListenerChannel channel)
         {
-            if (m_callback != null)
+            // Forward-mode channels need the request callback wired so the
+            // listener can dispatch UA service requests. Reverse-mode
+            // channels are short-lived (wait for ReverseHello, then handed
+            // off via TransferListenerChannelAsync) and never serve
+            // requests themselves.
+            if (!m_reverseConnectListener && m_callback != null && channel is TcpServerChannel serverChannel)
             {
-                channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                serverChannel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
             }
             m_channels!.TryAdd(channelId, (channel, new TaskCompletionSource<bool>()));
         }
@@ -321,6 +353,83 @@ namespace Opc.Ua.Bindings
                 return Task.WhenAny(entry.Done.Task, ct.AsTask()).ContinueWith(_ => { }, TaskScheduler.Default);
             }
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Reverse-connect handoff: invoked by
+        /// <see cref="TcpReverseConnectChannel"/> after it receives a
+        /// <c>ReverseHello</c> message from the server. The listener
+        /// detaches the channel's transport, fires the
+        /// <see cref="ConnectionWaiting"/> event so the client
+        /// application can take ownership of the connection, and
+        /// (if accepted) tears down the channel state.
+        /// </summary>
+        private async Task<bool> TransferReverseConnectChannelAsync(
+            uint channelId,
+            string serverUri,
+            Uri endpointUrl)
+        {
+            bool accepted = false;
+
+            if (m_channels == null ||
+                !m_channels.TryRemove(channelId, out var entry))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Could not find secure channel request.");
+            }
+
+            TcpListenerChannel? channel = entry.Channel;
+            try
+            {
+                if (ConnectionWaiting != null)
+                {
+                    IUaSCByteTransport? transport = await channel.DetachTransportAsync()
+                        .ConfigureAwait(false);
+                    if (transport != null)
+                    {
+                        var args = new TcpConnectionWaitingEventArgs(
+                            serverUri,
+                            endpointUrl,
+                            transport);
+                        await ConnectionWaiting(this, args).ConfigureAwait(false);
+                        accepted = args.Accepted;
+                        if (!accepted)
+                        {
+                            // Caller rejected the handoff: re-attach the
+                            // transport so the existing channel can keep
+                            // working on retry.
+                            channel.Transport = transport;
+                            channel.StartReceiveLoop();
+                        }
+                    }
+                }
+
+                if (!accepted)
+                {
+                    // Re-register so the channel is still tracked for cleanup.
+                    m_channels.TryAdd(channelId, entry);
+                }
+                // NOTE: in the accepted case we deliberately do NOT signal
+                // entry.Done. Kestrel tears the ConnectionContext (and its
+                // underlying socket / IDuplexPipe) down the instant
+                // OnConnectedAsync returns - if we wake the connection-hold
+                // loop now, the new transport owner loses its pipe mid-
+                // handshake. The loop instead waits on
+                // ConnectionContext.ConnectionClosed so Kestrel keeps the
+                // socket alive until the new owner finishes with it.
+                channel = null; // ownership transferred
+            }
+            finally
+            {
+                // Dispose the channel only if the transfer was rejected
+                // and we did NOT re-register it (re-register hands
+                // ownership back to the connection-hold loop). Matching
+                // the raw-socket TcpTransportListener semantics.
+                channel?.Dispose();
+            }
+
+            return accepted;
         }
 
         // Synchronous bridge to the async handler (the
@@ -417,8 +526,9 @@ namespace Opc.Ua.Bindings
         private BufferManager? m_bufferManager;
         private ICertificateRegistry? m_serverCertificates;
         private ITransportListenerCallback? m_callback;
-        private ConcurrentDictionary<uint, (TcpServerChannel Channel, TaskCompletionSource<bool> Done)>? m_channels;
+        private ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? m_channels;
         private int m_nextChannelId;
+        private bool m_reverseConnectListener;
     }
 
     /// <summary>
