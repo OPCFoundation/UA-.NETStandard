@@ -175,6 +175,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 ws.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUaJson);
+                ConfigureClientTls(ws);
                 Uri wsUrl = NormalizeUrl(m_url);
                 await ws.ConnectAsync(wsUrl, cts.Token).ConfigureAwait(false);
 
@@ -314,6 +315,73 @@ namespace Opc.Ua.Bindings
                 return builder.Uri;
             }
             return url;
+        }
+
+        private void ConfigureClientTls(ClientWebSocket ws)
+        {
+#if NET5_0_OR_GREATER
+            ICertificateValidatorEx? validator = m_settings?.CertificateValidator;
+            if (validator != null)
+            {
+                ws.Options.RemoteCertificateValidationCallback =
+                    (sender, cert, chain, errors) => ValidateRemoteCertificate(
+                        validator,
+                        cert as System.Security.Cryptography.X509Certificates.X509Certificate2,
+                        chain);
+            }
+
+            Certificate? clientCert = m_settings?.ClientCertificate;
+            if (clientCert != null)
+            {
+                using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
+                    clientCert.AsX509Certificate2();
+                ws.Options.ClientCertificates ??=
+                    new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
+                ws.Options.ClientCertificates.Add(x509);
+            }
+#endif
+        }
+
+        private bool ValidateRemoteCertificate(
+            ICertificateValidatorEx validator,
+            System.Security.Cryptography.X509Certificates.X509Certificate2? cert,
+            System.Security.Cryptography.X509Certificates.X509Chain? chain)
+        {
+            if (cert == null)
+            {
+                return false;
+            }
+            try
+            {
+                var collection = new System.Security.Cryptography.X509Certificates.X509Certificate2Collection();
+                if (chain?.ChainElements != null)
+                {
+                    foreach (System.Security.Cryptography.X509Certificates.X509ChainElement element
+                        in chain.ChainElements)
+                    {
+                        collection.Add(element.Certificate);
+                    }
+                }
+                else
+                {
+                    collection.Add(cert);
+                }
+                using var validation = CertificateCollection.From(collection);
+#pragma warning disable CA2025
+                CertificateValidationResult result = validator
+                    .ValidateAsync(validation, ct: default)
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
+                return result.IsValid;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "WssJsonTransportChannel: failed to validate server TLS certificate.");
+                return false;
+            }
         }
 
         private static ServiceResultException BadNotConnected()

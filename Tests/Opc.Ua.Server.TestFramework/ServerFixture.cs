@@ -67,6 +67,17 @@ namespace Opc.Ua.Server.TestFramework
 
         public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
+
+        /// <summary>
+        /// When <c>true</c> (default), HTTPS / WSS endpoints require client
+        /// TLS authentication and the listener emits the configured
+        /// secure security policy. When <c>false</c>, mutual TLS is off and
+        /// the listener emits a <see cref="MessageSecurityMode.None"/>
+        /// endpoint - required for the JSON sub-protocols
+        /// (HTTPS-JSON, WSS-JSON) which do not use UA Secure Conversation.
+        /// </summary>
+        public bool HttpsMutualTls { get; set; } = true;
+
         public int Port { get; private set; }
 
         public bool UseTracing { get; }
@@ -259,7 +270,8 @@ namespace Opc.Ua.Server.TestFramework
                 .SetMaxChannelCount(MaxChannelCount)
                 .SetMaxMessageQueueSize(20)
                 .SetDiagnosticsEnabled(true)
-                .SetAuditingEnabled(true);
+                .SetAuditingEnabled(true)
+                .SetHttpsMutualTls(HttpsMutualTls);
 
             if (ReverseConnectTimeout != 0)
             {
