@@ -557,6 +557,54 @@ when the server initiates the session. The
 `ReverseConnect` configuration is also consumed by `Session` /
 `SessionReconnectHandler` for reconnect-via-reverse-hello scenarios.
 
+## Channel manager
+
+`AddClient(...)` automatically registers an `IClientChannelManager`
+singleton (`ClientChannelManager` implementation) built from
+`OpcUaClientOptions.Configuration`. The
+`Func<CancellationToken, Task<ManagedSession>>` delegate wires this
+manager into every new `ManagedSession` it creates, so multiple
+`ManagedSession` instances resolved from the same DI container will
+share underlying transport channels per
+`ConfiguredEndpoint`. Reconnect is coalesced and notified to attached
+sessions transparently. On .NET 8 and later, HTTPS transport channels
+also get the named `IHttpClientFactory` client (`Opc.Ua.Client`) and its
+standard resilience handler through `AddClient(...)`. See
+[Sessions and reconnect § 4](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
+for details on identity, retry policy, HTTPS request resilience, and the
+shared retry budget between channel-manager reconnect and
+`ManagedSession`'s outer `IReconnectPolicy`.
+
+> **Security trade-off — OPC UA TLS validation vs the DI HttpClient pipeline.**
+> When an OPC UA `CertificateValidator` is configured for a channel
+> (the normal case for any non-`SecurityPolicies.None` HTTPS profile),
+> `HttpsTransportChannel` always takes the direct construction path so
+> the OPC UA trust list, OPC UA mutual TLS, the redirect lock, and the
+> message-size quotas are guaranteed. The named `Opc.Ua.Client`
+> HttpClient pipeline (Polly resilience handler, etc.) is **not**
+> applied to those channels and the channel emits a one-time
+> `LogWarning` to make the bypass visible. To use both the Polly
+> resilience handler AND OPC UA cert validation on the same channel,
+> register the named client with a `ConfigurePrimaryHttpMessageHandler`
+> that wires the OPC UA `ServerCertificateCustomValidationCallback` and
+> the OPC UA application instance certificate yourself. See
+> [Sessions and reconnect § HTTPS factory + OPC UA cert validation: secure-by-default fallback](Sessions.md#https-factory--opc-ua-cert-validation-secure-by-default-fallback).
+
+To override the default channel manager (e.g. to inject a custom
+`IChannelReconnectPolicy`):
+
+```csharp
+services.AddOpcUa().AddClient(opt => { ... });
+services.Replace(ServiceDescriptor.Singleton<IClientChannelManager>(sp =>
+    new ClientChannelManager(
+        sp.GetRequiredService<OpcUaClientOptions>().Configuration!,
+        sp.GetRequiredService<ITelemetryContext>(),
+        reconnectPolicy: new ExponentialBackoffChannelReconnectPolicy
+        {
+            MaxAttempts = 5
+        })));
+```
+
 ## Application instance (advanced)
 
 ```csharp

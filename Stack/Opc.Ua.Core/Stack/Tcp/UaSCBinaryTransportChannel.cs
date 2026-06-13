@@ -516,7 +516,7 @@ namespace Opc.Ua.Bindings
             }
 
             // Register the token changed event handler with the internal channel
-            channel.OnTokenActivated =
+            channel.TokenActivatedCallback =
                 (current, previous) => m_OnTokenActivated?.Invoke(
                     this,
                     current,

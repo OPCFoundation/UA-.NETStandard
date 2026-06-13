@@ -63,5 +63,11 @@ namespace Opc.Ua.Client
         /// Jitter factor (0.0 = no jitter, 0.1 = ±10%).
         /// </summary>
         public double JitterFactor { get; init; } = 0.1;
+
+        /// <summary>
+        /// Maximum total elapsed time for one reconnect cycle across
+        /// outer ManagedSession retries and channel-manager retries.
+        /// </summary>
+        public TimeSpan MaxTotalReconnectTime { get; init; } = TimeSpan.FromMinutes(5);
     }
 }

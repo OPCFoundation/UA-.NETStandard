@@ -1,0 +1,46 @@
+<WriteRequest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <RequestHeader>
+    <Timestamp>2026-06-09T10:03:56.2946174Z</Timestamp>
+    <RequestHandle>42</RequestHandle>
+    <ReturnDiagnostics>0</ReturnDiagnostics>
+    <TimeoutHint>0</TimeoutHint>
+    <AdditionalHeader>
+      <TypeId>
+        <Identifier>i=627</Identifier>
+      </TypeId>
+      <Body>
+        <ReadValueId>
+          <NodeId>
+            <Identifier>i=2253</Identifier>
+          </NodeId>
+          <AttributeId>13</AttributeId>
+        </ReadValueId>
+      </Body>
+    </AdditionalHeader>
+  </RequestHeader>
+  <NodesToWrite>
+    <WriteValue>
+      <NodeId>
+        <Identifier>ns=2;i=1000</Identifier>
+      </NodeId>
+      <AttributeId>13</AttributeId>
+      <Value>
+        <Value>
+          <Value>
+            <LocalizedText>
+              <Locale>en-US</Locale>
+              <Text>Hello World</Text>
+            </LocalizedText>
+          </Value>
+        </Value>
+        <StatusCode>
+          <Code>0</Code>
+        </StatusCode>
+        <SourceTimestamp>2026-06-09T10:03:56.2946236Z</SourceTimestamp>
+        <SourcePicoseconds>0</SourcePicoseconds>
+        <ServerTimestamp>1601-01-01T00:00:00Z</ServerTimestamp>
+        <ServerPicoseconds>0</ServerPicoseconds>
+      </Value>
+    </WriteValue>
+  </NodesToWrite>
+</WriteRequest>
