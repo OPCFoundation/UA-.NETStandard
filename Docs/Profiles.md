@@ -108,7 +108,8 @@ The [PubSub library](PubSub.md) supports the following transport profiles:
 All transport profiles defined in OPC UA Part 6 §7.4 (HTTPS) and §7.5
 (WebSockets) are now supported. The `opcua+openapi` and
 `opcua+openapi+<accesstoken>` WebSocket sub-protocols (Part 6 §7.5.2
-Table 81) are tracked as a future enhancement.
+Table 81) are tracked in
+[`plans/25-wss-openapi-subprotocols.md`](../plans/25-wss-openapi-subprotocols.md).
 
 ## Security Profiles
 

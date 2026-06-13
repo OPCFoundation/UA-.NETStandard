@@ -63,6 +63,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Pass `DataValue` values by ref when possible (use `in` for one way arguments). Adding `in` keyword is not considered a breaking change since the API can be invoked with and without ref.
 - Support the latest version of the OPC UA specifications (1.05.07 for OPC UA core)
 - NEVER expose "locks" or locking in _any_ internal or public API surface because nobody can effectively reason over the lock behavior. NEVER expose a "lock" as protected field to sub classes.
+- **NEVER use `private readonly object m_lock = new()` or any other `object`-typed sync root.** All synchronous locks MUST use `System.Threading.Lock` (a polyfill in `Opc.Ua.Types/Polyfills/System.Threading.cs` makes it available on every supported TFM). Treat `private readonly object m_lock = new()` as an analyzer-level error. Apply this rule to every code path you add or modify; do not introduce new object-based locks even when imitating surrounding code.
 
 ### Architecture and patterns
 - DO NOT rely on inheritance to provide "extensibility". Instead - make all non abstract public classes sealed by default and ask for exceptions.
@@ -192,7 +193,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Profile performance-critical code
 - Avoid locking where possible.
   - If needed use SemaphoreSlim to lock instead of lock keyword
-  - If a synchronous lock is required/desired, use "System.Threading.Lock" instead of object in lock(...) statements (a polyfill exists for it).
+  - If a synchronous lock is required/desired, the field type MUST be `System.Threading.Lock` (a polyfill is provided in `Opc.Ua.Types/Polyfills/System.Threading.cs`). NEVER declare a sync root as `private readonly object m_lock = new()` — use `private readonly System.Threading.Lock m_lock = new()` instead. This rule applies to every file in the repository.
 
 ## Resources
 

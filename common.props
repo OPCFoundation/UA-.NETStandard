@@ -49,7 +49,12 @@
     <!--<PackageLicenseExpression>MIT</PackageLicenseExpression>-->
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
-    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <!--
+      Packages that ship a NuGet README opt in by setting their own
+      <PackageReadmeFile> and packing the local file at the package root.
+      No global default is set here so that packages without their own
+      README do not advertise one. See plans/26-per-nuget-package-readmes.md.
+    -->
     <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
@@ -88,11 +93,14 @@
       Pack="true"
       PackagePath="$(PackageIcon)"
     />
-    <None
-      Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md"
-      Pack="true"
-      PackagePath="$(PackageReadmeFile)"
-    />
+    <!--
+      Each NuGet package owns its own README - a generic shared README is
+      misleading on nuget.org because every package would describe itself
+      identically. Packages opt in by adding their own e.g.
+        <PackageReadmeFile>MyPackageREADME.md</PackageReadmeFile>
+        <None Include="MyPackageREADME.md" Pack="true" PackagePath="\" />
+      See plans/26-per-nuget-package-readmes.md for the rollout plan.
+    -->
   </ItemGroup>
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />

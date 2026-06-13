@@ -22,8 +22,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <!-- override common.props default that packs Docs/NugetREADME.md at $(PackageReadmeFile); we ship a package-local README instead. -->
-    <None Remove="$(MSBuildThisFileDirectory)/../../Docs/NugetREADME.md" />
     <None Include="KestrelTcpREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>

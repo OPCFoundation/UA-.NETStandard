@@ -129,7 +129,7 @@ namespace Opc.Ua.Bindings
         {
         }
 
-        private readonly object m_lock = new();
+        private readonly System.Threading.Lock m_lock = new();
         private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = new();
 
         /// <summary>
@@ -466,7 +466,7 @@ namespace Opc.Ua.Bindings
         }
 
         private IHost? m_host;
-        private readonly object m_lock = new();
+        private readonly System.Threading.Lock m_lock = new();
         private readonly Dictionary<string, HttpsTransportListener> m_listeners =
             new(StringComparer.OrdinalIgnoreCase);
         private IReadOnlyList<string> m_routeOrder = Array.Empty<string>();
