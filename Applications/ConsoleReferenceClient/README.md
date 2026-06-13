@@ -7,6 +7,40 @@ Some of these parameters are explained in more detail below.
 
 To see all available parameters call console reference client with the parameter `-h`.
 
+## Supported transport profiles
+
+The client picks the wire transport automatically from the `serverUrl`
+scheme. The OPC UA spec aliases the URL scheme to the
+[`TransportProfileUri`](https://reference.opcfoundation.org/Core/Part6/v107/docs/7.4)
+on the negotiated endpoint:
+
+| URL scheme | TransportProfileUri | OPC UA Part 6 reference |
+| --- | --- | --- |
+| `opc.tcp://` | `uatcp-uasc-uabinary` | §7.4.2 |
+| `opc.https://` (or `https://`) with binary body | `https-uabinary` | §7.4.4 |
+| `opc.https://` (or `https://`) with `application/opcua+uajson` body | `https-uajson` | §7.4.5 |
+| `opc.wss://` (or `wss://`) with `opcua+uacp` sub-protocol | `uawss-uasc-uabinary` | §7.5.2 |
+| `opc.wss://` (or `wss://`) with `opcua+uajson` sub-protocol | `uawss-uajson` | §7.5.2 |
+
+Examples:
+
+```bash
+# UA-TCP (default)
+dotnet ConsoleReferenceClient.dll opc.tcp://localhost:62541/Quickstarts/ReferenceServer
+
+# WSS+uacp (binary UA SecureChannel over TLS WebSocket)
+dotnet ConsoleReferenceClient.dll opc.wss://localhost:62543/Quickstarts/ReferenceServer
+
+# HTTPS (binary)
+dotnet ConsoleReferenceClient.dll opc.https://localhost:62543/Quickstarts/ReferenceServer
+```
+
+The reference server (`ConsoleReferenceServer`) advertises the
+`opc.tcp://`, `opc.https://` and `opc.wss://` endpoints by default; see
+[`Docs/Transports.md`](../../Docs/Transports.md) for the full server
+configuration story (TLS certificates, mutual TLS, JSON sub-protocol
+restrictions, etc.).
+
 ## Reverse Connect
 
 The OPC UA reverse connect feature allows an OPC UA server to initiate the connection to a client, rather than the traditional model where clients connect to servers. This is particularly useful in scenarios where the server is behind a firewall or NAT, making it difficult for clients to directly connect to it.
