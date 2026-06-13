@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
         [Test]
         public void ConstructorAssignsEveryProperty()
         {
-            byte[] body = { 1, 2, 3, 4 };
+            byte[] body = [1, 2, 3, 4];
 
             var chunk = new OfflineDecodedChunk(
                 messageType: 0x46534D47U,
@@ -68,7 +68,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
         [Test]
         public void EqualsReturnsTrueForIdenticalValues()
         {
-            byte[] body = { 7, 8, 9 };
+            byte[] body = [7, 8, 9];
             var left = new OfflineDecodedChunk(1, 2, 3, 4, 5, true, false, body);
             var right = new OfflineDecodedChunk(1, 2, 3, 4, 5, true, false, body);
 
@@ -86,8 +86,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
         [Test]
         public void EqualsCompareBodyContentNotReference()
         {
-            byte[] body1 = { 1, 2, 3 };
-            byte[] body2 = { 1, 2, 3 };
+            byte[] body1 = [1, 2, 3];
+            byte[] body2 = [1, 2, 3];
             var left = new OfflineDecodedChunk(1, 2, 3, 4, 5, true, false, body1);
             var right = new OfflineDecodedChunk(1, 2, 3, 4, 5, true, false, body2);
 
@@ -111,7 +111,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
             bool isFinal,
             bool isAbort)
         {
-            byte[] body = { 9 };
+            byte[] body = [9];
             var baseline = new OfflineDecodedChunk(1, 2, 3, 4, 5, true, false, body);
             var modified = new OfflineDecodedChunk(
                 messageType,
@@ -145,8 +145,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
         public void EqualsObjectReturnsFalseForDifferentType()
         {
             var chunk = new OfflineDecodedChunk(1, 2, 3, 4, 5, true, false, Array.Empty<byte>());
-            bool equalsString = chunk.Equals((object)"not a chunk");
-            bool equalsNull = chunk.Equals((object?)null);
+            bool equalsString = chunk.Equals("not a chunk");
+            bool equalsNull = chunk.Equals(null);
 
             Assert.That(equalsString, Is.False);
             Assert.That(equalsNull, Is.False);

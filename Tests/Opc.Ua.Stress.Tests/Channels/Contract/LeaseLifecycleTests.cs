@@ -35,9 +35,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
-using Opc.Ua.Security.Certificates;
 
 // CA2007: NUnit invokes test code without requiring ConfigureAwait on framework disposal.
 #pragma warning disable CA2007
@@ -276,7 +276,6 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 channel?.Dispose();
             }
         }
-
 
         private static FakeTransport GetSingleTransport(ContractTestEnvironment environment)
         {

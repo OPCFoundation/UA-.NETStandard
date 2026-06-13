@@ -320,7 +320,7 @@ namespace Opc.Ua.Gds.Client
             EndpointConfiguration endpointConfiguration,
             CancellationToken ct)
         {
-            var endpoint = CreateDiscoveryEndpoint(discoveryUri, endpointConfiguration);
+            ConfiguredEndpoint endpoint = CreateDiscoveryEndpoint(discoveryUri, endpointConfiguration);
             ITransportChannel channel = await sessionFactory.CreateChannelAsync(
                 ApplicationConfiguration,
                 connection: null!,

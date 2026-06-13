@@ -216,14 +216,14 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
                 MessageSecurityMode.SignAndEncrypt,
                 DateTime.SpecifyKind(new DateTime(2026, 1, 2, 3, 4, 5), DateTimeKind.Utc),
                 60000,
-                new byte[] { 1, 2, 3, 4 },
-                new byte[] { 5, 6, 7, 8 },
+                [1, 2, 3, 4],
+                [5, 6, 7, 8],
                 knownSigningKey,
-                new byte[] { 9, 10, 11, 12 },
-                new byte[] { 13, 14, 15, 16 },
-                new byte[] { 17, 18, 19, 20 },
-                new byte[] { 21, 22, 23, 24 },
-                new byte[] { 25, 26, 27, 28 });
+                [9, 10, 11, 12],
+                [13, 14, 15, 16],
+                [17, 18, 19, 20],
+                [21, 22, 23, 24],
+                [25, 26, 27, 28]);
         }
 
         private static bool ContainsSequence(byte[] source, byte[] value)

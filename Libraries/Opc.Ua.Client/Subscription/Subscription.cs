@@ -82,7 +82,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// monitored-item creation on this partition with
         /// <see cref="StatusCodes.BadTooManyMonitoredItems"/>. The
         /// V2 reactive fallback (see
-        /// <see cref="MonitoredItems.PartitionPlacementPolicy.OnPartitionCapReached"/>)
+        /// <see cref="PartitionPlacementPolicy.OnPartitionCapReached"/>)
         /// uses this hook to discover the server's effective
         /// per-subscription cap and mark the partition no-grow so
         /// subsequent placements skip it.
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// Optional callback invoked by <see cref="StateManagerAsync"/>
         /// exactly once per partition lifetime, immediately after a
         /// successful <see cref="CreateAsync"/> and before the first
-        /// <see cref="MonitoredItems.MonitoredItemManager.ApplyChangesAsync"/>
+        /// <see cref="MonitoredItemManager.ApplyChangesAsync"/>
         /// in the same iteration of the state-manager loop. Used by
         /// <see cref="LogicalSubscription"/> to satisfy the OPC UA
         /// Part 4 §5.13.9 rule that

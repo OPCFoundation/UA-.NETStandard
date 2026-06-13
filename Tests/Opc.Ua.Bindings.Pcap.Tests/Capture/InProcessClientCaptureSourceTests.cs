@@ -28,11 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture.Sources;
 using Opc.Ua.Bindings.Pcap.Frame;
@@ -78,12 +78,12 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 await source.StartAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(false);
                 IFrameCaptureSink sink = source;
 
-                sink.OnFrameSent(0x1234, new byte[] { 1, 2, 3, 4 });
-                sink.OnFrameReceived(0x1234, new byte[] { 5, 6, 7, 8 });
+                sink.OnFrameSent(0x1234, [1, 2, 3, 4]);
+                sink.OnFrameReceived(0x1234, [5, 6, 7, 8]);
                 await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
 
                 string path = source.GetRawPcapFilePath() ?? throw new AssertionException("Missing pcap path.");
-                var records = await PcapTestHelpers.ToListAsync(
+                List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                     PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                     maxCount: 2).ConfigureAwait(false);
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
 
                 string path = source.GetKeyLogFilePath() ?? throw new AssertionException("Missing keylog path.");
-                var records = await PcapTestHelpers.ToListAsync(
+                List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
                     new UaKeyLogJsonReader().ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
                 Assert.That(new System.IO.FileInfo(path).Length, Is.GreaterThan(0));
@@ -143,7 +143,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 await ForceDisposeWritersAsync(source).ConfigureAwait(false);
 
                 string path = source.GetRawPcapFilePath() ?? throw new AssertionException("Missing pcap path.");
-                var records = await PcapTestHelpers.ToListAsync(
+                List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                     PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                     maxCount: 1).ConfigureAwait(false);
 

@@ -34,10 +34,10 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Stress.Tests.Channels.Integration;
-using Opc.Ua.Client;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Stress.Tests.Channels.Chaos
@@ -144,10 +144,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             }
             finally
             {
-                if (proxy != null)
-                {
-                    proxy.StallForwarding = false;
-                }
+                proxy?.StallForwarding = false;
 
                 await CloseAndDisposeAsync(session).ConfigureAwait(false);
 

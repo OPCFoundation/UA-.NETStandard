@@ -106,7 +106,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                Task task = Task.Run(ProcessCertificateChangesAsync, CancellationToken.None);
+                var task = Task.Run(ProcessCertificateChangesAsync, CancellationToken.None);
                 m_certificateRotationTask = task;
                 m_host.SetCertificateRotationTask(task);
             }

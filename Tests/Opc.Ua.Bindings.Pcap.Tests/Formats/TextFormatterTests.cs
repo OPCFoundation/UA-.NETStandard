@@ -60,8 +60,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
                 channelId: 0x000000AAU,
                 tokenId: 0x000000BBU);
 
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     new DateTimeOffset(2026, 1, 2, 3, 4, 5, 0, TimeSpan.Zero),
                     CaptureFrameDirection.ClientToServer,
@@ -74,7 +74,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
                     string.Empty,
                     string.Empty,
                     chunk)
-            };
+            ];
             await using var source = new InMemoryCaptureSource(frames);
             var formatter = new TextFormatter();
 
@@ -95,15 +95,15 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         [Test]
         public async Task FormatAsyncEmitsDashesForUnknownDirectionAndTooShortFrame()
         {
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     new DateTimeOffset(2026, 1, 2, 3, 4, 7, 0, TimeSpan.Zero),
                     CaptureFrameDirection.Unknown,
                     string.Empty,
                     string.Empty,
                     new byte[] { 1, 2, 3 }) // 3 bytes is below the 4-byte minimum for messageType.
-            };
+            ];
             await using var source = new InMemoryCaptureSource(frames);
             var formatter = new TextFormatter();
 

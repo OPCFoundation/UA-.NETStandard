@@ -30,9 +30,9 @@
 #nullable enable
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -190,9 +190,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             long[] completionTimestamps,
             CancellationToken ct)
         {
-            return Enumerable.Range(0, completionTimestamps.Length)
-                .Select(index => SendAndRecordCompletionAsync(channel, completionTimestamps, index, ct))
-                .ToArray();
+            return [.. Enumerable.Range(0, completionTimestamps.Length).Select(index => SendAndRecordCompletionAsync(channel, completionTimestamps, index, ct))];
         }
 
         private static async Task SendAndRecordCompletionAsync(

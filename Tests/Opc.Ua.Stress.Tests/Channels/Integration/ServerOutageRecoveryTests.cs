@@ -35,8 +35,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Client;
+using Opc.Ua.Stress.Tests.Channels.Helpers;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Stress.Tests.Channels.Integration
@@ -92,7 +92,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
 
                     await ExerciseOutageAndRecoveryAsync(
                             manager,
-                            new List<ManagedSessionType> { session },
+                            [session],
                             key,
                             expectedRefcount: 1,
                             ct)

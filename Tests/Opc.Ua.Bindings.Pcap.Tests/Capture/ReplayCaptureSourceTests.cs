@@ -150,7 +150,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                     CancellationToken.None).ConfigureAwait(false);
 
                 int count = 0;
-                int[] expectedLengths = { 16, 17, 18 };
+                int[] expectedLengths = [16, 17, 18];
                 await foreach (CaptureFrame frame in source.ReadCapturedFramesAsync(
                     maxFrames: 3,
                     CancellationToken.None).ConfigureAwait(false))

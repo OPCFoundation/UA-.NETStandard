@@ -46,7 +46,6 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
@@ -77,8 +76,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             ConfiguredEndpoint endpoint1 = GetTestEndpoint(serverCert);
             ConfiguredEndpoint endpoint2 = GetTestEndpoint(serverCert);
 
-            ManagedChannelKey k1 = ManagedChannelKey.FromEndpoint(endpoint1);
-            ManagedChannelKey k2 = ManagedChannelKey.FromEndpoint(endpoint2);
+            var k1 = ManagedChannelKey.FromEndpoint(endpoint1);
+            var k2 = ManagedChannelKey.FromEndpoint(endpoint2);
 
             Assert.That(k1, Is.EqualTo(k2));
             Assert.That(k1.GetHashCode(), Is.EqualTo(k2.GetHashCode()));
@@ -90,8 +89,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             using Certificate serverCert = s_factory.CreateCertificate("CN=server").CreateForRSA();
             ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
 
-            ManagedChannelKey forward = ManagedChannelKey.FromEndpoint(endpoint);
-            ManagedChannelKey reverse = ManagedChannelKey.FromEndpoint(
+            var forward = ManagedChannelKey.FromEndpoint(endpoint);
+            var reverse = ManagedChannelKey.FromEndpoint(
                 endpoint,
                 reverseConnectionIdentity: new object());
 
@@ -104,8 +103,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             using Certificate serverCert = s_factory.CreateCertificate("CN=server").CreateForRSA();
             ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
 
-            ManagedChannelKey r1 = ManagedChannelKey.FromEndpoint(endpoint, reverseConnectionIdentity: new object());
-            ManagedChannelKey r2 = ManagedChannelKey.FromEndpoint(endpoint, reverseConnectionIdentity: new object());
+            var r1 = ManagedChannelKey.FromEndpoint(endpoint, reverseConnectionIdentity: new object());
+            var r2 = ManagedChannelKey.FromEndpoint(endpoint, reverseConnectionIdentity: new object());
 
             Assert.That(r1, Is.Not.EqualTo(r2));
         }
@@ -673,7 +672,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             {
                 session = await harness.CreateSessionAsync(endpointA).ConfigureAwait(false);
                 int managerCreatedChannels = harness.CreatedChannels.Count;
-                var explicitChannel = harness.CreateOpenedStandaloneChannel(endpointB);
+                ScriptedChannel explicitChannel = harness.CreateOpenedStandaloneChannel(endpointB);
 
                 await session
                     .RecreateInPlaceAsync(endpointB, channel: explicitChannel.Channel, ct: default)
@@ -862,7 +861,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     verify();
                     return;
                 }
-                catch (Moq.MockException)
+                catch (MockException)
                 {
                     await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
                     elapsed += kPollIntervalMs;
@@ -915,7 +914,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 Activity activity = await listener
                     .WaitForStoppedActivityAsync("OpcUaChannelReconnect")
                     .ConfigureAwait(false);
-                Dictionary<string, object?> tags = activity.TagObjects.ToDictionary(t => t.Key, t => t.Value);
+                var tags = activity.TagObjects.ToDictionary(t => t.Key, t => t.Value);
                 Assert.That(tags, Does.ContainKey("endpoint"));
                 Assert.That(tags["endpoint"], Is.EqualTo(endpointUrl));
                 Assert.That(tags, Does.ContainKey("attempt.count"));
@@ -1650,7 +1649,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 m_listener = new ActivityListener
                 {
                     ShouldListenTo = source => source.Name == "Opc.Ua.ChannelManager",
-                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                    Sample = (ref _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStopped = activity =>
                     {

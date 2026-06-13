@@ -128,7 +128,7 @@ namespace Opc.Ua.Sessions.Tests
         [CancelAfter(180_000)]
         public async Task ParticipantTimeoutBoundsSlowReconnectParticipantAsync(CancellationToken ct)
         {
-            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(500);
+            var participantTimeout = TimeSpan.FromMilliseconds(500);
             await using ClientChannelManager manager = CreateChannelManager(
                 new ExponentialBackoffChannelReconnectPolicy
                 {
@@ -156,7 +156,7 @@ namespace Opc.Ua.Sessions.Tests
                 slowLease = await manager.GetAsync(slowParticipant, ct).ConfigureAwait(false);
                 Assert.That(slowLease.Key, Is.EqualTo(sessionLease.Key));
 
-                Stopwatch sw = Stopwatch.StartNew();
+                var sw = Stopwatch.StartNew();
                 await manager.ReconnectAsync(sessionLease, ct).ConfigureAwait(false);
                 sw.Stop();
 

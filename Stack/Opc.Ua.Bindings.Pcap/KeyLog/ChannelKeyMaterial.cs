@@ -29,7 +29,6 @@
 
 using System;
 using System.Security.Cryptography;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.KeyLog
 {

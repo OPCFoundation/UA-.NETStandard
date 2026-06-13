@@ -248,7 +248,7 @@ namespace Opc.Ua.Client
             var result = new List<SubscriptionStateSnapshot>();
             foreach (ISubscription s in session.SubscriptionManager.Items)
             {
-                if (s is Subscriptions.LogicalSubscription logical)
+                if (s is LogicalSubscription logical)
                 {
                     result.AddRange(logical.SnapshotAllPartitions());
                 }
