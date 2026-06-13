@@ -116,7 +116,7 @@ The 2.0 release introduces breaking API changes, and comes with a full
 [per-area documentation](Docs/migrate/2.0.x/README.md) covering
 telemetry, packages, source generation, types, encoders, node states,
 identity, certificates, configuration, sessions / subscriptions,
-alarms / model change, and TimeProvider.
+alarms / model change, TimeProvider, and WoT Connectivity.
 
 Most of the mechanical migration work is automated:
 

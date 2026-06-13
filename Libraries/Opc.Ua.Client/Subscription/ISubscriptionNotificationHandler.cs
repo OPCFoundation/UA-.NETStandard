@@ -59,7 +59,30 @@ namespace Opc.Ua.Client.Subscriptions
     /// <param name="Value"></param>
     /// <param name="DiagnosticInfo"></param>
     public record struct DataValueChange(IMonitoredItem? MonitoredItem,
-        DataValue Value, DiagnosticInfo? DiagnosticInfo);
+        DataValue Value, DiagnosticInfo? DiagnosticInfo)
+    {
+        /// <summary>
+        /// <para>
+        /// Server-assigned subscription identifier of the partition
+        /// that delivered this notification. For single-partition
+        /// logical subscriptions (the default) this matches
+        /// <c>ISubscription.ServerId</c> of the subscription the
+        /// caller registered. For multi-partition subscriptions —
+        /// where the V2 engine has transparently split monitored
+        /// items across multiple server-side subscriptions — this
+        /// disambiguates the source partition so callers that key
+        /// off <c>sequenceNumber</c> in their handler can use the
+        /// tuple <c>(PartitionServerId, sequenceNumber)</c> to
+        /// correlate across publish responses.
+        /// </para>
+        /// <para>
+        /// <c>0</c> on records minted without partition context (e.g.
+        /// test fixtures); production publish dispatch always
+        /// populates this with the partition's server id.
+        /// </para>
+        /// </summary>
+        public uint PartitionServerId { get; init; }
+    }
 
     /// <summary>
     /// <para>
@@ -81,7 +104,17 @@ namespace Opc.Ua.Client.Subscriptions
     /// <param name="MonitoredItem"></param>
     /// <param name="Fields"></param>
     public record struct EventNotification(IMonitoredItem? MonitoredItem,
-        ArrayOf<Variant> Fields);
+        ArrayOf<Variant> Fields)
+    {
+        /// <summary>
+        /// Server-assigned subscription identifier of the partition
+        /// that delivered this notification. See
+        /// <see cref="DataValueChange.PartitionServerId"/> for full
+        /// semantics — the same disambiguation rules apply to event
+        /// notifications.
+        /// </summary>
+        public uint PartitionServerId { get; init; }
+    }
 
     /// <summary>
     /// Notification handler

@@ -35,39 +35,13 @@ legacy migration notes inline.
 
 | From | To | Where to read |
 | --- | --- | --- |
-| `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page + 12 thematic sub-docs (telemetry, packages, source-generation, types, encoders, node-states, identity, certificates, configuration, sessions-subscriptions, alarms-model-change, timeprovider). |
+| `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page + 13 thematic sub-docs (telemetry, packages, source-generation, types, encoders, node-states, identity, certificates, configuration, sessions-subscriptions, alarms-model-change, timeprovider, wot). |
 | `1.05.377` | `1.05.378` | [§ inline below](#migrating-from-105377-to-105378) — small enough to keep on this page. |
 | `1.04` | `1.05` | [§ inline below](#migrating-from-104-to-105) — small enough to keep on this page. |
 
 Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
-
-### Security tightening — WoT Connectivity management methods
-
-**Behaviour-breaking, not source-breaking.** The five management methods on the standard `WoTAssetConnectionManagement` object (`CreateAsset`, `DeleteAsset`, `DiscoverAssets`, `CreateAssetForEndpoint`, `ConnectionTest`) now reject anonymous and `None`/`Sign`-only callers by default. The new `WotConnectivityServerOptions.ManagementAccess` (`WotManagementAccessPolicy`) defaults to:
-
-* `MinimumSecurityMode = MessageSecurityMode.SignAndEncrypt`,
-* `AllowAnonymous = false`,
-* `RequiredRoleId = ObjectIds.WellKnownRole_SecurityAdmin`.
-
-Existing deployments that relied on anonymous management over `None` channels must either configure their clients to use `SignAndEncrypt` and present a `SecurityAdmin`-roled identity, or explicitly opt-in to the legacy behaviour:
-
-```csharp
-services.AddOpcUa()
-    .AddServer(...)
-    .AddWotConServer(opts =>
-    {
-        opts.ManagementAccess = new WotManagementAccessPolicy
-        {
-            AllowAnonymous = true,
-            MinimumSecurityMode = MessageSecurityMode.None,
-            RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
-        };
-    });
-```
-
-Internal callers that invoke `AssetRegistry.*Async` directly (startup restoration of persisted assets, in-process tests) are unaffected — the enforcement runs only against `OperationContext`-bearing address-space calls.
 
 ## Migrating from 1.05.377 to 1.05.378
 

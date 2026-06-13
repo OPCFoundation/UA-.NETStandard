@@ -127,7 +127,13 @@ factories can be assembled deterministically and AOT-cleanly; OPC UA
 cross-assembly model references are tracked via the
 [`ModelDependencyAttribute`](ModelDependencies.md). The generator can also
 default a model's instance modelling rules to its type-definition rules,
-which the stack now opts into.
+which the stack now opts into. For Optional `Variable`/`Method` children
+the generator emits **five chainable `Add{Child}` overloads** per typed
+state class (idempotent ensure-child, `Action<TChild>` configure,
+conditional configure, `Func<TChild, TChild>` replace, conditional
+replace) so opt-in extensions of singleton instances collapse into a
+single fluent chain instead of `if (cond) { x.AddAndGetY().Value = …; }`
+ceremony.
 
 ### OPC UA companion-spec coverage
 
@@ -169,8 +175,12 @@ server- and client-side implementations:
   client helpers. See [Device Integration](DeviceIntegration.md) and
   [Software Update](SoftwareUpdate.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
-  for surfacing OPC UA servers as Web of Things Thing Descriptions. See
-  [WoT Connectivity](WoTConnectivity.md).
+  for surfacing OPC UA servers as Web of Things Thing Descriptions, with
+  the `WoTAssetConnectionManagement` server methods now gated by a
+  configurable `WotManagementAccessPolicy` (defaults: `SignAndEncrypt`
+  channel + `SecurityAdmin` role + no anonymous). See
+  [WoT Connectivity](WoTConnectivity.md) and the
+  [WoT migration sub-doc](migrate/2.0.x/wot.md).
 - **Local Discovery Server**: a built-in LDS implementation usable
   standalone or as part of a hosted server.
 
@@ -254,12 +264,29 @@ and has feature and test parity with it; an opt-in
 `SubscriptionRecoveryPolicy` lets servers signal `Good_SubscriptionTransferred`
 without surprising the client; and the user
 token policy used on `Connect` is now re-used during `Reconnect` /
-`ReactivateSession`. New client-side features include
-[`FileSystemClient`](FileSystemClient.md) (a `System.IO`-style async client
-over OPC UA File methods), [`HistoryClient`](HistoricalAccess.md),
+`ReactivateSession`. Under the hood, a new
+**`IClientChannelManager`** owns client-side transport channels with
+reference counting, sharing, and coalesced reconnect: sessions, discovery
+clients, and registration clients targeting the same
+`ConfiguredEndpoint` (with the same reverse-connect identity) share a
+single underlying `ITransportChannel`, reconnect is transparent to
+callers, and the previous `AttachChannel` / `DetachChannel` +
+`SessionReconnectHandler` patterns are obsoleted. A shared `IRetryBudget`
+collapses the two-level retry deadline so reconnect no longer compounds
+multiplicatively. The new
+[**unbounded monitored items**](UnboundedSubscriptions.md) feature
+transparently shards a V2 `ManagedSession` subscription across multiple
+real server-side `Subscription` partitions when the server's
+`MaxMonitoredItemsPerSubscription` cap is hit — callers that exceed the
+cap continue to succeed instead of failing with
+`BadTooManyMonitoredItems`, and the public `ISubscription` /
+`MonitoredItemCollection` shape is unchanged. New client-side features
+include [`FileSystemClient`](FileSystemClient.md) (a `System.IO`-style
+async client over OPC UA File methods),
+[`HistoryClient`](HistoricalAccess.md),
 [`AlarmClient`](AlarmsAndConditions.md), and source-generated typed
-ObjectType proxies. Client-side [NodeSet export](NodeSetExport.md) extracts
-a server's address space to NodeSet2 XML, and
+ObjectType proxies. Client-side [NodeSet export](NodeSetExport.md)
+extracts a server's address space to NodeSet2 XML, and
 [`ModelChangeTracking`](ModelChangeTracking.md) keeps the local
 `INodeCache` consistent with server-side model changes.
 
@@ -278,7 +305,11 @@ is in [GDS](GDS.md).
 
 A new **MCP server** (see [MCP Server](McpServer.md)) exposes OPC UA client
 operations as Model Context Protocol tools, so an LLM or Copilot can
-browse, read, write, subscribe, and call methods on any OPC UA server. A
+browse, read, write, subscribe, and call methods on any OPC UA server.
+The MCP server additionally ships **packet-capture, packet-decode, and
+packet-replay** tools so the agent can capture a UA-TCP exchange to
+PCAP, inspect the decoded service calls, and replay them — useful for
+reproducing interop issues without re-running the original client. A
 **2.0 Migration Analyzer + code fixer** ships as a Roslyn analyser package
 (`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`) that detects the
 typical 1.5.378 → 2.0 patterns and applies most of the mechanical edits

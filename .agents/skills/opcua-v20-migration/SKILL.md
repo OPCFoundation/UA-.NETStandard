@@ -61,6 +61,7 @@ the **single** sub-doc named in that row.
 | `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect | [`Docs/migrate/2.0.x/sessions-subscriptions.md`](../../../Docs/migrate/2.0.x/sessions-subscriptions.md) |
 | `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator` | [`Docs/migrate/2.0.x/alarms-model-change.md`](../../../Docs/migrate/2.0.x/alarms-model-change.md) |
 | `DateTime.UtcNow`, `Timer`, deterministic-time tests, `System.TimeProvider` adoption | [`Docs/migrate/2.0.x/timeprovider.md`](../../../Docs/migrate/2.0.x/timeprovider.md) |
+| WoT Connectivity management methods (`CreateAsset`, `DeleteAsset`, `DiscoverAssets`, `CreateAssetForEndpoint`, `ConnectionTest`) rejecting anonymous / unsecured callers, `WotManagementAccessPolicy` default of `SignAndEncrypt` + `SecurityAdmin` | [`Docs/migrate/2.0.x/wot.md`](../../../Docs/migrate/2.0.x/wot.md) |
 
 If the user's symptom does not obviously map to one row, read
 [`Docs/migrate/2.0.x/README.md`](../../../Docs/migrate/2.0.x/README.md) (small —

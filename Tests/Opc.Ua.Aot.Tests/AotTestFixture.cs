@@ -165,6 +165,33 @@ namespace Opc.Ua.Aot.Tests
 #pragma warning restore CA2000 // Dispose objects before losing scope
         }
 
+        /// <summary>
+        /// Creates a new <see cref="ManagedSession"/> (V2 engine)
+        /// connected to the same server. Used by AOT tests that
+        /// exercise V2-only surfaces such as
+        /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager"/>
+        /// or <see cref="Opc.Ua.Client.Subscriptions.IPartitionedSubscription"/>.
+        /// Callers are responsible for closing and disposing.
+        /// </summary>
+        public async Task<ManagedSession> CreateManagedSessionAsync(
+            string sessionName = "AotTestManagedSession")
+        {
+            EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
+                m_clientConfiguration, ServerUrl, useSecurity: false,
+                Telemetry, CancellationToken.None).ConfigureAwait(false);
+            var configuredEndpoint = new ConfiguredEndpoint(
+                null, endpointDescription,
+                EndpointConfiguration.Create(m_clientConfiguration));
+
+#pragma warning disable CA2000 // Ownership transfers to caller via returned ManagedSession.
+            return await new ManagedSessionBuilder(m_clientConfiguration, Telemetry)
+                .UseEndpoint(configuredEndpoint)
+                .WithSessionName(sessionName)
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+#pragma warning restore CA2000
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (Session != null)

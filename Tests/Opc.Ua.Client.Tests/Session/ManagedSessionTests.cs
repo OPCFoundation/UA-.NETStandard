@@ -29,15 +29,18 @@
 
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Identity;
 using Opc.Ua.Tests;
+
+#pragma warning disable CA2000
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -208,6 +211,55 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task ManagedSessionPropagatesBudgetToChannelManagerAsync()
+        {
+#if !NETSTANDARD2_1 && !NET8_0_OR_GREATER
+            Assert.Ignore(
+                "IClientChannelManager.ReconnectAsync(channel, budget, ct) is only available on net8.0+/netstandard2.1.");
+#else
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+
+            var managedChannel = new Mock<IManagedTransportChannel>();
+            managedChannel.SetupGet(c => c.MessageContext).Returns(messageContext);
+
+            IRetryBudget? capturedBudget = null;
+            var channelManager = new Mock<IClientChannelManager>();
+            channelManager.Setup(m => m.ReconnectAsync(
+                    managedChannel.Object,
+                    It.IsAny<IRetryBudget>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<IManagedTransportChannel, IRetryBudget, CancellationToken>(
+                    (_, budget, _) => capturedBudget = budget)
+                .Returns(new ValueTask());
+
+            using var innerSession = new Session(
+                managedChannel.Object,
+                configuration,
+                endpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+            innerSession.BindManagedChannel(channelManager.Object, managedChannel.Object);
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                endpoint,
+                innerSession,
+                telemetry);
+            var budget = new RetryBudget(TimeSpan.FromSeconds(30));
+
+            ServiceResult result = await InvokeHandleReconnectAsync(
+                    managedSession,
+                    budget)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(capturedBudget, Is.SameAs(budget));
+#endif
+        }
+
+        [Test]
         public void ConnectionStateChangedEventArgsHasCorrectProperties()
         {
             var error = new ServiceResult(StatusCodes.BadCommunicationError);
@@ -292,6 +344,150 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     configuration: config,
                     endpoint: null,
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
+        }
+
+        private static Task<ServiceResult> InvokeHandleReconnectAsync(
+            Client.ManagedSession managedSession,
+            IRetryBudget budget)
+        {
+            MethodInfo? method = typeof(Client.ManagedSession).GetMethod(
+                "HandleReconnectAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                [typeof(IRetryBudget), typeof(CancellationToken)],
+                null);
+
+            Assert.That(method, Is.Not.Null);
+
+            var task = (Task<ServiceResult>?)method!.Invoke(
+                managedSession,
+                [budget, CancellationToken.None]);
+
+            Assert.That(task, Is.Not.Null);
+            return task!;
+        }
+
+        private static Client.ManagedSession CreateManagedSessionWithInner(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            Session innerSession,
+            ITelemetryContext telemetry)
+        {
+            ILogger<Client.ManagedSession> logger = telemetry.CreateLogger<Client.ManagedSession>();
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            var reconnectPolicy = new ReconnectPolicy(new ReconnectPolicyOptions
+            {
+                MaxTotalReconnectTime = TimeSpan.FromSeconds(30)
+            });
+
+            ConstructorInfo? ctor = typeof(Client.ManagedSession).GetConstructor(
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                [
+                    typeof(ApplicationConfiguration),
+                    typeof(ConfiguredEndpoint),
+                    typeof(ISessionFactory),
+                    typeof(IReconnectPolicy),
+                    typeof(IServerRedundancyHandler),
+                    typeof(ILogger),
+                    typeof(IUserIdentity),
+                    typeof(IClientIdentityProvider),
+                    typeof(TimeProvider),
+                    typeof(ArrayOf<string>),
+                    typeof(string),
+                    typeof(uint),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(IClientChannelManager)
+                ],
+                null);
+
+            Assert.That(ctor, Is.Not.Null);
+
+            var managedSession = (Client.ManagedSession)ctor!.Invoke(
+            [
+                configuration,
+                endpoint,
+                sessionFactory.Object,
+                reconnectPolicy,
+                null,
+                logger,
+                null,
+                null,
+                null,
+                default(ArrayOf<string>),
+                "TestManagedSession",
+                60000u,
+                false,
+                false,
+                false,
+                null
+            ]);
+
+            typeof(Client.ManagedSession)
+                .GetField(
+                    "m_session",
+                    BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(managedSession, innerSession);
+
+            return managedSession;
+        }
+
+        private static ApplicationConfiguration CreateClientConfiguration(
+            ITelemetryContext telemetry)
+        {
+            return new ApplicationConfiguration(telemetry)
+            {
+                ApplicationName = "ManagedSessionTests",
+                ApplicationType = ApplicationType.Client,
+                ApplicationUri = "urn:localhost:ManagedSessionTests",
+                ProductUri = "urn:localhost:ManagedSessionTests",
+                ClientConfiguration = new ClientConfiguration
+                {
+                    DefaultSessionTimeout = 60000,
+                    MinSubscriptionLifetime = 10000
+                },
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier()
+                },
+                TransportQuotas = new TransportQuotas
+                {
+                    OperationTimeout = 6000
+                }
+            };
+        }
+
+        private static ConfiguredEndpoint CreateEndpoint()
+        {
+            var description = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = Profiles.UaTcpTransport,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        PolicyId = "anonymous",
+                        TokenType = UserTokenType.Anonymous,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                ]
+            };
+            description.Server.ApplicationUri = description.EndpointUrl;
+            description.Server.ApplicationType = ApplicationType.Server;
+
+            return new ConfiguredEndpoint(
+                null,
+                description,
+                new EndpointConfiguration { OperationTimeout = 6000 })
+            {
+                UpdateBeforeConnect = false
+            };
         }
     }
 }
