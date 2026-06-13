@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <!--
+      Kestrel-hosted opc.tcp listener is netcoreapp-only because the ASP.NET
+      Core 2.3 ConnectionContext API used on net472/net48/netstandard2.1
+      does not expose LocalEndPoint/RemoteEndPoint/ConnectionClosed as
+      first-class properties. The raw-socket TcpTransportListener (which
+      ships in Opc.Ua.Core) remains the default and stays available on
+      every TFM the rest of the stack supports.
+    -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix).Bindings.Kestrel.Tcp</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Kestrel.Tcp</PackageId>
+    <RootNamespace>Opc.Ua.Bindings</RootNamespace>
+    <Description>OPC UA opc.tcp:// binding hosted by Kestrel for applications that want to serve every OPC UA transport from a single IHost.</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>
+
