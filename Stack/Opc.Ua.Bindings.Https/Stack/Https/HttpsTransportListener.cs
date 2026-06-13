@@ -171,38 +171,95 @@ namespace Opc.Ua.Bindings
             // can accept opcua+uacp / opcua+uajson sub-protocols.
             appBuilder.UseWebSockets();
 
+            appBuilder.Run(context => DispatchListenerRequestAsync(listener, context));
+        }
+
+        /// <summary>
+        /// Dispatch logic shared between the single-listener
+        /// <see cref="Configure"/> pipeline and the shared-host
+        /// <see cref="SharedHostStartup"/> path-router. Routes the
+        /// <paramref name="context"/> to the right listener handler based
+        /// on whether it is a WebSocket upgrade, HTTP POST with
+        /// <c>application/opcua+uajson</c>, or HTTP POST with the binary
+        /// content-type.
+        /// </summary>
+        /// <param name="listener">The listener that owns the endpoint path.</param>
+        /// <param name="context">The current HTTP context.</param>
+        internal static Task DispatchListenerRequestAsync(
+            HttpsTransportListener listener,
+            HttpContext context)
+        {
+            // 1) WSS opcua+uacp / opcua+uajson upgrade (Part 6 §7.5.2)
+            if (context.WebSockets.IsWebSocketRequest)
+            {
+                return listener.AcceptWebSocketAsync(context);
+            }
+
+            // 2) HTTP POST is the only verb defined for HTTPS binary / JSON
+            //    (Part 6 §7.4.2 + §7.4.5).
+            if (context.Request.Method != "POST")
+            {
+                context.Response.ContentLength = 0;
+                context.Response.ContentType = kHttpsContentType;
+                context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                return context.Response.WriteAsync(string.Empty);
+            }
+
+            // 3) Dispatch on Content-Type: 'application/opcua+uajson' is the
+            //    HTTPS-JSON sub-protocol (Part 6 §7.4.5); anything else is
+            //    treated as binary by SendBinaryAsync (which itself enforces
+            //    the 'application/octet-stream' contract per Part 6 §7.4.4).
+            string? contentType = context.Request.ContentType;
+            if (!string.IsNullOrEmpty(contentType) &&
+                contentType!.StartsWith(
+                    Profiles.OpcUaJsonContentType,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return listener.SendJsonAsync(context);
+            }
+
+            return listener.SendBinaryAsync(context);
+        }
+    }
+
+    /// <summary>
+    /// Startup type used by <see cref="SharedKestrelHost"/>. Routes
+    /// incoming requests to the listener whose
+    /// <see cref="HttpsTransportListener.EndpointUrl"/> absolute path is
+    /// the longest prefix of <see cref="HttpRequest.Path"/> and then
+    /// hands off to <see cref="Startup.DispatchListenerRequestAsync"/>.
+    /// </summary>
+    internal class SharedHostStartup
+    {
+        /// <summary>
+        /// Configures the shared host's request pipeline.
+        /// </summary>
+        /// <param name="appBuilder">The application builder.</param>
+        /// <param name="accessor">
+        /// Late-bound accessor that resolves to the
+        /// <see cref="SharedKestrelHost"/> serving this Kestrel host.
+        /// Set by <see cref="SharedKestrelHostRegistry.Acquire"/> before
+        /// the host is started.
+        /// </param>
+        public void Configure(IApplicationBuilder appBuilder, SharedHostAccessor accessor)
+        {
+            if (accessor == null)
+            {
+                throw new ArgumentNullException(nameof(accessor));
+            }
+            appBuilder.UseWebSockets();
             appBuilder.Run(context =>
             {
-                // 1) WSS opcua+uacp / opcua+uajson upgrade (Part 6 §7.5.2)
-                if (context.WebSockets.IsWebSocketRequest)
-                {
-                    return listener.AcceptWebSocketAsync(context);
-                }
-
-                // 2) HTTP POST is the only verb defined for HTTPS binary / JSON
-                //    (Part 6 §7.4.2 + §7.4.5).
-                if (context.Request.Method != "POST")
+                SharedKestrelHost? sharedHost = accessor.Instance;
+                HttpsTransportListener? listener = sharedHost?.RouteByPath(context.Request.Path);
+                if (listener == null)
                 {
                     context.Response.ContentLength = 0;
-                    context.Response.ContentType = kHttpsContentType;
-                    context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     return context.Response.WriteAsync(string.Empty);
                 }
-
-                // 3) Dispatch on Content-Type: 'application/opcua+uajson' is the
-                //    HTTPS-JSON sub-protocol (Part 6 §7.4.5); anything else is
-                //    treated as binary by SendBinaryAsync (which itself enforces
-                //    the 'application/octet-stream' contract per Part 6 §7.4.4).
-                string? contentType = context.Request.ContentType;
-                if (!string.IsNullOrEmpty(contentType) &&
-                    contentType!.StartsWith(
-                        Profiles.OpcUaJsonContentType,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return listener.SendJsonAsync(context);
-                }
-
-                return listener.SendBinaryAsync(context);
+                return Startup.DispatchListenerRequestAsync(listener, context);
             });
         }
     }
@@ -245,6 +302,10 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionStatusChanged = null;
                 ConnectionWaiting = null;
+                // Release the shared-host lease first; if this was the last
+                // listener on the (host, port) the registry stops the host.
+                m_sharedHostLease?.Dispose();
+                m_sharedHostLease = null;
                 m_host?.Dispose();
                 m_host = null;
                 m_pinnedServerCertX509?.Dispose();
@@ -366,6 +427,127 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Start()
         {
+            // 1) Prepare the TLS certificate up front so the registry can
+            //    key on its thumbprint when matching shared hosts.
+            PrepareTlsCertificate();
+
+            // 2) Try to share a Kestrel host with any other listener bound
+            //    to the same (host, port). Random-port listeners (Port == 0)
+            //    cannot meaningfully share - the OS allocates the port at
+            //    bind time so the key would change every Start.
+            if (EndpointUrl.Port != 0 && m_pinnedServerCertX509 != null)
+            {
+                var key = new SharedHostKey(EndpointUrl.Host, EndpointUrl.Port);
+                string thumbprint = m_pinnedServerCertX509.Thumbprint;
+                try
+                {
+                    m_sharedHostLease = SharedKestrelHostRegistry.Instance.Acquire(
+                        key,
+                        this,
+                        EndpointUrl.AbsolutePath,
+                        BuildSharedHostInstance,
+                        thumbprint);
+                    return;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "HTTPSLISTENER cannot share Kestrel host on {Key}; falling back to private host.",
+                        key);
+                    // fall through to legacy own-host path below
+                }
+            }
+
+            StartOwnHost();
+        }
+
+        /// <summary>
+        /// Builds a Kestrel <see cref="IHost"/> configured as the
+        /// SHARED host for the (host, port) the listener is bound to.
+        /// Used by <see cref="SharedKestrelHostRegistry"/> via the
+        /// <c>hostFactory</c> callback when no existing host is found
+        /// for the key.
+        /// </summary>
+        private IHost BuildSharedHostInstance(SharedHostAccessor accessor)
+        {
+#if NET8_0_OR_GREATER
+            return new HostBuilder()
+                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor))
+                .Build();
+#else
+            // Legacy WebHostBuilder.Start() can't be split into Build+Start; use
+            // Build() on the IWebHost equivalent and start in AttachAndStart.
+            var sharedHostBuilder = new WebHostBuilder();
+            ConfigureSharedWebHost(sharedHostBuilder, accessor);
+            IWebHost webHost = sharedHostBuilder.UseUrls(Utils.ReplaceLocalhost(EndpointUrl.ToString())).Build();
+            return new WebHostAsIHost(webHost);
+#endif
+        }
+
+#if !NET8_0_OR_GREATER
+        /// <summary>
+        /// Adapts a legacy <see cref="IWebHost"/> to the
+        /// <see cref="IHost"/> contract used by the shared-host registry.
+        /// </summary>
+        private sealed class WebHostAsIHost : IHost
+        {
+            private readonly IWebHost m_webHost;
+            public WebHostAsIHost(IWebHost webHost) { m_webHost = webHost; }
+            public IServiceProvider Services => m_webHost.Services;
+            public Task StartAsync(CancellationToken ct = default) => m_webHost.StartAsync(ct);
+            public Task StopAsync(CancellationToken ct = default) => m_webHost.StopAsync(ct);
+            public void Dispose() => m_webHost.Dispose();
+        }
+#endif
+
+        /// <summary>
+        /// Configures the underlying <see cref="IWebHostBuilder"/> for a
+        /// SHARED host (uses <see cref="SharedHostStartup"/> + path-prefix
+        /// routing). The TLS cert + Kestrel listen-options are taken from
+        /// this listener's pinned state, established by
+        /// <see cref="PrepareTlsCertificate"/>.
+        /// </summary>
+#pragma warning disable CA1859 // see ConfigureWebHost rationale
+        private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
+#pragma warning restore CA1859
+        {
+            var httpsOptions = new HttpsConnectionAdapterOptions
+            {
+                CheckCertificateRevocation = false,
+                ClientCertificateMode = m_mutualTlsEnabled
+                    ? ClientCertificateMode.AllowCertificate
+                    : ClientCertificateMode.NoCertificate,
+                ServerCertificate = m_pinnedServerCertX509,
+                ClientCertificateValidation = ValidateClientCertificate,
+                SslProtocols = SslProtocols.None
+            };
+
+            UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
+            if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
+            {
+                webHostBuilder.UseKestrel(options =>
+                    options.ListenAnyIP(
+                        EndpointUrl.Port,
+                        listenOptions => listenOptions.UseHttps(httpsOptions)));
+            }
+            else
+            {
+                var ipAddress = IPAddress.Parse(EndpointUrl.Host);
+                webHostBuilder.UseKestrel(options =>
+                    options.Listen(
+                        ipAddress,
+                        EndpointUrl.Port,
+                        listenOptions => listenOptions.UseHttps(httpsOptions)));
+            }
+
+            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
+            webHostBuilder.ConfigureServices(services => services.AddSingleton(accessor));
+            webHostBuilder.UseStartup<SharedHostStartup>();
+        }
+
+        private void StartOwnHost()
+        {
 #if NET8_0_OR_GREATER
             m_host = new HostBuilder()
                 .ConfigureWebHostDefaults(ConfigureWebHost)
@@ -379,14 +561,12 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
-        /// on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
-        /// which passes an IWebHostBuilder, not WebHostBuilder.
+        /// Resolves and pins the TLS certificate the listener will use.
+        /// Sets <c>m_pinnedServerCert</c>, <c>m_pinnedServerCertX509</c>
+        /// and <see cref="ServerChannelCertificate"/>; safe to call
+        /// before either the shared-host or own-host path runs.
         /// </summary>
-        /// <param name="webHostBuilder"></param>
-#pragma warning disable CA1859
-        private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
-#pragma warning restore CA1859
+        private void PrepareTlsCertificate()
         {
             // prepare the server TLS certificate. The provider returns a
             // borrowed reference owned by the registry; AddRef so this
@@ -426,7 +606,20 @@ namespace Opc.Ua.Bindings
 
             // save the server certificate so it can be used in the secure channel context.
             ServerChannelCertificate = serverCertificate!.RawData;
+        }
 
+        /// <summary>
+        /// CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
+        /// on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
+        /// which passes an IWebHostBuilder, not WebHostBuilder.
+        /// </summary>
+        /// <param name="webHostBuilder"></param>
+#pragma warning disable CA1859
+        private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
+#pragma warning restore CA1859
+        {
+            // TLS cert was already pinned by PrepareTlsCertificate() at the
+            // top of Start(); use the pinned cert directly.
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
                 CheckCertificateRevocation = false,
@@ -1360,6 +1553,7 @@ namespace Opc.Ua.Bindings
 #else
         private IWebHost? m_host;
 #endif
+        private SharedHostLease? m_sharedHostLease;
         private ICertificateRegistry m_serverCertProvider = null!;
         private Certificate? m_pinnedServerCert;
         private X509Certificate2? m_pinnedServerCertX509;
