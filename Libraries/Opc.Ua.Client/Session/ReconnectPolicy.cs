@@ -70,6 +70,11 @@ namespace Opc.Ua.Client
         public static readonly TimeSpan DefaultMaxDelay = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// Default maximum total reconnect time (5 minutes).
+        /// </summary>
+        public static readonly TimeSpan DefaultMaxTotalReconnectTime = TimeSpan.FromMinutes(5);
+
+        /// <summary>
         /// Initialize a reconnect policy with default options.
         /// </summary>
         public ReconnectPolicy()
@@ -91,6 +96,7 @@ namespace Opc.Ua.Client
             MaxRetries = options.MaxRetries;
             Strategy = options.Strategy;
             JitterFactor = options.JitterFactor;
+            MaxTotalReconnectTime = options.MaxTotalReconnectTime;
         }
 
         /// <summary>
@@ -117,6 +123,12 @@ namespace Opc.Ua.Client
         /// Jitter factor (0.0 = no jitter, 0.1 = ±10%).
         /// </summary>
         public double JitterFactor { get; set; } = 0.1;
+
+        /// <summary>
+        /// Maximum total elapsed time for one reconnect cycle across
+        /// outer ManagedSession retries and channel-manager retries.
+        /// </summary>
+        public TimeSpan MaxTotalReconnectTime { get; set; } = DefaultMaxTotalReconnectTime;
 
         /// <inheritdoc/>
         public TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default)

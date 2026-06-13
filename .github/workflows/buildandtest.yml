@@ -9,6 +9,9 @@ on:
     - '**.cs'
     - '**.csproj'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -28,8 +31,8 @@ jobs:
         # Discover test projects from the filesystem so this matrix does
         # not have to be hand-maintained as projects are added/renamed.
         # Projects whose name is in EXCLUDE are run by other workflows
-        # (AOT has its own workflow; Stress + Fuzz are opt-in haul/fuzz
-        # runs).
+        # (AOT has its own workflow; the Stress suite is opt-in via the
+        # stress-test workflow).
         $exclude = @('Aot', 'Stress')
         $projects = Get-ChildItem -Path Tests -Directory -Filter 'Opc.Ua.*.Tests' |
             Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") } |
@@ -79,11 +82,35 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Build
-      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
+      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }} /p:UseSharedCompilation=false -maxcpucount:1
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
-      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }}
+      shell: pwsh
+      run: |
+        $testArgs = @(
+          '${{ env.CSPROJECT }}',
+          '--no-build',
+          '--framework',
+          '${{ matrix.framework }}',
+          '--logger',
+          'trx',
+          '--configuration',
+          '${{ matrix.configuration }}',
+          '/p:CollectCoverage=true',
+          '/p:CustomTestTarget=${{ matrix.customtesttarget }}',
+          '--collect:XPlat Code Coverage',
+          '--settings',
+          './Tests/coverlet.runsettings.xml',
+          '--results-directory',
+          '${{ env.TESTRESULTS }}')
+
+        if ('${{ matrix.csproj }}' -eq 'Channels.Stress')
+        {
+          $testArgs += @('--filter', '(Category=Contract|Category=Integration)&Category!=ChaosTCP&Category!=Soak')
+        }
+
+        dotnet test @testArgs
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
