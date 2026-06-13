@@ -176,11 +176,10 @@ server- and client-side implementations:
   [Software Update](SoftwareUpdate.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
-  the `WoTAssetConnectionManagement` server methods now gated by a
+  the `WoTAssetConnectionManagement` server methods gated by a
   configurable `WotManagementAccessPolicy` (defaults: `SignAndEncrypt`
   channel + `SecurityAdmin` role + no anonymous). See
-  [WoT Connectivity](WoTConnectivity.md) and the
-  [WoT migration sub-doc](migrate/2.0.x/wot.md).
+  [WoT Connectivity](WoTConnectivity.md).
 - **Local Discovery Server**: a built-in LDS implementation usable
   standalone or as part of a hosted server.
 

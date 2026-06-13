@@ -41,7 +41,6 @@ table; loading a single sub-doc keeps the context window small.
 | `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect | [`sessions-subscriptions.md`](sessions-subscriptions.md) |
 | `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator`, `INodeCache.InvalidateNode` triggered by model change | [`alarms-model-change.md`](alarms-model-change.md) |
 | `DateTime.UtcNow`, `Timer`, deterministic time in tests; `System.TimeProvider` adoption | [`timeprovider.md`](timeprovider.md) |
-| WoT Connectivity management methods (`CreateAsset`, `DeleteAsset`, `DiscoverAssets`, …) rejecting anonymous / unsecured callers, the new `WotManagementAccessPolicy` default (`SignAndEncrypt` + `SecurityAdmin` role) | [`wot.md`](wot.md) |
 
 ## All sub-documents
 
@@ -57,7 +56,6 @@ table; loading a single sub-doc keeps the context window small.
 - [`sessions-subscriptions.md`](sessions-subscriptions.md) — Sessions, GDS Client, and Subscriptions
 - [`alarms-model-change.md`](alarms-model-change.md) — Alarms and Address-Space Model Changes
 - [`timeprovider.md`](timeprovider.md) — Time and Timer Abstraction (`TimeProvider`)
-- [`wot.md`](wot.md) — WoT Connectivity (OPC 10100-1)
 
 ## See also
 
