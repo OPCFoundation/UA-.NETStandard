@@ -75,5 +75,12 @@ namespace Opc.Ua.Client
 
         /// <summary>The reconnect attempt number (0 when not reconnecting).</summary>
         public int ReconnectAttempt { get; init; }
+
+        /// <summary>
+        /// Underlying managed-channel state transition that caused this
+        /// outer state transition, or <c>null</c> when no channel-manager
+        /// state was involved.
+        /// </summary>
+        public ChannelStateChange? UnderlyingChannelState { get; init; }
     }
 }

@@ -269,7 +269,7 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.EnabledStateId,
                     out bool enabled) &&
                     !enabled,
-                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DefaultEventWaitTimeout).ConfigureAwait(false);
             AssertTransitionTimeInCallWindow(
                 disableEvent,
                 AlarmEventCollector.FieldIndex.EnabledStateTransitionTime,
@@ -299,7 +299,7 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.EnabledStateId,
                     out bool enabled) &&
                     enabled,
-                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DefaultEventWaitTimeout).ConfigureAwait(false);
             AssertTransitionTimeInCallWindow(
                 enableEvent,
                 AlarmEventCollector.FieldIndex.EnabledStateTransitionTime,

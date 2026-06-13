@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -37,6 +38,18 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
+    /// <summary>
+    /// Called when a server-side <see cref="TcpListenerChannel"/>
+    /// activates a new <see cref="ChannelToken"/>.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ This delegate exposes symmetric channel keys. See remarks on <c>OnTokenActivated</c>.
+    /// </remarks>
+    public delegate void ListenerChannelTokenActivatedEventHandler(
+        TcpListenerChannel channel,
+        ChannelToken? currentToken,
+        ChannelToken? previousToken);
+
     /// <summary>
     /// Manages the listening side of a UA TCP channel.
     /// </summary>
@@ -91,6 +104,45 @@ namespace Opc.Ua.Bindings
         {
             m_logger = telemetry.CreateLogger<TcpListenerChannel>();
             Listener = listener;
+
+            // Bridge the base channel's token-activated callback to the
+            // public event so external diagnostic taps can observe token
+            // transitions without needing to subclass.
+            TokenActivatedCallback = (current, previous)
+                => m_tokenActivated?.Invoke(this, current, previous);
+        }
+
+        /// <summary>
+        /// Raised when the channel activates a new <see cref="ChannelToken"/>
+        /// (initial activation, renewal or final close). The handler is
+        /// invoked with the newly active token and the previously active
+        /// token, both of which may be <c>null</c>. The token's derived
+        /// signing and encrypting key material is intentionally
+        /// <see langword="internal"/> on <see cref="ChannelToken"/>; tools
+        /// that need offline decryption capture it through a separate
+        /// stack-level diagnostics API.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// ⚠️ Registering a handler grants the consumer full access to the
+        /// symmetric channel keys carried by the activated <see cref="ChannelToken"/>
+        /// — signing key, encryption key, IV, and nonces. This is a key-disclosure
+        /// surface intended only for in-process diagnostic bindings (for example,
+        /// the <c>Opc.Ua.Bindings.Pcap</c> capture binding).
+        /// </para>
+        /// <para>
+        /// All non-diagnostic consumers MUST instead inject an
+        /// <c>IFrameCaptureSink</c> through the binding registry, which carries
+        /// the same audit semantics. Operations triggered through this event
+        /// must be recorded through <c>IPcapAuditSink</c> (or equivalent) so
+        /// key access remains observable.
+        /// </para>
+        /// </remarks>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public event ListenerChannelTokenActivatedEventHandler? OnTokenActivated
+        {
+            add => m_tokenActivated += value;
+            remove => m_tokenActivated -= value;
         }
 
         /// <summary>
@@ -706,6 +758,7 @@ namespace Opc.Ua.Bindings
         private bool m_responseRequired;
         private uint m_lastTokenId;
         private int m_sessionCount;
+        private event ListenerChannelTokenActivatedEventHandler? m_tokenActivated;
     }
 
     /// <summary>

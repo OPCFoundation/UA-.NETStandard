@@ -84,5 +84,129 @@ namespace Opc.Ua
                 ReturnDiagnostics = returnDiagnostics
             };
         }
+
+        /// <summary>
+        /// Creates a binding to use for registering servers through a shared channel manager.
+        /// </summary>
+        /// <param name="manager">The client channel manager used to acquire the shared channel.</param>
+        /// <param name="description">The endpoint description.</param>
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="instanceCertificate">The client instance certificate, if required by the endpoint.</param>
+        /// <param name="returnDiagnostics">Return diagnostics to send in the requests.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A registration client bound to a managed channel lease.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/>, <paramref name="description"/> or <paramref name="telemetry"/> is <c>null</c>.
+        /// </exception>
+        public static async Task<RegistrationClient> CreateAsync(
+            IClientChannelManager manager,
+            EndpointDescription description,
+            EndpointConfiguration? endpointConfiguration,
+            ITelemetryContext telemetry,
+            Certificate? instanceCertificate = null,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (description == null)
+            {
+                throw new ArgumentNullException(nameof(description));
+            }
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            if (instanceCertificate != null &&
+                description.SecurityPolicyUri is not null and not SecurityPolicies.None)
+            {
+                manager.UpdateClientCertificate(instanceCertificate, null);
+            }
+
+            var endpoint = new ConfiguredEndpoint(null, description, endpointConfiguration)
+            {
+                UpdateBeforeConnect = false
+            };
+            var participant = new ClientChannelReconnectParticipant(
+                nameof(RegistrationClient),
+                endpoint);
+            IManagedTransportChannel channel = await manager.GetAsync(participant, ct).ConfigureAwait(false);
+            try
+            {
+                return new RegistrationClient(channel, telemetry)
+                {
+                    ReturnDiagnostics = returnDiagnostics
+                };
+            }
+            catch
+            {
+                channel.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Creates a binding to use for registering servers through a shared channel manager.
+        /// </summary>
+        /// <param name="manager">The client channel manager used to acquire the shared channel.</param>
+        /// <param name="endpoint">The configured endpoint used to acquire the shared channel.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="instanceCertificate">The client instance certificate, if required by the endpoint.</param>
+        /// <param name="returnDiagnostics">Return diagnostics to send in the requests.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A registration client bound to a managed channel lease.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/>, <paramref name="endpoint"/> or <paramref name="telemetry"/> is <c>null</c>.
+        /// </exception>
+        public static async Task<RegistrationClient> CreateAsync(
+            IClientChannelManager manager,
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry,
+            Certificate? instanceCertificate = null,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            endpoint.Configuration ??= EndpointConfiguration.Create();
+            EndpointDescription description = endpoint.Description;
+            if (instanceCertificate != null &&
+                description.SecurityPolicyUri is not null and not SecurityPolicies.None)
+            {
+                manager.UpdateClientCertificate(instanceCertificate, null);
+            }
+
+            var participant = new ClientChannelReconnectParticipant(
+                nameof(RegistrationClient),
+                endpoint);
+            IManagedTransportChannel channel = await manager.GetAsync(participant, ct).ConfigureAwait(false);
+            try
+            {
+                return new RegistrationClient(channel, telemetry)
+                {
+                    ReturnDiagnostics = returnDiagnostics
+                };
+            }
+            catch
+            {
+                channel.Dispose();
+                throw;
+            }
+        }
     }
 }
