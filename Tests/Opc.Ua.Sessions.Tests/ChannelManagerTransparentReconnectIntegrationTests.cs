@@ -173,8 +173,28 @@ namespace Opc.Ua.Sessions.Tests
                         ct).ConfigureAwait(false),
                     Is.True,
                     "The swapped entry should recover to Ready after the server returns.");
-                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
-                Assert.That(GetDiagnostic(manager, channel.Key).State, Is.EqualTo(ChannelState.Ready));
+                // channel.State is a snapshot of the current state; poll
+                // for Ready instead of asserting against the snapshot the
+                // first WaitForAsync caught — on a slow Windows net48
+                // runner the channel can flap Ready → Faulted → Ready
+                // before the snapshot is taken, leaving the assertion
+                // reading Faulted. The diagnostic snapshot below uses
+                // the same lock-protected manager state so both polls
+                // converge on the post-swap Ready entry.
+                Assert.That(
+                    await WaitForAsync(
+                        () => channel.State == ChannelState.Ready,
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "Channel handle should observe Ready after the swap completes.");
+                Assert.That(
+                    await WaitForAsync(
+                        () => GetDiagnostic(manager, channel.Key).State == ChannelState.Ready,
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "Manager diagnostics should observe Ready after the swap completes.");
 
                 // The participant returned RequiresSessionRecreate from OnReconnectAsync
                 // (the server lost the session id while down). The manager dispatches
