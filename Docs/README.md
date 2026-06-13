@@ -10,7 +10,7 @@ Here is a list of available documentation for different topics:
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
-* Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
+* Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Observability](Observability.md) support in the stack.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).

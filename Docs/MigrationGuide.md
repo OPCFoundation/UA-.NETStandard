@@ -2043,6 +2043,16 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 **Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
 
+Two additive surface additions for the new WSS reverse-connect path (see [`Docs/ReverseConnect.md`](ReverseConnect.md)):
+
+* **`ReverseConnectManager.AddEndpoint(Uri, ApplicationConfiguration?)`** — new overload. Callers binding `opc.wss://` reverse-connect endpoints should pass the `ApplicationConfiguration` to this overload so the underlying `HttpsTransportListener` receives the `CertificateManager` at bind time. The single-parameter `AddEndpoint(Uri)` is unchanged and remains the right call for `opc.tcp://` endpoints (which don't need TLS state).
+* **`Opc.Ua.Bindings.Kestrel.Tcp`** — new opt-in package (net8+) that hosts `opc.tcp` on Kestrel and supports both forward and reverse-connect listener modes. Swap via `TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory())`. The default raw-socket `TcpTransportListener` continues to ship in `Opc.Ua.Core` for deployments that avoid the ASP.NET Core dependency.
+
+Channel-customization hooks (relevant only to consumers subclassing `UaSCBinaryChannel`-derived types):
+
+* **`UaSCBinaryChannel.StartReceiveLoop`** is now `protected internal virtual`. Existing overrides (none expected outside the stack) continue to work. The default implementation is unchanged.
+* **`UaSCBinaryChannel.StartReceiveLoopWithBody(Func<IUaSCByteTransport, CancellationToken, Task>)`** — new `protected` helper that sets up the receive-loop CTS/task state and runs a caller-supplied loop body. Used by `TcpReverseConnectChannel` to read a single `ReverseHello` chunk and exit cleanly (required because `WebSocket.ReceiveAsync` cancellation aborts the underlying WebSocket and would otherwise break the reverse-connect handoff).
+
 ### Security tightening — WoT Connectivity management methods
 
 **Behaviour-breaking, not source-breaking.** The five management methods on the standard `WoTAssetConnectionManagement` object (`CreateAsset`, `DeleteAsset`, `DiscoverAssets`, `CreateAssetForEndpoint`, `ConnectionTest`) now reject anonymous and `None`/`Sign`-only callers by default. The new `WotConnectivityServerOptions.ManagementAccess` (`WotManagementAccessPolicy`) defaults to:

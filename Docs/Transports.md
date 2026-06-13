@@ -73,7 +73,9 @@ single listener for its scheme.
 ```
 
 * The `opc.tcp` listener uses the lightweight raw-socket
-  `TcpTransportListener` (no ASP.NET Core dependency).
+  `TcpTransportListener` by default (no ASP.NET Core dependency). An
+  opt-in alternative — `Opc.Ua.Bindings.Kestrel.Tcp` — is described
+  below.
 * The `opc.https` and `opc.wss` listeners both share a single
   `HttpsTransportListener` per `(host, port)` — Kestrel routes the
   inbound HTTP request to the right handler based on the
@@ -173,6 +175,45 @@ a follow-up; for now clients that want JSON construct the
 `EndpointDescription` themselves with
 `TransportProfileUri = Profiles.HttpsJsonTransport` /
 `Profiles.UaWssJsonTransport`.
+
+## Opt-in: Kestrel-hosted `opc.tcp`
+
+By default the stack ships **two** listener implementations for
+`opc.tcp://`:
+
+| Package | Listener | When to use |
+| --- | --- | --- |
+| `Opc.Ua.Core` (default) | `TcpTransportListener` | Raw `Socket` + `SocketAsyncEventArgs`. No ASP.NET Core dependency. The right choice for trimmed / AOT deployments and for environments that already avoid pulling in `Microsoft.AspNetCore.App`. |
+| `Opc.Ua.Bindings.Kestrel.Tcp` (opt-in) | `KestrelTcpTransportListener` | Hosts `opc.tcp://` on Kestrel via `Microsoft.AspNetCore.Connections.ConnectionHandler`. Lets a single `IHost` serve `opc.tcp`, `opc.https`, and `opc.wss` so consumers manage one HTTP-style runtime, share TLS plumbing, and share observability middleware. |
+
+The Kestrel-TCP listener uses the same `IUaSCByteTransport` runtime
+boundary as the raw-socket listener, so the UASC channel pipeline is
+unchanged. It supports the full feature set the raw-socket listener
+does, including:
+
+* forward (server) and **reverse-connect** listener modes,
+* per-listener TLS certificate hot-update via
+  `ITransportListenerCertificateRotation`,
+* discovery (`EndpointDescription` emission via the shared
+  `TcpServiceHost` base).
+
+Swap it in by registering the factory **before** opening any
+`opc.tcp` listener (typically at application startup):
+
+```csharp
+TransportBindings.Listeners.SetBinding(
+    new KestrelTcpTransportListenerFactory());
+
+// All subsequent opc.tcp listeners (server endpoints AND client-side
+// reverse-connect hosts created by ReverseConnectHost.CreateListener)
+// will now run on Kestrel.
+```
+
+The package targets net8.0+ only (the ASP.NET Core `ConnectionContext`
+API surface used to bridge `Socket`-like semantics — `LocalEndPoint`,
+`RemoteEndPoint`, `ConnectionClosed` — is not consistently available
+on older TFMs). Consumers on net472 / netstandard2.x continue to use
+the raw-socket default.
 
 ## See also
 
