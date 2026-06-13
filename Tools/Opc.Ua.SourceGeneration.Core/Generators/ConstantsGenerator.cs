@@ -49,6 +49,7 @@ namespace Opc.Ua.SourceGeneration
         public ConstantsGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<ConstantsGenerator>();
         }
 
         /// <inheritdoc/>
@@ -118,7 +119,11 @@ namespace Opc.Ua.SourceGeneration
             }
 
             context.Template.AddReplacement(Tokens.SymbolicName, browseName.Key);
-            context.Template.AddReplacement(Tokens.BrowseName, browseName.Value);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                browseName.Value,
+                m_logger);
 
             return context.Template.Render();
         }
@@ -234,5 +239,6 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private readonly IGeneratorContext m_context;
+        private readonly Microsoft.Extensions.Logging.ILogger m_logger;
     }
 }

@@ -199,7 +199,20 @@ namespace Opc.Ua.Server
                         {
                             var activeNode = new ServerConfigurationState(passiveNode.Parent);
 
-                            activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
+                            // Optional ServerConfigurationType methods this
+                            // SDK wires in CreateServerConfiguration but that
+                            // are no longer emitted by the singleton factory
+                            // (Optional per Part 12). Use the idempotent
+                            // generated Add{Method} helpers so the typed
+                            // slot is initialised with the type-level
+                            // factory (BrowseName, InputArguments, etc.)
+                            // before Create() copies the loaded passive
+                            // node into the active subtree. The new
+                            // Add{Method}(context, nodeId?) chains via the
+                            // owner state for fluent usage.
+                            activeNode
+                                .AddGetCertificates(context)
+                                .AddCreateSelfSignedCertificate(context);
 
                             activeNode.Create(context, passiveNode);
 

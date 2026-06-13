@@ -1,6 +1,12 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Pin transitive package versions so PackageVersion entries below force the
+         resolved version everywhere they appear in the dependency graph, even when
+         no project declares a direct PackageReference. Used to remediate transitive
+         NU1903 vulnerabilities (System.Net.Http 4.3.0, System.Text.RegularExpressions
+         4.3.0) pulled in by Microsoft.AspNetCore.* 2.3.x on net8.0/net9.0/netstandard2.1. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
@@ -16,7 +22,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.10" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.8" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
@@ -48,7 +54,6 @@
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="TUnit" Version="1.51.0" />
-    <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
@@ -88,6 +93,12 @@
     <PackageVersion Include="System.Formats.Asn1" Version="10.0.8" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
     <PackageVersion Include="System.Net.NetworkInformation" Version="4.3.0" />
+    <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
+         net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
+         - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
+         - System.Text.RegularExpressions 4.3.1 fixes GHSA-cmhx-cq75-c4mj -->
+    <PackageVersion Include="System.Net.Http" Version="4.3.4" />
+    <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageVersion Include="System.Collections.Immutable" Version="10.0.8" />
     <PackageVersion Include="System.Reflection.Metadata" Version="10.0.6" />
     <PackageVersion Include="System.Text.Json" Version="10.0.8" />
@@ -96,5 +107,15 @@
     <PackageVersion Include="System.Security.Cryptography.Cng" Version="5.0.0" />
     <PackageVersion Include="System.Threading.Channels" Version="10.0.8" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
+  </ItemGroup>
+  <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is
+       required because CentralPackageTransitivePinningEnabled lets the central pin
+       win over PubSub's VersionOverride for transitive consumers (e.g. samples
+       that ProjectReference Opc.Ua.PubSub). See Libraries/Opc.Ua.PubSub.csproj. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
+    <PackageVersion Include="MQTTnet" Version="4.3.7.1207" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1'">
+    <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
   </ItemGroup>
 </Project>

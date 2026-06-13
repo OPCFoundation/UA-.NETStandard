@@ -804,6 +804,19 @@ subscription.TryAddMonitoredItem(
     out IMonitoredItem _);
 ```
 
+### Unbounded monitored items (default)
+
+The V2 `ISubscription` returned from `Add(...)` transparently splits
+monitored items across multiple server-side partition subscriptions
+when the server's per-subscription cap would be exceeded. Single-
+partition workloads pay zero overhead because the composite
+collection short-circuits to the primary partition. Pin items into
+the same partition with `MonitoredItemOptions.Affinity` so per-
+subscription features like `SetTriggering` keep working across the
+group; opt out of partitioning entirely with
+`SubscriptionOptions.DisableUnboundedItemMode = true`. Full
+developer guide: [UnboundedSubscriptions.md](UnboundedSubscriptions.md).
+
 ### V2 notification pooling (opt-in)
 
 The V2 subscription engine supports activator-level pooling of
