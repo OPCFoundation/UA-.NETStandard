@@ -58,6 +58,29 @@ namespace Opc.Ua
             ConnectionWaitingHandlerAsync onConnectionWaiting,
             EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged)
         {
+            CreateListener(url, onConnectionWaiting, onConnectionStatusChanged, serverCertificates: null, certificateValidator: null);
+        }
+
+        /// <summary>
+        /// Creates a new reverse listener host for a client. The
+        /// optional <paramref name="serverCertificates"/> /
+        /// <paramref name="certificateValidator"/> are forwarded to the
+        /// underlying <see cref="ITransportListener.Open"/> via
+        /// <see cref="TransportListenerSettings"/> and are required by
+        /// listener bindings that terminate TLS - in particular the WSS
+        /// reverse-connect listener provided by
+        /// <c>Opc.Ua.Bindings.Https</c>. For plain <c>opc.tcp</c>
+        /// (raw-socket or Kestrel) the parameters can stay <c>null</c>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public void CreateListener(
+            Uri url,
+            ConnectionWaitingHandlerAsync onConnectionWaiting,
+            EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged,
+            ICertificateRegistry? serverCertificates,
+            ICertificateValidatorEx? certificateValidator)
+        {
             if (url == null)
             {
                 throw new ArgumentNullException(nameof(url));
@@ -76,6 +99,8 @@ namespace Opc.Ua
             Url = url;
             m_onConnectionWaiting = onConnectionWaiting;
             m_onConnectionStatusChanged = onConnectionStatusChanged;
+            m_serverCertificates = serverCertificates;
+            m_certificateValidator = certificateValidator;
         }
 
         /// <summary>
@@ -105,9 +130,10 @@ namespace Opc.Ua
                 {
                     Descriptions = null,
                     Configuration = null,
-                    CertificateValidator = null,
+                    CertificateValidator = m_certificateValidator,
                     NamespaceUris = null,
                     Factory = null,
+                    ServerCertificates = m_serverCertificates,
                     ReverseConnectListener = true,
                     MaxChannelCount = 0
                 };
@@ -143,6 +169,8 @@ namespace Opc.Ua
         private ITransportListener? m_listener;
         private ConnectionWaitingHandlerAsync? m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs>? m_onConnectionStatusChanged;
+        private ICertificateRegistry? m_serverCertificates;
+        private ICertificateValidatorEx? m_certificateValidator;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }

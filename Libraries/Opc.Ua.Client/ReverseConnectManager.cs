@@ -284,6 +284,10 @@ namespace Opc.Ua.Client
             // save types for config watcher
             m_applicationType = configuration.ApplicationType;
             m_configType = configuration.GetType();
+            // capture the application configuration so AddEndpointInternal
+            // can plumb the CertificateManager into ReverseConnectHost.CreateListener
+            // for transports that terminate TLS (e.g. opc.wss).
+            m_appConfig = configuration;
 
             // ClientConfiguration and ReverseConnect are nullable on ApplicationConfiguration,
             // but the file watcher is only enabled for client configurations that include a
@@ -409,6 +413,28 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public void AddEndpoint(Uri endpointUrl)
         {
+            AddEndpoint(endpointUrl, null);
+        }
+
+        /// <summary>
+        /// Add endpoint for reverse connection. The optional
+        /// <paramref name="configuration"/> overload lets callers provide
+        /// the application configuration up front so that transports
+        /// terminating TLS at the listener (e.g. <c>opc.wss</c>) can pull
+        /// the server certificate and validator from
+        /// <see cref="ApplicationConfiguration.CertificateManager"/> before
+        /// the host is created. Without it the cert is only available after
+        /// <see cref="StartService(ApplicationConfiguration)"/> runs - too
+        /// late for WSS listeners that need TLS state at bind time.
+        /// </summary>
+        /// <param name="endpointUrl">The endpoint url for reverse connections.</param>
+        /// <param name="configuration">Optional configuration whose
+        /// <see cref="ApplicationConfiguration.CertificateManager"/> is used
+        /// for TLS termination on WSS listeners.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpointUrl"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public void AddEndpoint(Uri endpointUrl, ApplicationConfiguration? configuration)
+        {
             if (endpointUrl == null)
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
@@ -419,6 +445,14 @@ namespace Opc.Ua.Client
                 if (m_state == ReverseConnectManagerState.Started)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+
+                // capture the appConfig early so AddEndpointInternal
+                // can plumb the CertificateManager into the listener
+                // when the endpoint URL needs TLS termination (WSS).
+                if (configuration != null && m_appConfig == null)
+                {
+                    m_appConfig = configuration;
                 }
 
                 AddEndpointInternal(endpointUrl, false);
@@ -694,10 +728,24 @@ namespace Opc.Ua.Client
             try
             {
                 m_endpointUrls[endpointUrl] = info;
+                // Listener bindings that terminate TLS (WSS) need a server
+                // TLS certificate + validator at Open time. Pull them from
+                // the captured ApplicationConfiguration's CertificateManager
+                // when available so the user does not have to plumb them
+                // manually for the common case.
+                ICertificateRegistry? serverCertificates = null;
+                ICertificateValidatorEx? certificateValidator = null;
+                if (Utils.IsUriWssScheme(endpointUrl.AbsoluteUri) && m_appConfig != null)
+                {
+                    serverCertificates = m_appConfig.CertificateManager;
+                    certificateValidator = m_appConfig.CertificateManager;
+                }
                 reverseConnectHost.CreateListener(
                     endpointUrl,
                     new ConnectionWaitingHandlerAsync(OnConnectionWaitingAsync),
-                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
+                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged),
+                    serverCertificates,
+                    certificateValidator);
             }
             catch (ArgumentException ae)
             {
@@ -858,6 +906,7 @@ namespace Opc.Ua.Client
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
+        private ApplicationConfiguration? m_appConfig;
         private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;

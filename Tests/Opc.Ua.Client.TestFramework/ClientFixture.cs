@@ -218,9 +218,20 @@ namespace Opc.Ua.Client.TestFramework
         }
 
         /// <summary>
-        /// Start a host for reverse connections on random port.
+        /// Start a host for reverse connections on random port using the
+        /// default <c>opc.tcp://</c> scheme.
         /// </summary>
-        public async Task StartReverseConnectHostAsync()
+        public Task StartReverseConnectHostAsync()
+            => StartReverseConnectHostAsync(Utils.UriSchemeOpcTcp);
+
+        /// <summary>
+        /// Start a host for reverse connections on random port using
+        /// the specified URL scheme. Used by the WSS reverse-connect
+        /// integration tests; the existing parameterless overload
+        /// preserves the opc.tcp default.
+        /// </summary>
+        /// <param name="uriScheme">The URL scheme for the reverse-connect listener.</param>
+        public async Task StartReverseConnectHostAsync(string uriScheme)
         {
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             int serverStartRetries = 25;
@@ -230,8 +241,8 @@ namespace Opc.Ua.Client.TestFramework
                 retryStartServer = false;
                 try
                 {
-                    var reverseConnectUri = new Uri("opc.tcp://localhost:" + testPort);
-                    ReverseConnectManager.AddEndpoint(reverseConnectUri);
+                    var reverseConnectUri = new Uri($"{uriScheme}://localhost:{testPort}");
+                    ReverseConnectManager.AddEndpoint(reverseConnectUri, Config);
                     ReverseConnectManager.StartService(Config);
                     ReverseConnectUri = reverseConnectUri.ToString();
                 }

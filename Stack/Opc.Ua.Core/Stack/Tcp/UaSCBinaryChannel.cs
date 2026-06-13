@@ -628,7 +628,25 @@ namespace Opc.Ua.Bindings
         /// calls are no-ops while a loop is already running on the current
         /// transport.
         /// </summary>
-        protected internal void StartReceiveLoop()
+        protected internal virtual void StartReceiveLoop()
+        {
+            StartReceiveLoopWithBody(RunReceiveLoopAsync);
+        }
+
+        /// <summary>
+        /// Sets up the receive-loop state (CTS, task, running flag) and
+        /// runs the supplied <paramref name="loopBody"/> on a background
+        /// task. Used by <see cref="StartReceiveLoop"/> for the default
+        /// long-running loop and by derived classes (e.g.
+        /// <c>TcpReverseConnectChannel</c>) that need a one-shot variant
+        /// (read a single ReverseHello chunk then exit so the transport
+        /// can be handed off without aborting the underlying connection
+        /// on cancellation - critical for WebSocket transports where
+        /// <c>CancellationToken</c> on <c>WebSocket.ReceiveAsync</c>
+        /// aborts the whole connection).
+        /// </summary>
+        protected void StartReceiveLoopWithBody(
+            Func<IUaSCByteTransport, CancellationToken, Task> loopBody)
         {
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
@@ -642,7 +660,19 @@ namespace Opc.Ua.Bindings
             m_receiveLoopCts?.Dispose();
             m_receiveLoopCts = new CancellationTokenSource();
             CancellationToken ct = m_receiveLoopCts.Token;
-            m_receiveLoopTask = Task.Run(() => RunReceiveLoopAsync(transport, ct), ct);
+            m_receiveLoopTask = Task.Run(
+                async () =>
+                {
+                    try
+                    {
+                        await loopBody(transport, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref m_receiveLoopRunning, 0);
+                    }
+                },
+                ct);
         }
 
         /// <summary>
@@ -684,39 +714,32 @@ namespace Opc.Ua.Bindings
 
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
-            try
+            while (!ct.IsCancellationRequested)
             {
-                while (!ct.IsCancellationRequested)
+                ArraySegment<byte> chunk;
+                try
                 {
-                    ArraySegment<byte> chunk;
-                    try
-                    {
-                        chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-                    catch (ServiceResultException sre)
-                    {
-                        OnTransportError(sre.Result);
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        OnTransportError(ServiceResult.Create(
-                            ex,
-                            StatusCodes.BadTcpInternalError,
-                            ex.Message));
-                        return;
-                    }
-
-                    OnChunkReceived(chunk);
+                    chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
                 }
-            }
-            finally
-            {
-                Interlocked.Exchange(ref m_receiveLoopRunning, 0);
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (ServiceResultException sre)
+                {
+                    OnTransportError(sre.Result);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    OnTransportError(ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        ex.Message));
+                    return;
+                }
+
+                OnChunkReceived(chunk);
             }
         }
 

@@ -340,11 +340,13 @@ namespace Opc.Ua.Bindings
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions!;
-            EndpointConfiguration configuration = settings.Configuration!;
+            m_descriptions = settings.Descriptions ?? new List<EndpointDescription>();
+            EndpointConfiguration configuration = settings.Configuration ?? EndpointConfiguration.Create();
+            IEncodeableFactory factory = settings.Factory ?? ServiceMessageContext.Create(m_telemetry).Factory;
+            NamespaceTable namespaceUris = settings.NamespaceUris ?? new NamespaceTable();
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, factory)
             {
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
@@ -352,7 +354,7 @@ namespace Opc.Ua.Bindings
                 MaxStringLength = configuration.MaxStringLength,
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                NamespaceUris = settings.NamespaceUris!,
+                NamespaceUris = namespaceUris,
                 ServerUris = new StringTable()
             })
             {
@@ -369,6 +371,12 @@ namespace Opc.Ua.Bindings
             m_serverCertProvider = settings.ServerCertificates!;
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
+
+            // reverse-connect listener mode dispatches accepted WSS
+            // upgrades to TcpReverseConnectChannels and fires the
+            // listener's ConnectionWaiting event when the server's
+            // ReverseHello arrives.
+            m_reverseConnectListener = settings.ReverseConnectListener;
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
@@ -389,17 +397,20 @@ namespace Opc.Ua.Bindings
             Stop();
         }
 
-#pragma warning disable CS0414
         /// <summary>
-        /// Raised when a new connection is waiting for a client.
+        /// Raised when a new connection is waiting for a client. Fired by
+        /// the WSS reverse-connect handoff in
+        /// <see cref="HttpsTransportListener"/> when
+        /// <c>settings.ReverseConnectListener</c> is set.
         /// </summary>
         public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.
         /// </summary>
+#pragma warning disable CS0067 // forward-mode listener does not currently report channel-status events.
         public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
-#pragma warning restore CS0414
+#pragma warning restore CS0067
 
         /// <inheritdoc/>
         /// <remarks>
@@ -1132,7 +1143,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task AcceptWebSocketAsync(HttpContext context)
         {
-            if (m_callback == null)
+            // m_callback is null when this listener was opened in
+            // reverse-connect mode (the listener side does not service
+            // inbound UASC requests; it just hands off the established
+            // WebSocket to the awaiting client via ConnectionWaiting).
+            if (m_callback == null && !m_reverseConnectListener)
             {
                 await WriteResponseAsync(
                     context.Response,
@@ -1182,23 +1197,39 @@ namespace Opc.Ua.Bindings
             var perWsListener = new WssChannelListener(this);
             uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
 
-            var channel = new TcpServerChannel(
-                ListenerId,
-                perWsListener,
-                m_bufferManager,
-                m_quotas,
-                m_serverCertProvider,
-                m_descriptions,
-                m_telemetry);
+            // In reverse-connect mode the inbound WSS connection is
+            // initiated by the SERVER and starts with a ReverseHello;
+            // wrap it in a TcpReverseConnectChannel so the channel's
+            // ProcessReverseHelloMessage path triggers the handoff via
+            // perWsListener.TransferListenerChannelAsync.
+            TcpListenerChannel channel = m_reverseConnectListener
+                ? new TcpReverseConnectChannel(
+                    ListenerId,
+                    perWsListener,
+                    m_bufferManager,
+                    m_quotas,
+                    m_descriptions,
+                    m_telemetry)
+                : new TcpServerChannel(
+                    ListenerId,
+                    perWsListener,
+                    m_bufferManager,
+                    m_quotas,
+                    m_serverCertProvider,
+                    m_descriptions,
+                    m_telemetry);
 
-            channel.SetRequestReceivedCallback(
-                new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
-            channel.SetReportOpenSecureChannelAuditCallback(
-                new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
-            channel.SetReportCloseSecureChannelAuditCallback(
-                new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
-            channel.SetReportCertificateAuditCallback(
-                new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+            if (channel is TcpServerChannel forwardChannel)
+            {
+                forwardChannel.SetRequestReceivedCallback(
+                    new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
+                forwardChannel.SetReportOpenSecureChannelAuditCallback(
+                    new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                forwardChannel.SetReportCloseSecureChannelAuditCallback(
+                    new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                forwardChannel.SetReportCertificateAuditCallback(
+                    new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+            }
 
             perWsListener.AttachChannel(channelId, channel);
 
@@ -1509,7 +1540,7 @@ namespace Opc.Ua.Bindings
 
             public Uri EndpointUrl => m_owner.EndpointUrl;
 
-            internal void AttachChannel(uint channelId, TcpServerChannel channel)
+            internal void AttachChannel(uint channelId, TcpListenerChannel channel)
             {
                 m_channelId = channelId;
                 m_channel = channel;
@@ -1533,14 +1564,47 @@ namespace Opc.Ua.Bindings
 
             [Obsolete("Use TransferListenerChannelAsync instead.")]
             public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
-            {
-                return Task.FromResult(false);
-            }
+                => TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
 
-            public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
+            public async Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
             {
-                // Reverse-connect handoff is not applicable to a single WSS upgrade.
-                return Task.FromResult(false);
+                // Forward (non-reverse) WSS upgrades never need a transfer.
+                if (!m_owner.m_reverseConnectListener || m_channel == null || channelId != m_channelId)
+                {
+                    return false;
+                }
+
+                ConnectionWaitingHandlerAsync? handler = m_owner.ConnectionWaiting;
+                if (handler == null)
+                {
+                    return false;
+                }
+
+                IUaSCByteTransport? transport = await m_channel.DetachTransportAsync()
+                    .ConfigureAwait(false);
+                if (transport == null)
+                {
+                    return false;
+                }
+
+                var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, transport);
+                await handler(m_owner, args).ConfigureAwait(false);
+                if (args.Accepted)
+                {
+                    // The application took ownership of the transport. Do NOT
+                    // signal m_closed here - the request handler must stay
+                    // alive until the new owner finishes using the WebSocket
+                    // (when it closes the WS Kestrel fires RequestAborted
+                    // which sets m_closed via WaitForChannelClosedAsync's
+                    // ct.Register).
+                    return true;
+                }
+
+                // Caller rejected: re-attach the transport so the channel
+                // can keep working on retry.
+                m_channel.Transport = transport;
+                m_channel.StartReceiveLoop();
+                return false;
             }
 
             public void ChannelClosed(uint channelId)
@@ -1562,7 +1626,7 @@ namespace Opc.Ua.Bindings
             private readonly HttpsTransportListener m_owner;
             private readonly TaskCompletionSource<bool> m_closed;
             private uint m_channelId;
-            private TcpServerChannel? m_channel;
+            private TcpListenerChannel? m_channel;
         }
 
         /// <summary>
@@ -1716,6 +1780,7 @@ namespace Opc.Ua.Bindings
         private Certificate? m_pinnedServerCert;
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
+        private bool m_reverseConnectListener;
         private int m_nextChannelId;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
