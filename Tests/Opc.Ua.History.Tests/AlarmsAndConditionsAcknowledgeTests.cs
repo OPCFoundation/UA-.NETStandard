@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -116,6 +117,74 @@ namespace Opc.Ua.History.Tests
                 ackedState.WrappedValue.TryGetValue(out bool ackedValue), Is.True);
             Assert.That(ackedValue, Is.True,
                 "AckedState/Id should be true after Acknowledge.");
+        }
+
+        [Test]
+        public async Task AcknowledgeWithEmptyCommentAndLocalePropagatesToEventAsync()
+        {
+            NodeId alarmId = RequireCttAlarm("AcknowledgeableConditionType");
+            await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
+
+            await using AlarmEventCollector collector =
+                await AlarmEventCollector.CreateAsync(Session).ConfigureAwait(false);
+            collector.Reset();
+
+            await WriteAlarmSourceValueAsync(alarmId, new Variant(90)).ConfigureAwait(false);
+            EventFieldList unackedEvent = await collector.WaitForEventAsync(
+                alarmId,
+                e => AlarmEventCollector.TryGetBoolean(
+                    e,
+                    AlarmEventCollector.FieldIndex.AckedStateId,
+                    out bool acked) &&
+                    !acked,
+                DefaultEventWaitTimeout).ConfigureAwait(false);
+
+            if (!AlarmEventCollector.TryGetByteString(
+                unackedEvent,
+                AlarmEventCollector.FieldIndex.EventId,
+                out ByteString eventId) ||
+                eventId.IsNull)
+            {
+                eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
+            }
+
+            collector.Reset();
+            CallMethodResult callResult = await CallMethodOnAlarmAsync(
+                alarmId,
+                MethodIds.AcknowledgeableConditionType_Acknowledge,
+                new Variant(eventId),
+                new Variant(new LocalizedText("en", string.Empty))).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(callResult.StatusCode), Is.True,
+                $"Acknowledge should succeed: {callResult.StatusCode}");
+
+            EventFieldList ackEvent = await collector.WaitForEventAsync(
+                alarmId,
+                e => AlarmEventCollector.TryGetBoolean(
+                    e,
+                    AlarmEventCollector.FieldIndex.AckedStateId,
+                    out bool acked) &&
+                    acked,
+                DefaultEventWaitTimeout).ConfigureAwait(false);
+
+            Assert.That(
+                AlarmEventCollector.TryGetBoolean(
+                    ackEvent,
+                    AlarmEventCollector.FieldIndex.Retain,
+                    out bool retain),
+                Is.True,
+                "Acknowledge event should include Retain.");
+            Assert.That(retain, Is.False,
+                "Retain should clear after the condition is acknowledged and normal.");
+
+            Assert.That(
+                AlarmEventCollector.TryGetLocalizedText(
+                    ackEvent,
+                    AlarmEventCollector.FieldIndex.Comment,
+                    out LocalizedText comment),
+                Is.True,
+                "Acknowledge event should include Comment.");
+            Assert.That(comment.Text ?? string.Empty, Is.EqualTo(string.Empty));
         }
 
         [Test]

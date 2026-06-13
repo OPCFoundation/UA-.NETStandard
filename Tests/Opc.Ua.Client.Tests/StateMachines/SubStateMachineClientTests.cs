@@ -38,7 +38,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Tests;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
@@ -337,7 +336,10 @@ namespace Opc.Ua.Client.Tests.StateMachines
                 yield break;
             }
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

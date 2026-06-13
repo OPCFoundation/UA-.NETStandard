@@ -76,10 +76,18 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <summary>
         /// Lookup table for <see cref="TryGetMonitoredItemByClientHandle"/>.
         /// Tests populate this directly when they need the
-        /// <see cref="IMonitoredItem.TriggeringItem"/> projection to
+        /// <see cref="IMonitoredItem.TriggeringItems"/> projection to
         /// resolve.
         /// </summary>
         public Dictionary<uint, IMonitoredItem> ItemsByClientHandle { get; } = [];
+
+        /// <summary>
+        /// Lookup table for <see cref="TryGetMonitoredItemByName"/>.
+        /// Tests populate this directly when they need
+        /// <see cref="IMonitoredItem.TriggeringItems"/> /
+        /// <see cref="IMonitoredItem.TriggeredItems"/> to resolve names.
+        /// </summary>
+        public Dictionary<string, IMonitoredItem> ItemsByName { get; } = [];
 
         public ValueTask ConditionRefreshAsync(
             uint monitoredItemServerId,
@@ -124,6 +132,37 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         {
             return ItemsByClientHandle.TryGetValue(clientHandle, out item);
         }
+
+        public bool TryGetMonitoredItemByName(
+            string name,
+            [MaybeNullWhen(false)] out IMonitoredItem? item)
+        {
+            return ItemsByName.TryGetValue(name, out item);
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<IMonitoredItem> Items => ItemsByClientHandle.Values;
+
+        /// <summary>
+        /// Recorded calls to <see cref="EnqueueTriggeringDelta"/>.
+        /// Tests inspect this list to verify per-item triggering
+        /// deltas were enqueued in the expected order.
+        /// </summary>
+        public List<EnqueueTriggeringDeltaCall> EnqueueTriggeringDeltaCalls { get; } = [];
+
+        public void EnqueueTriggeringDelta(
+            IMonitoredItem triggeredItem,
+            IReadOnlyList<string> addedTriggeringNames,
+            IReadOnlyList<string> removedTriggeringNames)
+        {
+            EnqueueTriggeringDeltaCalls.Add(new EnqueueTriggeringDeltaCall(
+                triggeredItem, addedTriggeringNames, removedTriggeringNames));
+        }
+
+        internal readonly record struct EnqueueTriggeringDeltaCall(
+            IMonitoredItem TriggeredItem,
+            IReadOnlyList<string> AddedTriggeringNames,
+            IReadOnlyList<string> RemovedTriggeringNames);
 
         public override string ToString()
         {

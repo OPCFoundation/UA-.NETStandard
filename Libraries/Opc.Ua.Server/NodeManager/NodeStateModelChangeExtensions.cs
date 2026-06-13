@@ -200,13 +200,13 @@ namespace Opc.Ua.Server.NodeManager
             {
                 NodeState owner = node;
                 nodeVersion.OnWriteValue = (
-                    ISystemContext ctx,
-                    NodeState target,
-                    NumericRange indexRange,
-                    QualifiedName dataEncoding,
-                    ref Variant value,
-                    ref StatusCode statusCode,
-                    ref DateTimeUtc timestamp) =>
+                    ctx,
+                    target,
+                    indexRange,
+                    dataEncoding,
+                    ref value,
+                    ref statusCode,
+                    ref timestamp) =>
                 {
                     if (target is PropertyState<string> property
                         && value.TryGetValue(out string? newValue))

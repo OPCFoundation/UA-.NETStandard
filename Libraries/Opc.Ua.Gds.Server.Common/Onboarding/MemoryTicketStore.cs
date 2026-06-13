@@ -75,13 +75,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(metadata));
             }
-            var record = new TicketRecord(
+            m_tickets[ticketId] = new TicketRecord(
                 ticketId,
                 (byte[])encodedTicket.Clone(),
                 metadata,
                 m_time.GetUtcNow());
-
-            m_tickets[ticketId] = record;
             return default;
         }
 

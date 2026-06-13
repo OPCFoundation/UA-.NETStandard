@@ -74,82 +74,82 @@ namespace Opc.Ua.Di.Server.Builders
 
         public IDeviceBuilder<TDevice> WithIdentificationGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Identification, Manager.DiNamespaceIndex),
                 useIdentificationSlot: true,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithConfigurationGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Configuration, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithMaintenanceGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Maintenance, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithDiagnosticsGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Diagnostics, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithStatusGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Status, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithOperationalGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Operational, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithStatisticsGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.Statistics, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithOperationCountersGroup(
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(
                 new QualifiedName(WellKnownFunctionalGroups.OperationCounters, Manager.DiNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> WithFunctionalGroup(
             QualifiedName name,
             Action<IFunctionalGroupBuilder> configure)
-            {
+        {
             return ConfigureFunctionalGroup(name, useIdentificationSlot: false, configure);
-            }
+        }
 
         public IDeviceBuilder<TDevice> ConnectsTo(NodeId other)
         {
@@ -230,7 +230,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 if (useIdentificationSlot && topology.Identification == null)
                 {
-                    group = topology.AddIdentification(Context);
+                    topology.AddIdentification(Context);
+                    group = topology.Identification!;
                 }
                 else
                 {

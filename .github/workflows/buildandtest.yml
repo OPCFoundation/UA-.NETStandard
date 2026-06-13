@@ -2,9 +2,9 @@ name: Build and Test .NET 10.0
 
 on:
   push:
-    branches: [ master, main, develop/* ]
+    branches: [ master, main, master378, develop/* ]
   pull_request:
-    branches: [ master, main, develop/* ]
+    branches: [ master, main, master378, develop/* ]
     paths:
     - '**.cs'
     - '**.csproj'
@@ -94,7 +94,7 @@ jobs:
       if: ${{ always() }}
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         name: codecov-umbrella
         token: ${{ secrets.CODECOV_TOKEN }}

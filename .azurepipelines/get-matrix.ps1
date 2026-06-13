@@ -16,6 +16,7 @@
        agent         - agent key (only when -AgentTable is non-empty)
        poolImage     - vmImage for the agent (only when -AgentTable is non-empty)
        configuration - build configuration (only when -Configurations is non-empty)
+       targetTfm     - target framework moniker (only when -Tfms is non-empty)
 
  .PARAMETER BuildRoot
     The root folder to start traversing the repository from.
@@ -41,6 +42,12 @@
  .PARAMETER Files
     Optional comma-separated list of file paths (relative to BuildRoot).
     When supplied, recursive discovery via -FileName is skipped.
+
+ .PARAMETER Tfms
+    Optional comma-separated list of target frameworks. When non-empty,
+    the matrix is fanned out across TFMs; each entry carries a
+    'targetTfm' variable that downstream jobs typically pass to
+    'dotnet build' as '/p:CustomTestTarget=$(targetTfm)'.
 #>
 
 Param(
@@ -50,7 +57,8 @@ Param(
     [string]    $JobPrefix       = '',
     [hashtable] $AgentTable      = $null,
     [string]    $Configurations  = '',
-    [string]    $Files           = ''
+    [string]    $Files           = '',
+    [string]    $Tfms            = ''
 )
 
 if ([string]::IsNullOrEmpty($BuildRoot)) {
@@ -73,7 +81,7 @@ elseif ($AgentTable.Count -eq 0) {
     # (preserves the original get-matrix.ps1 behaviour for ci.yml callers).
     $AgentTable = @{
         windows = 'windows-2025-vs2026'
-        linux   = 'ubuntu-22.04'
+        linux   = 'ubuntu-24.04'
         mac     = 'macOS-15'
     }
 }
@@ -86,6 +94,9 @@ function Split-CsvList([string] $value) {
 
 $configList = Split-CsvList $Configurations
 $useConfigs = $configList.Count -gt 0
+
+$tfmList = Split-CsvList $Tfms
+$useTfms = $tfmList.Count -gt 0
 
 $fileList = Split-CsvList $Files
 
@@ -154,28 +165,40 @@ foreach ($item in $items) {
     else {
         $configKeys = @('')
     }
+    if ($useTfms) {
+        $tfmKeys = $tfmList
+    }
+    else {
+        $tfmKeys = @('')
+    }
 
     foreach ($agentKey in $agentKeys) {
         foreach ($configuration in $configKeys) {
-            $entry = @{
-                folder     = $folder
-                fullFolder = $fullFolder
-                file       = $file
+            foreach ($tfm in $tfmKeys) {
+                $entry = @{
+                    folder     = $folder
+                    fullFolder = $fullFolder
+                    file       = $file
+                }
+                $jobName = "$($JobPrefix)$($postFix)"
+                if ($useAgents) {
+                    $entry['agent']     = $agentKey
+                    $entry['poolImage'] = $AgentTable.Item($agentKey)
+                    $jobName += $agentKey
+                }
+                if ($useConfigs) {
+                    $entry['configuration'] = $configuration
+                    $jobName += "_$configuration"
+                }
+                if ($useTfms) {
+                    $entry['targetTfm'] = $tfm
+                    $jobName += "_$tfm"
+                }
+                # Matrix keys must be alphanumeric or underscore for Azure DevOps.
+                $jobName = ($jobName -replace '[^A-Za-z0-9_]', '_')
+                $jobName = ($jobName -replace '_+', '_').Trim('_')
+                $jobMatrix.Add($jobName, $entry)
             }
-            $jobName = "$($JobPrefix)$($postFix)"
-            if ($useAgents) {
-                $entry['agent']     = $agentKey
-                $entry['poolImage'] = $AgentTable.Item($agentKey)
-                $jobName += $agentKey
-            }
-            if ($useConfigs) {
-                $entry['configuration'] = $configuration
-                $jobName += "_$configuration"
-            }
-            # Matrix keys must be alphanumeric or underscore for Azure DevOps.
-            $jobName = ($jobName -replace '[^A-Za-z0-9_]', '_')
-            $jobName = ($jobName -replace '_+', '_').Trim('_')
-            $jobMatrix.Add($jobName, $entry)
         }
     }
 }

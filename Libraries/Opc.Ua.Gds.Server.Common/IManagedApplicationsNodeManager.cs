@@ -153,9 +153,11 @@ namespace Opc.Ua.Gds.Server
     public class DefaultManagedApplicationsNodeManager
         : AsyncCustomNodeManager, IManagedApplicationsNodeManager
     {
-        // Well-known NodeIds from the base UA namespace (ns=0).
-        // Using numeric literals avoids ambiguity between the GDS and
-        // base-UA generated ObjectTypes/Objects classes.
+        /// <summary>
+        /// Well-known NodeIds from the base UA namespace (ns=0).
+        /// Using numeric literals avoids ambiguity between the GDS and
+        /// base-UA generated ObjectTypes/Objects classes.
+        /// </summary>
         private static readonly NodeId ManagedApplicationsFolderId = new(16706u);
         private static readonly NodeId ApplicationConfigurationTypeId = new(25731u);
         private readonly Dictionary<string, ApplicationConfigurationState> m_appNodes = new(System.StringComparer.Ordinal);

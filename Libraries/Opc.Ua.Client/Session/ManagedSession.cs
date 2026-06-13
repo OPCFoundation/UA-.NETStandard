@@ -105,6 +105,7 @@ namespace Opc.Ua.Client
                 reconnectPolicy, logger, m_timeProvider);
 
             WireStateMachineCallbacks();
+            SubscribeCertificateChanges();
         }
 
         /// <summary>
@@ -118,7 +119,6 @@ namespace Opc.Ua.Client
         /// <param name="sessionFactory">The session factory to use for
         /// creating sessions.</param>
         /// <param name="identity">Optional user identity.</param>
-        /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="reconnectPolicy">Optional reconnect policy.
         /// Defaults to <see cref="ReconnectPolicy"/>.</param>
         /// <param name="redundancyHandler">Optional redundancy handler.
@@ -148,6 +148,7 @@ namespace Opc.Ua.Client
         /// release them back to their activator pools. Default
         /// <c>false</c>. See <c>ManagedSessionOptions.PoolNotifications</c>
         /// for the retain-by-copy contract.</param>
+        /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="timeProvider">Optional time provider for proactive refresh.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
@@ -867,6 +868,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Refreshes the user identity on the connected inner session.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         public async ValueTask UpdateIdentityAsync(
             IClientIdentityProvider provider,
             CancellationToken ct = default)
@@ -1201,7 +1203,7 @@ namespace Opc.Ua.Client
             var cts = new CancellationTokenSource();
             Task task = RunIdentityRefreshLoopAsync(m_identityProvider, cts.Token);
 
-            CancellationTokenSource? previousCts = null;
+            CancellationTokenSource? previousCts;
             lock (m_identityRefreshLock)
             {
                 previousCts = m_identityRefreshCancellation;
@@ -1455,6 +1457,7 @@ namespace Opc.Ua.Client
             if (disposing)
             {
                 CancelIdentityRefreshLoop();
+                UnsubscribeCertificateChanges();
                 StateMachine.RequestClose();
 
                 Session? session = m_session;
@@ -1479,6 +1482,8 @@ namespace Opc.Ua.Client
             }
 
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+            UnsubscribeCertificateChanges();
+            await StopRevalidationLoopAsync().ConfigureAwait(false);
 
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work

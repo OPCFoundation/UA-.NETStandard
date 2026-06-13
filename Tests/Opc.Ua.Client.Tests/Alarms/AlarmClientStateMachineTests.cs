@@ -39,7 +39,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Tests;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
@@ -106,7 +105,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             Assert.That(snapshot.StateMachineId, Is.EqualTo(m_conditionId));
             Assert.That(snapshot.CurrentState.IsNull, Is.True);
             Assert.That(snapshot.CurrentStateId.IsNull, Is.True);
-            Assert.That(snapshot.Status, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(snapshot.Status, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -174,7 +173,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             bool allEmpty,
             Action<ArrayOf<BrowsePath>>? capture)
         {
-            ArrayOf<BrowsePathResult> results = ArrayOf.Wrapped(
+            var results = ArrayOf.Wrapped(
             [
                 MakeEmptyResult(),
                 MakeEmptyResult(),
@@ -204,20 +203,26 @@ namespace Opc.Ua.Client.Tests.Alarms
                     }));
         }
 
-        private static BrowsePathResult MakeResult(ExpandedNodeId target) => new()
+        private static BrowsePathResult MakeResult(ExpandedNodeId target)
         {
-            StatusCode = StatusCodes.Good,
-            Targets = ArrayOf.Wrapped(
+            return new()
+            {
+                StatusCode = StatusCodes.Good,
+                Targets = ArrayOf.Wrapped(
             [
                 new BrowsePathTarget { TargetId = target }
             ])
-        };
+            };
+        }
 
-        private static BrowsePathResult MakeEmptyResult() => new()
+        private static BrowsePathResult MakeEmptyResult()
         {
-            StatusCode = StatusCodes.Good,
-            Targets = default
-        };
+            return new()
+            {
+                StatusCode = StatusCodes.Good,
+                Targets = default
+            };
+        }
 
         /// <summary>
         /// Minimal <see cref="IStreamingSubscription"/> that yields no
@@ -254,7 +259,10 @@ namespace Opc.Ua.Client.Tests.Alarms
                 yield break;
             }
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

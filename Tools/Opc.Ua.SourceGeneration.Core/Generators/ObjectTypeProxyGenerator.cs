@@ -65,6 +65,7 @@ namespace Opc.Ua.SourceGeneration
         public ObjectTypeProxyGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<ObjectTypeProxyGenerator>();
         }
 
         /// <inheritdoc/>
@@ -481,7 +482,11 @@ namespace Opc.Ua.SourceGeneration
                 (m_inheritedMethodNames != null &&
                 m_inheritedMethodNames.Contains(emittedName));
 
-            context.Template.AddReplacement(Tokens.BrowseName, childBrowseName);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                childBrowseName,
+                m_logger);
             context.Template.AddReplacement(Tokens.TypeName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, clientType);
             context.Template.AddReplacement(Tokens.AccessModifier, isShadow ? "new " : string.Empty);
@@ -901,6 +906,7 @@ namespace Opc.Ua.SourceGeneration
         private const string kRootBaseClass = "global::Opc.Ua.ObjectTypeClient";
 
         private readonly IGeneratorContext m_context;
+        private readonly Microsoft.Extensions.Logging.ILogger m_logger;
         private HashSet<string> m_inheritedMethodNames;
         private HashSet<string> m_inheritedAccessorNames;
         private HashSet<string> m_inheritedObjectChildNames;

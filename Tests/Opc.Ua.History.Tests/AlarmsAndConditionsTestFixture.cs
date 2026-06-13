@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.History.Tests
@@ -44,6 +45,18 @@ namespace Opc.Ua.History.Tests
     /// </summary>
     public abstract class AlarmsAndConditionsTestFixture : TestFixture
     {
+        /// <summary>
+        /// Default timeout for AlarmEventCollector.WaitForEventAsync calls in
+        /// the Alarms &amp; Conditions test suite. 30 s gives ample headroom
+        /// for slow CI runners (notably macOS hosted agents under load) while
+        /// remaining unnoticeable on healthy systems because WaitForEventAsync
+        /// polls at 50 ms intervals and returns as soon as the predicate
+        /// matches. Observed flake before this constant existed: build 14598
+        /// log 652, ConfirmAlreadyConfirmedAcrossSessionsReturnsBranchAlready-
+        /// ConfirmedAsync timed out at 5 s on a Mac PR run.
+        /// </summary>
+        protected static readonly TimeSpan DefaultEventWaitTimeout = TimeSpan.FromSeconds(30);
+
         /// <summary>
         /// NodeId of the Alarms folder created by AlarmNodeManager.
         /// Discovered on first use by browsing the Objects folder.
@@ -126,6 +139,24 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
+        /// Returns an alarm for a CTT parity test or marks the test
+        /// inconclusive when the reference server does not expose one.
+        /// </summary>
+        protected NodeId RequireCttAlarm(string typeName = null)
+        {
+            NodeId alarmId = typeName != null
+                ? FindAlarmByTypeName(typeName)
+                : FindAnyAlarm();
+            if (alarmId.IsNull)
+            {
+                Assert.Inconclusive(
+                    "Server does not expose a live alarm condition " +
+                    "instance for this CTT parity test.");
+            }
+            return alarmId;
+        }
+
+        /// <summary>
         /// Reads the boolean Id of a TwoStateVariable child by browse
         /// name (e.g. "AckedState" -&gt; reads "AckedState/Id"). Returns
         /// the DataValue from the server.
@@ -187,12 +218,28 @@ namespace Opc.Ua.History.Tests
             NodeId methodId,
             params Variant[] inputArguments)
         {
-            CallResponse response = await Session.CallAsync(
+            return await CallMethodOnSessionAsync(
+                Session,
+                conditionId,
+                methodId,
+                inputArguments).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Calls a method on the supplied session and returns the result.
+        /// </summary>
+        protected static async Task<CallMethodResult> CallMethodOnSessionAsync(
+            ISession session,
+            NodeId objectId,
+            NodeId methodId,
+            params Variant[] inputArguments)
+        {
+            CallResponse response = await session.CallAsync(
                 null,
                 new CallMethodRequest[]
                 {
                     new() {
-                        ObjectId = conditionId,
+                        ObjectId = objectId,
                         MethodId = methodId,
                         InputArguments = inputArguments.ToArrayOf()
                     }
@@ -247,6 +294,134 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(response.Results.Count, Is.EqualTo(1));
             return response.Results[0];
+        }
+
+        /// <summary>
+        /// Finds an instance method child by BrowseName.
+        /// </summary>
+        protected async Task<NodeId> FindInstanceMethodAsync(
+            NodeId conditionId,
+            string methodName)
+        {
+            BrowseResult result = await BrowseForwardAsync(conditionId).ConfigureAwait(false);
+            int count = result.References.Count;
+            for (int i = 0; i < count; i++)
+            {
+                ReferenceDescription reference = result.References[i];
+                if (reference.NodeClass == NodeClass.Method &&
+                    reference.BrowseName.Name == methodName)
+                {
+                    return ToNodeId(reference.NodeId);
+                }
+            }
+            return NodeId.Null;
+        }
+
+        /// <summary>
+        /// Finds the source variable that exposes the condition via HasCondition.
+        /// </summary>
+        protected async Task<NodeId> FindConditionSourceAsync(NodeId conditionId)
+        {
+            BrowseResult folder = await BrowseForwardAsync(AlarmsFolderId).ConfigureAwait(false);
+            int sourceCount = folder.References.Count;
+            for (int i = 0; i < sourceCount; i++)
+            {
+                ReferenceDescription sourceReference = folder.References[i];
+                if (sourceReference.NodeClass != NodeClass.Variable)
+                {
+                    continue;
+                }
+
+                NodeId sourceId = ToNodeId(sourceReference.NodeId);
+                BrowseResponse response = await Session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    new BrowseDescription[]
+                    {
+                        new() {
+                            NodeId = sourceId,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = ReferenceTypeIds.HasCondition,
+                            IncludeSubtypes = true,
+                            NodeClassMask = 0,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                if (response.Results.Count == 0)
+                {
+                    continue;
+                }
+
+                int conditionCount = response.Results[0].References.Count;
+                for (int j = 0; j < conditionCount; j++)
+                {
+                    if (ToNodeId(response.Results[0].References[j].NodeId) == conditionId)
+                    {
+                        return sourceId;
+                    }
+                }
+            }
+
+            return NodeId.Null;
+        }
+
+        /// <summary>
+        /// Writes a value to the alarm source variable that drives a condition.
+        /// </summary>
+        protected async Task WriteAlarmSourceValueAsync(NodeId conditionId, Variant value)
+        {
+            NodeId sourceId = await FindConditionSourceAsync(conditionId).ConfigureAwait(false);
+            if (sourceId.IsNull)
+            {
+                Assert.Inconclusive(
+                    $"Condition {conditionId} is not linked to a writable alarm source.");
+            }
+
+            WriteResponse response = await Session.WriteAsync(
+                null,
+                new WriteValue[]
+                {
+                    new() {
+                        NodeId = sourceId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(value)
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(StatusCode.IsGood(response.Results[0]), Is.True,
+                $"Writing alarm source {sourceId} should succeed: {response.Results[0]}");
+        }
+
+        /// <summary>
+        /// Best-effort reset to a normal, acknowledged and confirmed state.
+        /// </summary>
+        protected async Task NormalizeAlarmAsync(NodeId conditionId)
+        {
+            await CallMethodOnAlarmAsync(
+                conditionId,
+                MethodIds.ConditionType_Enable).ConfigureAwait(false);
+
+            await WriteAlarmSourceValueAsync(conditionId, new Variant(50)).ConfigureAwait(false);
+            await AcknowledgeCurrentEventIfRequiredAsync(conditionId).ConfigureAwait(false);
+            await ConfirmCurrentEventIfRequiredAsync(conditionId).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads a state variable as Boolean.
+        /// </summary>
+        protected async Task<bool> ReadStateBoolAsync(NodeId conditionId, string stateName)
+        {
+            DataValue state = await ReadStateIdAsync(conditionId, stateName).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(state.StatusCode), Is.True,
+                $"Should be able to read {stateName}/Id.");
+            Assert.That(state.WrappedValue.TryGetValue(out bool value), Is.True,
+                $"{stateName}/Id should be Boolean.");
+            return value;
         }
 
         /// <summary>
@@ -471,6 +646,53 @@ namespace Opc.Ua.History.Tests
                 current = ToNodeId(response.Results[0].References[0].NodeId);
             }
             return false;
+        }
+
+        private async Task AcknowledgeCurrentEventIfRequiredAsync(NodeId conditionId)
+        {
+            bool acked = await ReadStateBoolAsync(conditionId, "AckedState").ConfigureAwait(false);
+            if (acked)
+            {
+                return;
+            }
+
+            ByteString eventId = await ReadEventIdAsync(conditionId).ConfigureAwait(false);
+            if (!eventId.IsNull)
+            {
+                await CallMethodOnAlarmAsync(
+                    conditionId,
+                    MethodIds.AcknowledgeableConditionType_Acknowledge,
+                    new Variant(eventId),
+                    new Variant(new LocalizedText("en", "normalize"))).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ConfirmCurrentEventIfRequiredAsync(NodeId conditionId)
+        {
+            NodeId confirmedStateId = await TranslateBrowsePathAsync(
+                conditionId,
+                "ConfirmedState",
+                "Id").ConfigureAwait(false);
+            if (confirmedStateId.IsNull)
+            {
+                return;
+            }
+
+            bool confirmed = await ReadStateBoolAsync(conditionId, "ConfirmedState").ConfigureAwait(false);
+            if (confirmed)
+            {
+                return;
+            }
+
+            ByteString eventId = await ReadEventIdAsync(conditionId).ConfigureAwait(false);
+            if (!eventId.IsNull)
+            {
+                await CallMethodOnAlarmAsync(
+                    conditionId,
+                    MethodIds.AcknowledgeableConditionType_Confirm,
+                    new Variant(eventId),
+                    new Variant(new LocalizedText("en", "normalize"))).ConfigureAwait(false);
+            }
         }
 
         private NodeId m_alarmsFolderId;

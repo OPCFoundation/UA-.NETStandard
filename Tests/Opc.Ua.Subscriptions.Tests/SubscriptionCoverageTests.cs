@@ -264,7 +264,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Snapshot includes the SendInitialValuesOnTransfer
                 // option through SubscriptionStateSnapshot.ToOptions().
-                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)origin).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)origin).Snapshot();
                 Assert.That(snap.SendInitialValuesOnTransfer, Is.True,
                     "SendInitialValuesOnTransfer option must round-trip through Snapshot");
 
@@ -335,7 +335,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
                 Assert.That(sub.MonitoredItems.Count, Is.Zero);
 
-                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.Zero);
 
                 target = await ConnectV2Async(
@@ -412,7 +412,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
 
-                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.EqualTo(1));
                 MonitoredItemStateSnapshot itemSnap = snap.MonitoredItems[0];
                 Assert.That(itemSnap.Filter, Is.Not.Null);
@@ -496,7 +496,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         o => o with { SamplingInterval = TimeSpan.Zero },
                         out _), ct);
                 }
-                var subConcrete = (Opc.Ua.Client.Subscriptions.Subscription)sub;
+                var subConcrete = (Opc.Ua.Client.Subscriptions.LogicalSubscription)sub;
                 var snapTasks = new Task<SubscriptionStateSnapshot>[5];
                 for (int i = 0; i < snapTasks.Length; i++)
                 {

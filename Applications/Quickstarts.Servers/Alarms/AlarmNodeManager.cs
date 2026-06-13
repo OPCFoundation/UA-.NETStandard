@@ -281,6 +281,18 @@ namespace Alarms
 
                 m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
 
+                AlarmHolder acknowledgeableCondition = new AcknowledgeableConditionHolder(
+                    this,
+                    analogTrigger,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval);
+                m_alarms.Add(
+                    acknowledgeableCondition.AlarmNodeName,
+                    acknowledgeableCondition);
+
                 AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
                     this,
                     analogTrigger,
@@ -457,9 +469,9 @@ namespace Alarms
                 m_suppressionEngine = new AlarmSuppressionEngine();
                 m_suppressionEngine.RegisterSuppressionGroup(
                     m_analogGroup.State,
-                    () => m_maintenanceMode != null
-                          && m_maintenanceMode.Value.TryGetValue(out bool b)
-                          && b,
+                    () => m_maintenanceMode != null &&
+                        m_maintenanceMode.Value.TryGetValue(out bool b) &&
+                        b,
                     [.. GetAlarmStates()]);
 
                 await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
@@ -775,9 +787,20 @@ namespace Alarms
 
             lock (m_alarms)
             {
-                sourceController.Source.Value = value;
-                Type valueType = value.GetType();
-                sourceController.Controller.ManualWrite(value);
+                if (value.TryGetValue(out int intValue))
+                {
+                    sourceController.Source.Value = intValue;
+                    sourceController.Controller.ManualWrite(intValue);
+                }
+                else if (value.TryGetValue(out bool boolValue))
+                {
+                    sourceController.Source.Value = boolValue;
+                    sourceController.Controller.ManualWrite(boolValue);
+                }
+                else
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
                 IList<IReference> references = [];
                 sourceController.Source.GetReferences(
                     SystemContext,
@@ -803,7 +826,8 @@ namespace Alarms
 
             if (node.TryGetValue(out string unmodifiedName))
             {
-                // This is bad, but I'm not sure why the NodeName is being attached with an underscore, it messes with this lookup.
+                // This is bad, but I'm not sure why the NodeName is being attached with an underscore.
+                // It messes with this lookup.
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 string name = unmodifiedName.Replace(
                     "Alarms_",

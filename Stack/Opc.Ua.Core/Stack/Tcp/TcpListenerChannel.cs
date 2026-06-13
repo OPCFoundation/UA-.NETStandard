@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -229,9 +230,117 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Has the channel been used in a session
+        /// Gets whether at least one active session is using the channel.
         /// </summary>
-        public bool UsedBySession { get; protected set; }
+        public bool UsedBySession => Volatile.Read(ref m_sessionCount) > 0;
+
+        /// <summary>
+        /// Records an active session on the channel.
+        /// </summary>
+        protected void AddSession()
+        {
+            Interlocked.Increment(ref m_sessionCount);
+        }
+
+        /// <summary>
+        /// Records a closed session on the channel.
+        /// </summary>
+        protected void RemoveSession()
+        {
+            int sessionCount;
+            do
+            {
+                sessionCount = Volatile.Read(ref m_sessionCount);
+                if (sessionCount == 0)
+                {
+                    return;
+                }
+            } while (Interlocked.CompareExchange(ref m_sessionCount, sessionCount - 1, sessionCount) !=
+                sessionCount);
+        }
+
+        /// <summary>
+        /// Force-closes the channel if it was negotiated against the
+        /// server certificate identified by <paramref name="oldThumbprint"/>.
+        /// Implements the channel-cut step required by OPC UA Part 12
+        /// §7.10.9 (ApplyChanges → force renegotiate affected
+        /// SecureChannels). The listener socket is unaffected — only the
+        /// per-channel TCP connection is torn down so the client's
+        /// reconnect logic can transfer the Session over a fresh
+        /// SecureChannel.
+        /// </summary>
+        /// <param name="oldThumbprint">
+        /// The thumbprint of the previously-active server application
+        /// certificate. Compared case-insensitively against the channel's
+        /// own <see cref="UaSCUaBinaryChannel.ServerCertificate"/>
+        /// thumbprint.
+        /// </param>
+        /// <param name="globalChannelId">
+        /// On <c>true</c> return, the
+        /// <see cref="UaSCUaBinaryChannel.GlobalChannelId"/> of the
+        /// channel that was just closed; otherwise <c>null</c>.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when the channel matched and was closed;
+        /// <c>false</c> when the channel's server certificate does not
+        /// match, the channel is already closed/faulted, or there is no
+        /// negotiated server certificate (e.g. a SecurityPolicy.None
+        /// channel).
+        /// </returns>
+        internal bool TryCloseForCertificateRotation(
+            string oldThumbprint,
+            out string? globalChannelId)
+        {
+            globalChannelId = null;
+            if (string.IsNullOrEmpty(oldThumbprint))
+            {
+                return false;
+            }
+
+            lock (DataLock)
+            {
+                if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
+                {
+                    return false;
+                }
+
+                string? currentThumbprint = ServerCertificate?.Thumbprint;
+                if (string.IsNullOrEmpty(currentThumbprint) ||
+                    !string.Equals(currentThumbprint, oldThumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                globalChannelId = GlobalChannelId;
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "{Channel} ChannelId={ChannelId}: closing for certificate rotation (thumbprint {Thumbprint}).",
+                    ChannelName,
+                    ChannelId,
+                    oldThumbprint);
+
+                var reason = ServiceResult.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "Server certificate rotated. Renegotiate the SecureChannel.");
+
+                if (Socket != null)
+                {
+                    try
+                    {
+                        SendErrorMessage(reason);
+                    }
+                    catch
+                    {
+                        // Best-effort — the goal is to close the channel
+                        // even if the error message cannot be flushed.
+                    }
+                }
+
+                ChannelFaulted();
+                NotifyMonitors(reason, true);
+                return true;
+            }
+        }
 
         /// <summary>
         /// Handles a socket error.
@@ -596,6 +705,7 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private bool m_responseRequired;
         private uint m_lastTokenId;
+        private int m_sessionCount;
     }
 
     /// <summary>

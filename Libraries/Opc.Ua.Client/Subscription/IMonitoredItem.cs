@@ -88,15 +88,31 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         uint ClientHandle { get; }
 
         /// <summary>
-        /// The monitored item that triggers this item, or <c>null</c>
-        /// if no triggering relationship has been recorded via
-        /// <c>SetTriggeringAsync</c> on the owning subscription. The
-        /// relationship is resolved on demand against the owning
-        /// subscription's collection; the reverse lookup ("what items
-        /// does this item trigger") is also performed on demand via the
-        /// owning context — there is no eagerly-maintained list.
+        /// Items that trigger this item (OPC UA Part 4 §5.13.1.6 N:M
+        /// triggering relationships). Returns a snapshot — the
+        /// underlying collection may change between successive reads.
+        /// An empty enumerable means no triggering relationship.
         /// </summary>
-        IMonitoredItem? TriggeringItem { get; }
+        /// <remarks>
+        /// Resolution is on-demand against the owning subscription's
+        /// monitored-item collection by stable name; siblings that are
+        /// not currently present (e.g. removed) are silently skipped.
+        /// This projects the runtime desired-state set
+        /// (<c>DesiredTriggeredByNames</c>) — which is updated
+        /// immediately by imperative <c>SetTriggeringAsync</c> calls
+        /// and by options changes — and therefore reflects intent
+        /// even before the server has applied a SetTriggering RPC.
+        /// </remarks>
+        IEnumerable<IMonitoredItem> TriggeringItems { get; }
+
+        /// <summary>
+        /// Items that this item triggers (the reverse view of
+        /// <see cref="TriggeringItems"/>). Resolved on demand by
+        /// walking the owning subscription's monitored items and
+        /// returning those whose runtime desired triggering set
+        /// contains <see cref="Name"/>.
+        /// </summary>
+        IEnumerable<IMonitoredItem> TriggeredItems { get; }
 
         /// <summary>
         /// Issue an OPC UA Part 9 §5.5.7 ConditionRefresh2 method call

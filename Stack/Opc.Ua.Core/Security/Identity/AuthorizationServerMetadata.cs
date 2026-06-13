@@ -80,7 +80,7 @@ namespace Opc.Ua.Identity
         /// Multiple values mean the Authorization Service supports more
         /// than one flow.
         /// </summary>
-        public IReadOnlyList<string> RequestTypes { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> RequestTypes { get; init; } = [];
 
         /// <summary>
         /// Scopes understood by the server. Mirrors the OIDC
@@ -88,7 +88,7 @@ namespace Opc.Ua.Identity
         /// may request any scope supported by the Authorization Service
         /// (Part 6 Table 55 <c>scopes</c>).
         /// </summary>
-        public IReadOnlyList<string> Scopes { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> Scopes { get; init; } = [];
 
         /// <summary>
         /// Token endpoint URI (OIDC <c>token_endpoint</c>) when the
@@ -186,8 +186,8 @@ namespace Opc.Ua.Identity
 
                 string? authorityUri = null;
                 string? resourceUri = null;
-                IReadOnlyList<string> requestTypes = Array.Empty<string>();
-                IReadOnlyList<string> scopes = Array.Empty<string>();
+                IReadOnlyList<string> requestTypes = [];
+                IReadOnlyList<string> scopes = [];
                 string? tokenEndpoint = null;
                 string? authorizationEndpoint = null;
                 string? audience = null;
@@ -305,7 +305,7 @@ namespace Opc.Ua.Identity
 
             if (element.ValueKind != JsonValueKind.Array)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             var list = new List<string>(element.GetArrayLength());

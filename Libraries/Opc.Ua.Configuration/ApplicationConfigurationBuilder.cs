@@ -364,6 +364,7 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
+            // Legacy Utils trace pipeline; kept for 1.5.378 -> 2.0 migration.
 #pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration?.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete

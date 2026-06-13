@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmConditionState a2 = CreateAlarm(102);
             bool sourceVal = false;
 
-            engine.RegisterSuppressionGroup(group, () => sourceVal, new[] { a1, a2 });
+            engine.RegisterSuppressionGroup(group, () => sourceVal, [a1, a2]);
 
             sourceVal = true;
             engine.Evaluate(m_context);
@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmConditionState a1 = CreateAlarm(201);
             bool sourceVal = true;
 
-            engine.RegisterSuppressionGroup(group, () => sourceVal, new[] { a1 });
+            engine.RegisterSuppressionGroup(group, () => sourceVal, [a1]);
 
             engine.Evaluate(m_context);
             Assert.That(a1.SuppressedState.Id.Value, Is.True);
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmConditionState other1 = CreateAlarm(302);
             AlarmConditionState other2 = CreateAlarm(303);
 
-            engine.RegisterFirstInGroupAlarm(first, group, new[] { other1, other2 });
+            engine.RegisterFirstInGroupAlarm(first, group, [other1, other2]);
 
             engine.OnFirstInGroupActiveChanged(m_context, first, group, firstActive: true);
 
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             using var engine = new AlarmSuppressionEngine();
             Assert.That(
                 () => engine.RegisterSuppressionGroup(
-                    null!, () => false, Array.Empty<AlarmConditionState>()),
+                    null!, () => false, []),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmGroupState group = CreateGroup(400);
             Assert.That(
                 () => engine.RegisterSuppressionGroup(
-                    group, null!, Array.Empty<AlarmConditionState>()),
+                    group, null!, []),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmGroupState group = CreateGroup(420);
             Assert.That(
                 () => engine.RegisterFirstInGroupAlarm(
-                    null!, group, Array.Empty<AlarmConditionState>()),
+                    null!, group, []),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
@@ -176,7 +176,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmConditionState first = CreateAlarm(421);
             Assert.That(
                 () => engine.RegisterFirstInGroupAlarm(
-                    first, null!, Array.Empty<AlarmConditionState>()),
+                    first, null!, []),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
@@ -215,8 +215,8 @@ namespace Opc.Ua.Server.Tests.Alarms
                 () => arm
                     ? throw new InvalidOperationException("boom")
                     : false,
-                new[] { badMember });
-            engine.RegisterSuppressionGroup(good, () => true, new[] { goodMember });
+                [badMember]);
+            engine.RegisterSuppressionGroup(good, () => true, [goodMember]);
 
             arm = true;
             Assert.That(() => engine.Evaluate(m_context), Throws.Nothing);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             sup.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
             member.SuppressedState = sup;
 
-            engine.RegisterSuppressionGroup(group, () => true, new[] { member });
+            engine.RegisterSuppressionGroup(group, () => true, [member]);
 
             engine.Evaluate(m_context);
             int afterFirst = member.SuppressedWriteCount;
@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests.Alarms
         {
             var engine = new AlarmSuppressionEngine();
             engine.Dispose();
-            Assert.That(() => engine.Dispose(), Throws.Nothing);
+            Assert.That(engine.Dispose, Throws.Nothing);
         }
 
         [Test]
@@ -263,7 +263,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             engine.Dispose();
             Assert.That(
                 () => engine.RegisterSuppressionGroup(
-                    group, () => false, Array.Empty<AlarmConditionState>()),
+                    group, () => false, []),
                 Throws.InstanceOf<ObjectDisposedException>());
         }
 
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             engine.Dispose();
             Assert.That(
                 () => engine.RegisterFirstInGroupAlarm(
-                    first, group, Array.Empty<AlarmConditionState>()),
+                    first, group, []),
                 Throws.InstanceOf<ObjectDisposedException>());
         }
 
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server.Tests.Alarms
 
             // first is intentionally included in otherMembers; the
             // ReferenceEquals guard must skip it.
-            engine.RegisterFirstInGroupAlarm(first, group, new[] { first, other });
+            engine.RegisterFirstInGroupAlarm(first, group, [first, other]);
 
             engine.OnFirstInGroupActiveChanged(m_context, first, group, firstActive: true);
 
@@ -368,11 +368,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             var group = new AlarmGroup(groupState);
             group.AddMember(alarm);
 
-            List<NodeId> members = new();
-            foreach (NodeId id in group.GetMemberIds(m_context))
-            {
-                members.Add(id);
-            }
+            List<NodeId> members = [.. group.GetMemberIds(m_context)];
             Assert.That(members, Has.Count.EqualTo(1));
             Assert.That(members[0], Is.EqualTo(alarm.NodeId));
         }
@@ -401,7 +397,7 @@ namespace Opc.Ua.Server.Tests.Alarms
         public void ConstructorWithNullStateThrowsArgumentNullException()
         {
             Assert.That(() => new AlarmGroup(null!),
-                Throws.InstanceOf<System.ArgumentNullException>());
+                Throws.InstanceOf<ArgumentNullException>());
         }
 
         [Test]
@@ -412,7 +408,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             var group = new AlarmGroup(groupState);
 
             Assert.That(() => group.AddMember(null!),
-                Throws.InstanceOf<System.ArgumentNullException>());
+                Throws.InstanceOf<ArgumentNullException>());
         }
 
         [Test]
@@ -423,7 +419,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             var group = new AlarmGroup(groupState);
 
             Assert.That(() => group.RemoveMember(null!),
-                Throws.InstanceOf<System.ArgumentNullException>());
+                Throws.InstanceOf<ArgumentNullException>());
         }
 
         [Test]
@@ -444,11 +440,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             groupState.AddReference(ReferenceTypeIds.AlarmGroupMember, false, unresolvable);
 
             var group = new AlarmGroup(groupState);
-            List<NodeId> members = new();
-            foreach (NodeId id in group.GetMemberIds(m_context))
-            {
-                members.Add(id);
-            }
+            List<NodeId> members = [.. group.GetMemberIds(m_context)];
 
             Assert.That(members, Has.Count.EqualTo(1));
             Assert.That(members[0], Is.EqualTo(alarm.NodeId));

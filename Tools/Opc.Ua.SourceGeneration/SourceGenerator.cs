@@ -120,6 +120,30 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A BrowseName from the design model contained characters that
+        /// required escaping when interpolated into a generated C# string
+        /// literal (e.g. <c>"</c>, <c>\</c>, or a control character). The
+        /// generator escapes the value via
+        /// <see cref="StringLiteralEscaper"/> and continues; the warning
+        /// surfaces the offending name so the design XML can be cleaned
+        /// up. Defence-in-depth: protects the consuming build from a
+        /// confusing compiler error if a third-party design XML pulled
+        /// into a custom build carries an ill-formed BrowseName.
+        /// </summary>
+        public static readonly DiagnosticDescriptor BrowseNameUnsafe = new(
+            id: "MODELGEN020",
+            title: "BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)",
+            messageFormat: (LocalizableString)("BrowseName '{0}' contained characters that " +
+                "required escaping when emitted into a C# string literal. The generator " +
+                "escaped the value and continued; clean up the design XML to remove the " +
+                "warning."),
+            category: Name,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(
@@ -132,6 +156,7 @@ namespace Opc.Ua.SourceGeneration
                 1 => GenericError,
                 2 => GenericWarning,
                 3 => Exception,
+                20 => BrowseNameUnsafe,
                 _ => logLevel switch
                 {
                     LogLevel.Error => GenericError,

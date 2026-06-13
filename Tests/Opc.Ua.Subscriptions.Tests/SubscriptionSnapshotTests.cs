@@ -244,10 +244,10 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(both, Is.True);
 
-                await ((Opc.Ua.Client.Subscriptions.Subscription)sub).SetTriggeringAsync(triggering!.ClientHandle,
-                    [triggered!.ClientHandle], [], ct).ConfigureAwait(false);
+                await sub.SetTriggeringAsync(triggering!,
+                    [triggered!], null, ct).ConfigureAwait(false);
 
-                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).Snapshot();
                 MonitoredItemStateSnapshot? triggerSnap = null;
                 MonitoredItemStateSnapshot? triggeredSnap = null;
                 foreach (MonitoredItemStateSnapshot it in snap.MonitoredItems)
@@ -263,11 +263,12 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
                 Assert.That(triggerSnap, Is.Not.Null);
                 Assert.That(triggeredSnap, Is.Not.Null);
-                // The snapshot stores the triggering relationship only
-                // on the triggered side; the reverse "items I trigger"
-                // set is reconstructed on demand from sibling items.
-                Assert.That(triggeredSnap!.TriggeringItemClientHandle,
-                    Is.EqualTo(triggering.ClientHandle));
+                // The snapshot stores triggering relationships as a
+                // list of stable triggering-item names on the
+                // triggered side; the reverse "items I trigger" set is
+                // reconstructed on demand from sibling items.
+                Assert.That(triggeredSnap!.TriggeredByNames.ToArray(),
+                    Is.EqualTo(new[] { "Trigger" }));
 
                 await sub.DisposeAsync().ConfigureAwait(false);
             }

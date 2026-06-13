@@ -31,10 +31,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using NUnit.Framework;
-using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 
 // Test assertions use literal expected-value arrays inline; lifting
@@ -56,7 +53,7 @@ namespace Opc.Ua.Client.Tests.Streaming
             {
                 items.Add(item);
             }
-            Assert.That(items, Is.EqualTo(new[] { 0, 1, 2, 3 }));
+            Assert.That(items, Is.EqualTo([0, 1, 2, 3]));
         }
 
         [Test]
@@ -67,14 +64,14 @@ namespace Opc.Ua.Client.Tests.Streaming
             {
                 items.Add(item);
             }
-            Assert.That(items, Is.EqualTo(new[] { 0, 1, 2, 3 }));
+            Assert.That(items, Is.EqualTo([0, 1, 2, 3]));
         }
 
         [Test]
         public async Task BufferedAsyncCollectsN()
         {
             IReadOnlyList<int> buffer = await Range(10).BufferedAsync(3);
-            Assert.That(buffer, Is.EqualTo(new[] { 0, 1, 2 }));
+            Assert.That(buffer, Is.EqualTo([0, 1, 2]));
         }
 
         [Test]
@@ -128,7 +125,7 @@ namespace Opc.Ua.Client.Tests.Streaming
         {
             IReadOnlyList<int> buffer = await Range(3).BufferedAsync(10);
 
-            Assert.That(buffer, Is.EqualTo(new[] { 0, 1, 2 }));
+            Assert.That(buffer, Is.EqualTo([0, 1, 2]));
             Assert.That(buffer, Has.Count.EqualTo(3));
         }
 

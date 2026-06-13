@@ -103,9 +103,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(getMonitoredItems, Is.Not.Null, "GetMonitoredItems should exist.");
             Assert.That(getMonitoredItems.OnCallMethod, Is.Not.Null, "GetMonitoredItems OnCallMethod should be wired.");
 
-            PropertyState getMonitoredItemsOutputArgs = manager.FindPredefinedNode<PropertyState>(VariableIds.Server_GetMonitoredItems_OutputArguments);
+            // The OutputArguments child is created by the generator's
+            // type-level factory and assigned a type-level NodeId; clients
+            // browse it by browse-name from the method. Look it up via the
+            // typed slot rather than VariableIds.Server_GetMonitoredItems_OutputArguments.
+            PropertyState getMonitoredItemsOutputArgs = getMonitoredItems.OutputArguments;
             Assert.That(getMonitoredItemsOutputArgs, Is.Not.Null, "GetMonitoredItems output arguments should exist.");
-            Assert.That(getMonitoredItemsOutputArgs.Value.IsNull, Is.False, "Output arguments value should be initialized.");
+            Assert.That(getMonitoredItemsOutputArgs.WrappedValue.IsNull, Is.False, "Output arguments value should be initialized.");
 
             ResendDataMethodState resendData = manager.FindPredefinedNode<ResendDataMethodState>(MethodIds.Server_ResendData);
             Assert.That(resendData, Is.Not.Null, "ResendData should exist.");

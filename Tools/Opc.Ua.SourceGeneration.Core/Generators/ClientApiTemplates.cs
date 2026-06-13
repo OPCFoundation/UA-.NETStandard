@@ -168,7 +168,11 @@ namespace Opc.Ua.SourceGeneration
 
                 try
                 {
-                    global::Opc.Ua.IServiceResponse? genericResponse = TransportChannel.SendRequest(request);
+                    global::Opc.Ua.IServiceResponse? genericResponse = TransportChannel
+                        .SendRequestAsync(request, global::System.Threading.CancellationToken.None)
+                        .AsTask()
+                        .GetAwaiter()
+                        .GetResult();
 
                     if (genericResponse == null)
                     {
@@ -200,7 +204,28 @@ namespace Opc.Ua.SourceGeneration
 
                 UpdateRequestHeader(request, requestHeader == null, "{{Tokens.Name}}");
 
-                return TransportChannel.BeginSendRequest(request, callback, asyncState);
+                global::System.Threading.Tasks.Task<global::Opc.Ua.IServiceResponse> task = TransportChannel
+                    .SendRequestAsync(request, global::System.Threading.CancellationToken.None)
+                    .AsTask();
+                global::System.Threading.Tasks.TaskCompletionSource<global::Opc.Ua.IServiceResponse> tcs =
+                    new global::System.Threading.Tasks.TaskCompletionSource<global::Opc.Ua.IServiceResponse>(asyncState);
+                task.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        tcs.TrySetException(t.Exception!.InnerExceptions);
+                    }
+                    else if (t.IsCanceled)
+                    {
+                        tcs.TrySetCanceled();
+                    }
+                    else
+                    {
+                        tcs.TrySetResult(t.Result);
+                    }
+                    callback?.Invoke(tcs.Task);
+                }, global::System.Threading.Tasks.TaskScheduler.Default);
+                return tcs.Task;
             }
 
             /// <summary>
@@ -213,7 +238,10 @@ namespace Opc.Ua.SourceGeneration
 
                 try
                 {
-                    global::Opc.Ua.IServiceResponse? genericResponse = TransportChannel.EndSendRequest(result);
+                    global::Opc.Ua.IServiceResponse? genericResponse =
+                        ((global::System.Threading.Tasks.Task<global::Opc.Ua.IServiceResponse>)result)
+                        .GetAwaiter()
+                        .GetResult();
 
                     if (genericResponse == null)
                     {

@@ -1,0 +1,57 @@
+<!--
+    Multi-project NoWarn recipe for consumers that set TreatWarningsAsErrors=true
+    and cannot relax it during the OPC UA 1.5.378 -> 2.0 migration window.
+
+    Drop this file at the root of your repository (Directory.Build.targets) so
+    every csproj inherits the migration-window noise suppression. Peel back each
+    rule id from the <NoWarn> list as you finish fixing it; drop the whole
+    block once the MigrationAnalyzer package reference is removed.
+
+    Notes:
+    - CS0612 / CS0618: compiler's own [Obsolete] warnings - the migration shim
+      uses [Obsolete] everywhere so this rule fires constantly during the
+      migration. Re-enable as soon as you've removed the MigrationAnalyzer
+      package.
+    - MIG01: source-generator diagnostic for unresolvable <Foo>Collection element
+      types. Usually means a missing `using` directive - keep this enabled
+      and address each one as it appears.
+    - UA0001 .. UA0022: the analyzer rules. Each one corresponds to a specific
+      pattern; see references/analyzer-rules.md for the full table.
+
+    For per-rule suppression instead of NoWarn, use .editorconfig:
+        [*.cs]
+        dotnet_diagnostic.UA0001.severity = none
+-->
+<Project>
+  <PropertyGroup>
+    <!-- Keep the contract; just exclude the migration diagnostics for now. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Migration diagnostics suppressed during the migration window only. -->
+    <NoWarn>
+      $(NoWarn);
+      CS0612;
+      CS0618;
+      MIG01;
+      UA0001;
+      UA0002;
+      UA0003;
+      UA0004;
+      UA0005;
+      UA0006;
+      UA0007;
+      UA0008;
+      UA0009;
+      UA0010;
+      UA0011;
+      UA0012;
+      UA0014;
+      UA0015;
+      UA0018;
+      UA0019;
+      UA0020;
+      UA0021;
+      UA0022
+    </NoWarn>
+  </PropertyGroup>
+</Project>

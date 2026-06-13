@@ -16,6 +16,7 @@
       - [ByteString](#bytestring)
       - [ArrayOf and MatrixOf](#arrayof-and-matrixof)
         - [Configuration collection types removed](#configuration-collection-types-removed)
+        - [Generated data type fields with ValueRank=OneOrMoreDimensions](#generated-data-type-fields-with-valuerankoneormoredimensions)
       - [DateTimeUtc](#datetimeutc)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
@@ -90,7 +91,7 @@ This document outlines the breaking changes introduced from version to version. 
 
 ## Migrating from 1.5.378 to 2.0.x
 
-> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.CodeFixers` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
+> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
 
 Version 2.0 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
 
@@ -196,6 +197,19 @@ var connection = new PubSubConnectionDataType
     Name = "MyConnection"
 };
 ```
+
+#### Server default Aggregate configuration now treats Uncertain as Bad (Part 13)
+
+**Behavioral Change (Part 13 compliance)**: The server-side default aggregate configuration returned by
+`AggregateManager.GetDefaultConfiguration(...)` — used when a `ReadProcessedDetails` request sets
+`AggregateConfiguration.UseServerCapabilitiesDefaults = true` — now sets `TreatUncertainAsBad = true`,
+matching the default mandated by OPC 10000-13 (Aggregates) v1.05.07 §4.2.1.2. Previously it defaulted to
+`false`.
+
+**Impact**: Processed (aggregate) history reads that rely on the server-capabilities defaults now treat
+Uncertain-quality samples as Bad when computing aggregate `StatusCode`s (unless a specific aggregate
+definition states otherwise). Clients that require the previous behavior should send an explicit
+`AggregateConfiguration` with `TreatUncertainAsBad = false` instead of `UseServerCapabilitiesDefaults = true`.
 
 #### Project Structure
 
@@ -315,6 +329,8 @@ Note that equality operators and methods now compare the content of the Array an
 
 **Change code as follows:**
 
+> ℹ **Tip — install `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`** before touching collection sites. Its source generator emits an `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shim per consumer compilation for every `<Type>Collection` the consumer references (including model-compiled `<UserType>Collection` patterns), so `CS0246: type or namespace 'XxxCollection' not found` is replaced with `[Obsolete]` warnings + `UA0002` analyzer guidance you can iterate through.
+
 - Replace any `T[]` with `ArrayOf<T>` where T is the type of the element in the array. Do this where errors are flagged, e.g. wherever casting a Variant to a `T[]` change it to `ArrayOf<T>` if it is a T array.
 - Change all use of `<Type>Collection` or `IList<Type>` to `List<Type>` (add a `using System.Collections.Generic` directive if needed). When the collection is never mutated (items added, inserted or removed), use `ArrayOf<Type>`.
 - In case of `error CS4007: Instance of type 'System.ReadOnlySpan<T>.Enumerator' cannot be preserved across 'await' or 'yield' boundary` convert the enumerated `ArrayOf<T>` to a list using `ToList()` and enumerate the list.
@@ -343,6 +359,76 @@ Note that equality operators and methods now compare the content of the Array an
 ##### Configuration collection types removed
 
 All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
+
+##### Generated data type fields with ValueRank=OneOrMoreDimensions
+
+Previously, every structure field declared with `ValueRank="OneOrMoreDimensions"` in a model design was generated as `global::Opc.Ua.Variant`. The property is now typed as `global::Opc.Ua.MatrixOf<T>` (mirroring the `ArrayOf<T>` treatment already used for `ValueRank="Array"`). Encoding/decoding still flows through `Variant`, but the boxing/unboxing happens inside the encoder calls so consumers see the typed surface.
+
+The element type follows the field's `DataType`:
+
+| Field `DataType`                                  | Generated property type                    | Encode call                                                       | Decode call                                                                 |
+| ------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| primitive (e.g. `Boolean`, `Int32`, `String`)     | `MatrixOf<bool>` etc.                      | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetBooleanMatrix();` (etc.)              |
+| `Structure` / abstract structure parent           | `MatrixOf<ExtensionObject>`                | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetExtensionObjectMatrix();`             |
+| concrete `IEncodeable` (e.g. `Vector`)            | `MatrixOf<Vector>`                         | `encoder.WriteEncodeableMatrix(name, field);`                     | `field = decoder.ReadEncodeableMatrix<Vector>(name);`                       |
+| typed enum (`MyEnum`)                             | `MatrixOf<MyEnum>`                         | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetEnumerationMatrix<MyEnum>();`         |
+| `BaseDataType` / `Number` / `Integer` / `UInteger`| `MatrixOf<Variant>`                        | `encoder.WriteVariant(name, Variant.From(field));`                | `field = decoder.ReadVariant(name).GetVariantMatrix();`                     |
+
+`Variant` round-trip APIs are available for every `BasicDataType` value except `DiagnosticInfo`. For a `DiagnosticInfo` matrix field — which is not a valid structure field per OPC UA Part 5 in any case — the legacy `Variant` property surface is retained.
+
+**Change code as follows:**
+
+- Direct access on the property is now typed; replace the
+  `new Variant(new Matrix(...))` wrapping / `Variant.Value` cast you
+  needed in 1.5.378 with the typed `MatrixOf<T>` assignment:
+
+  ``` csharp
+      // Before (1.5.378) — field was object/Variant; wrap a Matrix
+      myStruct.MyMatrix = new Variant(new Matrix(
+          new int[] { 1, 2, 3, 4 },
+          BuiltInType.Int32,
+          new int[] { 2, 2 }));
+      var back = (int[,])((Matrix)myStruct.MyMatrix.Value).ToArray();
+
+      // After — field is MatrixOf<int>; assign / read directly
+      myStruct.MyMatrix = new int[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
+      MatrixOf<int> back = myStruct.MyMatrix;
+  ```
+
+- `IDecoder` gained a parameterless `ReadEncodeableMatrix<T>(string? fieldName) where T : IEncodeable, new()` overload that mirrors the existing `ReadEncodeableArray<T>(string? fieldName)` shape. Custom `IDecoder` implementations should add this overload alongside the existing encoding-id variant.
+
+###### VariableType State classes, PropertyState instances, and service parameters
+
+The same `MatrixOf<T>` opt-in now extends beyond structure data type fields to three sibling sites in the source generator:
+
+- **VariableType State classes** — `VariableType` designs that restrict both the `DataType` and the `ValueRank` to a concrete matrix shape (e.g. `XYArrayItemType` with `DataType="XVType" ValueRank="OneOrMoreDimensions"`) now inherit the generic chain with a typed parameter. Previously: `XYArrayItemState : ArrayItemState<Variant>.Implementation<VariantBuilder>`. Now: `XYArrayItemState : ArrayItemState<MatrixOf<XVType>>.Implementation<StructureBuilder<XVType>>`. Consumers reading or writing `.Value` get a typed `MatrixOf<XVType>` directly.
+- **PropertyState / BaseDataVariableState instances** — instance variables that *narrow* a generic variable type (e.g. `PropertyType` → `EnumDictionaryEntries` with `DataType="NodeId" ValueRank="OneOrMoreDimensions"`) now declare typed `PropertyState<MatrixOf<NodeId>>` instead of falling back to the simple `PropertyState` name and losing type information. Same for `FailureSystemIdentifier` → `BaseDataVariableState<MatrixOf<byte>>`.
+- **Service method parameters** — Client/Server API generators now type matrix-rank arguments as `MatrixOf<T>` instead of `Variant`. No OPC UA standard service declares matrix arguments today, so this is forward-looking for custom service models.
+
+**Change code as follows:**
+
+For abstract base variable types (`ArrayItemType`, `CubeItemType`, `ImageItemType`, `NDimensionArrayItemType`, all of which declare `DataType="BaseDataType"`) the State class still uses the generic `<T>` parameter — consumers continue to instantiate with whatever element type matches their data.
+
+For *concrete* matrix variable types (today only `XYArrayItemType`) and matrix-rank property/variable instances, the `Value` setter and getter are now typed. Replace the 1.5.378 `new Variant(new Matrix(...))` pattern with a typed `MatrixOf<T>` assignment:
+
+``` csharp
+    // Before (1.5.378) — Value was object; wrap a Matrix of XVType
+    variable.Value = new Variant(new Matrix(
+        new XVType[]
+        {
+            new XVType { X = 0.0, Value = 0.0f },
+            new XVType { X = 1.0, Value = 1.0f }
+        },
+        BuiltInType.ExtensionObject,
+        new int[] { 2 }));
+
+    // After — Value is MatrixOf<XVType>; use a typed constructor
+    variable.Value = new[]
+    {
+        new XVType { X = 0.0, Value = 0.0f },
+        new XVType { X = 1.0, Value = 1.0f }
+    }.ToMatrixOf(2);
+```
 
 #### DateTimeUtc
 
@@ -1938,6 +2024,32 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 #### Reverse connect
 
 **Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
+
+### Security tightening — WoT Connectivity management methods
+
+**Behaviour-breaking, not source-breaking.** The five management methods on the standard `WoTAssetConnectionManagement` object (`CreateAsset`, `DeleteAsset`, `DiscoverAssets`, `CreateAssetForEndpoint`, `ConnectionTest`) now reject anonymous and `None`/`Sign`-only callers by default. The new `WotConnectivityServerOptions.ManagementAccess` (`WotManagementAccessPolicy`) defaults to:
+
+* `MinimumSecurityMode = MessageSecurityMode.SignAndEncrypt`,
+* `AllowAnonymous = false`,
+* `RequiredRoleId = ObjectIds.WellKnownRole_SecurityAdmin`.
+
+Existing deployments that relied on anonymous management over `None` channels must either configure their clients to use `SignAndEncrypt` and present a `SecurityAdmin`-roled identity, or explicitly opt-in to the legacy behaviour:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(...)
+    .AddWotConServer(opts =>
+    {
+        opts.ManagementAccess = new WotManagementAccessPolicy
+        {
+            AllowAnonymous = true,
+            MinimumSecurityMode = MessageSecurityMode.None,
+            RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+        };
+    });
+```
+
+Internal callers that invoke `AssetRegistry.*Async` directly (startup restoration of persisted assets, in-process tests) are unaffected — the enforcement runs only against `OperationContext`-bearing address-space calls.
 
 ## Migrating from 1.05.377 to 1.05.378
 
