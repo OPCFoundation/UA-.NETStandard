@@ -161,6 +161,15 @@ namespace Opc.Ua.Sessions.Tests
                 session.ConfiguredEndpoint?.Description?.TransportProfileUri,
                 Is.EqualTo(Profiles.UaWssTransport));
 
+            // The fixture configures the server with the default
+            // HttpsMutualTls = true, so a successful SecureChannel here
+            // implies the client's application TLS certificate cleared the
+            // mutual-TLS handshake at the WebSocket layer in addition to
+            // the OPC UA UASC OpenSecureChannel that follows it.
+            Assert.That(
+                session.ConfiguredEndpoint?.Description?.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+
             ArrayOf<ReferenceDescription> refs = await session
                 .FetchReferencesAsync(new NodeId(Objects.Server))
                 .ConfigureAwait(false);
