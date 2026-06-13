@@ -34,15 +34,15 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Bindings.Pcap.Bindings
 {
     /// <summary>
-    /// <see cref="IMessageSocketFactory"/> decorator that wraps every
-    /// socket created by an inner factory in a
-    /// <see cref="CapturingMessageSocket"/>. Installed once at binding
+    /// <see cref="IUaSCByteTransportFactory"/> decorator that wraps every
+    /// transport produced by an inner factory in a
+    /// <see cref="CapturingByteTransport"/>. Installed once at binding
     /// registration time; every channel created through the binding gets
-    /// its socket transparently capture-enabled.
+    /// its transport transparently capture-enabled.
     /// </summary>
-    public sealed class CapturingMessageSocketFactory : IMessageSocketFactory
+    public sealed class CapturingByteTransportFactory : IUaSCByteTransportFactory
     {
-        private readonly IMessageSocketFactory m_inner;
+        private readonly IUaSCByteTransportFactory m_inner;
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory? m_loggerFactory;
 
@@ -52,8 +52,8 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
         /// <exception cref="ArgumentNullException">
         /// <paramref name="inner"/> or <paramref name="registry"/> is <c>null</c>.
         /// </exception>
-        public CapturingMessageSocketFactory(
-            IMessageSocketFactory inner,
+        public CapturingByteTransportFactory(
+            IUaSCByteTransportFactory inner,
             IChannelCaptureRegistry registry,
             ILoggerFactory? loggerFactory = null)
         {
@@ -69,13 +69,13 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
         public string Implementation => m_inner.Implementation + "+pcap";
 
         /// <inheritdoc/>
-        public IMessageSocket Create(
-            IMessageSink sink,
+        public IUaSCByteTransport Create(
             BufferManager bufferManager,
-            int receiveBufferSize)
+            int receiveBufferSize,
+            ITelemetryContext telemetry)
         {
-            IMessageSocket inner = m_inner.Create(sink, bufferManager, receiveBufferSize);
-            return new CapturingMessageSocket(inner, m_registry, sink, m_loggerFactory);
+            IUaSCByteTransport inner = m_inner.Create(bufferManager, receiveBufferSize, telemetry);
+            return new CapturingByteTransport(inner, m_registry, m_loggerFactory);
         }
     }
 }

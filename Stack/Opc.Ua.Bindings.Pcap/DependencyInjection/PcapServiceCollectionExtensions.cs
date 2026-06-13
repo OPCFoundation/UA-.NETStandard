@@ -83,7 +83,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
             // Shared registry: the Pcap binding installed below and every
             // CaptureSessionManager created via DI talk to the SAME
             // ChannelCaptureRegistry instance, so the
-            // CapturingMessageSocket's single volatile read of
+            // CapturingByteTransport's single volatile read of
             // CurrentObserver picks up StartAsync / StopAsync writes
             // without any further coordination.
             var registry = new ChannelCaptureRegistry();

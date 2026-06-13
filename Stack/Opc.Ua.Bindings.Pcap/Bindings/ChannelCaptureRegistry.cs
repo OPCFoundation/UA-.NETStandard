@@ -37,7 +37,7 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
     /// single instance is registered as a singleton by
     /// <c>AddOpcUaBindingsPcap</c> and shared between the Pcap transport
     /// binding (which configures every channel's socket with a
-    /// <see cref="CapturingMessageSocket"/>) and the capture session
+    /// <see cref="CapturingByteTransport"/>) and the capture session
     /// (which writes the active observer here when it starts recording).
     /// </summary>
     public sealed class ChannelCaptureRegistry : IChannelCaptureRegistry

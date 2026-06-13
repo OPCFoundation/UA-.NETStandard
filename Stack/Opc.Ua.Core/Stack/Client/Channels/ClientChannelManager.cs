@@ -257,7 +257,9 @@ namespace Opc.Ua
             {
                 Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
                 Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
                 Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                Profiles.UaWssJsonTransport => "opc.wss+json",
                 _ => endpointUrl.Scheme
             };
 
@@ -339,11 +341,11 @@ namespace Opc.Ua
             }
 
             // Get effective ip address and port
-            IMessageSocket? socket = (channel as IMessageSocketChannel)?.Socket;
-            IPAddress? remoteIpAddress = GetIPAddress(socket?.RemoteEndpoint);
-            int remotePort = GetPort(socket?.RemoteEndpoint);
-            IPAddress? localIpAddress = GetIPAddress(socket?.LocalEndpoint);
-            int localPort = GetPort(socket?.LocalEndpoint);
+            IUaSCByteTransport? transport = (channel as UaSCUaBinaryTransportChannel)?.Transport;
+            IPAddress? remoteIpAddress = GetIPAddress(transport?.RemoteEndpoint);
+            int remotePort = GetPort(transport?.RemoteEndpoint);
+            IPAddress? localIpAddress = GetIPAddress(transport?.LocalEndpoint);
+            int localPort = GetPort(transport?.LocalEndpoint);
 
             OnDiagnostics.Invoke(channel, new TransportChannelDiagnostic
             {

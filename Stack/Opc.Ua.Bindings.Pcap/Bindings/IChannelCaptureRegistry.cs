@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
     /// <summary>
     /// A process-wide registry that publishes the currently-active
     /// <see cref="IFrameCaptureSink"/> to every
-    /// <see cref="CapturingMessageSocket"/> created by the Pcap binding.
+    /// <see cref="CapturingByteTransport"/> created by the Pcap binding.
     /// The registry is the single coordination point between the
     /// CaptureSessionManager (which decides when recording is on or off)
     /// and the capturing socket decorator on the hot path.

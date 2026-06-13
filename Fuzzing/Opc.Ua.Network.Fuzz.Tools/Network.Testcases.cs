@@ -73,7 +73,7 @@ namespace Opc.Ua.Fuzzing
 
             // The full in-process client/server recorder requires more setup than this fleet slice.
             // These deterministic seeds are built with LoopbackFrameBuilder and exercise the same public pcap surfaces.
-            _ = typeof(CapturingMessageSocketFactory);
+            _ = typeof(CapturingByteTransportFactory);
         }
 
         private static async Task WriteKeyLogAsync(string path)

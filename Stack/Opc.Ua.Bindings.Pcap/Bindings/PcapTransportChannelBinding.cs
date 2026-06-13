@@ -35,20 +35,20 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
 {
     /// <summary>
     /// <see cref="ITransportChannelFactory"/> decorator that produces TCP
-    /// transport channels whose underlying socket is wrapped by a
-    /// <see cref="CapturingMessageSocketFactory"/>. Registering this
+    /// transport channels whose underlying byte transport is wrapped by a
+    /// <see cref="CapturingByteTransportFactory"/>. Registering this
     /// binding via <c>AddOpcUaBindingsPcap</c> (or
     /// <c>TransportBindings.Channels.SetBinding</c>) installs the capture
     /// hook for every <see cref="ITransportChannel"/> created through
-    /// <see cref="ClientChannelManager"/>.
+    /// <c>ClientChannelManager</c>.
     /// </summary>
     /// <remarks>
     /// Wrapping is unconditional once the binding is installed; the
     /// runtime cost of "binding installed, no session recording" is
     /// effectively a single volatile read returning <c>null</c> on the
     /// channel's hot path. When the binding is NOT installed the original
-    /// <see cref="TcpTransportChannelFactory"/> is invoked directly with
-    /// zero indirection.
+    /// <see cref="TcpTransportChannel"/> is invoked directly with zero
+    /// indirection.
     /// </remarks>
     public sealed class PcapTransportChannelBinding : ITransportChannelFactory
     {
@@ -76,12 +76,12 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
         {
             ArgumentNullException.ThrowIfNull(telemetry);
 
-            var innerSocketFactory = new TcpMessageSocketFactory(telemetry);
-            var capturingFactory = new CapturingMessageSocketFactory(
-                innerSocketFactory,
+            var innerFactory = new TcpByteTransportFactory(telemetry);
+            var capturingFactory = new CapturingByteTransportFactory(
+                innerFactory,
                 m_registry,
                 m_loggerFactory ?? telemetry.LoggerFactory);
-            var channel = new TcpTransportChannel(telemetry, capturingFactory);
+            var channel = new UaSCUaBinaryTransportChannel(capturingFactory, telemetry);
 
             // Forward token-activated events to the active observer so an
             // offline decoder receives the derived key material alongside
@@ -116,3 +116,4 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
         }
     }
 }
+
