@@ -76,6 +76,64 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public IMonitoredItemCollection MonitoredItems => m_monitoredItems;
 
+        /// <summary>
+        /// <para>
+        /// Optional callback invoked when the server rejects a
+        /// monitored-item creation on this partition with
+        /// <see cref="StatusCodes.BadTooManyMonitoredItems"/>. The
+        /// V2 reactive fallback (see
+        /// <see cref="MonitoredItems.PartitionPlacementPolicy.OnPartitionCapReached"/>)
+        /// uses this hook to discover the server's effective
+        /// per-subscription cap and mark the partition no-grow so
+        /// subsequent placements skip it.
+        /// </para>
+        /// <para>
+        /// Wired by <see cref="SubscriptionManager.Add"/> and
+        /// <see cref="SubscriptionManager.MintPartition"/> when the
+        /// owning <see cref="LogicalSubscription"/> has placement
+        /// enabled. <c>null</c> otherwise; the partition then surfaces
+        /// rejections through normal item-level error reporting only.
+        /// </para>
+        /// </summary>
+        internal Action<ServiceResult>? OnPartitionCapReached { get; set; }
+
+        /// <summary>
+        /// <para>
+        /// Optional callback invoked by <see cref="StateManagerAsync"/>
+        /// exactly once per partition lifetime, immediately after a
+        /// successful <see cref="CreateAsync"/> and before the first
+        /// <see cref="MonitoredItems.MonitoredItemManager.ApplyChangesAsync"/>
+        /// in the same iteration of the state-manager loop. Used by
+        /// <see cref="LogicalSubscription"/> to satisfy the OPC UA
+        /// Part 4 §5.13.9 rule that
+        /// <c>SetSubscriptionDurable</c> must precede any
+        /// monitored-item creation: the wrapper installs a hook that
+        /// awaits <see cref="SetAsDurableAsync"/> here so the call
+        /// is interleaved between the
+        /// <c>CreateSubscription</c> response and the first
+        /// <c>CreateMonitoredItems</c> request.
+        /// </para>
+        /// <para>
+        /// The state machine clears the property after invoking it so
+        /// modify cycles do not re-run the hook. The owning wrapper
+        /// re-installs the hook before the next Create pass (e.g.
+        /// after reconnect / recreate) when durable intent has been
+        /// recorded.
+        /// </para>
+        /// <para>
+        /// Exceptions thrown by the hook are logged as a warning and
+        /// surfaced via a <see cref="SubscriptionState.Modified"/>
+        /// state change rather than tearing the partition down — a
+        /// failed durable-apply is reported but does not prevent the
+        /// subscription from continuing.
+        /// </para>
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? OnAfterCreateAsync
+        {
+            get => m_onAfterCreateAsync;
+            set => m_onAfterCreateAsync = value;
+        }
+
         /// <inheritdoc/>
         public bool Created => Id != 0;
 
@@ -820,6 +878,36 @@ namespace Opc.Ua.Client.Subscriptions
                             if (!Created)
                             {
                                 await CreateAsync(options, ct).ConfigureAwait(false);
+                                // Run the post-create hook exactly
+                                // once per partition lifetime to
+                                // satisfy ordering-sensitive callers
+                                // (e.g. SetSubscriptionDurable, which
+                                // per OPC UA Part 4 §5.13.9 must
+                                // precede any monitored-item
+                                // creation). Clear after invocation
+                                // so modify cycles do not re-run it;
+                                // the owning wrapper re-installs the
+                                // hook before the next Create pass.
+                                Func<CancellationToken, ValueTask>? hook
+                                    = Interlocked.Exchange(
+                                        ref m_onAfterCreateAsync, null);
+                                if (hook != null)
+                                {
+                                    try
+                                    {
+                                        await hook(ct).ConfigureAwait(false);
+                                    }
+                                    catch (Exception hookEx)
+                                    {
+                                        Logger.LogWarning(hookEx,
+                                            "{Subscription}: OnAfterCreateAsync " +
+                                            "hook threw; partition continues but " +
+                                            "the post-create operation did not " +
+                                            "complete.", this);
+                                        OnSubscriptionStateChanged(
+                                            SubscriptionState.Modified);
+                                    }
+                                }
                             }
                             else
                             {
@@ -1216,6 +1304,7 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
+        private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;
         private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly AsyncManualResetEvent m_createdEvent = new();
         private readonly CancellationTokenSource m_cts = new();

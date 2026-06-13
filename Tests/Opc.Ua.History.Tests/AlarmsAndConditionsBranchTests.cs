@@ -86,7 +86,16 @@ namespace Opc.Ua.History.Tests
                 "Master alarm BranchId should be null/empty.");
         }
 
+        // [Retry(2)]: AcknowledgeBranchAsync + ConfirmBranchAsync make a real OPC UA
+        // round trip (ReadEventIdAsync -> CallMethodOnAlarmAsync). On macOS hosted
+        // CI agents under load the secure channel can be dropped mid-request with
+        // BadSecureChannelClosed / BadConnectionClosed (observed in mac PR build
+        // 14594 log 913). The base TestFixture's ResetServerLockoutState [SetUp]
+        // detects a dead session via a 5 s health-check Read and reconnects before
+        // the next attempt, so a single retry reliably converts the transient into
+        // a pass without hiding real failures (two consecutive failures still fail).
         [Test]
+        [Retry(2)]
         public async Task AcknowledgeBranchAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -113,9 +122,10 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
+        [Retry(2)]
         public async Task ConfirmBranchAsync()
         {
-            NodeId alarmId = RequireAlarm();
+            NodeId alarmId = RequireAlarm("AlarmConditionType");
             await Task.Delay(1500).ConfigureAwait(false);
 
             ByteString eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);

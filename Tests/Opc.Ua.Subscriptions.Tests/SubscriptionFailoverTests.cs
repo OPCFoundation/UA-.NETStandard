@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -44,7 +45,7 @@ namespace Opc.Ua.Subscriptions.Tests
     /// <summary>
     /// V2 failover-style transfer tests. Force a transport channel
     /// break and verify the subscription survives — either via
-    /// <see cref="ISubscriptionManager.TransferSubscriptionsOnRecreate"/>
+    /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.TransferSubscriptionsOnRecreate"/>
     /// (server kept the subscription) or via the V2 manager's
     /// internal recreate fallback (server discarded). Both outcomes
     /// must result in the subscription continuing to deliver data.
@@ -96,7 +97,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -159,20 +160,10 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try
-                {
-                    await session.CloseAsync().ConfigureAwait(false);
-                }
-                catch
-                { /* best effort */
-                }
-                try
-                {
-                    await session.DisposeAsync().ConfigureAwait(false);
-                }
-                catch
-                { /* best effort */
-                }
+                try { await session.CloseAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
+                try { await session.DisposeAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
             }
         }
 
@@ -195,7 +186,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -212,7 +203,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(await handler.WaitForFirstDataAsync(
                     TimeSpan.FromSeconds(15), ct).ConfigureAwait(false), Is.True);
 
-                uint preServerId = ((Client.Subscriptions.Subscription)sub).ServerId;
+                uint preServerId = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).ServerId;
                 int preCount = handler.DataChangeCount;
                 ITransportChannel? channel = session.InnerSession?.TransportChannel;
                 if (channel == null)
@@ -233,7 +224,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     () => handler.DataChangeCount > preCount,
                     TimeSpan.FromSeconds(30), ct).ConfigureAwait(false), Is.True,
                     "Subscription must continue to deliver after channel reconnect");
-                Assert.That(((Client.Subscriptions.Subscription)sub).ServerId, Is.EqualTo(preServerId),
+                Assert.That(((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).ServerId, Is.EqualTo(preServerId),
                     "Without TransferSubscriptions on recreate, the server-side " +
                     "ServerId should be preserved across a transport-level reconnect.");
 
@@ -241,20 +232,10 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try
-                {
-                    await session.CloseAsync().ConfigureAwait(false);
-                }
-                catch
-                { /* best effort */
-                }
-                try
-                {
-                    await session.DisposeAsync().ConfigureAwait(false);
-                }
-                catch
-                { /* best effort */
-                }
+                try { await session.CloseAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
+                try { await session.DisposeAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
             }
         }
 
@@ -264,7 +245,7 @@ namespace Opc.Ua.Subscriptions.Tests
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
                 .ConfigureAwait(false);
-            ManagedSessionBuilder builder = new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+            var builder = new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
                 .UseEndpoint(endpoint)
                 .WithSessionName(sessionName)
                 .WithSessionTimeout(TimeSpan.FromSeconds(120));

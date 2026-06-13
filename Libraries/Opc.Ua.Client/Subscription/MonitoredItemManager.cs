@@ -318,6 +318,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             bool final,
             MonitoringFilterResult? filterResult)
         {
+            // Reactive fallback for the V2 unbounded-item mode:
+            // surface a Bad_TooManyMonitoredItems response so the
+            // owning logical subscription can mark this partition
+            // no-grow. The placement policy then skips this partition
+            // for subsequent TryAdd calls; the failed item is reported
+            // up to the caller via its standard error path.
+            if (serviceResult != null &&
+                serviceResult.StatusCode == StatusCodes.BadTooManyMonitoredItems &&
+                m_context is Subscription owningPartition)
+            {
+                owningPartition.OnPartitionCapReached?.Invoke(serviceResult);
+            }
             return final || retryCount > 5; // TODO: Resiliency policy
         }
 
@@ -362,6 +374,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             DataChangeNotification notification)
         {
             var memory = new DataValueChange[notification.MonitoredItems.Count];
+            uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
                 for (int i = 0; i < notification.MonitoredItems.Count; i++)
@@ -369,7 +382,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     MonitoredItemNotification item = notification.MonitoredItems[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new DataValueChange(monitored,
-                        item.Value, item.DiagnosticInfo);
+                        item.Value, item.DiagnosticInfo)
+                    {
+                        PartitionServerId = partitionId
+                    };
                 }
             }
             // TODO: Sort on order of monitored items
@@ -387,13 +403,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             EventNotificationList notification)
         {
             var memory = new EventNotification[notification.Events.Count];
+            uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
                 for (int i = 0; i < notification.Events.Count; i++)
                 {
                     EventFieldList item = notification.Events[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
-                    memory[i] = new EventNotification(monitored, item.EventFields);
+                    memory[i] = new EventNotification(monitored, item.EventFields)
+                    {
+                        PartitionServerId = partitionId
+                    };
                 }
             }
             // memory.AsSpan().Sort((x, y) => x.MonitoredItem!.ClientHandle.CompareTo(

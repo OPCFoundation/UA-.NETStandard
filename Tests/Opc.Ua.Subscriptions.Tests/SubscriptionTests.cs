@@ -35,11 +35,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -87,7 +90,6 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             return base.TearDownAsync();
         }
-
         [Test]
         [Order(100)]
         [CancelAfter(60_000)]
@@ -98,7 +100,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -118,7 +120,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(
                     subscription.TryAddMonitoredItem("CurrentTime", timeNode,
                         o => o with { SamplingInterval = TimeSpan.FromMilliseconds(250) },
-                        out Client.Subscriptions.MonitoredItems.IMonitoredItem? item),
+                        out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item),
                     Is.True);
                 Assert.That(item, Is.Not.Null);
                 Assert.That(subscription.MonitoredItems.Count, Is.EqualTo(1u));
@@ -137,7 +139,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     sub.TryAddMonitoredItem("State",
                         VariableIds.Server_ServerStatus_State,
                         o => o with { SamplingInterval = TimeSpan.FromMilliseconds(500) },
-                        out Client.Subscriptions.MonitoredItems.IMonitoredItem? stateItem),
+                        out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? stateItem),
                     Is.True);
                 Assert.That(stateItem, Is.Not.Null);
                 Assert.That(sub.MonitoredItems.Count, Is.EqualTo(2u));
@@ -155,7 +157,8 @@ namespace Opc.Ua.Subscriptions.Tests
                 // the classic test that asserts BadMessageNotAvailable
                 // for a sequence number that the server doesn't have.
                 // TODO(V2): expose RepublishAsync(seq, ct) on ISubscription.
-                var internalSub = (Client.Subscriptions.Subscription)subscription;
+                Opc.Ua.Client.Subscriptions.Subscription internalSub =
+                    (Opc.Ua.Client.Subscriptions.Subscription)((Opc.Ua.Client.Subscriptions.LogicalSubscription)subscription).Primary;
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.RepublishAsync(null,
                         internalSub.Id, internalSub.LastSequenceNumberProcessed + 100, ct)
@@ -175,7 +178,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         [Test]
         [Order(200)]
         [CancelAfter(60_000)]
@@ -186,7 +188,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -223,7 +225,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     File.Delete(s_saveFile);
                 }
-                using (FileStream output = File.Create(s_saveFile))
+                using (var output = File.Create(s_saveFile))
                 {
                     await session.SubscriptionManager.SaveAsync(
                         output, session.MessageContext, null, ct)
@@ -238,7 +240,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 try
                 {
                     var reloadHandler = new RecordingSubscriptionHandler();
-                    using FileStream input = File.OpenRead(s_saveFile);
+                    using var input = File.OpenRead(s_saveFile);
                     IReadOnlyList<ISubscription> loaded = await reloadSession
                         .SubscriptionManager.LoadAsync(input,
                             reloadSession.MessageContext,
@@ -289,7 +291,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
-
         [Test]
         [Order(300)]
         [CancelAfter(60_000)]
@@ -312,14 +313,14 @@ namespace Opc.Ua.Subscriptions.Tests
                 var subs = new ISubscription[subscriptionCount];
                 var handlers = new SequentialOrderingHandler[subscriptionCount];
 
-                IList<NodeId> simNodes =
+                System.Collections.Generic.IList<NodeId> simNodes =
                     GetTestSetSimulation(session.NamespaceUris);
 
                 for (int i = 0; i < subscriptionCount; i++)
                 {
                     handlers[i] = new SequentialOrderingHandler();
                     subs[i] = session.AddSubscription(handlers[i],
-                        new Client.Subscriptions.SubscriptionOptions
+                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                         {
                             PublishingInterval = TimeSpan.FromMilliseconds(100),
                             KeepAliveCount = 10,
@@ -329,7 +330,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     for (int j = 0; j < itemsPerSubscription && j < simNodes.Count; j++)
                     {
                         Assert.That(subs[i].TryAddMonitoredItem(
-                            string.Format(CultureInfo.InvariantCulture,
+                            string.Format(System.Globalization.CultureInfo.InvariantCulture,
                                 "sub-{0}-item-{1}", i, j),
                             simNodes[j],
                             o => o with { SamplingInterval = TimeSpan.Zero },
@@ -380,7 +381,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 uint sequenceNumber, DateTime publishTime,
                 ReadOnlyMemory<DataValueChange> notification,
                 PublishState publishStateMask,
-                IReadOnlyList<string> stringTable)
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
             {
                 Observe(sequenceNumber);
                 return default;
@@ -390,7 +391,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 uint sequenceNumber, DateTime publishTime,
                 ReadOnlyMemory<EventNotification> notification,
                 PublishState publishStateMask,
-                IReadOnlyList<string> stringTable)
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
             {
                 Observe(sequenceNumber);
                 return default;
@@ -405,7 +406,7 @@ namespace Opc.Ua.Subscriptions.Tests
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(ISubscription subscription,
-                Client.Subscriptions.SubscriptionState state, PublishState publishStateMask,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state, PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;
@@ -424,7 +425,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
-
         [Test]
         [Order(400)]
         [CancelAfter(60_000)]
@@ -446,7 +446,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     handlers[i] = new RecordingSubscriptionHandler();
                     subs[i] = session.AddSubscription(handlers[i],
-                        new Client.Subscriptions.SubscriptionOptions
+                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                         {
                             PublishingInterval = TimeSpan.FromMilliseconds(100),
                             KeepAliveCount = 10,
@@ -488,7 +488,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         [Test]
         [Order(500)]
         [CancelAfter(60_000)]
@@ -499,7 +498,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         KeepAliveCount = 1,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -515,7 +514,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.TryAddMonitoredItem("State",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { SamplingInterval = TimeSpan.Zero },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item),
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item),
                     Is.True);
                 Assert.That(item, Is.Not.Null);
 
@@ -533,7 +532,8 @@ namespace Opc.Ua.Subscriptions.Tests
                 // exercise the raw service call so the test still
                 // verifies the server resends the cached value.
                 // TODO(V2): expose ResendDataAsync on ISubscription.
-                var internalSub = (Client.Subscriptions.Subscription)subscription;
+                Opc.Ua.Client.Subscriptions.Subscription internalSub =
+                    (Opc.Ua.Client.Subscriptions.Subscription)((Opc.Ua.Client.Subscriptions.LogicalSubscription)subscription).Primary;
                 CallMethodRequest[] resend =
                 [
                     new()
@@ -564,7 +564,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         [Test]
         [Order(600)]
         [CancelAfter(60_000)]
@@ -575,7 +574,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -594,15 +593,15 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.TryAddMonitoredItem("Trigger",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? triggering), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggering), Is.True);
                 Assert.That(subscription.TryAddMonitoredItem("Triggered1",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { MonitoringMode = MonitoringMode.Sampling },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? triggered1), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggered1), Is.True);
                 Assert.That(subscription.TryAddMonitoredItem("Triggered2",
                     VariableIds.Server_ServerStatus_BuildInfo,
                     o => o with { MonitoringMode = MonitoringMode.Sampling },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? triggered2), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggered2), Is.True);
 
                 bool allCreated = await WaitForAsync(
                     () => triggering!.Created && triggered1!.Created && triggered2!.Created,
@@ -647,7 +646,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         [Test]
         [Order(601)]
         [CancelAfter(60_000)]
@@ -660,7 +658,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -674,7 +672,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.TryAddMonitoredItem("DeclTrig",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? trig), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? trig), Is.True);
 
                 // Add the triggered item with TriggeredByNames declared
                 // in its options — the engine should reconcile and
@@ -687,7 +685,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         MonitoringMode = MonitoringMode.Sampling,
                         TriggeredByNames = ["DeclTrig"]
                     },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? tgt), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? tgt), Is.True);
 
                 Assert.That(await WaitForAsync(
                     () => trig!.Created && tgt!.Created,
@@ -706,7 +704,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         [Test]
         [Order(602)]
         [CancelAfter(60_000)]
@@ -719,7 +716,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -732,15 +729,15 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.TryAddMonitoredItem("nmTrigA",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? trigA), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? trigA), Is.True);
                 Assert.That(subscription.TryAddMonitoredItem("nmTrigB",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? trigB), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? trigB), Is.True);
                 Assert.That(subscription.TryAddMonitoredItem("nmShared",
                     VariableIds.Server_ServerStatus_BuildInfo,
                     o => o with { MonitoringMode = MonitoringMode.Sampling },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? shared), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? shared), Is.True);
 
                 Assert.That(await WaitForAsync(
                     () => trigA!.Created && trigB!.Created && shared!.Created,
@@ -780,7 +777,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         [Test]
         [Order(700)]
         [CancelAfter(60_000)]
@@ -793,7 +789,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -840,7 +836,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 bool allCreated = await WaitForAsync(() =>
                 {
                     int createdCount = 0;
-                    foreach (Client.Subscriptions.MonitoredItems.IMonitoredItem item in subscription.MonitoredItems.Items)
+                    foreach (Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem item in subscription.MonitoredItems.Items)
                     {
                         if (item.Created)
                         {
@@ -854,7 +850,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Verify each item has a distinct server-assigned id
                 var serverIds = new HashSet<uint>();
-                foreach (Client.Subscriptions.MonitoredItems.IMonitoredItem item in subscription.MonitoredItems.Items)
+                foreach (Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem item in subscription.MonitoredItems.Items)
                 {
                     Assert.That(item.ServerId, Is.GreaterThan(0u));
                     Assert.That(serverIds.Add(item.ServerId), Is.True,
@@ -869,7 +865,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
         private async Task<ManagedSession> ConnectV2Async(
             string sessionName, CancellationToken ct)
         {

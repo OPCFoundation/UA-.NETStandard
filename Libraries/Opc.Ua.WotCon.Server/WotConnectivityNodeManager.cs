@@ -398,16 +398,7 @@ namespace Opc.Ua.WotCon.Server
         {
             management.CreateAsset?.OnCallAsync = OnCreateAssetAsync;
             management.DeleteAsset?.OnCallAsync = OnDeleteAssetAsync;
-            management.DiscoverAssets ??= management.AddDiscoverAssets(SystemContext);
-            management.DiscoverAssets.OnCallAsync = OnDiscoverAssetsAsync;
 
-            management.CreateAssetForEndpoint ??= management.AddCreateAssetForEndpoint(SystemContext);
-            management.CreateAssetForEndpoint.OnCallAsync = OnCreateAssetForEndpointAsync;
-
-            management.ConnectionTest ??= management.AddConnectionTest(SystemContext);
-            management.ConnectionTest.OnCallAsync = OnConnectionTestAsync;
-
-            management.SupportedWoTBindings ??= management.AddSupportedWoTBindings(SystemContext);
             var bindings = new List<string>();
             foreach (IWotAssetProviderFactory factory in m_options.Bindings)
             {
@@ -419,7 +410,12 @@ namespace Opc.Ua.WotCon.Server
                     }
                 }
             }
-            management.SupportedWoTBindings.Value = new ArrayOf<string>(bindings.ToArray());
+
+            management
+                .AddDiscoverAssets(SystemContext, c => c.OnCallAsync = OnDiscoverAssetsAsync)
+                .AddCreateAssetForEndpoint(SystemContext, c => c.OnCallAsync = OnCreateAssetForEndpointAsync)
+                .AddConnectionTest(SystemContext, c => c.OnCallAsync = OnConnectionTestAsync)
+                .AddSupportedWoTBindings(SystemContext, c => c.Value = new ArrayOf<string>(bindings.ToArray()));
         }
 
         private void ApplyConfiguration(ISystemContext context, WoTAssetConnectionManagementState management)
@@ -428,15 +424,12 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
-            WoTAssetConfigurationState configuration = management.Configuration
-                ?? management.AddConfiguration(context);
-            management.Configuration = configuration;
+            management.AddConfiguration(context);
+            WoTAssetConfigurationState configuration = management.Configuration!;
 
-            if (!string.IsNullOrEmpty(m_options.License))
-            {
-                configuration.License ??= configuration.AddLicense(context);
-                configuration.License.Value = m_options.License!;
-            }
+            configuration.AddLicense(context,
+                !string.IsNullOrEmpty(m_options.License),
+                c => c.Value = m_options.License!);
 
             foreach (KeyValuePair<string, WotConfigurationParameter> kv in m_options.Configuration)
             {
@@ -463,6 +456,7 @@ namespace Opc.Ua.WotCon.Server
             string assetName,
             CancellationToken cancellationToken)
         {
+            EnforceManagementAccess(context, "CreateAsset");
             (ServiceResult status, NodeId assetId) = await m_registry
                 .CreateAssetAsync(assetName, cancellationToken).ConfigureAwait(false);
             return new CreateAssetMethodStateResult { ServiceResult = status, AssetId = assetId.IsNull ? NodeId.Null : assetId };
@@ -475,6 +469,7 @@ namespace Opc.Ua.WotCon.Server
             NodeId assetId,
             CancellationToken cancellationToken)
         {
+            EnforceManagementAccess(context, "DeleteAsset");
             ServiceResult status = await m_registry
                 .DeleteAssetAsync(assetId, cancellationToken).ConfigureAwait(false);
             return new DeleteAssetMethodStateResult { ServiceResult = status };
@@ -486,6 +481,7 @@ namespace Opc.Ua.WotCon.Server
             NodeId objectId,
             CancellationToken cancellationToken)
         {
+            EnforceManagementAccess(context, "DiscoverAssets");
             (ServiceResult status, IReadOnlyList<string> endpoints) = await m_registry
                 .DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false);
             string[] arr = new string[endpoints.Count];
@@ -508,6 +504,7 @@ namespace Opc.Ua.WotCon.Server
             string assetEndpoint,
             CancellationToken cancellationToken)
         {
+            EnforceManagementAccess(context, "CreateAssetForEndpoint");
             (ServiceResult status, NodeId assetId) = await m_registry
                 .CreateAssetForEndpointAsync(assetName, assetEndpoint, cancellationToken)
                 .ConfigureAwait(false);
@@ -525,6 +522,7 @@ namespace Opc.Ua.WotCon.Server
             string assetEndpoint,
             CancellationToken cancellationToken)
         {
+            EnforceManagementAccess(context, "ConnectionTest");
             (ServiceResult status, bool success, string text) = await m_registry
                 .ConnectionTestAsync(assetEndpoint, cancellationToken).ConfigureAwait(false);
             return new ConnectionTestMethodStateResult
@@ -533,6 +531,72 @@ namespace Opc.Ua.WotCon.Server
                 Success = success,
                 Status = text
             };
+        }
+
+        /// <summary>
+        /// Enforces <see cref="WotConnectivityServerOptions.ManagementAccess"/>
+        /// on a method invocation. Skips the check for internal callers
+        /// (those without an <see cref="OperationContext"/>); rejects
+        /// remote callers that violate the minimum channel security
+        /// mode, the anonymous-identity ban, or the required role
+        /// membership. On denial logs a warning and throws
+        /// <see cref="ServiceResultException"/> with
+        /// <see cref="StatusCodes.BadUserAccessDenied"/>; the throw
+        /// message is deliberately generic and does not echo the
+        /// caller's identity to remote clients.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors the pattern in
+        /// <c>Opc.Ua.Server.ConfigurationNodeManager.HasApplicationSecureAdminAccess</c>.
+        /// Server-initiated calls (<see cref="SystemContext"/> without
+        /// an operation context) are exempt so node-manager start-up
+        /// and persisted-asset restoration continue to work.
+        /// </remarks>
+        internal void EnforceManagementAccess(ISystemContext context, string operation)
+        {
+            if (context is not SessionSystemContext
+                {
+                    OperationContext: OperationContext operationContext
+                })
+            {
+                return;
+            }
+
+            WotManagementAccessPolicy policy = m_options.ManagementAccess;
+
+            MessageSecurityMode securityMode = operationContext.ChannelContext
+                ?.EndpointDescription?.SecurityMode ?? MessageSecurityMode.None;
+            if (securityMode != policy.MinimumSecurityMode)
+            {
+                m_logger.LogWarning(
+                    "WoT management call {Operation} denied: channel security mode {Actual} below required {Required}.",
+                    operation, securityMode, policy.MinimumSecurityMode);
+                throw new ServiceResultException(
+                    StatusCodes.BadUserAccessDenied,
+                    "WoT management methods require a secure channel.");
+            }
+
+            IUserIdentity? identity = operationContext.UserIdentity;
+            if (identity is null ||
+                (!policy.AllowAnonymous && identity.TokenType == UserTokenType.Anonymous))
+            {
+                m_logger.LogWarning(
+                    "WoT management call {Operation} denied: anonymous identity not permitted (token type {TokenType}).",
+                    operation, identity?.TokenType ?? UserTokenType.Anonymous);
+                throw new ServiceResultException(
+                    StatusCodes.BadUserAccessDenied,
+                    "WoT management methods require an authenticated user.");
+            }
+
+            if (!identity.GrantedRoleIds.Contains(policy.RequiredRoleId))
+            {
+                m_logger.LogWarning(
+                    "WoT management call {Operation} denied: identity {TokenType} lacks required role {RequiredRole} (granted: {GrantedRoles}).",
+                    operation, identity.TokenType, policy.RequiredRoleId, identity.GrantedRoleIds);
+                throw new ServiceResultException(
+                    StatusCodes.BadUserAccessDenied,
+                    "Caller lacks the role required to invoke WoT management methods.");
+            }
         }
 
         private void AssignChildNodeIds(NodeState node, string parentPath)

@@ -109,7 +109,7 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.ActiveStateId,
                     out bool active) &&
                     active,
-                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DefaultEventWaitTimeout).ConfigureAwait(false);
             Assert.That(
                 AlarmEventCollector.TryGetBoolean(
                     activeEvent,
@@ -128,7 +128,7 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.ActiveStateId,
                     out bool active) &&
                     !active,
-                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DefaultEventWaitTimeout).ConfigureAwait(false);
             ByteString normalEventId = GetEventIdOrInconclusive(normalEvent);
 
             collector.Reset();
@@ -147,7 +147,7 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.AckedStateId,
                     out bool ackedState) &&
                     ackedState,
-                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DefaultEventWaitTimeout).ConfigureAwait(false);
             ByteString confirmEventId = GetEventIdOrInconclusive(ackEvent);
 
             collector.Reset();
@@ -166,7 +166,7 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.ConfirmedStateId,
                     out bool confirmed) &&
                     confirmed,
-                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DefaultEventWaitTimeout).ConfigureAwait(false);
 
             Assert.That(
                 AlarmEventCollector.TryGetBoolean(

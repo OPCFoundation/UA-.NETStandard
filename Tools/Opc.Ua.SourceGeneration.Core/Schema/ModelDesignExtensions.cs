@@ -201,6 +201,28 @@ namespace Opc.Ua.Schema.Model
                     scalarName);
             }
 
+            if (variable.ValueRank == ValueRank.OneOrMoreDimensions &&
+                variable.DataTypeNode.SupportsMatrixOf() &&
+                variable.DataTypeNode.BasicDataType
+                    is not BasicDataType.BaseDataType
+                    and not BasicDataType.Number
+                    and not BasicDataType.UInteger
+                    and not BasicDataType.Integer)
+            {
+                if (asFactory)
+                {
+                    return CoreUtils.Format(
+                        "{0}State<global::Opc.Ua.MatrixOf<{1}>>.With<{2}>",
+                        GetClassName(variableType, namespaces),
+                        scalarName,
+                        GetVariantBuilder(variable.DataTypeNode, scalarName));
+                }
+                return CoreUtils.Format(
+                    "{0}State<global::Opc.Ua.MatrixOf<{1}>>",
+                    GetClassName(variableType, namespaces),
+                    scalarName);
+            }
+
             if (IsIndeterminateType(variable))
             {
                 return GetNodeStateNameSimple(variableType);
@@ -412,6 +434,23 @@ namespace Opc.Ua.Schema.Model
             {
                 if (variable.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
                 {
+                    // Matrix-rank with a concrete data type that supports
+                    // `MatrixOf<T>` is determinate - the generator emits a
+                    // typed `State<MatrixOf<T>>` for it. Everything else
+                    // (ScalarOrArray, ScalarOrOneDimension, Any, or matrix
+                    // over an abstract numeric base) stays on the Variant
+                    // fallback.
+                    if (variable.ValueRank == ValueRank.OneOrMoreDimensions &&
+                        variable.DataTypeNode != null &&
+                        variable.DataTypeNode.SupportsMatrixOf() &&
+                        variable.DataTypeNode.BasicDataType
+                            is not BasicDataType.BaseDataType
+                            and not BasicDataType.Number
+                            and not BasicDataType.UInteger
+                            and not BasicDataType.Integer)
+                    {
+                        return false;
+                    }
                     return true;
                 }
                 if (variable.DataType ==
@@ -750,6 +789,25 @@ namespace Opc.Ua.Schema.Model
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Whether the data type can be expressed as a typed
+        /// <see cref="MatrixOf{T}"/> in generated code, i.e. whether
+        /// <c>Variant.From(MatrixOf&lt;T&gt;)</c> /
+        /// <c>Variant.GetXxxMatrix()</c> round-trip APIs exist.
+        /// All BasicDataType values except <see cref="BasicDataType.DiagnosticInfo"/>
+        /// (which is not a valid structure field per OPC UA Part 5) are
+        /// supported.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool SupportsMatrixOf(this DataTypeDesign dataType)
+        {
+            if (dataType is null)
+            {
+                throw new ArgumentNullException(nameof(dataType));
+            }
+            return dataType.BasicDataType != BasicDataType.DiagnosticInfo;
         }
 
         /// <summary>
@@ -1448,6 +1506,21 @@ namespace Opc.Ua.Schema.Model
                 return true;
             }
             if (valueRank == ValueRank.Array)
+            {
+                return true;
+            }
+            // Matrix-rank with a concrete data type that supports
+            // `MatrixOf<T>` is fully determinate (the generator produces
+            // `State<MatrixOf<T>>` rather than `State<T>`/`State<Variant>`),
+            // so the template parameter is in fact required to specialize
+            // the inherited State class.
+            if (valueRank == ValueRank.OneOrMoreDimensions &&
+                dataType.SupportsMatrixOf() &&
+                dataType.BasicDataType
+                    is not BasicDataType.BaseDataType
+                    and not BasicDataType.Number
+                    and not BasicDataType.UInteger
+                    and not BasicDataType.Integer)
             {
                 return true;
             }

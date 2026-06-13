@@ -105,9 +105,11 @@ namespace Opc.Ua.Server
             m_addNodeAsync = addNodeAsync;
             m_removeNodeAsync = removeNodeAsync;
 
-            folder.CreateCredential ??= folder.AddCreateCredential(context);
-            folder.CreateCredential.OnCall = null;
-            folder.CreateCredential.OnCallAsync = OnCreateCredentialAsync;
+            folder.AddCreateCredential(context, c =>
+            {
+                c.OnCall = null;
+                c.OnCallAsync = OnCreateCredentialAsync;
+            });
 
             IList<BaseInstanceState> children = [];
             folder.GetChildren(context, children);
@@ -308,13 +310,17 @@ namespace Opc.Ua.Server
 
         private void WireCredentialState(KeyCredentialConfigurationState state, ISystemContext context)
         {
-            state.UpdateCredential ??= state.AddUpdateCredential(context);
-            state.UpdateCredential.OnCall = null;
-            state.UpdateCredential.OnCallAsync = OnUpdateCredentialAsync;
-
-            state.DeleteCredential ??= state.AddDeleteCredential(context);
-            state.DeleteCredential.OnCallMethod2 = null;
-            state.DeleteCredential.OnCallMethod2Async = OnDeleteCredentialAsync;
+            state
+                .AddUpdateCredential(context, c =>
+                {
+                    c.OnCall = null;
+                    c.OnCallAsync = OnUpdateCredentialAsync;
+                })
+                .AddDeleteCredential(context, c =>
+                {
+                    c.OnCallMethod2 = null;
+                    c.OnCallMethod2Async = OnDeleteCredentialAsync;
+                });
         }
 
         private async ValueTask AddNodeAsync(BaseInstanceState state, CancellationToken ct)

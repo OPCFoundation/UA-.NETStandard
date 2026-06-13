@@ -1494,6 +1494,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName)
+            where T : IEncodeable, new()
+        {
+            ArrayOf<int> dimensions = ReadInt32Array(null);
+            ArrayOf<T> array = ReadEncodeableArray<T>(null);
+            if (dimensions.IsEmpty)
+            {
+                return default;
+            }
+            return array.ToMatrix(dimensions);
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {

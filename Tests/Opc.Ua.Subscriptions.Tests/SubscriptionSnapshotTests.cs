@@ -39,6 +39,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -98,7 +99,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription origin = originSession.AddSubscription(
-                    originHandler, new Client.Subscriptions.SubscriptionOptions
+                    originHandler, new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -114,11 +115,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(origin.TryAddMonitoredItem("Time",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(250) },
-                    out IMonitoredItem? timeItem), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? timeItem), Is.True);
                 Assert.That(origin.TryAddMonitoredItem("State",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(500) },
-                    out IMonitoredItem? stateItem), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? stateItem), Is.True);
                 bool allCreated = await WaitForAsync(
                     () => timeItem!.Created && stateItem!.Created,
                     TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
@@ -192,36 +193,16 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try
-                {
-                    await originSession.CloseAsync().ConfigureAwait(false);
-                }
-                catch
-                { /* best effort */
-                }
-                try
-                {
-                    await originSession.DisposeAsync().ConfigureAwait(false);
-                }
-                catch
-                { /* best effort */
-                }
+                try { await originSession.CloseAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
+                try { await originSession.DisposeAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
                 if (targetSession != null)
                 {
-                    try
-                    {
-                        await targetSession.CloseAsync().ConfigureAwait(false);
-                    }
-                    catch
-                    { /* best effort */
-                    }
-                    try
-                    {
-                        await targetSession.DisposeAsync().ConfigureAwait(false);
-                    }
-                    catch
-                    { /* best effort */
-                    }
+                    try { await targetSession.CloseAsync().ConfigureAwait(false); }
+                    catch { /* best effort */ }
+                    try { await targetSession.DisposeAsync().ConfigureAwait(false); }
+                    catch { /* best effort */ }
                 }
             }
         }
@@ -239,7 +220,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Client.Subscriptions.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -253,11 +234,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(sub.TryAddMonitoredItem("Trigger",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out IMonitoredItem? triggering), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggering), Is.True);
                 Assert.That(sub.TryAddMonitoredItem("Triggered",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { MonitoringMode = MonitoringMode.Sampling },
-                    out IMonitoredItem? triggered), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggered), Is.True);
                 bool both = await WaitForAsync(
                     () => triggering!.Created && triggered!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
@@ -266,7 +247,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await sub.SetTriggeringAsync(triggering!,
                     [triggered!], null, ct).ConfigureAwait(false);
 
-                SubscriptionStateSnapshot snap = ((Client.Subscriptions.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.LogicalSubscription)sub).Snapshot();
                 MonitoredItemStateSnapshot? triggerSnap = null;
                 MonitoredItemStateSnapshot? triggeredSnap = null;
                 foreach (MonitoredItemStateSnapshot it in snap.MonitoredItems)
@@ -287,7 +268,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // triggered side; the reverse "items I trigger" set is
                 // reconstructed on demand from sibling items.
                 Assert.That(triggeredSnap!.TriggeredByNames.ToArray(),
-                    Is.EqualTo(["Trigger"]));
+                    Is.EqualTo(new[] { "Trigger" }));
 
                 await sub.DisposeAsync().ConfigureAwait(false);
             }

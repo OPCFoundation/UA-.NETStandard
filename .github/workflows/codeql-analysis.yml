@@ -3,10 +3,10 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ master, main, release/*, develop/* ]
+    branches: [ master, main, master378, release/*, develop/* ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ master, main ]
+    branches: [ master, main, master378 ]
     paths:
     - '**.cs'
   schedule:

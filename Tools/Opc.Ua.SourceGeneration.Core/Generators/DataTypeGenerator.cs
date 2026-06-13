@@ -47,6 +47,7 @@ namespace Opc.Ua.SourceGeneration
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
+            m_logger = context.Telemetry.CreateLogger<DataTypeGenerator>();
         }
 
         /// <inheritdoc/>
@@ -223,7 +224,11 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                dataType.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.XmlNamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
@@ -257,7 +262,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                dataType.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
 
             if (dataType.BasicDataType != BasicDataType.UserDefined)
@@ -527,9 +536,11 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
                     dataType.SymbolicId.Namespace));
 
-            context.Template.AddReplacement(
+            context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
-                dataType.SymbolicName.Name);
+                Tokens.BrowseNameLiteral,
+                dataType.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.ClassName,
                 dataType.SymbolicName.Name);
@@ -731,7 +742,8 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes),
+                    nullable: NullableAnnotation.NullableExceptDataTypes,
+                    useMatrixTypeInsteadOfVariant: field.DataTypeNode.SupportsMatrixOf()),
                 field.GetChildFieldName());
 
             return null;
@@ -816,6 +828,18 @@ namespace Opc.Ua.SourceGeneration
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
+
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
+                field.DataTypeNode.SupportsMatrixOf())
+            {
+                EmitMatrixWriteCall(context, field, fieldName);
+                if (isUnion)
+                {
+                    context.Out.WriteLine("break;");
+                    context.Out.WriteLine("}");
+                }
+                return null;
+            }
 
             switch (field.DataTypeNode.BasicDataType)
             {
@@ -923,19 +947,12 @@ namespace Opc.Ua.SourceGeneration
                         return null;
                     }
 
-                    // Write matrix
+                    // Matrix is intercepted at the top of the method when
+                    // SupportsMatrixOf is true. Everything else (e.g. exotic
+                    // ValueRank values that are neither Scalar nor Array) falls
+                    // through to the Variant fallback below.
 
-                    context.Out.WriteLine(
-                        "encoder.WriteVariant({0}, {1});",
-                        fieldName,
-                        field.Name);
-                    if (isUnion)
-                    {
-                        context.Out.WriteLine("break;");
-                        context.Out.WriteLine("}");
-                    }
-
-                    return null;
+                    break;
             }
 
             if (field.ValueRank == ValueRank.Array)
@@ -982,6 +999,19 @@ namespace Opc.Ua.SourceGeneration
 
             string valueName = field.Name;
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
+
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
+                field.DataTypeNode.SupportsMatrixOf())
+            {
+                EmitMatrixReadCall(context, field, valueName, fieldName);
+                if (isUnion)
+                {
+                    context.Out.WriteLine("break;");
+                    context.Out.WriteLine("}");
+                }
+                return null;
+            }
+
             string typeName = field.ValueRank == ValueRank.Array ? "Array" : string.Empty;
             string functionName;
             switch (field.DataTypeNode.BasicDataType)
@@ -1106,6 +1136,196 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
+        /// <summary>
+        /// Emit the encoder call for a structure field whose ValueRank is
+        /// <see cref="ValueRank.OneOrMoreDimensions"/>. The field is
+        /// generated as a typed <c>MatrixOf&lt;T&gt;</c> and either passes
+        /// through a dedicated <c>WriteEncodeableMatrix</c> call (for
+        /// concrete <see cref="IEncodeable"/> matrices) or is packed into a
+        /// <see cref="Variant"/> via <c>Variant.From</c> /
+        /// <c>Variant.FromStructure</c> before being written through
+        /// <c>WriteVariant</c>.
+        /// </summary>
+        private static void EmitMatrixWriteCall(
+            ILoadContext context,
+            Parameter field,
+            string fieldName)
+        {
+            if (IsConcreteEncodeableMatrix(field))
+            {
+                context.Out.WriteLine(
+                    "encoder.WriteEncodeableMatrix({0}, {1});",
+                    fieldName,
+                    field.Name);
+                return;
+            }
+
+            if (field.DataTypeNode.BasicDataType == BasicDataType.UserDefined &&
+                !field.DataTypeNode.IsEnumeration)
+            {
+                // UserDefined structure with AllowSubTypes - wrap as Variant
+                // of extension objects via FromStructure.
+                context.Out.WriteLine(
+                    "encoder.WriteVariant({0}, global::Opc.Ua.Variant.FromStructure({1}));",
+                    fieldName,
+                    field.Name);
+                return;
+            }
+
+            // Primitives, enumerations, Structure (ExtensionObject),
+            // Number/Integer/UInteger/BaseDataType (Variant) all flow
+            // through the typed Variant.From overloads.
+            context.Out.WriteLine(
+                "encoder.WriteVariant({0}, global::Opc.Ua.Variant.From({1}));",
+                fieldName,
+                field.Name);
+        }
+
+        /// <summary>
+        /// Emit the decoder call for a structure field whose ValueRank is
+        /// <see cref="ValueRank.OneOrMoreDimensions"/>. Mirrors
+        /// <see cref="EmitMatrixWriteCall"/>.
+        /// </summary>
+        private void EmitMatrixReadCall(
+            ILoadContext context,
+            Parameter field,
+            string valueName,
+            string fieldName)
+        {
+            if (IsConcreteEncodeableMatrix(field))
+            {
+                string elementName = field.DataTypeNode.GetDotNetTypeName(
+                    ValueRank.Scalar,
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    nullable: NullableAnnotation.NonNullable);
+                context.Out.WriteLine(
+                    "{0} = decoder.ReadEncodeableMatrix<{1}>({2});",
+                    valueName,
+                    elementName,
+                    fieldName);
+                return;
+            }
+
+            string getter = GetMatrixVariantGetter(field);
+            context.Out.WriteLine(
+                "{0} = decoder.ReadVariant({1}).{2};",
+                valueName,
+                fieldName,
+                getter);
+        }
+
+        /// <summary>
+        /// Returns true if the field should be encoded as a concrete
+        /// <c>WriteEncodeableMatrix</c> / <c>ReadEncodeableMatrix</c> call
+        /// (i.e. user-defined structure without <c>AllowSubTypes</c>, or an
+        /// <c>OptionSet</c> whose base type is the abstract
+        /// <c>OptionSet</c> structure).
+        /// </summary>
+        private static bool IsConcreteEncodeableMatrix(Parameter field)
+        {
+            DataTypeDesign type = field.DataTypeNode;
+            if (field.AllowSubTypes)
+            {
+                return false;
+            }
+            if (type.BasicDataType == BasicDataType.UserDefined &&
+                !type.IsEnumeration)
+            {
+                return true;
+            }
+            if (type.BasicDataType == BasicDataType.Enumeration &&
+                type.IsOptionSet &&
+                type.BaseTypeNode?.SymbolicId ==
+                    new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns the <see cref="Variant"/> matrix getter expression for the
+        /// given matrix-typed field. Caller composes this with
+        /// <c>decoder.ReadVariant(...)</c>.
+        /// </summary>
+        private string GetMatrixVariantGetter(Parameter field)
+        {
+            DataTypeDesign type = field.DataTypeNode;
+            BasicDataType basic = type.BasicDataType;
+
+            // UserDefined structure with AllowSubTypes - decode through
+            // GetStructureMatrix<T> which unwraps extension objects.
+            if (basic == BasicDataType.UserDefined && !type.IsEnumeration)
+            {
+                string elementName = type.GetDotNetTypeName(
+                    ValueRank.Scalar,
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    nullable: NullableAnnotation.NonNullable);
+                return CoreUtils.Format(
+                    "GetStructureMatrix<{0}>()", elementName);
+            }
+
+            // User-defined typed enum.
+            if (basic == BasicDataType.UserDefined && type.IsEnumeration)
+            {
+                string elementName = type.GetDotNetTypeName(
+                    ValueRank.Scalar,
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    nullable: NullableAnnotation.NonNullable);
+                return CoreUtils.Format(
+                    "GetEnumerationMatrix<{0}>()", elementName);
+            }
+
+            if (basic == BasicDataType.Enumeration)
+            {
+                // The well-known abstract "Enumeration" data type maps to
+                // MatrixOf<int> in the generated code.
+                if (type.SymbolicId ==
+                    new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
+                {
+                    return "GetInt32Matrix()";
+                }
+                // OptionSet whose base is a primitive integer (UInt32 etc.)
+                // is represented as a matrix of that primitive type.
+                if (type.IsOptionSet &&
+                    type.BaseTypeNode is DataTypeDesign optionSetBase)
+                {
+                    return CoreUtils.Format(
+                        "Get{0}Matrix()", optionSetBase.BasicDataType);
+                }
+                // Typed enumeration.
+                string elementName = type.GetDotNetTypeName(
+                    ValueRank.Scalar,
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    nullable: NullableAnnotation.NonNullable);
+                return CoreUtils.Format(
+                    "GetEnumerationMatrix<{0}>()", elementName);
+            }
+
+            if (basic == BasicDataType.Structure)
+            {
+                return "GetExtensionObjectMatrix()";
+            }
+
+            if (basic is BasicDataType.BaseDataType
+                or BasicDataType.Number
+                or BasicDataType.Integer
+                or BasicDataType.UInteger)
+            {
+                return "GetVariantMatrix()";
+            }
+
+            // Primitive built-in types: Boolean, SByte, Byte, Int16, UInt16,
+            // Int32, UInt32, Int64, UInt64, Float, Double, String, DateTime,
+            // Guid, ByteString, XmlElement, NodeId, ExpandedNodeId,
+            // StatusCode, QualifiedName, LocalizedText, DataValue.
+            return CoreUtils.Format("Get{0}Matrix()", basic);
+        }
+
         private TemplateString LoadTemplate_ListOfComparedFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
@@ -1177,7 +1397,8 @@ namespace Opc.Ua.SourceGeneration
                         field.ValueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NullableExceptDataTypes));
+                        nullable: NullableAnnotation.NullableExceptDataTypes,
+                        useMatrixTypeInsteadOfVariant: field.DataTypeNode.SupportsMatrixOf()));
             }
             else
             {
@@ -1278,9 +1499,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.Description,
                 field.Description != null ? field.Description.Value : string.Empty);
-            context.Template.AddReplacement(
+            context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
-                field.Name);
+                Tokens.BrowseNameLiteral,
+                field.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.EnumerationName,
                 field.EnsureUniqueEnumName());
@@ -1290,7 +1513,8 @@ namespace Opc.Ua.SourceGeneration
                 field.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
-                nullable: NullableAnnotation.NullableExceptDataTypes));
+                nullable: NullableAnnotation.NullableExceptDataTypes,
+                useMatrixTypeInsteadOfVariant: field.DataTypeNode.SupportsMatrixOf()));
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 field.GetChildFieldName());
@@ -1490,5 +1714,6 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;
+        private readonly Microsoft.Extensions.Logging.ILogger m_logger;
     }
 }

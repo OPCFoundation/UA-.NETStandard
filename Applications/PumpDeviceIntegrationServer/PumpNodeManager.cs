@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -133,7 +134,7 @@ namespace Pumps
             // against the predefined nodes.
             ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
-            CreateFluentBuilder(nsIndex)
+            this.CreateFluentBuilder(nsIndex)
                 .Configure(Configure)
                 .Seal();
 
@@ -218,7 +219,7 @@ namespace Pumps
                 return;
             }
 
-            PumpState pump = SystemContext
+            Opc.Ua.Pumps.PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
@@ -256,37 +257,35 @@ namespace Pumps
         /// transparently.
         /// </summary>
         private void MaterialisePumpOptionalChildren(
-            PumpState pump)
+            Opc.Ua.Pumps.PumpState pump)
         {
-            OperationalGroupState operational =
-                pump.AddOperational(SystemContext);
-            MeasurementsState measurements =
-                operational.AddMeasurements(SystemContext);
+            pump.AddOperational(SystemContext);
+            Opc.Ua.Pumps.OperationalGroupState operational = pump.Operational!;
+            operational.AddMeasurements(SystemContext);
+            Opc.Ua.Pumps.MeasurementsState measurements = operational.Measurements!;
 
             // Analog measurements wired by Configure.WithMeasurements.
-            measurements.AddDifferentialPressure(SystemContext);
-            measurements.AddFluidTemperature(SystemContext);
-            measurements.AddBearingTemperature(SystemContext);
-            measurements.AddPumpPowerInput(SystemContext);
-            measurements.AddMassFlow(SystemContext);
-            measurements.AddPumpEfficiency(SystemContext);
-            measurements.AddLevel(SystemContext);
-
-            // Discrete count exposed via Configure.WithMaintenance.
-            measurements.AddNumberOfStarts(SystemContext);
+            measurements
+                .AddDifferentialPressure(SystemContext)
+                .AddFluidTemperature(SystemContext)
+                .AddBearingTemperature(SystemContext)
+                .AddPumpPowerInput(SystemContext)
+                .AddMassFlow(SystemContext)
+                .AddPumpEfficiency(SystemContext)
+                .AddLevel(SystemContext)
+                // Discrete count exposed via Configure.WithMaintenance.
+                .AddNumberOfStarts(SystemContext);
 
             // Supervision subtree wired by Configure.WithSupervision —
             // Cavitation under SupervisionProcessFluid, MotorOverheat
             // under SupervisionPumpOperation.
-            SupervisionState events =
-                pump.AddEvents(SystemContext);
-            SupervisionProcessFluidState processFluid =
-                events.AddSupervisionProcessFluid(SystemContext);
-            processFluid.AddCavitation(SystemContext);
+            pump.AddEvents(SystemContext);
+            Opc.Ua.Pumps.SupervisionState events = pump.Events!;
+            events.AddSupervisionProcessFluid(SystemContext);
+            events.SupervisionProcessFluid!.AddCavitation(SystemContext);
 
-            SupervisionPumpOperationState pumpOperation =
-                events.AddSupervisionPumpOperation(SystemContext);
-            pumpOperation.AddMotorOverheat(SystemContext);
+            events.AddSupervisionPumpOperation(SystemContext);
+            events.SupervisionPumpOperation!.AddMotorOverheat(SystemContext);
 
             // Maintenance container — leaf wiring deferred until the
             // typed-accessor generator (FB-3 phase 3) ships materialisable
@@ -319,10 +318,10 @@ namespace Pumps
         /// the simulated cavitation / motor-overheat flags. The
         /// companion-spec PumpType does not itself expose
         /// <c>DeviceHealth</c> (it inherits from
-        /// <see cref="TopologyElementState"/>, not
-        /// <see cref="DeviceState"/>); callers can
+        /// <see cref="Opc.Ua.Di.TopologyElementState"/>, not
+        /// <see cref="Opc.Ua.Di.DeviceState"/>); callers can
         /// attach <c>DeviceHealth</c> to a sibling
-        /// <see cref="DeviceState"/> (e.g. the
+        /// <see cref="Opc.Ua.Di.DeviceState"/> (e.g. the
         /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
         /// and register it here to participate in the simulation loop.
         /// </summary>
@@ -330,7 +329,7 @@ namespace Pumps
         /// The variable to drive; pass <see langword="null"/> to detach.
         /// </param>
         public void RegisterSupervisedDeviceHealth(
-            BaseDataVariableState<DeviceHealthEnumeration>? health)
+            BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>? health)
         {
             m_supervisedDeviceHealth = health;
         }
