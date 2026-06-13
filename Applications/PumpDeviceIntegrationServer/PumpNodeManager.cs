@@ -134,7 +134,7 @@ namespace Pumps
             // against the predefined nodes.
             ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
-            this.CreateFluentBuilder(nsIndex)
+            CreateFluentBuilder(nsIndex)
                 .Configure(Configure)
                 .Seal();
 
@@ -155,7 +155,7 @@ namespace Pumps
         /// </summary>
         /// <remarks>
         /// Cannot use
-        /// <see cref="DiNodeManager.CreateDeviceAsync{TDevice}(QualifiedName, NodeId, System.Func{NodeState, TDevice}, NodeState?, CancellationToken)"/>
+        /// <see cref="DiNodeManager.CreateDeviceAsync{TDevice}(QualifiedName, NodeId, Func{NodeState, TDevice}, NodeState?, CancellationToken)"/>
         /// here because <c>PumpType</c> in OPC 40223 derives from the
         /// Machinery <c>MachineType</c>, not from the DI
         /// <c>ComponentType</c> hierarchy that
@@ -219,7 +219,7 @@ namespace Pumps
                 return;
             }
 
-            Opc.Ua.Pumps.PumpState pump = SystemContext
+            PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
@@ -257,12 +257,12 @@ namespace Pumps
         /// transparently.
         /// </summary>
         private void MaterialisePumpOptionalChildren(
-            Opc.Ua.Pumps.PumpState pump)
+            PumpState pump)
         {
             pump.AddOperational(SystemContext);
-            Opc.Ua.Pumps.OperationalGroupState operational = pump.Operational!;
+            OperationalGroupState operational = pump.Operational!;
             operational.AddMeasurements(SystemContext);
-            Opc.Ua.Pumps.MeasurementsState measurements = operational.Measurements!;
+            MeasurementsState measurements = operational.Measurements!;
 
             // Analog measurements wired by Configure.WithMeasurements.
             measurements
@@ -280,7 +280,7 @@ namespace Pumps
             // Cavitation under SupervisionProcessFluid, MotorOverheat
             // under SupervisionPumpOperation.
             pump.AddEvents(SystemContext);
-            Opc.Ua.Pumps.SupervisionState events = pump.Events!;
+            SupervisionState events = pump.Events!;
             events.AddSupervisionProcessFluid(SystemContext);
             events.SupervisionProcessFluid!.AddCavitation(SystemContext);
 
@@ -318,10 +318,10 @@ namespace Pumps
         /// the simulated cavitation / motor-overheat flags. The
         /// companion-spec PumpType does not itself expose
         /// <c>DeviceHealth</c> (it inherits from
-        /// <see cref="Opc.Ua.Di.TopologyElementState"/>, not
-        /// <see cref="Opc.Ua.Di.DeviceState"/>); callers can
+        /// <see cref="TopologyElementState"/>, not
+        /// <see cref="DeviceState"/>); callers can
         /// attach <c>DeviceHealth</c> to a sibling
-        /// <see cref="Opc.Ua.Di.DeviceState"/> (e.g. the
+        /// <see cref="DeviceState"/> (e.g. the
         /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
         /// and register it here to participate in the simulation loop.
         /// </summary>
@@ -329,7 +329,7 @@ namespace Pumps
         /// The variable to drive; pass <see langword="null"/> to detach.
         /// </param>
         public void RegisterSupervisedDeviceHealth(
-            BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>? health)
+            BaseDataVariableState<DeviceHealthEnumeration>? health)
         {
             m_supervisedDeviceHealth = health;
         }
