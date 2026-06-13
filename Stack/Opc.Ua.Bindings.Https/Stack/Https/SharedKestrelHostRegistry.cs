@@ -401,6 +401,19 @@ namespace Opc.Ua.Bindings
                         return m_listeners[path];
                     }
                 }
+                // Fallback: when exactly one listener is registered on this
+                // shared host, dispatch every request to it regardless of
+                // path. This matches the historical single-listener behavior
+                // (master's app.Run accepted every path), so out-of-path
+                // requests such as the discovery suffix (/discovery) still
+                // reach the listener instead of 404-ing.
+                if (m_listeners.Count == 1)
+                {
+                    foreach (HttpsTransportListener only in m_listeners.Values)
+                    {
+                        return only;
+                    }
+                }
                 return null;
             }
         }
