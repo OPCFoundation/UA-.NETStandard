@@ -29,6 +29,8 @@
 
 #nullable enable
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -339,3 +341,5 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
     }
 }
+
+#endif // NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER

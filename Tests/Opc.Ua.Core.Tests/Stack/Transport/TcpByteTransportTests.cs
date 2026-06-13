@@ -68,8 +68,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ConnectAsyncSucceedsAgainstLoopbackListener()
         {
-            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
+            using var _l = new ListenerScope(listener);
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
             Task<Socket> acceptTask = listener.AcceptSocketAsync();
@@ -88,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
-            using var _l = listener;
+            using var _l = new ListenerScope(listener);
             using var _s = serverSocket;
             using (client)
             {
@@ -116,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
-            using var _l = listener;
+            using var _l = new ListenerScope(listener);
             using var _s = serverSocket;
             using (client)
             {
@@ -147,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
-            using var _l = listener;
+            using var _l = new ListenerScope(listener);
             using var _s = serverSocket;
             using (client)
             {
@@ -171,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
-            using var _l = listener;
+            using var _l = new ListenerScope(listener);
             using var _s = serverSocket;
             using (client)
             {
@@ -194,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
-            using var _l = listener;
+            using var _l = new ListenerScope(listener);
             using (client)
             {
                 // Cleanly close the server side before the client reads.
@@ -262,6 +263,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 buffer[i] = (byte)(i & 0xFF);
             }
             return buffer;
+        }
+
+        /// <summary>
+        /// Adapts <see cref="TcpListener.Stop"/> to <see cref="IDisposable"/>;
+        /// <see cref="TcpListener"/> only became <see cref="IDisposable"/> in
+        /// .NET Standard 2.1, so test code that targets net472/net48 cannot
+        /// place the listener in a <c>using</c> directly.
+        /// </summary>
+        private readonly struct ListenerScope : IDisposable
+        {
+            private readonly TcpListener m_listener;
+            internal ListenerScope(TcpListener listener)
+            {
+                m_listener = listener;
+            }
+            public void Dispose()
+            {
+                try { m_listener?.Stop(); } catch { }
+            }
         }
     }
 }
