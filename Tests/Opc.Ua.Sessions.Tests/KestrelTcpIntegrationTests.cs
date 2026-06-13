@@ -35,6 +35,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 
@@ -78,6 +79,55 @@ namespace Opc.Ua.Sessions.Tests
         {
             var factory = new KestrelTcpTransportListenerFactory();
             Assert.That(factory, Is.InstanceOf<TcpServiceHost>());
+        }
+
+        /// <summary>
+        /// <see cref="KestrelTcpTransportListener"/> implements the
+        /// optional cert-rotation capability so
+        /// <c>ConfigurationNodeManager.ApplyChanges</c> can drive
+        /// SecureChannel cleanup when the application cert changes
+        /// (matches the raw-socket TcpTransportListener contract).
+        /// </summary>
+        [Test]
+        public void KestrelTcpListenerImplementsCertificateRotationCapability()
+        {
+            using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
+            Assert.That(listener, Is.InstanceOf<ITransportListenerCertificateRotation>());
+        }
+
+        /// <summary>
+        /// Calling <see cref="ITransportListenerCertificateRotation.CloseChannelsForCertificate"/>
+        /// on an unopened Kestrel listener must be safe (no exception),
+        /// return an empty list, and not throw for the
+        /// no-active-channels case.
+        /// </summary>
+        [Test]
+        public void KestrelTcpCloseChannelsForCertificateOnUnopenedListenerIsSafe()
+        {
+            using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
+            using Certificate oldCertificate = CertificateBuilder.Create("CN=Old").CreateForRSA();
+
+            System.Collections.Generic.IReadOnlyList<string> closed =
+                ((ITransportListenerCertificateRotation)listener)
+                    .CloseChannelsForCertificate(oldCertificate);
+
+            Assert.That(closed, Is.Not.Null);
+            Assert.That(closed, Is.Empty);
+        }
+
+        /// <summary>
+        /// Null cert must throw <see cref="ArgumentNullException"/>
+        /// instead of corrupting the channel map.
+        /// </summary>
+        [Test]
+        public void KestrelTcpCloseChannelsForCertificateRejectsNull()
+        {
+            using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
+
+            Assert.That(
+                () => ((ITransportListenerCertificateRotation)listener)
+                    .CloseChannelsForCertificate(null!),
+                Throws.InstanceOf<ArgumentNullException>());
         }
 
         [Test]

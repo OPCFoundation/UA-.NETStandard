@@ -32,6 +32,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,7 +83,7 @@ namespace Opc.Ua.Bindings
     /// supported.
     /// </para>
     /// </remarks>
-    public sealed class KestrelTcpTransportListener : ITransportListener, ITcpChannelListener
+    public sealed class KestrelTcpTransportListener : ITransportListener, ITcpChannelListener, ITransportListenerCertificateRotation
     {
         /// <summary>
         /// Create a new listener.
@@ -225,9 +226,72 @@ namespace Opc.Ua.Bindings
             ICertificateValidatorEx validator,
             ICertificateRegistry serverCertificates)
         {
-            // Cert hot-update on the Kestrel TCP listener is tracked as a
-            // follow-up; the raw-socket TcpTransportListener handles
-            // CertificateUpdate today. For now this is a no-op.
+            // Mirror TcpTransportListener.CertificateUpdate: refresh the
+            // validator + cert registry; the channel registry will pick
+            // up the new server cert on the next OpenSecureChannel /
+            // renegotiation. The Kestrel listener has no TLS bind to
+            // rotate (opc.tcp is plaintext), so the only listener-side
+            // state to update is the references we hold.
+            if (m_quotas != null)
+            {
+                m_quotas.CertificateValidator = validator;
+            }
+            m_serverCertificates = serverCertificates;
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> CloseChannelsForCertificate(
+            Opc.Ua.Security.Certificates.Certificate oldCertificate)
+        {
+            if (oldCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(oldCertificate));
+            }
+
+            string oldThumbprint = oldCertificate.Thumbprint;
+            if (string.IsNullOrEmpty(oldThumbprint))
+            {
+                return Array.Empty<string>();
+            }
+
+            // Snapshot the channel map so we can iterate without holding
+            // any lock the per-channel close paths might also need.
+            (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
+                m_channels?.Values.ToArray()
+                ?? Array.Empty<(TcpListenerChannel, TaskCompletionSource<bool>)>();
+
+            if (entries.Length == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var closed = new List<string>(entries.Length);
+            foreach (var entry in entries)
+            {
+                try
+                {
+                    if (entry.Channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
+                        !string.IsNullOrEmpty(globalChannelId))
+                    {
+                        closed.Add(globalChannelId!);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(
+                        ex,
+                        "KestrelTcp failed to close channel for certificate rotation (thumbprint {Thumbprint}).",
+                        oldThumbprint);
+                }
+            }
+
+            Logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "KestrelTcp closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).",
+                closed.Count,
+                oldThumbprint);
+
+            return closed;
         }
 
         /// <inheritdoc cref="ITcpChannelListener.ReconnectToExistingChannel"/>
