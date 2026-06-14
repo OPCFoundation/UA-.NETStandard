@@ -665,7 +665,7 @@ dotnet_diagnostic.RCS1005.severity                                            = 
 # RCS1006 Merge 'else' with nested 'if'
 dotnet_diagnostic.RCS1006.severity                                            = warning
 # RCS1007 Add braces
-dotnet_diagnostic.RCS1007.severity                                            = warning
+dotnet_diagnostic.RCS1007.severity                                            = error
 # RCS1013 Use predefined type
 dotnet_diagnostic.RCS1013.severity                                            = warning
 # RCS1014 Use explicitly/implicitly typed array
@@ -703,7 +703,7 @@ dotnet_diagnostic.RCS1044.severity                                            = 
 # RCS1046 Asynchronous method name should end with 'Async'
 #dotnet_diagnostic.RCS1046.severity                                            = warning
 # RCS1047 Non-asynchronous method name should not end with 'Async'
-dotnet_diagnostic.RCS1047.severity                                            = warning
+dotnet_diagnostic.RCS1047.severity                                            = error
 # RCS1048 Use lambda expression instead of anonymous method
 #dotnet_diagnostic.RCS1048.severity                                           = suggestion
 # RCS1049 Simplify boolean comparison
@@ -828,7 +828,7 @@ dotnet_diagnostic.RCS1140.severity                                            = 
 dotnet_diagnostic.RCS1141.severity                                            = silent
 # RCS1142 Add 'typeparam' element to documentation comment
 # Promoted after Phase 4 cleanup verified 0 hits across UA.slnx
-dotnet_diagnostic.RCS1142.severity                                            = warning
+dotnet_diagnostic.RCS1142.severity                                            = error
 # RCS1143 Simplify coalesce expression
 dotnet_diagnostic.RCS1143.severity                                            = warning
 # RCS1145 Remove redundant 'as' operator
@@ -842,7 +842,7 @@ dotnet_diagnostic.RCS1154.severity                                            = 
 # RCS1155 Use StringComparison when comparing strings
 #dotnet_diagnostic.RCS1155.severity                                           = warning
 # RCS1156 Use string.Length instead of comparison with empty string
-dotnet_diagnostic.RCS1156.severity                                            = warning
+dotnet_diagnostic.RCS1156.severity                                            = error
 # RCS1157 Composite enum value contains undefined flag
 #dotnet_diagnostic.RCS1157.severity                                           = suggestion
 # RCS1158 Static member in generic type should use a type parameter
@@ -850,7 +850,7 @@ dotnet_diagnostic.RCS1156.severity                                            = 
 # RCS1159 Use EventHandlerT
 #dotnet_diagnostic.RCS1159.severity                                           = suggestion
 # RCS1160 Abstract type should not have public constructors
-dotnet_diagnostic.RCS1160.severity                                            = warning
+dotnet_diagnostic.RCS1160.severity                                            = error
 # RCS1161 Enum should declare explicit values
 dotnet_diagnostic.RCS1161.severity                                            = none
 # RCS1163 Unused parameter
@@ -914,7 +914,7 @@ dotnet_diagnostic.RCS1190.severity                                            = 
 # RCS1201 Use method chaining
 dotnet_diagnostic.RCS1201.severity                                            = suggestion
 # RCS1202 Avoid NullReferenceException
-dotnet_diagnostic.RCS1202.severity                                            = warning
+dotnet_diagnostic.RCS1202.severity                                            = error
 # RCS1203 Use AttributeUsageAttribute
 #dotnet_diagnostic.RCS1203.severity                                           = warning
 # RCS1204 Use EventArgs.Empty
@@ -962,7 +962,7 @@ dotnet_diagnostic.RCS1225.severity                                            = 
 # RCS1226 Add paragraph to documentation comment
 dotnet_diagnostic.RCS1226.severity                                            = suggestion
 # RCS1227 Validate arguments correctly
-dotnet_diagnostic.RCS1227.severity                                            = warning
+dotnet_diagnostic.RCS1227.severity                                            = error
 # RCS1228 Unused element in a documentation comment
 dotnet_diagnostic.RCS1228.severity                                            = none
 # RCS1229 Use async/await when necessary
@@ -1020,7 +1020,7 @@ dotnet_diagnostic.RCS1252.severity                                            = 
 # RCS1255 Simplify argument null check
 #dotnet_diagnostic.RCS1255.severity                                           = suggestion
 # RCS1256 Invalid argument null check
-dotnet_diagnostic.RCS1256.severity                                            = warning
+dotnet_diagnostic.RCS1256.severity                                            = error
 # RCS1257 Use enum field explicitly
 dotnet_diagnostic.RCS1257.severity                                            = warning
 # RCS1258 Unnecessary enum flag
