@@ -77,9 +77,12 @@ projects that are not published):
 - Reintroducing a shared / generic README at the `common.props` level
   — that pattern was misleading on nuget.org and was deliberately
   removed in #3880.
-- Substantial rewrites of `Docs/NugetREADME.md` (which today doubles
-  as a docs landing page) — that file stays as repository
-  documentation.
+
+> Note: `Docs/NugetREADME.md` is retained today only as a transitional
+> docs landing page. Once every published package ships its own
+> dedicated README per the rollout below, `Docs/NugetREADME.md` can be
+> deleted outright — there is no separate "must keep" requirement on
+> the file beyond covering for packages that haven't been migrated yet.
 
 ## Acceptance
 

@@ -53,10 +53,18 @@ browser-based front-ends backed by a UA server.
    [OPC 10000-100 (Devices) OpenAPI](https://reference.opcfoundation.org/Devices/v200/docs/)
    one, the
    [OPC 10000-200 (PADIM)](https://reference.opcfoundation.org/PADIM/v100/docs/)
-   one, or the generic OPC UA OpenAPI work that's still in draft? The
-   choice affects what schemas the OpenAPI handler must emit / accept.
+   one, or the generic OPC UA OpenAPI work that's still in draft?
+   **Answer:** neither — the binding implements the generic OPC UA
+   OpenAPI surface defined by Part 6 (services exposed as REST
+   operations); companion-specific OpenAPI documents (Devices, PADIM,
+   …) ride on top of the same handler in application code rather than
+   in the binding itself.
 2. Does the stack need to bundle the OpenAPI document, or is it
-   declared by the application?
+   declared by the application? **Answer:** the OpenAPI document is
+   emitted by the existing source generators (same pipeline that emits
+   the standard NodeSet / DataType proxies); the binding consumes the
+   generated document. No hand-maintained YAML / JSON ships with the
+   binding.
 3. Should `opcua+openapi+<accesstoken>` integrate with the existing
    JWT / OAuth2 / OIDC plumbing in
    [`Docs/IdentityProviders.md`](../Docs/IdentityProviders.md), or
@@ -65,7 +73,10 @@ browser-based front-ends backed by a UA server.
    handler short-circuit to the UA Server API
    (`IServerInternal.Read`, `Browse`, …) directly, or does it go
    through the existing service-call dispatcher used by the binary /
-   JSON transports?
+   JSON transports? **Answer:** the binding flows every request
+   through the existing service-call dispatcher used by the binary
+   and JSON transports, so authentication, audit, and concurrency
+   semantics are uniform across all transports.
 
 ## Acceptance
 
