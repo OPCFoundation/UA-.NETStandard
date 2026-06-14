@@ -50,13 +50,13 @@
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <!--
-      Every package ships its own package-local README (`NugetREADME.md` next
-      to the csproj, or a more specific filename like `KestrelTcpREADME.md` /
-      `McpREADME.md`). Per-package READMEs are wired in each csproj via
-      <PackageReadmeFile> + a matching <None Include=... Pack="true">.
-      A generic shared README at this `common.props` level was deliberately
-      removed in #3880 because it was misleading on nuget.org (every package
-      described itself identically).
+      Every package ships its own package-local README (`NugetREADME.md`
+      next to the csproj, or the established `McpREADME.md` for the
+      command-line tool package). Per-package READMEs are wired in each
+      csproj via <PackageReadmeFile> + a matching <None Include=...
+      Pack="true">. A generic shared README at this `common.props`
+      level was deliberately removed in #3880 because it was misleading
+      on nuget.org (every package described itself identically).
     -->
     <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
   </PropertyGroup>
@@ -97,13 +97,14 @@
       PackagePath="$(PackageIcon)"
     />
     <!--
-      Each NuGet package owns its own package-local README - `NugetREADME.md`
-      next to the csproj, or a more specific filename like
-      `KestrelTcpREADME.md` / `McpREADME.md`. Each csproj wires its README via
-      <PackageReadmeFile> and packs the file at the package root with
+      Each NuGet package owns its own package-local README -
+      `NugetREADME.md` next to the csproj, or the established
+      `McpREADME.md` for the command-line tool package. Each csproj
+      wires its README via <PackageReadmeFile> and packs the file at
+      the package root with
       <None Include="..." Pack="true" PackagePath="\" />.
-      A generic shared README would be misleading on nuget.org because every
-      package would describe itself identically.
+      A generic shared README would be misleading on nuget.org because
+      every package would describe itself identically.
     -->
   </ItemGroup>
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
