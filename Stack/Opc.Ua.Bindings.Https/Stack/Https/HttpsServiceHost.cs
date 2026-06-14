@@ -206,39 +206,24 @@ namespace Opc.Ua.Bindings
                 {
                     endpoints.Add(description);
 
-                    // Per Part 6 §7.4.5 / §7.5.2 the JSON sub-protocol
-                    // does not use UA Secure Conversation and is therefore
-                    // restricted to Security Mode None. Emit an additional
-                    // discovery entry when the factory advertises a JSON
-                    // companion profile so clients can pick the JSON
-                    // sub-protocol from GetEndpoints.
-                    string? jsonProfile = JsonTransportProfileUri;
-                    if (jsonProfile != null)
-                    {
-                        var jsonDescription = new EndpointDescription
-                        {
-                            EndpointUrl = uri.ToString(),
-                            Server = serverDescription,
-                            SecurityMode = MessageSecurityMode.None,
-                            SecurityPolicyUri = SecurityPolicies.None,
-                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
-                                MessageSecurityMode.None,
-                                SecurityPolicies.None,
-                                logger),
-                            TransportProfileUri = jsonProfile,
-                            ServerCertificate = description.ServerCertificate
-                        };
-                        jsonDescription.UserIdentityTokens = serverBase.GetUserTokenPolicies(
-                            configuration,
-                            jsonDescription);
-                        if (!httpsMutualTls)
-                        {
-                            jsonDescription.UserIdentityTokens = jsonDescription
-                                .UserIdentityTokens
-                                .Filter(token => token.TokenType != UserTokenType.Anonymous);
-                        }
-                        endpoints.Add(jsonDescription);
-                    }
+                    // NOTE: Earlier iterations of this refactor emitted an
+                    // additional Security-Mode-None description per base
+                    // address with TransportProfileUri = the JSON variant.
+                    // That registered a callable SecurityMode=None endpoint
+                    // through serverBase.CreateServiceHostEndpoint, which
+                    // effectively backdoored SecurityMode=None onto the
+                    // companion binary endpoint and broke
+                    // ClientTest.GetEndpointsOnDiscoveryChannelAsync(False)
+                    // (the test expects BadSecurityPolicyRejected when the
+                    // server's only configured security policy is non-None
+                    // and the discovery client uses None). The JSON
+                    // sub-protocol is still fully reachable on the wire
+                    // because the dispatcher in Startup.Configure picks it
+                    // up via the Content-Type / Sec-WebSocket-Protocol
+                    // headers; explicit discovery emission for the JSON
+                    // profile is tracked as a follow-up (it needs to
+                    // separate discovery-only emission from callable
+                    // endpoint registration in ServerBase).
 
                     serverBase.CreateServiceHostEndpoint(
                         uri.Uri,

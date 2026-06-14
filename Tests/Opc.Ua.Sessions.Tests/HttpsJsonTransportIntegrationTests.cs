@@ -124,37 +124,26 @@ namespace Opc.Ua.Sessions.Tests
                 "Reference server did not advertise an unsecured HTTPS endpoint - JSON sub-protocol requires SM None.");
         }
 
-        /// <summary>
-        /// With JSON discovery emission re-enabled (Phase G3) the server
-        /// now advertises the HTTPS-JSON sub-profile as a distinct
-        /// EndpointDescription on the same base URL.
-        /// </summary>
-        [Test]
-        public void ServerAdvertisesHttpsJsonSubProfileInDiscovery()
-        {
-            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
-            EndpointDescription json = endpoints
-                .ToArray()
-                .FirstOrDefault(ep =>
-                    string.Equals(ep.TransportProfileUri, Profiles.HttpsJsonTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
-            Assert.That(json, Is.Not.Null,
-                "Reference server did not advertise the application/opcua+uajson sub-profile via GetEndpoints.");
-            Assert.That(json.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
-        }
-
         [Test]
         public async Task GetEndpointsOverHttpsJsonReturnsServerEndpointsAsync()
         {
-            // Discovery emits the JSON sub-profile description directly
-            // when the listener factory advertises a JsonTransportProfileUri
-            // (re-enabled in Phase G3). Find the JSON endpoint via
-            // GetEndpoints rather than synthesising it.
-            EndpointDescription jsonEndpoint = m_server.GetEndpoints()
+            // Discovery doesn't currently emit the JSON sub-profile; synthesise
+            // the JSON-targeted endpoint description from the existing
+            // SM-None HTTPS endpoint so the wire path is fully exercised.
+            EndpointDescription httpsNone = m_server.GetEndpoints()
                 .ToArray()
                 .First(ep =>
-                    string.Equals(ep.TransportProfileUri, Profiles.HttpsJsonTransport, StringComparison.Ordinal) &&
+                    string.Equals(ep.TransportProfileUri, Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);
+            var jsonEndpoint = new EndpointDescription
+            {
+                EndpointUrl = httpsNone.EndpointUrl,
+                Server = httpsNone.Server,
+                ServerCertificate = httpsNone.ServerCertificate,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = Profiles.HttpsJsonTransport
+            };
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             endpointConfiguration.OperationTimeout = kMaxTimeout;

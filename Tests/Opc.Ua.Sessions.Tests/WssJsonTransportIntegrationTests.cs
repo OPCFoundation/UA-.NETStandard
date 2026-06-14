@@ -132,37 +132,27 @@ namespace Opc.Ua.Sessions.Tests
                 "Reference server did not advertise an unsecured WSS endpoint - JSON sub-protocol requires SM None.");
         }
 
-        /// <summary>
-        /// With JSON discovery emission re-enabled (Phase G3) the server
-        /// now advertises the WSS+JSON sub-profile as a distinct
-        /// EndpointDescription on the same base URL.
-        /// </summary>
-        [Test]
-        public void ServerAdvertisesWssJsonSubProfileInDiscovery()
-        {
-            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
-            EndpointDescription json = endpoints
-                .ToArray()
-                .FirstOrDefault(ep =>
-                    string.Equals(ep.TransportProfileUri, Profiles.UaWssJsonTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
-            Assert.That(json, Is.Not.Null,
-                "Reference server did not advertise the opcua+uajson sub-profile via GetEndpoints.");
-            Assert.That(json.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
-        }
-
         [Test]
         public async Task GetEndpointsOverWssJsonReturnsServerEndpointsAsync()
         {
-            // Discovery emits the JSON sub-profile description directly
-            // when the listener factory advertises a JsonTransportProfileUri
-            // (re-enabled in Phase G3). Find the JSON endpoint via
-            // GetEndpoints rather than synthesising it.
-            EndpointDescription jsonEndpoint = m_server.GetEndpoints()
+            // Discovery does not yet advertise the JSON sub-protocol explicitly
+            // (Part 3 reverted in 469d65b0). Synthesize the JSON-targeted
+            // endpoint description from the existing SM-None WSS endpoint so
+            // the test still exercises the wire path end-to-end.
+            EndpointDescription wssNone = m_server.GetEndpoints()
                 .ToArray()
                 .First(ep =>
-                    string.Equals(ep.TransportProfileUri, Profiles.UaWssJsonTransport, StringComparison.Ordinal) &&
+                    string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);
+            var jsonEndpoint = new EndpointDescription
+            {
+                EndpointUrl = wssNone.EndpointUrl,
+                Server = wssNone.Server,
+                ServerCertificate = wssNone.ServerCertificate,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = Profiles.UaWssJsonTransport
+            };
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             endpointConfiguration.OperationTimeout = kMaxTimeout;
