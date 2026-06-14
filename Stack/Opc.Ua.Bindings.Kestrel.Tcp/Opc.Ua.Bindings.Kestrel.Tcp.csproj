@@ -11,6 +11,16 @@
     -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <!--
+      Stripped to a no-op shell when the solution-wide CI build pins a
+      legacy TFM (net472 / net48 / netstandard2.x) via CustomTestTarget.
+      The Kestrel-TCP binding requires ASP.NET Core 8+ APIs and cannot
+      build on the legacy desktop framework targets. The matching empty
+      assembly satisfies the matrix-iterating Azure DevOps build without
+      pulling in the project's net8+ source through the legacy compile
+      pipeline. See Directory.Build.targets for the mechanism.
+    -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>$(AssemblyPrefix).Bindings.Kestrel.Tcp</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Kestrel.Tcp</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>
@@ -31,7 +41,7 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
