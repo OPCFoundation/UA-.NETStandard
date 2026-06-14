@@ -50,10 +50,13 @@
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <!--
-      Packages that ship a NuGet README opt in by setting their own
-      <PackageReadmeFile> and packing the local file at the package root.
-      No global default is set here so that packages without their own
-      README do not advertise one. See plans/26-per-nuget-package-readmes.md.
+      Every package ships its own package-local README (`NugetREADME.md` next
+      to the csproj, or a more specific filename like `KestrelTcpREADME.md` /
+      `McpREADME.md`). Per-package READMEs are wired in each csproj via
+      <PackageReadmeFile> + a matching <None Include=... Pack="true">.
+      A generic shared README at this `common.props` level was deliberately
+      removed in #3880 because it was misleading on nuget.org (every package
+      described itself identically).
     -->
     <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
   </PropertyGroup>
@@ -94,12 +97,13 @@
       PackagePath="$(PackageIcon)"
     />
     <!--
-      Each NuGet package owns its own README - a generic shared README is
-      misleading on nuget.org because every package would describe itself
-      identically. Packages opt in by adding their own e.g.
-        <PackageReadmeFile>MyPackageREADME.md</PackageReadmeFile>
-        <None Include="MyPackageREADME.md" Pack="true" PackagePath="\" />
-      See plans/26-per-nuget-package-readmes.md for the rollout plan.
+      Each NuGet package owns its own package-local README - `NugetREADME.md`
+      next to the csproj, or a more specific filename like
+      `KestrelTcpREADME.md` / `McpREADME.md`. Each csproj wires its README via
+      <PackageReadmeFile> and packs the file at the package root with
+      <None Include="..." Pack="true" PackagePath="\" />.
+      A generic shared README would be misleading on nuget.org because every
+      package would describe itself identically.
     -->
   </ItemGroup>
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">

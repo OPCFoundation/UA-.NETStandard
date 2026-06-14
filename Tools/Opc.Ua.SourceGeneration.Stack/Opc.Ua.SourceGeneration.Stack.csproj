@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -14,6 +14,7 @@
     <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration.Stack</PackageId>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -51,5 +52,8 @@
     <Compile Include="..\Opc.Ua.SourceGeneration\SourceGeneratorTelemetry.cs" />
     <Compile Include="..\Opc.Ua.SourceGeneration\CompilationOptions.cs" />
     <Compile Include="..\Opc.Ua.SourceGeneration\Extensions.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

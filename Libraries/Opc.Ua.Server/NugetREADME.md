@@ -1,0 +1,53 @@
+# OPC UA .NET Standard — Server
+
+`OPCFoundation.NetStandard.Opc.Ua.Server` is the high-level OPC UA
+server library. It contains `StandardServer`, the
+`MasterNodeManager`, the core `NodeManager` / `INodeManager` surface,
+the session manager, the subscription manager (including durable
+subscriptions), the audit infrastructure, the request queue, and the
+fluent `services.AddOpcUaServer()` DI surface.
+
+## Overview
+
+Reference this package from every OPC UA server executable. It
+provides everything you need to implement a custom server on top of
+the UASC channel pipeline shipped by
+`OPCFoundation.NetStandard.Opc.Ua.Core`.
+
+## Getting started
+
+Implement your own `NodeManager` and register it with
+`StandardServer`:
+
+```csharp
+public sealed class MyServer : StandardServer
+{
+    protected override MasterNodeManager CreateMasterNodeManager(
+        IServerInternal server,
+        ApplicationConfiguration configuration)
+    {
+        return new MasterNodeManager(server, configuration, null,
+            new MyNodeManager(server, configuration));
+    }
+}
+```
+
+Then start the server via `ApplicationInstance.StartAsync` (in the
+`OPCFoundation.NetStandard.Opc.Ua.Configuration` package) and pin the
+transport bindings via the DI extensions on
+`OPCFoundation.NetStandard.Opc.Ua.Core` (`AddOpcTcpTransport()`,
+`AddHttpsTransport()`, `AddWssTransport()`, …).
+
+## Target frameworks
+
+`net472`, `net48`, `netstandard2.0`, `netstandard2.1`, `net8.0`,
+`net9.0`, `net10.0`.
+
+## Additional documentation
+
+See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
+and the [Sessions guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Sessions.md)
+for the session / subscription model. Browse the
+[Docs folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Docs)
+for guides on certificate management, transports, identity providers,
+alarms & conditions, historical access, and more.
