@@ -388,10 +388,8 @@ namespace Opc.Ua.Server.TestFramework
 
             // start the server.
             T server = m_factory(m_telemetry);
-            if (TransportBindingRegistry != null)
-            {
-                server.TransportBindings = TransportBindingRegistry;
-            }
+            server.TransportBindings = TransportBindingRegistry
+                ?? TestTransportBindings.WithAllSchemes();
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);

@@ -173,7 +173,7 @@ namespace Opc.Ua
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl
                 ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
-            transportChannelBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
+            transportChannelBindings ??= GetDefaultBindingsLazy();
             ITransportChannel channel =
                 transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
@@ -264,7 +264,7 @@ namespace Opc.Ua
             };
 
             // initialize the channel which will be created with the server.
-            transportChannelBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
+            transportChannelBindings ??= GetDefaultBindingsLazy();
             ITransportChannel channel =
                 transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
@@ -1237,6 +1237,38 @@ namespace Opc.Ua
         {
             CloseChannel(channel);
         }
+
+        /// <summary>
+        /// Returns a lazily-initialized
+        /// <see cref="DefaultTransportBindingRegistry"/> seeded with the
+        /// raw-socket TCP factories AND any optional HTTPS / WSS
+        /// factories from <c>Opc.Ua.Bindings.Https</c> when that
+        /// assembly is already loaded into the current
+        /// <see cref="AppDomain"/>. The fallback is used by the static
+        /// <c>CreateUaBinaryChannelAsync</c> paths when the caller did
+        /// not supply an <see cref="ITransportChannelBindings"/>.
+        /// </summary>
+        /// <remarks>
+        /// DI consumers do not hit this path - they receive a
+        /// dependency-resolved <see cref="ITransportBindingRegistry"/>
+        /// from their own <see cref="System.IServiceProvider"/>.
+        /// </remarks>
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+            "Trimming", "IL2026",
+            Justification = "Pre-DI fallback path only; DI consumers receive an explicit registry.")]
+        private static DefaultTransportBindingRegistry GetDefaultBindingsLazy()
+        {
+            return s_defaultBindings.Value;
+        }
+
+        private static readonly Lazy<DefaultTransportBindingRegistry> s_defaultBindings = new(
+            () =>
+            {
+#pragma warning disable IL2026 // Pre-DI fallback path only; DI consumers receive an explicit registry.
+                return DefaultTransportBindingRegistry.WithDefaultBindings();
+#pragma warning restore IL2026
+            },
+            System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
         private readonly ApplicationConfiguration m_configuration;
         private readonly ClientChannelManagerDiagnostics m_diagnostics = new();

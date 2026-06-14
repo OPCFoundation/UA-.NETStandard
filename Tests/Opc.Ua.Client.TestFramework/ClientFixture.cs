@@ -227,6 +227,7 @@ namespace Opc.Ua.Client.TestFramework
             ReverseConnectManager = new ReverseConnectManager(m_telemetry)
             {
                 TransportBindings = TransportBindingRegistry
+                    ?? TestTransportBindings.WithAllSchemes()
             };
         }
 

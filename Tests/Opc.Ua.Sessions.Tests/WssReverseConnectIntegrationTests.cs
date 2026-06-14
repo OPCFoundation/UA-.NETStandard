@@ -75,6 +75,16 @@ namespace Opc.Ua.Sessions.Tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
+            // Build a per-fixture registry that knows opc.tcp + opc.wss.
+            // Tests no longer rely on Utils.DefaultBindings reflection
+            // auto-load - every consumer registers what it needs.
+            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+                .WithDefaultTcp();
+            registry.RegisterListenerFactory(new WssTransportListenerFactory());
+            registry.RegisterListenerFactory(new OpcWssTransportListenerFactory());
+            registry.RegisterChannelFactory(new WssTransportChannelFactory());
+            registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
+
             // Server hosts an opc.wss endpoint with SecurityNone so the
             // ReverseConnectServer / ServerBase iterates its WSS listener
             // when CreateReverseConnection runs.
@@ -86,7 +96,8 @@ namespace Opc.Ua.Sessions.Tests
                 HttpsMutualTls = false,
                 ReverseConnectTimeout = kMaxTimeout,
                 MaxChannelCount = 8,
-                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
+                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
+                TransportBindingRegistry = registry
             };
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
@@ -95,7 +106,10 @@ namespace Opc.Ua.Sessions.Tests
             // application configuration, which picks up the cert manager
             // for the WSS listener via the AddEndpointInternal path
             // added in Phase F.
-            m_clientFixture = new ClientFixture(telemetry: m_telemetry);
+            m_clientFixture = new ClientFixture(telemetry: m_telemetry)
+            {
+                TransportBindingRegistry = registry
+            };
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             await m_clientFixture.StartReverseConnectHostAsync(Utils.UriSchemeOpcWss).ConfigureAwait(false);
 
