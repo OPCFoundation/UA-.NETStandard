@@ -37,6 +37,8 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.8" />
@@ -54,6 +56,19 @@
     <PackageVersion Include="TUnit" Version="1.51.0" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+    <!--
+      PacketDotNet and SharpPcap are native-code dependencies of
+      Opc.Ua.Bindings.Pcap. They dynamically load libpcap on
+      Linux/macOS and Npcap on Windows. Per SDL native-code policy:
+      - Versions are pinned (no floating range)
+      - SBOM tracking is required for every release
+      - Subscribe to upstream CVE feeds:
+        * https://github.com/dotpcap/sharppcap/security/advisories
+        * https://github.com/dotpcap/packetnet/security/advisories
+      - Review monthly; bump within 30 days for HIGH/CRITICAL CVEs
+    -->
+    <PackageVersion Include="PacketDotNet" Version="1.4.8" />
+    <PackageVersion Include="SharpPcap" Version="6.3.1" />
     <PackageVersion Include="NUnit" Version="4.6.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.14.0" />
     <PackageVersion Include="NUnit.Console" Version="3.22.0" />

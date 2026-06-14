@@ -4,7 +4,7 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 
 ## Features
 
-- **43 MCP tools** covering all OPC UA Part 4 service sets (except session management)
+- **64 MCP tools** covering all OPC UA Part 4 service sets (except session management), plus PKI, configuration, NodeSet export, and OPC UA-aware packet capture
 - **Both stdio and HTTP/SSE** transports
 - **JSON representation** of all OPC UA types for LLM-friendly interactions
 - **Session management** via Connect/Disconnect tools
@@ -13,15 +13,19 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 
 | Service Set | Tools | Description |
 |---|---|---|
-| Connection | Connect, Disconnect, GetConnectionStatus | Session lifecycle |
-| Attribute | Read, Write, HistoryRead, HistoryUpdate | Read/write node attributes |
-| View | Browse, BrowseNext, TranslateBrowsePaths, RegisterNodes, UnregisterNodes, QueryFirst, QueryNext | Navigate address space |
+| Connection | GetEndpoints, Connect, Disconnect, GetConnectionStatus | Endpoint discovery and session lifecycle |
+| Attribute | Read, Write, HistoryRead, HistoryUpdate | Read/write node attributes and historical data |
+| View | Browse, BrowseNext, TranslateBrowsePaths, RegisterNodes, UnregisterNodes, QueryFirst, QueryNext | Navigate and query the address space |
 | Node Management | AddNodes, AddReferences, DeleteNodes, DeleteReferences | Modify address space |
 | Method | Call | Invoke methods |
-| MonitoredItem | CreateMonitoredItems, ModifyMonitoredItems, SetMonitoringMode, SetTriggering, DeleteMonitoredItems | Data change monitoring |
 | Subscription | CreateSubscription, ModifySubscription, SetPublishingMode, Publish, Republish, DeleteSubscriptions, TransferSubscriptions | Notification subscriptions |
-| Discovery | FindServers, FindServersOnNetwork, GetEndpoints, RegisterServer, RegisterServer2 | Server discovery |
+| MonitoredItem | CreateMonitoredItems, ModifyMonitoredItems, SetMonitoringMode, SetTriggering, DeleteMonitoredItems | Data change monitoring |
+| Discovery | FindServers, FindServersOnNetwork, RegisterServer, RegisterServer2 | Server discovery and registration |
+| PKI Management | ListCertificates, TrustCertificate, RemoveCertificate, GetPkiStorePaths | Manage certificate trust lists |
+| Configuration | GetConfiguration, SetConfiguration | View/modify client settings for current session |
+| NodeSet Export | ExportNodeSet, ExportNodeSetPerNamespace | Export address space to NodeSet2 XML |
 | Convenience | ReadValue, ReadValues, WriteValue, BrowseAll, CallMethod, ReadNode, Cancel | Simplified operations |
+| Packet Capture | list_interfaces, start_capture, stop_capture, list_captures, get_capture, capture_now, list_active_channels, dump_keys, decode_pcap_with_keys, summarize_service_calls, replay_pcap, stop_replay, list_replays | OPC UA-aware packet capture, offline decode, service-call summaries, replay |
 
 ## Documentation
 

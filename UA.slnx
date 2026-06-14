@@ -13,31 +13,47 @@
   </Folder>
   <Folder Name="/Fuzzing/">
     <File Path="Fuzzing/Fuzzing.md" />
+    <Project Path="Fuzzing/Opc.Ua.Certificates.Fuzz/Opc.Ua.Certificates.Fuzz.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Certificates.Fuzz.Tests/Opc.Ua.Certificates.Fuzz.Tests.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Certificates.Fuzz.Tools/Opc.Ua.Certificates.Fuzz.Tools.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Encoders.Fuzz/Opc.Ua.Encoders.Fuzz.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Encoders.Fuzz.Tools/Opc.Ua.Encoders.Fuzz.Tools.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Network.Fuzz/Opc.Ua.Network.Fuzz.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj" />
+    <Project Path="Fuzzing/Opc.Ua.Network.Fuzz.Tools/Opc.Ua.Network.Fuzz.Tools.csproj" />
   </Folder>
-  <Folder Name="/Fuzzing/Common/" />
-  <Folder Name="/Fuzzing/common/Fuzz.Tools/">
-    <File Path="Fuzzing/common/Fuzz.Tools/Playback.cs" />
-    <File Path="Fuzzing/common/Fuzz.Tools/Program.cs" />
-    <File Path="Fuzzing/common/Fuzz.Tools/Testcases.cs" />
+  <Folder Name="/Fuzzing/Common/Fuzz/">
+    <File Path="Fuzzing/Common/Fuzz/FuzzMethods.cs" />
+    <File Path="Fuzzing/Common/Fuzz/Program.cs" />
   </Folder>
-  <Folder Name="/Fuzzing/common/Fuzz/">
-    <File Path="Fuzzing/common/Fuzz/FuzzMethods.cs" />
-    <File Path="Fuzzing/common/Fuzz/Program.cs" />
+  <Folder Name="/Fuzzing/Common/Fuzz.Tests/">
+    <File Path="Fuzzing/Common/Fuzz.Tests/FuzzTargetFunction.cs" />
+    <File Path="Fuzzing/Common/Fuzz.Tests/FuzzTargetTestsBase.cs" />
+    <File Path="Fuzzing/Common/Fuzz.Tests/TestAssetUtils.cs" />
+    <File Path="Fuzzing/Common/Fuzz.Tests/TestcaseAsset.cs" />
+  </Folder>
+  <Folder Name="/Fuzzing/Common/Fuzz.Tools/">
+    <File Path="Fuzzing/Common/Fuzz.Tools/Logging.cs" />
+    <File Path="Fuzzing/Common/Fuzz.Tools/Playback.cs" />
+    <File Path="Fuzzing/Common/Fuzz.Tools/Program.cs" />
+    <File Path="Fuzzing/Common/Fuzz.Tools/Testcases.cs" />
   </Folder>
   <Folder Name="/Fuzzing/Dictionaries/">
-    <File Path="Fuzzing/dictionaries/json.dict" />
-    <File Path="Fuzzing/dictionaries/xml.dict" />
-  </Folder>
-  <Folder Name="/Fuzzing/Encoders/">
-    <Project Path="Fuzzing/Encoders/Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj" />
-    <Project Path="Fuzzing/Encoders/Fuzz.Tools/Encoders.Fuzz.Tools.csproj" />
-    <Project Path="Fuzzing/Encoders/Fuzz/Encoders.Fuzz.csproj" />
+    <File Path="Fuzzing/Dictionaries/asn1.dict" />
+    <File Path="Fuzzing/Dictionaries/binary.dict" />
+    <File Path="Fuzzing/Dictionaries/json.dict" />
+    <File Path="Fuzzing/Dictionaries/nodeid.dict" />
+    <File Path="Fuzzing/Dictionaries/tcp.dict" />
+    <File Path="Fuzzing/Dictionaries/uasc.dict" />
+    <File Path="Fuzzing/Dictionaries/xml.dict" />
   </Folder>
   <Folder Name="/Fuzzing/Scripts/">
-    <File Path="Fuzzing/scripts/fuzz-afl.ps1" />
-    <File Path="Fuzzing/scripts/fuzz-libfuzzer.ps1" />
-    <File Path="Fuzzing/scripts/install.sh" />
-    <File Path="Fuzzing/scripts/readme.txt" />
+    <File Path="Fuzzing/Scripts/fuzz-afl.ps1" />
+    <File Path="Fuzzing/Scripts/fuzz-libfuzzer.ps1" />
+    <File Path="Fuzzing/Scripts/fuzz-menu.ps1" />
+    <File Path="Fuzzing/Scripts/install.sh" />
+    <File Path="Fuzzing/Scripts/readme.txt" />
   </Folder>
   <Folder Name="/Libraries/">
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
@@ -122,6 +138,7 @@
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
+    <Project Path="Stack/Opc.Ua.Bindings.Pcap/Opc.Ua.Bindings.Pcap.csproj" />
     <Project Path="Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
@@ -134,6 +151,7 @@
     <Project Path="Tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Bindings.Pcap.Tests/Opc.Ua.Bindings.Pcap.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />

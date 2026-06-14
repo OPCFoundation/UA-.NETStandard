@@ -1472,7 +1472,9 @@ Version 2.0 introduces `ManagedSession`, a wrapper around `Session` that automat
 
 - **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
 - **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 2.0.
-- **`SessionReconnectHandler`** is **retained** as a supported legacy entry point for callers that already manage raw `Session` instances. The type itself is not removed. Its parameterless legacy constructor remains marked `[Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]` in 2.0 (the same attribute was already present in 1.5.378); pass an `ITelemetryContext` to the new ctor when adopting it. It now also requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`, since those facades drive their own reconnect / failover state machine. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync`.
+- **`SessionReconnectHandler`** is retained as a supported legacy entry point for callers that already manage raw `Session` instances. The type itself is not removed. Its parameterless legacy constructor remains marked `[Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]`; pass an `ITelemetryContext` to the new ctor when adopting it. It now also requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync` (which transparently uses the new `IClientChannelManager` if registered), or wire `IClientChannelManager` into a raw `Session` via `Session.CreateAsync(IClientChannelManager, ...)`.
+
+- **`IClientBase.AttachChannel(ITransportChannel)` and `DetachChannel()`** are now marked **`[Obsolete]`** as of issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288). They remain functional. New code should use `IClientChannelManager` so transport channels are reference-counted, shared across participants on the same endpoint, and reconnected transparently. See [Sessions and reconnect](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect).
 
 For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](Sessions.md).
 
@@ -1545,7 +1547,8 @@ var policy = new ReconnectPolicy
     InitialDelay = TimeSpan.FromSeconds(1),
     MaxDelay = TimeSpan.FromSeconds(30),
     MaxRetries = 0,         // 0 = unlimited
-    JitterFactor = 0.1      // ±10% jitter
+    JitterFactor = 0.1,     // ±10% jitter
+    MaxTotalReconnectTime = TimeSpan.FromMinutes(5)
 };
 ```
 
