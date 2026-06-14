@@ -52,11 +52,61 @@ namespace Opc.Ua
         /// Initializes object with default values.
         /// </summary>
         public ServerBase(ITelemetryContext telemetry)
+            : this(telemetry, transportBindings: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a server that uses a specific
+        /// <see cref="ITransportBindingRegistry"/> when opening its
+        /// listeners. The DI registration in
+        /// <c>AddOpcUaServer()</c> wires the host's
+        /// <see cref="ITransportBindingRegistry"/> through this ctor so
+        /// transport bindings registered via
+        /// <c>AddOpcTcpTransport()</c> / <c>AddKestrelOpcTcpTransport()</c> /
+        /// <c>AddHttpsTransport()</c> etc. take effect. Non-DI consumers
+        /// can call the parameterless overload above; the server then
+        /// constructs a <see cref="DefaultTransportBindingRegistry"/>
+        /// pre-seeded with the raw-socket TCP factories on first use.
+        /// </summary>
+        public ServerBase(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
+            m_transportBindings = transportBindings;
+        }
+
+        /// <summary>
+        /// The resolved transport binding registry. Lazily constructs a
+        /// <see cref="DefaultTransportBindingRegistry"/> pre-seeded with the
+        /// raw-socket TCP factories when none was injected at construction
+        /// time. The setter is intended for non-DI consumers (typically test
+        /// fixtures) that need to override the registry between construction
+        /// and <c>StartAsync</c>; once the server is started further
+        /// reassignment is rejected.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">value is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">the server has already started.</exception>
+        public ITransportBindingRegistry TransportBindings
+        {
+            get => m_transportBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
+            set
+            {
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                if (TransportListeners.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Transport bindings cannot be changed after the server has started.");
+                }
+                m_transportBindings = value;
+            }
         }
 
         /// <summary>
@@ -263,7 +313,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
-            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportBindingRegistry bindingFactory = TransportBindings;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
@@ -330,7 +380,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
-            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportBindingRegistry bindingFactory = TransportBindings;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
@@ -1544,7 +1594,7 @@ namespace Opc.Ua
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            ITransportListenerBindings bindingFactory,
+            ITransportBindingRegistry bindingFactory,
             out ApplicationDescription? serverDescription,
             out ArrayOf<EndpointDescription> endpoints)
         {
@@ -1625,6 +1675,7 @@ namespace Opc.Ua
         private IServiceMessageContext? m_messageContext;
         private RequestQueue m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
+        private ITransportBindingRegistry? m_transportBindings;
 
         private bool m_disposed;
     }

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Capture.Sources;
@@ -50,37 +51,6 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapServiceCollectionExtensionsTests : TempDirectoryFixture
     {
-        private Opc.Ua.Bindings.ITransportChannelFactory? m_previousBinding;
-
-        /// <summary>
-        /// Snapshots the process-wide opc.tcp binding so the AddOpcUa*
-        /// installs performed by these tests don't leak into other
-        /// fixtures and produce order-dependent results.
-        /// </summary>
-        [SetUp]
-        public void CapturePreviousBinding()
-        {
-            var bindings = (Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                Opc.Ua.Bindings.TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Opc.Ua.Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Opc.Ua.Utils.UriSchemeOpcTcp, new TestTelemetryContext())
-                : null;
-        }
-
-        /// <summary>
-        /// Restores the previously-registered opc.tcp binding (if any).
-        /// </summary>
-        [TearDown]
-        public void RestorePreviousBinding()
-        {
-            if (m_previousBinding is not null)
-            {
-                ((Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                    Opc.Ua.Bindings.TransportBindings.Channels)
-                    .SetBinding(m_previousBinding);
-            }
-        }
-
         [Test]
         public void AddOpcUaBindingsPcapThrowsOnNullServices()
         {
@@ -256,18 +226,16 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapInstallsPcapBindingIntoTransportBindings()
+        public async Task AddOpcUaBindingsPcapInstallsPcapBindingIntoTransportRegistry()
         {
             var services = new ServiceCollection();
             services.AddOpcUaBindingsPcap();
 
-            // PcapBindings.Install mutates the process-wide TransportBindings.Channels;
-            // after AddOpcUaBindingsPcap, the registry must contain a binding for the
-            // opc.tcp scheme that is the PcapTransportChannelBinding instance.
-            Opc.Ua.Bindings.ITransportChannelFactory? binding =
-                ((Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                    Opc.Ua.Bindings.TransportBindings.Channels)
-                .GetBinding(Opc.Ua.Utils.UriSchemeOpcTcp, new TestTelemetryContext());
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            var bindings = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            ITransportChannelFactory? binding = bindings.GetChannelFactory(
+                Opc.Ua.Utils.UriSchemeOpcTcp);
 
             Assert.That(binding, Is.Not.Null);
             Assert.That(binding, Is.InstanceOf<PcapTransportChannelBinding>());

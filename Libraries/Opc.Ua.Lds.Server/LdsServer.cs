@@ -519,7 +519,7 @@ namespace Opc.Ua.Lds.Server
         /// <inheritdoc />
         protected override IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            ITransportListenerBindings bindingFactory,
+            ITransportBindingRegistry bindingFactory,
             out ApplicationDescription serverDescription,
             out ArrayOf<EndpointDescription> endpoints)
         {
@@ -567,7 +567,7 @@ namespace Opc.Ua.Lds.Server
                     continue;
                 }
 
-                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
+                ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme);
                 if (binding != null)
                 {
                     List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(

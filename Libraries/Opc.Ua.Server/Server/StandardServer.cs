@@ -3123,7 +3123,7 @@ namespace Opc.Ua.Server
         /// </returns>
         protected override IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            ITransportListenerBindings bindingFactory,
+            ITransportBindingRegistry bindingFactory,
             out ApplicationDescription serverDescription,
             out ArrayOf<EndpointDescription> endpoints)
         {
@@ -3161,7 +3161,7 @@ namespace Opc.Ua.Server
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
                     baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
-                ITransportListenerFactory? binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
+                ITransportListenerFactory? binding = bindingFactory.GetListenerFactory(scheme);
                 if (binding != null)
                 {
                     List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(

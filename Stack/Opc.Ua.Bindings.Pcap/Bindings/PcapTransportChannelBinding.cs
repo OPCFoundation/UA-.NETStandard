@@ -38,9 +38,9 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
     /// transport channels whose underlying byte transport is wrapped by a
     /// <see cref="CapturingByteTransportFactory"/>. Registering this
     /// binding via <c>AddOpcUaBindingsPcap</c> (or
-    /// <c>TransportBindings.Channels.SetBinding</c>) installs the capture
-    /// hook for every <see cref="ITransportChannel"/> created through
-    /// <c>ClientChannelManager</c>.
+    /// <c>PcapBindings.Install(ITransportBindingRegistry)</c>) installs
+    /// the capture hook for every <see cref="ITransportChannel"/> created
+    /// through <c>ClientChannelManager</c>.
     /// </summary>
     /// <remarks>
     /// Wrapping is unconditional once the binding is installed; the

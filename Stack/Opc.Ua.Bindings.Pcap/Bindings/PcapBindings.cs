@@ -33,9 +33,8 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Bindings.Pcap.Bindings
 {
     /// <summary>
-    /// Convenience helper that installs (or removes) the Pcap channel
-    /// binding into the process-wide
-    /// <see cref="TransportBindings.Channels"/> registry. Use this when
+    /// Convenience helper that installs the Pcap channel binding into a
+    /// supplied <see cref="ITransportBindingRegistry"/>. Use this when
     /// the application is not built around
     /// Microsoft.Extensions.DependencyInjection and therefore cannot
     /// rely on the <c>AddOpcUaBindingsPcap</c> extension method.
@@ -44,15 +43,18 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
     {
         /// <summary>
         /// Installs the Pcap channel binding for <c>opc.tcp</c> into the
-        /// shared <see cref="TransportBindings.Channels"/> registry. The
-        /// returned <see cref="IChannelCaptureRegistry"/> is the
-        /// coordination point a <c>CaptureSessionManager</c> uses to
-        /// switch recording on or off.
+        /// supplied <paramref name="bindingRegistry"/>. The returned
+        /// <see cref="IChannelCaptureRegistry"/> is the coordination
+        /// point a <c>CaptureSessionManager</c> uses to switch recording
+        /// on or off.
         /// </summary>
-        public static IChannelCaptureRegistry Install()
+        /// <param name="bindingRegistry">The transport binding registry
+        /// to install the Pcap channel decorator into.</param>
+        public static IChannelCaptureRegistry Install(ITransportBindingRegistry bindingRegistry)
         {
+            ArgumentNullException.ThrowIfNull(bindingRegistry);
             var registry = new ChannelCaptureRegistry();
-            Install(registry);
+            Install(bindingRegistry, registry);
             return registry;
         }
 
@@ -60,13 +62,15 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
         /// Installs the Pcap channel binding using the supplied
         /// <see cref="IChannelCaptureRegistry"/>.
         /// </summary>
-        public static void Install(IChannelCaptureRegistry registry)
+        public static void Install(
+            ITransportBindingRegistry bindingRegistry,
+            IChannelCaptureRegistry registry)
         {
+            ArgumentNullException.ThrowIfNull(bindingRegistry);
             ArgumentNullException.ThrowIfNull(registry);
 
-            var binding = new PcapTransportChannelBinding(registry);
-            ((ITransportBindings<ITransportChannelFactory>)TransportBindings.Channels)
-                .SetBinding(binding);
+            bindingRegistry.RegisterChannelFactory(new PcapTransportChannelBinding(registry));
         }
     }
 }
+

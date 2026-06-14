@@ -27,50 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using NUnit.Framework;
-using Opc.Ua.Bindings.Pcap.DependencyInjection;
-
-namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
+namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Tests the diagnostics tools opt-in flag exposed through pcap
-    /// dependency injection options.
+    /// Minimal client-channel surface that
+    /// <see cref="Opc.Ua.ClientChannelManager"/> consumes when creating
+    /// transport channels.
     /// </summary>
-    [TestFixture]
-    public sealed class PcapOptionsDiagnosticsToolsGateTests
+    /// <remarks>
+    /// The full transport binding registry
+    /// (<see cref="ITransportBindingRegistry"/>) implements this
+    /// interface so a single
+    /// <see cref="DefaultTransportBindingRegistry"/> instance satisfies
+    /// both the channel-creation surface
+    /// (<see cref="ITransportChannelBindings"/>) and the broader
+    /// listener / channel registration surface
+    /// (<see cref="ITransportBindingRegistry"/>).
+    /// </remarks>
+    public interface ITransportChannelBindings
     {
-        [Test]
-        public void PcapOptionsEnableDiagnosticsToolsDefaultsToFalse()
-        {
-            var options = new PcapOptions();
-
-            Assert.That(options.EnableDiagnosticsTools, Is.False);
-        }
-
-        [Test]
-        public void PcapOptionsEnableDiagnosticsToolsCanBeSet()
-        {
-            var options = new PcapOptions
-            {
-                EnableDiagnosticsTools = true
-            };
-
-            Assert.That(options.EnableDiagnosticsTools, Is.True);
-        }
-
-        [Test]
-        public async Task AddOpcUaBindingsPcapInvokesUserConfigureCallbackForDiagnosticsToolsFlag()
-        {
-            var services = new ServiceCollection();
-
-            services.AddOpcUaBindingsPcap(options => options.EnableDiagnosticsTools = true);
-            await using ServiceProvider provider = services.BuildServiceProvider();
-
-            var options = provider.GetRequiredService<PcapOptions>();
-
-            Assert.That(options.EnableDiagnosticsTools, Is.True);
-        }
+        /// <summary>
+        /// Create a channel for the specified uri scheme. Returns
+        /// <c>null</c> when no factory is registered for the scheme.
+        /// </summary>
+        /// <param name="uriScheme">The URI scheme of the transport.</param>
+        /// <param name="telemetry">Telemetry context for the new channel.</param>
+        ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry);
     }
 }

@@ -67,7 +67,6 @@ namespace Opc.Ua.Sessions.Tests
         private ReferenceServer m_server = null!;
         private string m_pkiRoot = null!;
         private Uri m_serverUrl = null!;
-        private ITransportListenerFactory? m_originalOpcTcpFactory;
 
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
@@ -75,10 +74,6 @@ namespace Opc.Ua.Sessions.Tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
-            // start ref server with reverse connect using the DEFAULT
-            // (raw-socket) opc.tcp factory - the server is responsible for
-            // initiating outbound reverse connections and the raw-socket
-            // TcpTransportListener supports that natively.
             m_serverFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AutoAccept = true,
@@ -88,17 +83,14 @@ namespace Opc.Ua.Sessions.Tests
             };
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
-            // NOW swap the opc.tcp listener binding to the Kestrel-TCP
-            // factory so the client-side reverse-connect listener that
-            // ReverseConnectHost.CreateListener instantiates next picks
-            // up the Kestrel implementation. The server's listener was
-            // already constructed above; this swap does not affect it.
-            m_originalOpcTcpFactory = TransportBindings.Listeners.GetBinding(Utils.UriSchemeOpcTcp, m_telemetry);
-            TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+                .WithDefaultTcp();
+            registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
 
-            // create client and start the reverse-connect host (uses the
-            // Kestrel-TCP factory now installed in TransportBindings.Listeners).
-            m_clientFixture = new ClientFixture(telemetry: m_telemetry);
+            m_clientFixture = new ClientFixture(telemetry: m_telemetry)
+            {
+                TransportBindingRegistry = registry
+            };
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             await m_clientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
 
@@ -107,8 +99,6 @@ namespace Opc.Ua.Sessions.Tests
                     "opc.tcp://localhost:" +
                     m_serverFixture.Port.ToString(CultureInfo.InvariantCulture)));
 
-            // direct the reference server to reverse-connect into the
-            // client-side Kestrel-TCP listener.
             m_server.AddReverseConnection(
                 new Uri(m_clientFixture.ReverseConnectUri),
                 kMaxTimeout);
@@ -121,12 +111,6 @@ namespace Opc.Ua.Sessions.Tests
             if (m_serverFixture != null)
             {
                 await m_serverFixture.StopAsync().ConfigureAwait(false);
-            }
-
-            // restore the default opc.tcp factory so other fixtures use it.
-            if (m_originalOpcTcpFactory != null)
-            {
-                TransportBindings.Listeners.SetBinding(m_originalOpcTcpFactory);
             }
 
             try

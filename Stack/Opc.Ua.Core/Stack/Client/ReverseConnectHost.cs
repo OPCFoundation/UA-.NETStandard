@@ -39,13 +39,38 @@ namespace Opc.Ua
     public class ReverseConnectHost
     {
         /// <summary>
-        /// Create reverse connect host
+        /// Create reverse connect host using a process-local
+        /// <see cref="DefaultTransportBindingRegistry"/> pre-seeded
+        /// with the raw-socket TCP factories.
         /// </summary>
         /// <param name="telemetry">Telemetry context to use</param>
         public ReverseConnectHost(ITelemetryContext telemetry)
+            : this(telemetry, transportBindings: null)
+        {
+        }
+
+        /// <summary>
+        /// Create reverse connect host using the supplied
+        /// <paramref name="transportBindings"/> registry. The DI
+        /// integration in <c>ReverseConnectManager</c> wires the host's
+        /// <see cref="ITransportBindingRegistry"/> through this ctor so
+        /// transports registered via <c>AddOpcTcpTransport()</c> /
+        /// <c>AddHttpsTransport()</c> etc. are visible to the
+        /// reverse-connect listener.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="transportBindings">
+        /// Optional transport binding registry. When <c>null</c> the
+        /// host constructs a <see cref="DefaultTransportBindingRegistry"/>
+        /// pre-seeded with the raw-socket TCP factories on first use.
+        /// </param>
+        public ReverseConnectHost(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ReverseConnectHost>();
+            m_transportBindings = transportBindings;
         }
 
         /// <summary>
@@ -86,7 +111,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(url));
             }
 
-            ITransportListener? listener = TransportBindings.Listeners.Create(
+            ITransportBindingRegistry registry =
+                m_transportBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
+            ITransportListener? listener = registry.CreateListener(
                 url.Scheme,
                 m_telemetry);
 
@@ -171,6 +198,7 @@ namespace Opc.Ua
         private EventHandler<ConnectionStatusEventArgs>? m_onConnectionStatusChanged;
         private ICertificateRegistry? m_serverCertificates;
         private ICertificateValidatorEx? m_certificateValidator;
+        private ITransportBindingRegistry? m_transportBindings;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }

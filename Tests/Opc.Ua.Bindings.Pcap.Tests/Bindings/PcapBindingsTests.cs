@@ -37,45 +37,20 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
     [TestFixture]
     public sealed class PcapBindingsTests
     {
-        private ITransportChannelFactory? m_previousBinding;
-
-        /// <summary>
-        /// Captures the binding currently registered for
-        /// <c>opc.tcp</c> in the process-wide
-        /// <see cref="TransportBindings.Channels"/> registry so it can
-        /// be restored after the test. Without this, the Pcap binding
-        /// installed by tests below would leak into unrelated tests in
-        /// other fixtures and produce order-dependent results.
-        /// </summary>
-        [SetUp]
-        public void CapturePreviousBinding()
+        [Test]
+        public void InstallWithNullRegistryThrows()
         {
-            var bindings = (ITransportBindings<ITransportChannelFactory>)TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Utils.UriSchemeOpcTcp, TestTelemetryContext.Instance)
-                : null;
-        }
-
-        /// <summary>
-        /// Restores whatever binding was registered before the test ran
-        /// (or leaves whatever this test installed in place when none
-        /// was previously registered — that mirrors a fresh process and
-        /// is acceptable).
-        /// </summary>
-        [TearDown]
-        public void RestorePreviousBinding()
-        {
-            if (m_previousBinding is not null)
-            {
-                ((ITransportBindings<ITransportChannelFactory>)TransportBindings.Channels)
-                    .SetBinding(m_previousBinding);
-            }
+            Assert.That(
+                () => PcapBindings.Install(bindingRegistry: null!),
+                Throws.TypeOf<ArgumentNullException>()
+                    .With.Property("ParamName").EqualTo("bindingRegistry"));
         }
 
         [Test]
-        public void InstallParameterlessReturnsNonNullRegistry()
+        public void InstallReturnsNonNullCaptureRegistry()
         {
-            IChannelCaptureRegistry registry = PcapBindings.Install();
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            IChannelCaptureRegistry registry = PcapBindings.Install(bindings);
 
             Assert.That(registry, Is.Not.Null);
             Assert.That(registry, Is.TypeOf<ChannelCaptureRegistry>());
@@ -84,27 +59,14 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
         }
 
         [Test]
-        public void InstallWithExplicitRegistryThrowsOnNull()
-        {
-            Assert.That(
-                () => PcapBindings.Install(registry: null!),
-                Throws.TypeOf<ArgumentNullException>()
-                    .With.Property("ParamName").EqualTo("registry"));
-        }
-
-        [Test]
         public void InstallSetsBindingOnTransportBindingsChannels()
         {
-            // Install puts a PcapTransportChannelBinding into the global
-            // TransportBindings.Channels registry; subsequent lookups by
-            // opc.tcp scheme must resolve a binding whose UriScheme is opc.tcp.
-            PcapBindings.Install();
-            var bindings = (ITransportBindings<ITransportChannelFactory>)TransportBindings.Channels;
-            Assert.That(bindings.HasBinding(Utils.UriSchemeOpcTcp), Is.True);
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            PcapBindings.Install(bindings);
 
-            ITransportChannelFactory? binding = bindings.GetBinding(
-                Utils.UriSchemeOpcTcp,
-                TestTelemetryContext.Instance);
+            Assert.That(bindings.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
+
+            ITransportChannelFactory? binding = bindings.GetChannelFactory(Utils.UriSchemeOpcTcp);
 
             Assert.That(binding, Is.Not.Null);
             Assert.That(binding!.UriScheme, Is.EqualTo(Utils.UriSchemeOpcTcp));
@@ -113,18 +75,26 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
         [Test]
         public void InstallWithSuppliedRegistryReplacesPreviousBinding()
         {
-            // Install twice; the second binding wins. We can't directly
-            // observe which binding instance is active, but we can verify
-            // that subsequent SetObserver calls land on the latest registry.
-            IChannelCaptureRegistry firstRegistry = PcapBindings.Install();
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            IChannelCaptureRegistry firstRegistry = PcapBindings.Install(bindings);
             var customRegistry = new ChannelCaptureRegistry();
-            PcapBindings.Install(customRegistry);
+            PcapBindings.Install(bindings, customRegistry);
 
             // The first registry must not see updates made via the binding
             // installed afterwards; we only care that the two registries are
             // distinct instances, both with null observers initially.
             Assert.That(firstRegistry, Is.Not.SameAs(customRegistry));
             Assert.That(customRegistry.CurrentObserver, Is.Null);
+        }
+
+        [Test]
+        public void InstallWithNullCaptureRegistryThrows()
+        {
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            Assert.That(
+                () => PcapBindings.Install(bindings, registry: null!),
+                Throws.TypeOf<ArgumentNullException>()
+                    .With.Property("ParamName").EqualTo("registry"));
         }
     }
 }

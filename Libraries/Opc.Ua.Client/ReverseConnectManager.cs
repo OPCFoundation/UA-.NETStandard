@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -198,6 +199,18 @@ namespace Opc.Ua.Client
             : this(null!)
         {
         }
+
+        /// <summary>
+        /// Optional <see cref="ITransportBindingRegistry"/> threaded into
+        /// every <see cref="ReverseConnectHost"/> created by this manager.
+        /// When <c>null</c>, the host falls back to a private
+        /// <see cref="DefaultTransportBindingRegistry"/> seeded with the
+        /// raw-socket TCP listener. Set this BEFORE calling
+        /// <see cref="AddEndpoint(System.Uri)"/> /
+        /// <see cref="AddEndpoint(System.Uri, ApplicationConfiguration)"/>
+        /// so the listener picks the right binding for the URI scheme.
+        /// </summary>
+        public ITransportBindingRegistry? TransportBindings { get; set; }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -723,7 +736,7 @@ namespace Opc.Ua.Client
         /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
-            var reverseConnectHost = new ReverseConnectHost(m_telemetry);
+            var reverseConnectHost = new ReverseConnectHost(m_telemetry, TransportBindings);
             var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
             try
             {

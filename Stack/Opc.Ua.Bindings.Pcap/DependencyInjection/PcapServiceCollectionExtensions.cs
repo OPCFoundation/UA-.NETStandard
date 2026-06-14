@@ -34,6 +34,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Audit;
 using Opc.Ua.Bindings.Pcap.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
@@ -52,9 +53,9 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
     {
         /// <summary>
         /// Registers the default Pcap capture services AND installs the
-        /// Pcap transport channel binding into
-        /// <see cref="Opc.Ua.Bindings.TransportBindings.Channels"/>.
-        /// After this call every OPC UA client channel created through
+        /// Pcap transport channel binding into the host's
+        /// <see cref="ITransportBindingRegistry"/>. After this call
+        /// every OPC UA client channel created through
         /// <see cref="Opc.Ua.ClientChannelManager"/> uses a capture-aware
         /// socket; the actual recording is gated by the
         /// <see cref="IChannelCaptureRegistry"/> and turned on or off by
@@ -87,7 +88,11 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
             // CurrentObserver picks up StartAsync / StopAsync writes
             // without any further coordination.
             var registry = new ChannelCaptureRegistry();
-            Opc.Ua.Bindings.Pcap.Bindings.PcapBindings.Install(registry);
+
+            services.AddTransportBindingRegistry();
+            services.AddSingleton<ITransportBindingConfigurator>(
+                new TransportBindingConfigurator(bindingRegistry =>
+                    Opc.Ua.Bindings.Pcap.Bindings.PcapBindings.Install(bindingRegistry, registry)));
 
             services.AddSingleton(options);
             // LoggerPcapAuditSink (and HashChainedAuditFileSink when

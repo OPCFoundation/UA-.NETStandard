@@ -57,7 +57,6 @@ namespace Opc.Ua.Sessions.Tests
     public class ClientTestKestrelTcp
     {
         private readonly ClientTest m_clientTest;
-        private ITransportListenerFactory? m_originalOpcTcpFactory;
 
         public ClientTestKestrelTcp()
         {
@@ -65,39 +64,28 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
-        /// Swap the <c>opc.tcp</c> listener binding to the Kestrel-TCP
-        /// factory BEFORE starting the server so the server's own
-        /// listener becomes the Kestrel-hosted one. The client side
-        /// continues to use the raw-socket TCP transport channel - this
-        /// fixture validates the Kestrel-TCP LISTENER, not the channel.
+        /// Build a per-fixture <see cref="ITransportBindingRegistry"/>
+        /// that swaps the <c>opc.tcp</c> listener for the Kestrel-TCP
+        /// factory. The client side continues to use the raw-socket TCP
+        /// transport channel - this fixture validates the Kestrel-TCP
+        /// LISTENER, not the channel.
         /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-            m_originalOpcTcpFactory = TransportBindings.Listeners.GetBinding(
-                Utils.UriSchemeOpcTcp,
-                NUnitTelemetryContext.Create());
-            TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+                .WithDefaultTcp();
+            registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+            m_clientTest.TransportBindingRegistry = registry;
 
             m_clientTest.SupportsExternalServerUrl = true;
             await m_clientTest.OneTimeSetUpCoreAsync(true).ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
-        public async Task OneTimeTearDownAsync()
+        public Task OneTimeTearDownAsync()
         {
-            try
-            {
-                await m_clientTest.OneTimeTearDownAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (m_originalOpcTcpFactory != null)
-                {
-                    TransportBindings.Listeners.SetBinding(m_originalOpcTcpFactory);
-                    m_originalOpcTcpFactory = null;
-                }
-            }
+            return m_clientTest.OneTimeTearDownAsync();
         }
 
         [SetUp]

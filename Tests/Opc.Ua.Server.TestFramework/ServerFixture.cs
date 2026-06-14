@@ -86,6 +86,16 @@ namespace Opc.Ua.Server.TestFramework
         public bool ProvisioningMode { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
+        /// <summary>
+        /// Optional <see cref="Opc.Ua.Bindings.ITransportBindingRegistry"/>
+        /// assigned to the server immediately after construction (before
+        /// <c>StartAsync</c>). Used by integration tests that swap a
+        /// listener / channel factory for a binding under test - e.g. the
+        /// Kestrel-TCP listener fixture - without touching the
+        /// process-wide static state.
+        /// </summary>
+        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+
         public ServerFixture(
             Func<ITelemetryContext, T> factory,
             bool useTracing,
@@ -378,6 +388,10 @@ namespace Opc.Ua.Server.TestFramework
 
             // start the server.
             T server = m_factory(m_telemetry);
+            if (TransportBindingRegistry != null)
+            {
+                server.TransportBindings = TransportBindingRegistry;
+            }
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);

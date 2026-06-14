@@ -70,6 +70,16 @@ namespace Opc.Ua.Client.TestFramework
         public ActivityListener ActivityListener { get; private set; }
 
         /// <summary>
+        /// Optional <see cref="Opc.Ua.Bindings.ITransportBindingRegistry"/>
+        /// assigned to <see cref="ReverseConnectManager"/> immediately
+        /// after construction so the listeners
+        /// <see cref="StartReverseConnectHostAsync()"/> creates pick up
+        /// the right factory for the URI scheme (e.g. Kestrel-TCP
+        /// instead of the raw-socket TCP listener).
+        /// </summary>
+        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+
+        /// <summary>
         /// Subscription engine factory to inject into every session
         /// created via <see cref="SessionFactory"/>. <c>null</c> means
         /// the session uses the <see cref="DefaultSessionFactory"/>
@@ -214,7 +224,10 @@ namespace Opc.Ua.Client.TestFramework
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            ReverseConnectManager = new ReverseConnectManager(m_telemetry);
+            ReverseConnectManager = new ReverseConnectManager(m_telemetry)
+            {
+                TransportBindings = TransportBindingRegistry
+            };
         }
 
         /// <summary>

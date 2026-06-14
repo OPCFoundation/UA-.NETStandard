@@ -439,7 +439,9 @@ namespace Opc.Ua.Client
                 channelManager = new ClientChannelManager(
                     m_configuration,
                     m_telemetry,
-                    new HttpsTransportChannelBindings(httpClientFactory),
+                    new HttpsTransportChannelBindings(
+                        DefaultTransportBindingRegistry.WithDefaultTcp(),
+                        httpClientFactory),
                     reconnectPolicy: null,
                     timeProvider: opts.TimeProvider);
             }

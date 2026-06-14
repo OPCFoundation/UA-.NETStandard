@@ -173,7 +173,7 @@ namespace Opc.Ua
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl
                 ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
-            transportChannelBindings ??= TransportBindings.Channels;
+            transportChannelBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
             ITransportChannel channel =
                 transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
@@ -264,7 +264,7 @@ namespace Opc.Ua
             };
 
             // initialize the channel which will be created with the server.
-            transportChannelBindings ??= TransportBindings.Channels;
+            transportChannelBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
             ITransportChannel channel =
                 transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
@@ -426,7 +426,8 @@ namespace Opc.Ua
         /// <param name="configuration">The application configuration.</param>
         /// <param name="telemetry">Telemetry context for logger creation.</param>
         /// <param name="channelFactory">Optional channel binding registry;
-        /// defaults to the static <see cref="Opc.Ua.Bindings.TransportBindings.Channels"/>.</param>
+        /// defaults to a <see cref="Opc.Ua.Bindings.DefaultTransportBindingRegistry"/>
+        /// pre-seeded with the raw-socket TCP factories when none is supplied.</param>
         /// <param name="reconnectPolicy">Optional channel-level retry
         /// policy. Defaults to
         /// <see cref="ExponentialBackoffChannelReconnectPolicy"/> with
