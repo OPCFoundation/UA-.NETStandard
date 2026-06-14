@@ -158,6 +158,24 @@ namespace Opc.Ua
             = "http://opcfoundation.org/UA-Profile/Transport/https-uajson";
 
         /// <summary>
+        /// Communicates with the OPC UA service set as a REST API over HTTPS,
+        /// following the OPC UA "OpenAPI Mapping" (OPC UA Part 6 §G.3, v1.05.07).
+        /// </summary>
+        /// <remarks>
+        /// Each OPC UA service is exposed as a <c>POST /&lt;service&gt;</c> route
+        /// whose request and response bodies are the corresponding
+        /// <c>&lt;Service&gt;Request</c> / <c>&lt;Service&gt;Response</c> serialized
+        /// with the OPC UA JSON encoding from Part 6 §5.4. Compact (mandatory per
+        /// §5.4.9) and Verbose forms are negotiated through the
+        /// <c>application/json; encoding=compact|verbose</c> media-type parameter.
+        /// The HTTPS REST binding does not use UA Secure Conversation and is
+        /// therefore restricted to <see cref="MessageSecurityMode.None"/>; transport
+        /// security is provided exclusively by TLS at the HTTPS layer.
+        /// </remarks>
+        public const string HttpsRestApiTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/https-restapi";
+
+        /// <summary>
         /// Uri for "PubSub UDP UADP" Profile.
         /// This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping
         /// </summary>
@@ -237,6 +255,16 @@ namespace Opc.Ua
         public static bool IsHttpsJson(string? transportProfileUri)
         {
             return string.Equals(transportProfileUri, HttpsJsonTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
+        /// HTTPS REST API transport profile (<see cref="HttpsRestApiTransport"/>).
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsHttpsRestApi(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, HttpsRestApiTransport, StringComparison.Ordinal);
         }
 
         /// <summary>

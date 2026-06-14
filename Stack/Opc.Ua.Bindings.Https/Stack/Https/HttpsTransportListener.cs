@@ -72,7 +72,7 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeHttps, telemetry);
+            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeHttps, telemetry));
         }
     }
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry);
+            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry));
         }
     }
 
@@ -119,7 +119,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
+            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeWss, telemetry));
         }
     }
 
@@ -142,7 +142,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry);
+            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry));
         }
     }
 
@@ -170,6 +170,16 @@ namespace Opc.Ua.Bindings
             // Enable WebSocket upgrades so the WSS handler added in p2-wss-listener-handler
             // can accept opcua+uacp / opcua+uajson sub-protocols.
             appBuilder.UseWebSockets();
+
+            // Invoke companion-binding startup contributors (e.g. the
+            // REST MVC pipeline from Opc.Ua.Bindings.Rest) so their
+            // middleware mounts inside this Kestrel host. Unmatched
+            // requests fall through to the terminal binary / JSON
+            // dispatcher.
+            foreach (IHttpsListenerStartupContributor contributor in listener.StartupContributors)
+            {
+                contributor.Configure(appBuilder, listener);
+            }
 
             appBuilder.Run(context => DispatchListenerRequestAsync(listener, context));
         }
@@ -322,6 +332,35 @@ namespace Opc.Ua.Bindings
         public string ListenerId { get; private set; } = default!;
 
         internal byte[] ServerChannelCertificate { get; set; } = [];
+
+        /// <summary>
+        /// Per-listener collection of startup contributors propagated from
+        /// the originating <see cref="HttpsServiceHost"/>. Invoked by
+        /// <see cref="Startup.Configure(IApplicationBuilder, HttpsTransportListener)"/>
+        /// between <c>UseWebSockets()</c> and the terminal binary / JSON
+        /// dispatcher so additional middleware (e.g. REST MVC) can mount
+        /// into the same Kestrel host.
+        /// </summary>
+        internal IReadOnlyList<IHttpsListenerStartupContributor> StartupContributors { get; set; }
+            = [];
+
+        /// <summary>
+        /// The transport callback wired in by
+        /// <see cref="Open(System.Uri, TransportListenerSettings, ITransportListenerCallback)"/>.
+        /// Exposed to <see cref="IHttpsListenerStartupContributor"/>
+        /// implementations so they can forward requests through the same
+        /// dispatcher used by the binary / JSON paths.
+        /// </summary>
+        internal ITransportListenerCallback? Callback => m_callback;
+
+        /// <summary>
+        /// The encoding context (namespace / server tables, quotas,
+        /// telemetry) populated by
+        /// <see cref="Open(System.Uri, TransportListenerSettings, ITransportListenerCallback)"/>.
+        /// Available to <see cref="IHttpsListenerStartupContributor"/>
+        /// implementations after the listener is opened.
+        /// </summary>
+        internal IServiceMessageContext? MessageContext => m_quotas?.MessageContext;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.

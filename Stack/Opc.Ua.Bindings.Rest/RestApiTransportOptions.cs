@@ -1,0 +1,122 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+
+namespace Opc.Ua.Bindings.Rest
+{
+    /// <summary>
+    /// Hosting modes selectable by callers of
+    /// <c>AddRestApiTransport()</c>. Controls where the REST controllers
+    /// run.
+    /// </summary>
+    public enum RestApiHostingMode
+    {
+        /// <summary>
+        /// Mount the REST controllers into the existing
+        /// <c>HttpsTransportListener</c> Kestrel pipeline via an internal
+        /// startup-contributor hook. This is the default: a single Kestrel
+        /// port serves binary, <c>opcua+uajson</c>, and REST requests
+        /// (content-type-negotiated).
+        /// </summary>
+        SharedWithHttpsListener = 0,
+
+        /// <summary>
+        /// Run the REST controllers on a dedicated
+        /// <c>RestApiTransportListener</c> with its own Kestrel host. The
+        /// listener may still be co-located on a shared port through the
+        /// <c>SharedKestrelHostRegistry</c>.
+        /// </summary>
+        OwnListener
+    }
+
+    /// <summary>
+    /// Options for the REST binding configured through
+    /// <c>AddRestApiTransport(Action&lt;RestApiTransportOptions&gt;)</c>.
+    /// </summary>
+    public sealed class RestApiTransportOptions
+    {
+        /// <summary>
+        /// The hosting mode. Defaults to
+        /// <see cref="RestApiHostingMode.SharedWithHttpsListener"/>.
+        /// </summary>
+        public RestApiHostingMode HostingMode { get; set; }
+            = RestApiHostingMode.SharedWithHttpsListener;
+
+        /// <summary>
+        /// Default OPC UA JSON encoding flavour the server uses when the
+        /// client does not advertise a preference through the
+        /// <c>application/json; encoding=*</c> media-type parameter.
+        /// Defaults to <see cref="RestApiEncoding.Compact"/>, which is
+        /// mandatory per Part 6 §5.4.9.
+        /// </summary>
+        public RestApiEncoding DefaultEncoding { get; set; }
+            = RestApiMediaType.DefaultEncoding;
+
+        /// <summary>
+        /// Configures the listener used when
+        /// <see cref="HostingMode"/> is
+        /// <see cref="RestApiHostingMode.OwnListener"/>.
+        /// </summary>
+        /// <remarks>
+        /// Not yet implemented — the standalone listener mode is a
+        /// follow-up. Setting this throws <see cref="NotSupportedException"/>
+        /// during host startup. Use the default shared hosting mode
+        /// (<see cref="RestApiHostingMode.SharedWithHttpsListener"/>)
+        /// which mounts the REST surface inside the existing
+        /// <c>HttpsTransportListener</c> Kestrel pipeline.
+        /// </remarks>
+        public Action<object>? OwnListenerConfiguration { get; set; }
+
+        /// <summary>
+        /// Switches the hosting mode to
+        /// <see cref="RestApiHostingMode.OwnListener"/> with the supplied
+        /// configuration callback.
+        /// </summary>
+        /// <remarks>
+        /// The standalone listener mode is reserved for a follow-up;
+        /// callers should rely on the default shared hosting mode for
+        /// now. The setter is provided so consumer code that opts in
+        /// today still compiles unchanged when the implementation
+        /// lands.
+        /// </remarks>
+        /// <param name="configure">Listener configuration callback.</param>
+        /// <returns>The same options instance.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public RestApiTransportOptions UseOwnListener(Action<object> configure)
+        {
+            ArgumentNullException.ThrowIfNull(configure);
+            HostingMode = RestApiHostingMode.OwnListener;
+            OwnListenerConfiguration = configure;
+            return this;
+        }
+    }
+}

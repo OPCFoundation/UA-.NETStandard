@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <!--
+      ASP.NET Core MVC controllers, Microsoft.AspNetCore.OpenApi, and the
+      Microsoft.AspNetCore.App framework reference used by this binding
+      are net8+ only. The companion Opc.Ua.Bindings.Https package still
+      supports net472 / net48 / netstandard2.x via downlevel
+      Microsoft.AspNetCore.Server.Kestrel packages and cannot adopt
+      these APIs without dropping legacy support — hence this dedicated
+      net8+-only project (same pattern as Opc.Ua.Bindings.Kestrel.Tcp).
+    -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <!--
+      Stripped to a no-op shell when the solution-wide CI build pins a
+      legacy TFM (net472 / net48 / netstandard2.x) via CustomTestTarget.
+      See Directory.Build.targets for the mechanism.
+    -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Bindings.Rest</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Rest</PackageId>
+    <RootNamespace>Opc.Ua.Bindings</RootNamespace>
+    <Description>OPC UA HTTPS REST binding (OPC UA Part 6 §G.3 "OpenAPI Mapping") for applications that want to expose the OPC UA service set as an ASP.NET Core MVC controller surface.</Description>
+    <PackageReadmeFile>RestApiREADME.md</PackageReadmeFile>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--
+      MVC controllers + Microsoft.AspNetCore.OpenApi rely on reflection
+      that is not trim-safe; this binding therefore cannot be
+      Native-AOT-compatible. Trim-friendly variants would require
+      bespoke source generation (tracked separately).
+    -->
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="RestApiREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

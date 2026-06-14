@@ -46,6 +46,37 @@ namespace Opc.Ua.Bindings
         public abstract string UriScheme { get; }
 
         /// <summary>
+        /// Companion bindings (e.g. the REST binding in
+        /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest</c>) register
+        /// <see cref="IHttpsListenerStartupContributor"/> instances on
+        /// this collection to mount additional middleware (typically
+        /// routing + MVC controllers) inside the Kestrel host that this
+        /// factory's listeners build. Contributors are propagated to
+        /// every listener the factory creates via
+        /// <see cref="ApplyContributorsTo(HttpsTransportListener)"/>.
+        /// </summary>
+        public IList<IHttpsListenerStartupContributor> StartupContributors { get; }
+            = new List<IHttpsListenerStartupContributor>();
+
+        /// <summary>
+        /// Snapshots <see cref="StartupContributors"/> onto the supplied
+        /// <paramref name="listener"/>. Called by every concrete subclass'
+        /// <c>Create(ITelemetryContext)</c> implementation before the
+        /// listener is returned to the caller.
+        /// </summary>
+        /// <param name="listener">The freshly-created listener.</param>
+        /// <returns>The supplied <paramref name="listener"/> for fluent
+        /// composition.</returns>
+        protected HttpsTransportListener ApplyContributorsTo(HttpsTransportListener listener)
+        {
+            if (StartupContributors.Count > 0)
+            {
+                listener.StartupContributors = [.. StartupContributors];
+            }
+            return listener;
+        }
+
+        /// <summary>
         /// The OPC UA <c>TransportProfileUri</c> reported on the
         /// <see cref="EndpointDescription.TransportProfileUri"/> emitted for
         /// this factory's base addresses. Defaults to the HTTPS binary

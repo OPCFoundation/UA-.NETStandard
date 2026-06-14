@@ -16,6 +16,10 @@
     <PackageVersion Include="DotNext" Version="5.26.3" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.20" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.20" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.20" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="8.0.20" />
     <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.10" />

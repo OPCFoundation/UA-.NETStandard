@@ -91,13 +91,21 @@ browser-based front-ends backed by a UA server.
 
 ## Dependencies
 
-- An OPC UA OpenAPI schema is required (see open question #1).
+- The HTTPS REST binding (OPC UA Part 6 §G.3 OpenAPI Mapping) — landed
+  in `Stack/Opc.Ua.Bindings.Rest/` and documented in
+  [`Docs/RestApi.md`](../Docs/RestApi.md). Its multi-TFM
+  `RestApiBodyCodec` + `RestApiServiceRoutes` + `RestApiMediaType`
+  helpers (in `Stack/Opc.Ua.Core/Stack/RestApi/`) are deliberately
+  TFM-portable so the WSS sub-protocol handler can reuse them from
+  inside the existing multi-TFM `Opc.Ua.Bindings.Https` Kestrel host
+  without taking on the net8+ MVC constraint of the REST binding.
 - Likely coordinates with the
   [transport binding registry + DI extensions plan](24-transport-binding-registry-and-di-extensions.md)
   so the new handler can be registered cleanly.
 
 ## Out of scope (file separately if needed)
 
-- OPC UA REST / OpenAPI work that isn't gated on `opcua+openapi*` WS
-  sub-protocols (a flat HTTPS OpenAPI surface without the WebSocket
-  upgrade dance).
+- HTTPS REST / OpenAPI work that isn't gated on `opcua+openapi*` WS
+  sub-protocols — already shipped (the binding handles the flat HTTPS
+  OpenAPI surface without the WebSocket upgrade dance). This plan
+  reduces to the WebSocket framing on top of the same codec.

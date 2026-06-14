@@ -95,6 +95,15 @@ The stack implements the following transport profiles:
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`
 
+- **[HTTPS REST API](http://opcfoundation.org/UA-Profile/Transport/https-restapi)** (`opc.https://` and `https://`) - OPC UA OpenAPI Mapping (Part 6 §G.3)
+  - Path-routed REST surface: `POST /<service>` (e.g. `/read`, `/browse`, `/createsubscription`)
+  - Body is the bare `<Service>Request` / `<Service>Response` — no `{UaTypeId, UaBody}` envelope at the HTTPS layer
+  - Compact (default, mandatory per §5.4.9) and Verbose JSON flavours selected via the `application/json; encoding=compact|verbose` media-type parameter
+  - TLS/SSL encryption only — no UA SecureChannel layer
+  - Restricted to `MessageSecurityMode.None`
+  - Authentication via Anonymous, Bearer JWT, HTTP Basic, or Mutual TLS (see [RestApi.md](RestApi.md))
+  - Shipped in the optional `OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest` package (net8+ only)
+
 ### PubSub Transport Support
 
 The [PubSub library](PubSub.md) supports the following transport profiles:
