@@ -430,11 +430,11 @@ dotnet_diagnostic.IDE0072.severity                                            = 
 # IDE0072: Add missing cases to switch expression
 dotnet_diagnostic.IDE0010.severity                                            = silent
 # IDE0049: Simplify Names
-dotnet_diagnostic.IDE0049.severity                                            = suggestion
+dotnet_diagnostic.IDE0049.severity                                            = warning
 # IDE1005: Simplify delegate invocation
 dotnet_diagnostic.IDE1005.severity                                            = warning
 # IDE0046: Convert to conditional expression
-dotnet_diagnostic.IDE0046.severity                                            = silent
+dotnet_diagnostic.IDE0046.severity                                            = warning
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity                                            = none
 # IDE0032: Use auto property — explicit backing fields are intentional in many sites
