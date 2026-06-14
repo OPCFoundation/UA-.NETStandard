@@ -432,7 +432,7 @@ dotnet_diagnostic.IDE0010.severity                                            = 
 # IDE0049: Simplify Names
 dotnet_diagnostic.IDE0049.severity                                            = warning
 # IDE1005: Simplify delegate invocation
-dotnet_diagnostic.IDE1005.severity                                            = warning
+dotnet_diagnostic.IDE1005.severity                                            = error
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity                                            = warning
 # IDE0130: Namespace does not match folder structure
