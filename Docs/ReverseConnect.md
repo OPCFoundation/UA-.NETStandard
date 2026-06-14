@@ -123,14 +123,26 @@ back-compat (opc.tcp consumers do not need the new overload).
 The new `Opc.Ua.Bindings.Kestrel.Tcp` package serves the `opc.tcp`
 listener from a Kestrel `IHost` instead of raw `Socket` + SAEA. It
 supports the full forward AND reverse-connect listener modes the
-raw-socket `TcpTransportListener` does. To use it, register the
-factory before opening the listener:
+raw-socket `TcpTransportListener` does. To use it, install the binding
+via DI before opening the listener:
 
 ``` csharp
-TransportBindings.Listeners.SetBinding(
-    new KestrelTcpTransportListenerFactory());
-// All subsequent opc.tcp listeners (including reverse-connect ones
-// created by ReverseConnectHost.CreateListener) now run on Kestrel.
+// Microsoft.Extensions.DependencyInjection consumers:
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()           // raw-socket opc.tcp default
+    .AddKestrelOpcTcpTransport();   // overrides with Kestrel (last-writer-wins)
+
+// Non-DI consumers (e.g. test fixtures):
+DefaultTransportBindingRegistry registry =
+    DefaultTransportBindingRegistry.WithDefaultTcp();
+registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+// Forward the registry to:
+//   - ServerBase via the new ctor overload or .TransportBindings setter
+//     (server-side reverse-connect outbound and forward listeners),
+//   - ReverseConnectManager.TransportBindings (client-side reverse-connect
+//     listener: every AddEndpoint(Uri,...) call constructs a
+//     ReverseConnectHost that resolves the right factory from this registry).
 ```
 
 The default raw-socket implementation stays available for

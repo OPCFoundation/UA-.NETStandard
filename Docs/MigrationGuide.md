@@ -2049,12 +2049,98 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 Two additive surface additions for the new WSS reverse-connect path (see [`Docs/ReverseConnect.md`](ReverseConnect.md)):
 
 * **`ReverseConnectManager.AddEndpoint(Uri, ApplicationConfiguration?)`** — new overload. Callers binding `opc.wss://` reverse-connect endpoints should pass the `ApplicationConfiguration` to this overload so the underlying `HttpsTransportListener` receives the `CertificateManager` at bind time. The single-parameter `AddEndpoint(Uri)` is unchanged and remains the right call for `opc.tcp://` endpoints (which don't need TLS state).
-* **`Opc.Ua.Bindings.Kestrel.Tcp`** — new opt-in package (net8+) that hosts `opc.tcp` on Kestrel and supports both forward and reverse-connect listener modes. Swap via `TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory())`. The default raw-socket `TcpTransportListener` continues to ship in `Opc.Ua.Core` for deployments that avoid the ASP.NET Core dependency. A future binding registry + DI extensions iteration (see [`plans/24-transport-binding-registry-and-di-extensions.md`](../plans/24-transport-binding-registry-and-di-extensions.md)) will let consumers register the Kestrel-TCP binding fluently into an `IServiceCollection`.
+* **`Opc.Ua.Bindings.Kestrel.Tcp`** — new opt-in package (net8+) that hosts `opc.tcp` on Kestrel and supports both forward and reverse-connect listener modes. Install via the new DI extension `services.AddOpcUa().AddOpcTcpTransport().AddKestrelOpcTcpTransport()` or, for non-DI consumers, hand a `DefaultTransportBindingRegistry` carrying a `KestrelTcpTransportListenerFactory` to `ServerBase` / `ReverseConnectManager`. The default raw-socket `TcpTransportListener` continues to ship in `Opc.Ua.Core` for deployments that avoid the ASP.NET Core dependency.
 
 Channel-customization hooks (relevant only to consumers subclassing `UaSCBinaryChannel`-derived types):
 
 * **`UaSCBinaryChannel.StartReceiveLoop`** is now `protected internal virtual`. Existing overrides (none expected outside the stack) continue to work. The default implementation is unchanged.
 * **`UaSCBinaryChannel.StartReceiveLoopWithBody(Func<IUaSCByteTransport, CancellationToken, Task>)`** — new `protected` helper that sets up the receive-loop CTS/task state and runs a caller-supplied loop body. Used by `TcpReverseConnectChannel` to read a single `ReverseHello` chunk and exit cleanly (required because `WebSocket.ReceiveAsync` cancellation aborts the underlying WebSocket and would otherwise break the reverse-connect handoff).
+
+#### Transport binding registry — `TransportBindings` static API removed
+
+**Source-breaking.** The process-wide `TransportBindings` static class and the `Utils.DefaultBindings` reflection-based assembly auto-load helper have been removed. The new `ITransportBindingRegistry` interface (in `Opc.Ua.Bindings`) is the only public registry surface; it resolves out of the host's `IServiceProvider` so two hosts (e.g. parallel test fixtures or multi-tenant applications) can install different factories without racing on shared global state.
+
+| Removed                                                       | Replacement                                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `TransportBindings.Channels` (static)                         | `ITransportBindingRegistry` (resolved from DI or constructed via `DefaultTransportBindingRegistry.WithDefaultTcp()`) |
+| `TransportBindings.Listeners` (static)                        | Same `ITransportBindingRegistry` — listeners and channels share one keyed registry per scheme               |
+| `TransportBindings.Channels.SetBinding(...)`                  | `ITransportBindingRegistry.RegisterChannelFactory(...)` or the DI extension `AddCustomTransport<,>()`        |
+| `TransportBindings.Listeners.SetBinding(...)`                 | `ITransportBindingRegistry.RegisterListenerFactory(...)` or the DI extension `AddKestrelOpcTcpTransport()`   |
+| `TransportBindings.Channels.GetBinding(scheme, telemetry)`    | `ITransportBindingRegistry.GetChannelFactory(scheme)`                                                        |
+| `TransportBindings.Listeners.GetBinding(scheme, telemetry)`   | `ITransportBindingRegistry.GetListenerFactory(scheme)`                                                       |
+| `TransportBindings.AddBindings(assembly)` (reflection)        | Explicit DI registration via `AddOpcTcpTransport()` / `AddHttpsTransport()` / `AddWssTransport()` / `AddKestrelOpcTcpTransport()` / `AddCustomTransport<,>()` |
+| `Utils.DefaultBindings` dictionary                            | Removed; no replacement needed                                                                               |
+| `ITransportBindings<T>` interface                             | Removed (folded into `ITransportBindingRegistry` per-facet methods)                                           |
+| `TransportBindingsBase` (reflection helper)                   | Removed                                                                                                       |
+
+**`Microsoft.Extensions.DependencyInjection` consumers (recommended path):**
+
+```csharp
+// Before (1.5.378):
+//   TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+//   PcapBindings.Install(); // mutated TransportBindings.Channels
+
+// After (2.0):
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()              // raw-socket opc.tcp default
+    .AddHttpsTransport()               // HTTPS + HTTPS-JSON
+    .AddWssTransport()                 // WSS + WSS-JSON
+    .AddKestrelOpcTcpTransport();      // override opc.tcp with Kestrel (last-writer-wins)
+services.AddOpcUaBindingsPcap();       // installs Pcap channel decorator via configurator
+```
+
+Every `Add*Transport()` extension installs an `ITransportBindingConfigurator` instance into the `IServiceCollection`. The `DefaultTransportBindingRegistry` singleton runs every registered configurator in registration order at first resolution time, so the **last** registration for a given URI scheme wins — exactly the same semantics `SetBinding` had, but scoped per `IServiceProvider`.
+
+**Non-DI consumers:**
+
+```csharp
+// Before (1.5.378):
+//   TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+//   var server = new MyServer();
+//   server.Start(config); // pre-2.0 sync path
+
+// After (2.0):
+DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
+registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+var server = new MyServer(telemetry);
+server.TransportBindings = registry;   // public setter; rejected after StartAsync
+await server.StartAsync(config, ct);
+```
+
+`ServerBase` exposes a new constructor overload (`ServerBase(ITelemetryContext, ITransportBindingRegistry?)`) and a publicly-settable `TransportBindings` property (with a started-server guard). Non-DI callers that pass nothing get a `DefaultTransportBindingRegistry.WithDefaultTcp()` on first use — exactly the raw-socket TCP listener the 1.5.378 stack defaulted to.
+
+**Custom transport authors:**
+
+```csharp
+// Before (1.5.378):
+//   TransportBindings.Listeners.SetBinding(new MyCustomListenerFactory());
+//   TransportBindings.Channels.SetBinding(new MyCustomChannelFactory());
+
+// After (2.0):
+services
+    .AddOpcUa()
+    .AddCustomTransport<MyCustomListenerFactory, MyCustomChannelFactory>();
+```
+
+The DI extension resolves both factory types out of the container (so they may have constructor-injected dependencies), and both are registered into the registry under the `UriScheme` exposed by `MyCustomListenerFactory`.
+
+**`Opc.Ua.Bindings.Pcap` consumers:**
+
+`PcapBindings.Install()` no longer has a parameterless overload. Pass an `ITransportBindingRegistry` explicitly:
+
+```csharp
+// Before (1.5.378):
+//   IChannelCaptureRegistry captureRegistry = PcapBindings.Install();
+
+// After (2.0):
+ITransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+IChannelCaptureRegistry captureRegistry = PcapBindings.Install(bindings);
+// or — preferred — let the DI extension wire it through:
+services.AddOpcUa().AddOpcUaBindingsPcap();
+```
+
+
 
 ### Security tightening — WoT Connectivity management methods
 

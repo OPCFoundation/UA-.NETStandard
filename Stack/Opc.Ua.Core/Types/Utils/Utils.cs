@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -184,29 +183,6 @@ namespace Opc.Ua
         public static readonly string DefaultOpcUaCoreAssemblyName = typeof(Utils).Assembly
             .GetName()
             .Name!;
-
-        /// <summary>
-        /// Helper to get the name of the Opc.Ua.Bindings.Https assembly.
-        /// </summary>
-        private static string OpcUaHttpsAssemblyName()
-        {
-            string assemblyName = DefaultOpcUaCoreAssemblyName;
-            int offset = assemblyName.IndexOf("Core", StringComparison.Ordinal);
-            Debug.Assert(offset != -1);
-            return $"{assemblyName[0..offset]}Bindings.Https";
-        }
-
-        /// <summary>
-        /// List of known default bindings hosted in other assemblies.
-        /// </summary>
-        public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new(
-            new Dictionary<string, string>
-            {
-                { UriSchemeHttps, OpcUaHttpsAssemblyName() },
-                { UriSchemeOpcHttps, OpcUaHttpsAssemblyName() },
-                { UriSchemeWss, OpcUaHttpsAssemblyName() },
-                { UriSchemeOpcWss, OpcUaHttpsAssemblyName() }
-            });
 
         /// <summary>
         /// Returns <c>true</c> if the url starts with opc.https or https.

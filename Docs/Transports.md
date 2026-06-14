@@ -54,9 +54,12 @@ and `SecurityPolicyUri = None`. JSON encoding is always the *Compact*
   - `JsonRequestMapper` — shared JSON encode / decode helper used by
     both server handlers.
 
-For both WSS variants the binding assembly is loaded automatically the
-first time the channel manager sees a `wss://` or `opc.wss://`
-endpoint, via the `Utils.DefaultBindings` reflection-based loader.
+For both WSS variants the HTTPS / WSS factories live in
+`Opc.Ua.Bindings.Https`; consumers register them via the
+`AddHttpsTransport()` / `AddWssTransport()` DI extensions on
+`IOpcUaBuilder`, or by constructing a `DefaultTransportBindingRegistry`
+and calling `RegisterListenerFactory` / `RegisterChannelFactory`
+directly for non-DI hosts.
 
 ## Server-side configuration
 
@@ -197,17 +200,29 @@ does, including:
 * discovery (`EndpointDescription` emission via the shared
   `TcpServiceHost` base).
 
-Swap it in by registering the factory **before** opening any
-`opc.tcp` listener (typically at application startup):
+Swap it in by registering the factory through the DI container
+**before** opening any `opc.tcp` listener (typically at application
+startup):
 
 ```csharp
-TransportBindings.Listeners.SetBinding(
-    new KestrelTcpTransportListenerFactory());
+// Standalone non-DI consumers:
+DefaultTransportBindingRegistry registry =
+    DefaultTransportBindingRegistry.WithDefaultTcp();
+registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+// Pass to ServerBase (via ctor / TransportBindings setter) before StartAsync.
 
-// All subsequent opc.tcp listeners (server endpoints AND client-side
-// reverse-connect hosts created by ReverseConnectHost.CreateListener)
-// will now run on Kestrel.
+// Microsoft.Extensions.DependencyInjection consumers:
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()           // raw-socket opc.tcp default
+    .AddKestrelOpcTcpTransport();   // last-writer-wins: overrides with Kestrel
 ```
+
+`AddKestrelOpcTcpTransport()` installs an `ITransportBindingConfigurator`
+that runs after `AddOpcTcpTransport()`, so the registry resolves the
+Kestrel listener factory for `opc.tcp://`. The same pattern applies to
+`AddHttpsTransport()` / `AddWssTransport()` (HTTPS / WSS) and any custom
+binding registered via `AddCustomTransport<TListener, TChannel>()`.
 
 The package targets net8.0+ only (the ASP.NET Core `ConnectionContext`
 API surface used to bridge `Socket`-like semantics — `LocalEndPoint`,
@@ -354,12 +369,22 @@ template.
 
 #### Registering by URL scheme
 
-Add an entry to
-[`Utils.DefaultBindings`](../Stack/Opc.Ua.Core/Types/Utils/Utils.cs) so
-the runtime auto-loads the assembly that hosts your factories when an
-endpoint with your scheme is opened. The dictionary value is the
-*assembly name* the runtime should load by name (e.g.
-`"Opc.Ua.Bindings.Https"`).
+Install your custom listener and channel factories into the host's
+`ITransportBindingRegistry`. The simplest path uses the DI extension:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddCustomTransport<MyCustomListenerFactory, MyCustomChannelFactory>();
+```
+
+Both factories are resolved from the `IServiceProvider` (so they may
+have constructor-injected dependencies) and installed under the URI
+scheme reported by `MyCustomListenerFactory.UriScheme`. Non-DI consumers
+construct a `DefaultTransportBindingRegistry` and call
+`RegisterListenerFactory` / `RegisterChannelFactory` directly, then hand
+the registry to `ServerBase` (via `TransportBindings`) or to
+`ReverseConnectManager.TransportBindings`.
 
 ### Worked example
 

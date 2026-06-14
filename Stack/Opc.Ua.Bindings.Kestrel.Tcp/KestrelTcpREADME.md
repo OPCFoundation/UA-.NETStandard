@@ -31,13 +31,27 @@ is unchanged.
 ## Getting started
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
 using Opc.Ua.Bindings;
 
-// Register the factory BEFORE opening any opc.tcp listener (typically
-// at application startup). All subsequent opc.tcp listeners (server
-// endpoints and client-side reverse-connect hosts created by
-// ReverseConnectHost.CreateListener) will run on Kestrel.
-TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+// DI-aware consumers (Microsoft.Extensions.DependencyInjection):
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()           // raw-socket opc.tcp default
+    .AddKestrelOpcTcpTransport();   // overrides with Kestrel (last-writer-wins)
+
+// Standalone non-DI consumers:
+DefaultTransportBindingRegistry registry =
+    DefaultTransportBindingRegistry.WithDefaultTcp();
+registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+// Forward the registry to:
+//   - ServerBase via the new ctor overload or the `TransportBindings`
+//     setter (server-side forward and reverse-connect outbound),
+//   - ReverseConnectManager.TransportBindings (client-side reverse-
+//     connect listener; every AddEndpoint(Uri,...) call constructs a
+//     ReverseConnectHost that picks up the right factory for the
+//     scheme).
 ```
 
 ## Target frameworks

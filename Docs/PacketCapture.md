@@ -138,7 +138,7 @@ graph TD
 
 ## Integration with the central channel manager
 
-The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the global `TransportBindings.Channels` registry: `AddOpcUaBindingsPcap` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory, and `ClientChannelManager` — which by default reads from that same global registry — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
+The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the host's `ITransportBindingRegistry`: `AddOpcUaBindingsPcap` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory via an `ITransportBindingConfigurator`, and `ClientChannelManager` — which by default reads from the same registry resolved from `IServiceProvider` — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
 
 Three properties of the channel manager flow through to capture for free:
 

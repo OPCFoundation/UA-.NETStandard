@@ -998,4 +998,4 @@ Pick the entry point that best matches your call site:
 - [TransferSubscription](TransferSubscription.md) — server-driven session-handoff support.
 - [Observability](Observability.md) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
 - [Reverse Connect](ReverseConnect.md) — works with both `Session` and `ManagedSession`.
-- [Packet Capture, Dissection, and Replay](PacketCapture.md) — `Opc.Ua.Bindings.Pcap` composes with `IClientChannelManager` via the global `TransportBindings.Channels` registry; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.
+- [Packet Capture, Dissection, and Replay](PacketCapture.md) — `Opc.Ua.Bindings.Pcap` composes with `IClientChannelManager` via the `ITransportBindingRegistry` resolved from the host's `IServiceProvider`; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.
