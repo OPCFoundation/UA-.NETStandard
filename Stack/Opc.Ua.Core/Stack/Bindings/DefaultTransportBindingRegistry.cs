@@ -186,7 +186,7 @@ namespace Opc.Ua.Bindings
             {
                 return null;
             }
-            string candidate = string.Concat(coreName.AsSpan(0, offset), "Bindings.Https");
+            string candidate = coreName.Substring(0, offset) + "Bindings.Https";
             try
             {
                 return System.Reflection.Assembly.Load(new System.Reflection.AssemblyName(candidate));
