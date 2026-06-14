@@ -111,47 +111,85 @@ namespace Opc.Ua.Bindings
             "Reflection-based discovery of optional HTTPS / WSS binding types.")]
         private static void RegisterOptionalHttpsBindings(DefaultTransportBindingRegistry registry)
         {
-            // Walk already-loaded assemblies looking for the
-            // Opc.Ua.Bindings.Https types. Skip if the assembly was not
-            // loaded by anything else - consumers that did not reference
-            // the binding pay no cost.
+            System.Reflection.Assembly? bindings = FindOrLoadHttpsBindingsAssembly();
+            if (bindings is null)
+            {
+                return;
+            }
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.HttpsTransportListenerFactory",
+                factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.OpcHttpsTransportListenerFactory",
+                factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.WssTransportListenerFactory",
+                factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.OpcWssTransportListenerFactory",
+                factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.WssTransportChannelFactory",
+                factory => registry.RegisterChannelFactory((ITransportChannelFactory)factory));
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.OpcWssTransportChannelFactory",
+                factory => registry.RegisterChannelFactory((ITransportChannelFactory)factory));
+            TryRegisterFactory(
+                bindings,
+                "Opc.Ua.Bindings.WssJsonTransportChannelFactory",
+                factory => registry.RegisterChannelFactory((ITransportChannelFactory)factory));
+        }
+
+        /// <summary>
+        /// Find the Opc.Ua.Bindings.Https assembly in the current AppDomain
+        /// or, when not yet loaded, attempt a best-effort
+        /// <see cref="System.Reflection.Assembly.Load(System.Reflection.AssemblyName)"/>
+        /// by simple name so the auto-discovery path matches the pre-Phase 11
+        /// behaviour for consumers that statically reference the binding via
+        /// project / package reference (the assembly is in the probe path even
+        /// though no type was statically used yet).
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+            "Best-effort load of Opc.Ua.Bindings.Https; types resolved by full name.")]
+        private static System.Reflection.Assembly? FindOrLoadHttpsBindingsAssembly()
+        {
             foreach (System.Reflection.Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 string? name = assembly.GetName().Name;
-                if (string.IsNullOrEmpty(name)
-                    || !name.EndsWith("Bindings.Https", StringComparison.Ordinal))
+                if (!string.IsNullOrEmpty(name)
+                    && name.EndsWith("Bindings.Https", StringComparison.Ordinal))
                 {
-                    continue;
+                    return assembly;
                 }
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.HttpsTransportListenerFactory",
-                    factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.OpcHttpsTransportListenerFactory",
-                    factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.WssTransportListenerFactory",
-                    factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.OpcWssTransportListenerFactory",
-                    factory => registry.RegisterListenerFactory((ITransportListenerFactory)factory));
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.WssTransportChannelFactory",
-                    factory => registry.RegisterChannelFactory((ITransportChannelFactory)factory));
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.OpcWssTransportChannelFactory",
-                    factory => registry.RegisterChannelFactory((ITransportChannelFactory)factory));
-                TryRegisterFactory(
-                    assembly,
-                    "Opc.Ua.Bindings.WssJsonTransportChannelFactory",
-                    factory => registry.RegisterChannelFactory((ITransportChannelFactory)factory));
-                break;
+            }
+            string? coreName = typeof(DefaultTransportBindingRegistry).Assembly.GetName().Name;
+            if (string.IsNullOrEmpty(coreName))
+            {
+                return null;
+            }
+            int offset = coreName.IndexOf("Core", StringComparison.Ordinal);
+            if (offset < 0)
+            {
+                return null;
+            }
+            string candidate = string.Concat(coreName.AsSpan(0, offset), "Bindings.Https");
+            try
+            {
+                return System.Reflection.Assembly.Load(new System.Reflection.AssemblyName(candidate));
+            }
+            catch
+            {
+                // Best-effort; the binding is optional and may simply not be
+                // deployed. Consumers that need HTTPS / WSS in this case must
+                // register the factories explicitly via the DI extensions on
+                // Opc.Ua.Bindings.Https.
+                return null;
             }
         }
 
