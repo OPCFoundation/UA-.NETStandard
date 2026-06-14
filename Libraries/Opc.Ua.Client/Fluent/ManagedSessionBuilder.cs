@@ -35,6 +35,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client.WebApi;
 using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
@@ -66,6 +67,7 @@ namespace Opc.Ua.Client
         private ISessionFactory? m_sessionFactory;
         private IClientChannelManager? m_channelManager;
         private Action<HttpStandardResilienceOptions>? m_httpsResilience;
+        private WebApiClientOptions? m_webApiOptions;
 
         /// <summary>
         /// Initializes a new builder.
@@ -114,6 +116,103 @@ namespace Opc.Ua.Client
                 SecurityPolicyUri = securityPolicyUri
             };
             return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+        }
+
+        /// <summary>
+        /// Shortcut that targets an OPC UA HTTPS Web API endpoint
+        /// (OPC UA Part 6 §G.3 "OpenAPI Mapping"). The endpoint
+        /// description is constructed with
+        /// <see cref="Profiles.HttpsWebApiTransport"/>,
+        /// <see cref="MessageSecurityMode.None"/>, and
+        /// <see cref="SecurityPolicies.None"/> — Web API relies on
+        /// TLS / transport-layer authentication
+        /// (configured via <see cref="WithWebApiAuthentication"/>).
+        /// The endpoint advertises a permissive set of
+        /// <see cref="UserTokenPolicy"/> entries (Anonymous + UserName +
+        /// Certificate + IssuedToken / JWT) so the client can present
+        /// any identity supported by the server; the server-side
+        /// <c>DefaultSessionlessIdentityProvider</c> still enforces what
+        /// it accepts.
+        /// </summary>
+        /// <param name="url">
+        /// The server's base URL, e.g. <c>https://server:4843/</c>.
+        /// </param>
+        /// <param name="encoding">
+        /// The OPC UA JSON encoding flavour to advertise. Defaults to
+        /// <see cref="WebApiEncoding.Compact"/> per Part 6 §5.4.9.
+        /// </param>
+        /// <returns>The builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="url"/> is <c>null</c>.
+        /// </exception>
+        public ManagedSessionBuilder UseWebApiEndpoint(
+            string url,
+            WebApiEncoding encoding = WebApiEncoding.Compact)
+        {
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+            var endpointDescription = new EndpointDescription
+            {
+                EndpointUrl = url,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = Profiles.HttpsWebApiTransport,
+                UserIdentityTokens = new ArrayOf<UserTokenPolicy>(
+                    new[]
+                    {
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "Anonymous",
+                            TokenType = UserTokenType.Anonymous,
+                            SecurityPolicyUri = SecurityPolicies.None
+                        },
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "Username",
+                            TokenType = UserTokenType.UserName,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        },
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "Certificate",
+                            TokenType = UserTokenType.Certificate,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        }
+                    })
+            };
+            m_webApiOptions ??= new WebApiClientOptions();
+            m_webApiOptions.Encoding = encoding;
+            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+        }
+
+        /// <summary>
+        /// Configures Web API transport authentication
+        /// (Bearer / Basic / mTLS via <c>HttpMessageHandler</c>).
+        /// Applies to the per-session
+        /// <see cref="WebApiTransportChannel"/> constructed when
+        /// <see cref="ConnectAsync"/> resolves a
+        /// <see cref="Profiles.HttpsWebApiTransport"/> endpoint.
+        /// </summary>
+        /// <param name="configure">
+        /// Callback that mutates a fresh
+        /// <see cref="WebApiClientOptions"/> instance.
+        /// </param>
+        /// <returns>The builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public ManagedSessionBuilder WithWebApiAuthentication(
+            Action<WebApiClientOptions> configure)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            m_webApiOptions ??= new WebApiClientOptions();
+            configure(m_webApiOptions);
+            return this;
         }
 
         /// <summary>
@@ -439,9 +538,19 @@ namespace Opc.Ua.Client
                 channelManager = new ClientChannelManager(
                     m_configuration,
                     m_telemetry,
-                    new HttpsTransportChannelBindings(
-                        DefaultTransportBindingRegistry.WithDefaultTcp(),
-                        httpClientFactory),
+                    BuildChannelBindings(
+                        new HttpsTransportChannelBindings(
+                            DefaultTransportBindingRegistry.WithDefaultTcp(),
+                            httpClientFactory)),
+                    reconnectPolicy: null,
+                    timeProvider: opts.TimeProvider);
+            }
+            else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
+            {
+                channelManager = new ClientChannelManager(
+                    m_configuration,
+                    m_telemetry,
+                    BuildChannelBindings(DefaultTransportBindingRegistry.WithDefaultTcp()),
                     reconnectPolicy: null,
                     timeProvider: opts.TimeProvider);
             }
@@ -507,6 +616,51 @@ namespace Opc.Ua.Client
                 serviceProvider.Dispose();
                 throw;
             }
+        }
+
+        private static bool IsWebApiEndpoint(ConfiguredEndpoint? endpoint)
+        {
+            return endpoint?.Description?.TransportProfileUri == Profiles.HttpsWebApiTransport;
+        }
+
+        private ITransportChannelBindings BuildChannelBindings(ITransportChannelBindings inner)
+        {
+            // Wraps the inner registry so the synthetic
+            // Utils.UriSchemeOpcHttpsWebApi key resolves to a
+            // WebApiTransportChannelFactory configured with the auth
+            // options accumulated via WithWebApiAuthentication /
+            // UseWebApiEndpoint. Inner bindings continue to handle every
+            // other URI scheme (opc.tcp, opc.https, opc.wss, ...).
+            if (m_webApiOptions == null && !IsWebApiEndpoint(m_options.Endpoint))
+            {
+                return inner;
+            }
+            return new WebApiAwareChannelBindings(
+                inner,
+                new WebApiTransportChannelFactory(m_webApiOptions));
+        }
+
+        private sealed class WebApiAwareChannelBindings : ITransportChannelBindings
+        {
+            public WebApiAwareChannelBindings(
+                ITransportChannelBindings inner,
+                WebApiTransportChannelFactory webApiFactory)
+            {
+                m_inner = inner;
+                m_webApiFactory = webApiFactory;
+            }
+
+            public ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry)
+            {
+                if (string.Equals(uriScheme, Utils.UriSchemeOpcHttpsWebApi, StringComparison.Ordinal))
+                {
+                    return m_webApiFactory.Create(telemetry);
+                }
+                return m_inner.Create(uriScheme, telemetry);
+            }
+
+            private readonly ITransportChannelBindings m_inner;
+            private readonly WebApiTransportChannelFactory m_webApiFactory;
         }
 
         private sealed class ServiceProviderHttpClientFactory : IOpcUaHttpClientFactory, IDisposable

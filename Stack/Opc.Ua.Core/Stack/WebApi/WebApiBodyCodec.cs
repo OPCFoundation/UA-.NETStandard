@@ -240,6 +240,214 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Non-generic counterpart of
+        /// <see cref="DecodeBodyAsync{T}(Stream, IServiceMessageContext, JsonDecoderOptions?, CancellationToken)"/>
+        /// that constructs the result via the parameterless constructor of
+        /// <paramref name="bodyType"/>. Used by transport channels that
+        /// dispatch on a runtime <see cref="Type"/> (e.g.
+        /// <c>WebApiServiceRoute.ResponseType</c>) and cannot supply the
+        /// type argument at compile time.
+        /// </summary>
+        /// <param name="bodyType">
+        /// The concrete <see cref="IEncodeable"/> CLR type whose fields appear
+        /// at the root of the JSON document. Must declare a public
+        /// parameterless constructor.
+        /// </param>
+        /// <param name="body">The HTTP request / response body.</param>
+        /// <param name="context">
+        /// Encoding context (namespace / server tables, quotas, telemetry).
+        /// </param>
+        /// <param name="options">
+        /// Optional decoder options. Defaults to a fresh
+        /// <see cref="JsonDecoderOptions"/> instance.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The decoded value as <see cref="IEncodeable"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="bodyType"/>, <paramref name="body"/>, or
+        /// <paramref name="context"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="bodyType"/> does not implement
+        /// <see cref="IEncodeable"/> or has no public parameterless
+        /// constructor.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadDecodingError"/> on malformed
+        /// JSON or decoding failure;
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the
+        /// payload exceeds <see cref="IServiceMessageContext.MaxMessageSize"/>.
+        /// </exception>
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+            "Constructs an instance of bodyType via Activator.CreateInstance which is not " +
+            "NativeAOT-safe when the type is not statically rooted. Callers that need AOT " +
+            "should use the generic DecodeBodyAsync<T> overload instead.")]
+        public static async ValueTask<IEncodeable> DecodeBodyAsync(
+            Type bodyType,
+            Stream body,
+            IServiceMessageContext context,
+            JsonDecoderOptions? options = null,
+            CancellationToken ct = default)
+        {
+            if (body == null)
+            {
+                throw new ArgumentNullException(nameof(body));
+            }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            byte[] payload;
+            using (var buffer = new MemoryStream())
+            {
+                await body.CopyToAsync(buffer, 81920, ct).ConfigureAwait(false);
+                payload = buffer.ToArray();
+            }
+
+            return DecodeBody(bodyType, payload, context, options);
+        }
+
+        /// <summary>
+        /// Non-generic counterpart of
+        /// <see cref="DecodeBody{T}(byte[], IServiceMessageContext, JsonDecoderOptions?)"/>
+        /// that constructs the result via the parameterless constructor of
+        /// <paramref name="bodyType"/>.
+        /// </summary>
+        /// <param name="bodyType">
+        /// The concrete <see cref="IEncodeable"/> CLR type whose fields appear
+        /// at the root of the JSON document. Must declare a public
+        /// parameterless constructor.
+        /// </param>
+        /// <param name="payload">The UTF-8 encoded JSON body.</param>
+        /// <param name="context">
+        /// Encoding context (namespace / server tables, quotas, telemetry).
+        /// </param>
+        /// <param name="options">
+        /// Optional decoder options.
+        /// </param>
+        /// <returns>The decoded value as <see cref="IEncodeable"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="bodyType"/>, <paramref name="payload"/>, or
+        /// <paramref name="context"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="bodyType"/> does not implement
+        /// <see cref="IEncodeable"/> or has no public parameterless
+        /// constructor.
+        /// </exception>
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+            "Constructs an instance of bodyType via Activator.CreateInstance which is not " +
+            "NativeAOT-safe when the type is not statically rooted. Callers that need AOT " +
+            "should use the generic DecodeBody<T> overload instead.")]
+        public static IEncodeable DecodeBody(
+            Type bodyType,
+            byte[] payload,
+            IServiceMessageContext context,
+            JsonDecoderOptions? options = null)
+        {
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
+
+            return DecodeBody(bodyType, new ReadOnlySequence<byte>(payload), context, options);
+        }
+
+        /// <summary>
+        /// Non-generic counterpart of
+        /// <see cref="DecodeBody{T}(ReadOnlySequence{byte}, IServiceMessageContext, JsonDecoderOptions?)"/>
+        /// that constructs the result via the parameterless constructor of
+        /// <paramref name="bodyType"/>.
+        /// </summary>
+        /// <param name="bodyType">
+        /// The concrete <see cref="IEncodeable"/> CLR type whose fields appear
+        /// at the root of the JSON document. Must declare a public
+        /// parameterless constructor.
+        /// </param>
+        /// <param name="payload">The UTF-8 encoded JSON body.</param>
+        /// <param name="context">
+        /// Encoding context (namespace / server tables, quotas, telemetry).
+        /// </param>
+        /// <param name="options">Optional decoder options.</param>
+        /// <returns>The decoded value as <see cref="IEncodeable"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="bodyType"/> or <paramref name="context"/> is
+        /// <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="bodyType"/> does not implement
+        /// <see cref="IEncodeable"/> or has no public parameterless
+        /// constructor.
+        /// </exception>
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+            "Constructs an instance of bodyType via Activator.CreateInstance which is not " +
+            "NativeAOT-safe when the type is not statically rooted. Callers that need AOT " +
+            "should use the generic DecodeBody<T> overload instead.")]
+        public static IEncodeable DecodeBody(
+            Type bodyType,
+            ReadOnlySequence<byte> payload,
+            IServiceMessageContext context,
+            JsonDecoderOptions? options = null)
+        {
+            if (bodyType == null)
+            {
+                throw new ArgumentNullException(nameof(bodyType));
+            }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (!typeof(IEncodeable).IsAssignableFrom(bodyType))
+            {
+                throw new ArgumentException(
+                    "Body type must implement IEncodeable.",
+                    nameof(bodyType));
+            }
+
+            if (context.MaxMessageSize > 0 && context.MaxMessageSize < payload.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    context.MaxMessageSize,
+                    payload.Length);
+            }
+
+            IEncodeable value;
+            try
+            {
+                value = (IEncodeable)Activator.CreateInstance(bodyType)!;
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException(
+                    "Body type must declare a public parameterless constructor.",
+                    nameof(bodyType),
+                    ex);
+            }
+
+            try
+            {
+                using var decoder = new JsonDecoder(payload, context, options);
+                value.Decode(decoder);
+                return value;
+            }
+            catch (ServiceResultException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Failed to decode OPC UA REST body as {0}.",
+                    bodyType.Name);
+            }
+        }
+
+        /// <summary>
         /// Encodes <paramref name="value"/> as a single envelope-less OPC UA
         /// JSON object and returns the bytes as a freshly-allocated array.
         /// </summary>

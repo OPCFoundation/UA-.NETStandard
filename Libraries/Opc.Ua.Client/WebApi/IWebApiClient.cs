@@ -91,6 +91,25 @@ namespace Opc.Ua.Client.WebApi
             where TRequest : IServiceRequest, new()
             where TResponse : IServiceResponse, new();
 
+        /// <summary>
+        /// Non-generic invocation by explicit route. Used by
+        /// <see cref="WebApiTransportChannel"/> to dispatch on the
+        /// runtime CLR type of the request.
+        /// </summary>
+        /// <param name="route">The Web API route describing path,
+        /// request type, and response type.</param>
+        /// <param name="request">The request body; must be an instance
+        /// of <see cref="WebApiServiceRoute.RequestType"/>.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The decoded <see cref="IServiceResponse"/>.</returns>
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+            "Constructs route.ResponseType via Activator.CreateInstance. AOT consumers " +
+            "should use the generic InvokeAsync<TRequest, TResponse> overload instead.")]
+        Task<IServiceResponse> InvokeRouteAsync(
+            WebApiServiceRoute route,
+            IServiceRequest request,
+            CancellationToken ct = default);
+
         // === Attribute service set (Part 4 §5.11) ============================
 
         /// <summary>Sends a Read request.</summary>

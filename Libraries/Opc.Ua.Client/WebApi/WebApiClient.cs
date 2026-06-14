@@ -132,11 +132,27 @@ namespace Opc.Ua.Client.WebApi
                 throw new ArgumentNullException(nameof(baseAddress));
             }
 
+            // OPC UA-style schemes (opc.https://, opc.https+webapi://)
+            // must be translated to plain https:// before the URL is
+            // handed to HttpClient — HttpClient only understands the
+            // registered transport schemes.
+            Uri normalizedAddress = NormalizeOpcUaUrl(baseAddress);
             HttpClient httpClient = options?.HttpMessageHandler != null
                 ? new HttpClient(options.HttpMessageHandler, disposeHandler: options.DisposeHandler)
                 : new HttpClient();
-            httpClient.BaseAddress = baseAddress;
+            httpClient.BaseAddress = normalizedAddress;
             return new WebApiClient(httpClient, ownsHttpClient: true, options);
+        }
+
+        private static Uri NormalizeOpcUaUrl(Uri url)
+        {
+            if (string.Equals(url.Scheme, Utils.UriSchemeOpcHttpsWebApi, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(url.Scheme, Utils.UriSchemeOpcHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                var builder = new UriBuilder(url) { Scheme = Utils.UriSchemeHttps };
+                return builder.Uri;
+            }
+            return url;
         }
 
         /// <inheritdoc/>
@@ -165,6 +181,50 @@ namespace Opc.Ua.Client.WebApi
                 throw new InvalidOperationException(
                     $"No REST route is registered for request type '{typeof(TRequest).FullName}'.");
             }
+
+            object response = await InvokeRouteUnsafeAsync(route, request, ct).ConfigureAwait(false);
+            return (TResponse)response;
+        }
+
+        /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+            "Routes to WebApiBodyCodec.DecodeBodyAsync(Type, ...) which constructs an " +
+            "instance of route.ResponseType via Activator.CreateInstance. Callers that need " +
+            "AOT should use the generic InvokeAsync<TRequest, TResponse> overload instead.")]
+        public Task<IServiceResponse> InvokeRouteAsync(
+            WebApiServiceRoute route,
+            IServiceRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeRouteUnsafeAsync(route, request, ct);
+        }
+
+        // Trim-unsafe core used by both InvokeAsync<,> and InvokeRouteAsync.
+        // Suppressed: the generic InvokeAsync<,> is trim-safe because TResponse
+        // is statically rooted by the caller. The InvokeRouteAsync entry point
+        // forwards the RequiresUnreferencedCode warning to its own callers.
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+            "Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "Generic InvokeAsync<,> roots TResponse statically; non-generic " +
+                "InvokeRouteAsync propagates the RequiresUnreferencedCode attribute to its callers.")]
+        private async Task<IServiceResponse> InvokeRouteUnsafeAsync(
+            WebApiServiceRoute route,
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            if (!route.RequestType.IsInstanceOfType(request))
+            {
+                throw new ArgumentException(
+                    $"Request of type '{request.GetType().FullName}' does not match the " +
+                    $"route's RequestType '{route.RequestType.FullName}'.",
+                    nameof(request));
+            }
+            ThrowIfDisposed();
 
             byte[] body = WebApiBodyCodec.EncodeBody(
                 request,
@@ -195,9 +255,10 @@ namespace Opc.Ua.Client.WebApi
                 .ConfigureAwait(false);
 #endif
 
-            return await WebApiBodyCodec
-                .DecodeBodyAsync<TResponse>(stream, m_messageContext, s_clientDecoderOptions, ct)
+            IEncodeable decoded = await WebApiBodyCodec
+                .DecodeBodyAsync(route.ResponseType, stream, m_messageContext, s_clientDecoderOptions, ct)
                 .ConfigureAwait(false);
+            return (IServiceResponse)decoded;
         }
 
         // Decoder options applied to every inbound response. Clients

@@ -71,6 +71,24 @@ namespace Opc.Ua
         public const string UriSchemeOpcHttps = "opc.https";
 
         /// <summary>
+        /// Internal URI scheme used by the registry-keyed channel factory
+        /// lookup to distinguish the HTTPS Web API binding (OPC UA Part 6
+        /// §G.3 "OpenAPI Mapping") from the binary / JSON-envelope HTTPS
+        /// channels that share the <see cref="UriSchemeOpcHttps"/> URL
+        /// scheme on the wire.
+        /// </summary>
+        /// <remarks>
+        /// This is not a wire URL scheme — Web API endpoints are still
+        /// served and addressed as <c>https://</c>. The constant exists
+        /// only as a synthetic registry key in the transport binding
+        /// registry so the client channel manager can map
+        /// <c>Profiles.HttpsWebApiTransport</c> to the Web API channel
+        /// factory distinct from the HTTPS-binary / HTTPS-JSON channel
+        /// factory.
+        /// </remarks>
+        public const string UriSchemeOpcHttpsWebApi = "opc.https+webapi";
+
+        /// <summary>
         /// The URI scheme for the UA TCP protocol.
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";

@@ -939,6 +939,21 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
+                // The Web API binding (Profiles.HttpsWebApiTransport) is not
+                // currently surfaced as a discoverable endpoint by the
+                // standard server discovery flow — Web API shares the
+                // wire-level https:// URL with the binary / JSON-envelope
+                // sub-profiles but is selected by the transport profile URI
+                // on the user-supplied ConfiguredEndpoint. Calling
+                // UpdateFromServer would overwrite the user's profile with
+                // an HTTPS-binary entry from the server's GetEndpoints
+                // response and lose Web API selection, so we skip the
+                // refresh for that profile.
+                bool updateBeforeConnect = !string.Equals(
+                    ConfiguredEndpoint.Description.TransportProfileUri,
+                    Profiles.HttpsWebApiTransport,
+                    StringComparison.Ordinal);
+
                 Session session;
                 if (m_channelManager != null)
                 {
@@ -950,7 +965,7 @@ namespace Opc.Ua.Client
                         m_channelManager,
                         m_configuration,
                         ConfiguredEndpoint,
-                        updateBeforeConnect: true,
+                        updateBeforeConnect,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,
@@ -965,7 +980,7 @@ namespace Opc.Ua.Client
                     session = (Session)await SessionFactory.CreateAsync(
                         m_configuration,
                         ConfiguredEndpoint,
-                        updateBeforeConnect: true,
+                        updateBeforeConnect,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,

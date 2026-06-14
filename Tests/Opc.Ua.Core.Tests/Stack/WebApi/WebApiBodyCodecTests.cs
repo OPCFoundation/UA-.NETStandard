@@ -323,5 +323,72 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
             Assert.That(decoded.NodesToRead[1].NodeId, Is.EqualTo(original.NodesToRead[1].NodeId));
             Assert.That(decoded.NodesToRead[1].AttributeId, Is.EqualTo(Attributes.DisplayName));
         }
+
+        [Test]
+        public void DecodeBodyNonGenericReturnsConcreteType()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(
+                NUnitTelemetryContext.Create());
+            ReadRequest original = BuildReadRequest();
+            byte[] payload = WebApiBodyCodec.EncodeBody(original, context, JsonEncoderOptions.Compact);
+
+            IEncodeable decoded = WebApiBodyCodec.DecodeBody(typeof(ReadRequest), payload, context);
+
+            Assert.That(decoded, Is.InstanceOf<ReadRequest>());
+            var typed = (ReadRequest)decoded;
+            Assert.That(typed.NodesToRead, Has.Count.EqualTo(2));
+            Assert.That(typed.MaxAge, Is.EqualTo(250d));
+        }
+
+        [Test]
+        public async Task DecodeBodyAsyncNonGenericRoundTripsResponse()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(
+                NUnitTelemetryContext.Create());
+
+            var original = new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader { RequestHandle = 99 },
+                Results = new ArrayOf<DataValue>(new[]
+                {
+                    new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)
+                }.AsMemory())
+            };
+            byte[] payload = WebApiBodyCodec.EncodeBody(original, context, JsonEncoderOptions.Compact);
+            using var stream = new MemoryStream(payload);
+
+            IEncodeable decoded = await WebApiBodyCodec
+                .DecodeBodyAsync(typeof(ReadResponse), stream, context)
+                .ConfigureAwait(false);
+
+            Assert.That(decoded, Is.InstanceOf<ReadResponse>());
+            var typed = (ReadResponse)decoded;
+            Assert.That(typed.ResponseHeader.RequestHandle, Is.EqualTo(99u));
+            Assert.That(typed.Results, Has.Count.EqualTo(1));
+            Assert.That(typed.Results[0].WrappedValue.TryGetValue(out int v), Is.True);
+            Assert.That(v, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void DecodeBodyNonGenericRejectsNonEncodeableType()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(
+                NUnitTelemetryContext.Create());
+            byte[] payload = Encoding.UTF8.GetBytes("{}");
+
+            ArgumentException ex = Assert.Throws<ArgumentException>(
+                () => WebApiBodyCodec.DecodeBody(typeof(string), payload, context))!;
+            Assert.That(ex.Message, Does.Contain("IEncodeable"));
+        }
+
+        [Test]
+        public void DecodeBodyNonGenericRejectsNullBodyType()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(
+                NUnitTelemetryContext.Create());
+
+            Assert.Throws<ArgumentNullException>(
+                () => WebApiBodyCodec.DecodeBody(null!, [], context));
+        }
     }
 }
