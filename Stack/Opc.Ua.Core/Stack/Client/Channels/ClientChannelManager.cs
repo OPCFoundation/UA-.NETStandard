@@ -1253,21 +1253,21 @@ namespace Opc.Ua
         /// dependency-resolved <see cref="ITransportBindingRegistry"/>
         /// from their own <see cref="System.IServiceProvider"/>.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
-            "Trimming", "IL2026",
-            Justification = "Pre-DI fallback path only; DI consumers receive an explicit registry.")]
         private static DefaultTransportBindingRegistry GetDefaultBindingsLazy()
         {
             return s_defaultBindings.Value;
         }
 
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+            "Trimming", "IL2026",
+            Justification = "Pre-DI fallback path only; DI consumers receive an explicit registry.")]
+        private static DefaultTransportBindingRegistry CreateDefaultBindingsRegistry()
+        {
+            return DefaultTransportBindingRegistry.WithDefaultBindings();
+        }
+
         private static readonly Lazy<DefaultTransportBindingRegistry> s_defaultBindings = new(
-            () =>
-            {
-#pragma warning disable IL2026 // Pre-DI fallback path only; DI consumers receive an explicit registry.
-                return DefaultTransportBindingRegistry.WithDefaultBindings();
-#pragma warning restore IL2026
-            },
+            CreateDefaultBindingsRegistry,
             System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
         private readonly ApplicationConfiguration m_configuration;

@@ -7,7 +7,8 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 .NET Standard 1.5.378 to 2.0:
 
 - a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0022`) that flags every
-  pattern covered by [`Docs/MigrationGuide.md`](../../Docs/MigrationGuide.md)
+  pattern covered by the
+  [2.0 migration guide](../../Docs/migrate/2.0.x/README.md)
   and, where safe, applies the fix automatically;
 - a Roslyn **source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that
   emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`

@@ -22,7 +22,7 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Rest</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>
     <Description>OPC UA HTTPS REST binding (OPC UA Part 6 §G.3 "OpenAPI Mapping") for applications that want to expose the OPC UA service set as an ASP.NET Core MVC controller surface.</Description>
-    <PackageReadmeFile>RestApiREADME.md</PackageReadmeFile>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!--
@@ -34,7 +34,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="RestApiREADME.md" Pack="true" PackagePath="\" />
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />

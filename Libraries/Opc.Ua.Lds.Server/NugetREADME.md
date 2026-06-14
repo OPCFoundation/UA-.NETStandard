@@ -15,8 +15,8 @@ is intended as a turn-key replacement for the C++ LDS for
 
 ## Target frameworks
 
-`net472`, `net48`, `netstandard2.0`, `netstandard2.1`, `net8.0`,
-`net9.0`, `net10.0`.
+`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,
+`net10.0`.
 
 ## Additional documentation
 
