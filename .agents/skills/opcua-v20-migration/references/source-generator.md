@@ -92,7 +92,7 @@ reference (`global::Acme.WaterPump`, `global::Vendor.Devices.BoilerState`, etc).
 Zero matches or > 1 matches → the generator emits **no** shim and reports
 `MIG01` instead, with the help link pointing at this skill's
 [`analyzer-rules.md`](analyzer-rules.md#mig01--generator-cant-resolve-element-type-for-foocollection)
-and `Docs/MigrationGuide.md`.
+and [`Docs/migrate/2.0.x/source-generation.md`](../../../Docs/migrate/2.0.x/source-generation.md).
 
 ## Generated file shape
 

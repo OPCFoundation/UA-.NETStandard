@@ -815,7 +815,7 @@ the same partition with `MonitoredItemOptions.Affinity` so per-
 subscription features like `SetTriggering` keep working across the
 group; opt out of partitioning entirely with
 `SubscriptionOptions.DisableUnboundedItemMode = true`. Full
-developer guide: [UnboundedSubscriptions.md](UnboundedSubscriptions.md).
+developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
 ### V2 notification pooling (opt-in)
 
@@ -967,7 +967,7 @@ semantics differ. All async methods return `ValueTask` /
 mutation).
 
 For migration details see
-[Migration Guide — `INodeCache` consolidation](MigrationGuide.md#inodecache-consolidation).
+[2.0 migration guide — Node States and INodeCache](migrate/2.0.x/node-states.md#inodecache-changes).
 
 ## 7. Putting it all together
 
@@ -993,8 +993,8 @@ Pick the entry point that best matches your call site:
 
 ## See also
 
-- [Migration Guide — ManagedSession and Automatic Reconnection](MigrationGuide.md#managedsession-and-automatic-reconnection)
-- [Migration Guide — Fluent Builder, V2 Subscriptions, and DI](MigrationGuide.md#fluent-builder-v2-subscriptions-and-dependency-injection)
+- [2.0 migration guide — ManagedSession and Automatic Reconnection](migrate/2.0.x/sessions-subscriptions.md#managedsession-and-automatic-reconnection)
+- [2.0 migration guide — Sessions, GDS Client, and Subscriptions](migrate/2.0.x/sessions-subscriptions.md) — V2 subscription engine, fluent builder, and DI integration are covered alongside ManagedSession.
 - [TransferSubscription](TransferSubscription.md) — server-driven session-handoff support.
 - [Observability](Observability.md) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
 - [Reverse Connect](ReverseConnect.md) — works with both `Session` and `ManagedSession`.
