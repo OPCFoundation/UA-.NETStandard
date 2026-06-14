@@ -148,7 +148,7 @@ namespace Opc.Ua.Bindings.Rest.Authentication
                 return AuthenticateResult.Fail(ex);
             }
 
-            int separator = decoded.IndexOf(':');
+            int separator = decoded.IndexOf(':', StringComparison.Ordinal);
             if (separator <= 0)
             {
                 return AuthenticateResult.Fail(

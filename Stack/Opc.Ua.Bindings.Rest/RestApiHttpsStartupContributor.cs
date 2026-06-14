@@ -31,8 +31,10 @@ using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.Bindings;
+using Opc.Ua.Bindings.Rest.Controllers;
 
 namespace Opc.Ua.Bindings.Rest
 {
@@ -45,7 +47,9 @@ namespace Opc.Ua.Bindings.Rest
     /// once per listener instance, between
     /// <c>UseWebSockets()</c> and the terminal binary / JSON dispatcher.
     /// </summary>
-    internal sealed class RestApiHttpsStartupContributor : IHttpsListenerStartupContributor
+    internal sealed class RestApiHttpsStartupContributor :
+        IHttpsListenerStartupContributor,
+        IHttpsListenerServiceContributor
     {
         private readonly RestApiServer m_server;
 
@@ -53,6 +57,19 @@ namespace Opc.Ua.Bindings.Rest
         {
             ArgumentNullException.ThrowIfNull(server);
             m_server = server;
+        }
+
+        /// <inheritdoc/>
+        public void ConfigureServices(IServiceCollection services, HttpsTransportListener listener)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(listener);
+
+            services.TryAddSingleton(m_server);
+            services.TryAddSingleton<IRestApiServer>(m_server);
+            services
+                .AddControllers()
+                .AddApplicationPart(typeof(AttributeController).Assembly);
         }
 
         /// <inheritdoc/>
@@ -73,6 +90,28 @@ namespace Opc.Ua.Bindings.Rest
             if (!string.IsNullOrEmpty(listener.ListenerId))
             {
                 m_server.UpdateListenerId(listener.ListenerId);
+            }
+
+            // Pick the listener's SM=None HTTPS endpoint as the
+            // default invocation context — the server pipeline (e.g.
+            // SessionManager.CreateSession) dereferences
+            // SecureChannelContext.EndpointDescription, so a null
+            // endpoint surfaces as a server-side NRE / BadUnexpectedError.
+            if (listener.Descriptions is { } descriptions)
+            {
+                EndpointDescription? defaultEndpoint = null;
+                foreach (EndpointDescription endpoint in descriptions)
+                {
+                    if (endpoint.SecurityMode == MessageSecurityMode.None &&
+                        !string.IsNullOrEmpty(endpoint.EndpointUrl) &&
+                        Utils.IsUriHttpsScheme(endpoint.EndpointUrl))
+                    {
+                        defaultEndpoint = endpoint;
+                        break;
+                    }
+                }
+                defaultEndpoint ??= descriptions.Count > 0 ? descriptions[0] : null;
+                m_server.UpdateDefaultEndpoint(defaultEndpoint);
             }
 
             // Mount routing + MVC endpoints. Unmatched paths fall through

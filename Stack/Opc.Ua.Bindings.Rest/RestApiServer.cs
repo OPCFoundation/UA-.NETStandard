@@ -59,6 +59,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback? m_callback;
         private IServiceMessageContext m_messageContext;
         private string m_listenerId;
+        private EndpointDescription? m_defaultEndpoint;
 
         /// <summary>
         /// Initializes a new dispatcher that returns
@@ -174,6 +175,27 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Sets the default <see cref="EndpointDescription"/> applied
+        /// when an inbound <see cref="RestApiInvocationContext"/> does
+        /// not carry one. The reference server requires
+        /// <see cref="SecureChannelContext.EndpointDescription"/> to be
+        /// non-null for service dispatch (e.g.
+        /// <c>SessionManager.CreateSession</c> dereferences
+        /// <see cref="EndpointDescription.SecurityMode"/>), so the
+        /// startup contributor picks the listener's
+        /// <see cref="MessageSecurityMode.None"/> HTTPS endpoint and
+        /// installs it here.
+        /// </summary>
+        /// <param name="endpoint">The default endpoint, or <c>null</c>.</param>
+        public void UpdateDefaultEndpoint(EndpointDescription? endpoint)
+        {
+            lock (m_lock)
+            {
+                m_defaultEndpoint = endpoint;
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask<IServiceResponse> InvokeAsync(
             IServiceRequest request,
@@ -190,9 +212,13 @@ namespace Opc.Ua.Bindings
             }
 
             ITransportListenerCallback? callback;
+            EndpointDescription? defaultEndpoint;
+            string listenerId;
             lock (m_lock)
             {
                 callback = m_callback;
+                defaultEndpoint = m_defaultEndpoint;
+                listenerId = m_listenerId;
             }
 
             if (callback == null)
@@ -210,9 +236,16 @@ namespace Opc.Ua.Bindings
                 };
             }
 
+            // Match the HTTPS-JSON binding's SecureChannelContext shape:
+            // a single stable ListenerId across all REST requests so the
+            // server's SessionManager treats Create/Activate/subsequent
+            // requests as belonging to the same logical channel. Using
+            // a per-request id (e.g. HttpContext.TraceIdentifier) makes
+            // the server reject ActivateSession with
+            // BadSecureChannelIdInvalid.
             var secureChannelContext = new SecureChannelContext(
-                context.SecureChannelId,
-                context.Endpoint,
+                listenerId,
+                context.Endpoint ?? defaultEndpoint,
                 RequestEncoding.Json,
                 context.ClientCertificate,
                 context.ServerCertificate);

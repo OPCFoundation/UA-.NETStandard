@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Opc.Ua.Bindings
 {
@@ -57,5 +58,19 @@ namespace Opc.Ua.Bindings
         /// transport callback / message context out of this instance to
         /// wire their request handlers to the host server.</param>
         void Configure(IApplicationBuilder appBuilder, HttpsTransportListener listener);
+    }
+
+    /// <summary>
+    /// Optional service-registration companion for
+    /// <see cref="IHttpsListenerStartupContributor"/> implementations.
+    /// </summary>
+    public interface IHttpsListenerServiceContributor
+    {
+        /// <summary>
+        /// Invoked while the listener's Kestrel host services are being built.
+        /// </summary>
+        /// <param name="services">The web-host service collection.</param>
+        /// <param name="listener">The listener whose host is being configured.</param>
+        void ConfigureServices(IServiceCollection services, HttpsTransportListener listener);
     }
 }

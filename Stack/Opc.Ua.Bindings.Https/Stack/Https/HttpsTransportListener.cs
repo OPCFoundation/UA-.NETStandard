@@ -32,6 +32,7 @@ using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.WebSockets;
+using System.Collections.Concurrent;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -241,6 +242,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal class SharedHostStartup
     {
+        private readonly ConcurrentDictionary<HttpsTransportListener, RequestDelegate> m_listenerPipelines
+            = new();
+
         /// <summary>
         /// Configures the shared host's request pipeline.
         /// </summary>
@@ -269,8 +273,24 @@ namespace Opc.Ua.Bindings
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     return context.Response.WriteAsync(string.Empty);
                 }
-                return Startup.DispatchListenerRequestAsync(listener, context);
+                RequestDelegate pipeline = m_listenerPipelines.GetOrAdd(
+                    listener,
+                    value => BuildListenerPipeline(appBuilder, value));
+                return pipeline(context);
             });
+        }
+
+        private static RequestDelegate BuildListenerPipeline(
+            IApplicationBuilder appBuilder,
+            HttpsTransportListener listener)
+        {
+            IApplicationBuilder branch = appBuilder.New();
+            foreach (IHttpsListenerStartupContributor contributor in listener.StartupContributors)
+            {
+                contributor.Configure(branch, listener);
+            }
+            branch.Run(context => Startup.DispatchListenerRequestAsync(listener, context));
+            return branch.Build();
         }
     }
 
@@ -361,6 +381,17 @@ namespace Opc.Ua.Bindings
         /// implementations after the listener is opened.
         /// </summary>
         internal IServiceMessageContext? MessageContext => m_quotas?.MessageContext;
+
+        /// <summary>
+        /// The endpoint descriptions advertised by this listener,
+        /// populated by
+        /// <see cref="Open(System.Uri, TransportListenerSettings, ITransportListenerCallback)"/>.
+        /// Available to <see cref="IHttpsListenerStartupContributor"/>
+        /// implementations so they can pick a default endpoint
+        /// (typically the first <see cref="MessageSecurityMode.None"/>
+        /// HTTPS entry) for context construction.
+        /// </summary>
+        internal IReadOnlyList<EndpointDescription>? Descriptions => m_descriptions;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -750,7 +781,11 @@ namespace Opc.Ua.Bindings
             }
 
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
-            webHostBuilder.ConfigureServices(services => services.AddSingleton(accessor));
+            webHostBuilder.ConfigureServices(services =>
+            {
+                services.AddSingleton(accessor);
+                ConfigureContributorServices(services);
+            });
             webHostBuilder.UseStartup<SharedHostStartup>();
         }
 
@@ -863,8 +898,23 @@ namespace Opc.Ua.Bindings
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             // Register this listener instance in the web host DI container so it can be
             // injected into Startup.Configure as a method parameter — no static state needed.
-            webHostBuilder.ConfigureServices(services => services.AddSingleton(this));
+            webHostBuilder.ConfigureServices(services =>
+            {
+                services.AddSingleton(this);
+                ConfigureContributorServices(services);
+            });
             webHostBuilder.UseStartup<Startup>();
+        }
+
+        private void ConfigureContributorServices(IServiceCollection services)
+        {
+            foreach (IHttpsListenerStartupContributor contributor in StartupContributors)
+            {
+                if (contributor is IHttpsListenerServiceContributor serviceContributor)
+                {
+                    serviceContributor.ConfigureServices(services, this);
+                }
+            }
         }
 
         /// <summary>

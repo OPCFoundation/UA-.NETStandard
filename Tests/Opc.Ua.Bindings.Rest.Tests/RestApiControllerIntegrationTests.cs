@@ -113,7 +113,8 @@ namespace Opc.Ua.Bindings.Rest.Tests
                 NodesToRead = new ArrayOf<ReadValueId>()
             };
             ReadResponse response = await PostAsync<ReadRequest, ReadResponse>(
-                "/read", request, RestApiEncoding.Compact);
+                "/read", request, RestApiEncoding.Compact)
+                .ConfigureAwait(false);
 
             Assert.That(m_stubServer!.LastRequest, Is.InstanceOf<ReadRequest>());
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(4242u));
@@ -128,7 +129,8 @@ namespace Opc.Ua.Bindings.Rest.Tests
                 NodesToRead = new ArrayOf<ReadValueId>()
             };
             HttpResponseMessage response = await PostAsync(
-                "/read", request, RestApiEncoding.Verbose);
+                "/read", request, RestApiEncoding.Verbose)
+                .ConfigureAwait(false);
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
@@ -146,7 +148,9 @@ namespace Opc.Ua.Bindings.Rest.Tests
             using var content = new ByteArrayContent(EncodeBody(request, RestApiEncoding.Compact));
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            HttpResponseMessage response = await m_client!.PostAsync("/read", content);
+            HttpResponseMessage response = await m_client!
+                .PostAsync(new Uri("/read", UriKind.Relative), content)
+                .ConfigureAwait(false);
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(
@@ -162,7 +166,9 @@ namespace Opc.Ua.Bindings.Rest.Tests
             using var content = new ByteArrayContent(Encoding.UTF8.GetBytes("not json"));
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            HttpResponseMessage response = await m_client!.PostAsync("/read", content);
+            HttpResponseMessage response = await m_client!
+                .PostAsync(new Uri("/read", UriKind.Relative), content)
+                .ConfigureAwait(false);
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         }
@@ -174,7 +180,8 @@ namespace Opc.Ua.Bindings.Rest.Tests
 
             var request = new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 1 } };
             ReadResponse response = await PostAsync<ReadRequest, ReadResponse>(
-                "/read", request, RestApiEncoding.Compact);
+                "/read", request, RestApiEncoding.Compact)
+                .ConfigureAwait(false);
 
             // Faults flow through as ServiceFault with the typed response
             // body unchanged when the dispatcher returns a typed response;
@@ -196,7 +203,9 @@ namespace Opc.Ua.Bindings.Rest.Tests
                 using var content = new ByteArrayContent([]);
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-                HttpResponseMessage response = await m_client!.PostAsync(route.Path, content);
+                HttpResponseMessage response = await m_client!
+                    .PostAsync(new Uri(route.Path, UriKind.Relative), content)
+                    .ConfigureAwait(false);
                 Assert.That(
                     response.StatusCode,
                     Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.BadRequest),
@@ -210,7 +219,9 @@ namespace Opc.Ua.Bindings.Rest.Tests
             using var content = new ByteArrayContent([]);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            HttpResponseMessage response = await m_client!.PostAsync("/unknownservice", content);
+            HttpResponseMessage response = await m_client!
+                .PostAsync(new Uri("/unknownservice", UriKind.Relative), content)
+                .ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
 
@@ -223,10 +234,12 @@ namespace Opc.Ua.Bindings.Rest.Tests
             where TRequest : IServiceRequest, new()
             where TResponse : IServiceResponse, new()
         {
-            HttpResponseMessage response = await PostAsync(path, request, encoding);
+            HttpResponseMessage response = await PostAsync(path, request, encoding)
+                .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            byte[] body = await response.Content.ReadAsByteArrayAsync();
+            byte[] body = await response.Content.ReadAsByteArrayAsync()
+                .ConfigureAwait(false);
             return RestApiBodyCodec.DecodeBody<TResponse>(body, m_stubServer!.MessageContext);
         }
 
@@ -245,7 +258,8 @@ namespace Opc.Ua.Bindings.Rest.Tests
             message.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(
                 RestApiMediaType.FormatContentType(encoding)));
 
-            return await m_client!.SendAsync(message, HttpCompletionOption.ResponseContentRead);
+            return await m_client!.SendAsync(message, HttpCompletionOption.ResponseContentRead)
+                .ConfigureAwait(false);
         }
 
         private byte[] EncodeBody<TRequest>(TRequest request, RestApiEncoding encoding)

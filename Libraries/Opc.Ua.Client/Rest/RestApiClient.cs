@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.Rest
             response.EnsureSuccessStatusCode();
 
 #if NET5_0_OR_GREATER
-            await using Stream stream = await response.Content
+            using Stream stream = await response.Content
                 .ReadAsStreamAsync(ct)
                 .ConfigureAwait(false);
 #else
@@ -196,9 +196,20 @@ namespace Opc.Ua.Client.Rest
 #endif
 
             return await RestApiBodyCodec
-                .DecodeBodyAsync<TResponse>(stream, m_messageContext, ct: ct)
+                .DecodeBodyAsync<TResponse>(stream, m_messageContext, s_clientDecoderOptions, ct)
                 .ConfigureAwait(false);
         }
+
+        // Decoder options applied to every inbound response. Clients
+        // typically don't know all server namespace URIs up front, so
+        // UpdateNamespaceTable=true lets the codec append unknown URIs
+        // to the message context's NamespaceTable on the fly (otherwise
+        // NodeIds whose namespace URI isn't already registered would
+        // decode as NodeId.Null).
+        private static readonly JsonDecoderOptions s_clientDecoderOptions = new()
+        {
+            UpdateNamespaceTable = true
+        };
 
         // Strongly-typed delegates =====================================
 

@@ -22,6 +22,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Rest" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Rest.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
