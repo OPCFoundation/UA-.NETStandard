@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET5_0_OR_GREATER
+
 using System;
 using System.Globalization;
 using System.IO;
@@ -179,3 +181,5 @@ namespace Opc.Ua.Sessions.Tests
         }
     }
 }
+
+#endif // NET5_0_OR_GREATER
