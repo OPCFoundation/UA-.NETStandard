@@ -815,7 +815,7 @@ the same partition with `MonitoredItemOptions.Affinity` so per-
 subscription features like `SetTriggering` keep working across the
 group; opt out of partitioning entirely with
 `SubscriptionOptions.DisableUnboundedItemMode = true`. Full
-developer guide: [UnboundedSubscriptions.md](UnboundedSubscriptions.md).
+developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
 ### V2 notification pooling (opt-in)
 
