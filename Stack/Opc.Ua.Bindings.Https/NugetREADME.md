@@ -24,7 +24,7 @@ The package contains:
   `ITransportBindingRegistry`.
 - An `IHttpsListenerStartupContributor` extension hook that allows
   companion bindings (e.g.
-  `OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest`) to mount
+  `OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi`) to mount
   additional middleware (typically routing + MVC controllers) into the
   same Kestrel host that already serves binary / `opcua+uajson` /
   WebSocket traffic.
@@ -45,8 +45,8 @@ services
 ## Companion REST binding
 
 Install
-[`OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest`](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest/)
-and call `.AddRestApiTransport()` to expose the OPC UA service set as
+[`OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi`](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi/)
+and call `.AddWebApiTransport()` to expose the OPC UA service set as
 an ASP.NET Core REST controller surface (Part 6 §G.3 OpenAPI Mapping)
 on the same Kestrel port.
 

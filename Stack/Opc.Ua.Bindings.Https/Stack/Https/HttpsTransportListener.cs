@@ -173,7 +173,7 @@ namespace Opc.Ua.Bindings
             appBuilder.UseWebSockets();
 
             // Invoke companion-binding startup contributors (e.g. the
-            // REST MVC pipeline from Opc.Ua.Bindings.Rest) so their
+            // REST MVC pipeline from Opc.Ua.Bindings.WebApi) so their
             // middleware mounts inside this Kestrel host. Unmatched
             // requests fall through to the terminal binary / JSON
             // dispatcher.

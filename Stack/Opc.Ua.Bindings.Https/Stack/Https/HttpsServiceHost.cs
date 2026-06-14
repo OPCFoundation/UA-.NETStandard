@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Companion bindings (e.g. the REST binding in
-        /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest</c>) register
+        /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi</c>) register
         /// <see cref="IHttpsListenerStartupContributor"/> instances on
         /// this collection to mount additional middleware (typically
         /// routing + MVC controllers) inside the Kestrel host that this

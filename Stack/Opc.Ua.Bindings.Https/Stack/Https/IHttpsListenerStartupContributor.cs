@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Extension hook into <see cref="HttpsTransportListener"/>'s Kestrel
     /// pipeline. Companion bindings (such as the REST binding in
-    /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.Rest</c>) register a
+    /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi</c>) register a
     /// contributor on <see cref="HttpsServiceHost.StartupContributors"/>
     /// to attach additional middleware (typically routing + MVC
     /// controllers) to the same Kestrel host that already serves the

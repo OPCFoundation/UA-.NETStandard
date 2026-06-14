@@ -92,10 +92,10 @@ browser-based front-ends backed by a UA server.
 ## Dependencies
 
 - The HTTPS REST binding (OPC UA Part 6 §G.3 OpenAPI Mapping) — landed
-  in `Stack/Opc.Ua.Bindings.Rest/` and documented in
-  [`Docs/RestApi.md`](../Docs/RestApi.md). Its multi-TFM
-  `RestApiBodyCodec` + `RestApiServiceRoutes` + `RestApiMediaType`
-  helpers (in `Stack/Opc.Ua.Core/Stack/RestApi/`) are deliberately
+  in `Stack/Opc.Ua.Bindings.WebApi/` and documented in
+  [`Docs/WebApi.md`](../Docs/WebApi.md). Its multi-TFM
+  `WebApiBodyCodec` + `WebApiServiceRoutes` + `WebApiMediaType`
+  helpers (in `Stack/Opc.Ua.Core/Stack/WebApi/`) are deliberately
   TFM-portable so the WSS sub-protocol handler can reuse them from
   inside the existing multi-TFM `Opc.Ua.Bindings.Https` Kestrel host
   without taking on the net8+ MVC constraint of the REST binding.

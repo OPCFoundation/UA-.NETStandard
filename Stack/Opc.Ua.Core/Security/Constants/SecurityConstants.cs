@@ -172,8 +172,8 @@ namespace Opc.Ua
         /// therefore restricted to <see cref="MessageSecurityMode.None"/>; transport
         /// security is provided exclusively by TLS at the HTTPS layer.
         /// </remarks>
-        public const string HttpsRestApiTransport
-            = "http://opcfoundation.org/UA-Profile/Transport/https-restapi";
+        public const string HttpsWebApiTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/https-webapi";
 
         /// <summary>
         /// Uri for "PubSub UDP UADP" Profile.
@@ -259,12 +259,12 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
-        /// HTTPS REST API transport profile (<see cref="HttpsRestApiTransport"/>).
+        /// HTTPS REST API transport profile (<see cref="HttpsWebApiTransport"/>).
         /// </summary>
         /// <param name="transportProfileUri">The transport profile URI to test.</param>
-        public static bool IsHttpsRestApi(string? transportProfileUri)
+        public static bool IsHttpsWebApi(string? transportProfileUri)
         {
-            return string.Equals(transportProfileUri, HttpsRestApiTransport, StringComparison.Ordinal);
+            return string.Equals(transportProfileUri, HttpsWebApiTransport, StringComparison.Ordinal);
         }
 
         /// <summary>
