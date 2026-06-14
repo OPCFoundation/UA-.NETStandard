@@ -361,7 +361,7 @@ dotnet_diagnostic.CA3077.severity                                             = 
 dotnet_diagnostic.CA2007.severity                                             = error
 
 # CA1507: Use nameof in place of string
-dotnet_diagnostic.CA1507.severity                                             = warning
+dotnet_diagnostic.CA1507.severity                                             = error
 
 # CA1711: Identifiers should not have incorrect suffix
 dotnet_diagnostic.CA1711.severity                                             = none
@@ -389,7 +389,7 @@ dotnet_diagnostic.CA2213.severity                                             = 
 # CA2000: Dispose objects before losing scope
 dotnet_diagnostic.CA2000.severity                                             = error
 # CA1001: Types that own disposable fields should be disposable
-dotnet_diagnostic.CA1001.severity                                             = warning
+dotnet_diagnostic.CA1001.severity                                             = error
 # CA1849: Call async methods when in an async method
 dotnet_diagnostic.CA1849.severity                                             = suggestion
 # CA2225: Operator overloads have named alternates
