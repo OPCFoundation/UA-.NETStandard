@@ -1113,8 +1113,8 @@ dotnet_diagnostic.NUnit2054.severity = warning
 dotnet_diagnostic.NUnit2055.severity = warning
 dotnet_diagnostic.NUnit2056.severity = silent
 dotnet_diagnostic.NUnit2057.severity = warning
-dotnet_diagnostic.NUnit2046.severity = warning
-dotnet_diagnostic.NUnit4002.severity = warning
+dotnet_diagnostic.NUnit2046.severity = error
+dotnet_diagnostic.NUnit4002.severity = error
 dotnet_diagnostic.TUnit0057.severity = warning
 
 # exclude generated code
