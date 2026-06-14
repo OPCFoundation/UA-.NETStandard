@@ -132,8 +132,7 @@ the generator emits **five chainable `Add{Child}` overloads** per typed
 state class (idempotent ensure-child, `Action<TChild>` configure,
 conditional configure, `Func<TChild, TChild>` replace, conditional
 replace) so opt-in extensions of singleton instances collapse into a
-single fluent chain instead of `if (cond) { x.AddAndGetY().Value = …; }`
-ceremony.
+single fluent chain.
 
 ### OPC UA companion-spec coverage
 
@@ -273,7 +272,7 @@ callers, and the previous `AttachChannel` / `DetachChannel` +
 `SessionReconnectHandler` patterns are obsoleted. A shared `IRetryBudget`
 collapses the two-level retry deadline so reconnect no longer compounds
 multiplicatively. The new
-[**unbounded monitored items**](UnboundedSubscriptions.md) feature
+[**unbounded monitored items**](Subscriptions.md) feature
 transparently shards a V2 `ManagedSession` subscription across multiple
 real server-side `Subscription` partitions when the server's
 `MaxMonitoredItemsPerSubscription` cap is hit — callers that exceed the
