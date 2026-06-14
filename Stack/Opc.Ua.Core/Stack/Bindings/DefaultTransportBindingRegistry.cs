@@ -103,6 +103,14 @@ namespace Opc.Ua.Bindings
         public static DefaultTransportBindingRegistry WithDefaultBindings()
         {
             DefaultTransportBindingRegistry registry = WithDefaultTcp();
+            // HTTPS-binary channel factories live in Opc.Ua.Core itself
+            // (they wrap System.Net.Http), so they can be registered
+            // without touching the optional Opc.Ua.Bindings.Https assembly.
+            registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
+            registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
+            // The HTTPS listener factories and the WSS channel / listener
+            // factories live in Opc.Ua.Bindings.Https — discovered by
+            // reflection when that assembly is in the AppDomain.
             RegisterOptionalHttpsBindings(registry);
             return registry;
         }
