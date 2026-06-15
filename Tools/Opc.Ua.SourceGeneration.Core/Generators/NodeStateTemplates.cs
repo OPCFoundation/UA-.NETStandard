@@ -958,8 +958,16 @@ namespace Opc.Ua.SourceGeneration
                     {
                         state.NodeId = nodeId;
                     }
-                    else if (context.NodeIdFactory != null)
+                    else if (context.NodeIdFactory != null &&
+                        state.NodeId.Equals({{Tokens.NodeIdConstant}}))
                     {
+                        // The factory's singleton-instance dispatch did not
+                        // fire (the owner is not a well-known singleton),
+                        // so mint a fresh NodeId via the manager's
+                        // NodeIdFactory. When the dispatch DID fire,
+                        // state.NodeId already holds the well-known
+                        // singleton-instance NodeId and must not be
+                        // overwritten.
                         state.NodeId = context.NodeIdFactory.New(context, state);
                     }
                     {{Tokens.ChildName}} = state;
@@ -1818,6 +1826,7 @@ namespace Opc.Ua.SourceGeneration
                 var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                {{Tokens.InstanceNodeIdOverride}}
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
@@ -1863,6 +1872,7 @@ namespace Opc.Ua.SourceGeneration
                 var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                {{Tokens.InstanceNodeIdOverride}}
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.NumericId = {{Tokens.NumericIdValue}};
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
@@ -1916,6 +1926,7 @@ namespace Opc.Ua.SourceGeneration
                 var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                {{Tokens.InstanceNodeIdOverride}}
                 {{Tokens.MethodDeclarationId}}
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},

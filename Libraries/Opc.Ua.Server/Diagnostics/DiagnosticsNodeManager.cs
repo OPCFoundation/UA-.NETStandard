@@ -213,16 +213,6 @@ namespace Opc.Ua.Server
 
             getMonitoredItems?.OnCallMethod = OnGetMonitoredItems;
 
-            // set ArrayDimensions for GetMonitoredItems.OutputArguments.Value.
-            PropertyState getMonitoredItemsOutputArguments = FindPredefinedNode<PropertyState>(
-                VariableIds.Server_GetMonitoredItems_OutputArguments);
-
-            if (getMonitoredItemsOutputArguments != null &&
-                getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
-            {
-                getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
-            }
-
             if (m_durableSubscriptionsEnabled)
             {
                 // hook up the server SetSubscriptionDurable method.
@@ -466,58 +456,40 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerObjectState serverObject)
         {
-            // The generated Add{Child}(context) extensions build the child via
-            // the TYPE-level factory (e.g. CreateServerType_Namespaces), which
-            // assigns the TYPE-level NodeId (ServerType.Namespaces) rather
-            // than the instance-level NodeId (Server.Namespaces). The
-            // singleton-instance factories that use the correct NodeIds are
-            // internal to Opc.Ua.Core.Types, so we override the NodeId
-            // post-construction to the well-known instance identifier.
-            // Add{Child} is idempotent (returns the existing typed child if
-            // present), so no null guards are needed.
+            // The generator's transitive singleton-instance gate (issue
+            // #3768) suppresses Optional Variable/Method descendants of
+            // singleton roots, so they have to be lazy-added by the SDK
+            // for the children this SDK actually implements. Add{Child}
+            // is idempotent (returns the existing typed child if present)
+            // and now dispatches the synthesized child NodeIds and the
+            // top-level NodeId on the owner's NodeId automatically, so no
+            // explicit NodeId override is needed at this call site.
             //
-            // Standard Server methods this SDK wires (DiagnosticsNodeManager).
             // GetMonitoredItems / ResendData are wired unconditionally;
             // SetSubscriptionDurable only when durable subscriptions are
-            // enabled (the conditional Add overload skips the call when
-            // m_durableSubscriptionsEnabled is false, so the existing path
-            // that explicitly removes the slot is preserved).
+            // enabled.
             // Server.Namespaces is consumed by ConfigurationNodeManager to
             // register per-namespace NamespaceMetadata children.
             // UrisVersion / EstimatedReturnTime / LocalTime are Optional
             // Variables on ServerType that the SDK does not actively populate
             // but were emitted on master at the well-known instance NodeIds.
-            // The chained Add{Child}(context, ...) helpers return `this`
-            // for the fluent style.
             serverObject
-                .AddGetMonitoredItems(context, MethodIds.Server_GetMonitoredItems)
-                .AddResendData(context, MethodIds.Server_ResendData)
+                .AddGetMonitoredItems(context)
+                .AddResendData(context)
                 .AddSetSubscriptionDurable(context,
                     m_durableSubscriptionsEnabled,
-                    _ => { },
-                    MethodIds.Server_SetSubscriptionDurable)
-                .AddNamespaces(context, ObjectIds.Server_Namespaces)
-                .AddUrisVersion(context, VariableIds.Server_UrisVersion)
-                .AddEstimatedReturnTime(context, VariableIds.Server_EstimatedReturnTime)
-                .AddLocalTime(context, VariableIds.Server_LocalTime);
+                    _ => { })
+                .AddNamespaces(context)
+                .AddUrisVersion(context)
+                .AddEstimatedReturnTime(context)
+                .AddLocalTime(context);
 
-            // The transitive generator gate (issue #3768) stops emitting
-            // Optional Variable/Method descendants of Server (e.g.
-            // ServerCapabilities child properties, OperationLimits child
-            // properties, and ServerRedundancy.RedundantServerArray). These
-            // were emitted on master at well-known instance NodeIds; the
-            // SDK consumes a number of them directly (e.g.
-            // ServerInternalData populates MaxArrayLength / MaxStringLength
-            // / MaxByteStringLength with non-null assertion, and clients
-            // read every ServerCapabilities Optional via
-            // Session.FetchOperationLimitsAsync). Add them back here so the
-            // observable address-space remains compatible. Optional Objects
-            // such as ServerCapabilities.OperationLimits and
-            // ServerCapabilities.RoleSet are intentionally exempt from the
-            // gate (their subtrees rely on well-known descendant NodeIds),
-            // so the dispatchers below treat the pre-existing Object as the
-            // common case and only lazy-add the missing Variable/Method
-            // children.
+            // Optional Objects such as ServerCapabilities.OperationLimits
+            // and ServerCapabilities.RoleSet are intentionally exempt from
+            // the gate (their subtrees rely on well-known descendant
+            // NodeIds), so the dispatchers below treat the pre-existing
+            // Object as the common case and only lazy-add the missing
+            // Variable/Method children.
             if (serverObject.ServerCapabilities != null)
             {
                 AddServerCapabilitiesSdkOptionalChildren(
@@ -530,50 +502,45 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void AddServerCapabilitiesSdkOptionalChildren(
+        private static void AddServerCapabilitiesSdkOptionalChildren(
             ISystemContext context,
             ServerCapabilitiesState serverCapabilities)
         {
-            // The generated Add{Child}(context, nodeId) helpers are idempotent
-            // and now return `this` for chaining (see
-            // NodeStateTemplates.OptionalMethod). Each call patches the
-            // well-known singleton-instance NodeId so the address-space
-            // matches master (see AddServerSdkOptionalChildren for the
-            // rationale). The OperationLimits child needs its sub-tree
-            // populated, so access the typed slot via
-            // .AddOperationLimits(...).OperationLimits! to continue chaining
-            // the operational-limit Properties.
+            // Each Add{Child}(context) helper dispatches the well-known
+            // singleton-instance NodeId based on the owner's NodeId
+            // (Server_ServerCapabilities here), so no explicit NodeId
+            // override is needed. The OperationLimits child needs its
+            // sub-tree populated, so access the typed slot via
+            // .AddOperationLimits(...).OperationLimits! to continue
+            // chaining the operational-limit Properties.
             serverCapabilities
-                .AddMaxArrayLength(context, VariableIds.Server_ServerCapabilities_MaxArrayLength)
-                .AddMaxStringLength(context, VariableIds.Server_ServerCapabilities_MaxStringLength)
-                .AddMaxByteStringLength(context, VariableIds.Server_ServerCapabilities_MaxByteStringLength)
-                .AddMaxSessions(context, VariableIds.Server_ServerCapabilities_MaxSessions)
-                .AddMaxSubscriptions(context, VariableIds.Server_ServerCapabilities_MaxSubscriptions)
-                .AddMaxMonitoredItems(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItems)
-                .AddMaxSubscriptionsPerSession(context, VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession)
-                .AddMaxMonitoredItemsPerSubscription(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription)
-                .AddMaxSelectClauseParameters(context, VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters)
-                .AddMaxWhereClauseParameters(context, VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters)
-                .AddMaxMonitoredItemsQueueSize(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize)
-                .AddConformanceUnits(context, VariableIds.Server_ServerCapabilities_ConformanceUnits)
-                .AddRoleSet(context, ObjectIds.Server_ServerCapabilities_RoleSet)
-                .AddOperationLimits(context,
-                    ObjectIds.Server_ServerCapabilities_OperationLimits)
+                .AddMaxArrayLength(context)
+                .AddMaxStringLength(context)
+                .AddMaxByteStringLength(context)
+                .AddMaxSessions(context)
+                .AddMaxSubscriptions(context)
+                .AddMaxMonitoredItems(context)
+                .AddMaxSubscriptionsPerSession(context)
+                .AddMaxMonitoredItemsPerSubscription(context)
+                .AddMaxSelectClauseParameters(context)
+                .AddMaxWhereClauseParameters(context)
+                .AddMaxMonitoredItemsQueueSize(context)
+                .AddConformanceUnits(context)
+                .AddRoleSet(context)
+                .AddOperationLimits(context)
                 .OperationLimits!
-                    .AddMaxNodesPerRead(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead)
-                    .AddMaxNodesPerHistoryReadData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData)
-                    .AddMaxNodesPerHistoryReadEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents)
-                    .AddMaxNodesPerWrite(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite)
-                    .AddMaxNodesPerHistoryUpdateData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData)
-                    .AddMaxNodesPerHistoryUpdateEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents)
-                    .AddMaxNodesPerMethodCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
-                    .AddMaxNodesPerBrowse(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse)
-                    .AddMaxNodesPerRegisterNodes(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes)
-                    .AddMaxNodesPerTranslateBrowsePathsToNodeIds(
-                        context,
-                        VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds)
-                    .AddMaxNodesPerNodeManagement(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement)
-                    .AddMaxMonitoredItemsPerCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall);
+                    .AddMaxNodesPerRead(context)
+                    .AddMaxNodesPerHistoryReadData(context)
+                    .AddMaxNodesPerHistoryReadEvents(context)
+                    .AddMaxNodesPerWrite(context)
+                    .AddMaxNodesPerHistoryUpdateData(context)
+                    .AddMaxNodesPerHistoryUpdateEvents(context)
+                    .AddMaxNodesPerMethodCall(context)
+                    .AddMaxNodesPerBrowse(context)
+                    .AddMaxNodesPerRegisterNodes(context)
+                    .AddMaxNodesPerTranslateBrowsePathsToNodeIds(context)
+                    .AddMaxNodesPerNodeManagement(context)
+                    .AddMaxMonitoredItemsPerCall(context);
         }
 
         private static void AddServerRedundancySdkOptionalChildren(
@@ -587,21 +554,19 @@ namespace Opc.Ua.Server
             // RedundantServerArray, see DefaultServerRedundancyHandler in
             // Opc.Ua.Client) keep working even when no redundancy provider
             // populates it.
-            serverRedundancy.AddRedundantServerArray(
-                context, VariableIds.Server_ServerRedundancy_RedundantServerArray);
+            serverRedundancy.AddRedundantServerArray(context);
         }
 
         private static void AddHistoryCapabilitiesSdkOptionalChildren(
             ISystemContext context,
             HistoryServerCapabilitiesState historyCaps)
         {
-            // ServerTimestampSupported is Optional on HistoryServerCapabilitiesType
-            // but is written by GetDefaultHistoryCapabilitiesAsync from the
-            // rolled-up historian capabilities — without lazy-add the write
-            // would NRE. See AddServerSdkOptionalChildren for the NodeId-patch
-            // rationale (type-level Add* extension assigns the type NodeId).
-            historyCaps.AddServerTimestampSupported(
-                context, VariableIds.HistoryServerCapabilities_ServerTimestampSupported);
+            // ServerTimestampSupported is Optional on
+            // HistoryServerCapabilitiesType but is written by
+            // GetDefaultHistoryCapabilitiesAsync from the rolled-up
+            // historian capabilities — without lazy-add the write would
+            // NRE.
+            historyCaps.AddServerTimestampSupported(context);
         }
 
         /// <summary>
@@ -626,9 +591,9 @@ namespace Opc.Ua.Server
                 return;
             }
             metadataState
-                .AddDefaultRolePermissions(context, VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions)
-                .AddDefaultUserRolePermissions(context, VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions)
-                .AddDefaultAccessRestrictions(context, VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions);
+                .AddDefaultRolePermissions(context)
+                .AddDefaultUserRolePermissions(context)
+                .AddDefaultAccessRestrictions(context);
         }
 
         /// <summary>
@@ -656,7 +621,7 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            category.AddLastChange(context, VariableIds.Aliases_LastChange);
+            category.AddLastChange(context);
         }
 
         /// <summary>
@@ -692,134 +657,42 @@ namespace Opc.Ua.Server
             switch (numericId)
             {
                 case Objects.WellKnownRole_Observer:
-                    AddWellKnownRoleChildren(context, roleState,
-                        applications: Variables.WellKnownRole_Observer_Applications,
-                        applicationsExclude: Variables.WellKnownRole_Observer_ApplicationsExclude,
-                        endpoints: Variables.WellKnownRole_Observer_Endpoints,
-                        endpointsExclude: Variables.WellKnownRole_Observer_EndpointsExclude,
-                        customConfiguration: Variables.WellKnownRole_Observer_CustomConfiguration,
-                        addIdentityMethod: Methods.WellKnownRole_Observer_AddIdentity,
-                        removeIdentityMethod: Methods.WellKnownRole_Observer_RemoveIdentity,
-                        addApplicationMethod: Methods.WellKnownRole_Observer_AddApplication,
-                        removeApplicationMethod: Methods.WellKnownRole_Observer_RemoveApplication,
-                        addEndpointMethod: Methods.WellKnownRole_Observer_AddEndpoint,
-                        removeEndpointMethod: Methods.WellKnownRole_Observer_RemoveEndpoint);
-                    break;
                 case Objects.WellKnownRole_Operator:
-                    AddWellKnownRoleChildren(context, roleState,
-                        applications: Variables.WellKnownRole_Operator_Applications,
-                        applicationsExclude: Variables.WellKnownRole_Operator_ApplicationsExclude,
-                        endpoints: Variables.WellKnownRole_Operator_Endpoints,
-                        endpointsExclude: Variables.WellKnownRole_Operator_EndpointsExclude,
-                        customConfiguration: Variables.WellKnownRole_Operator_CustomConfiguration,
-                        addIdentityMethod: Methods.WellKnownRole_Operator_AddIdentity,
-                        removeIdentityMethod: Methods.WellKnownRole_Operator_RemoveIdentity,
-                        addApplicationMethod: Methods.WellKnownRole_Operator_AddApplication,
-                        removeApplicationMethod: Methods.WellKnownRole_Operator_RemoveApplication,
-                        addEndpointMethod: Methods.WellKnownRole_Operator_AddEndpoint,
-                        removeEndpointMethod: Methods.WellKnownRole_Operator_RemoveEndpoint);
-                    break;
                 case Objects.WellKnownRole_Engineer:
-                    AddWellKnownRoleChildren(context, roleState,
-                        applications: Variables.WellKnownRole_Engineer_Applications,
-                        applicationsExclude: Variables.WellKnownRole_Engineer_ApplicationsExclude,
-                        endpoints: Variables.WellKnownRole_Engineer_Endpoints,
-                        endpointsExclude: Variables.WellKnownRole_Engineer_EndpointsExclude,
-                        customConfiguration: Variables.WellKnownRole_Engineer_CustomConfiguration,
-                        addIdentityMethod: Methods.WellKnownRole_Engineer_AddIdentity,
-                        removeIdentityMethod: Methods.WellKnownRole_Engineer_RemoveIdentity,
-                        addApplicationMethod: Methods.WellKnownRole_Engineer_AddApplication,
-                        removeApplicationMethod: Methods.WellKnownRole_Engineer_RemoveApplication,
-                        addEndpointMethod: Methods.WellKnownRole_Engineer_AddEndpoint,
-                        removeEndpointMethod: Methods.WellKnownRole_Engineer_RemoveEndpoint);
-                    break;
                 case Objects.WellKnownRole_Supervisor:
-                    AddWellKnownRoleChildren(context, roleState,
-                        applications: Variables.WellKnownRole_Supervisor_Applications,
-                        applicationsExclude: Variables.WellKnownRole_Supervisor_ApplicationsExclude,
-                        endpoints: Variables.WellKnownRole_Supervisor_Endpoints,
-                        endpointsExclude: Variables.WellKnownRole_Supervisor_EndpointsExclude,
-                        customConfiguration: Variables.WellKnownRole_Supervisor_CustomConfiguration,
-                        addIdentityMethod: Methods.WellKnownRole_Supervisor_AddIdentity,
-                        removeIdentityMethod: Methods.WellKnownRole_Supervisor_RemoveIdentity,
-                        addApplicationMethod: Methods.WellKnownRole_Supervisor_AddApplication,
-                        removeApplicationMethod: Methods.WellKnownRole_Supervisor_RemoveApplication,
-                        addEndpointMethod: Methods.WellKnownRole_Supervisor_AddEndpoint,
-                        removeEndpointMethod: Methods.WellKnownRole_Supervisor_RemoveEndpoint);
-                    break;
                 case Objects.WellKnownRole_ConfigureAdmin:
-                    AddWellKnownRoleChildren(context, roleState,
-                        applications: Variables.WellKnownRole_ConfigureAdmin_Applications,
-                        applicationsExclude: Variables.WellKnownRole_ConfigureAdmin_ApplicationsExclude,
-                        endpoints: Variables.WellKnownRole_ConfigureAdmin_Endpoints,
-                        endpointsExclude: Variables.WellKnownRole_ConfigureAdmin_EndpointsExclude,
-                        customConfiguration: Variables.WellKnownRole_ConfigureAdmin_CustomConfiguration,
-                        addIdentityMethod: Methods.WellKnownRole_ConfigureAdmin_AddIdentity,
-                        removeIdentityMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveIdentity,
-                        addApplicationMethod: Methods.WellKnownRole_ConfigureAdmin_AddApplication,
-                        removeApplicationMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveApplication,
-                        addEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_AddEndpoint,
-                        removeEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveEndpoint);
-                    break;
                 case Objects.WellKnownRole_SecurityAdmin:
-                    AddWellKnownRoleChildren(context, roleState,
-                        applications: Variables.WellKnownRole_SecurityAdmin_Applications,
-                        applicationsExclude: Variables.WellKnownRole_SecurityAdmin_ApplicationsExclude,
-                        endpoints: Variables.WellKnownRole_SecurityAdmin_Endpoints,
-                        endpointsExclude: Variables.WellKnownRole_SecurityAdmin_EndpointsExclude,
-                        customConfiguration: Variables.WellKnownRole_SecurityAdmin_CustomConfiguration,
-                        addIdentityMethod: Methods.WellKnownRole_SecurityAdmin_AddIdentity,
-                        removeIdentityMethod: Methods.WellKnownRole_SecurityAdmin_RemoveIdentity,
-                        addApplicationMethod: Methods.WellKnownRole_SecurityAdmin_AddApplication,
-                        removeApplicationMethod: Methods.WellKnownRole_SecurityAdmin_RemoveApplication,
-                        addEndpointMethod: Methods.WellKnownRole_SecurityAdmin_AddEndpoint,
-                        removeEndpointMethod: Methods.WellKnownRole_SecurityAdmin_RemoveEndpoint);
+                    AddWellKnownRoleChildren(context, roleState);
                     break;
             }
         }
 
         private static void AddWellKnownRoleChildren(
             ISystemContext context,
-            RoleState role,
-            uint applications,
-            uint applicationsExclude,
-            uint endpoints,
-            uint endpointsExclude,
-            uint customConfiguration,
-            uint addIdentityMethod,
-            uint removeIdentityMethod,
-            uint addApplicationMethod,
-            uint removeApplicationMethod,
-            uint addEndpointMethod,
-            uint removeEndpointMethod)
+            RoleState role)
         {
             // Identities is Mandatory@RoleType so the singleton factory always
             // emits it with the correct well-known instance NodeId; no add-back
             // needed. All other RoleType children are Optional@type but the
             // StandardTypes.xml well-known-role declarations promote them to
-            // Mandatory at the singleton-instance level (see
-            // StandardTypes.xml lines 2293-2316 for Observer and the parallel
-            // declarations for Operator, Engineer, Supervisor, ConfigureAdmin,
-            // SecurityAdmin). The transitive gate (issue #3768) uses the
-            // type-def rule rather than the singleton override, so the
-            // generator now suppresses every other child under forInstance=true.
-            // Re-add them here so RoleStateBinding finds them. Only the method
-            // and property NodeIds need the singleton-instance patch; the
-            // generated Add{Method} helpers populate the InputArguments
-            // child (which clients read by browse-name) for us. Add{Child}
-            // is idempotent and returns `this` for chaining.
+            // Mandatory at the singleton-instance level. The transitive gate
+            // (issue #3768) uses the type-def rule rather than the singleton
+            // override, so the generator suppresses every other child under
+            // forInstance=true. Re-add them here so RoleStateBinding finds
+            // them. Add{Child}(context) is idempotent, dispatches NodeIds on
+            // the role's NodeId, and returns `this` for chaining.
             role
-                .AddApplications(context, new NodeId(applications))
-                .AddApplicationsExclude(context, new NodeId(applicationsExclude))
-                .AddEndpoints(context, new NodeId(endpoints))
-                .AddEndpointsExclude(context, new NodeId(endpointsExclude))
-                .AddCustomConfiguration(context, new NodeId(customConfiguration))
-                .AddAddIdentity(context, new NodeId(addIdentityMethod))
-                .AddRemoveIdentity(context, new NodeId(removeIdentityMethod))
-                .AddAddApplication(context, new NodeId(addApplicationMethod))
-                .AddRemoveApplication(context, new NodeId(removeApplicationMethod))
-                .AddAddEndpoint(context, new NodeId(addEndpointMethod))
-                .AddRemoveEndpoint(context, new NodeId(removeEndpointMethod));
+                .AddApplications(context)
+                .AddApplicationsExclude(context)
+                .AddEndpoints(context)
+                .AddEndpointsExclude(context)
+                .AddCustomConfiguration(context)
+                .AddAddIdentity(context)
+                .AddRemoveIdentity(context)
+                .AddAddApplication(context)
+                .AddRemoveApplication(context)
+                .AddAddEndpoint(context)
+                .AddRemoveEndpoint(context);
         }
 
         /// <summary>
