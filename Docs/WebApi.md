@@ -233,9 +233,6 @@ services.AddWebApiTransport(opt =>
   mount into the existing `HttpsTransportListener` Kestrel pipeline
   via the internal `IHttpsListenerStartupContributor` hook. Single
   port for binary / `opcua+uajson` / REST.
-- **`OwnListener`** — reserved for a follow-up PR; the API surface is
-  in place (`opt.UseOwnListener(...)`) but the standalone listener
-  implementation is deferred.
 
 ## Long-poll `/publish`
 
@@ -257,32 +254,41 @@ On the client, set `WebApiClientOptions.RequestTimeout =
 Timeout.InfiniteTimeSpan` for the publish endpoint so the server-side
 `TimeoutHint` governs cancellation.
 
-## Symmetric C# client
+## Client integration
+
+The OPC Foundation publishes reference WebApi clients for several
+ecosystems:
+
+- TypeScript: <https://github.com/OPCFoundation/opcua-webapi-typescript>
+- Python: <https://github.com/OPCFoundation/opcua-webapi-python>
+- .NET: <https://github.com/OPCFoundation/opcua-webapi-dotnet>
+
+On the .NET stack this binding's REST surface is wired into
+`ManagedSession` via the fluent
+`ManagedSessionBuilder.UseWebApiEndpoint(url, encoding)` shortcut, so
+applications open and operate a WebApi session through the same
+`ISession` / subscription / monitored-item API that the binary
+transport uses:
 
 ```csharp
-using Opc.Ua.Client.WebApi;
+using Opc.Ua.Client;
 
-using var client = WebApiClient.Create(
-    new Uri("https://server:4843/"),
-    new WebApiClientOptions { Encoding = WebApiEncoding.Compact });
+await using ManagedSession session = await new ManagedSessionBuilder(telemetry)
+    .UseWebApiEndpoint("https://server:4843/")
+    .WithSessionName("Aot-Sample-Client")
+    .WithUserIdentity(new UserIdentity())
+    .StartAsync(ct)
+    .ConfigureAwait(false);
 
-ReadResponse response = await client.ReadAsync(new ReadRequest
+ReadResponse response = await session.ReadAsync(new ReadRequest
 {
     RequestHeader = new RequestHeader { TimeoutHint = 10000 },
     NodesToRead = new ArrayOf<ReadValueId>(/* … */)
-});
+}, ct).ConfigureAwait(false);
 ```
 
-The client lives in `OPCFoundation.NetStandard.Opc.Ua.Client` under
-`Libraries/Opc.Ua.Client/WebApi/`. It is multi-TFM (net48 /
-netstandard2.1 / net8+) — the server binding is net8+ only because of
-its dependency on `Microsoft.AspNetCore.App` (Minimal-API endpoints,
-Kestrel host), but the client only needs `HttpClient`.
-
-`IWebApiClient` exposes one strongly-typed method per service plus a
-generic `InvokeAsync<TRequest, TResponse>` that resolves the route
-through the same `WebApiServiceRoutes` table the server-side
-`MapWebApiEndpoints` wires up.
+The companion `UseWssOpenApiEndpoint(url)` shortcut binds the same
+session model to the WebSocket `opcua+openapi` sub-protocol.
 
 ## Tooling notes
 
@@ -308,13 +314,7 @@ through the same `WebApiServiceRoutes` table the server-side
 
 ## Related plans and follow-ups
 
-- [`plans/25-wss-openapi-subprotocols.md`](../plans/25-wss-openapi-subprotocols.md)
-  — WSS `opcua+openapi` / `opcua+openapi+<accesstoken>` sub-protocols
-  reuse the codec / routing / dispatcher plumbing from this binding.
 - **Source-generated OpenAPI document** (deferred) — the spec's
   `opc.ua.openapi.allservices.json` document and a runtime `/openapi/v1.json`
   endpoint will land in a future PR; the current binding produces
   spec-shaped JSON bodies without needing the document itself.
-- **Own-listener mode** (deferred) — `WebApiTransportOptions.UseOwnListener`
-  reserves the API surface; the standalone listener implementation
-  ships in a follow-up.
