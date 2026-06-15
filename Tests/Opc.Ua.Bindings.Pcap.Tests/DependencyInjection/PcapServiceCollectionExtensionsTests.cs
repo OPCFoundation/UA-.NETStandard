@@ -52,34 +52,34 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
     public sealed class PcapServiceCollectionExtensionsTests : TempDirectoryFixture
     {
         [Test]
-        public void AddOpcUaBindingsPcapThrowsOnNullServices()
+        public void AddPcapBindingThrowsOnNullServices()
         {
             IServiceCollection? services = null;
 
             Assert.That(
-                () => services!.AddOpcUaBindingsPcap(),
+                () => services!.AddPcapBinding(),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("services"));
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapWithConfigureThrowsOnNullConfigure()
+        public void AddPcapBindingWithConfigureThrowsOnNullConfigure()
         {
             var services = new ServiceCollection();
             Action<PcapOptions>? configure = null;
 
             Assert.That(
-                () => services.AddOpcUaBindingsPcap(configure!),
+                () => services.AddPcapBinding(configure!),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("configure"));
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapRegistersCoreSingletonsExactlyOnce()
+        public void AddPcapBindingRegistersCoreSingletonsExactlyOnce()
         {
             var services = new ServiceCollection();
 
-            services.AddOpcUaBindingsPcap();
+            services.AddPcapBinding();
 
             int optionsCount = services.Count(d => d.ServiceType == typeof(PcapOptions));
             int registryCount = services.Count(d => d.ServiceType == typeof(IChannelCaptureRegistry));
@@ -93,10 +93,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapRegistersServicesAsSingletons()
+        public void AddPcapBindingRegistersServicesAsSingletons()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcap();
+            services.AddPcapBinding();
 
             ServiceLifetime optionsLifetime = services
                 .First(d => d.ServiceType == typeof(PcapOptions)).Lifetime;
@@ -114,10 +114,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapResolvesAllRequiredServices()
+        public async Task AddPcapBindingResolvesAllRequiredServices()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcap();
+            services.AddPcapBinding();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             var options = provider.GetRequiredService<PcapOptions>();
@@ -132,10 +132,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapResolvesSameSingletonAcrossCalls()
+        public async Task AddPcapBindingResolvesSameSingletonAcrossCalls()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcap();
+            services.AddPcapBinding();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             var registry1 = provider.GetRequiredService<IChannelCaptureRegistry>();
@@ -167,12 +167,12 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapInvokesUserConfigureCallback()
+        public async Task AddPcapBindingInvokesUserConfigureCallback()
         {
             var services = new ServiceCollection();
             string desiredFolder = Path.Combine(Path.GetTempPath(), "pcap-di-test-" + Guid.NewGuid().ToString("N"));
 
-            services.AddOpcUaBindingsPcap(opts =>
+            services.AddPcapBinding(opts =>
             {
                 opts.BaseFolder = desiredFolder;
                 opts.MaxActiveSessions = 3;
@@ -186,12 +186,12 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapPropagatesMaxActiveSessionsToManager()
+        public async Task AddPcapBindingPropagatesMaxActiveSessionsToManager()
         {
             var services = new ServiceCollection();
             string desiredFolder = Path.Combine(Path.GetTempPath(), "pcap-di-cap-" + Guid.NewGuid().ToString("N"));
 
-            services.AddOpcUaBindingsPcap(opts =>
+            services.AddPcapBinding(opts =>
             {
                 opts.BaseFolder = desiredFolder;
                 opts.MaxActiveSessions = 2;
@@ -208,10 +208,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapDefaultOptionsUsePerUserLocalAppData()
+        public async Task AddPcapBindingDefaultOptionsUsePerUserLocalAppData()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcap();
+            services.AddPcapBinding();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             var options = provider.GetRequiredService<PcapOptions>();
@@ -226,10 +226,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapInstallsPcapBindingIntoTransportRegistry()
+        public async Task AddPcapBindingInstallsPcapBindingIntoTransportRegistry()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcap();
+            services.AddPcapBinding();
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             var bindings = provider.GetRequiredService<ITransportBindingRegistry>();
@@ -242,21 +242,21 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapFormattersThrowsOnNullServices()
+        public void AddPcapFormattersThrowsOnNullServices()
         {
             IServiceCollection? services = null;
 
             Assert.That(
-                () => services!.AddOpcUaBindingsPcapFormatters(),
+                () => services!.AddPcapFormatters(),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("services"));
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapFormattersRegistersRegistryAsSingleton()
+        public void AddPcapFormattersRegistersRegistryAsSingleton()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapFormatters();
+            services.AddPcapFormatters();
 
             ServiceDescriptor descriptor = services
                 .Single(d => d.ServiceType == typeof(TraceFormatterRegistry));
@@ -265,10 +265,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapFormattersResolvesNonEmptyRegistry()
+        public void AddPcapFormattersResolvesNonEmptyRegistry()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapFormatters();
+            services.AddPcapFormatters();
             using ServiceProvider provider = services.BuildServiceProvider();
 
             var registry1 = provider.GetRequiredService<TraceFormatterRegistry>();
@@ -282,21 +282,21 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapReplayThrowsOnNullServices()
+        public void AddPcapReplayThrowsOnNullServices()
         {
             IServiceCollection? services = null;
 
             Assert.That(
-                () => services!.AddOpcUaBindingsPcapReplay(),
+                () => services!.AddPcapReplay(),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("services"));
         }
 
         [Test]
-        public void AddOpcUaBindingsPcapReplayRegistersReplaySessionManagerAsSingleton()
+        public void AddPcapReplayRegistersReplaySessionManagerAsSingleton()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapReplay();
+            services.AddPcapReplay();
 
             ServiceDescriptor descriptor = services
                 .Single(d => d.ServiceType == typeof(ReplaySessionManager));
@@ -305,10 +305,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapReplayResolvesSameSingleton()
+        public async Task AddPcapReplayResolvesSameSingleton()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapReplay();
+            services.AddPcapReplay();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             var manager1 = provider.GetRequiredService<ReplaySessionManager>();

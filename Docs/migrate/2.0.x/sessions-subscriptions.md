@@ -334,21 +334,9 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 **Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
 
-Two additive surface additions for the new WSS reverse-connect path (see [`Docs/ReverseConnect.md`](../../ReverseConnect.md)):
+### `IMessageSocket` abstraction removed
 
-* **`ReverseConnectManager.AddEndpoint(Uri, ApplicationConfiguration?)`** — new overload. Callers binding `opc.wss://` reverse-connect endpoints should pass the `ApplicationConfiguration` to this overload so the underlying `HttpsTransportListener` receives the `CertificateManager` at bind time. The single-parameter `AddEndpoint(Uri)` is unchanged and remains the right call for `opc.tcp://` endpoints (which don't need TLS state).
-* **`Opc.Ua.Bindings.Kestrel.Tcp`** — new opt-in package (net8+) that hosts `opc.tcp` on Kestrel and supports both forward and reverse-connect listener modes. Install via the new DI extension `services.AddOpcUa().AddOpcTcpTransport().AddKestrelOpcTcpTransport()` or, for non-DI consumers, hand a `DefaultTransportBindingRegistry` carrying a `KestrelTcpTransportListenerFactory` to `ServerBase` / `ReverseConnectManager`. The default raw-socket `TcpTransportListener` continues to ship in `Opc.Ua.Core` for deployments that avoid the ASP.NET Core dependency.
-
-Channel-customization hooks (relevant only to consumers subclassing `UaSCBinaryChannel`-derived types):
-
-* **`UaSCBinaryChannel.StartReceiveLoop`** is now `protected internal virtual`. Existing overrides (none expected outside the stack) continue to work. The default implementation is unchanged.
-* **`UaSCBinaryChannel.StartReceiveLoopWithBody(Func<IUaSCByteTransport, CancellationToken, Task>)`** — new `protected` helper that sets up the receive-loop CTS/task state and runs a caller-supplied loop body. Used by `TcpReverseConnectChannel` to read a single `ReverseHello` chunk and exit cleanly (required because `WebSocket.ReceiveAsync` cancellation aborts the underlying WebSocket and would otherwise break the reverse-connect handoff).
-
-### Transports: WSS and HTTPS-JSON, `IMessageSocket` removed
-
-Version 2.0 adds the two transport profiles defined in OPC UA Part 6 that 1.5.378 did not support: **WebSocket Secure** (`opc.wss://` / `wss://`, Part 6 §7.5) and **HTTPS JSON** (`application/opcua+uajson`, Part 6 §7.4.5). The WSS sub-protocols `opcua+uacp` (binary + UASC SecureChannel, all security modes) and `opcua+uajson` (compact JSON, Security Mode None only) are both supported on the same `wss://` listener. See [`Docs/Profiles.md`](../../Profiles.md) for the full transport matrix.
-
-Internally the runtime transport boundary moved from `IMessageSocket` to the new public `IUaSCByteTransport` (`Opc.Ua.Bindings`). This let us share one UASC pipeline across raw TCP and WebSocket connections and let JSON profiles bypass UASC entirely. As part of this change the entire `IMessageSocket` family was **removed** from the public API surface — this is a breaking change versus 1.5.378.
+The runtime transport boundary moved from `IMessageSocket` to the new public `IUaSCByteTransport` (`Opc.Ua.Bindings`). This let us share one UASC pipeline across raw TCP and WebSocket connections and let JSON profiles bypass UASC entirely. As part of this change the entire `IMessageSocket` family was **removed** from the public API surface — this is a breaking change versus 1.5.378.
 
 | Removed type | Replacement |
 |---|---|
@@ -384,7 +372,6 @@ Internally the runtime transport boundary moved from `IMessageSocket` to the new
 ```csharp
 // Before (1.5.378):
 //   TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
-//   PcapBindings.Install(); // mutated TransportBindings.Channels
 
 // After (2.0):
 services
@@ -393,7 +380,6 @@ services
     .AddHttpsTransport()               // HTTPS + HTTPS-JSON
     .AddWssTransport()                 // WSS + WSS-JSON
     .AddKestrelOpcTcpTransport();      // override opc.tcp with Kestrel (last-writer-wins)
-services.AddOpcUaBindingsPcap();       // installs Pcap channel decorator via configurator
 ```
 
 Every `Add*Transport()` extension installs an `ITransportBindingConfigurator` instance into the `IServiceCollection`. The `DefaultTransportBindingRegistry` singleton runs every registered configurator in registration order at first resolution time, so the **last** registration for a given URI scheme wins — exactly the same semantics `SetBinding` had, but scoped per `IServiceProvider`.
@@ -430,21 +416,6 @@ services
 ```
 
 The DI extension resolves both factory types out of the container (so they may have constructor-injected dependencies), and both are registered into the registry under the `UriScheme` exposed by `MyCustomListenerFactory`.
-
-**`Opc.Ua.Bindings.Pcap` consumers:**
-
-`PcapBindings.Install()` no longer has a parameterless overload. Pass an `ITransportBindingRegistry` explicitly:
-
-```csharp
-// Before (1.5.378):
-//   IChannelCaptureRegistry captureRegistry = PcapBindings.Install();
-
-// After (2.0):
-ITransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
-IChannelCaptureRegistry captureRegistry = PcapBindings.Install(bindings);
-// or — preferred — let the DI extension wire it through:
-services.AddOpcUa().AddOpcUaBindingsPcap();
-```
 
 ---
 

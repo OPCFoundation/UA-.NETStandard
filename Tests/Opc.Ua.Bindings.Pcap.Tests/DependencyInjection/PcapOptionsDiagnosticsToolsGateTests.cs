@@ -61,11 +61,11 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapInvokesUserConfigureCallbackForDiagnosticsToolsFlag()
+        public async Task AddPcapBindingInvokesUserConfigureCallbackForDiagnosticsToolsFlag()
         {
             var services = new ServiceCollection();
 
-            services.AddOpcUaBindingsPcap(options => options.EnableDiagnosticsTools = true);
+            services.AddPcapBinding(options => options.EnableDiagnosticsTools = true);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             var options = provider.GetRequiredService<PcapOptions>();

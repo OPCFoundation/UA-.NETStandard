@@ -14,7 +14,7 @@ this binding should treat every output file as a secret.
 
 | Capability | Default | Opt-in mechanism |
 |---|---|---|
-| Frame capture (`start_capture`) | available | `PcapBindings.Install()` or `AddOpcUaBindingsPcap()` |
+| Frame capture (`start_capture`) | available | `PcapBindings.Install()` or `AddPcapBinding()` |
 | Keylog extraction | available when capture runs | implicit when capture is active |
 | MCP `dump_keys` / `decode_pcap_with_keys` / `replay_pcap` | **off** | `PcapOptions.EnableDiagnosticsTools = true` or env `OPCUA_PCAP_ENABLE_DIAGNOSTICS=1` |
 | Mock-client replay | **off** | `PcapOptions.AllowMockClientReplay = true` AND populate `PcapOptions.AllowedReplayEndpoints` |
@@ -138,7 +138,7 @@ graph TD
 
 ## Integration with the central channel manager
 
-The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the host's `ITransportBindingRegistry`: `AddOpcUaBindingsPcap` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory via an `ITransportBindingConfigurator`, and `ClientChannelManager` — which by default reads from the same registry resolved from `IServiceProvider` — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
+The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the host's `ITransportBindingRegistry`: `AddPcapBinding` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory via an `ITransportBindingConfigurator`, and `ClientChannelManager` — which by default reads from the same registry resolved from `IServiceProvider` — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
 
 Three properties of the channel manager flow through to capture for free:
 
@@ -151,9 +151,9 @@ If you compose the channel manager and the capture binding via DI the standard r
 ```csharp
 services.AddOpcUa().AddClient(options => { });    // central IClientChannelManager
 services.AddSingleton<OpcUaSessionManager>();     // your application services
-services.AddOpcUaBindingsPcap();                  // capture binding + CaptureSessionManager
-services.AddOpcUaBindingsPcapFormatters();        // service-timeline / pcap / pcapng / json / csv / text
-services.AddOpcUaBindingsPcapReplay();            // mock-client / mock-server replay engines
+services.AddPcapBinding();                  // capture binding + CaptureSessionManager
+services.AddPcapFormatters();        // service-timeline / pcap / pcapng / json / csv / text
+services.AddPcapReplay();            // mock-client / mock-server replay engines
 ```
 
 Registration order does not strictly matter (the Pcap binding installs synchronously into the process-wide registry), but the order above reads top-down as "register the channel manager, then your services, then opt in to capture". For non-DI consumers, call `PcapBindings.Install()` at startup to achieve the same effect.
@@ -172,7 +172,7 @@ Registration order does not strictly matter (the Pcap binding installs synchrono
 
 ```csharp
 services.AddOpcUa().AddClient(options => { });   // central IClientChannelManager
-services.AddOpcUaBindingsPcap();                  // capture binding + CaptureSessionManager
+services.AddPcapBinding();                  // capture binding + CaptureSessionManager
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -200,7 +200,7 @@ var bytes = await manager.GetCaptureAsync(
 ## Quick start: replay and decode an existing pcap
 
 ```csharp
-services.AddOpcUaBindingsPcap();
+services.AddPcapBinding();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -221,7 +221,7 @@ var timeline = await manager.GetCaptureAsync(
 ## Quick start: mock-server replay
 
 ```csharp
-services.AddOpcUaBindingsPcap();
+services.AddPcapBinding();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 

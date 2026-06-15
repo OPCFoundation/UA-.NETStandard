@@ -61,17 +61,17 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         /// <see cref="IChannelCaptureRegistry"/> and turned on or off by
         /// a <see cref="CaptureSessionManager"/>.
         /// </summary>
-        public static IServiceCollection AddOpcUaBindingsPcap(this IServiceCollection services)
+        public static IServiceCollection AddPcapBinding(this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
-            return services.AddOpcUaBindingsPcap(static _ => { });
+            return services.AddPcapBinding(static _ => { });
         }
 
         /// <summary>
         /// Registers the Pcap capture services with caller-supplied
         /// configuration.
         /// </summary>
-        public static IServiceCollection AddOpcUaBindingsPcap(
+        public static IServiceCollection AddPcapBinding(
             this IServiceCollection services,
             Action<PcapOptions> configure)
         {
@@ -155,7 +155,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         /// Adds trace formatters to dependency injection as a singleton
         /// registry.
         /// </summary>
-        public static IServiceCollection AddOpcUaBindingsPcapFormatters(
+        public static IServiceCollection AddPcapFormatters(
             this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
@@ -167,7 +167,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         /// <summary>
         /// Registers pcap replay session services.
         /// </summary>
-        public static IServiceCollection AddOpcUaBindingsPcapReplay(
+        public static IServiceCollection AddPcapReplay(
             this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
