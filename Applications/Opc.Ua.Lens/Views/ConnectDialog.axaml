@@ -1,0 +1,66 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.ConnectDialog"
+        Title="Connect to OPC UA server"
+        Width="460" Height="260"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="*,Auto">
+
+    <!-- Body: one TabControl with a single URL tab today.  Future MDNS,
+         LDS, and reverse-connect connection sources slot in here as
+         additional TabItems whose content implements
+         IConnectionSourceTab. -->
+    <TabControl Grid.Row="0" x:Name="SourcesTabs" Background="Transparent">
+      <TabItem Header="URL">
+        <!-- The Content here must implement IConnectionSourceTab. -->
+        <Grid Margin="8,12,8,8" RowDefinitions="Auto,Auto" x:Name="UrlTabRoot">
+          <TextBlock Grid.Row="0" Margin="0,0,0,6" Foreground="{DynamicResource TextSecondary}" FontSize="11"
+                     Text="Endpoint URL" />
+          <TextBox Grid.Row="1" x:Name="EndpointUrlBox"
+                   FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                   Watermark="opc.tcp://localhost:62541/Quickstarts/ReferenceServer" />
+        </Grid>
+      </TabItem>
+      <!-- Future: MDNS / LDS / Reverse-Connect tabs added here. Each new
+           tab's Content control implements IConnectionSourceTab and
+           returns the chosen endpoint URL via GetEndpointUrl().  No
+           changes needed in ConnectDialog.axaml.cs's button handlers. -->
+    </TabControl>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="6">
+      <Button x:Name="ConnectButton" Content="Connect" IsDefault="True"
+              Width="120" Background="{DynamicResource AccentBlue}" Foreground="{DynamicResource AppBg}" FontWeight="SemiBold" />
+      <Button x:Name="CancelButton"  Content="Cancel"  IsCancel="True" Width="100" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -40,7 +40,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "opcua": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/Applications/McpServer/Opc.Ua.Mcp.csproj"]
+      "args": ["run", "--project", "/path/to/Applications/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj"]
     }
   }
 }
@@ -55,7 +55,7 @@ Add to `.vscode/mcp.json`:
   "servers": {
     "opcua": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/Applications/McpServer/Opc.Ua.Mcp.csproj"]
+      "args": ["run", "--project", "/path/to/Applications/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj"]
     }
   }
 }
@@ -111,7 +111,7 @@ Arguments:
 
 ## OPC UA Client Configuration
 
-The server uses `McpServer.Config.xml` for OPC UA client configuration, including:
+The server uses `Opc.Ua.Mcp.Config.xml` for OPC UA client configuration, including:
 
 - Application certificate settings
 - Trust list management

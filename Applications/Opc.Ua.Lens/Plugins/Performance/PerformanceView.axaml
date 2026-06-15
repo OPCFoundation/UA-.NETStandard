@@ -1,0 +1,247 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             xmlns:vm="using:UaLens.Plugins.Performance"
+             x:Class="UaLens.Plugins.Performance.PerformanceView"
+             x:DataType="vm:PerformancePlugin">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+    <Style Selector="TextBlock.stat">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.statDim">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.runRow">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="6,3" />
+    </Style>
+    <Style Selector="Border.runRow.highlight">
+      <Setter Property="Background" Value="{DynamicResource HighlightBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="BorderThickness" Value="2,0,0,1" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{DynamicResource AppBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="10">
+    <Grid RowDefinitions="Auto,Auto,*,*,Auto,Auto">
+
+      <!-- Row 0: action toolbar (WrapPanel — wraps on narrow windows) -->
+      <Border Grid.Row="0" Padding="10" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,Auto">
+          <WrapPanel Classes="toolbar" Grid.Row="0" Orientation="Horizontal" ItemHeight="32">
+            <ComboBox x:Name="ModeCombo" Margin="0,0,6,0"
+                      ItemsSource="{CompiledBinding ModeOptions}"
+                      SelectedItem="{CompiledBinding Mode, Mode=TwoWay}"
+                      MinWidth="100" VerticalAlignment="Center" />
+            <Button Classes="tonal" Content="Pick target…" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    Command="{CompiledBinding PickTargetCommand}" />
+            <Button Classes="primary" Content="▶ Run"  Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    Command="{CompiledBinding RunCommand}" />
+            <Button Classes="danger"  Content="■ Stop" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    Command="{CompiledBinding StopCommand}" />
+            <Button Classes="tonal"   Content="↺ Reset" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    Command="{CompiledBinding ResetCommand}" />
+            <Button Classes="tonal"   Content="💾 Save…" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="Save the run history to a CSV file."
+                    Command="{CompiledBinding SaveResultsCommand}" />
+            <Button Classes="tonal"   Content="📂 Load…" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="Replace the run history with rows loaded from a CSV file."
+                    Command="{CompiledBinding LoadResultsCommand}" />
+            <Button Classes="tonal"   Content="⚙ Settings…"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="Open the workload editor (rate / duration / value generator)."
+                    Command="{CompiledBinding OpenSettingsDialogCommand}" />
+          </WrapPanel>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8"
+                      Margin="0,8,0,0" VerticalAlignment="Center">
+            <TextBlock Classes="h" Text="TARGET" VerticalAlignment="Center" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding TargetNodeIdText}"
+                       ToolTip.Tip="{CompiledBinding TargetDescription}"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="statDim" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Text="·" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding TargetDescription}"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="420" />
+            <TextBlock Classes="statDim" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Text="·" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding EffectiveDurationText, StringFormat='duration={0}'}" />
+            <TextBlock Classes="statDim" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Text="·" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding ConcurrencyHint}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Row 1: throughput chart heading -->
+      <TextBlock Grid.Row="1" Classes="h" Margin="2,10,2,4"
+                 Text="THROUGHPUT — rolling 60 s window (ops/sec)" />
+
+      <!-- Row 2: throughput chart -->
+      <Border Grid.Row="2" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
+        <ScottPlot:AvaPlot x:Name="ThroughputPlot" />
+      </Border>
+
+      <!-- Row 3: latency histogram -->
+      <Border Grid.Row="3" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Classes="h" Margin="8,6,0,0"
+                     Text="LATENCY HISTOGRAM — log buckets, vertical lines mark p50 / p95 / p99" />
+          <ScottPlot:AvaPlot Grid.Row="1" x:Name="HistogramPlot" />
+        </Grid>
+      </Border>
+
+      <!-- Row 4: stats footer -->
+      <Border Grid.Row="4" Padding="8,6" Margin="0,8,0,0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
+        <Grid ColumnDefinitions="*,*,*,*,*,*,*">
+          <StackPanel Grid.Column="0" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="TOTAL OPS" />
+            <TextBlock Classes="stat" Text="{CompiledBinding TotalOpsText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="MEAN OPS/S" />
+            <TextBlock Classes="stat" Text="{CompiledBinding MeanRateText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="p50 (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding P50Text}" />
+          </StackPanel>
+          <StackPanel Grid.Column="3" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="p95 (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding P95Text}" />
+          </StackPanel>
+          <StackPanel Grid.Column="4" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="p99 (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding P99Text}" />
+          </StackPanel>
+          <StackPanel Grid.Column="5" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="MAX (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding MaxLatencyText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="6" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="ERRORS" />
+            <TextBlock Classes="stat" Text="{CompiledBinding ErrorsText}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Row 5: run history list + compare-last-3 toggle -->
+      <Border Grid.Row="5" Padding="8,6" Margin="0,8,0,0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,Auto,Auto">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Classes="h" VerticalAlignment="Center"
+                       Text="RUNS — most recent first; toggle 'Compare last 3' to highlight the three latest rows" />
+            <CheckBox Grid.Column="1" Content="Compare last 3"
+                      VerticalAlignment="Center"
+                      IsChecked="{CompiledBinding CompareLast3, Mode=TwoWay}" />
+          </Grid>
+          <TextBlock Grid.Row="1" Classes="statDim" Margin="0,2,0,4"
+                     Text="{CompiledBinding CompareStatus}" />
+          <ListBox Grid.Row="2" x:Name="HistoryList"
+                   ItemsSource="{CompiledBinding RunHistory}"
+                   MaxHeight="160"
+                   Background="{DynamicResource AppBg}"
+                   BorderBrush="{DynamicResource PanelBorder}"
+                   BorderThickness="1">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:BenchmarkRunRow">
+                <Border Classes="runRow" Classes.highlight="{CompiledBinding IsHighlighted}">
+                  <Grid ColumnDefinitions="160,90,90,100,80,80,70">
+                    <TextBlock Grid.Column="0" Classes="stat" Text="{CompiledBinding TimestampDisplay}" />
+                    <TextBlock Grid.Column="1" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding TargetRateDisplay}" />
+                    <TextBlock Grid.Column="2" Classes="stat" TextAlignment="Right"
+                               Text="{CompiledBinding AchievedRateDisplay}" />
+                    <TextBlock Grid.Column="3" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding TotalOpsDisplay}" />
+                    <TextBlock Grid.Column="4" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding P50Display}" />
+                    <TextBlock Grid.Column="5" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding P99Display}" />
+                    <TextBlock Grid.Column="6" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding ErrorCountDisplay}" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

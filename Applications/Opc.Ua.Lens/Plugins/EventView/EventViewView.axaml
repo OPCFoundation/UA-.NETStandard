@@ -1,0 +1,274 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.EventView"
+             x:Class="UaLens.Plugins.EventView.EventViewView"
+             x:DataType="vm:EventViewPlugin"
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.colHeader">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.colCell">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- ========= Filter / toolbar bar (WrapPanel wraps on small windows). ========= -->
+    <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
+      <DockPanel LastChildFill="True">
+        <TextBlock DockPanel.Dock="Right"
+                   Text="{CompiledBinding SubscriptionStatus}"
+                   VerticalAlignment="Center"
+                   Margin="8,0,0,0"
+                   Foreground="{DynamicResource TextSecondary}"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   FontSize="11"
+                   ToolTip.Tip="Subscription state · publishing interval · monitored items (created/total) · publishing flag" />
+        <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+          <Button Classes="tonal" Margin="0,0,4,0"
+                  Content="⚙ Filter…"
+                  Command="{CompiledBinding EditFilterCommand}" />
+          <ToggleButton Content="⏸ Pause" Margin="0,0,4,0"
+                        IsChecked="{CompiledBinding IsPaused, Mode=TwoWay}"
+                        Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}"
+                        Padding="10,4" />
+          <Button Classes="tonal" Margin="0,0,4,0"
+                  Content="🗑 Clear"
+                  Command="{CompiledBinding ClearLogCommand}" />
+          <Button Classes="tonal" Margin="0,0,4,0"
+                  Content="⚡ Trigger event"
+                  ToolTip.Tip="Pick a Method or Variable with a GeneratesEvent reference and invoke / write to it."
+                  Command="{CompiledBinding TriggerEventCommand}" />
+        </WrapPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- ========= Main 3-column body — GridSplitters let the user drag
+         Event sources / Event log / Event details widths. ========= -->
+    <Grid Margin="8,4,8,8" ColumnDefinitions="250,5,*,5,350">
+
+      <!-- LEFT: event sources -->
+      <Border Grid.Column="0" Classes="panel" Padding="8" Margin="0,0,0,0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Row="0"
+                     Foreground="{DynamicResource TextSecondary}"
+                     FontWeight="SemiBold" FontSize="12"
+                     Margin="0,0,0,4"
+                     Text="Event sources" />
+          <ListBox Grid.Row="1"
+                   ItemsSource="{CompiledBinding EventSources}"
+                   Background="Transparent" BorderThickness="0">
+            <ListBox.ItemContainerTheme>
+              <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                <Setter Property="Padding"   Value="4,2" />
+                <Setter Property="MinHeight" Value="22" />
+              </ControlTheme>
+            </ListBox.ItemContainerTheme>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:EventSourceVm">
+                <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0"
+                             Text="{CompiledBinding Name}"
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis"
+                             FontSize="12"
+                             ToolTip.Tip="{CompiledBinding Name}" />
+                  <Button Grid.Row="0" Grid.Column="2"
+                          Content="×"
+                          Width="22" Padding="0"
+                          Background="Transparent" BorderThickness="0"
+                          Foreground="{DynamicResource TextSecondary}"
+                          Tag="{CompiledBinding}"
+                          Click="OnRemoveSourceClick" />
+                  <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                             Text="{CompiledBinding State}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextDim}"
+                             TextTrimming="CharacterEllipsis"
+                             Margin="0,1,0,0" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Button Grid.Row="2"
+                  Classes="tonal"
+                  Content="➕ Add Source"
+                  HorizontalAlignment="Stretch"
+                  Margin="0,6,0,0"
+                  Command="{CompiledBinding AddSourceCommand}" />
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Width="5"
+                    Background="{DynamicResource SeparatorBrush}"
+                    ResizeDirection="Columns"
+                    ResizeBehavior="PreviousAndNext" />
+
+      <!-- CENTER: event log with shared-size + draggable columns -->
+      <Border Grid.Column="2" Classes="panel" Padding="0" Margin="0,0,0,0">
+        <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="{DynamicResource SurfaceBg}" Margin="0" Height="22">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="100"  SharedSizeGroup="EvCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep0" />
+              <ColumnDefinition Width="70"   SharedSizeGroup="EvCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep1" />
+              <ColumnDefinition Width="160"  SharedSizeGroup="EvCol2" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep2" />
+              <ColumnDefinition Width="160"  SharedSizeGroup="EvCol3" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep3" />
+              <ColumnDefinition Width="*"    SharedSizeGroup="EvCol4" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Classes="colHeader" Text="Time"       Margin="6,4,0,0" />
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Classes="colHeader" Text="Severity"   Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Classes="colHeader" Text="Source"     Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="6" Classes="colHeader" Text="EventType"  Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="8" Classes="colHeader" Text="Message"    Margin="0,4,0,0" />
+          </Grid>
+          <ListBox Grid.Row="1"
+                   ItemsSource="{CompiledBinding Events}"
+                   SelectedItem="{CompiledBinding SelectedEntry, Mode=TwoWay}"
+                   Background="Transparent" BorderThickness="0">
+            <ListBox.ItemContainerTheme>
+              <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                <Setter Property="Padding"   Value="0,1" />
+                <Setter Property="MinHeight" Value="18" />
+              </ControlTheme>
+            </ListBox.ItemContainerTheme>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:EventLogEntry">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"  SharedSizeGroup="EvCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep0" />
+                    <ColumnDefinition Width="70"   SharedSizeGroup="EvCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep1" />
+                    <ColumnDefinition Width="160"  SharedSizeGroup="EvCol2" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep2" />
+                    <ColumnDefinition Width="160"  SharedSizeGroup="EvCol3" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep3" />
+                    <ColumnDefinition Width="*"    SharedSizeGroup="EvCol4" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Classes="colCell"
+                             Text="{CompiledBinding DisplayTime}"
+                             Foreground="{CompiledBinding SeverityBrush}"
+                             Margin="6,0,0,0" />
+                  <TextBlock Grid.Column="2" Classes="colCell"
+                             Text="{CompiledBinding Severity}"
+                             Foreground="{CompiledBinding SeverityBrush}" />
+                  <TextBlock Grid.Column="4" Classes="colCell"
+                             Text="{CompiledBinding SourceName}"
+                             Foreground="{CompiledBinding SeverityBrush}" />
+                  <TextBlock Grid.Column="6" Classes="colCell"
+                             Text="{CompiledBinding EventType}"
+                             Foreground="{CompiledBinding SeverityBrush}" />
+                  <TextBlock Grid.Column="8" Classes="colCell"
+                             Text="{CompiledBinding Message}"
+                             Foreground="{CompiledBinding SeverityBrush}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="3" Width="5"
+                    Background="{DynamicResource SeparatorBrush}"
+                    ResizeDirection="Columns"
+                    ResizeBehavior="PreviousAndNext" />
+
+      <!-- RIGHT: details TreeView -->
+      <Border Grid.Column="4" Classes="panel" Padding="8" Margin="0,0,0,0">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0"
+                     Foreground="{DynamicResource TextSecondary}"
+                     FontWeight="SemiBold" FontSize="12"
+                     Margin="0,0,0,4"
+                     Text="Event details" />
+          <TreeView Grid.Row="1"
+                    ItemsSource="{CompiledBinding SelectedEntry.FieldRows}"
+                    Background="Transparent" BorderThickness="0">
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate x:DataType="vm:EventFieldDisplay" ItemsSource="{x:Null}">
+                <Grid ColumnDefinitions="140,*">
+                  <TextBlock Grid.Column="0"
+                             Text="{CompiledBinding Path}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="11"
+                             Foreground="{DynamicResource TextSecondary}"
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="1"
+                             Text="{CompiledBinding Display}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="11"
+                             Foreground="{DynamicResource TextPrimary}"
+                             VerticalAlignment="Center"
+                             TextWrapping="Wrap" />
+                </Grid>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </Grid>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

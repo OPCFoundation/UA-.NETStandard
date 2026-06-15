@@ -1,0 +1,115 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.ViewModels"
+             xmlns:v="using:UaLens.Views"
+             x:Class="UaLens.Views.AddressSpaceView"
+             x:DataType="vm:BrowserViewModel">
+  <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="0">
+    <Grid RowDefinitions="Auto,Auto,*">
+      <DockPanel Grid.Row="0" Margin="4,4,4,2" LastChildFill="True"
+                 IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}">
+        <TextBlock DockPanel.Dock="Left"
+                   VerticalAlignment="Center"
+                   Margin="0,0,4,0"
+                   Foreground="{DynamicResource TextSecondary}"
+                   Text="View:" />
+        <ComboBox x:Name="ViewKindCombo"
+                  HorizontalAlignment="Stretch"
+                  MinHeight="24"
+                  VerticalAlignment="Center"
+                  VerticalContentAlignment="Center"
+                  ToolTip.Tip="Re-roots the address-space tree (Objects / type hierarchies / Views)." />
+      </DockPanel>
+      <TextBox Grid.Row="1" x:Name="SearchBox" Margin="4,4,4,2"
+               Watermark="Search BrowseName / NodeId (Enter, F3 next)"
+               FontFamily="Cascadia Mono, Consolas, monospace"
+               IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}" />
+      <TreeView Grid.Row="2" x:Name="Tree"
+                ItemsSource="{CompiledBinding Roots}"
+                Background="{DynamicResource AppBg}"
+                Foreground="{DynamicResource TextPrimary}"
+                BorderThickness="0">
+        <TreeView.ContextMenu>
+          <ContextMenu x:Name="NodeMenu">
+            <MenuItem x:Name="MenuAddItem"   Header="Add Item…" />
+            <MenuItem x:Name="MenuAddRecursive" Header="Add Recursively…" />
+            <MenuItem x:Name="MenuCallMethod" Header="Call Method…" />
+            <MenuItem x:Name="MenuWriteValue" Header="Write Value…" />
+            <MenuItem x:Name="MenuReadHistory" Header="Read history…" />
+            <MenuItem x:Name="MenuShowEvents" Header="Show Events…" />
+            <MenuItem x:Name="MenuPerf" Header="Perf…" />
+            <MenuItem x:Name="MenuAddToBench" Header="Add to Subscription Bench…" />
+            <MenuItem x:Name="MenuExportValue" Header="Export value to file…" />
+            <Separator />
+            <MenuItem x:Name="MenuFindByPath" Header="Find by path…" />
+            <MenuItem x:Name="MenuViewNodeState" Header="View NodeState…" />
+          </ContextMenu>
+        </TreeView.ContextMenu>
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate DataType="vm:NodeViewModel" ItemsSource="{CompiledBinding Children}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <!-- Code-editor-style letter tile (see NodeClassIcons.Tiles).
+                   Concrete instances render with a solid accent fill and
+                   white letter; type kinds render with a transparent fill,
+                   accent border and accent-coloured letter so the eye
+                   pairs each "X type" tile with its "X instance" tile.
+                   Hidden when NodeClass has no tile (Unspecified). -->
+              <Border Width="14" Height="14" CornerRadius="3"
+                      BorderThickness="1.2"
+                      VerticalAlignment="Center"
+                      IsVisible="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToIconVisibilityConverter.Instance}}"
+                      Background="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToFillConverter.Instance}}"
+                      BorderBrush="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToStrokeConverter.Instance}}">
+                <TextBlock Text="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToLetterConverter.Instance}}"
+                           Foreground="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToForegroundConverter.Instance}}"
+                           FontFamily="Cascadia Mono, Consolas, monospace"
+                           FontSize="9" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           TextAlignment="Center"
+                           ToolTip.Tip="{CompiledBinding NodeClass}" />
+              </Border>
+              <TextBlock Text="{CompiledBinding Text}" VerticalAlignment="Center" />
+            </StackPanel>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+        <TreeView.Styles>
+          <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
+            <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="Padding" Value="4,2" />
+          </Style>
+        </TreeView.Styles>
+      </TreeView>
+    </Grid>
+  </Border>
+</UserControl>
+
+
+

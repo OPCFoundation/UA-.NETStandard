@@ -1,0 +1,396 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.GdsPush"
+             x:Class="UaLens.Plugins.GdsPush.GdsPushView"
+             x:DataType="vm:GdsPushPlugin">
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.v">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="TextWrapping" Value="NoWrap" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinWidth" Value="90" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinWidth" Value="120" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Margin="10" RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+    <!-- Row 0: connection bar — endpoint comes from the main Connection pane
+         (read-only here); the Connect/Disconnect buttons drive a SEPARATE
+         GDS Push session, often with admin credentials. -->
+    <Border Grid.Row="0" Classes="panel" Margin="0,0,0,6">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" Classes="h" Text="Endpoint" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                   Text="{CompiledBinding EndpointUrl}"
+                   FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                   Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" />
+        <Button    Grid.Column="2" Classes="primary" Margin="8,0,0,0"
+                   Content="{CompiledBinding ConnectButtonText}"
+                   Command="{CompiledBinding UseDifferentEndpointCommand}" />
+        <Button    Grid.Column="3" Classes="tonal" Margin="8,0,0,0"
+                   Content="Disconnect"
+                   IsVisible="{CompiledBinding HasSecondarySession}"
+                   Command="{CompiledBinding DisconnectCommand}" />
+        <TextBlock Grid.Column="4" Margin="12,0,0,0" Classes="v"
+                   VerticalAlignment="Center"
+                   Text="{CompiledBinding ConnectionStatus}" />
+      </Grid>
+    </Border>
+
+    <!-- Row 1: server info card -->
+    <Border Grid.Row="1" Classes="panel" Margin="0,0,0,6">
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Classes="h" Text="Server" Margin="0,0,0,4" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Classes="k" Text="Application name" Margin="0,2" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Classes="v"
+                   Text="{CompiledBinding ServerApplicationName}" Margin="0,2" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Classes="k" Text="Application URI" Margin="0,2" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Classes="v"
+                   Text="{CompiledBinding ServerApplicationUri}" Margin="0,2" />
+        <Grid     Grid.Row="3" Grid.ColumnSpan="2" ColumnDefinitions="*,*,*" Margin="0,4,0,0">
+          <StackPanel Grid.Column="0" Orientation="Vertical">
+            <TextBlock Classes="k" Text="Cert subject" />
+            <TextBlock Classes="v" Text="{CompiledBinding ServerCertSubject}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Vertical" Margin="8,0,0,0">
+            <TextBlock Classes="k" Text="Cert issuer" />
+            <TextBlock Classes="v" Text="{CompiledBinding ServerCertIssuer}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Vertical" Margin="8,0,0,0">
+            <TextBlock Classes="k" Text="Cert expiry (UTC)" />
+            <TextBlock Classes="v" Text="{CompiledBinding ServerCertExpiry}" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <!-- Row 2: collapsible server-status panel — polled at 1 Hz from
+         the secondary (or piggy-backed) Push session via ReadAsync on
+         VariableIds.Server_ServerStatus (i=2256). -->
+    <Border Grid.Row="2" Classes="panel" Margin="0,0,0,6">
+      <Expander Header="Server status" IsExpanded="False">
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0"  Grid.Column="0" Classes="k" Text="Product name" Margin="0,2" />
+          <TextBlock Grid.Row="0"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusProductName}" Margin="0,2" />
+          <TextBlock Grid.Row="1"  Grid.Column="0" Classes="k" Text="Product URI" Margin="0,2" />
+          <TextBlock Grid.Row="1"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusProductUri}" Margin="0,2" />
+          <TextBlock Grid.Row="2"  Grid.Column="0" Classes="k" Text="Manufacturer" Margin="0,2" />
+          <TextBlock Grid.Row="2"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusManufacturerName}" Margin="0,2" />
+          <TextBlock Grid.Row="3"  Grid.Column="0" Classes="k" Text="Software version" Margin="0,2" />
+          <TextBlock Grid.Row="3"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusSoftwareVersion}" Margin="0,2" />
+          <TextBlock Grid.Row="4"  Grid.Column="0" Classes="k" Text="Build number" Margin="0,2" />
+          <TextBlock Grid.Row="4"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusBuildNumber}" Margin="0,2" />
+          <TextBlock Grid.Row="5"  Grid.Column="0" Classes="k" Text="Build date (UTC)" Margin="0,2" />
+          <TextBlock Grid.Row="5"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusBuildDate}" Margin="0,2" />
+          <TextBlock Grid.Row="6"  Grid.Column="0" Classes="k" Text="Start time (UTC)" Margin="0,2" />
+          <TextBlock Grid.Row="6"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusStartTime}" Margin="0,2" />
+          <TextBlock Grid.Row="7"  Grid.Column="0" Classes="k" Text="Current time (UTC)" Margin="0,2" />
+          <TextBlock Grid.Row="7"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusCurrentTime}" Margin="0,2" />
+          <TextBlock Grid.Row="8"  Grid.Column="0" Classes="k" Text="State" Margin="0,2" />
+          <TextBlock Grid.Row="8"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusState}" Margin="0,2" />
+          <TextBlock Grid.Row="9"  Grid.Column="0" Classes="k" Text="Seconds till shutdown" Margin="0,2" />
+          <TextBlock Grid.Row="9"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusSecondsTillShutdown}" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Classes="k" Text="Shutdown reason" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusShutdownReason}" Margin="0,2" />
+          <StackPanel Grid.Row="11" Grid.ColumnSpan="2" Orientation="Horizontal"
+                      Margin="0,8,0,0" Spacing="6">
+            <Button Classes="tonal" Content="↻ Refresh"
+                    Command="{CompiledBinding PollOnceCommand}" />
+          </StackPanel>
+        </Grid>
+      </Expander>
+    </Border>
+
+    <!-- Row 3: trust-list tabs -->
+    <Border Grid.Row="3" Classes="panel">
+      <TabControl x:Name="TrustTabs" Background="Transparent" BorderThickness="0" Padding="0">
+        <TabItem Header="Trusted Peers" x:Name="TabTrusted">
+          <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+            <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}" Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"  SharedSizeGroup="GpTrCol0" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep0" />
+                <ColumnDefinition Width="2*"   SharedSizeGroup="GpTrCol1" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep1" />
+                <ColumnDefinition Width="2*"   SharedSizeGroup="GpTrCol2" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep2" />
+                <ColumnDefinition Width="100"  SharedSizeGroup="GpTrCol3" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep3" />
+                <ColumnDefinition Width="100"  SharedSizeGroup="GpTrCol4" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Margin="6,4" Classes="h" Text="Thumbprint" />
+              <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="2" Margin="6,4" Classes="h" Text="Subject" />
+              <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="4" Margin="6,4" Classes="h" Text="Issuer" />
+              <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="6" Margin="6,4" Classes="h" Text="Not Before" />
+              <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="8" Margin="6,4" Classes="h" Text="Not After" />
+            </Grid>
+            <ListBox Grid.Row="1" x:Name="TrustedList"
+                     ItemsSource="{CompiledBinding Trusted}"
+                     Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                     BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:GdsCertItem">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="200"  SharedSizeGroup="GpTrCol0" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep0" />
+                      <ColumnDefinition Width="2*"   SharedSizeGroup="GpTrCol1" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep1" />
+                      <ColumnDefinition Width="2*"   SharedSizeGroup="GpTrCol2" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep2" />
+                      <ColumnDefinition Width="100"  SharedSizeGroup="GpTrCol3" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpTrSep3" />
+                      <ColumnDefinition Width="100"  SharedSizeGroup="GpTrCol4" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Margin="6,2"
+                               Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="4" Margin="6,2"
+                               Text="{CompiledBinding Issuer}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="6" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding NotBefore}" />
+                    <TextBlock Grid.Column="8" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding NotAfter}" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </TabItem>
+        <TabItem Header="Issuers" x:Name="TabIssuer">
+          <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+            <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}" Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"  SharedSizeGroup="GpIsCol0" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep0" />
+                <ColumnDefinition Width="2*"   SharedSizeGroup="GpIsCol1" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep1" />
+                <ColumnDefinition Width="2*"   SharedSizeGroup="GpIsCol2" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep2" />
+                <ColumnDefinition Width="100"  SharedSizeGroup="GpIsCol3" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep3" />
+                <ColumnDefinition Width="100"  SharedSizeGroup="GpIsCol4" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Margin="6,4" Classes="h" Text="Thumbprint" />
+              <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="2" Margin="6,4" Classes="h" Text="Subject" />
+              <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="4" Margin="6,4" Classes="h" Text="Issuer" />
+              <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="6" Margin="6,4" Classes="h" Text="Not Before" />
+              <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="8" Margin="6,4" Classes="h" Text="Not After" />
+            </Grid>
+            <ListBox Grid.Row="1" x:Name="IssuerList"
+                     ItemsSource="{CompiledBinding Issuers}"
+                     Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                     BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:GdsCertItem">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="200"  SharedSizeGroup="GpIsCol0" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep0" />
+                      <ColumnDefinition Width="2*"   SharedSizeGroup="GpIsCol1" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep1" />
+                      <ColumnDefinition Width="2*"   SharedSizeGroup="GpIsCol2" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep2" />
+                      <ColumnDefinition Width="100"  SharedSizeGroup="GpIsCol3" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpIsSep3" />
+                      <ColumnDefinition Width="100"  SharedSizeGroup="GpIsCol4" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Margin="6,2"
+                               Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="4" Margin="6,2"
+                               Text="{CompiledBinding Issuer}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="6" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding NotBefore}" />
+                    <TextBlock Grid.Column="8" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding NotAfter}" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </TabItem>
+        <TabItem Header="Rejected" x:Name="TabRejected">
+          <Grid RowDefinitions="Auto,Auto,*" Grid.IsSharedSizeScope="True">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,4,0,4" Spacing="6">
+              <Button Classes="tonal" Content="↻ Rejected"
+                      IsEnabled="{CompiledBinding !IsBusy}"
+                      Command="{CompiledBinding RefreshRejectedListCommand}" />
+            </StackPanel>
+            <Grid Grid.Row="1" Background="{DynamicResource SeparatorBrush}" Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"  SharedSizeGroup="GpRjCol0" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep0" />
+                <ColumnDefinition Width="2*"   SharedSizeGroup="GpRjCol1" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep1" />
+                <ColumnDefinition Width="2*"   SharedSizeGroup="GpRjCol2" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep2" />
+                <ColumnDefinition Width="100"  SharedSizeGroup="GpRjCol3" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep3" />
+                <ColumnDefinition Width="100"  SharedSizeGroup="GpRjCol4" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Margin="6,4" Classes="h" Text="Thumbprint" />
+              <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="2" Margin="6,4" Classes="h" Text="Subject" />
+              <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="4" Margin="6,4" Classes="h" Text="Issuer" />
+              <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="6" Margin="6,4" Classes="h" Text="Not Before" />
+              <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+              <TextBlock Grid.Column="8" Margin="6,4" Classes="h" Text="Not After" />
+            </Grid>
+            <ListBox Grid.Row="2" x:Name="RejectedList"
+                     ItemsSource="{CompiledBinding Rejected}"
+                     Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                     BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:GdsCertItem">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="200"  SharedSizeGroup="GpRjCol0" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep0" />
+                      <ColumnDefinition Width="2*"   SharedSizeGroup="GpRjCol1" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep1" />
+                      <ColumnDefinition Width="2*"   SharedSizeGroup="GpRjCol2" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep2" />
+                      <ColumnDefinition Width="100"  SharedSizeGroup="GpRjCol3" />
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="GpRjSep3" />
+                      <ColumnDefinition Width="100"  SharedSizeGroup="GpRjCol4" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Margin="6,2"
+                               Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="4" Margin="6,2"
+                               Text="{CompiledBinding Issuer}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="6" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding NotBefore}" />
+                    <TextBlock Grid.Column="8" Margin="6,2"
+                               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Text="{CompiledBinding NotAfter}" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </TabItem>
+      </TabControl>
+    </Border>
+
+    <!-- Row 4: action bar (WrapPanel: children flow to next line on narrow windows). -->
+    <Border Grid.Row="4" Classes="panel" Margin="0,6,0,0">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="4,0">
+          <TextBlock Classes="h" Text="Mask" VerticalAlignment="Center" Margin="0,0,4,0" />
+          <ComboBox MinWidth="180"
+                    ItemsSource="{CompiledBinding TrustListMaskOptions}"
+                    SelectedItem="{CompiledBinding TrustListMasks}"
+                    IsEnabled="{CompiledBinding !IsBusy}" />
+        </StackPanel>
+        <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding RefreshCommand}" />
+        <Button Classes="tonal" Content="+ Add Cert…" Margin="4,0"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding AddCertificateCommand}" />
+        <Button Classes="tonal" Content="− Remove Cert" Margin="4,0"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding RemoveCertificateCommand}" />
+        <Button Classes="tonal" Content="🔑 Request New Cert…" Margin="4,0"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding RequestNewCertificateCommand}" />
+        <Button Classes="primary" Content="✓ Apply Changes" Margin="4,0"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding ApplyChangesCommand}" />
+      </WrapPanel>
+    </Border>
+  </Grid>
+</UserControl>

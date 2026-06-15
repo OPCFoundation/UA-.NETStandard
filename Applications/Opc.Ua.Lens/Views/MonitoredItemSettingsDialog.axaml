@@ -1,0 +1,92 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.MonitoredItemSettingsDialog"
+        Title="Monitored item settings"
+        Width="560" Height="540"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="220,*">
+
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               Text="Default monitored item parameters"
+               FontWeight="SemiBold" FontSize="14"
+               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+    <Border  Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8" />
+
+    <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+               Text="Applied to every monitored item in every subscription, and to all new items added by subsequent slider moves."
+               TextWrapping="Wrap"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11"
+               Margin="0,0,0,8" />
+
+    <TextBlock Grid.Row="3" Grid.Column="0" Text="Sampling interval (ms)" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="3" Grid.Column="1" x:Name="SamplingMs" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="4" Grid.Column="0" Text="Queue size" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="4" Grid.Column="1" x:Name="QueueSizeBox" Margin="0,8,0,0" />
+
+    <CheckBox  Grid.Row="5" Grid.Column="1" x:Name="DiscardOldestBox" Content="Discard oldest" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="6" Grid.Column="0" Text="Monitoring mode" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <ComboBox  Grid.Row="6" Grid.Column="1" x:Name="MonitoringModeCombo" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+      <ComboBoxItem Content="Disabled" />
+      <ComboBoxItem Content="Sampling" />
+      <ComboBoxItem Content="Reporting" />
+    </ComboBox>
+
+    <TextBlock Grid.Row="7" Grid.ColumnSpan="2"
+               Text="Data change filter (optional)"
+               FontWeight="SemiBold" FontSize="13"
+               Foreground="{DynamicResource AccentCyan}" Margin="0,16,0,4" />
+
+    <TextBlock Grid.Row="8" Grid.Column="0" Text="Trigger" VerticalAlignment="Center" Margin="0,4,0,0" />
+    <ComboBox  Grid.Row="8" Grid.Column="1" x:Name="TriggerCombo" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+      <ComboBoxItem Content="Status" />
+      <ComboBoxItem Content="StatusValue" />
+      <ComboBoxItem Content="StatusValueTimestamp" />
+    </ComboBox>
+
+    <TextBlock Grid.Row="9" Grid.Column="0" Text="Deadband type" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <ComboBox  Grid.Row="9" Grid.Column="1" x:Name="DeadbandTypeCombo" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+      <ComboBoxItem Content="None" />
+      <ComboBoxItem Content="Absolute" />
+      <ComboBoxItem Content="Percent" />
+    </ComboBox>
+
+    <TextBlock Grid.Row="10" Grid.Column="0" Text="Deadband value" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="10" Grid.Column="1" x:Name="DeadbandValueBox" Text="0" Margin="0,8,0,0" IsEnabled="False" />
+
+    <StackPanel Grid.Row="12" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="90" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="90" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,294 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.RoleManagement"
+             xmlns:ua="using:Opc.Ua"
+             x:Class="UaLens.Plugins.RoleManagement.RoleManagementView"
+             x:DataType="vm:RoleManagementPlugin"
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
+
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.dim">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Toolbar -->
+    <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+        <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
+                Command="{CompiledBinding RefreshCommand}" />
+        <Button Classes="tonal" Content="＋ Add role…" Margin="0,0,4,0"
+                Command="{CompiledBinding AddRoleCommand}" />
+        <Button Classes="tonal" Content="− Remove role" Margin="0,0,4,0"
+                Command="{CompiledBinding RemoveRoleCommand}"
+                CommandParameter="{CompiledBinding SelectedRole}" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource AppBg}"
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,1,0,0"
+            Padding="10,4" Margin="8,0,8,8">
+      <TextBlock Text="{CompiledBinding Status}"
+                 Foreground="{DynamicResource AccentGreen}"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 FontSize="11" />
+    </Border>
+
+    <!-- Body: roles list (left) + details (right) -->
+    <Border Classes="panel" Margin="8,4,8,4">
+      <Grid ColumnDefinitions="280,5,*">
+
+        <!-- Left: roles -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
+            <TextBlock Margin="8,4" Classes="h" Text="ROLES" />
+          </Border>
+          <ListBox Grid.Row="1"
+                   x:Name="RolesList"
+                   ItemsSource="{CompiledBinding Roles}"
+                   SelectedItem="{CompiledBinding SelectedRole, Mode=TwoWay}"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:RoleVm">
+                <StackPanel Orientation="Vertical" Spacing="2" Margin="4,2">
+                  <TextBlock Text="{CompiledBinding DisplayName}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextPrimary}"
+                             TextTrimming="CharacterEllipsis" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="dim"
+                               Text="{CompiledBinding Identities.Count, StringFormat='id: {0}'}" />
+                    <TextBlock Classes="dim"
+                               Text="{CompiledBinding Applications.Count, StringFormat='app: {0}'}" />
+                    <TextBlock Classes="dim"
+                               Text="{CompiledBinding Endpoints.Count, StringFormat='ep: {0}'}" />
+                  </StackPanel>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="5"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="{DynamicResource SeparatorBrush}" />
+
+        <!-- Right: details (tab control) -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Background="{DynamicResource SeparatorBrush}" Padding="8,6">
+            <StackPanel Orientation="Vertical" Spacing="2">
+              <TextBlock Classes="h" Text="ROLE" />
+              <TextBlock Classes="mono"
+                         Text="{CompiledBinding SelectedRole.DisplayName,
+                                FallbackValue='(none selected)',
+                                TargetNullValue='(none selected)'}" />
+              <TextBlock Classes="dim"
+                         Text="{CompiledBinding SelectedRole.RoleId,
+                                FallbackValue='',
+                                TargetNullValue=''}" />
+            </StackPanel>
+          </Border>
+
+          <TabControl Grid.Row="1"
+                      Background="{DynamicResource PanelBg}"
+                      Foreground="{DynamicResource TextPrimary}"
+                      IsEnabled="{CompiledBinding HasSelectedRole}">
+
+            <!-- Identities -->
+            <TabItem Header="Identities">
+              <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Padding="8,6" Background="{DynamicResource AppBg}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Classes="tonal" Content="＋ Add identity…"
+                            Command="{CompiledBinding AddIdentityCommand}" />
+                    <Button Classes="tonal" Content="− Remove"
+                            Command="{CompiledBinding RemoveIdentityCommand}"
+                            CommandParameter="{Binding #IdentitiesList.SelectedItem}" />
+                  </StackPanel>
+                </Border>
+                <ListBox x:Name="IdentitiesList"
+                         ItemsSource="{CompiledBinding SelectedRole.Identities}"
+                         Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                         BorderThickness="0">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="ua:IdentityMappingRuleType">
+                      <Grid ColumnDefinitions="160,*" Margin="4,2">
+                        <TextBlock Grid.Column="0"
+                                   Text="{CompiledBinding CriteriaType}"
+                                   FontFamily="Cascadia Mono, Consolas, monospace"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource AccentCyan}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{CompiledBinding Criteria}"
+                                   FontFamily="Cascadia Mono, Consolas, monospace"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   TextTrimming="CharacterEllipsis" />
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </TabItem>
+
+            <!-- Applications -->
+            <TabItem Header="Applications">
+              <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Padding="8,6" Background="{DynamicResource AppBg}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Classes="tonal" Content="＋ Add application…"
+                            Command="{CompiledBinding AddApplicationCommand}" />
+                    <Button Classes="tonal" Content="− Remove"
+                            Command="{CompiledBinding RemoveApplicationCommand}"
+                            CommandParameter="{Binding #ApplicationsList.SelectedItem}" />
+                    <CheckBox Content="Exclude list"
+                              IsChecked="{CompiledBinding SelectedRole.ApplicationsExclude, Mode=OneWay}"
+                              Command="{CompiledBinding ToggleApplicationsExcludeCommand}"
+                              ToolTip.Tip="When checked, the list is treated as an exclude list per OPC UA Part 18 §4.4.1." />
+                  </StackPanel>
+                </Border>
+                <ListBox x:Name="ApplicationsList"
+                         ItemsSource="{CompiledBinding SelectedRole.Applications}"
+                         Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                         BorderThickness="0">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="x:String">
+                      <TextBlock Text="{Binding}"
+                                 FontFamily="Cascadia Mono, Consolas, monospace"
+                                 FontSize="12"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 Margin="4,2"
+                                 TextTrimming="CharacterEllipsis" />
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </TabItem>
+
+            <!-- Endpoints -->
+            <TabItem Header="Endpoints">
+              <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Padding="8,6" Background="{DynamicResource AppBg}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Classes="tonal" Content="＋ Add endpoint…"
+                            Command="{CompiledBinding AddEndpointCommand}" />
+                    <Button Classes="tonal" Content="− Remove"
+                            Command="{CompiledBinding RemoveEndpointCommand}"
+                            CommandParameter="{Binding #EndpointsList.SelectedItem}" />
+                    <CheckBox Content="Exclude list"
+                              IsChecked="{CompiledBinding SelectedRole.EndpointsExclude, Mode=OneWay}"
+                              Command="{CompiledBinding ToggleEndpointsExcludeCommand}"
+                              ToolTip.Tip="When checked, the list is treated as an exclude list per OPC UA Part 18 §4.4.1." />
+                  </StackPanel>
+                </Border>
+                <ListBox x:Name="EndpointsList"
+                         ItemsSource="{CompiledBinding SelectedRole.Endpoints}"
+                         Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                         BorderThickness="0">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="ua:EndpointType">
+                      <StackPanel Orientation="Vertical" Spacing="2" Margin="4,2">
+                        <TextBlock Text="{CompiledBinding EndpointUrl}"
+                                   FontFamily="Cascadia Mono, Consolas, monospace"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Classes="dim"
+                                     Text="{CompiledBinding SecurityMode, StringFormat='mode: {0}'}" />
+                          <TextBlock Classes="dim"
+                                     Text="{CompiledBinding SecurityPolicyUri, StringFormat='policy: {0}'}"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </TabItem>
+
+            <!-- Custom configuration -->
+            <TabItem Header="Custom config">
+              <StackPanel Orientation="Vertical" Spacing="8" Margin="12">
+                <TextBlock Classes="h" Text="CUSTOM CONFIGURATION" />
+                <CheckBox x:Name="CustomConfigCheck"
+                          Content="Role uses vendor-specific configuration"
+                          IsChecked="{CompiledBinding SelectedRole.CustomConfiguration, Mode=OneWay}"
+                          Checked="OnCustomConfigChanged"
+                          Unchecked="OnCustomConfigChanged" />
+                <TextBlock TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondary}"
+                           Text="When set, the server applies vendor-specific rules that complement (or replace) the Identities, Applications, and Endpoints lists. See OPC UA Part 18 §4.4.4." />
+              </StackPanel>
+            </TabItem>
+
+          </TabControl>
+        </Grid>
+      </Grid>
+    </Border>
+  </DockPanel>
+</UserControl>

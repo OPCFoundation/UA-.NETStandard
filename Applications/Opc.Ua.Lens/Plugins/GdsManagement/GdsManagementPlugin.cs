@@ -1,0 +1,1897 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Opc.Ua;
+using Opc.Ua.Client;
+using Opc.Ua.Gds;
+using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
+using UaLens.Plugins.Gds;
+using UaLens.Plugins.GdsPush;
+using UaLens.ViewModels;
+using UaLens.Views;
+
+namespace UaLens.Plugins.GdsManagement;
+
+/// <summary>
+/// Single-row VM for a certificate displayed in the
+/// <see cref="CertGroupView"/>'s per-group trust-list listbox.  Kept
+/// tiny + reflection-free so it stays AOT-clean.
+/// </summary>
+internal sealed partial class GdsAppCertItem : ObservableObject
+{
+    [ObservableProperty]
+    private string m_thumbprint = string.Empty;
+
+    [ObservableProperty]
+    private string m_subject = string.Empty;
+
+    [ObservableProperty]
+    private string m_issuer = string.Empty;
+
+    [ObservableProperty]
+    private string m_notBefore = string.Empty;
+
+    [ObservableProperty]
+    private string m_notAfter = string.Empty;
+
+    [ObservableProperty]
+    private string m_bucket = string.Empty;
+}
+
+/// <summary>
+/// One certificate group attached to a registered application as
+/// returned by <see cref="GlobalDiscoveryServerClient.GetCertificateGroupsAsync"/>.
+/// Drives the right-hand cert-groups panel in the Management view.
+/// </summary>
+internal sealed partial class GdsCertGroupVm : ObservableObject
+{
+    public NodeId GroupId { get; init; } = NodeId.Null;
+
+    [ObservableProperty]
+    private string m_displayName = string.Empty;
+
+    /// <summary>Trust-list / issuers / rejected entries for this group,
+    /// populated by <see cref="GdsManagementPlugin.RefreshCertGroupsAsync"/>.</summary>
+    public ObservableCollection<GdsAppCertItem> Trusted { get; } = new();
+    public ObservableCollection<GdsAppCertItem> Issuers { get; } = new();
+}
+
+/// <summary>
+/// GDS Management plugin.  Owns a per-tab
+/// <see cref="GlobalDiscoveryServerClient"/>, enumerates registered
+/// applications via <c>QueryApplications</c>, resolves per-app records via
+/// <c>FindApplication</c>, and surfaces Register / Unregister / Issue
+/// Cert / Cert-Groups commands targeting the selected app.  Auto-numbered
+/// title per kind ("GDS Management 1"…).
+/// </summary>
+internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
+{
+    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+
+    private readonly PluginHost m_host;
+    private readonly ILogger m_log;
+    private GlobalDiscoveryServerClient? m_client;
+    private GdsManagementView? m_view;
+    private EndpointDescription? m_boundEndpoint;
+
+    [ObservableProperty]
+    private string m_title;
+
+    [ObservableProperty]
+    private bool m_isRenaming;
+
+    /// <summary>Endpoint URL of the Global Discovery Server to connect to.
+    /// Defaults to the host's current endpoint so the common case is
+    /// one-click.</summary>
+    [ObservableProperty]
+    private string m_endpointUrl;
+
+    [ObservableProperty]
+    private string m_connectionStatus = "● Disconnected";
+
+    private bool m_secondaryConnected;
+
+    /// <summary>
+    /// True when GDS Management can run: either a secondary GDS
+    /// session is live, or the outer Connection-pane session is
+    /// connected with SignAndEncrypt.
+    /// </summary>
+    public bool IsConnected => m_secondaryConnected || OuterIsSuitable();
+
+    /// <summary>
+    /// True only when this plugin owns a live secondary GDS session.
+    /// Drives the Disconnect button's visibility.
+    /// </summary>
+    public bool HasSecondarySession => m_client?.Session is { Connected: true };
+
+    /// <summary>
+    /// Telegraphs to the user that the outer session, while connected,
+    /// can't be reused as-is because it lacks SignAndEncrypt.
+    /// </summary>
+    public string ConnectButtonText => OuterIsInsecure()
+        ? "Connect securely…"
+        : "Use different endpoint…";
+
+    [ObservableProperty]
+    private bool isBusy;
+
+    [ObservableProperty]
+    private string m_filterText = string.Empty;
+
+    [ObservableProperty]
+    private RegisteredApp? m_selectedApp;
+
+    [ObservableProperty]
+    private string m_selectedAppDetail = "No application selected.";
+
+    [ObservableProperty]
+    private string m_lastOperationResult = string.Empty;
+
+    [ObservableProperty]
+    private string m_status = "● Disconnected";
+
+    /// <summary>All apps reported by the most recent
+    /// <c>QueryApplications</c> call.  Unfiltered.</summary>
+    public ObservableCollection<RegisteredApp> AllApps { get; } = new();
+
+    /// <summary>Apps after applying <see cref="FilterText"/> — what the
+    /// ListBox actually binds to.</summary>
+    public ObservableCollection<RegisteredApp> FilteredApps { get; } = new();
+
+    /// <summary>Certificate groups attached to the selected app.</summary>
+    public ObservableCollection<GdsCertGroupVm> CertGroups { get; } = new();
+
+    public GdsManagementPlugin(PluginHost host)
+    {
+        m_host = host ?? throw new ArgumentNullException(nameof(host));
+        m_log = host.Log;
+        int n;
+        lock (s_perKindCounter)
+        {
+            s_perKindCounter.TryGetValue(PluginKind.GdsManagement, out int prev);
+            n = prev + 1;
+            s_perKindCounter[PluginKind.GdsManagement] = n;
+        }
+        m_title = $"GDS Management {n}";
+        m_endpointUrl = host.Main.EndpointUrl ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Re-evaluate computed connection-status properties when the host
+    /// transitions between connected and disconnected.  Always runs on
+    /// the UI thread via the central <see cref="MainViewModel"/> fan-out.
+    /// </summary>
+    public void OnConnectionStateChanged()
+    {
+        OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(HasSecondarySession));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        UpdateStatus();
+    }
+
+    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
+
+    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.Session);
+
+    private void SetSecondaryConnected(bool value)
+    {
+        if (m_secondaryConnected == value)
+        {
+            OnPropertyChanged(nameof(HasSecondarySession));
+            return;
+        }
+        m_secondaryConnected = value;
+        OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(HasSecondarySession));
+        OnPropertyChanged(nameof(ConnectButtonText));
+    }
+
+    // ----- IPlugin members -----
+
+    public PluginKind Kind => PluginKind.GdsManagement;
+
+    Control? IPlugin.View => m_view ??= new GdsManagementView { DataContext = this };
+
+    Control? IPlugin.HeaderToolbar => null;
+
+    public bool SupportsDuplicate => false;
+
+    public IReadOnlyList<MenuItem> ContributeMenuItems()
+    {
+        var connect = new MenuItem { Header = "_Use different endpoint…" };
+        connect.Click += async (_, _) => await UseDifferentEndpointCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var disconnect = new MenuItem { Header = "_Disconnect" };
+        disconnect.Click += async (_, _) => await DisconnectCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var refresh = new MenuItem { Header = "_Refresh" };
+        refresh.Click += async (_, _) => await RefreshCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var register = new MenuItem { Header = "_Register App…" };
+        register.Click += async (_, _) => await RegisterApplicationCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var unregister = new MenuItem { Header = "_Unregister Selected" };
+        unregister.Click += async (_, _) => await UnregisterApplicationCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var issue = new MenuItem { Header = "_Issue Cert…" };
+        issue.Click += async (_, _) => await IssueNewCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var issueHttps = new MenuItem { Header = "Issue _HTTPS Cert…" };
+        issueHttps.Click += async (_, _) => await IssueNewHttpsCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var groups = new MenuItem { Header = "View _Cert Groups" };
+        groups.Click += async (_, _) => await ViewCertGroupsCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var pullLocal = new MenuItem { Header = "Pull _Trust List → local store" };
+        pullLocal.Click += async (_, _) =>
+            await PullTrustListSaveLocallyCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var pullPush = new MenuItem { Header = "Pull Trust List → _push to server" };
+        pullPush.Click += async (_, _) =>
+            await PullTrustListPushToServerCommand.ExecuteAsync(null).ConfigureAwait(true);
+        return new[] { connect, disconnect, refresh, register, unregister, issue, issueHttps, groups, pullLocal, pullPush };
+    }
+
+    public void OnActivated() { }
+
+    public void OnDeactivated() { }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (m_client is not null)
+        {
+            try
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex, "GdsManagement tab {Title}: client dispose failed.", Title);
+            }
+            m_client = null;
+        }
+    }
+
+    // ----- Commands -----
+
+    [RelayCommand]
+    private async Task UseDifferentEndpointAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await EstablishOrSwitchSessionAsync(CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Connect failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: UseDifferentEndpoint failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Runs the picker flow, then either updates credentials on the
+    /// existing GDS session (same endpoint) or tears it down and connects
+    /// a fresh one.  Returns true if the session is usable afterward.
+    /// </summary>
+    private async Task<bool> EstablishOrSwitchSessionAsync(CancellationToken ct)
+    {
+        Window? owner = GetOwnerWindow();
+        if (owner is null)
+        {
+            SetResult("Use different endpoint: no owner window.");
+            return false;
+        }
+
+        string seed = !string.IsNullOrWhiteSpace(EndpointUrl)
+            ? EndpointUrl
+            : (m_host.Main.EndpointUrl ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(seed))
+        {
+            SetResult("Enter a GDS endpoint URL first.");
+            return false;
+        }
+
+        ConnectionStatus = "● Selecting endpoint…";
+        UaLens.Connection.EndpointCredentialsPicker.Result? pick;
+        try
+        {
+            pick = await UaLens.Connection.EndpointCredentialsPicker
+                .PromptAsync(owner, m_host.Main.Telemetry, seed, ct).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Endpoint picker failed: {ex.Message}");
+            ConnectionStatus = IsConnected ? "● Connected" : "● Disconnected";
+            return false;
+        }
+        if (pick is null)
+        {
+            ConnectionStatus = IsConnected ? "● Connected" : "● Disconnected";
+            return false;
+        }
+
+        // Reuse path: same endpoint as the existing session → swap identity.
+        if (m_client?.Session is { Connected: true } existing
+            && UaLens.Connection.EndpointCredentialsPicker.EndpointsMatch(m_boundEndpoint, pick.Endpoint))
+        {
+            ConnectionStatus = "● Updating credentials…";
+            try
+            {
+                await existing.UpdateSessionAsync(pick.Identity, default, ct).ConfigureAwait(true);
+                m_client.AdminCredentials = pick.Identity;
+                EndpointUrl = pick.Endpoint.EndpointUrl ?? EndpointUrl;
+                ConnectionStatus = "● Connected";
+                SetResult("Credentials updated on existing session.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                SetResult($"UpdateSession failed: {ex.Message} — reconnecting fresh.");
+                m_log.LogWarning(ex, "GdsManagement tab {Title}: UpdateSession failed; reconnecting.", Title);
+                // fall through to fresh-connect path
+            }
+        }
+
+        // Fresh-connect path: dispose existing client, build a new one.
+        await SafeDisposeClientAsync().ConfigureAwait(true);
+        ConnectionStatus = "● Connecting…";
+        try
+        {
+            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+            var client = new GlobalDiscoveryServerClient(cfg, pick.Identity);
+            var configured = new ConfiguredEndpoint(
+                null, pick.Endpoint, EndpointConfiguration.Create(cfg));
+            await client.ConnectAsync(configured, ct).ConfigureAwait(true);
+            m_client = client;
+            m_boundEndpoint = pick.Endpoint;
+            EndpointUrl = pick.Endpoint.EndpointUrl ?? EndpointUrl;
+            SetSecondaryConnected(true);
+            ConnectionStatus = "● Connected";
+            m_log.LogInformation(
+                "GdsManagement tab {Title}: connected to {Endpoint}", Title, pick.Endpoint.EndpointUrl);
+            await RefreshAsync().ConfigureAwait(true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetSecondaryConnected(false);
+            ConnectionStatus = "● Disconnected";
+            SetResult($"Connect failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: connect failed.", Title);
+            await SafeDisposeClientAsync().ConfigureAwait(true);
+            m_boundEndpoint = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Returns a connected GDS client; auto-piggybacks on the outer
+    /// session when it is connected with SignAndEncrypt, otherwise
+    /// prompts the user via the picker flow.  Null on cancel /
+    /// connect failure.
+    /// </summary>
+    private async Task<GlobalDiscoveryServerClient?> EnsureSessionAsync(CancellationToken ct)
+    {
+        if (m_client is { Session: { Connected: true } } good)
+        {
+            return good;
+        }
+        if (OuterIsSuitable()
+            && await TryAutoPiggybackAsync(ct).ConfigureAwait(true)
+            && m_client is { Session: { Connected: true } } piggy)
+        {
+            return piggy;
+        }
+        if (await EstablishOrSwitchSessionAsync(ct).ConfigureAwait(true))
+        {
+            return m_client;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Spawns a fresh <see cref="GlobalDiscoveryServerClient"/>
+    /// against the outer Connection-pane session's endpoint when its
+    /// identity is Anonymous.  UserName / X509 outers can't be cloned
+    /// safely (the password isn't recoverable), so those fall through
+    /// to the picker.
+    /// </summary>
+    private async Task<bool> TryAutoPiggybackAsync(CancellationToken ct)
+    {
+        if (m_host.Connection.Session is not { Connected: true } outer
+            || outer.ConfiguredEndpoint?.Description is not { } desc)
+        {
+            return false;
+        }
+        if (outer.Identity is not { TokenType: UserTokenType.Anonymous })
+        {
+            return false;
+        }
+        ConnectionStatus = "● Connecting (piggyback)…";
+        try
+        {
+            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+#pragma warning disable CA2000
+            IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
+#pragma warning restore CA2000
+            var client = new GlobalDiscoveryServerClient(cfg, identity);
+            var configured = new ConfiguredEndpoint(
+                null, desc, EndpointConfiguration.Create(cfg));
+            await client.ConnectAsync(configured, ct).ConfigureAwait(true);
+            m_client = client;
+            m_boundEndpoint = desc;
+            EndpointUrl = desc.EndpointUrl ?? EndpointUrl;
+            SetSecondaryConnected(true);
+            ConnectionStatus = "● Connected (piggyback)";
+            m_log.LogInformation(
+                "GdsManagement tab {Title}: piggy-backed on outer session at {Endpoint}.",
+                Title, desc.EndpointUrl);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Piggyback failed: {ex.Message}");
+            m_log.LogWarning(ex, "GdsManagement tab {Title}: piggyback to outer failed.", Title);
+            await SafeDisposeClientAsync().ConfigureAwait(true);
+            m_boundEndpoint = null;
+            ConnectionStatus = "● Disconnected";
+            return false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DisconnectAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await SafeDisposeClientAsync().ConfigureAwait(true);
+            SetSecondaryConnected(false);
+            m_boundEndpoint = null;
+            ConnectionStatus = "● Disconnected";
+            AllApps.Clear();
+            FilteredApps.Clear();
+            CertGroups.Clear();
+            SelectedApp = null;
+            SelectedAppDetail = "No application selected.";
+            SetResult("Disconnected.");
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            (ArrayOf<ApplicationDescription> apps, _, _) = await client.QueryApplicationsAsync(
+                0,
+                0,
+                string.Empty,
+                string.Empty,
+                0,
+                string.Empty,
+                Array.Empty<string>(),
+                CancellationToken.None).ConfigureAwait(true);
+
+            AllApps.Clear();
+            if (!apps.IsNull)
+            {
+                foreach (ApplicationDescription desc in apps)
+                {
+                    AllApps.Add(RegisteredApp.FromDescription(desc));
+                }
+            }
+            await ResolveAllRecordsAsync().ConfigureAwait(true);
+            ApplyFilter();
+            SetResult($"Refreshed: {AllApps.Count} applications.");
+            m_log.LogInformation("GdsManagement tab {Title}: refresh ok ({Count} apps).", Title, AllApps.Count);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Refresh failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: refresh failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    [RelayCommand]
+    private async Task RegisterApplicationAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        Window? owner = GetOwnerWindow();
+        if (owner is null)
+        {
+            SetResult("Register: no owner window.");
+            return;
+        }
+        RegisteredApplicationContext? context;
+        try
+        {
+            var dlg = new RegisterApplicationDialog(
+                m_host.Main.Telemetry,
+                m_host.Main.CurrentRegisteredApp);
+            context = await dlg.ShowDialog<RegisteredApplicationContext?>(owner).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Register dialog failed: {ex.Message}");
+            return;
+        }
+        if (context is null)
+        {
+            SetResult("Register cancelled.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            ApplicationRecordDataType record = BuildApplicationRecord(context);
+            NodeId id = await client.RegisterApplicationAsync(
+                record, CancellationToken.None).ConfigureAwait(true);
+            SetResult($"Registered {record.ApplicationUri} → {id}.");
+            m_log.LogInformation("GdsManagement tab {Title}: registered {Uri} → {Id}.",
+                Title, record.ApplicationUri, id);
+            m_host.Main.CurrentRegisteredApp = context with { ApplicationId = id };
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Register failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: register failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Derives the GDS <see cref="ApplicationRecordDataType"/> from a
+    /// <see cref="RegisteredApplicationContext"/>. <see cref="ApplicationType"/>
+    /// is inferred from <see cref="RegisteredApplicationContext.RegistrationType"/>:
+    /// <c>ClientPull</c> → <c>Client</c>; <c>ServerPull</c>/<c>ServerPush</c>
+    /// → <c>Server</c>.
+    /// </summary>
+    private static ApplicationRecordDataType BuildApplicationRecord(RegisteredApplicationContext context)
+    {
+        ApplicationType appType = context.RegistrationType == GdsRegistrationType.ClientPull
+            ? ApplicationType.Client
+            : ApplicationType.Server;
+
+        var discoveryArray = new string[context.DiscoveryUrls.Count];
+        for (int i = 0; i < context.DiscoveryUrls.Count; i++)
+        {
+            discoveryArray[i] = context.DiscoveryUrls[i];
+        }
+        var capabilityArray = new string[context.ServerCapabilities.Count];
+        for (int i = 0; i < context.ServerCapabilities.Count; i++)
+        {
+            capabilityArray[i] = context.ServerCapabilities[i];
+        }
+
+        return new ApplicationRecordDataType
+        {
+            ApplicationId = context.ApplicationId,
+            ApplicationNames = [new LocalizedText(string.Empty, context.ApplicationName)],
+            ApplicationUri = context.ApplicationUri,
+            ProductUri = context.ProductUri,
+            ApplicationType = appType,
+            DiscoveryUrls = discoveryArray,
+            ServerCapabilities = capabilityArray
+        };
+    }
+
+    [RelayCommand]
+    private async Task UnregisterApplicationAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (SelectedApp is not { } sel)
+        {
+            SetResult("Select an application first.");
+            return;
+        }
+        if (sel.ApplicationId.IsNull)
+        {
+            SetResult("Selected application has no resolved NodeId — refresh first.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            await client.UnregisterApplicationAsync(
+                sel.ApplicationId, CancellationToken.None).ConfigureAwait(true);
+            SetResult($"Unregistered {sel.ApplicationName}.");
+            m_log.LogInformation("GdsManagement tab {Title}: unregistered {Id}.", Title, sel.ApplicationId);
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Unregister failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: unregister failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    [RelayCommand]
+    private Task IssueNewCertificateAsync()
+    {
+        return IssueAndDeliverAsync(
+            Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, https: false);
+    }
+
+    [RelayCommand]
+    private Task IssueNewHttpsCertificateAsync()
+    {
+        return IssueAndDeliverAsync(
+            Opc.Ua.ObjectTypeIds.HttpsCertificateType, https: true);
+    }
+
+    /// <summary>
+    /// Drives the combined "ask the GDS to mint a key-pair, then deliver
+    /// it" flow shared by the application and HTTPS certificate
+    /// commands. The delivery branch is selected from the registered
+    /// application context owned by <see cref="MainViewModel.CurrentRegisteredApp"/>:
+    /// <list type="bullet">
+    ///   <item><description><c>ClientPull</c> / <c>ServerPull</c>: write
+    ///   the cert + private key + issuer chain to the local store and
+    ///   file paths captured during registration.</description></item>
+    ///   <item><description><c>ServerPush</c>: spin up an ephemeral
+    ///   <see cref="ServerPushConfigurationClient"/> against the
+    ///   registered push endpoint, <c>UpdateCertificate</c> + <c>ApplyChanges</c>,
+    ///   dispose.</description></item>
+    /// </list>
+    /// When <see cref="MainViewModel.CurrentRegisteredApp"/> is null the
+    /// flow falls back to the original "log only" behaviour with a
+    /// status message telling the user to register the app first.
+    /// </summary>
+    private async Task IssueAndDeliverAsync(NodeId certificateTypeId, bool https)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (SelectedApp is not { } sel || sel.Record is null)
+        {
+            SetResult("Select a resolved application first.");
+            return;
+        }
+        if (sel.ApplicationId.IsNull)
+        {
+            SetResult("Selected application has no resolved NodeId — refresh first.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            // Discover cert groups for the application; if none are
+            // reported, fall back to the default application group (the
+            // server may still accept a key-pair request against null).
+            ArrayOf<NodeId> groups = await client.GetCertificateGroupsAsync(
+                sel.ApplicationId, CancellationToken.None).ConfigureAwait(true);
+            NodeId groupId = NodeId.Null;
+            if (!groups.IsNull && groups.Count > 0)
+            {
+                groupId = groups[0];
+            }
+            RegisteredApplicationContext? ctx = m_host.Main.CurrentRegisteredApp;
+            string subject = !string.IsNullOrWhiteSpace(ctx?.CertificateSubjectName)
+                ? ctx!.CertificateSubjectName!
+                : "CN=" + sel.ApplicationName;
+            ArrayOf<string> domainNames = BuildDomainNames(ctx);
+            const string privateKeyFormat = "PFX";
+            NodeId requestId = await client.StartNewKeyPairRequestAsync(
+                sel.ApplicationId,
+                groupId,
+                certificateTypeId,
+                subject,
+                domainNames,
+                privateKeyFormat,
+                Array.Empty<char>(),
+                CancellationToken.None).ConfigureAwait(true);
+            (ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuers) =
+                await PollFinishRequestAsync(sel.ApplicationId, requestId, CancellationToken.None)
+                    .ConfigureAwait(true);
+            string summary = SummariseCert(publicKey);
+            int issuerCount = issuers.IsNull ? 0 : issuers.Count;
+            string label = https ? "HTTPS cert" : "cert";
+
+            if (ctx is null)
+            {
+                SetResult(
+                    $"No registered application context — issued {label} for {sel.ApplicationName}: {summary} " +
+                    $"(+{issuerCount} issuer cert(s)) but cannot deliver. Register the app first.");
+                m_log.LogInformation(
+                    "GdsManagement tab {Title}: issued {Label} for {App} (request {Req}). " +
+                    "No CurrentRegisteredApp context — delivery skipped.",
+                    Title, label, sel.ApplicationName, requestId);
+                return;
+            }
+
+            string deliveryDetail = await DeliverIssuedCertificateAsync(
+                ctx,
+                certificateTypeId,
+                https,
+                publicKey,
+                privateKey,
+                privateKeyFormat,
+                issuers,
+                CancellationToken.None).ConfigureAwait(true);
+            SetResult(
+                $"Issued {label} for {sel.ApplicationName}: {summary} (+{issuerCount} issuer cert(s)). " +
+                deliveryDetail);
+            m_log.LogInformation(
+                "GdsManagement tab {Title}: issued {Label} for {App} (request {Req}); delivery: {Detail}.",
+                Title, label, sel.ApplicationName, requestId, deliveryDetail);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Issue cert failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: issue cert failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    [RelayCommand]
+    private async Task ViewCertGroupsAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (SelectedApp is not { } sel || sel.ApplicationId.IsNull)
+        {
+            SetResult("Select a resolved application first.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            await RefreshCertGroupsAsync(sel, CancellationToken.None).ConfigureAwait(true);
+            SetResult($"Cert groups loaded for {sel.ApplicationName}: {CertGroups.Count} group(s).");
+        }
+        catch (Exception ex)
+        {
+            SetResult($"View cert groups failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: view cert groups failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Pull-mode trust-list delivery: reads the registered application's
+    /// trust list from the GDS and writes it into the local
+    /// <see cref="RegisteredApplicationContext.TrustListStorePath"/> and
+    /// <see cref="RegisteredApplicationContext.IssuerListStorePath"/>
+    /// directory stores (trusted + issuer certs and their CRLs). Mirrors
+    /// the sample's <c>ApplicationTrustListControl</c> "pull" branch.
+    /// </summary>
+    [RelayCommand]
+    private async Task PullTrustListSaveLocallyAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        RegisteredApplicationContext? ctx = m_host.Main.CurrentRegisteredApp;
+        if (ctx is null)
+        {
+            SetResult("Pull trust list: register an application first.");
+            return;
+        }
+        if (ctx.ApplicationId.IsNull)
+        {
+            SetResult("Pull trust list: registered application has no NodeId — re-register first.");
+            return;
+        }
+        if (string.IsNullOrEmpty(ctx.TrustListStorePath) && string.IsNullOrEmpty(ctx.IssuerListStorePath))
+        {
+            SetResult("Pull trust list: no TrustListStorePath / IssuerListStorePath configured.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            TrustListDataType list = await ReadGdsTrustListAsync(client, ctx.ApplicationId, CancellationToken.None)
+                .ConfigureAwait(true);
+            string detail = await WriteTrustListToLocalStoresAsync(
+                ctx, list, CancellationToken.None).ConfigureAwait(true);
+            SetResult($"Trust list pulled for {ctx.ApplicationName}: {detail}");
+            m_log.LogInformation(
+                "GdsManagement tab {Title}: pulled trust list for {App}; {Detail}.",
+                Title, ctx.ApplicationName, detail);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Pull trust list failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: pull trust list (local) failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Push-mode trust-list delivery: reads the registered application's
+    /// trust list from the GDS, then pushes it to the registered
+    /// application's <see cref="RegisteredApplicationContext.PushEndpoint"/>
+    /// via an ephemeral <see cref="ServerPushConfigurationClient"/>.
+    /// Calls <c>UpdateTrustList</c>, then <c>ApplyChanges</c> when the
+    /// server asks for it, then disposes the push client. Parallels
+    /// <see cref="DeliverViaServerPushAsync"/>'s shape.
+    /// </summary>
+    [RelayCommand]
+    private async Task PullTrustListPushToServerAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        RegisteredApplicationContext? ctx = m_host.Main.CurrentRegisteredApp;
+        if (ctx is null)
+        {
+            SetResult("Push trust list: register an application first.");
+            return;
+        }
+        if (ctx.ApplicationId.IsNull)
+        {
+            SetResult("Push trust list: registered application has no NodeId — re-register first.");
+            return;
+        }
+        if (ctx.PushEndpoint is null)
+        {
+            SetResult("Push trust list: registered application has no PushEndpoint.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            TrustListDataType list = await ReadGdsTrustListAsync(client, ctx.ApplicationId, CancellationToken.None)
+                .ConfigureAwait(true);
+            string detail = await PushTrustListToServerAsync(
+                ctx, list, CancellationToken.None).ConfigureAwait(true);
+            SetResult($"Trust list pushed for {ctx.ApplicationName}: {detail}");
+            m_log.LogInformation(
+                "GdsManagement tab {Title}: pushed trust list for {App}; {Detail}.",
+                Title, ctx.ApplicationName, detail);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Push trust list failed: {ex.Message}");
+            m_log.LogError(ex, "GdsManagement tab {Title}: pull trust list (push) failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Resolves the trust-list NodeId for the registered application's
+    /// default certificate group via <see cref="GlobalDiscoveryServerClient.GetTrustListAsync"/>
+    /// (passing <see cref="NodeId.Null"/> for the group to let the GDS
+    /// pick the default) and then reads the trust-list file via
+    /// <see cref="GlobalDiscoveryServerClient.ReadTrustListAsync(NodeId, long, CancellationToken)"/>.
+    /// </summary>
+    private static async Task<TrustListDataType> ReadGdsTrustListAsync(
+        GlobalDiscoveryServerClient client,
+        NodeId applicationId,
+        CancellationToken ct)
+    {
+        NodeId trustListId = await client.GetTrustListAsync(
+            applicationId, NodeId.Null, ct).ConfigureAwait(true);
+        if (trustListId.IsNull)
+        {
+            throw new ServiceResultException(
+                StatusCodes.BadNotFound,
+                "GDS did not return a trust-list NodeId for the registered application.");
+        }
+        return await client.ReadTrustListAsync(trustListId, 0, ct).ConfigureAwait(true);
+    }
+
+    // ----- Helpers -----
+
+    /// <summary>
+    /// Resolves each <see cref="RegisteredApp"/> in <see cref="AllApps"/>
+    /// against <c>FindApplication</c> to fill in the NodeId required for
+    /// management operations.  Best-effort — failures are logged but do
+    /// not abort the refresh.
+    /// </summary>
+    private async Task ResolveAllRecordsAsync()
+    {
+        if (m_client is null)
+        {
+            return;
+        }
+
+        var snapshot = AllApps.ToArray();
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            RegisteredApp app = snapshot[i];
+            if (string.IsNullOrEmpty(app.ApplicationUri))
+            {
+                continue;
+            }
+
+            try
+            {
+                ArrayOf<ApplicationRecordDataType> hits = await m_client.FindApplicationAsync(
+                    app.ApplicationUri, CancellationToken.None).ConfigureAwait(true);
+                if (hits.IsNull || hits.Count == 0)
+                {
+                    continue;
+                }
+
+                ApplicationRecordDataType rec = hits[0];
+                RegisteredApp resolved = RegisteredApp.FromRecord(rec);
+                int idx = AllApps.IndexOf(app);
+                if (idx >= 0)
+                {
+                    AllApps[idx] = resolved;
+                }
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex,
+                    "GdsManagement tab {Title}: FindApplication failed for {Uri}.",
+                    Title, app.ApplicationUri);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reapplies <see cref="FilterText"/> to <see cref="AllApps"/>, writing
+    /// the result into <see cref="FilteredApps"/>.  Case-insensitive
+    /// substring match against the display fields.
+    /// </summary>
+    private void ApplyFilter()
+    {
+        FilteredApps.Clear();
+        string needle = (FilterText ?? string.Empty).Trim();
+        foreach (RegisteredApp app in AllApps)
+        {
+            if (needle.Length == 0 || MatchesFilter(app, needle))
+            {
+                FilteredApps.Add(app);
+            }
+        }
+    }
+
+    private static bool MatchesFilter(RegisteredApp app, string needle)
+    {
+        return Contains(app.ApplicationName, needle) ||
+               Contains(app.ApplicationUri, needle) ||
+               Contains(app.ProductUri, needle) ||
+               Contains(app.ApplicationType, needle) ||
+               Contains(app.ServerCapabilities, needle);
+
+        static bool Contains(string hay, string n) =>
+            !string.IsNullOrEmpty(hay) &&
+            hay.Contains(n, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Populates the <see cref="CertGroups"/> collection for the given
+    /// application.  Reads the cert groups, then for each group reads the
+    /// trust list to surface trusted + issuer certificates.
+    /// </summary>
+    private async Task RefreshCertGroupsAsync(RegisteredApp app, CancellationToken ct)
+    {
+        if (m_client is null)
+        {
+            return;
+        }
+
+        CertGroups.Clear();
+        ArrayOf<NodeId> groupIds = await m_client.GetCertificateGroupsAsync(
+            app.ApplicationId, ct).ConfigureAwait(true);
+        if (groupIds.IsNull)
+        {
+            return;
+        }
+
+        for (int i = 0; i < groupIds.Count; i++)
+        {
+            NodeId gid = groupIds[i];
+            var group = new GdsCertGroupVm
+            {
+                GroupId = gid,
+                DisplayName = gid.ToString() ?? "(unnamed)"
+            };
+            try
+            {
+                NodeId trustListId = await m_client.GetTrustListAsync(
+                    app.ApplicationId, gid, ct).ConfigureAwait(true);
+                if (!trustListId.IsNull)
+                {
+                    TrustListDataType list = await m_client.ReadTrustListAsync(trustListId, ct)
+                        .ConfigureAwait(true);
+                    PopulateGroupCerts(group, list);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex, "GdsManagement tab {Title}: trust-list read failed for group {Group}.",
+                    Title, gid);
+            }
+            CertGroups.Add(group);
+        }
+    }
+
+    private static void PopulateGroupCerts(GdsCertGroupVm group, TrustListDataType list)
+    {
+        if (list?.TrustedCertificates is { } trusted)
+        {
+            foreach (ByteString der in trusted)
+            {
+                if (TryParseCert(der, out X509Certificate2? cert) && cert is not null)
+                {
+                    group.Trusted.Add(ToItem(cert, "Trusted"));
+                }
+            }
+        }
+        if (list?.IssuerCertificates is { } issuers)
+        {
+            foreach (ByteString der in issuers)
+            {
+                if (TryParseCert(der, out X509Certificate2? cert) && cert is not null)
+                {
+                    group.Issuers.Add(ToItem(cert, "Issuer"));
+                }
+            }
+        }
+    }
+
+    private static bool TryParseCert(ByteString bs, out X509Certificate2? cert)
+    {
+        try
+        {
+            if (bs.Memory.IsEmpty)
+            {
+                cert = null;
+                return false;
+            }
+            cert = X509CertificateLoader.LoadCertificate(bs.Memory.ToArray());
+            return true;
+        }
+        catch
+        {
+            cert = null;
+            return false;
+        }
+    }
+
+    private static GdsAppCertItem ToItem(X509Certificate2 cert, string bucket)
+    {
+        return new GdsAppCertItem
+        {
+            Thumbprint = cert.Thumbprint,
+            Subject = ShortName(cert.Subject),
+            Issuer = ShortName(cert.Issuer),
+            NotBefore = cert.NotBefore.ToUniversalTime()
+                .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            NotAfter = cert.NotAfter.ToUniversalTime()
+                .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Bucket = bucket
+        };
+    }
+
+    private static string ShortName(string distinguished)
+    {
+        if (string.IsNullOrEmpty(distinguished))
+        {
+            return "—";
+        }
+
+        foreach (string rdn in distinguished.Split(',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (rdn.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
+            {
+                return rdn[3..];
+            }
+        }
+        return distinguished;
+    }
+
+    /// <summary>
+    /// Polls <see cref="GlobalDiscoveryServerClient.FinishRequestAsync"/>
+    /// until the server delivers the signed certificate or the call
+    /// throws.  Uses a short backoff so the UI stays responsive while
+    /// the certificate authority signs the request.
+    /// </summary>
+    private async Task<(ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuers)>
+        PollFinishRequestAsync(NodeId applicationId, NodeId requestId, CancellationToken ct)
+    {
+        if (m_client is null)
+        {
+            throw new InvalidOperationException("Client disconnected.");
+        }
+        for (int attempt = 0; attempt < 30; attempt++)
+        {
+            (ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuers) =
+                await m_client.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(true);
+            if (!publicKey.Memory.IsEmpty)
+            {
+                return (publicKey, privateKey, issuers);
+            }
+            await Task.Delay(TimeSpan.FromSeconds(1), ct).ConfigureAwait(true);
+        }
+        throw new TimeoutException("FinishRequest did not produce a certificate within 30 seconds.");
+    }
+
+    /// <summary>
+    /// Branches on <see cref="RegisteredApplicationContext.RegistrationType"/>
+    /// to dispatch the freshly minted cert + private key + issuer chain
+    /// to either a local store / file paths (pull) or to the registered
+    /// application's <c>ServerConfiguration</c> push endpoint.
+    /// </summary>
+    private Task<string> DeliverIssuedCertificateAsync(
+        RegisteredApplicationContext ctx,
+        NodeId certificateTypeId,
+        bool https,
+        ByteString publicKey,
+        ByteString privateKey,
+        string privateKeyFormat,
+        ArrayOf<ByteString> issuers,
+        CancellationToken ct)
+    {
+        return ctx.RegistrationType switch
+        {
+            GdsRegistrationType.ServerPush => DeliverViaServerPushAsync(
+                ctx, certificateTypeId, publicKey, privateKey, privateKeyFormat, issuers, ct),
+            _ => DeliverViaPullAsync(
+                ctx, https, publicKey, privateKey, privateKeyFormat, issuers, ct)
+        };
+    }
+
+    /// <summary>
+    /// Pull-mode delivery: writes the freshly-issued material into the
+    /// local store / file paths captured during application registration.
+    /// Mirrors the sample's <c>ApplicationCertificateControl.CertificateRequestTimer_Tick</c>
+    /// pull-mode branch — application cert into <c>CertificateStorePath</c>,
+    /// raw key material into the public/private key file paths,
+    /// issuer chain into <c>IssuerListStorePath</c>.
+    /// HTTPS targets <c>Https*</c> path siblings instead.
+    /// </summary>
+    private async Task<string> DeliverViaPullAsync(
+        RegisteredApplicationContext ctx,
+        bool https,
+        ByteString publicKey,
+        ByteString privateKey,
+        string privateKeyFormat,
+        ArrayOf<ByteString> issuers,
+        CancellationToken ct)
+    {
+        byte[] certBytes = publicKey.Memory.ToArray();
+        byte[] keyBytes = privateKey.Memory.ToArray();
+        bool hasPrivateKey = keyBytes.Length > 0;
+        // HTTPS certs are typically not written to the application
+        // certificate store — they live solely in their own file paths.
+        // Pull-mode app certs use both store + raw key files; the sample
+        // pattern is "store and/or files, whichever the registration
+        // captured".
+        string? storePath = https ? null : ctx.CertificateStorePath;
+        string? publicKeyPath = https
+            ? ctx.HttpsCertificatePublicKeyPath
+            : ctx.CertificatePublicKeyPath;
+        string? privateKeyPath = https
+            ? ctx.HttpsCertificatePrivateKeyPath
+            : ctx.CertificatePrivateKeyPath;
+        string? issuerStorePath = https
+            ? ctx.HttpsIssuerListStorePath
+            : ctx.IssuerListStorePath;
+
+        var actions = new List<string>();
+
+        if (!string.IsNullOrEmpty(storePath) && certBytes.Length > 0)
+        {
+            try
+            {
+                await AddApplicationCertToStoreAsync(
+                    storePath!, certBytes, keyBytes, privateKeyFormat, hasPrivateKey, ct)
+                    .ConfigureAwait(true);
+                actions.Add($"store={storePath}");
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex,
+                    "GdsManagement tab {Title}: write to cert store {Path} failed.", Title, storePath);
+                actions.Add($"store!{ex.GetType().Name}");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(publicKeyPath) && certBytes.Length > 0)
+        {
+            try
+            {
+                await WriteAllBytesEnsureDirAsync(publicKeyPath!, certBytes, ct).ConfigureAwait(true);
+                actions.Add($"pub={publicKeyPath}");
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex,
+                    "GdsManagement tab {Title}: write public-key file {Path} failed.", Title, publicKeyPath);
+                actions.Add($"pub!{ex.GetType().Name}");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(privateKeyPath) && hasPrivateKey)
+        {
+            try
+            {
+                await WriteAllBytesEnsureDirAsync(privateKeyPath!, keyBytes, ct).ConfigureAwait(true);
+                actions.Add($"priv={privateKeyPath}");
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex,
+                    "GdsManagement tab {Title}: write private-key file {Path} failed.", Title, privateKeyPath);
+                actions.Add($"priv!{ex.GetType().Name}");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(issuerStorePath) && !issuers.IsNull && issuers.Count > 0)
+        {
+            try
+            {
+                await AddIssuerCertsToStoreAsync(issuerStorePath!, issuers, ct).ConfigureAwait(true);
+                actions.Add($"issuers={issuerStorePath}({issuers.Count})");
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex,
+                    "GdsManagement tab {Title}: write to issuer store {Path} failed.", Title, issuerStorePath);
+                actions.Add($"issuers!{ex.GetType().Name}");
+            }
+        }
+
+        string mode = ctx.RegistrationType == GdsRegistrationType.ClientPull
+            ? "ClientPull"
+            : "ServerPull";
+        if (actions.Count == 0)
+        {
+            return $"{mode} delivery: no destination paths configured for {(https ? "HTTPS" : "application")} cert.";
+        }
+        return $"{mode} delivery: {string.Join(", ", actions)}.";
+    }
+
+    /// <summary>
+    /// Adds the application certificate (with private key when the PFX
+    /// blob is non-empty) to a directory-backed certificate store.
+    /// </summary>
+    private async Task AddApplicationCertToStoreAsync(
+        string storePath,
+        byte[] certBytes,
+        byte[] keyBytes,
+        string privateKeyFormat,
+        bool hasPrivateKey,
+        CancellationToken ct)
+    {
+        Certificate? certificate = null;
+        try
+        {
+            if (hasPrivateKey &&
+                string.Equals(privateKeyFormat, "PFX", StringComparison.OrdinalIgnoreCase))
+            {
+                certificate = X509Utils.CreateCertificateFromPKCS12(keyBytes, ReadOnlySpan<char>.Empty);
+            }
+            else
+            {
+                certificate = Certificate.FromRawData(certBytes);
+            }
+            var storeId = new CertificateStoreIdentifier(
+                storePath, noPrivateKeys: !hasPrivateKey);
+            using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+            await store.AddAsync(certificate, password: null, ct).ConfigureAwait(true);
+        }
+        finally
+        {
+            certificate?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Adds each DER-encoded issuer certificate to the directory-backed
+    /// issuer trust list at <paramref name="storePath"/>. Tolerates
+    /// individual entries that fail to parse so a single bad blob does
+    /// not block the rest of the chain from landing.
+    /// </summary>
+    private async Task AddIssuerCertsToStoreAsync(
+        string storePath,
+        ArrayOf<ByteString> issuers,
+        CancellationToken ct)
+    {
+        var storeId = new CertificateStoreIdentifier(storePath, noPrivateKeys: true);
+        using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+        for (int i = 0; i < issuers.Count; i++)
+        {
+            ReadOnlyMemory<byte> raw = issuers[i].Memory;
+            if (raw.IsEmpty)
+            {
+                continue;
+            }
+            Certificate? issuerCert = null;
+            try
+            {
+                issuerCert = Certificate.FromRawData(raw);
+                await store.AddAsync(issuerCert, password: null, ct).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex,
+                    "GdsManagement tab {Title}: skipping malformed issuer cert at index {Index}.",
+                    Title, i);
+            }
+            finally
+            {
+                issuerCert?.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes a freshly-pulled <see cref="TrustListDataType"/> into the
+    /// registered application's local trust-list / issuer-list directory
+    /// stores. Trusted certificates and CRLs land in
+    /// <see cref="RegisteredApplicationContext.TrustListStorePath"/>;
+    /// issuer certificates and CRLs land in
+    /// <see cref="RegisteredApplicationContext.IssuerListStorePath"/>.
+    /// Each category is gated on its <c>SpecifiedLists</c> mask so an
+    /// empty list does not wipe an existing local entry the GDS did not
+    /// know about.
+    /// </summary>
+    private async Task<string> WriteTrustListToLocalStoresAsync(
+        RegisteredApplicationContext ctx,
+        TrustListDataType list,
+        CancellationToken ct)
+    {
+        var actions = new List<string>();
+        uint specified = list?.SpecifiedLists ?? 0u;
+
+        bool wantTrustedCerts = (specified & (uint)TrustListMasks.TrustedCertificates) != 0;
+        bool wantTrustedCrls = (specified & (uint)TrustListMasks.TrustedCrls) != 0;
+        bool wantIssuerCerts = (specified & (uint)TrustListMasks.IssuerCertificates) != 0;
+        bool wantIssuerCrls = (specified & (uint)TrustListMasks.IssuerCrls) != 0;
+
+        if (!string.IsNullOrEmpty(ctx.TrustListStorePath) && (wantTrustedCerts || wantTrustedCrls))
+        {
+            var storeId = new CertificateStoreIdentifier(ctx.TrustListStorePath!, noPrivateKeys: true);
+            using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+            if (wantTrustedCerts && list?.TrustedCertificates is { } trustedCerts)
+            {
+                int added = await AddCertsAsync(store, trustedCerts, "trusted", ct).ConfigureAwait(true);
+                actions.Add($"trusted={ctx.TrustListStorePath}({added})");
+            }
+            if (wantTrustedCrls && store.SupportsCRLs && list?.TrustedCrls is { } trustedCrls)
+            {
+                int added = await AddCrlsAsync(store, trustedCrls, "trusted", ct).ConfigureAwait(true);
+                actions.Add($"trustedCrls={ctx.TrustListStorePath}({added})");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(ctx.IssuerListStorePath) && (wantIssuerCerts || wantIssuerCrls))
+        {
+            var storeId = new CertificateStoreIdentifier(ctx.IssuerListStorePath!, noPrivateKeys: true);
+            using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+            if (wantIssuerCerts && list?.IssuerCertificates is { } issuerCerts)
+            {
+                int added = await AddCertsAsync(store, issuerCerts, "issuer", ct).ConfigureAwait(true);
+                actions.Add($"issuers={ctx.IssuerListStorePath}({added})");
+            }
+            if (wantIssuerCrls && store.SupportsCRLs && list?.IssuerCrls is { } issuerCrls)
+            {
+                int added = await AddCrlsAsync(store, issuerCrls, "issuer", ct).ConfigureAwait(true);
+                actions.Add($"issuerCrls={ctx.IssuerListStorePath}({added})");
+            }
+        }
+
+        if (actions.Count == 0)
+        {
+            return "no categories written (SpecifiedLists empty or destinations missing).";
+        }
+        return string.Join(", ", actions) + ".";
+    }
+
+    /// <summary>
+    /// Adds each DER-encoded certificate in <paramref name="entries"/> to
+    /// <paramref name="store"/>, tolerating individual parse failures so
+    /// one malformed entry does not block the rest.
+    /// </summary>
+    private async Task<int> AddCertsAsync(
+        ICertificateStore store,
+        ArrayOf<ByteString> entries,
+        string bucket,
+        CancellationToken ct)
+    {
+        if (entries.IsNull)
+        {
+            return 0;
+        }
+        int added = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ReadOnlyMemory<byte> raw = entries[i].Memory;
+            if (raw.IsEmpty)
+            {
+                continue;
+            }
+            Certificate? cert = null;
+            try
+            {
+                cert = Certificate.FromRawData(raw);
+                await store.AddAsync(cert, password: null, ct).ConfigureAwait(true);
+                added++;
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex,
+                    "GdsManagement tab {Title}: skipping malformed {Bucket} cert at index {Index}.",
+                    Title, bucket, i);
+            }
+            finally
+            {
+                cert?.Dispose();
+            }
+        }
+        return added;
+    }
+
+    /// <summary>
+    /// Adds each DER-encoded CRL in <paramref name="entries"/> to
+    /// <paramref name="store"/>, tolerating individual parse failures so
+    /// one malformed entry does not block the rest.
+    /// </summary>
+    private async Task<int> AddCrlsAsync(
+        ICertificateStore store,
+        ArrayOf<ByteString> entries,
+        string bucket,
+        CancellationToken ct)
+    {
+        if (entries.IsNull)
+        {
+            return 0;
+        }
+        int added = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ReadOnlyMemory<byte> raw = entries[i].Memory;
+            if (raw.IsEmpty)
+            {
+                continue;
+            }
+            try
+            {
+                var crl = new X509CRL(raw.ToArray());
+                await store.AddCRLAsync(crl, ct).ConfigureAwait(true);
+                added++;
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex,
+                    "GdsManagement tab {Title}: skipping malformed {Bucket} CRL at index {Index}.",
+                    Title, bucket, i);
+            }
+        }
+        return added;
+    }
+
+    /// <summary>
+    /// Spawns an ephemeral <see cref="ServerPushConfigurationClient"/>
+    /// against the registered application's
+    /// <see cref="RegisteredApplicationContext.PushEndpoint"/>, calls
+    /// <c>UpdateTrustList</c> followed by <c>ApplyChanges</c> (when the
+    /// server requests it), and disposes the client. Mirrors the shape
+    /// of <see cref="DeliverViaServerPushAsync"/>.
+    /// </summary>
+    private async Task<string> PushTrustListToServerAsync(
+        RegisteredApplicationContext ctx,
+        TrustListDataType list,
+        CancellationToken ct)
+    {
+        if (ctx.PushEndpoint is not { } pushEndpoint)
+        {
+            return "ServerPush delivery skipped: no PushEndpoint on registered application context.";
+        }
+
+        ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+#pragma warning disable CA2000 // ownership transferred to ServerPushConfigurationClient via AdminCredentials
+        IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
+#pragma warning restore CA2000
+        ServerPushConfigurationClient? pushClient = null;
+        try
+        {
+#pragma warning disable CA2000 // pushClient ownership tracked across the try/finally below
+            pushClient = new ServerPushConfigurationClient(cfg);
+#pragma warning restore CA2000
+            pushClient.AdminCredentials = identity;
+            var configured = new ConfiguredEndpoint(
+                null, pushEndpoint, EndpointConfiguration.Create(cfg));
+            await pushClient.ConnectAsync(configured, ct).ConfigureAwait(true);
+
+            bool applyChanges = await pushClient.UpdateTrustListAsync(list, ct).ConfigureAwait(true);
+
+            if (applyChanges)
+            {
+                try
+                {
+                    await pushClient.ApplyChangesAsync(ct).ConfigureAwait(true);
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed
+                    || sre.StatusCode == StatusCodes.BadConnectionClosed
+                    || sre.StatusCode == StatusCodes.BadSessionClosed
+                    || sre.StatusCode == StatusCodes.BadSessionIdInvalid
+                    || sre.StatusCode == StatusCodes.BadNotConnected)
+                {
+                    // ApplyChanges typically tears down the channel as
+                    // the server restarts itself with the new trust list;
+                    // treat those tear-down codes as a success.
+                    m_log.LogDebug(sre,
+                        "GdsManagement tab {Title}: push ApplyChanges tore down the channel as expected.",
+                        Title);
+                }
+                return $"ServerPush to {pushEndpoint.EndpointUrl}: UpdateTrustList + ApplyChanges OK.";
+            }
+            return $"ServerPush to {pushEndpoint.EndpointUrl}: UpdateTrustList returned false (no ApplyChanges).";
+        }
+        finally
+        {
+            if (pushClient is not null)
+            {
+                try
+                {
+                    await pushClient.DisposeAsync().ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    m_log.LogWarning(ex,
+                        "GdsManagement tab {Title}: dispose of ephemeral push client failed.", Title);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Push-mode delivery: spawns an ephemeral
+    /// <see cref="ServerPushConfigurationClient"/> against the registered
+    /// app's <see cref="RegisteredApplicationContext.PushEndpoint"/>,
+    /// calls <c>UpdateCertificate</c> + <c>ApplyChanges</c>, then disposes
+    /// it. Reusing a live GdsPush tab's session is out of scope — the
+    /// user can refresh that tab afterwards to pick up the new state.
+    /// </summary>
+    private async Task<string> DeliverViaServerPushAsync(
+        RegisteredApplicationContext ctx,
+        NodeId certificateTypeId,
+        ByteString publicKey,
+        ByteString privateKey,
+        string privateKeyFormat,
+        ArrayOf<ByteString> issuers,
+        CancellationToken ct)
+    {
+        if (ctx.PushEndpoint is not { } pushEndpoint)
+        {
+            return "ServerPush delivery skipped: no PushEndpoint on registered application context.";
+        }
+
+        ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+#pragma warning disable CA2000 // ownership transferred to ServerPushConfigurationClient via AdminCredentials
+        IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
+#pragma warning restore CA2000
+        ServerPushConfigurationClient? pushClient = null;
+        try
+        {
+#pragma warning disable CA2000 // pushClient ownership tracked across the try/finally below
+            pushClient = new ServerPushConfigurationClient(cfg);
+#pragma warning restore CA2000
+            pushClient.AdminCredentials = identity;
+            var configured = new ConfiguredEndpoint(
+                null, pushEndpoint, EndpointConfiguration.Create(cfg));
+            await pushClient.ConnectAsync(configured, ct).ConfigureAwait(true);
+
+            string keyFormat = privateKey.Memory.IsEmpty ? string.Empty : privateKeyFormat;
+            bool applyChanges = await pushClient.UpdateCertificateAsync(
+                NodeId.Null,
+                certificateTypeId,
+                publicKey,
+                keyFormat,
+                privateKey,
+                issuers,
+                ct).ConfigureAwait(true);
+
+            if (applyChanges)
+            {
+                try
+                {
+                    await pushClient.ApplyChangesAsync(ct).ConfigureAwait(true);
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed
+                    || sre.StatusCode == StatusCodes.BadConnectionClosed
+                    || sre.StatusCode == StatusCodes.BadSessionClosed
+                    || sre.StatusCode == StatusCodes.BadSessionIdInvalid
+                    || sre.StatusCode == StatusCodes.BadNotConnected)
+                {
+                    // ApplyChanges typically tears down the channel as
+                    // the server restarts itself with the new cert; treat
+                    // those tear-down codes as a success.
+                    m_log.LogDebug(sre,
+                        "GdsManagement tab {Title}: push ApplyChanges tore down the channel as expected.",
+                        Title);
+                }
+                return $"ServerPush delivery to {pushEndpoint.EndpointUrl}: UpdateCertificate + ApplyChanges OK.";
+            }
+            return $"ServerPush delivery to {pushEndpoint.EndpointUrl}: UpdateCertificate returned false (no ApplyChanges).";
+        }
+        finally
+        {
+            if (pushClient is not null)
+            {
+                try
+                {
+                    await pushClient.DisposeAsync().ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    m_log.LogWarning(ex,
+                        "GdsManagement tab {Title}: dispose of ephemeral push client failed.", Title);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the SAN <c>domainNames</c> array passed to
+    /// <c>StartNewKeyPairRequest</c>. Pulls from the registered context's
+    /// <see cref="RegisteredApplicationContext.Domains"/> (comma-separated
+    /// list) when present; otherwise returns an empty array and lets the
+    /// GDS infer defaults.
+    /// </summary>
+    private static ArrayOf<string> BuildDomainNames(RegisteredApplicationContext? ctx)
+    {
+        if (ctx is null || string.IsNullOrWhiteSpace(ctx.Domains))
+        {
+            return Array.Empty<string>();
+        }
+        string[] parts = ctx.Domains.Split(
+            ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts;
+    }
+
+    /// <summary>
+    /// Writes <paramref name="bytes"/> to <paramref name="path"/>,
+    /// creating the parent directory if needed.
+    /// </summary>
+    private static async Task WriteAllBytesEnsureDirAsync(
+        string path, byte[] bytes, CancellationToken ct)
+    {
+        string? dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+        await File.WriteAllBytesAsync(path, bytes, ct).ConfigureAwait(false);
+    }
+
+    private static string SummariseCert(ByteString der)
+    {
+        try
+        {
+            if (der.Memory.IsEmpty)
+            {
+                return "(empty)";
+            }
+
+            X509Certificate2 cert = GdsCertRequestHelper.ParseCertificate(der.Memory.ToArray());
+            return $"{ShortName(cert.Subject)} (expires {cert.NotAfter:yyyy-MM-dd})";
+        }
+        catch (Exception ex)
+        {
+            return $"(unparsable: {ex.Message})";
+        }
+    }
+
+    private async Task SafeDisposeClientAsync()
+    {
+        GlobalDiscoveryServerClient? client = m_client;
+        if (client is null)
+        {
+            return;
+        }
+
+        await GdsSessionHelper.SafeDisconnectAndDisposeAsync(
+            client,
+            detachHandlers: null,
+            client.DisconnectAsync,
+            m_log,
+            $"GdsManagement tab {Title}").ConfigureAwait(false);
+        m_client = null;
+    }
+
+    private static Window? GetOwnerWindow()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow;
+        }
+        return null;
+    }
+
+    private void SetResult(string text)
+    {
+        LastOperationResult = text;
+        UpdateStatus();
+    }
+
+    private void UpdateStatus()
+    {
+        if (!IsConnected)
+        {
+            Status = string.IsNullOrEmpty(LastOperationResult)
+                ? "● Disconnected"
+                : $"● Disconnected · {LastOperationResult}";
+            return;
+        }
+        Status = $"● Connected · {AllApps.Count} apps · {CertGroups.Count} group(s)" +
+                 (string.IsNullOrEmpty(LastOperationResult)
+                     ? string.Empty
+                     : $" · {LastOperationResult}");
+    }
+
+    partial void OnFilterTextChanged(string value) => Dispatcher.UIThread.Post(ApplyFilter);
+
+    partial void OnSelectedAppChanged(RegisteredApp? value)
+    {
+        if (value is null)
+        {
+            SelectedAppDetail = "No application selected.";
+            CertGroups.Clear();
+            UpdateStatus();
+            return;
+        }
+        var sb = new StringBuilder();
+        sb.Append("Application Name: ").AppendLine(value.ApplicationName);
+        sb.Append("Application URI : ").AppendLine(value.ApplicationUri);
+        sb.Append("Product URI     : ").AppendLine(value.ProductUri);
+        sb.Append("Application Type: ").AppendLine(value.ApplicationType);
+        sb.Append("NodeId          : ").AppendLine(value.Identifier);
+        if (!string.IsNullOrEmpty(value.DiscoveryUrls))
+        {
+            sb.AppendLine().AppendLine("Discovery URLs:");
+            sb.AppendLine(value.DiscoveryUrls);
+        }
+        if (!string.IsNullOrEmpty(value.ServerCapabilities))
+        {
+            sb.AppendLine().Append("Server Capabilities: ").AppendLine(value.ServerCapabilities);
+        }
+        SelectedAppDetail = sb.ToString();
+        UpdateStatus();
+    }
+
+    partial void OnLastOperationResultChanged(string value) => UpdateStatus();
+}

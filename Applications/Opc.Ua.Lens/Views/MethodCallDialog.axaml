@@ -1,0 +1,105 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.MethodCallDialog"
+        Title="Call method"
+        Width="700" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,*,Auto" ColumnDefinitions="*">
+    <TextBlock Grid.Row="0" Margin="0,0,0,12" TextWrapping="Wrap"
+               Text="Fill in the method's input arguments. Parser uses each argument's DataType + ValueRank." />
+
+    <TextBlock Grid.Row="1" x:Name="MethodLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,4" />
+    <TextBlock Grid.Row="2" x:Name="ParentLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,8" Foreground="{DynamicResource TextSecondary}" />
+
+    <TextBlock Grid.Row="3" Text="Input arguments" FontWeight="SemiBold" Margin="0,4,0,4" />
+    <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Auto">
+      <ItemsControl x:Name="InputsList">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="v:MethodArgRow">
+            <Grid ColumnDefinitions="200,*,Auto,Auto" Margin="0,2,0,2">
+              <TextBlock Grid.Column="0" Text="{CompiledBinding Header}"
+                         Foreground="{DynamicResource TextSecondary}"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         VerticalAlignment="Center" />
+              <TextBox Grid.Column="1" Text="{CompiledBinding ValueText, Mode=TwoWay}"
+                       FontFamily="Cascadia Mono, Consolas, monospace" />
+              <Button Grid.Column="2" Content="🧩"
+                      ToolTip.Tip="Edit as structured value"
+                      Padding="6,2" Margin="6,0,0,0"
+                      IsVisible="{CompiledBinding IsComplex}"
+                      Command="{CompiledBinding EditComplexCommand}" />
+              <Button Grid.Column="3" Content="📂"
+                      ToolTip.Tip="Import argument from file"
+                      Padding="6,2" Margin="6,0,0,0"
+                      Command="{CompiledBinding ImportCommand}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <TextBlock Grid.Row="5" Text="Result" FontWeight="SemiBold" Margin="0,8,0,4" />
+    <Grid Grid.Row="6" RowDefinitions="Auto,*">
+      <TextBlock Grid.Row="0" x:Name="ResultStatus"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 TextWrapping="Wrap" Margin="0,0,0,4" />
+      <ItemsControl Grid.Row="1" x:Name="OutputsList">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="v:MethodOutputRow">
+            <Grid ColumnDefinitions="40,160,*" Margin="0,1,0,1">
+              <TextBlock Grid.Column="0" Text="{CompiledBinding Index}"
+                         Foreground="{DynamicResource TextSecondary}"
+                         FontFamily="Cascadia Mono, Consolas, monospace" />
+              <TextBlock Grid.Column="1" Text="{CompiledBinding DataType}"
+                         Foreground="{DynamicResource AccentPurple}"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="2" Text="{CompiledBinding Value}"
+                         Foreground="{DynamicResource TextPrimary}"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         TextWrapping="Wrap" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Grid>
+
+    <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Call"  IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Close" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>
+

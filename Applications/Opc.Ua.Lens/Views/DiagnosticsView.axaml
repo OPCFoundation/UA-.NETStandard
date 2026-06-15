@@ -1,0 +1,118 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:UaLens.Views"
+             xmlns:d="using:UaLens.Diagnostics"
+             x:Class="UaLens.Views.DiagnosticsView">
+  <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1,0,0,0" Background="{DynamicResource PanelBg}" Width="380">
+    <Grid Margin="10" RowDefinitions="Auto,*">
+      <DockPanel Grid.Row="0" Margin="0,0,0,8">
+        <Button x:Name="HideButton" DockPanel.Dock="Right" Content="×" Width="24" Height="24"
+                Padding="0" Background="Transparent" BorderThickness="0"
+                ToolTip.Tip="Hide diagnostics" />
+        <TextBlock FontWeight="SemiBold" VerticalAlignment="Center"
+                   Text="📊 Server diagnostics" />
+      </DockPanel>
+      <TabControl Grid.Row="1" Padding="0" Background="Transparent">
+        <TabItem Header="Server">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" x:Name="StatusLabel"
+                       FontFamily="Cascadia Mono, Consolas, monospace"
+                       FontSize="11"
+                       Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,8"
+                       Text="(connect to a server first)" />
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
+              <ItemsControl x:Name="RowsList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="v:DiagRow">
+                    <Grid ColumnDefinitions="220,*" Margin="0,1,0,1">
+                      <TextBlock Grid.Column="0" Text="{CompiledBinding Name}"
+                                 Foreground="{DynamicResource TextSecondary}" FontSize="11"
+                                 FontFamily="Cascadia Mono, Consolas, monospace" />
+                      <TextBlock Grid.Column="1" Text="{CompiledBinding Value}"
+                                 Foreground="{DynamicResource TextPrimary}" FontSize="11"
+                                 FontFamily="Cascadia Mono, Consolas, monospace"
+                                 TextWrapping="Wrap" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </TabItem>
+        <TabItem Header="Publishes">
+          <Grid RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" ColumnDefinitions="60,46,46,84,52,*" Margin="6,4,6,4">
+              <TextBlock Grid.Column="0" Text="Time"         Foreground="{DynamicResource TextDim}" FontSize="11"
+                         FontFamily="Cascadia Mono, Consolas, monospace" />
+              <TextBlock Grid.Column="1" Text="Sub"          Foreground="{DynamicResource TextDim}" FontSize="11"
+                         FontFamily="Cascadia Mono, Consolas, monospace" />
+              <TextBlock Grid.Column="2" Text="Seq#"         Foreground="{DynamicResource TextDim}" FontSize="11"
+                         FontFamily="Cascadia Mono, Consolas, monospace" />
+              <TextBlock Grid.Column="3" Text="Publish"      Foreground="{DynamicResource TextDim}" FontSize="11"
+                         FontFamily="Cascadia Mono, Consolas, monospace" />
+              <TextBlock Grid.Column="4" Text="Notifs"       Foreground="{DynamicResource TextDim}" FontSize="11"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         TextAlignment="Right" />
+              <TextBlock Grid.Column="5" Text="Type"         Foreground="{DynamicResource TextDim}" FontSize="11"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         Margin="6,0,0,0" />
+            </Grid>
+            <ListBox Grid.Row="1" x:Name="PublishList"
+                     Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextSecondaryAlt}"
+                     FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                     BorderThickness="0">
+              <ListBox.ItemContainerTheme>
+                <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                  <Setter Property="Padding"   Value="6,0" />
+                  <Setter Property="MinHeight" Value="14" />
+                </ControlTheme>
+              </ListBox.ItemContainerTheme>
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="d:PublishLogEntry">
+                  <Grid ColumnDefinitions="60,46,46,84,52,*">
+                    <TextBlock Grid.Column="0" Text="{CompiledBinding TimeText}" />
+                    <TextBlock Grid.Column="1" Text="{CompiledBinding SubscriptionText}" />
+                    <TextBlock Grid.Column="2" Text="{CompiledBinding SequenceText}" />
+                    <TextBlock Grid.Column="3" Text="{CompiledBinding PublishTimeText}" />
+                    <TextBlock Grid.Column="4" Text="{CompiledBinding NotifCountText}"
+                               TextAlignment="Right" />
+                    <TextBlock Grid.Column="5" Text="{CompiledBinding KindText}"
+                               Margin="6,0,0,0" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </TabItem>
+      </TabControl>
+    </Grid>
+  </Border>
+</UserControl>

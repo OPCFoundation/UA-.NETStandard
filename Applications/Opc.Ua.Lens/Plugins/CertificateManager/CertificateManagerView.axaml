@@ -1,0 +1,227 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.CertificateManager"
+             x:Class="UaLens.Plugins.CertificateManager.CertificateManagerView"
+             x:DataType="vm:CertificateManagerPlugin"
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
+
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.row">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Toolbar (WrapPanel so children flow to next line when narrow). -->
+    <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+        <Button Classes="tonal" Content="＋ Add store…" Margin="0,0,4,0"
+                Command="{CompiledBinding AddStoreCommand}" />
+        <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
+                Command="{CompiledBinding RefreshCommand}" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
+        <Button Classes="tonal" Content="📄 Show details…" Margin="0,0,4,0"
+                Command="{CompiledBinding ViewDetailsCommand}"
+                ToolTip.Tip="Show details of the selected certificate (Enter)" />
+        <Button Classes="tonal" Content="⬇ Import…" Margin="0,0,4,0"
+                Command="{CompiledBinding ImportCommand}"
+                ToolTip.Tip="Import a certificate into the selected store" />
+        <Button Classes="tonal" Content="⬆ Export…" Margin="0,0,4,0"
+                Command="{CompiledBinding ExportCommand}"
+                ToolTip.Tip="Export the selected certificate to disk" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
+        <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="0,0,4,0"
+                Command="{CompiledBinding OpenTrustDialogCommand}" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Body: TreeView (left) + ListBox (right).
+         Status text is intentionally not duplicated here — the MainWindow's
+         per-tab status footer (bound to SelectedTab.Status) shows the same
+         message in green; rendering it twice was confusing. -->
+    <Border Classes="panel" Margin="8,4,8,8">
+      <Grid ColumnDefinitions="*,5,2*">
+
+        <!-- Left: stores tree -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
+            <TextBlock Margin="8,4" Classes="h" Text="STORES" />
+          </Border>
+          <TreeView Grid.Row="1"
+                    x:Name="StoresTree"
+                    ItemsSource="{CompiledBinding Stores}"
+                    SelectedItem="{CompiledBinding SelectedStore, Mode=TwoWay}"
+                    Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                    BorderThickness="0">
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate DataType="vm:CertStoreNode">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{CompiledBinding Glyph}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             VerticalAlignment="Center" />
+                  <TextBlock Text="{CompiledBinding DisplayName}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{CompiledBinding Description}" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="5"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="{DynamicResource SeparatorBrush}" />
+
+        <!-- Right: certificates list with shared-size column groups so the
+             header row and the per-cert data rows stay aligned and the
+             user can drag the inter-column splitters in the header. -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*"
+              Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="200" SharedSizeGroup="CmCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep0" />
+              <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep1" />
+              <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol2" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep2" />
+              <ColumnDefinition Width="110" SharedSizeGroup="CmCol3" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep3" />
+              <ColumnDefinition Width="110" SharedSizeGroup="CmCol4" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep4" />
+              <ColumnDefinition Width="90"  SharedSizeGroup="CmCol5" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="THUMBPRINT" />
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SUBJECT" />
+            <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="ISSUER" />
+            <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="6" Margin="8,4" Classes="h" Text="NOT BEFORE" />
+            <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="8" Margin="8,4" Classes="h" Text="NOT AFTER" />
+            <GridSplitter Grid.Column="9" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="10" Margin="8,4" Classes="h" Text="STATUS" />
+          </Grid>
+          <ListBox Grid.Row="1"
+                   x:Name="CertList"
+                   ItemsSource="{CompiledBinding Certificates}"
+                   SelectedItem="{CompiledBinding SelectedCertificate, Mode=TwoWay}"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                   BorderThickness="0"
+                   DoubleTapped="OnCertRowDoubleTapped">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="📄 Show _details…"
+                          Command="{CompiledBinding ViewDetailsCommand}" />
+                <Separator />
+                <MenuItem Header="🛡 Trust → _Peer"
+                          Command="{CompiledBinding TrustToPeerCommand}" />
+                <MenuItem Header="🛡 Trust → _Issuer"
+                          Command="{CompiledBinding TrustToIssuerCommand}" />
+                <MenuItem Header="🚫 Re_ject"
+                          Command="{CompiledBinding RejectCommand}" />
+                <Separator />
+                <MenuItem Header="⬆ _Export…"
+                          Command="{CompiledBinding ExportCommand}" />
+                <MenuItem Header="🗑 De_lete"
+                          Command="{CompiledBinding DeleteCommand}" />
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:CertItemRow">
+                <Grid PointerPressed="OnCertRowPointerPressed">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200" SharedSizeGroup="CmCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep0" />
+                    <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep1" />
+                    <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol2" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep2" />
+                    <ColumnDefinition Width="110" SharedSizeGroup="CmCol3" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep3" />
+                    <ColumnDefinition Width="110" SharedSizeGroup="CmCol4" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep4" />
+                    <ColumnDefinition Width="90"  SharedSizeGroup="CmCol5" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0"  Text="{CompiledBinding Thumbprint}" Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="2"  Text="{CompiledBinding Subject}"    Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="4"  Text="{CompiledBinding Issuer}"     Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="6"  Text="{CompiledBinding NotBefore}"  Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="8"  Text="{CompiledBinding NotAfter}"   Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="10" Text="{CompiledBinding Status}"     Classes="row" Margin="8,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Grid>
+    </Border>
+  </DockPanel>
+</UserControl>

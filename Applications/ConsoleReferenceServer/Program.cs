@@ -144,7 +144,16 @@ namespace Quickstarts.ReferenceServer
                     var sw = Stopwatch.StartNew();
 
                     // create the UA server
-                    var server = new UAServer<ReferenceServer>(telemetry, t => new ReferenceServer(t))
+                    var server = new UAServer<ReferenceServer>(
+                        telemetry,
+                        // The console reference server is the canonical
+                        // host that exposes the full address space — turn
+                        // FileSystem (Part 20) on by default so clients
+                        // can browse Server.FileSystem without extra
+                        // configuration. Unit-test fixtures construct
+                        // ReferenceServer directly and keep the property
+                        // at its default false.
+                        t => new ReferenceServer(t) { EnableFileSystemNodeManager = true })
                     {
                         AutoAccept = autoAccept,
                         Password = password

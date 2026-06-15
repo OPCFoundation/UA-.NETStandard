@@ -1,0 +1,297 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             xmlns:v="using:UaLens.Views"
+             xmlns:vm="using:UaLens.Plugins.Historian"
+             x:Class="UaLens.Plugins.Historian.HistorianView"
+             x:DataType="vm:HistorianPlugin">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+    <Style Selector="TextBlock.stat">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.statDim">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{DynamicResource AppBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,*">
+
+      <!-- Row 0: target picker -->
+      <Border Grid.Row="0" Padding="10" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+          <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="4">
+            <TextBlock Classes="h" Text="TARGET VARIABLE" />
+            <TextBlock Classes="statDim"
+                       TextTrimming="CharacterEllipsis"
+                       Text="{CompiledBinding TargetDescription}" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="tonal" Content="Pick Variable…"
+                  Command="{CompiledBinding PickVariableCommand}"
+                  VerticalAlignment="Center" Margin="0,0,6,0" />
+          <Button Grid.Column="2" Classes="tonal" Content="Range…"
+                  Command="{CompiledBinding PickRangeCommand}"
+                  VerticalAlignment="Center" Margin="0,0,6,0" />
+          <Button Grid.Column="3" Classes="tonal" Content="History update…"
+                  ToolTip.Tip="Insert / Replace / DeleteRaw / DeleteModified / DeleteAtTime — advanced HistoryUpdate operations."
+                  Command="{CompiledBinding OpenHistoryUpdateDialogCommand}"
+                  VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
+      <!-- Row 1: read-mode tabs -->
+      <TabControl Grid.Row="1" Margin="0,8,0,0" Background="{DynamicResource PanelBg}"
+                  SelectedIndex="{CompiledBinding SelectedReadModeIndex, Mode=TwoWay}">
+        <TabItem Header="Raw / Modified">
+          <WrapPanel Margin="10" Orientation="Horizontal">
+            <CheckBox Content="Return bounds"
+                      IsChecked="{CompiledBinding ReturnBounds, Mode=TwoWay}"
+                      Margin="0,4,16,4" VerticalAlignment="Center" />
+            <CheckBox Content="Read modified"
+                      IsChecked="{CompiledBinding IsReadModified, Mode=TwoWay}"
+                      Margin="0,4,16,4" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,4" VerticalAlignment="Center">
+              <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Values per node:" />
+              <NumericUpDown Minimum="0" Maximum="1000000" Increment="100"
+                             Value="{CompiledBinding NumValuesPerNode, Mode=TwoWay}"
+                             FormatString="0" MinWidth="160" />
+            </StackPanel>
+          </WrapPanel>
+        </TabItem>
+        <TabItem Header="Processed (Aggregate)">
+          <WrapPanel Margin="10" Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,16,4" VerticalAlignment="Center">
+              <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Aggregate:" />
+              <ComboBox ItemsSource="{CompiledBinding AggregateOptions}"
+                        SelectedItem="{CompiledBinding SelectedAggregate, Mode=TwoWay}"
+                        MinWidth="180" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,4" VerticalAlignment="Center">
+              <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Interval (ms):" />
+              <NumericUpDown Minimum="100" Maximum="60000" Increment="100"
+                             Value="{CompiledBinding ProcessingIntervalMs, Mode=TwoWay}"
+                             FormatString="0" MinWidth="140" />
+            </StackPanel>
+          </WrapPanel>
+        </TabItem>
+        <TabItem Header="At Time">
+          <Grid Margin="10" RowDefinitions="Auto,*" ColumnDefinitions="*">
+            <TextBlock Grid.Row="0" Classes="statDim"
+                       Text="Add UTC timestamps. Pick one, click ✓ to confirm, ✗ to remove." />
+            <Border Grid.Row="1" Margin="0,4,0,0"
+                    BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+                    Background="{DynamicResource AppBg}" MaxHeight="120">
+              <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{CompiledBinding AtTimes}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:AtTimeRow">
+                      <Panel Margin="4">
+                        <!-- Editor: picker + confirm icon -->
+                        <Border IsVisible="{CompiledBinding IsEditor}"
+                                Padding="4" CornerRadius="4" Background="{DynamicResource PanelBg}"
+                                BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1">
+                          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <v:UtcDateTimePicker Value="{CompiledBinding Timestamp, Mode=TwoWay}" />
+                            <Button Classes="tonal" Content="✓"
+                                    MinWidth="32" Padding="4,2"
+                                    ToolTip.Tip="Confirm"
+                                    Command="{CompiledBinding ConfirmCommand}" />
+                          </StackPanel>
+                        </Border>
+                        <!-- Label: confirmed timestamp + remove icon -->
+                        <Border IsVisible="{CompiledBinding IsLabel}"
+                                Padding="6,4" CornerRadius="4" Background="{DynamicResource PanelBg}"
+                                BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1">
+                          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="{CompiledBinding Timestamp, StringFormat='{}{0:yyyy-MM-ddTHH:mm:ssZ}'}"
+                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                       FontSize="11"
+                                       VerticalAlignment="Center" />
+                            <Button Classes="tonal" Content="✗"
+                                    MinWidth="28" Padding="4,2"
+                                    ToolTip.Tip="Remove"
+                                    Command="{CompiledBinding RemoveCommand}" />
+                          </StackPanel>
+                        </Border>
+                        <!-- Sentinel: + button -->
+                        <Button IsVisible="{CompiledBinding IsAddButton}"
+                                Classes="tonal" Content="＋"
+                                MinWidth="36" Padding="6,4"
+                                ToolTip.Tip="Add timestamp"
+                                Command="{CompiledBinding RemoveCommand}" />
+                      </Panel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </TabItem>
+      </TabControl>
+
+      <!-- Row 2: action buttons (WrapPanel: wrap on narrow windows). -->
+      <WrapPanel Classes="toolbar" Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0" ItemHeight="32">
+        <Button Classes="primary" Content="▶ Read" Margin="4,0"
+                Command="{CompiledBinding ReadCommand}" />
+        <Button Classes="tonal" Content="■ Cancel" Margin="4,0"
+                Command="{CompiledBinding CancelReadCommand}" />
+        <Button Classes="tonal" Content="✚ Insert…" Margin="4,0"
+                ToolTip.Tip="Insert a new history row at a chosen timestamp."
+                Command="{CompiledBinding InsertNewCommand}" />
+        <Button Classes="tonal" Content="✎ Edit selected…" Margin="4,0"
+                Command="{CompiledBinding EditSelectedCommand}" />
+        <Button Classes="danger" Content="🗑 Delete selected" Margin="4,0"
+                Command="{CompiledBinding DeleteSelectedCommand}" />
+        <Button Classes="tonal" Content="⇩ Export CSV…" Margin="4,0"
+                Command="{CompiledBinding ExportCsvCommand}" />
+      </WrapPanel>
+
+      <!-- Row 3: results table -->
+      <Border Grid.Row="3" Margin="0,8,0,4" Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="220" MinWidth="80" SharedSizeGroup="TsCol" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="SplitA" />
+              <ColumnDefinition Width="160" MinWidth="60" SharedSizeGroup="ValCol" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="SplitB" />
+              <ColumnDefinition Width="120" MinWidth="60" SharedSizeGroup="StCol" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="SplitC" />
+              <ColumnDefinition Width="*" MinWidth="80" SharedSizeGroup="AnnCol" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Timestamp (UTC)" Margin="8,4"
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext"
+                          Background="{DynamicResource SeparatorBrush}" />
+            <TextBlock Grid.Column="2" Text="Value"           Margin="8,4"
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <GridSplitter Grid.Column="3" Width="4" ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext"
+                          Background="{DynamicResource SeparatorBrush}" />
+            <TextBlock Grid.Column="4" Text="Status"          Margin="8,4"
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <GridSplitter Grid.Column="5" Width="4" ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext"
+                          Background="{DynamicResource SeparatorBrush}" />
+            <TextBlock Grid.Column="6" Text="Annotation"      Margin="8,4"
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1"
+                   ItemsSource="{CompiledBinding Rows}"
+                   SelectedItem="{CompiledBinding SelectedRow, Mode=TwoWay}"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:HistoryRow">
+                <Grid PointerPressed="OnRowPointerPressed">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" SharedSizeGroup="TsCol" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="SplitA" />
+                    <ColumnDefinition Width="160" SharedSizeGroup="ValCol" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="SplitB" />
+                    <ColumnDefinition Width="120" SharedSizeGroup="StCol" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="SplitC" />
+                    <ColumnDefinition Width="*" SharedSizeGroup="AnnCol" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding DisplayTimestamp}"
+                             Margin="8,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="11" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding DisplayValue}"
+                             Margin="8,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="11" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding DisplayStatus}"
+                             Margin="8,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="11" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="6" Text="{CompiledBinding DisplayAnnotation}"
+                             Margin="8,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="11" TextTrimming="CharacterEllipsis" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- Row 4: line chart -->
+      <Border Grid.Row="4" Margin="0,4,0,0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Classes="h" Margin="8,6,0,0"
+                     Text="VALUE — line chart (numeric rows only)" />
+          <ScottPlot:AvaPlot Grid.Row="1" x:Name="HistoryPlot" />
+        </Grid>
+      </Border>
+
+    </Grid>
+  </Border>
+</UserControl>

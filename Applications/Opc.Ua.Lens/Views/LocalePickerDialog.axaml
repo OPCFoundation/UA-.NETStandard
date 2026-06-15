@@ -1,0 +1,66 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.LocalePickerDialog"
+        Title="Preferred locales"
+        Width="460" Height="380"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,Auto">
+
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8" TextWrapping="Wrap"
+               Text="Ordered list of preferred locale identifiers. Sent on connect and via ChangePreferredLocales for the active session." />
+
+    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+      <TextBox x:Name="NewLocaleBox" Width="160"
+               Watermark="e.g. en-US" />
+      <Button x:Name="AddButton" Content="Add" Width="80" />
+    </StackPanel>
+
+    <ListBox Grid.Row="2" Grid.Column="0" x:Name="LocaleList"
+             Margin="0,8,8,0"
+             Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}" />
+
+    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Vertical"
+                Margin="0,8,0,0" Spacing="6" VerticalAlignment="Top">
+      <Button x:Name="UpButton"     Content="↑" Width="44" />
+      <Button x:Name="DownButton"   Content="↓" Width="44" />
+      <Button x:Name="RemoveButton" Content="✕" Width="44" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="6">
+      <Button x:Name="ApplyButton" Content="Apply"
+              IsDefault="True" Width="120"
+              Background="{DynamicResource AccentBlue}" Foreground="{DynamicResource AppBg}" FontWeight="SemiBold" />
+      <Button x:Name="CancelButton" Content="Close" IsCancel="True" Width="100" />
+    </StackPanel>
+  </Grid>
+</Window>

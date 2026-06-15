@@ -1,0 +1,111 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.EventView.EventFilterDialog"
+        Title="Event filter"
+        Width="780" Height="720"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*">
+
+    <TextBlock Grid.Row="0"
+               Text="OPC UA event filter"
+               FontWeight="SemiBold" FontSize="14"
+               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+    <Border    Grid.Row="1" Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,12" />
+
+    <Grid Grid.Row="2" ColumnDefinitions="220,*" Margin="0,0,0,12">
+      <TextBlock Grid.Column="0" Text="Severity threshold (≥)" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <Slider x:Name="SeveritySlider"
+                Minimum="0" Maximum="1000"
+                TickFrequency="100" IsSnapToTickEnabled="False"
+                Width="200" VerticalAlignment="Center" />
+        <TextBlock x:Name="SeverityValue" VerticalAlignment="Center"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   MinWidth="40" />
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Row="3" ColumnDefinitions="220,*,Auto" Margin="0,0,0,12">
+      <TextBlock Grid.Column="0" Text="Event type" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" x:Name="EventTypeLabel"
+                 VerticalAlignment="Center"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 FontSize="11"
+                 TextTrimming="CharacterEllipsis" />
+      <Button Grid.Column="2" x:Name="PickTypeButton"
+              Content="Pick type…" Width="100" Margin="8,0,0,0" />
+    </Grid>
+
+    <TextBlock Grid.Row="4" Text="SelectClause fields"
+               FontWeight="SemiBold" FontSize="13"
+               Foreground="{DynamicResource AccentYellow}" Margin="0,4,0,4" />
+    <TextBlock Grid.Row="5"
+               TextWrapping="Wrap"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11"
+               Margin="0,0,0,8"
+               Text="Tick the fields exposed by the chosen event type. Use 'Pick type…' above to browse subtypes of BaseEventType." />
+
+    <Border Grid.Row="6" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+            Padding="8" Background="{DynamicResource PanelBg}">
+      <ScrollViewer>
+        <StackPanel x:Name="FieldsPanel" Spacing="2" />
+      </ScrollViewer>
+    </Border>
+
+    <!-- Where clause is edited in a dedicated modal dialog so the
+         operand list has room to render and selection works
+         predictably. The summary preview here mirrors the filter's
+         ContentFilter.ToString() output. -->
+    <Border Grid.Row="7" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+            Padding="10" Background="{DynamicResource PanelBg}" Margin="0,12,0,0">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0"
+                   Text="Where clause (ContentFilter)"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource AccentYellow}" />
+        <Button Grid.Row="0" Grid.Column="1" x:Name="EditWhereClauseButton"
+                Content="Edit where clause…" Width="180" />
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="WhereClauseSummary"
+                   Margin="0,6,0,0"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextSecondary}" />
+      </Grid>
+    </Border>
+
+    <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="90" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="90" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

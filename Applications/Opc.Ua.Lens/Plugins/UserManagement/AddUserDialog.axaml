@@ -1,0 +1,81 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.UserManagement.AddUserDialog"
+        Title="Add user"
+        Width="460" Height="380"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Window.Styles>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16" LastChildFill="True">
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Add"    IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <TextBlock x:Name="ErrorLabel" DockPanel.Dock="Bottom"
+               Foreground="{DynamicResource AccentRedLight}"
+               Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+
+      <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,12" TextWrapping="Wrap"
+                 Text="Create a new user on the connected server (Part 18 §5.2.3 AddUser)." />
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Classes="k" Text="User name *" />
+      <TextBox   Grid.Row="1" Grid.Column="1" x:Name="UserNameBox" Margin="0,0,0,8" />
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Classes="k" Text="Password *" />
+      <TextBox   Grid.Row="2" Grid.Column="1" x:Name="PasswordBox" PasswordChar="●" Margin="0,0,0,8" />
+
+      <TextBlock Grid.Row="3" Grid.Column="0" Classes="k" Text="Description" />
+      <TextBox   Grid.Row="3" Grid.Column="1" x:Name="DescriptionBox" Margin="0,0,0,8" />
+
+      <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Vertical" Margin="0,4,0,0">
+        <CheckBox x:Name="DisabledBox"           Content="Disabled"             ToolTip.Tip="Account is inactive until enabled." />
+        <CheckBox x:Name="MustChangePasswordBox" Content="Must change password" ToolTip.Tip="Force the user to change the password at next logon." />
+        <CheckBox x:Name="NoChangeByUserBox"     Content="No change by user"    ToolTip.Tip="User cannot change own password — only admins can." />
+        <CheckBox x:Name="NoDeleteBox"           Content="No delete"            ToolTip.Tip="Account cannot be removed via RemoveUser." />
+      </StackPanel>
+    </Grid>
+  </DockPanel>
+</Window>

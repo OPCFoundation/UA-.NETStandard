@@ -1,0 +1,175 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.CertificateStoreDialog"
+        Title="Certificate stores"
+        Width="980" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Window.Styles>
+    <Style Selector="TabItem">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="MinHeight" Value="32" />
+    </Style>
+    <Style Selector="Button.act">
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+    </Style>
+    <Style Selector="ListBoxItem.expired">
+      <Setter Property="Foreground" Value="{DynamicResource AccentRedLight}" />
+    </Style>
+    <Style Selector="ListBoxItem.notyet">
+      <Setter Property="Foreground" Value="{DynamicResource AccentYellowLight}" />
+    </Style>
+  </Window.Styles>
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+    <TextBlock Grid.Row="0"
+               Margin="0,0,0,8"
+               TextWrapping="Wrap"
+               Foreground="{DynamicResource TextSecondary}"
+               Text="Manage local trust stores. Trust changes apply on next connect — disconnect and reconnect to pick them up. The application's own certificate is intentionally not exposed here." />
+
+    <TabControl x:Name="StoreTabs" Grid.Row="1" Background="{DynamicResource PanelBg}">
+      <TabItem Header="Trusted Peers">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,2*,110,110,180,90"
+                Background="{DynamicResource SeparatorBrush}">
+            <TextBlock Grid.Column="0" Text="Subject"    Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Issuer"     Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Not Before" Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="Not After"  Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="4" Text="Thumbprint" Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="5" Text="Status"     Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="TrustedList"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="v:CertRow"><Grid ColumnDefinitions="2*,2*,110,110,180,90">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Subject}"    Margin="6,2" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding Issuer}"     Margin="6,2" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding NotBefore}"  Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotAfter}"   Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding Thumbprint}" Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Margin="6,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button x:Name="TrustedRefreshBtn" Classes="act" Content="↻ Refresh" />
+            <Button x:Name="TrustedUntrustBtn" Classes="act" Content="✗ Untrust selected" />
+            <Button x:Name="TrustedExpireBtn"  Classes="act" Content="🗑 Delete expired" />
+            <Button x:Name="TrustedAddBtn"     Classes="act" Content="＋ Add from file..." />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Trusted Issuers">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,2*,110,110,180,90"
+                Background="{DynamicResource SeparatorBrush}">
+            <TextBlock Grid.Column="0" Text="Subject"    Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Issuer"     Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Not Before" Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="Not After"  Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="4" Text="Thumbprint" Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="5" Text="Status"     Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="IssuerList"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="v:CertRow"><Grid ColumnDefinitions="2*,2*,110,110,180,90">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Subject}"    Margin="6,2" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding Issuer}"     Margin="6,2" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding NotBefore}"  Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotAfter}"   Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding Thumbprint}" Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Margin="6,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button x:Name="IssuerRefreshBtn" Classes="act" Content="↻ Refresh" />
+            <Button x:Name="IssuerUntrustBtn" Classes="act" Content="✗ Untrust selected" />
+            <Button x:Name="IssuerExpireBtn"  Classes="act" Content="🗑 Delete expired" />
+            <Button x:Name="IssuerAddBtn"     Classes="act" Content="＋ Add from file..." />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Rejected">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,2*,110,110,180,90"
+                Background="{DynamicResource SeparatorBrush}">
+            <TextBlock Grid.Column="0" Text="Subject"    Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Issuer"     Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Not Before" Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="Not After"  Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="4" Text="Thumbprint" Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="5" Text="Status"     Margin="6,4" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="RejectedList"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="v:CertRow"><Grid ColumnDefinitions="2*,2*,110,110,180,90">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Subject}"    Margin="6,2" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding Issuer}"     Margin="6,2" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding NotBefore}"  Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotAfter}"   Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding Thumbprint}" Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Margin="6,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button x:Name="RejectedRefreshBtn" Classes="act" Content="↻ Refresh" />
+            <Button x:Name="RejectedTrustBtn"   Classes="act" Content="✓ Trust selected" />
+            <Button x:Name="RejectedDeleteBtn"  Classes="act" Content="✗ Delete selected" />
+            <Button x:Name="RejectedClearBtn"   Classes="act" Content="🗑 Clear all" />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="*,Auto">
+      <TextBlock Grid.Column="0" x:Name="StatusLabel"
+                 VerticalAlignment="Center"
+                 Foreground="{DynamicResource TextSecondary}"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 Text="" />
+      <Button Grid.Column="1" x:Name="CloseBtn" Content="Close" IsCancel="True" Width="100" />
+    </Grid>
+  </Grid>
+</Window>
+

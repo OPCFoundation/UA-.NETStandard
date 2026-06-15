@@ -1,0 +1,98 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.WriteValueDialog"
+        Title="Write value"
+        Width="640" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               Margin="0,0,0,12"
+               TextWrapping="Wrap"
+               Text="Write a new value to the selected variable. Parse uses the variable's DataType + ValueRank." />
+
+    <TextBlock Grid.Row="1" Grid.Column="0" Text="NodeId"  VerticalAlignment="Center" />
+    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="NodeIdLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" />
+
+    <TextBlock Grid.Row="2" Grid.Column="0" Text="DataType" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="DataTypeLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="3" Grid.Column="0" Text="Current" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="CurrentLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="4" Grid.Column="0" Text="New value" VerticalAlignment="Top" Margin="0,12,0,0" />
+    <Grid Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" RowDefinitions="Auto,*,*">
+      <Button Grid.Row="0" x:Name="ImportButton"
+              Classes="tonal" Content="📂 Import from file…"
+              HorizontalAlignment="Left" Margin="0,0,0,4" />
+      <TextBox Grid.Row="1" x:Name="ValueText"
+               AcceptsReturn="True" TextWrapping="Wrap" Height="120" />
+      <v:ComplexValueEditor Grid.Row="2" x:Name="ComplexEditor"
+                            IsVisible="False" Margin="0,4,0,0" />
+    </Grid>
+
+    <Expander Grid.Row="5" Grid.ColumnSpan="2" x:Name="AdvancedExpander"
+              Header="Advanced (status code + timestamps)" IsExpanded="False"
+              Margin="0,12,0,0">
+      <Grid Margin="0,4,0,0"
+            RowDefinitions="Auto,Auto,Auto"
+            ColumnDefinitions="Auto,*">
+        <CheckBox Grid.Row="0" Grid.Column="0" x:Name="StatusOverride"
+                  Content="Override status" VerticalAlignment="Center" />
+        <TextBox  Grid.Row="0" Grid.Column="1" x:Name="StatusText"
+                  Margin="8,0,0,0"
+                  Watermark="e.g. 0x80000000 or BadOutOfService" />
+        <CheckBox Grid.Row="1" Grid.Column="0" x:Name="SourceOverride"
+                  Content="Override source timestamp" VerticalAlignment="Center"
+                  Margin="0,8,0,0" />
+        <v:UtcDateTimePicker Grid.Row="1" Grid.Column="1" x:Name="SourceTimePicker"
+                             Margin="8,8,0,0" />
+        <CheckBox Grid.Row="2" Grid.Column="0" x:Name="ServerOverride"
+                  Content="Override server timestamp" VerticalAlignment="Center"
+                  Margin="0,8,0,0" />
+        <v:UtcDateTimePicker Grid.Row="2" Grid.Column="1" x:Name="ServerTimePicker"
+                             Margin="8,8,0,0" />
+      </Grid>
+    </Expander>
+
+    <TextBlock Grid.Row="6" Grid.ColumnSpan="2" x:Name="ResultLabel" Margin="0,8,0,0"
+               FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" />
+
+    <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Write"  IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Close"  IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

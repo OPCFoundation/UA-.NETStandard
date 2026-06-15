@@ -236,7 +236,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.McpServerTools
             string? assemblyPath = Path.Combine(
                 repoRoot,
                 "Applications",
-                "McpServer",
+                "Opc.Ua.Mcp",
                 "bin",
                 configuration,
                 "net10.0",
@@ -244,7 +244,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.McpServerTools
 
             if (!File.Exists(assemblyPath))
             {
-                string binPath = Path.Combine(repoRoot, "Applications", "McpServer", "bin");
+                string binPath = Path.Combine(repoRoot, "Applications", "Opc.Ua.Mcp", "bin");
                 assemblyPath = Directory.Exists(binPath)
                     ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
                         .FirstOrDefault()
