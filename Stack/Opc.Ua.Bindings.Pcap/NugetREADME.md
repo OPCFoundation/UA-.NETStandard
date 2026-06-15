@@ -11,7 +11,7 @@ are needed beyond wiring the binding through DI.
 The package contains:
 
 - `PcapTransportChannelBinding` — `ITransportChannelFactory` decorator
-  installed via `AddOpcUaBindingsPcap()` that wraps every
+  installed via `AddPcapBinding()` that wraps every
   `TcpTransportChannel` with a capture-aware byte transport.
 - `ChannelCaptureRegistry` + `CaptureSessionManager` — runtime control
   surface to start / stop a capture, manage rolling files, and emit
@@ -30,7 +30,7 @@ using Opc.Ua;
 services
     .AddOpcUa()
     .AddOpcTcpTransport()
-    .AddOpcUaBindingsPcap(opts =>
+    .AddPcapBinding(opts =>
     {
         opts.BaseFolder = "/var/log/opcua-pcap";
         opts.MaxActiveSessions = 4;

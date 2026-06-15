@@ -45,7 +45,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog;
 /// <remarks>
 /// Implementations are registered via
 /// <c>services.AddSingleton&lt;IKeyEscrowProvider, MyProvider&gt;()</c>
-/// before <c>AddOpcUaBindingsPcap()</c>. When a non-default
+/// before <c>AddPcapBinding()</c>. When a non-default
 /// provider is registered, the disk-based default is skipped
 /// entirely.
 /// </remarks>

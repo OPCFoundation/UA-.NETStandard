@@ -104,7 +104,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
 
         /// <summary>
         /// Verifies a consumer-registered escrow provider wins over the
-        /// default disk provider registered by AddOpcUaBindingsPcap.
+        /// default disk provider registered by AddPcapBinding.
         /// </summary>
         [Test]
         public async Task CustomKeyEscrowProviderReplacesDiskWriter()
@@ -115,7 +115,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             var provider = new CountingKeyEscrowProvider();
             var services = new ServiceCollection();
             services.AddSingleton<IKeyEscrowProvider>(provider);
-            services.AddOpcUaBindingsPcap(options => options.BaseFolder = TempDirectory);
+            services.AddPcapBinding(options => options.BaseFolder = TempDirectory);
             services.AddSingleton<ICaptureSourceFactory>(new StubSourceFactory(material));
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             await using var manager = serviceProvider.GetRequiredService<CaptureSessionManager>();

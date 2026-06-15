@@ -37,7 +37,7 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
     /// <see cref="ITransportChannelFactory"/> decorator that produces TCP
     /// transport channels whose underlying byte transport is wrapped by a
     /// <see cref="CapturingByteTransportFactory"/>. Registering this
-    /// binding via <c>AddOpcUaBindingsPcap</c> (or
+    /// binding via <c>AddPcapBinding</c> (or
     /// <c>PcapBindings.Install(ITransportBindingRegistry)</c>) installs
     /// the capture hook for every <see cref="ITransportChannel"/> created
     /// through <c>ClientChannelManager</c>.
