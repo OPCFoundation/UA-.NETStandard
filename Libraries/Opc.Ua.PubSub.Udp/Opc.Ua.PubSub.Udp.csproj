@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).PubSub.Udp</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.PubSub.Udp</PackageId>
+    <RootNamespace>Opc.Ua.PubSub.Udp</RootNamespace>
+    <Description>OPC UA PubSub UDP transport (Part 14 §7.3.2) class library.</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Udp.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Bench" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Net.NetworkInformation" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

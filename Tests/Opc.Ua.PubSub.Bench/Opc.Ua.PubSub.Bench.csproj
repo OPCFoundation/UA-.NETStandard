@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.PubSub.Bench</RootNamespace>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA1014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
+  </ItemGroup>
+</Project>
