@@ -176,6 +176,38 @@ The default `ISessionlessIdentityProvider` is intentionally
 conservative; register a custom implementation to map richer
 claim sets (e.g. JWT role claims → OPC UA roles).
 
+### JWT claim projection (built-in)
+
+For services configured with `Microsoft.AspNetCore.Authentication.JwtBearer`,
+the binding ships a built-in identity provider that projects the
+authenticated JWT principal onto an OPC UA `IUserIdentity`:
+
+```csharp
+services.AddOpcUa()
+    .AddHttpsTransport()
+    .AddWebApiTransport()
+    .AddWebApiBearerAuth(opt => { opt.Authority = "..."; })
+    .UseJwtClaimIdentityProvider(opt =>
+    {
+        opt.SubjectClaim = "sub";    // default
+        opt.ScopeClaim = "scope";    // default — space- or comma-separated
+        opt.RolesClaim = "roles";    // default — also picks up ClaimTypes.Role
+        opt.ReturnAnonymousForUnauthenticated = false; // default
+        opt.TransformIdentity = (identity, ctx) => identity; // optional hook
+    });
+```
+
+The provider builds a `UserIdentity` carrying the raw bearer token as
+an `IssuedIdentityToken` (`Profiles.JwtUserToken`) so server-side
+authenticators can re-validate the JWT downstream, and exposes a
+projection of the subject / scopes / roles via the static helpers
+`JwtClaimSessionlessIdentityProvider.GetSubject(IUserIdentity)`,
+`GetScopes(IUserIdentity)`, and `GetRoles(IUserIdentity)` for
+role-based-access lookups. Scopes accept either the single
+space-separated OAuth 2.0 form or repeated `scope` claims; roles
+accept comma/semicolon/space-separated values plus
+`ClaimTypes.Role` mappings.
+
 ## Hosting modes
 
 ```csharp

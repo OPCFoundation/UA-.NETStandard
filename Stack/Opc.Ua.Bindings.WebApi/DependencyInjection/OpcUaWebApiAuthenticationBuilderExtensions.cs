@@ -113,6 +113,67 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Replaces the default <see cref="ISessionlessIdentityProvider"/>
+        /// with a <see cref="JwtClaimSessionlessIdentityProvider"/> that
+        /// projects standard JWT claims (<c>sub</c> / <c>scope</c> /
+        /// <c>roles</c>) onto the OPC UA identity model and carries the
+        /// raw bearer token as a <see cref="Profiles.JwtUserToken"/>
+        /// issued-token payload.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Call after <see cref="AddWebApiBearerAuth(IOpcUaBuilder, Action{JwtBearerOptions})"/>
+        /// (or another bearer-style auth registration that populates
+        /// <see cref="System.Net.Http.HttpRequestMessage.Headers"/>
+        /// with the raw token). The replacement is DI-scoped to a
+        /// singleton — last call wins. JWT validation (signing-key
+        /// resolution, issuer / audience / expiry checks) is delegated
+        /// to the upstream bearer middleware and is NOT re-performed
+        /// here; this provider is purely a claims-to-identity mapper.
+        /// </para>
+        /// <para>
+        /// Subsequent server-side code can recover the projected
+        /// subject, scopes, and roles via the
+        /// <see cref="JwtClaimSessionlessIdentityProvider.GetSubject"/>,
+        /// <see cref="JwtClaimSessionlessIdentityProvider.GetScopes"/>,
+        /// and
+        /// <see cref="JwtClaimSessionlessIdentityProvider.GetRoles"/>
+        /// helpers passing the <c>WebApiInvocationContext.Identity</c>
+        /// handed to <c>IWebApiServer.InvokeAsync</c>.
+        /// RoleBasedUserManagement integration is a separate, larger
+        /// design and not part of this minimal helper.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">
+        /// Optional callback that customises the JWT claim-name
+        /// projection (defaults to the OAuth 2.0 / OpenID Connect
+        /// standard names <c>"sub"</c> / <c>"scope"</c> /
+        /// <c>"roles"</c>).
+        /// </param>
+        /// <returns>The same <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        public static IOpcUaBuilder UseJwtClaimIdentityProvider(
+            this IOpcUaBuilder builder,
+            Action<JwtClaimSessionlessIdentityProviderOptions>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+
+            var options = new JwtClaimSessionlessIdentityProviderOptions();
+            configure?.Invoke(options);
+
+            // Replace any earlier registration (TryAddSingleton + manual
+            // override) so the JWT provider becomes the singleton
+            // resolved by IWebApiServer dispatch.
+            builder.Services.RemoveAll<ISessionlessIdentityProvider>();
+            builder.Services.AddSingleton<ISessionlessIdentityProvider>(
+                new JwtClaimSessionlessIdentityProvider(options));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the HTTP Basic authentication scheme
         /// (<see cref="WebApiAuthSchemes.Basic"/>) using the in-package
         /// <see cref="BasicAuthenticationHandler"/>. The supplied

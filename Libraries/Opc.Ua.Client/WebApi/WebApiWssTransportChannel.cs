@@ -359,7 +359,7 @@ namespace Opc.Ua.Client.WebApi
             // itself does not attempt silent reconnect.
             throw ServiceResultException.Create(
                 StatusCodes.BadNotSupported,
-                "{ChannelType} does not support implicit reconnect; use the ManagedSession reconnect policy.",
+                "{0} does not support implicit reconnect; use the ManagedSession reconnect policy.",
                 nameof(WebApiWssTransportChannel));
         }
 
