@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -58,40 +56,53 @@ namespace Opc.Ua.Bindings
 
         public override async Task OnConnectedAsync(ConnectionContext connection)
         {
-            var transport = new PipeByteTransport(
+            PipeByteTransport? transport = new PipeByteTransport(
                 connection,
                 m_owner.BufferManager,
                 m_owner.Quotas.MaxBufferSize,
                 m_owner.Telemetry);
-
-            uint channelId = m_owner.NextChannelId();
-            TcpListenerChannel channel = m_owner.CreateChannel();
             try
             {
-                m_owner.RegisterChannel(channelId, channel);
-                channel.Attach(channelId, transport);
+                uint channelId = m_owner.NextChannelId();
+                TcpListenerChannel channel = m_owner.CreateChannel();
+                try
+                {
+                    m_owner.RegisterChannel(channelId, channel);
+                    channel.Attach(channelId, transport);
+                    // Ownership of the transport has been transferred to the
+                    // channel; null it out so the finally block below does
+                    // not dispose what the channel now owns.
+                    transport = null;
 
-                // Hold the connection open until either side tears it down,
-                // OR (in reverse-connect mode) until TransferListenerChannelAsync
-                // hands the transport off to the application AND the new
-                // owner closes the underlying pipe (Kestrel disposes the
-                // ConnectionContext the instant this method returns).
-                await m_owner.WaitForConnectionAsync(channelId, connection.ConnectionClosed)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                m_owner.Logger.LogDebug(ex, "Kestrel TCP connection {Id} ended with exception.", channelId);
+                    // Hold the connection open until either side tears it down,
+                    // OR (in reverse-connect mode) until TransferListenerChannelAsync
+                    // hands the transport off to the application AND the new
+                    // owner closes the underlying pipe (Kestrel disposes the
+                    // ConnectionContext the instant this method returns).
+                    await m_owner.WaitForConnectionAsync(channelId, connection.ConnectionClosed)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_owner.Logger.LogDebug(ex, "Kestrel TCP connection {Id} ended with exception.", channelId);
+                }
+                finally
+                {
+                    m_owner.UnregisterChannel(channelId);
+                    // channel.Dispose() closes the transport if the channel
+                    // still owns it. In reverse-connect mode after a successful
+                    // handoff the transport has been detached and a NEW owner
+                    // is responsible for it; channel.Dispose() is a no-op for
+                    // that transport in that case.
+                    channel.Dispose();
+                }
             }
             finally
             {
-                m_owner.UnregisterChannel(channelId);
-                // channel.Dispose() closes the transport if the channel
-                // still owns it. In reverse-connect mode after a successful
-                // handoff the transport has been detached and a NEW owner
-                // is responsible for it; channel.Dispose() is a no-op for
-                // that transport in that case.
-                channel.Dispose();
+                // Disposed only on the rare path where channel.Attach throws
+                // before ownership transfer; in the happy path 'transport' is
+                // already null and the channel owns it.
+                transport?.Dispose();
             }
         }
 
