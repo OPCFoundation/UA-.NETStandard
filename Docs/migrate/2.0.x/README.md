@@ -82,7 +82,12 @@ transport profile URI constants.
 The companion WebSocket sub-profile
 `Profiles.WssOpenApiTransport`
 ([profile/2339](https://profiles.opcfoundation.org/profile/2339))
-is a new constant introduced alongside this rename.
+is a new constant introduced alongside this rename. The full WSS
+OpenAPI surface (server-side `AcceptWebSocketOpenApiAsync` handler,
+client-side `WebApiWssTransportChannel`, fluent
+`ManagedSessionBuilder.UseWssOpenApiEndpoint(url)`, bearer-token
+sub-protocol variant `opcua+openapi+<accesstoken>`) ships in the
+same release.
 
 ## See also
 

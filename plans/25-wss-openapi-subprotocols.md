@@ -2,10 +2,9 @@
 
 ## Status
 
-**Proposed.** Surfaced from PR feedback on
-[#3880](https://github.com/OPCFoundation/UA-.NETStandard/pull/3880)
-(`Docs/Profiles.md` review comment on line 110: *"Plan this work and
-add the plan to plans folder"*).
+**Implemented.** Landed in the `openapi` PR alongside the HTTPS WebApi /
+ManagedSession integration; tracked in
+`~/.copilot/session-state/.../plan-openapi-discovery-and-wss.md` (Phase 2).
 
 ## Problem
 

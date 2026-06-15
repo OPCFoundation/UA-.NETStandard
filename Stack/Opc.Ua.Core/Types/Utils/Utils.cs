@@ -89,6 +89,24 @@ namespace Opc.Ua
         public const string UriSchemeOpcHttpsWebApi = "opc.https+webapi";
 
         /// <summary>
+        /// Internal URI scheme used by the registry-keyed channel factory
+        /// lookup to distinguish the WSS Web API / OpenAPI binding (OPC
+        /// UA Part 6 §7.5.2 sub-protocol <c>opcua+openapi</c>) from the
+        /// UASC binary and JSON-envelope WSS channels that share the
+        /// <see cref="UriSchemeOpcWss"/> URL scheme on the wire.
+        /// </summary>
+        /// <remarks>
+        /// Like <see cref="UriSchemeOpcHttpsWebApi"/>, this is not a wire
+        /// URL scheme — Web API WSS endpoints are still addressed as
+        /// <c>wss://</c>. The constant exists only as a synthetic
+        /// registry key so the client channel manager can map
+        /// <c>Profiles.WssOpenApiTransport</c> to the WSS Web API
+        /// channel factory distinct from the binary
+        /// <c>opcua+uacp</c> channel.
+        /// </remarks>
+        public const string UriSchemeOpcWssOpenApi = "opc.wss+openapi";
+
+        /// <summary>
         /// The URI scheme for the UA TCP protocol.
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";

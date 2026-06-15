@@ -115,8 +115,14 @@ endpoint description with all of these fields pre-populated.
 
 > The companion WebSocket sub-profile
 > `Profiles.WssOpenApiTransport` (OPC Foundation [profile/2339](https://profiles.opcfoundation.org/profile/2339))
-> is currently in progress — see
-> [plans/25-wss-openapi-subprotocols.md](../plans/25-wss-openapi-subprotocols.md).
+> is implemented as a peer to the HTTPS surface:
+> `WebApiWssTransportChannel` on the client side,
+> `HttpsTransportListener.AcceptWebSocketOpenApiAsync` on the server
+> side. Fluent shortcut:
+> `ManagedSessionBuilder.UseWssOpenApiEndpoint(url, encoding)`. Bearer
+> tokens ride in the sub-protocol name
+> (`opcua+openapi+<accesstoken>`) because browser WebSocket APIs forbid
+> custom HTTP request headers.
 
 ## Wire format
 

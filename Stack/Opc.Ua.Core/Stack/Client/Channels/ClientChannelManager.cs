@@ -261,6 +261,7 @@ namespace Opc.Ua
                 Profiles.HttpsOpenApiTransport => Utils.UriSchemeOpcHttpsWebApi,
                 Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
                 Profiles.UaWssJsonTransport => "opc.wss+json",
+                Profiles.WssOpenApiTransport => Utils.UriSchemeOpcWssOpenApi,
                 _ => endpointUrl.Scheme
             };
 

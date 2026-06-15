@@ -224,9 +224,10 @@ The stack implements the following transport profiles:
   - Surfaced via `Profiles.HttpsOpenApiTransport` (renamed from `Profiles.HttpsWebApiTransport`; obsolete alias retained for binary compatibility)
 
 - **[WSS OpenAPI](https://profiles.opcfoundation.org/profile/2339)** (`opc.wss://` and `wss://`) - OPC UA OpenAPI Mapping over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) — official OPC Foundation profile/2339, URI `http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi`
-  - Same on-wire OpenAPI envelope as HTTPS OpenAPI, multiplexed over WebSocket text frames
-  - Bearer-token variant negotiates the access token in the sub-protocol name (no `Authorization` header — required for browser fetch compatibility)
-  - **Not yet implemented** — tracked under [plans/25-wss-openapi-subprotocols.md](../plans/25-wss-openapi-subprotocols.md)
+  - Same on-wire `{TypeId, Body}` OPC UA JSON envelope as `opcua+uajson`, multiplexed over WebSocket text frames; distinguished by the negotiated sub-protocol and the advertised TransportProfileUri
+  - Bearer-token variant negotiates the access token in the sub-protocol name (no `Authorization` header — required for browser fetch compatibility); the server extracts the token from the sub-protocol name and feeds it through the standard `ISessionlessIdentityProvider` pipeline
+  - Server-side discovery emission: the WSS factories emit this sub-profile as a discovery-only twin alongside each `SecurityMode.None` WSS binary endpoint, mirroring the HTTPS OpenAPI emission.
+  - Client surface: `Libraries/Opc.Ua.Client/WebApi/WebApiWssTransportChannel.cs`; fluent shortcut `ManagedSessionBuilder.UseWssOpenApiEndpoint(url)`; DI registration via `services.AddWebApiTransportChannel()` (registers both HTTPS and WSS WebApi channel factories).
   - Surfaced via `Profiles.WssOpenApiTransport`
 
 ### PubSub transports

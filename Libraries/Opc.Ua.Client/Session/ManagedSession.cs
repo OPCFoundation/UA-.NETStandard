@@ -939,20 +939,19 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
-                // The Web API binding (Profiles.HttpsOpenApiTransport) is not
-                // currently surfaced as a discoverable endpoint by the
-                // standard server discovery flow — Web API shares the
-                // wire-level https:// URL with the binary / JSON-envelope
-                // sub-profiles but is selected by the transport profile URI
-                // on the user-supplied ConfiguredEndpoint. Calling
-                // UpdateFromServer would overwrite the user's profile with
-                // an HTTPS-binary entry from the server's GetEndpoints
-                // response and lose Web API selection, so we skip the
-                // refresh for that profile.
-                bool updateBeforeConnect = !string.Equals(
-                    ConfiguredEndpoint.Description.TransportProfileUri,
-                    Profiles.HttpsOpenApiTransport,
-                    StringComparison.Ordinal);
+                // The Web API binding (Profiles.HttpsOpenApiTransport /
+                // Profiles.WssOpenApiTransport) is not currently surfaced
+                // as a separate discoverable endpoint by every server's
+                // GetEndpoints flow — Web API shares the wire-level URL
+                // with the binary / JSON-envelope sub-profiles and is
+                // selected by the transport profile URI on the
+                // user-supplied ConfiguredEndpoint. Calling
+                // UpdateFromServer would overwrite the user's profile
+                // with a binary entry and lose Web API selection, so we
+                // skip the refresh for either OpenAPI profile.
+                string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
+                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
+                    && !Profiles.IsWssOpenApi(profile);
 
                 Session session;
                 if (m_channelManager != null)

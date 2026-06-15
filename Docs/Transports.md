@@ -17,7 +17,7 @@ to integrate with web-based tooling.
 | [`https-uajson-openapi`](https://profiles.opcfoundation.org/profile/2338) | `opc.https://`, `https://` | OpenAPI Mapping (Part 6 §G.3): per-service `POST /<service>` with body = `<Service>Request` JSON (`application/json; encoding=compact\|verbose`) | **no** — TLS only | `None` only |
 | `uawss-uasc-uabinary` | `opc.wss://`, `wss://` | UA Binary in WebSocket binary frame (sub-protocol `opcua+uacp`) | yes | `None`, `Sign`, `SignAndEncrypt` |
 | `uawss-uajson` | `opc.wss://`, `wss://` | UA JSON in WebSocket text frame (sub-protocol `opcua+uajson`) | **no** — TLS only | `None` only |
-| [`wss-uajson-openapi`](https://profiles.opcfoundation.org/profile/2339) | `opc.wss://`, `wss://` | OpenAPI Mapping over WebSocket text frame (sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) | **no** — TLS only | `None` only (planned — see [plan #25](../plans/25-wss-openapi-subprotocols.md)) |
+| [`wss-uajson-openapi`](https://profiles.opcfoundation.org/profile/2339) | `opc.wss://`, `wss://` | OpenAPI Mapping over WebSocket text frame (sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) | **no** — TLS only | `None` only |
 
 The JSON / OpenAPI profiles do not negotiate a UA SecureChannel; transport
 security is provided exclusively by the surrounding TLS connection.

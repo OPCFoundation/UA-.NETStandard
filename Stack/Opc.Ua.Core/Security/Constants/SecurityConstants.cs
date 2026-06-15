@@ -265,6 +265,32 @@ namespace Opc.Ua
         public const string OpcUaWsSubProtocolUaJson = "opcua+uajson";
 
         /// <summary>
+        /// WebSocket sub-protocol identifier (<c>Sec-WebSocket-Protocol</c>) for the
+        /// OPC UA OpenAPI mapping (Part 6 §G.3) carried over secure WebSockets
+        /// (Part 6 §7.5.2). The wire format is the standard
+        /// <c>{TypeId, Body}</c> OPC UA JSON envelope per WebSocket text frame;
+        /// the OpenAPI sub-protocol is distinguished from
+        /// <see cref="OpcUaWsSubProtocolUaJson"/> by the
+        /// <see cref="Profiles.WssOpenApiTransport"/> profile URI
+        /// advertised on discovery and by the server-side request handler
+        /// (which routes via <c>WebApiServiceRoutes</c> and uses the
+        /// <c>WebApiBodyCodec</c> compact / verbose encoder options).
+        /// </summary>
+        public const string OpcUaWsSubProtocolOpenApi = "opcua+openapi";
+
+        /// <summary>
+        /// Prefix for the bearer-token variant of the OPC UA OpenAPI
+        /// WebSocket sub-protocol (Part 6 §7.5.2). The full sub-protocol
+        /// name is <c>opcua+openapi+&lt;accesstoken&gt;</c>; the trailing
+        /// token segment carries the bearer credential because browser
+        /// WebSocket APIs do not accept custom HTTP request headers (no
+        /// <c>Authorization: Bearer</c>). The server-side handler extracts
+        /// the token from the sub-protocol name and feeds it through the
+        /// standard <c>ISessionlessIdentityProvider</c> pipeline.
+        /// </summary>
+        public const string OpcUaWsSubProtocolOpenApiBearerPrefix = "opcua+openapi+";
+
+        /// <summary>
         /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
         /// HTTPS binary transport profile (<see cref="HttpsBinaryTransport"/>).
         /// </summary>

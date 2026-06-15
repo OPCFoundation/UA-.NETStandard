@@ -117,11 +117,16 @@ namespace Microsoft.Extensions.DependencyInjection
                 WebApiClientOptions options = sp.GetRequiredService<WebApiClientOptions>();
                 IOpcUaHttpClientFactory? httpClientFactory = sp.GetService<IOpcUaHttpClientFactory>();
                 TimeProvider? timeProvider = sp.GetService<TimeProvider>();
-                var factory = new WebApiTransportChannelFactory(
+                var httpsFactory = new WebApiTransportChannelFactory(
                     options, httpClientFactory, timeProvider);
+                var wssFactory = new WebApiWssTransportChannelFactory(
+                    options, timeProvider);
 
                 return new TransportBindingConfigurator(registry =>
-                    registry.RegisterChannelFactory(factory));
+                {
+                    registry.RegisterChannelFactory(httpsFactory);
+                    registry.RegisterChannelFactory(wssFactory);
+                });
             });
 
             return builder;

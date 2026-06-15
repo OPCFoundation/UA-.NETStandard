@@ -124,6 +124,9 @@ namespace Opc.Ua.Bindings
         protected override string? JsonTransportProfileUri => Profiles.UaWssJsonTransport;
 
         /// <inheritdoc/>
+        protected override string? OpenApiTransportProfileUri => Profiles.WssOpenApiTransport;
+
+        /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
             return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeWss, telemetry));
@@ -145,6 +148,9 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         protected override string? JsonTransportProfileUri => Profiles.UaWssJsonTransport;
+
+        /// <inheritdoc/>
+        protected override string? OpenApiTransportProfileUri => Profiles.WssOpenApiTransport;
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
@@ -1257,13 +1263,24 @@ namespace Opc.Ua.Bindings
                 await WriteResponseAsync(
                     context.Response,
                     "HTTPSLISTENER - no supported WebSocket sub-protocol requested. " +
-                    "Use 'opcua+uacp' or 'opcua+uajson'.",
+                    "Use 'opcua+uacp', 'opcua+uajson', 'opcua+openapi', or 'opcua+openapi+<accesstoken>'.",
                     HttpStatusCode.BadRequest).ConfigureAwait(false);
                 return;
             }
             if (string.Equals(selected, Profiles.OpcUaWsSubProtocolUaJson, StringComparison.Ordinal))
             {
                 await AcceptWebSocketJsonAsync(context).ConfigureAwait(false);
+                return;
+            }
+            if (string.Equals(selected, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal))
+            {
+                await AcceptWebSocketOpenApiAsync(context, accessToken: null).ConfigureAwait(false);
+                return;
+            }
+            if (selected.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal))
+            {
+                string accessToken = selected[Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix.Length..];
+                await AcceptWebSocketOpenApiAsync(context, accessToken).ConfigureAwait(false);
                 return;
             }
 
@@ -1453,6 +1470,7 @@ namespace Opc.Ua.Bindings
 
         private static string? SelectWebSocketSubProtocol(HttpContext context)
         {
+            string? openApiBearer = null;
             foreach (string requested in context.WebSockets.WebSocketRequestedProtocols)
             {
                 if (string.Equals(requested, Profiles.OpcUaWsSubProtocolUacp, StringComparison.Ordinal))
@@ -1463,8 +1481,23 @@ namespace Opc.Ua.Bindings
                 {
                     return Profiles.OpcUaWsSubProtocolUaJson;
                 }
+                if (string.Equals(requested, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal))
+                {
+                    return Profiles.OpcUaWsSubProtocolOpenApi;
+                }
+                // Bearer-token variant: opcua+openapi+<accesstoken>.
+                // Defer until the loop completes in case the client also
+                // offered the plain opcua+openapi or opcua+uacp; prefer
+                // the more-secure binary / non-bearer options first.
+                if (openApiBearer == null &&
+                    requested != null &&
+                    requested.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal) &&
+                    requested.Length > Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix.Length)
+                {
+                    openApiBearer = requested;
+                }
             }
-            return null;
+            return openApiBearer;
         }
 
         /// <summary>
@@ -1598,6 +1631,190 @@ namespace Opc.Ua.Bindings
                 if (receiveBuffer != null)
                 {
                     m_bufferManager.ReturnBuffer(receiveBuffer, nameof(AcceptWebSocketJsonAsync));
+                }
+                try
+                {
+                    if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                    {
+                        await ws.CloseAsync(
+                            WebSocketCloseStatus.NormalClosure,
+                            string.Empty,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    // Best-effort.
+                }
+                ws.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Handles a WebSocket upgrade for the <c>opcua+openapi</c> /
+        /// <c>opcua+openapi+&lt;accesstoken&gt;</c> sub-protocols (OPC UA
+        /// OpenAPI mapping over WSS; Part 6 §7.5.2 + §G.3). The wire
+        /// format reuses the standard <c>{TypeId, Body}</c> OPC UA JSON
+        /// envelope (same as <see cref="AcceptWebSocketJsonAsync"/>); the
+        /// OpenAPI sub-protocol distinguishes itself from
+        /// <c>opcua+uajson</c> by the advertised
+        /// <see cref="Profiles.WssOpenApiTransport"/> profile URI on the
+        /// discovery endpoint description and by the per-request encoder
+        /// flavor (Compact / Verbose per the Web API codec defaults).
+        /// </summary>
+        /// <param name="context">The HTTP context carrying the WebSocket upgrade.</param>
+        /// <param name="accessToken">The bearer token extracted from the
+        /// <c>opcua+openapi+&lt;accesstoken&gt;</c> sub-protocol name, or
+        /// <c>null</c> for the plain <c>opcua+openapi</c> variant. Browser
+        /// WebSocket APIs cannot send an <c>Authorization</c> header, so
+        /// the bearer credential rides in the sub-protocol name (Part 6
+        /// §7.5.2). The token is currently propagated through the
+        /// SecureChannelContext diagnostic channel until the
+        /// <c>ISessionlessIdentityProvider</c> hook lands in Phase 3.</param>
+        private async Task AcceptWebSocketOpenApiAsync(
+            HttpContext context,
+            string? accessToken)
+        {
+            string selectedSubProtocol = accessToken == null
+                ? Profiles.OpcUaWsSubProtocolOpenApi
+                : Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + accessToken;
+
+            WebSocket ws = await context.WebSockets
+                .AcceptWebSocketAsync(selectedSubProtocol)
+                .ConfigureAwait(false);
+
+            CancellationToken ct = context.RequestAborted;
+
+            // Pick the OpenAPI endpoint description for the active scheme,
+            // falling back to the JSON / SM=None description so the
+            // SecureChannelContext.EndpointDescription is never null
+            // (SessionManager.CreateSession dereferences SecurityMode).
+            EndpointDescription? endpoint = null;
+            foreach (EndpointDescription ep in m_descriptions)
+            {
+                if (Profiles.IsWssOpenApi(ep.TransportProfileUri) &&
+                    ep.SecurityMode == MessageSecurityMode.None)
+                {
+                    endpoint = ep;
+                    break;
+                }
+            }
+            if (endpoint == null)
+            {
+                foreach (EndpointDescription ep in m_descriptions)
+                {
+                    if (ep.SecurityMode == MessageSecurityMode.None)
+                    {
+                        endpoint = ep;
+                        break;
+                    }
+                }
+            }
+
+            var channelContext = new SecureChannelContext(
+                ListenerId,
+                endpoint,
+                RequestEncoding.Json,
+                context.Connection.ClientCertificate?.RawData,
+                ServerChannelCertificate);
+
+            byte[]? receiveBuffer = null;
+            try
+            {
+                while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+                {
+                    receiveBuffer ??= m_bufferManager.TakeBuffer(
+                        m_quotas.MaxBufferSize,
+                        nameof(AcceptWebSocketOpenApiAsync));
+
+                    int totalRead = 0;
+                    bool completed;
+                    do
+                    {
+                        WebSocketReceiveResult result = await ws
+                            .ReceiveAsync(
+                                new ArraySegment<byte>(
+                                    receiveBuffer,
+                                    totalRead,
+                                    receiveBuffer.Length - totalRead),
+                                ct)
+                            .ConfigureAwait(false);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.NormalClosure,
+                                "Client requested close.",
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
+                        totalRead += result.Count;
+                        if (totalRead > m_quotas.MaxBufferSize)
+                        {
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.MessageTooBig,
+                                "Message exceeded configured limit.",
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
+                        completed = result.EndOfMessage;
+                    }
+                    while (!completed);
+
+                    IServiceResponse responseToSend;
+                    try
+                    {
+                        byte[] messageBytes = new byte[totalRead];
+                        Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
+                        IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
+                            messageBytes,
+                            m_quotas.MessageContext);
+                        request.RequestHeader ??= new RequestHeader();
+
+                        responseToSend = await m_callback!
+                            .ProcessRequestAsync(channelContext, request, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        responseToSend = EndpointBase.CreateFault(m_logger, null, sre);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex, "WSSLISTENER - error processing OpenAPI request.");
+                        responseToSend = EndpointBase.CreateFault(m_logger, null, ex);
+                    }
+
+                    byte[] responseBytes = JsonRequestMapper.EncodeResponse(
+                        responseToSend,
+                        m_quotas.MessageContext);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                    await ws.SendAsync(
+                        new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
+                        WebSocketMessageType.Text,
+                        endOfMessage: true,
+                        ct).ConfigureAwait(false);
+#else
+                    await ws.SendAsync(
+                        new ArraySegment<byte>(responseBytes, 0, responseBytes.Length),
+                        WebSocketMessageType.Text,
+                        endOfMessage: true,
+                        ct).ConfigureAwait(false);
+#endif
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Request aborted; normal shutdown.
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "WSSLISTENER - unexpected OpenAPI WebSocket error.");
+            }
+            finally
+            {
+                if (receiveBuffer != null)
+                {
+                    m_bufferManager.ReturnBuffer(receiveBuffer, nameof(AcceptWebSocketOpenApiAsync));
                 }
                 try
                 {

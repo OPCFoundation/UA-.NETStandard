@@ -188,6 +188,67 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Shortcut that targets the WSS variant of the OPC UA OpenAPI
+        /// mapping (Part 6 §7.5.2 sub-protocol <c>opcua+openapi</c>;
+        /// surfaced via <see cref="Profiles.WssOpenApiTransport"/>,
+        /// OPC Foundation profile/2339). Same envelope as
+        /// <see cref="UseWebApiEndpoint(string, WebApiEncoding)"/> but
+        /// multiplexed over a WebSocket text-frame transport.
+        /// </summary>
+        /// <param name="url">
+        /// The server's WSS URL, e.g. <c>wss://server:4843/</c>.
+        /// </param>
+        /// <param name="encoding">
+        /// The OPC UA JSON encoding flavour. Defaults to
+        /// <see cref="WebApiEncoding.Compact"/>.
+        /// </param>
+        /// <returns>The builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="url"/> is <c>null</c>.
+        /// </exception>
+        public ManagedSessionBuilder UseWssOpenApiEndpoint(
+            string url,
+            WebApiEncoding encoding = WebApiEncoding.Compact)
+        {
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+            var endpointDescription = new EndpointDescription
+            {
+                EndpointUrl = url,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = Profiles.WssOpenApiTransport,
+                UserIdentityTokens = new ArrayOf<UserTokenPolicy>(
+                    new[]
+                    {
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "Anonymous",
+                            TokenType = UserTokenType.Anonymous,
+                            SecurityPolicyUri = SecurityPolicies.None
+                        },
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "Username",
+                            TokenType = UserTokenType.UserName,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        },
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "Certificate",
+                            TokenType = UserTokenType.Certificate,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        }
+                    })
+            };
+            m_webApiOptions ??= new WebApiClientOptions();
+            m_webApiOptions.Encoding = encoding;
+            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+        }
+
+        /// <summary>
         /// Configures Web API transport authentication
         /// (Bearer / Basic / mTLS via <c>HttpMessageHandler</c>).
         /// Applies to the per-session
@@ -620,34 +681,39 @@ namespace Opc.Ua.Client
 
         private static bool IsWebApiEndpoint(ConfiguredEndpoint? endpoint)
         {
-            return endpoint?.Description?.TransportProfileUri == Profiles.HttpsOpenApiTransport;
+            string? profile = endpoint?.Description?.TransportProfileUri;
+            return Profiles.IsHttpsOpenApi(profile) || Profiles.IsWssOpenApi(profile);
         }
 
         private ITransportChannelBindings BuildChannelBindings(ITransportChannelBindings inner)
         {
             // Wraps the inner registry so the synthetic
-            // Utils.UriSchemeOpcHttpsWebApi key resolves to a
-            // WebApiTransportChannelFactory configured with the auth
-            // options accumulated via WithWebApiAuthentication /
-            // UseWebApiEndpoint. Inner bindings continue to handle every
-            // other URI scheme (opc.tcp, opc.https, opc.wss, ...).
+            // Utils.UriSchemeOpcHttpsWebApi / opc.wss+openapi keys resolve
+            // to WebApi[Wss]TransportChannelFactory configured with the
+            // auth options accumulated via WithWebApiAuthentication /
+            // UseWebApiEndpoint / UseWssOpenApiEndpoint. Inner bindings
+            // continue to handle every other URI scheme (opc.tcp,
+            // opc.https, opc.wss, ...).
             if (m_webApiOptions == null && !IsWebApiEndpoint(m_options.Endpoint))
             {
                 return inner;
             }
             return new WebApiAwareChannelBindings(
                 inner,
-                new WebApiTransportChannelFactory(m_webApiOptions));
+                new WebApiTransportChannelFactory(m_webApiOptions),
+                new WebApiWssTransportChannelFactory(m_webApiOptions));
         }
 
         private sealed class WebApiAwareChannelBindings : ITransportChannelBindings
         {
             public WebApiAwareChannelBindings(
                 ITransportChannelBindings inner,
-                WebApiTransportChannelFactory webApiFactory)
+                WebApiTransportChannelFactory webApiFactory,
+                WebApiWssTransportChannelFactory wssOpenApiFactory)
             {
                 m_inner = inner;
                 m_webApiFactory = webApiFactory;
+                m_wssOpenApiFactory = wssOpenApiFactory;
             }
 
             public ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry)
@@ -656,11 +722,16 @@ namespace Opc.Ua.Client
                 {
                     return m_webApiFactory.Create(telemetry);
                 }
+                if (string.Equals(uriScheme, Utils.UriSchemeOpcWssOpenApi, StringComparison.Ordinal))
+                {
+                    return m_wssOpenApiFactory.Create(telemetry);
+                }
                 return m_inner.Create(uriScheme, telemetry);
             }
 
             private readonly ITransportChannelBindings m_inner;
             private readonly WebApiTransportChannelFactory m_webApiFactory;
+            private readonly WebApiWssTransportChannelFactory m_wssOpenApiFactory;
         }
 
         private sealed class ServiceProviderHttpClientFactory : IOpcUaHttpClientFactory, IDisposable
