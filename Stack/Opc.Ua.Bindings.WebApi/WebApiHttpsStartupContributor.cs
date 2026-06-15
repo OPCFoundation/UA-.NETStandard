@@ -92,22 +92,37 @@ namespace Opc.Ua.Bindings.WebApi
                 m_server.UpdateListenerId(listener.ListenerId);
             }
 
-            // Pick the listener's SM=None HTTPS endpoint as the
-            // default invocation context — the server pipeline (e.g.
+            // Pick the listener's OpenAPI endpoint description (added by
+            // HttpsServiceHost discovery emission) as the default
+            // invocation context. The server pipeline (e.g.
             // SessionManager.CreateSession) dereferences
-            // SecureChannelContext.EndpointDescription, so a null
-            // endpoint surfaces as a server-side NRE / BadUnexpectedError.
+            // SecureChannelContext.EndpointDescription, so a null endpoint
+            // surfaces as a server-side NRE / BadUnexpectedError. Falling
+            // back to the SM=None HTTPS-binary description keeps things
+            // working for older HttpsServiceHost versions that didn't
+            // emit the OpenAPI twin.
             if (listener.Descriptions is { } descriptions)
             {
                 EndpointDescription? defaultEndpoint = null;
                 foreach (EndpointDescription endpoint in descriptions)
                 {
-                    if (endpoint.SecurityMode == MessageSecurityMode.None &&
-                        !string.IsNullOrEmpty(endpoint.EndpointUrl) &&
-                        Utils.IsUriHttpsScheme(endpoint.EndpointUrl))
+                    if (Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri))
                     {
                         defaultEndpoint = endpoint;
                         break;
+                    }
+                }
+                if (defaultEndpoint == null)
+                {
+                    foreach (EndpointDescription endpoint in descriptions)
+                    {
+                        if (endpoint.SecurityMode == MessageSecurityMode.None &&
+                            !string.IsNullOrEmpty(endpoint.EndpointUrl) &&
+                            Utils.IsUriHttpsScheme(endpoint.EndpointUrl))
+                        {
+                            defaultEndpoint = endpoint;
+                            break;
+                        }
                     }
                 }
                 defaultEndpoint ??= descriptions.Count > 0 ? descriptions[0] : null;

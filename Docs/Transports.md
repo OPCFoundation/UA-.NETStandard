@@ -14,20 +14,31 @@ to integrate with web-based tooling.
 | `uatcp-uasc-uabinary` | `opc.tcp://` | UA Binary | yes | `None`, `Sign`, `SignAndEncrypt` |
 | `https-uabinary` | `opc.https://`, `https://` | UA Binary in HTTP body (`application/octet-stream`) | yes (one chunk per POST) | `None`, `Sign`, `SignAndEncrypt` |
 | `https-uajson` | `opc.https://`, `https://` | UA JSON in HTTP body (`application/opcua+uajson`) | **no** — TLS only | `None` only |
-| `https-webapi` | `opc.https://`, `https://` | OpenAPI Mapping (Part 6 §G.3): per-service `POST /<service>` with body = `<Service>Request` JSON (`application/json; encoding=compact\|verbose`) | **no** — TLS only | `None` only |
+| [`https-uajson-openapi`](https://profiles.opcfoundation.org/profile/2338) | `opc.https://`, `https://` | OpenAPI Mapping (Part 6 §G.3): per-service `POST /<service>` with body = `<Service>Request` JSON (`application/json; encoding=compact\|verbose`) | **no** — TLS only | `None` only |
 | `uawss-uasc-uabinary` | `opc.wss://`, `wss://` | UA Binary in WebSocket binary frame (sub-protocol `opcua+uacp`) | yes | `None`, `Sign`, `SignAndEncrypt` |
 | `uawss-uajson` | `opc.wss://`, `wss://` | UA JSON in WebSocket text frame (sub-protocol `opcua+uajson`) | **no** — TLS only | `None` only |
+| [`wss-uajson-openapi`](https://profiles.opcfoundation.org/profile/2339) | `opc.wss://`, `wss://` | OpenAPI Mapping over WebSocket text frame (sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) | **no** — TLS only | `None` only (planned — see [plan #25](../plans/25-wss-openapi-subprotocols.md)) |
 
-The JSON / REST profiles do not negotiate a UA SecureChannel; transport
+The JSON / OpenAPI profiles do not negotiate a UA SecureChannel; transport
 security is provided exclusively by the surrounding TLS connection.
 Servers MUST advertise these endpoints with `MessageSecurityMode.None`
 and `SecurityPolicyUri = None`. The `https-uajson` and WSS JSON
 profiles use the Compact (reversible) flavour mandated by
-Part 6 §5.4.9 (`JsonEncoderOptions.Compact`). The `https-webapi`
-profile selects between Compact (default, mandatory) and Verbose via
+Part 6 §5.4.9 (`JsonEncoderOptions.Compact`). The OpenAPI profiles
+select between Compact (default, mandatory) and Verbose via
 the `application/json; encoding=compact|verbose` media-type parameter
 on `Content-Type` / `Accept` — see [`WebApi.md`](WebApi.md) for the
 full mapping table.
+
+The OPC UA Profiles surface exposes the two OpenAPI profile URIs as
+`Profiles.HttpsOpenApiTransport` (profile/2338) and
+`Profiles.WssOpenApiTransport` (profile/2339); the `HttpsServiceHost`
+emits the HTTPS twin as a discovery-only `EndpointDescription`
+alongside each `SecurityMode.None` HTTPS-binary endpoint so discovery
+clients see the OpenAPI route without hard-coding the URL.
+`Profiles.HttpsWebApiTransport` is an `[Obsolete]` alias retained for
+binary compatibility — new code should reference
+`Profiles.HttpsOpenApiTransport`.
 
 ## Assembly layout
 

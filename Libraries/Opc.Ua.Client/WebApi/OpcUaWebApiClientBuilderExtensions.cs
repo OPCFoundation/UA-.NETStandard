@@ -44,7 +44,7 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <c>AddWebApiTransportChannel()</c> registers the
     /// <see cref="WebApiTransportChannelFactory"/> so any
     /// <c>ConfiguredEndpoint</c> with
-    /// <see cref="Profiles.HttpsWebApiTransport"/> profile is dispatched
+    /// <see cref="Profiles.HttpsOpenApiTransport"/> profile is dispatched
     /// through Web API by the standard
     /// <c>ClientChannelManager</c>.
     /// </summary>

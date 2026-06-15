@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.WebApi
         public int OperationTimeout { get; set; }
 
         /// <inheritdoc/>
-        public ValueTask OpenAsync(
+        public async ValueTask OpenAsync(
             Uri url,
             TransportChannelSettings settings,
             CancellationToken ct)
@@ -207,7 +207,114 @@ namespace Opc.Ua.Client.WebApi
             WebApiClientOptions clientOptions = BuildClientOptions(settings);
             m_client = WebApiClient.Create(m_url, clientOptions);
 
-            return default;
+            // The Web API binding is selected by transport profile URI on a
+            // caller-supplied EndpointDescription that typically lacks
+            // ServerCertificate, ApplicationUri, and UserIdentityTokens
+            // (the caller knows the URL but not the server's certificate /
+            // identity model). Standard Session.OpenAsync needs the server
+            // certificate to encrypt non-anonymous user tokens
+            // (e.g. UserName under Basic256Sha256). Issue a sessionless
+            // GetEndpoints over the freshly-opened Web API channel so we
+            // can hydrate those fields from the matching SM=None
+            // server-side description before Session.OpenAsync runs.
+            await HydrateEndpointFromServerAsync(settings, ct).ConfigureAwait(false);
+        }
+
+        private async Task HydrateEndpointFromServerAsync(
+            TransportChannelSettings settings,
+            CancellationToken ct)
+        {
+            if (settings.Description == null || m_client == null || m_url == null)
+            {
+                return;
+            }
+            // Skip when the caller already supplied the cert (e.g. when the
+            // standard discovery-then-open path was used and updated the
+            // description from a prior GetEndpoints).
+            if (settings.Description.ServerCertificate.Length > 0)
+            {
+                return;
+            }
+
+            var request = new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 1,
+                    TimeoutHint = (uint)OperationTimeout
+                },
+                EndpointUrl = settings.Description.EndpointUrl,
+                LocaleIds = default,
+                ProfileUris = default
+            };
+
+            GetEndpointsResponse response;
+            try
+            {
+                response = await m_client
+                    .GetEndpointsAsync(request, ct)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort: if the server doesn't respond to sessionless
+                // GetEndpoints over Web API, leave the description as-is.
+                // Session.OpenAsync will still fail later if non-anonymous
+                // user tokens require encryption, but at least the channel
+                // is open and Anonymous + sessionless flows work.
+                return;
+            }
+
+            EndpointDescription? match = SelectMatchingEndpoint(
+                response.Endpoints,
+                settings.Description);
+            if (match == null)
+            {
+                return;
+            }
+            // In-place update on the shared EndpointDescription so the
+            // Session sees the populated cert / app description / tokens.
+            settings.Description.ServerCertificate = match.ServerCertificate;
+            if (match.Server != null)
+            {
+                settings.Description.Server = match.Server;
+            }
+            if (match.UserIdentityTokens.Count > 0)
+            {
+                settings.Description.UserIdentityTokens = match.UserIdentityTokens;
+            }
+        }
+
+        private static EndpointDescription? SelectMatchingEndpoint(
+            ArrayOf<EndpointDescription> endpoints,
+            EndpointDescription expected)
+        {
+            // First pass: exact transport profile match (when the server
+            // explicitly advertises the OpenAPI endpoint).
+            EndpointDescription? webApiMatch = null;
+            EndpointDescription? smNoneMatch = null;
+            for (int i = 0; i < endpoints.Count; i++)
+            {
+                EndpointDescription candidate = endpoints[i];
+                if (candidate.SecurityMode != MessageSecurityMode.None)
+                {
+                    continue;
+                }
+                if (Profiles.IsHttpsOpenApi(candidate.TransportProfileUri))
+                {
+                    webApiMatch = candidate;
+                    break;
+                }
+                smNoneMatch ??= candidate;
+            }
+            // If the server doesn't advertise the OpenAPI profile yet
+            // (Phase 1 discovery emission lands separately), fall back to
+            // any SM=None endpoint — that's the same TLS endpoint we're
+            // talking to, just under a different OPC UA transport profile,
+            // so its ServerCertificate / Server / UserIdentityTokens are
+            // applicable.
+            return webApiMatch ?? smNoneMatch;
         }
 
         /// <inheritdoc/>

@@ -39,7 +39,7 @@ namespace Opc.Ua.Client.WebApi
     /// binding (OPC UA Part 6 §G.3 "OpenAPI Mapping"). Registered under
     /// the synthetic URI scheme <see cref="Utils.UriSchemeOpcHttpsWebApi"/>
     /// so the client channel manager can map endpoints with
-    /// <c>Profiles.HttpsWebApiTransport</c> to this factory while sharing
+    /// <c>Profiles.HttpsOpenApiTransport</c> to this factory while sharing
     /// the wire-level <c>https://</c> URL scheme with the binary /
     /// JSON-envelope HTTPS channels.
     /// </summary>

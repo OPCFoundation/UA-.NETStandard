@@ -57,6 +57,33 @@ table; loading a single sub-doc keeps the context window small.
 - [`alarms-model-change.md`](alarms-model-change.md) — Alarms and Address-Space Model Changes
 - [`timeprovider.md`](timeprovider.md) — Time and Timer Abstraction (`TimeProvider`)
 
+## Smaller renames
+
+### `Profiles.HttpsWebApiTransport` → `Profiles.HttpsOpenApiTransport`
+
+The constant for the HTTPS OpenAPI binding (Part 6 §G.3, OPC Foundation
+[profile/2338](https://profiles.opcfoundation.org/profile/2338)) was
+renamed to align with the spec profile name:
+
+| Before | After |
+| --- | --- |
+| `Profiles.HttpsWebApiTransport` | `Profiles.HttpsOpenApiTransport` |
+| `Profiles.IsHttpsWebApi(uri)` | `Profiles.IsHttpsOpenApi(uri)` |
+
+The old names are retained as `[Obsolete]` aliases that resolve to the
+new ones, so source-compiled consumers keep working. The .NET binding
+surface (`WebApiClient`, `WebApiServer`, `WebApiBodyCodec`,
+`WebApiTransportChannel`, `services.AddWebApiTransport(...)`) keeps
+the `WebApi*` prefix to match the OPC Foundation
+[`UA-WebApi-StarterKit`](https://github.com/OPCFoundation/UA-WebApi-StarterKit)
+reference. The `Profiles.*` rename only affects the spec-level
+transport profile URI constants.
+
+The companion WebSocket sub-profile
+`Profiles.WssOpenApiTransport`
+([profile/2339](https://profiles.opcfoundation.org/profile/2339))
+is a new constant introduced alongside this rename.
+
 ## See also
 
 - [Migration Guide landing page](../../MigrationGuide.md) — index across

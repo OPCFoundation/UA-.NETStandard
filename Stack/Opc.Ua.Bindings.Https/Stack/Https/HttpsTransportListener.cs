@@ -67,6 +67,9 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         protected override string? JsonTransportProfileUri => Profiles.HttpsJsonTransport;
 
+        /// <inheritdoc/>
+        protected override string? OpenApiTransportProfileUri => Profiles.HttpsOpenApiTransport;
+
         /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
@@ -90,6 +93,9 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         protected override string? JsonTransportProfileUri => Profiles.HttpsJsonTransport;
+
+        /// <inheritdoc/>
+        protected override string? OpenApiTransportProfileUri => Profiles.HttpsOpenApiTransport;
 
         /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.

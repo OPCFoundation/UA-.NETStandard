@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
@@ -192,22 +193,36 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
     /// Unit tests for the HTTPS REST API <see cref="Profiles"/> URI helper.
     /// </summary>
     [TestFixture]
-    [Category("WebApiProfile")]
+    [Category("OpenApiProfile")]
     [Parallelizable]
     public class WebApiProfileTests
     {
         [Test]
-        public void HttpsWebApiTransportConstantMatchesSpecUrlShape()
+        public void HttpsOpenApiTransportConstantMatchesProfile2338Uri()
         {
             Assert.That(
-                Profiles.HttpsWebApiTransport,
-                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/https-webapi"));
+                Profiles.HttpsOpenApiTransport,
+                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/https-uajson-openapi"));
         }
 
         [Test]
-        public void IsHttpsWebApiReturnsTrueForExactMatch()
+        public void WssOpenApiTransportConstantMatchesProfile2339Uri()
         {
-            Assert.That(Profiles.IsHttpsWebApi(Profiles.HttpsWebApiTransport), Is.True);
+            Assert.That(
+                Profiles.WssOpenApiTransport,
+                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi"));
+        }
+
+        [Test]
+        public void IsHttpsOpenApiReturnsTrueForExactMatch()
+        {
+            Assert.That(Profiles.IsHttpsOpenApi(Profiles.HttpsOpenApiTransport), Is.True);
+        }
+
+        [Test]
+        public void IsWssOpenApiReturnsTrueForExactMatch()
+        {
+            Assert.That(Profiles.IsWssOpenApi(Profiles.WssOpenApiTransport), Is.True);
         }
 
         [Test]
@@ -215,10 +230,18 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [TestCase("")]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uajson")]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uabinary")]
-        [TestCase("HTTP://OPCFOUNDATION.ORG/UA-PROFILE/TRANSPORT/HTTPS-RESTAPI")]
-        public void IsHttpsWebApiReturnsFalseForOtherProfiles(string? uri)
+        [TestCase("HTTP://OPCFOUNDATION.ORG/UA-PROFILE/TRANSPORT/HTTPS-UAJSON-OPENAPI")]
+        public void IsHttpsOpenApiReturnsFalseForOtherProfiles(string? uri)
         {
-            Assert.That(Profiles.IsHttpsWebApi(uri), Is.False);
+            Assert.That(Profiles.IsHttpsOpenApi(uri), Is.False);
+        }
+
+        [Test]
+        [Obsolete("Validating the obsolete HttpsWebApiTransport alias works.")]
+        public void HttpsWebApiTransportAliasResolvesToHttpsOpenApiTransport()
+        {
+            Assert.That(Profiles.HttpsWebApiTransport, Is.EqualTo(Profiles.HttpsOpenApiTransport));
+            Assert.That(Profiles.IsHttpsWebApi(Profiles.HttpsOpenApiTransport), Is.True);
         }
     }
 }

@@ -210,7 +210,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 Description = new EndpointDescription
                 {
                     EndpointUrl = "opc.https+webapi://localhost/",
-                    TransportProfileUri = Profiles.HttpsWebApiTransport
+                    TransportProfileUri = Profiles.HttpsOpenApiTransport
                 },
                 Configuration = new EndpointConfiguration(),
                 Factory = m_stubServer!.MessageContext.Factory,
@@ -262,7 +262,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 Description = new EndpointDescription
                 {
                     EndpointUrl = s_baseAddress.AbsoluteUri,
-                    TransportProfileUri = Profiles.HttpsWebApiTransport
+                    TransportProfileUri = Profiles.HttpsOpenApiTransport
                 },
                 Configuration = new EndpointConfiguration(),
                 Factory = m_stubServer!.MessageContext.Factory,

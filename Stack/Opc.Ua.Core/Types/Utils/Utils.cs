@@ -82,7 +82,7 @@ namespace Opc.Ua
         /// served and addressed as <c>https://</c>. The constant exists
         /// only as a synthetic registry key in the transport binding
         /// registry so the client channel manager can map
-        /// <c>Profiles.HttpsWebApiTransport</c> to the Web API channel
+        /// <c>Profiles.HttpsOpenApiTransport</c> to the Web API channel
         /// factory distinct from the HTTPS-binary / HTTPS-JSON channel
         /// factory.
         /// </remarks>

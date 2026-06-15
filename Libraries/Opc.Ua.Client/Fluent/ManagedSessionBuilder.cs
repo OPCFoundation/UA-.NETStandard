@@ -122,7 +122,7 @@ namespace Opc.Ua.Client
         /// Shortcut that targets an OPC UA HTTPS Web API endpoint
         /// (OPC UA Part 6 §G.3 "OpenAPI Mapping"). The endpoint
         /// description is constructed with
-        /// <see cref="Profiles.HttpsWebApiTransport"/>,
+        /// <see cref="Profiles.HttpsOpenApiTransport"/>,
         /// <see cref="MessageSecurityMode.None"/>, and
         /// <see cref="SecurityPolicies.None"/> — Web API relies on
         /// TLS / transport-layer authentication
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client
                 EndpointUrl = url,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None,
-                TransportProfileUri = Profiles.HttpsWebApiTransport,
+                TransportProfileUri = Profiles.HttpsOpenApiTransport,
                 UserIdentityTokens = new ArrayOf<UserTokenPolicy>(
                     new[]
                     {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Client
         /// Applies to the per-session
         /// <see cref="WebApiTransportChannel"/> constructed when
         /// <see cref="ConnectAsync"/> resolves a
-        /// <see cref="Profiles.HttpsWebApiTransport"/> endpoint.
+        /// <see cref="Profiles.HttpsOpenApiTransport"/> endpoint.
         /// </summary>
         /// <param name="configure">
         /// Callback that mutates a fresh
@@ -620,7 +620,7 @@ namespace Opc.Ua.Client
 
         private static bool IsWebApiEndpoint(ConfiguredEndpoint? endpoint)
         {
-            return endpoint?.Description?.TransportProfileUri == Profiles.HttpsWebApiTransport;
+            return endpoint?.Description?.TransportProfileUri == Profiles.HttpsOpenApiTransport;
         }
 
         private ITransportChannelBindings BuildChannelBindings(ITransportChannelBindings inner)

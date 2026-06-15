@@ -93,6 +93,18 @@ namespace Opc.Ua.Bindings
         protected virtual string? JsonTransportProfileUri => null;
 
         /// <summary>
+        /// Optional companion OpenAPI <c>TransportProfileUri</c> emitted
+        /// as a discovery-only twin alongside each
+        /// <see cref="MessageSecurityMode.None"/> binary endpoint. The
+        /// HTTPS factory returns <see cref="Profiles.HttpsOpenApiTransport"/>
+        /// (OPC Foundation profile/2338); the WSS factory returns
+        /// <see cref="Profiles.WssOpenApiTransport"/> (profile/2339)
+        /// once the WSS opcua+openapi sub-protocol handler lands.
+        /// <c>null</c> means no OpenAPI sub-profile is advertised.
+        /// </summary>
+        protected virtual string? OpenApiTransportProfileUri => null;
+
+        /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
@@ -237,31 +249,45 @@ namespace Opc.Ua.Bindings
                 {
                     endpoints.Add(description);
 
-                    // NOTE: Earlier iterations of this refactor emitted an
-                    // additional Security-Mode-None description per base
-                    // address with TransportProfileUri = the JSON variant.
-                    // That registered a callable SecurityMode=None endpoint
-                    // through serverBase.CreateServiceHostEndpoint, which
-                    // effectively backdoored SecurityMode=None onto the
-                    // companion binary endpoint and broke
-                    // ClientTest.GetEndpointsOnDiscoveryChannelAsync(False)
-                    // (the test expects BadSecurityPolicyRejected when the
-                    // server's only configured security policy is non-None
-                    // and the discovery client uses None). The JSON
-                    // sub-protocol is still fully reachable on the wire
-                    // because the dispatcher in Startup.Configure picks it
-                    // up via the Content-Type / Sec-WebSocket-Protocol
-                    // headers; explicit discovery emission for the JSON
-                    // profile is tracked as a follow-up (it needs to
-                    // separate discovery-only emission from callable
-                    // endpoint registration in ServerBase).
-
                     serverBase.CreateServiceHostEndpoint(
                         uri.Uri,
                         endpoints,
                         endpointConfiguration,
                         listener,
                         clientCertificateValidator);
+
+                    // Discovery-only emission for the OpenAPI (Part 6 §G.3)
+                    // companion sub-profile. The HTTPS WebApi controllers
+                    // (Opc.Ua.Bindings.WebApi) are mounted on the same
+                    // Kestrel host as the binary listener via the startup
+                    // contributor hook; the URL is identical. We surface the
+                    // sub-profile in the GetEndpoints response so discovery
+                    // clients see it, but we do NOT call
+                    // CreateServiceHostEndpoint for the twin — there's no
+                    // separate listener (the controllers route by URL path)
+                    // and the earlier attempt to register a callable
+                    // SecurityMode=None endpoint backdoored SecurityMode=None
+                    // onto the binary endpoint, breaking
+                    // ClientTest.GetEndpointsOnDiscoveryChannelAsync(False).
+                    // Only emitted when an SM=None HTTPS endpoint exists
+                    // (OpenAPI is SecurityMode=None by spec) and when the
+                    // factory advertises an OpenAPI sub-profile URI.
+                    if (description.SecurityMode == MessageSecurityMode.None &&
+                        OpenApiTransportProfileUri is { Length: > 0 } openApiUri)
+                    {
+                        var openApiTwin = new EndpointDescription
+                        {
+                            EndpointUrl = description.EndpointUrl,
+                            Server = description.Server,
+                            ServerCertificate = description.ServerCertificate,
+                            SecurityMode = MessageSecurityMode.None,
+                            SecurityPolicyUri = SecurityPolicies.None,
+                            SecurityLevel = description.SecurityLevel,
+                            UserIdentityTokens = description.UserIdentityTokens,
+                            TransportProfileUri = openApiUri
+                        };
+                        endpoints.Add(openApiTwin);
+                    }
                 }
                 else
                 {

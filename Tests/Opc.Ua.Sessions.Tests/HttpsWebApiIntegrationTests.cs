@@ -122,6 +122,23 @@ namespace Opc.Ua.Sessions.Tests
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
                 TransportBindingRegistry = registry
             };
+            // Pre-load the server configuration so we can add UserName /
+            // Certificate / IssuedToken user identity policies BEFORE the
+            // listeners are bound. The default ServerFixture configuration
+            // ships with empty ServerConfiguration.UserTokenPolicies, which
+            // makes any ActivateSession call fail server-side with
+            // BadIdentityTokenInvalid (no matching policy). The
+            // ManagedSession-over-WebApi tests below need this.
+            await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                };
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             // Client-side ApplicationConfiguration with PKI rooted at the
@@ -176,6 +193,31 @@ namespace Opc.Ua.Sessions.Tests
                     ep.SecurityMode == MessageSecurityMode.None);
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured HTTPS endpoint - REST requires SM None.");
+        }
+
+        [Test]
+        public void ReferenceServerEmitsOpenApiDiscoveryEndpoint()
+        {
+            // The HttpsServiceHost emits a discovery-only twin per
+            // SecurityMode=None HTTPS endpoint with
+            // TransportProfileUri = Profiles.HttpsOpenApiTransport (profile/2338).
+            // Verify that discovery-driven clients can find the OpenAPI
+            // endpoint without hard-coding the URL.
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
+            EndpointDescription openApi = endpoints
+                .ToArray()
+                .FirstOrDefault(ep =>
+                    Profiles.IsHttpsOpenApi(ep.TransportProfileUri));
+            Assert.That(openApi, Is.Not.Null,
+                "Reference server must advertise the HTTPS OpenAPI sub-profile (profile/2338) " +
+                "as a discovery-only twin alongside the SM=None HTTPS-binary endpoint.");
+            Assert.That(openApi.SecurityMode, Is.EqualTo(MessageSecurityMode.None),
+                "OpenAPI binding is restricted to SecurityMode.None.");
+            Assert.That(openApi.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None),
+                "OpenAPI binding uses TLS — SecurityPolicy.None at the OPC UA layer.");
+            Assert.That(openApi.UserIdentityTokens.Count, Is.GreaterThan(0),
+                "OpenAPI endpoint must carry the server's user identity token policies " +
+                "so clients can pick a compatible identity at activate time.");
         }
 
         [TestCase(WebApiEncoding.Compact)]
@@ -343,12 +385,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Ignore("ManagedSession over WebApi ActivateSession returns BadSessionIdInvalid against the " +
-                "reference server. CreateSession succeeds and the channel is wired correctly " +
-                "(WebApiTransportChannelTests prove the channel layer end-to-end). The remaining " +
-                "issue is a server-side session-binding gap between CreateSession and ActivateSession " +
-                "over the HTTP transport — tracked as a follow-up under the WebApi server-binding " +
-                "hardening plan. Re-enable once that lands.")]
         public async Task ManagedSessionOverWebApiOpensActivatesAndClosesAsync()
         {
             // Exercises the integrated client path: ManagedSession over
@@ -357,8 +393,8 @@ namespace Opc.Ua.Sessions.Tests
             // session activates (CreateSession + ActivateSession) and
             // closes cleanly. Username auth is used because the fixture
             // runs with HttpsMutualTls=false which filters Anonymous
-            // tokens out of the HTTPS endpoint's UserTokenPolicies (see
-            // HttpsServiceHost.cs line 229).
+            // tokens out of the HTTPS endpoint's UserIdentityTokens
+            // (HttpsServiceHost.cs line 229).
             await using ManagedSession session = await CreateWebApiManagedSessionAsync(
                 "ManagedSessionWebApi-Lifecycle").ConfigureAwait(false);
 
@@ -369,9 +405,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Ignore("Depends on ManagedSession ActivateSession over WebApi — see " +
-                "ManagedSessionOverWebApiOpensActivatesAndClosesAsync. Re-enable once the " +
-                "server-side session-binding gap is closed.")]
         public async Task ManagedSessionOverWebApiReadsServerNamespaceArrayAsync()
         {
             await using ManagedSession session = await CreateWebApiManagedSessionAsync(
@@ -402,9 +435,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Ignore("Depends on ManagedSession ActivateSession over WebApi — see " +
-                "ManagedSessionOverWebApiOpensActivatesAndClosesAsync. Re-enable once the " +
-                "server-side session-binding gap is closed.")]
         public async Task ManagedSessionOverWebApiBrowsesServerObjectAsync()
         {
             await using ManagedSession session = await CreateWebApiManagedSessionAsync(
@@ -439,9 +469,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Ignore("Full V2 subscription parity verification depends on ManagedSession ActivateSession " +
-                "over WebApi succeeding — see ManagedSessionOverWebApiOpensActivatesAndClosesAsync. " +
-                "Re-enable once the server-side session-binding gap is closed.")]
         public async Task ManagedSessionOverWebApiCreatesSubscriptionAndReceivesNotificationAsync()
         {
             // Full V2 subscription parity check over WebApi:

@@ -95,16 +95,28 @@ The `Accept` header takes precedence for the response encoding; the
 
 ## Discovery
 
-When the binding is registered, the server emits an additional
-`EndpointDescription` per base address with:
+When the binding is registered, the `HttpsServiceHost` emits a
+discovery-only twin per `SecurityMode.None` HTTPS-binary endpoint with:
 
-- `TransportProfileUri = http://opcfoundation.org/UA-Profile/Transport/https-webapi`
+- `TransportProfileUri = http://opcfoundation.org/UA-Profile/Transport/https-uajson-openapi` (OPC Foundation [profile/2338](https://profiles.opcfoundation.org/profile/2338); surfaced via `Profiles.HttpsOpenApiTransport`)
 - `SecurityMode = None` (TLS provides transport security)
-- `UserIdentityTokens` populated from the configured authentication
-  modes (Anonymous / Bearer / Basic / X.509)
+- `SecurityPolicyUri = None`
+- `ServerCertificate` and `UserIdentityTokens` copied from the
+  companion HTTPS-binary description so clients can pick a compatible
+  identity at activate time.
 
 Clients discover the binding through `GetEndpoints` and resolve it by
-URI scheme like any other transport.
+the `TransportProfileUri` — the synthetic registry-key scheme
+`opc.https+webapi` (`Utils.UriSchemeOpcHttpsWebApi`) maps the profile
+to the `WebApiTransportChannelFactory` while the wire-level URL stays
+`https://...`. The fluent shortcut
+`ManagedSessionBuilder.UseWebApiEndpoint(url)` constructs the
+endpoint description with all of these fields pre-populated.
+
+> The companion WebSocket sub-profile
+> `Profiles.WssOpenApiTransport` (OPC Foundation [profile/2339](https://profiles.opcfoundation.org/profile/2339))
+> is currently in progress — see
+> [plans/25-wss-openapi-subprotocols.md](../plans/25-wss-openapi-subprotocols.md).
 
 ## Wire format
 

@@ -939,7 +939,7 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
-                // The Web API binding (Profiles.HttpsWebApiTransport) is not
+                // The Web API binding (Profiles.HttpsOpenApiTransport) is not
                 // currently surfaced as a discoverable endpoint by the
                 // standard server discovery flow — Web API shares the
                 // wire-level https:// URL with the binary / JSON-envelope
@@ -951,7 +951,7 @@ namespace Opc.Ua.Client
                 // refresh for that profile.
                 bool updateBeforeConnect = !string.Equals(
                     ConfiguredEndpoint.Description.TransportProfileUri,
-                    Profiles.HttpsWebApiTransport,
+                    Profiles.HttpsOpenApiTransport,
                     StringComparison.Ordinal);
 
                 Session session;

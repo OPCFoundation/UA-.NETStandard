@@ -168,12 +168,39 @@ namespace Opc.Ua
         /// with the OPC UA JSON encoding from Part 6 §5.4. Compact (mandatory per
         /// §5.4.9) and Verbose forms are negotiated through the
         /// <c>application/json; encoding=compact|verbose</c> media-type parameter.
-        /// The HTTPS REST binding does not use UA Secure Conversation and is
+        /// The HTTPS OpenAPI binding does not use UA Secure Conversation and is
         /// therefore restricted to <see cref="MessageSecurityMode.None"/>; transport
-        /// security is provided exclusively by TLS at the HTTPS layer.
+        /// security is provided exclusively by TLS at the HTTPS layer. Maps to OPC
+        /// Foundation <a href="https://profiles.opcfoundation.org/profile/2338">profile/2338</a>.
         /// </remarks>
-        public const string HttpsWebApiTransport
-            = "http://opcfoundation.org/UA-Profile/Transport/https-webapi";
+        public const string HttpsOpenApiTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/https-uajson-openapi";
+
+        /// <summary>
+        /// Communicates with the OPC UA service set as a REST API over a
+        /// secure WebSocket sub-protocol (<c>opcua+openapi</c>; OPC UA
+        /// Part 6 §7.5.2). Same on-wire OpenAPI envelope as
+        /// <see cref="HttpsOpenApiTransport"/> but multiplexed over a
+        /// WebSocket text-frame transport for bidirectional, lower-latency
+        /// scenarios (e.g. long-running notification streams). Maps to OPC
+        /// Foundation <a href="https://profiles.opcfoundation.org/profile/2339">profile/2339</a>.
+        /// </summary>
+        public const string WssOpenApiTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi";
+
+        /// <summary>
+        /// Renamed to <see cref="HttpsOpenApiTransport"/> for alignment with the
+        /// OPC UA spec profile name (Part 6 §G.3 / profile/2338). The .NET
+        /// binding surface (<c>WebApiClient</c>, <c>WebApiServer</c>, etc.)
+        /// keeps the <c>WebApi*</c> prefix to match the OPC Foundation
+        /// <c>UA-WebApi-StarterKit</c> reference. This obsolete alias maps
+        /// to the same URI so consumers compiled against it continue to
+        /// work.
+        /// </summary>
+        [Obsolete("Renamed to HttpsOpenApiTransport. The .NET binding surface (WebApiClient, " +
+            "WebApiServer, WebApiBodyCodec, …) keeps the WebApi* prefix; only the OPC UA " +
+            "Profiles constants align with the spec OpenAPI naming.")]
+        public const string HttpsWebApiTransport = HttpsOpenApiTransport;
 
         /// <summary>
         /// Uri for "PubSub UDP UADP" Profile.
@@ -259,12 +286,34 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
-        /// HTTPS REST API transport profile (<see cref="HttpsWebApiTransport"/>).
+        /// HTTPS OpenAPI transport profile (<see cref="HttpsOpenApiTransport"/>;
+        /// OPC Foundation profile/2338).
         /// </summary>
         /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsHttpsOpenApi(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, HttpsOpenApiTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="transportProfileUri"/> identifies the
+        /// WSS OpenAPI transport profile (<see cref="WssOpenApiTransport"/>;
+        /// OPC Foundation profile/2339).
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        public static bool IsWssOpenApi(string? transportProfileUri)
+        {
+            return string.Equals(transportProfileUri, WssOpenApiTransport, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Renamed to <see cref="IsHttpsOpenApi(string)"/>.
+        /// </summary>
+        /// <param name="transportProfileUri">The transport profile URI to test.</param>
+        [Obsolete("Renamed to IsHttpsOpenApi.")]
         public static bool IsHttpsWebApi(string? transportProfileUri)
         {
-            return string.Equals(transportProfileUri, HttpsWebApiTransport, StringComparison.Ordinal);
+            return IsHttpsOpenApi(transportProfileUri);
         }
 
         /// <summary>
