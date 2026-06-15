@@ -1,0 +1,246 @@
+name: Preview Publish (NuGet → GitHub Packages)
+
+# Mirrors .azurepipelines/preview.yml (build UA Core Library.slnx, strong-name
+# + Authenticode-sign assemblies, pack nupkg + snupkg + legacy nuspec, sign
+# packages) but publishes to https://nuget.pkg.github.com/OPCFoundation/index.json
+# instead of the Azure DevOps internal feed. Both workflows coexist.
+#
+# Versioning:
+#   - tag push (refs/tags/v*) → Public  (NBGV_Version)
+#   - everything else         → Preview (NBGV_NuGetPackageVersion)
+#
+# Signing gracefully skips when the org secrets are not configured (e.g. on
+# a fork). The packages are still built and published unsigned; warnings
+# surface in the job log.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: preview-publish
+  cancel-in-progress: false
+
+jobs:
+  pack-and-publish:
+    name: Build, sign, pack, publish
+    runs-on: windows-2025
+
+    env:
+      # Surface signing secrets as env so step-level `if:` predicates can
+      # use the simple env.<NAME> != '' form (secrets context is not allowed
+      # inside `if:`).
+      SIGNING_URL: ${{ secrets.SIGNING_URL }}
+      SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
+      SIGNING_TENANT_ID: ${{ secrets.SIGNING_TENANT_ID }}
+      SIGNING_CLIENT_ID: ${{ secrets.SIGNING_CLIENT_ID }}
+      SIGNING_CLIENT_SECRET: ${{ secrets.SIGNING_CLIENT_SECRET }}
+      SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
+      OPCFOUNDATION_NETSTANDARD_SNK_BASE64: ${{ secrets.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 }}
+      ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      TOOLS_DIR: ${{ github.workspace }}/tools
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # nbgv needs full git history
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Decode Strong Name Key
+        if: env.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 != ''
+        shell: pwsh
+        run: |
+          $snkDir = Join-Path $env:GITHUB_WORKSPACE '.snk'
+          New-Item -ItemType Directory -Force -Path $snkDir | Out-Null
+          $snkPath = Join-Path $snkDir 'OPCFoundation.NetStandard.Key.snk'
+          [System.IO.File]::WriteAllBytes(
+              $snkPath,
+              [System.Convert]::FromBase64String($env:OPCFOUNDATION_NETSTANDARD_SNK_BASE64))
+          Write-Host "Wrote SNK to $snkPath ($((Get-Item $snkPath).Length) bytes)"
+          "SNK_PATH=$snkPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Warn if Strong Name Key absent
+        if: env.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 == ''
+        shell: pwsh
+        run: |
+          Write-Warning "OPCFOUNDATION_NETSTANDARD_SNK_BASE64 secret not set - assemblies will be built UNSIGNED."
+
+      - name: Install AzureSignTool
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:TOOLS_DIR" | Out-Null
+          dotnet tool install --version 3.0.0 --tool-path "$env:TOOLS_DIR" azuresigntool
+
+      - name: Install NuGetKeyVaultSignTool
+        shell: pwsh
+        run: |
+          dotnet tool install --version 3.0.45 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+        with:
+          nuget-version: '>=7.0.0'
+
+      - name: Compute version (nbgv → $GITHUB_ENV)
+        shell: pwsh
+        run: ./.azurepipelines/set-version.ps1
+
+      - name: Determine pack mode (tag → Public, else Preview)
+        shell: pwsh
+        run: |
+          if ('${{ github.ref_type }}' -eq 'tag') {
+              $mode = 'Public'
+              $version = "$env:NBGV_Version$env:NBGV_PrereleaseVersion"
+          } else {
+              $mode = 'Preview'
+              $version = "$env:NBGV_NuGetPackageVersion"
+          }
+          Write-Host "PACK_MODE=$mode  PACK_VERSION=$version"
+          "PACK_MODE=$mode" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PACK_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore 'UA Core Library.slnx' `
+            --configuration Release `
+            --disable-parallel
+
+      - name: Build (with optional strong-name signing)
+        shell: pwsh
+        run: |
+          $args = @(
+              'build', 'UA Core Library.slnx',
+              '--no-incremental',
+              '--configuration', 'Release',
+              "/p:Version=$env:NBGV_Version",
+              "/p:AssemblyVersion=$env:NBGV_SimpleVersion",
+              "/p:FileVersion=$env:NBGV_AssemblyFileVersion")
+          if ($env:SNK_PATH) {
+              $args += "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH"
+              $args += '/p:SignAssembly=true'
+              Write-Host "Strong-name signing ENABLED (SNK_PATH=$env:SNK_PATH)"
+          } else {
+              Write-Warning "Building WITHOUT strong-name signing (no SNK)."
+          }
+          & dotnet @args
+
+      - name: List assemblies to sign
+        if: env.SIGNING_CLIENT_SECRET != ''
+        shell: cmd
+        run: |
+          dir /b /s Stack\Opc.Ua*.dll > .\list.txt
+          dir /b /s Tools\Opc.Ua*.dll >> .\list.txt
+          dir /b /s Libraries\Opc.Ua*.dll >> .\list.txt
+          dir /b /s Applications\McpServer\bin\Opc.Ua*.dll >> .\list.txt
+          dir /b /s .azurepipelines\*.* >> .\list.txt
+          type .\list.txt
+
+      - name: Sign Assemblies (Azure Key Vault Authenticode)
+        if: env.SIGNING_CLIENT_SECRET != ''
+        shell: pwsh
+        run: |
+          $signlist = '.azurepipelines/signlistRelease.txt'
+          & "$env:TOOLS_DIR/azuresigntool" sign `
+            -du "$env:SIGNING_URL" `
+            -kvu "$env:SIGNING_VAULT_URL" `
+            -kvt "$env:SIGNING_TENANT_ID" `
+            -kvi "$env:SIGNING_CLIENT_ID" `
+            -tr http://timestamp.digicert.com -td sha384 `
+            -kvs "$env:SIGNING_CLIENT_SECRET" `
+            -kvc "$env:SIGNING_CERT_NAME" `
+            -v `
+            -ifl "$signlist"
+
+      - name: Warn if Authenticode signing skipped
+        if: env.SIGNING_CLIENT_SECRET == ''
+        shell: pwsh
+        run: |
+          Write-Warning "Azure Key Vault signing secrets not set - assemblies and packages will NOT be Authenticode-signed."
+
+      - name: Prepare artifacts directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path "$env:ARTIFACTS_DIR" | Out-Null
+
+      - name: Pack NuGet (modern)
+        shell: pwsh
+        run: |
+          dotnet pack 'UA Core Library.slnx' `
+            --no-build `
+            --configuration Release `
+            --output "$env:ARTIFACTS_DIR"
+
+      - name: Pack NuGet Legacy (nuget/*.nuspec, version from PACK_MODE)
+        shell: pwsh
+        # Scoped to nuget/ - the MigrationAnalyzer nuspec at Tools/Opc.Ua.MigrationAnalyzer/
+        # uses MSBuild $(...) substitutions that only `dotnet pack` resolves; standalone
+        # `nuget.exe pack` would crash on it. See PR #3872.
+        continueOnError: true
+        run: |
+          $nuspecs = Get-ChildItem -Path 'nuget' -Filter 'Opc.*.nuspec' -File
+          if (-not $nuspecs) {
+              Write-Host "No legacy nuspec files found under nuget/."
+              return
+          }
+          foreach ($nuspec in $nuspecs) {
+              Write-Host "Packing $($nuspec.FullName) as version $env:PACK_VERSION ($env:PACK_MODE)"
+              & nuget pack $nuspec.FullName `
+                -NonInteractive `
+                -OutputDirectory "$env:ARTIFACTS_DIR" `
+                -Version $env:PACK_VERSION
+          }
+
+      - name: Sign NuGet packages (nupkg + snupkg)
+        if: env.SIGNING_CLIENT_SECRET != ''
+        shell: pwsh
+        continueOnError: true
+        run: |
+          $nupkgs  = Get-ChildItem -Path "$env:ARTIFACTS_DIR" -Filter 'OPCFoundation.*.nupkg'  -File
+          $snupkgs = Get-ChildItem -Path "$env:ARTIFACTS_DIR" -Filter 'OPCFoundation.*.snupkg' -File
+          foreach ($pkg in @($nupkgs + $snupkgs)) {
+              Write-Host "Signing $($pkg.FullName)"
+              & "$env:TOOLS_DIR/NuGetKeyVaultSignTool" sign $pkg.FullName `
+                --file-digest sha256 `
+                --timestamp-rfc3161 http://timestamp.digicert.com `
+                --timestamp-digest sha256 `
+                --azure-key-vault-url "$env:SIGNING_VAULT_URL" `
+                --azure-key-vault-client-id "$env:SIGNING_CLIENT_ID" `
+                --azure-key-vault-tenant-id "$env:SIGNING_TENANT_ID" `
+                --azure-key-vault-client-secret "$env:SIGNING_CLIENT_SECRET" `
+                --azure-key-vault-certificate "$env:SIGNING_CERT_NAME"
+          }
+
+      - name: Push to GitHub Packages
+        shell: pwsh
+        run: |
+          $nupkgs = Get-ChildItem -Path "$env:ARTIFACTS_DIR" -Filter 'OPCFoundation.*.nupkg' -File
+          if (-not $nupkgs) {
+              throw "No OPCFoundation.*.nupkg files in $env:ARTIFACTS_DIR - nothing to publish."
+          }
+          foreach ($pkg in $nupkgs) {
+              Write-Host "Pushing $($pkg.FullName)"
+              & dotnet nuget push $pkg.FullName `
+                --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
+                --api-key '${{ secrets.GITHUB_TOKEN }}' `
+                --skip-duplicate
+          }
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: opcua_Release_${{ env.NBGV_Version }}_${{ env.NBGV_NuGetPackageVersion }}
+          path: ${{ env.ARTIFACTS_DIR }}
+          if-no-files-found: warn
+          retention-days: 30
