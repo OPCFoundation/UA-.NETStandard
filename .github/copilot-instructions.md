@@ -82,6 +82,8 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Code Style
 - Add the OPC Foundation MIT license header to all source files.
 - NEVER use #region/#endregion directives. Remove them when you encounter them.
+- NEVER use comment-only "region" dividers (e.g. `// === Section ===`, `// --- Section ---`). Remove them when you encounter them.
+- NEVER add `#nullable enable` to source files when the containing project already sets `<Nullable>enable</Nullable>` in its `.csproj` (which most projects in this repo do). Remove the redundant directive when you encounter it.
 - ALWAYS add a line break after a statement ending with `;`
 - ALWAYS Follow the `.editorconfig` settings *strictly*. Fix all warnings, errors and informational messages before proposing a fix.
   - Use 4 spaces for indentation in C# files

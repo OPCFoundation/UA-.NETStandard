@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Net;
@@ -53,11 +51,13 @@ namespace Opc.Ua.Client.WebApi
     /// <para>
     /// <see cref="SendRequestAsync(IServiceRequest, CancellationToken)"/>
     /// dispatches on the runtime CLR type of the request:
-    /// <see cref="WebApiServiceRoutes.TryGetByRequestType"/> resolves the
-    /// HTTP path + response type, the body is encoded with
+    /// <see cref="WebApiServiceRoutes.TryGetByRequestType"/> resolves
+    /// the HTTP path + response type, the body is encoded with
     /// <see cref="WebApiBodyCodec"/>, POSTed via the inner
-    /// <see cref="WebApiClient"/>, and the response is decoded via the
-    /// non-generic <see cref="WebApiBodyCodec.DecodeBodyAsync(Type, Stream, IServiceMessageContext, JsonDecoderOptions?, CancellationToken)"/>.
+    /// <see cref="WebApiClient"/>, and the response is decoded via
+    /// the non-generic <c>WebApiBodyCodec.DecodeBodyAsync(Type,
+    /// Stream, IServiceMessageContext, JsonDecoderOptions?,
+    /// CancellationToken)</c> overload.
     /// </para>
     /// <para>
     /// The channel is stateless on the OPC UA layer: there is no secure
@@ -308,12 +308,11 @@ namespace Opc.Ua.Client.WebApi
                 }
                 smNoneMatch ??= candidate;
             }
-            // If the server doesn't advertise the OpenAPI profile yet
-            // (Phase 1 discovery emission lands separately), fall back to
-            // any SM=None endpoint — that's the same TLS endpoint we're
-            // talking to, just under a different OPC UA transport profile,
-            // so its ServerCertificate / Server / UserIdentityTokens are
-            // applicable.
+            // If the server doesn't advertise the OpenAPI profile,
+            // fall back to any SM=None endpoint — that's the same TLS
+            // endpoint we're talking to, just under a different OPC
+            // UA transport profile, so its ServerCertificate / Server
+            // / UserIdentityTokens are applicable.
             return webApiMatch ?? smNoneMatch;
         }
 
@@ -365,16 +364,6 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        // Channel maps the runtime request type to one of the 28
-        // statically-rooted entries in WebApiServiceRoutes; the
-        // suppression keeps the unsealed ITransportChannel contract
-        // free of trim annotations while documenting the constraint.
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
-            "Trimming",
-            "IL2026:RequiresUnreferencedCode",
-            Justification = "WebApiServiceRoutes contains a closed set of typeof() entries " +
-                "for all 28 supported service types; the trimmer keeps each Request/Response " +
-                "type alive via that table.")]
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct = default)
@@ -386,20 +375,78 @@ namespace Opc.Ua.Client.WebApi
             ThrowIfDisposed();
             WebApiClient client = m_client ?? throw BadNotConnected();
 
-            if (!WebApiServiceRoutes.TryGetByRequestType(request.GetType(), out WebApiServiceRoute route))
+            // Dispatch on the runtime CLR type via a hard-coded
+            // switch over the 28 spec routes. Each branch calls a
+            // strongly-typed WebApiClient.<Service>Async method, so
+            // every generic instantiation of InvokeAsync<TReq, TRes>
+            // is visible to the trimmer at compile time and no
+            // RequiresUnreferencedCode / UnconditionalSuppressMessage
+            // attribute is needed on this method.
+            switch (request)
             {
-                string typeName = request.GetType().FullName ?? request.GetType().Name;
-                throw ServiceResultException.Create(
-                    StatusCodes.BadServiceUnsupported,
-                    "No Web API route registered for request type '{0}'.",
-                    typeName);
+                case ReadRequest r:
+                    return await client.ReadAsync(r, ct).ConfigureAwait(false);
+                case WriteRequest r:
+                    return await client.WriteAsync(r, ct).ConfigureAwait(false);
+                case HistoryReadRequest r:
+                    return await client.HistoryReadAsync(r, ct).ConfigureAwait(false);
+                case HistoryUpdateRequest r:
+                    return await client.HistoryUpdateAsync(r, ct).ConfigureAwait(false);
+                case CallRequest r:
+                    return await client.CallAsync(r, ct).ConfigureAwait(false);
+                case BrowseRequest r:
+                    return await client.BrowseAsync(r, ct).ConfigureAwait(false);
+                case BrowseNextRequest r:
+                    return await client.BrowseNextAsync(r, ct).ConfigureAwait(false);
+                case TranslateBrowsePathsToNodeIdsRequest r:
+                    return await client.TranslateBrowsePathsToNodeIdsAsync(r, ct).ConfigureAwait(false);
+                case RegisterNodesRequest r:
+                    return await client.RegisterNodesAsync(r, ct).ConfigureAwait(false);
+                case UnregisterNodesRequest r:
+                    return await client.UnregisterNodesAsync(r, ct).ConfigureAwait(false);
+                case FindServersRequest r:
+                    return await client.FindServersAsync(r, ct).ConfigureAwait(false);
+                case GetEndpointsRequest r:
+                    return await client.GetEndpointsAsync(r, ct).ConfigureAwait(false);
+                case CreateSessionRequest r:
+                    return await client.CreateSessionAsync(r, ct).ConfigureAwait(false);
+                case ActivateSessionRequest r:
+                    return await client.ActivateSessionAsync(r, ct).ConfigureAwait(false);
+                case CloseSessionRequest r:
+                    return await client.CloseSessionAsync(r, ct).ConfigureAwait(false);
+                case CancelRequest r:
+                    return await client.CancelAsync(r, ct).ConfigureAwait(false);
+                case CreateMonitoredItemsRequest r:
+                    return await client.CreateMonitoredItemsAsync(r, ct).ConfigureAwait(false);
+                case ModifyMonitoredItemsRequest r:
+                    return await client.ModifyMonitoredItemsAsync(r, ct).ConfigureAwait(false);
+                case SetMonitoringModeRequest r:
+                    return await client.SetMonitoringModeAsync(r, ct).ConfigureAwait(false);
+                case SetTriggeringRequest r:
+                    return await client.SetTriggeringAsync(r, ct).ConfigureAwait(false);
+                case DeleteMonitoredItemsRequest r:
+                    return await client.DeleteMonitoredItemsAsync(r, ct).ConfigureAwait(false);
+                case CreateSubscriptionRequest r:
+                    return await client.CreateSubscriptionAsync(r, ct).ConfigureAwait(false);
+                case ModifySubscriptionRequest r:
+                    return await client.ModifySubscriptionAsync(r, ct).ConfigureAwait(false);
+                case SetPublishingModeRequest r:
+                    return await client.SetPublishingModeAsync(r, ct).ConfigureAwait(false);
+                case PublishRequest r:
+                    return await client.PublishAsync(r, ct).ConfigureAwait(false);
+                case RepublishRequest r:
+                    return await client.RepublishAsync(r, ct).ConfigureAwait(false);
+                case TransferSubscriptionsRequest r:
+                    return await client.TransferSubscriptionsAsync(r, ct).ConfigureAwait(false);
+                case DeleteSubscriptionsRequest r:
+                    return await client.DeleteSubscriptionsAsync(r, ct).ConfigureAwait(false);
+                default:
+                    string typeName = request.GetType().FullName ?? request.GetType().Name;
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadServiceUnsupported,
+                        "No Web API route registered for request type '{0}'.",
+                        typeName);
             }
-
-            IServiceResponse response = await client
-                .InvokeRouteAsync(route, request, ct)
-                .ConfigureAwait(false);
-
-            return response;
         }
 
         /// <inheritdoc/>

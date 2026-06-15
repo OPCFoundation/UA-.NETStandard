@@ -109,24 +109,41 @@ namespace Opc.Ua.Client.WebApi
             WebApiServiceRoute route,
             IServiceRequest request,
             CancellationToken ct = default);
+
         /// <summary>Sends a Read request.</summary>
-        Task<ReadResponse> ReadAsync(ReadRequest request, CancellationToken ct = default);
+        Task<ReadResponse> ReadAsync(
+            ReadRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a Write request.</summary>
-        Task<WriteResponse> WriteAsync(WriteRequest request, CancellationToken ct = default);
+        Task<WriteResponse> WriteAsync(
+            WriteRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a HistoryRead request.</summary>
-        Task<HistoryReadResponse> HistoryReadAsync(HistoryReadRequest request, CancellationToken ct = default);
+        Task<HistoryReadResponse> HistoryReadAsync(
+            HistoryReadRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a HistoryUpdate request.</summary>
-        Task<HistoryUpdateResponse> HistoryUpdateAsync(HistoryUpdateRequest request, CancellationToken ct = default);
+        Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            HistoryUpdateRequest request,
+            CancellationToken ct = default);
+
         /// <summary>Sends a Call request.</summary>
-        Task<CallResponse> CallAsync(CallRequest request, CancellationToken ct = default);
+        Task<CallResponse> CallAsync(
+            CallRequest request,
+            CancellationToken ct = default);
+
         /// <summary>Sends a Browse request.</summary>
-        Task<BrowseResponse> BrowseAsync(BrowseRequest request, CancellationToken ct = default);
+        Task<BrowseResponse> BrowseAsync(
+            BrowseRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a BrowseNext request.</summary>
-        Task<BrowseNextResponse> BrowseNextAsync(BrowseNextRequest request, CancellationToken ct = default);
+        Task<BrowseNextResponse> BrowseNextAsync(
+            BrowseNextRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a TranslateBrowsePathsToNodeIds request.</summary>
         Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
@@ -142,6 +159,7 @@ namespace Opc.Ua.Client.WebApi
         Task<UnregisterNodesResponse> UnregisterNodesAsync(
             UnregisterNodesRequest request,
             CancellationToken ct = default);
+
         /// <summary>Sends a FindServers request.</summary>
         Task<FindServersResponse> FindServersAsync(
             FindServersRequest request,
@@ -151,6 +169,7 @@ namespace Opc.Ua.Client.WebApi
         Task<GetEndpointsResponse> GetEndpointsAsync(
             GetEndpointsRequest request,
             CancellationToken ct = default);
+
         /// <summary>Sends a CreateSession request.</summary>
         Task<CreateSessionResponse> CreateSessionAsync(
             CreateSessionRequest request,
@@ -167,7 +186,10 @@ namespace Opc.Ua.Client.WebApi
             CancellationToken ct = default);
 
         /// <summary>Sends a Cancel request.</summary>
-        Task<CancelResponse> CancelAsync(CancelRequest request, CancellationToken ct = default);
+        Task<CancelResponse> CancelAsync(
+            CancelRequest request,
+            CancellationToken ct = default);
+
         /// <summary>Sends a CreateMonitoredItems request.</summary>
         Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             CreateMonitoredItemsRequest request,
@@ -192,6 +214,7 @@ namespace Opc.Ua.Client.WebApi
         Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             DeleteMonitoredItemsRequest request,
             CancellationToken ct = default);
+
         /// <summary>Sends a CreateSubscription request.</summary>
         Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
             CreateSubscriptionRequest request,
@@ -208,10 +231,14 @@ namespace Opc.Ua.Client.WebApi
             CancellationToken ct = default);
 
         /// <summary>Sends a Publish request (server-side long-poll).</summary>
-        Task<PublishResponse> PublishAsync(PublishRequest request, CancellationToken ct = default);
+        Task<PublishResponse> PublishAsync(
+            PublishRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a Republish request.</summary>
-        Task<RepublishResponse> RepublishAsync(RepublishRequest request, CancellationToken ct = default);
+        Task<RepublishResponse> RepublishAsync(
+            RepublishRequest request,
+            CancellationToken ct = default);
 
         /// <summary>Sends a TransferSubscriptions request.</summary>
         Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(

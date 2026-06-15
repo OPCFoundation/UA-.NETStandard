@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Net.Http;
@@ -275,134 +273,228 @@ namespace Opc.Ua.Client.WebApi
         // Strongly-typed delegates =====================================
 
         /// <inheritdoc/>
-        public Task<ReadResponse> ReadAsync(ReadRequest request, CancellationToken ct = default)
-            => InvokeAsync<ReadRequest, ReadResponse>(request, ct);
+        public Task<ReadResponse> ReadAsync(
+            ReadRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<ReadRequest, ReadResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<WriteResponse> WriteAsync(WriteRequest request, CancellationToken ct = default)
-            => InvokeAsync<WriteRequest, WriteResponse>(request, ct);
+        public Task<WriteResponse> WriteAsync(
+            WriteRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<WriteRequest, WriteResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<HistoryReadResponse> HistoryReadAsync(HistoryReadRequest request, CancellationToken ct = default)
-            => InvokeAsync<HistoryReadRequest, HistoryReadResponse>(request, ct);
+        public Task<HistoryReadResponse> HistoryReadAsync(
+            HistoryReadRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<HistoryReadRequest, HistoryReadResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<HistoryUpdateResponse> HistoryUpdateAsync(HistoryUpdateRequest request, CancellationToken ct = default)
-            => InvokeAsync<HistoryUpdateRequest, HistoryUpdateResponse>(request, ct);
+        public Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            HistoryUpdateRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<HistoryUpdateRequest, HistoryUpdateResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<CallResponse> CallAsync(CallRequest request, CancellationToken ct = default)
-            => InvokeAsync<CallRequest, CallResponse>(request, ct);
+        public Task<CallResponse> CallAsync(
+            CallRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<CallRequest, CallResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<BrowseResponse> BrowseAsync(BrowseRequest request, CancellationToken ct = default)
-            => InvokeAsync<BrowseRequest, BrowseResponse>(request, ct);
+        public Task<BrowseResponse> BrowseAsync(
+            BrowseRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<BrowseRequest, BrowseResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<BrowseNextResponse> BrowseNextAsync(BrowseNextRequest request, CancellationToken ct = default)
-            => InvokeAsync<BrowseNextRequest, BrowseNextResponse>(request, ct);
+        public Task<BrowseNextResponse> BrowseNextAsync(
+            BrowseNextRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<BrowseNextRequest, BrowseNextResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
-            TranslateBrowsePathsToNodeIdsRequest request, CancellationToken ct = default)
-            => InvokeAsync<TranslateBrowsePathsToNodeIdsRequest, TranslateBrowsePathsToNodeIdsResponse>(request, ct);
+            TranslateBrowsePathsToNodeIdsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<TranslateBrowsePathsToNodeIdsRequest, TranslateBrowsePathsToNodeIdsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<RegisterNodesResponse> RegisterNodesAsync(
-            RegisterNodesRequest request, CancellationToken ct = default)
-            => InvokeAsync<RegisterNodesRequest, RegisterNodesResponse>(request, ct);
+            RegisterNodesRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<RegisterNodesRequest, RegisterNodesResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<UnregisterNodesResponse> UnregisterNodesAsync(
-            UnregisterNodesRequest request, CancellationToken ct = default)
-            => InvokeAsync<UnregisterNodesRequest, UnregisterNodesResponse>(request, ct);
+            UnregisterNodesRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<UnregisterNodesRequest, UnregisterNodesResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<FindServersResponse> FindServersAsync(
-            FindServersRequest request, CancellationToken ct = default)
-            => InvokeAsync<FindServersRequest, FindServersResponse>(request, ct);
+            FindServersRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<FindServersRequest, FindServersResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<GetEndpointsResponse> GetEndpointsAsync(
-            GetEndpointsRequest request, CancellationToken ct = default)
-            => InvokeAsync<GetEndpointsRequest, GetEndpointsResponse>(request, ct);
+            GetEndpointsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<GetEndpointsRequest, GetEndpointsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<CreateSessionResponse> CreateSessionAsync(
-            CreateSessionRequest request, CancellationToken ct = default)
-            => InvokeAsync<CreateSessionRequest, CreateSessionResponse>(request, ct);
+            CreateSessionRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<CreateSessionRequest, CreateSessionResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<ActivateSessionResponse> ActivateSessionAsync(
-            ActivateSessionRequest request, CancellationToken ct = default)
-            => InvokeAsync<ActivateSessionRequest, ActivateSessionResponse>(request, ct);
+            ActivateSessionRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<ActivateSessionRequest, ActivateSessionResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<CloseSessionResponse> CloseSessionAsync(
-            CloseSessionRequest request, CancellationToken ct = default)
-            => InvokeAsync<CloseSessionRequest, CloseSessionResponse>(request, ct);
+            CloseSessionRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<CloseSessionRequest, CloseSessionResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<CancelResponse> CancelAsync(CancelRequest request, CancellationToken ct = default)
-            => InvokeAsync<CancelRequest, CancelResponse>(request, ct);
+        public Task<CancelResponse> CancelAsync(
+            CancelRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<CancelRequest, CancelResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
-            CreateMonitoredItemsRequest request, CancellationToken ct = default)
-            => InvokeAsync<CreateMonitoredItemsRequest, CreateMonitoredItemsResponse>(request, ct);
+            CreateMonitoredItemsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<CreateMonitoredItemsRequest, CreateMonitoredItemsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
-            ModifyMonitoredItemsRequest request, CancellationToken ct = default)
-            => InvokeAsync<ModifyMonitoredItemsRequest, ModifyMonitoredItemsResponse>(request, ct);
+            ModifyMonitoredItemsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<ModifyMonitoredItemsRequest, ModifyMonitoredItemsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
-            SetMonitoringModeRequest request, CancellationToken ct = default)
-            => InvokeAsync<SetMonitoringModeRequest, SetMonitoringModeResponse>(request, ct);
+            SetMonitoringModeRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<SetMonitoringModeRequest, SetMonitoringModeResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<SetTriggeringResponse> SetTriggeringAsync(
-            SetTriggeringRequest request, CancellationToken ct = default)
-            => InvokeAsync<SetTriggeringRequest, SetTriggeringResponse>(request, ct);
+            SetTriggeringRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<SetTriggeringRequest, SetTriggeringResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-            DeleteMonitoredItemsRequest request, CancellationToken ct = default)
-            => InvokeAsync<DeleteMonitoredItemsRequest, DeleteMonitoredItemsResponse>(request, ct);
+            DeleteMonitoredItemsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<DeleteMonitoredItemsRequest, DeleteMonitoredItemsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
-            CreateSubscriptionRequest request, CancellationToken ct = default)
-            => InvokeAsync<CreateSubscriptionRequest, CreateSubscriptionResponse>(request, ct);
+            CreateSubscriptionRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<CreateSubscriptionRequest, CreateSubscriptionResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
-            ModifySubscriptionRequest request, CancellationToken ct = default)
-            => InvokeAsync<ModifySubscriptionRequest, ModifySubscriptionResponse>(request, ct);
+            ModifySubscriptionRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<ModifySubscriptionRequest, ModifySubscriptionResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<SetPublishingModeResponse> SetPublishingModeAsync(
-            SetPublishingModeRequest request, CancellationToken ct = default)
-            => InvokeAsync<SetPublishingModeRequest, SetPublishingModeResponse>(request, ct);
+            SetPublishingModeRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<SetPublishingModeRequest, SetPublishingModeResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<PublishResponse> PublishAsync(PublishRequest request, CancellationToken ct = default)
-            => InvokeAsync<PublishRequest, PublishResponse>(request, ct);
+        public Task<PublishResponse> PublishAsync(
+            PublishRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<PublishRequest, PublishResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
-        public Task<RepublishResponse> RepublishAsync(RepublishRequest request, CancellationToken ct = default)
-            => InvokeAsync<RepublishRequest, RepublishResponse>(request, ct);
+        public Task<RepublishResponse> RepublishAsync(
+            RepublishRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<RepublishRequest, RepublishResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-            TransferSubscriptionsRequest request, CancellationToken ct = default)
-            => InvokeAsync<TransferSubscriptionsRequest, TransferSubscriptionsResponse>(request, ct);
+            TransferSubscriptionsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<TransferSubscriptionsRequest, TransferSubscriptionsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-            DeleteSubscriptionsRequest request, CancellationToken ct = default)
-            => InvokeAsync<DeleteSubscriptionsRequest, DeleteSubscriptionsResponse>(request, ct);
+            DeleteSubscriptionsRequest request,
+            CancellationToken ct = default)
+        {
+            return InvokeAsync<DeleteSubscriptionsRequest, DeleteSubscriptionsResponse>(request, ct);
+        }
 
         /// <inheritdoc/>
         public void Dispose()
