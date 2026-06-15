@@ -267,9 +267,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
             var token = (UserNameIdentityToken)identity.TokenHandler.Token;
             Assert.That(token.UserName, Is.EqualTo("alice"));
         }
-
-        // === Helpers ====================================================
-
         private static DefaultHttpContext BuildContext(
             string? bearer,
             string? identityName = null,

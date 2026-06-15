@@ -222,9 +222,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 .ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
-
-        // === Test helpers ====================================================
-
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string path,
             TRequest request,
@@ -268,9 +265,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 m_stubServer!.MessageContext,
                 WebApiMediaType.ToEncoderOptions(encoding));
         }
-
-        // === Stub fixtures ===================================================
-
         /// <summary>
         /// Stub <see cref="IWebApiServer"/> that records the last
         /// request and returns a typed response of the matching type.

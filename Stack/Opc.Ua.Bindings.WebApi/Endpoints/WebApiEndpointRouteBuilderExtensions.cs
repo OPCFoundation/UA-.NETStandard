@@ -92,41 +92,27 @@ namespace Microsoft.AspNetCore.Builder
             ArgumentNullException.ThrowIfNull(endpoints);
 
             RouteGroupBuilder group = endpoints.MapGroup(string.Empty);
-
-            // Attribute service set (Part 4 §5.11)
             group.MapPost("/read", ReadAsync);
             group.MapPost("/write", WriteAsync);
             group.MapPost("/historyread", HistoryReadAsync);
             group.MapPost("/historyupdate", HistoryUpdateAsync);
-
-            // Method service set (Part 4 §5.12)
             group.MapPost("/call", CallAsync);
-
-            // View service set (Part 4 §5.9)
             group.MapPost("/browse", BrowseAsync);
             group.MapPost("/browsenext", BrowseNextAsync);
             group.MapPost("/translate", TranslateAsync);
             group.MapPost("/registernodes", RegisterNodesAsync);
             group.MapPost("/unregisternodes", UnregisterNodesAsync);
-
-            // Discovery service set (Part 4 §5.5)
             group.MapPost("/findservers", FindServersAsync);
             group.MapPost("/getendpoints", GetEndpointsAsync);
-
-            // Session service set (Part 4 §5.7)
             group.MapPost("/createsession", CreateSessionAsync);
             group.MapPost("/activatesession", ActivateSessionAsync);
             group.MapPost("/closesession", CloseSessionAsync);
             group.MapPost("/cancel", CancelAsync);
-
-            // MonitoredItem service set (Part 4 §5.13)
             group.MapPost("/createmonitoreditems", CreateMonitoredItemsAsync);
             group.MapPost("/modifymonitoreditems", ModifyMonitoredItemsAsync);
             group.MapPost("/setmonitoringmode", SetMonitoringModeAsync);
             group.MapPost("/settriggering", SetTriggeringAsync);
             group.MapPost("/deletemonitoreditems", DeleteMonitoredItemsAsync);
-
-            // Subscription service set (Part 4 §5.14)
             group.MapPost("/createsubscription", CreateSubscriptionAsync);
             group.MapPost("/modifysubscription", ModifySubscriptionAsync);
             group.MapPost("/setpublishingmode", SetPublishingModeAsync);
@@ -137,8 +123,6 @@ namespace Microsoft.AspNetCore.Builder
 
             return group;
         }
-
-        // Attribute service set ============================================
 
         private static Task ReadAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<ReadRequest, ReadResponse>(ctx);
@@ -152,12 +136,8 @@ namespace Microsoft.AspNetCore.Builder
         private static Task HistoryUpdateAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<HistoryUpdateRequest, HistoryUpdateResponse>(ctx);
 
-        // Method service set ===============================================
-
         private static Task CallAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<CallRequest, CallResponse>(ctx);
-
-        // View service set =================================================
 
         private static Task BrowseAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<BrowseRequest, BrowseResponse>(ctx);
@@ -176,15 +156,11 @@ namespace Microsoft.AspNetCore.Builder
         private static Task UnregisterNodesAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<UnregisterNodesRequest, UnregisterNodesResponse>(ctx);
 
-        // Discovery service set ============================================
-
         private static Task FindServersAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<FindServersRequest, FindServersResponse>(ctx);
 
         private static Task GetEndpointsAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<GetEndpointsRequest, GetEndpointsResponse>(ctx);
-
-        // Session service set ==============================================
 
         private static Task CreateSessionAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<CreateSessionRequest, CreateSessionResponse>(ctx);
@@ -197,8 +173,6 @@ namespace Microsoft.AspNetCore.Builder
 
         private static Task CancelAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<CancelRequest, CancelResponse>(ctx);
-
-        // MonitoredItem service set ========================================
 
         private static Task CreateMonitoredItemsAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<
@@ -222,8 +196,6 @@ namespace Microsoft.AspNetCore.Builder
             => WebApiEndpointDispatcher.HandleAsync<
                 DeleteMonitoredItemsRequest,
                 DeleteMonitoredItemsResponse>(ctx);
-
-        // Subscription service set =========================================
 
         private static Task CreateSubscriptionAsync(HttpContext ctx)
             => WebApiEndpointDispatcher.HandleAsync<

@@ -358,9 +358,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 "When the server closes the WebSocket while a request is " +
                 "in flight, the channel surfaces BadConnectionClosed.");
         }
-
-        // === Helpers ====================================================
-
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
             WebApiClientOptions? options = null)
         {

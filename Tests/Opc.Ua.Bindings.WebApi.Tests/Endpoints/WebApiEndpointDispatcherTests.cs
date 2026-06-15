@@ -269,9 +269,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Endpoints
                     .ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentNullException>());
         }
-
-        // === Helpers ====================================================
-
         private static DefaultHttpContext BuildContext(
             string path,
             StubServer server,

@@ -212,9 +212,6 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(fixture.Server.LastRequest.RequestHeader.RequestHandle)
                 .IsEqualTo(2u);
         }
-
-        // === Helpers ====================================================
-
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string path,
             TRequest request)

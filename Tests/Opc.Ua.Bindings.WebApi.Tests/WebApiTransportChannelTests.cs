@@ -243,9 +243,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 .ConfigureAwait(false);
             Assert.That(response, Is.InstanceOf<ReadResponse>());
         }
-
-        // === Helpers ====================================================
-
         private async Task<WebApiTransportChannel> OpenChannelAsync()
         {
             var channel = new WebApiTransportChannel(
@@ -270,9 +267,6 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 .ConfigureAwait(false);
             return channel;
         }
-
-        // === Stub fixtures ==============================================
-
         private sealed class UnknownRequest : IServiceRequest
         {
             public RequestHeader RequestHeader { get; set; } = new();

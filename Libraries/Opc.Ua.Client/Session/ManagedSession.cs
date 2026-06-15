@@ -939,16 +939,25 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
-                // The Web API binding (Profiles.HttpsOpenApiTransport /
-                // Profiles.WssOpenApiTransport) is not currently surfaced
-                // as a separate discoverable endpoint by every server's
-                // GetEndpoints flow — Web API shares the wire-level URL
-                // with the binary / JSON-envelope sub-profiles and is
-                // selected by the transport profile URI on the
-                // user-supplied ConfiguredEndpoint. Calling
-                // UpdateFromServer would overwrite the user's profile
-                // with a binary entry and lose Web API selection, so we
-                // skip the refresh for either OpenAPI profile.
+                // The Web API (Profiles.HttpsOpenApiTransport /
+                // Profiles.WssOpenApiTransport) endpoint is now
+                // advertised by HttpsServiceHost-based servers (the
+                // discovery emission lands as a SecurityMode=None
+                // twin per binary HTTPS endpoint, see
+                // HttpsServiceHost.cs OpenApiTransportProfileUri).
+                // However ConfiguredEndpoint.UpdateFromServer's
+                // matching pipeline (MatchEndpoints +
+                // SelectBestMatch) filters and ranks by security
+                // mode/policy/level only — it does NOT honour the
+                // user's TransportProfileUri selection — so the
+                // refresh would silently swap the user's Web API
+                // (or WSS-OpenAPI) choice for the highest-security
+                // binary entry and break downstream channel
+                // dispatch (which IS profile-aware). Skip the
+                // refresh for either OpenAPI profile until
+                // MatchEndpoints learns to honour the requested
+                // transport profile (tracked as a separate
+                // follow-up).
                 string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
                 bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
                     && !Profiles.IsWssOpenApi(profile);

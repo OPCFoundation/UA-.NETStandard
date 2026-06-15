@@ -109,9 +109,6 @@ namespace Opc.Ua.Client.WebApi
             WebApiServiceRoute route,
             IServiceRequest request,
             CancellationToken ct = default);
-
-        // === Attribute service set (Part 4 §5.11) ============================
-
         /// <summary>Sends a Read request.</summary>
         Task<ReadResponse> ReadAsync(ReadRequest request, CancellationToken ct = default);
 
@@ -123,14 +120,8 @@ namespace Opc.Ua.Client.WebApi
 
         /// <summary>Sends a HistoryUpdate request.</summary>
         Task<HistoryUpdateResponse> HistoryUpdateAsync(HistoryUpdateRequest request, CancellationToken ct = default);
-
-        // === Method service set (Part 4 §5.12) ===============================
-
         /// <summary>Sends a Call request.</summary>
         Task<CallResponse> CallAsync(CallRequest request, CancellationToken ct = default);
-
-        // === View service set (Part 4 §5.9) ==================================
-
         /// <summary>Sends a Browse request.</summary>
         Task<BrowseResponse> BrowseAsync(BrowseRequest request, CancellationToken ct = default);
 
@@ -151,9 +142,6 @@ namespace Opc.Ua.Client.WebApi
         Task<UnregisterNodesResponse> UnregisterNodesAsync(
             UnregisterNodesRequest request,
             CancellationToken ct = default);
-
-        // === Discovery service set (Part 4 §5.5) =============================
-
         /// <summary>Sends a FindServers request.</summary>
         Task<FindServersResponse> FindServersAsync(
             FindServersRequest request,
@@ -163,9 +151,6 @@ namespace Opc.Ua.Client.WebApi
         Task<GetEndpointsResponse> GetEndpointsAsync(
             GetEndpointsRequest request,
             CancellationToken ct = default);
-
-        // === Session service set (Part 4 §5.7) ===============================
-
         /// <summary>Sends a CreateSession request.</summary>
         Task<CreateSessionResponse> CreateSessionAsync(
             CreateSessionRequest request,
@@ -183,9 +168,6 @@ namespace Opc.Ua.Client.WebApi
 
         /// <summary>Sends a Cancel request.</summary>
         Task<CancelResponse> CancelAsync(CancelRequest request, CancellationToken ct = default);
-
-        // === MonitoredItem service set (Part 4 §5.13) ========================
-
         /// <summary>Sends a CreateMonitoredItems request.</summary>
         Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             CreateMonitoredItemsRequest request,
@@ -210,9 +192,6 @@ namespace Opc.Ua.Client.WebApi
         Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             DeleteMonitoredItemsRequest request,
             CancellationToken ct = default);
-
-        // === Subscription service set (Part 4 §5.14) =========================
-
         /// <summary>Sends a CreateSubscription request.</summary>
         Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
             CreateSubscriptionRequest request,
