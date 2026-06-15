@@ -28,26 +28,37 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Configuration
 {
     /// <summary>
     /// Immutable wrapper around a loaded
     /// <see cref="PubSubConfigurationDataType"/> plus the materialised
-    /// lookup tables Phase 4 will compute (e.g. by connection name,
-    /// by writer id). For Phase 1 only the source DataType and the
-    /// load timestamp are exposed; index construction lands in
-    /// Phase 4 (S4 — metadata-registry-config-validator).
+    /// lookup tables the runtime needs for O(1) access to connections,
+    /// writer groups, data set writers, reader groups, data set readers
+    /// and published data sets. The snapshot is intentionally read-only:
+    /// configuration mutations are expressed by building a *new*
+    /// snapshot from a *new* <see cref="PubSubConfigurationDataType"/>
+    /// and atomically swapping it in.
     /// </summary>
     /// <remarks>
     /// Implements the runtime view of the configuration model from
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.6">
-    /// Part 14 §9.1.6 PubSub configuration model</see>.
+    /// Part 14 §9.1.6 PubSub configuration model</see>. Snapshots are
+    /// created via <see cref="Create(PubSubConfigurationDataType, TimeProvider)"/>;
+    /// the constructor only seeds the underlying configuration so that
+    /// the index dictionaries can be built atomically before publication.
     /// </remarks>
     public sealed class PubSubConfigurationSnapshot
     {
         /// <summary>
         /// Initializes a new <see cref="PubSubConfigurationSnapshot"/>.
+        /// Prefer
+        /// <see cref="Create(PubSubConfigurationDataType, TimeProvider)"/>
+        /// for normal use — it materialises the lookup indices in one
+        /// pass and validates that the configuration has no duplicate
+        /// names that would otherwise collide in those indices.
         /// </summary>
         /// <param name="configuration">Underlying configuration.</param>
         /// <param name="createdAt">Load / build timestamp.</param>
@@ -62,6 +73,32 @@ namespace Opc.Ua.PubSub.Configuration
 
             Configuration = configuration;
             CreatedAt = createdAt;
+            ConnectionsByName = EmptyConnections;
+            WriterGroupsById = EmptyWriterGroups;
+            DataSetWritersById = EmptyDataSetWriters;
+            ReaderGroupsByName = EmptyReaderGroups;
+            DataSetReadersByName = EmptyDataSetReaders;
+            PublishedDataSetsByName = EmptyPublishedDataSets;
+        }
+
+        private PubSubConfigurationSnapshot(
+            PubSubConfigurationDataType configuration,
+            DateTimeUtc createdAt,
+            IReadOnlyDictionary<string, PubSubConnectionDataType> connectionsByName,
+            IReadOnlyDictionary<(string Connection, ushort WriterGroupId), WriterGroupDataType> writerGroupsById,
+            IReadOnlyDictionary<(string Connection, ushort WriterGroupId, ushort DataSetWriterId), DataSetWriterDataType> dataSetWritersById,
+            IReadOnlyDictionary<(string Connection, string ReaderGroupName), ReaderGroupDataType> readerGroupsByName,
+            IReadOnlyDictionary<(string Connection, string ReaderGroupName, string ReaderName), DataSetReaderDataType> dataSetReadersByName,
+            IReadOnlyDictionary<string, PublishedDataSetDataType> publishedDataSetsByName)
+        {
+            Configuration = configuration;
+            CreatedAt = createdAt;
+            ConnectionsByName = connectionsByName;
+            WriterGroupsById = writerGroupsById;
+            DataSetWritersById = dataSetWritersById;
+            ReaderGroupsByName = readerGroupsByName;
+            DataSetReadersByName = dataSetReadersByName;
+            PublishedDataSetsByName = publishedDataSetsByName;
         }
 
         /// <summary>
@@ -73,5 +110,324 @@ namespace Opc.Ua.PubSub.Configuration
         /// Timestamp at which the snapshot was loaded or computed.
         /// </summary>
         public DateTimeUtc CreatedAt { get; }
+
+        /// <summary>
+        /// Connections keyed by
+        /// <see cref="PubSubConnectionDataType.Name"/>.
+        /// </summary>
+        public IReadOnlyDictionary<string, PubSubConnectionDataType> ConnectionsByName { get; }
+
+        /// <summary>
+        /// Writer groups keyed by
+        /// (<see cref="PubSubConnectionDataType.Name"/>,
+        /// <see cref="WriterGroupDataType.WriterGroupId"/>).
+        /// </summary>
+        public IReadOnlyDictionary<(string Connection, ushort WriterGroupId), WriterGroupDataType> WriterGroupsById { get; }
+
+        /// <summary>
+        /// DataSet writers keyed by
+        /// (<see cref="PubSubConnectionDataType.Name"/>,
+        /// <see cref="WriterGroupDataType.WriterGroupId"/>,
+        /// <see cref="DataSetWriterDataType.DataSetWriterId"/>).
+        /// </summary>
+        public IReadOnlyDictionary<(string Connection, ushort WriterGroupId, ushort DataSetWriterId), DataSetWriterDataType> DataSetWritersById { get; }
+
+        /// <summary>
+        /// Reader groups keyed by
+        /// (<see cref="PubSubConnectionDataType.Name"/>,
+        /// <c>ReaderGroupDataType.Name</c>).
+        /// </summary>
+        public IReadOnlyDictionary<(string Connection, string ReaderGroupName), ReaderGroupDataType> ReaderGroupsByName { get; }
+
+        /// <summary>
+        /// DataSet readers keyed by
+        /// (<see cref="PubSubConnectionDataType.Name"/>,
+        /// <c>ReaderGroupDataType.Name</c>,
+        /// <see cref="DataSetReaderDataType.Name"/>).
+        /// </summary>
+        public IReadOnlyDictionary<(string Connection, string ReaderGroupName, string ReaderName), DataSetReaderDataType> DataSetReadersByName { get; }
+
+        /// <summary>
+        /// Published data sets keyed by
+        /// <see cref="PublishedDataSetDataType.Name"/>.
+        /// </summary>
+        public IReadOnlyDictionary<string, PublishedDataSetDataType> PublishedDataSetsByName { get; }
+
+        /// <summary>
+        /// Builds an immutable snapshot from
+        /// <paramref name="configuration"/>, materialising all lookup
+        /// indices used by the runtime. The factory validates that no
+        /// duplicate names cause an index collision (a duplicate
+        /// connection name, a duplicate writer-group id within a
+        /// connection, etc.). Deeper Part 14 validation is performed by
+        /// <see cref="PubSubConfigurationValidator"/>.
+        /// </summary>
+        /// <param name="configuration">Source configuration.</param>
+        /// <param name="timeProvider">
+        /// Optional clock used to seed
+        /// <see cref="CreatedAt"/>. Defaults to
+        /// <see cref="TimeProvider.System"/>.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="configuration"/> is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="PubSubConfigurationException">
+        /// One or more of the configuration's identity dimensions
+        /// (connection name, (connection, writer group id), (connection,
+        /// writer group, data set writer id), (connection, reader group
+        /// name), (connection, reader group, reader name), published
+        /// data set name) contains a collision.
+        /// </exception>
+        public static PubSubConfigurationSnapshot Create(
+            PubSubConfigurationDataType configuration,
+            TimeProvider? timeProvider = null)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            TimeProvider clock = timeProvider ?? TimeProvider.System;
+            DateTimeUtc createdAt = DateTimeUtc.From(clock.GetUtcNow());
+
+            var issues = new List<PubSubConfigurationIssue>();
+            var connections = new Dictionary<string, PubSubConnectionDataType>(StringComparer.Ordinal);
+            var writerGroups = new Dictionary<(string, ushort), WriterGroupDataType>();
+            var dataSetWriters = new Dictionary<(string, ushort, ushort), DataSetWriterDataType>();
+            var readerGroups = new Dictionary<(string, string), ReaderGroupDataType>();
+            var dataSetReaders = new Dictionary<(string, string, string), DataSetReaderDataType>();
+            var publishedDataSets = new Dictionary<string, PublishedDataSetDataType>(StringComparer.Ordinal);
+
+            if (!configuration.Connections.IsNull)
+            {
+                int connectionIndex = 0;
+                foreach (PubSubConnectionDataType connection in configuration.Connections)
+                {
+                    string connectionName = connection.Name ?? string.Empty;
+                    string connectionPath = $"Connections[{connectionIndex}]";
+                    if (connectionName.Length == 0)
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IndexIssueCodes.MissingConnectionName,
+                            "PubSubConnection has an empty Name.",
+                            connectionPath));
+                    }
+                    else if (!connections.TryAdd(connectionName, connection))
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IndexIssueCodes.DuplicateConnectionName,
+                            $"Duplicate PubSubConnection name '{connectionName}'.",
+                            connectionPath));
+                    }
+                    IndexWriterGroups(
+                        connection,
+                        connectionName,
+                        connectionPath,
+                        writerGroups,
+                        dataSetWriters,
+                        issues);
+                    IndexReaderGroups(
+                        connection,
+                        connectionName,
+                        connectionPath,
+                        readerGroups,
+                        dataSetReaders,
+                        issues);
+                    connectionIndex++;
+                }
+            }
+
+            if (!configuration.PublishedDataSets.IsNull)
+            {
+                int pdsIndex = 0;
+                foreach (PublishedDataSetDataType publishedDataSet in configuration.PublishedDataSets)
+                {
+                    string name = publishedDataSet.Name ?? string.Empty;
+                    string path = $"PublishedDataSets[{pdsIndex}]";
+                    if (name.Length == 0)
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IndexIssueCodes.MissingPublishedDataSetName,
+                            "PublishedDataSet has an empty Name.",
+                            path));
+                    }
+                    else if (!publishedDataSets.TryAdd(name, publishedDataSet))
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IndexIssueCodes.DuplicatePublishedDataSetName,
+                            $"Duplicate PublishedDataSet name '{name}'.",
+                            path));
+                    }
+                    pdsIndex++;
+                }
+            }
+
+            if (issues.Count > 0)
+            {
+                throw new PubSubConfigurationException(issues);
+            }
+
+            return new PubSubConfigurationSnapshot(
+                configuration,
+                createdAt,
+                connections,
+                writerGroups,
+                dataSetWriters,
+                readerGroups,
+                dataSetReaders,
+                publishedDataSets);
+        }
+
+        private static void IndexWriterGroups(
+            PubSubConnectionDataType connection,
+            string connectionName,
+            string connectionPath,
+            Dictionary<(string, ushort), WriterGroupDataType> writerGroups,
+            Dictionary<(string, ushort, ushort), DataSetWriterDataType> dataSetWriters,
+            List<PubSubConfigurationIssue> issues)
+        {
+            if (connection.WriterGroups.IsNull)
+            {
+                return;
+            }
+            int wgIndex = 0;
+            foreach (WriterGroupDataType writerGroup in connection.WriterGroups)
+            {
+                string wgPath = $"{connectionPath}.WriterGroups[{wgIndex}]";
+                ushort wgId = writerGroup.WriterGroupId;
+                if (connectionName.Length > 0 && !writerGroups.TryAdd((connectionName, wgId), writerGroup))
+                {
+                    issues.Add(new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IndexIssueCodes.DuplicateWriterGroupId,
+                        $"Duplicate WriterGroupId '{wgId}' within connection '{connectionName}'.",
+                        wgPath));
+                }
+                if (!writerGroup.DataSetWriters.IsNull)
+                {
+                    int dswIndex = 0;
+                    foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)
+                    {
+                        string dswPath = $"{wgPath}.DataSetWriters[{dswIndex}]";
+                        ushort dswId = writer.DataSetWriterId;
+                        if (connectionName.Length > 0 &&
+                            !dataSetWriters.TryAdd((connectionName, wgId, dswId), writer))
+                        {
+                            issues.Add(new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IndexIssueCodes.DuplicateDataSetWriterId,
+                                $"Duplicate DataSetWriterId '{dswId}' within WriterGroup '{wgId}' of connection '{connectionName}'.",
+                                dswPath));
+                        }
+                        dswIndex++;
+                    }
+                }
+                wgIndex++;
+            }
+        }
+
+        private static void IndexReaderGroups(
+            PubSubConnectionDataType connection,
+            string connectionName,
+            string connectionPath,
+            Dictionary<(string, string), ReaderGroupDataType> readerGroups,
+            Dictionary<(string, string, string), DataSetReaderDataType> dataSetReaders,
+            List<PubSubConfigurationIssue> issues)
+        {
+            if (connection.ReaderGroups.IsNull)
+            {
+                return;
+            }
+            int rgIndex = 0;
+            foreach (ReaderGroupDataType readerGroup in connection.ReaderGroups)
+            {
+                string rgPath = $"{connectionPath}.ReaderGroups[{rgIndex}]";
+                string rgName = readerGroup.Name ?? string.Empty;
+                if (rgName.Length == 0)
+                {
+                    issues.Add(new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IndexIssueCodes.MissingReaderGroupName,
+                        "ReaderGroup has an empty Name.",
+                        rgPath));
+                }
+                else if (connectionName.Length > 0 &&
+                    !readerGroups.TryAdd((connectionName, rgName), readerGroup))
+                {
+                    issues.Add(new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IndexIssueCodes.DuplicateReaderGroupName,
+                        $"Duplicate ReaderGroup name '{rgName}' within connection '{connectionName}'.",
+                        rgPath));
+                }
+                if (!readerGroup.DataSetReaders.IsNull)
+                {
+                    int drIndex = 0;
+                    foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
+                    {
+                        string drPath = $"{rgPath}.DataSetReaders[{drIndex}]";
+                        string drName = reader.Name ?? string.Empty;
+                        if (drName.Length == 0)
+                        {
+                            issues.Add(new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IndexIssueCodes.MissingDataSetReaderName,
+                                "DataSetReader has an empty Name.",
+                                drPath));
+                        }
+                        else if (connectionName.Length > 0 && rgName.Length > 0 &&
+                            !dataSetReaders.TryAdd((connectionName, rgName, drName), reader))
+                        {
+                            issues.Add(new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IndexIssueCodes.DuplicateDataSetReaderName,
+                                $"Duplicate DataSetReader name '{drName}' within ReaderGroup '{rgName}' of connection '{connectionName}'.",
+                                drPath));
+                        }
+                        drIndex++;
+                    }
+                }
+                rgIndex++;
+            }
+        }
+
+        private static readonly IReadOnlyDictionary<string, PubSubConnectionDataType> EmptyConnections
+            = new Dictionary<string, PubSubConnectionDataType>(StringComparer.Ordinal);
+        private static readonly IReadOnlyDictionary<
+            (string Connection, ushort WriterGroupId),
+            WriterGroupDataType> EmptyWriterGroups
+            = new Dictionary<(string, ushort), WriterGroupDataType>();
+        private static readonly IReadOnlyDictionary<
+            (string Connection, ushort WriterGroupId, ushort DataSetWriterId),
+            DataSetWriterDataType> EmptyDataSetWriters
+            = new Dictionary<(string, ushort, ushort), DataSetWriterDataType>();
+        private static readonly IReadOnlyDictionary<
+            (string Connection, string ReaderGroupName),
+            ReaderGroupDataType> EmptyReaderGroups
+            = new Dictionary<(string, string), ReaderGroupDataType>();
+        private static readonly IReadOnlyDictionary<
+            (string Connection, string ReaderGroupName, string ReaderName),
+            DataSetReaderDataType> EmptyDataSetReaders
+            = new Dictionary<(string, string, string), DataSetReaderDataType>();
+        private static readonly IReadOnlyDictionary<string, PublishedDataSetDataType> EmptyPublishedDataSets
+            = new Dictionary<string, PublishedDataSetDataType>(StringComparer.Ordinal);
+
+        private static class IndexIssueCodes
+        {
+            public const string MissingConnectionName = "PSC0101";
+            public const string DuplicateConnectionName = "PSC0102";
+            public const string DuplicateWriterGroupId = "PSC0103";
+            public const string DuplicateDataSetWriterId = "PSC0104";
+            public const string MissingReaderGroupName = "PSC0105";
+            public const string DuplicateReaderGroupName = "PSC0106";
+            public const string MissingDataSetReaderName = "PSC0107";
+            public const string DuplicateDataSetReaderName = "PSC0108";
+            public const string MissingPublishedDataSetName = "PSC0109";
+            public const string DuplicatePublishedDataSetName = "PSC0110";
+        }
     }
 }
