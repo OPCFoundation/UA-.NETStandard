@@ -33,7 +33,6 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
-using Opc.Ua.Bindings.WebApi.Controllers;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -41,10 +40,12 @@ namespace Microsoft.Extensions.DependencyInjection
     /// Extension methods that install the OPC UA REST binding
     /// (OPC UA Part 6 §G.3 "OpenAPI Mapping") on an
     /// <see cref="IOpcUaBuilder"/>. Composes with
-    /// <c>AddHttpsTransport()</c>: by default the REST MVC pipeline is
-    /// mounted into the existing <c>HttpsTransportListener</c> Kestrel
-    /// host so a single port serves binary,
-    /// <c>opcua+uajson</c>, and REST traffic.
+    /// <c>AddHttpsTransport()</c>: by default the REST Minimal-API
+    /// pipeline is mounted into the existing
+    /// <c>HttpsTransportListener</c> Kestrel host so a single port
+    /// serves binary, <c>opcua+uajson</c>, and REST traffic. The
+    /// binding does not use MVC controllers and is fully
+    /// NativeAOT-compatible.
     /// </summary>
     public static class OpcUaWebApiBuilderExtensions
     {
@@ -111,12 +112,9 @@ namespace Microsoft.Extensions.DependencyInjection
             });
             services.TryAddSingleton<IWebApiServer>(sp => sp.GetRequiredService<WebApiServer>());
 
-            // Pre-register the controllers' assembly so MVC discovers them
-            // without consumers having to add an explicit
-            // ApplicationPart for this binding.
-            services
-                .AddControllers()
-                .AddApplicationPart(typeof(AttributeController).Assembly);
+            // Minimal-API endpoint mapping needs routing services only;
+            // no MVC controllers or AddApplicationPart reflection scan.
+            services.AddRouting();
 
             // Install the shared-host startup contributor on every HTTPS /
             // WSS listener factory. The transport binding registry runs

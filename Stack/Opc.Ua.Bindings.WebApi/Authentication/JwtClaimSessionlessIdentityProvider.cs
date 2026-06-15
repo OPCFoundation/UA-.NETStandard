@@ -276,7 +276,7 @@ namespace Opc.Ua.Bindings.WebApi
                 {
                     continue;
                 }
-                if (claim.Value.Contains(' '))
+                if (claim.Value.Contains(' ', StringComparison.Ordinal))
                 {
                     foreach (string piece in claim.Value.Split(
                         ScopeSeparator,

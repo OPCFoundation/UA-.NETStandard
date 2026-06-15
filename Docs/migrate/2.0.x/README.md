@@ -89,6 +89,47 @@ client-side `WebApiWssTransportChannel`, fluent
 sub-protocol variant `opcua+openapi+<accesstoken>`) ships in the
 same release.
 
+### REST binding: MVC controllers → Minimal-API endpoints
+
+`Opc.Ua.Bindings.WebApi` is now NativeAOT-compatible. The internal
+MVC controller surface (`Opc.Ua.Bindings.WebApi.Controllers.*` —
+`AttributeController`, `DiscoveryController`, `MethodController`,
+`MonitoredItemController`, `SessionController`,
+`SubscriptionController`, `ViewController`, `WebApiControllerBase`)
+was replaced with an ASP.NET Core Minimal-API endpoint surface
+(`MapWebApiEndpoints()` extension + `WebApiEndpointDispatcher` free
+function). Effects for consumers:
+
+- `services.AddWebApiTransport()` and `app.UseAuthentication()`
+  semantics are unchanged. The startup contributor inserts
+  `app.UseAuthentication()` automatically when any auth scheme is
+  registered — this is a behavior change for consumers that opted
+  into `AddWebApiBearerAuth` / `AddWebApiBasicAuth` /
+  `AddWebApiMutualTlsAuth` and observed that `HttpContext.User` was
+  not populated by the auth handler (a previous bug). The
+  `ISessionlessIdentityProvider` hook now sees the authenticated
+  principal.
+- `services.AddControllers().AddApplicationPart(typeof(AttributeController).Assembly)`
+  registrations targeting the binding's controller assembly are no
+  longer required. Remove them; `AddWebApiTransport()` already adds
+  the routing services it needs.
+- Anyone composing custom test hosts that called
+  `endpoints.MapControllers()` against the WebApi assembly should
+  switch to
+  `endpoints.MapWebApiEndpoints()` (from the
+  `Microsoft.AspNetCore.Builder` namespace once
+  `OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi` is referenced).
+- Subclassing `WebApiControllerBase` to add custom routes is no
+  longer supported (the type and namespace are removed). Custom
+  routes should be wired via additional `MapPost(...)` calls on the
+  same `IEndpointRouteBuilder`.
+
+The public DI / fluent surface (`AddWebApiTransport`,
+`AddWebApiBearerAuth`, `AddWebApiBasicAuth`,
+`AddWebApiMutualTlsAuth`, `UseJwtClaimIdentityProvider`,
+`WebApiClient`, `WebApiTransportChannel`, `WebApiWssTransportChannel`)
+is unchanged.
+
 ## See also
 
 - [Migration Guide landing page](../../MigrationGuide.md) — index across

@@ -46,13 +46,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
-using Opc.Ua.Bindings.WebApi.Controllers;
 
 namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
-    /// In-process integration tests for the OPC UA REST controllers
-    /// (OPC UA Part 6 §G.3 "OpenAPI Mapping"). Builds an
+    /// In-process integration tests for the OPC UA REST Minimal-API
+    /// endpoints (OPC UA Part 6 §G.3 "OpenAPI Mapping"). Builds an
     /// ASP.NET Core <see cref="TestServer"/> wired to a stub
     /// <see cref="IWebApiServer"/>, then exercises every spec route
     /// across both encoding flavours through real HTTP semantics
@@ -63,7 +62,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
     [Category("WebApiIntegration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class WebApiControllerIntegrationTests
+    public class WebApiEndpointIntegrationTests
     {
         private TestServer? m_server;
         private HttpClient? m_client;
@@ -82,13 +81,12 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                     webHost.ConfigureServices(services =>
                     {
                         services.AddSingleton<IWebApiServer>(m_stubServer);
-                        services.AddControllers()
-                            .AddApplicationPart(typeof(AttributeController).Assembly);
+                        services.AddRouting();
                     });
                     webHost.Configure(app =>
                     {
                         app.UseRouting();
-                        app.UseEndpoints(e => e.MapControllers());
+                        app.UseEndpoints(e => e.MapWebApiEndpoints());
                     });
                 });
 

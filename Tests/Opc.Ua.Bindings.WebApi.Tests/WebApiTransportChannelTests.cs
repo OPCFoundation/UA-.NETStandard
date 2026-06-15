@@ -42,7 +42,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
-using Opc.Ua.Bindings.WebApi.Controllers;
 using Opc.Ua.Client.WebApi;
 
 namespace Opc.Ua.Bindings.WebApi.Tests
@@ -78,13 +77,12 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                     webHost.ConfigureServices(services =>
                     {
                         services.AddSingleton<IWebApiServer>(m_stubServer);
-                        services.AddControllers()
-                            .AddApplicationPart(typeof(AttributeController).Assembly);
+                        services.AddRouting();
                     });
                     webHost.Configure(app =>
                     {
                         app.UseRouting();
-                        app.UseEndpoints(e => e.MapControllers());
+                        app.UseEndpoints(e => e.MapWebApiEndpoints());
                     });
                 });
 

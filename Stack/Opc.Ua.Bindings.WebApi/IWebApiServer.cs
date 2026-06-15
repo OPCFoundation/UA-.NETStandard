@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings
     {
         /// <summary>
         /// Synthetic secure-channel identifier representing the inbound HTTPS
-        /// connection. Generated per-request by the controller pipeline.
+        /// connection. Generated per-request by the endpoint pipeline.
         /// </summary>
         public required string SecureChannelId { get; init; }
 
@@ -80,14 +80,14 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
-    /// Server-side dispatcher used by the OPC UA REST MVC controllers
-    /// (OPC UA Part 6 §G.3 "OpenAPI Mapping") to flow a decoded request
-    /// through the same pipeline as the binary and
+    /// Server-side dispatcher used by the OPC UA REST Minimal-API
+    /// endpoints (OPC UA Part 6 §G.3 "OpenAPI Mapping") to flow a
+    /// decoded request through the same pipeline as the binary and
     /// <c>opcua+uajson</c> transports.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Implementations bridge the controller layer to
+    /// Implementations bridge the endpoint layer to
     /// <see cref="ITransportListenerCallback.ProcessRequestAsync(SecureChannelContext, IServiceRequest, System.Threading.CancellationToken)"/>:
     /// they translate the
     /// <see cref="WebApiInvocationContext"/> into a
@@ -96,12 +96,12 @@ namespace Opc.Ua.Bindings
     /// a fault response if the callback throws).
     /// </para>
     /// <para>
-    /// The interface is intentionally narrow so the same MVC controllers
-    /// work in two hosting modes (shared inside the existing
+    /// The interface is intentionally narrow so the same endpoint
+    /// surface works in two hosting modes (shared inside the existing
     /// <c>HttpsTransportListener</c> Kestrel pipeline, or own
     /// <c>WebApiTransportListener</c>). Each hosting mode provides a
     /// concrete <see cref="IWebApiServer"/> implementation that wires
-    /// the controller-resolved DI service back to the listener's callback.
+    /// the DI-resolved dispatcher back to the listener's callback.
     /// </para>
     /// </remarks>
     public interface IWebApiServer
@@ -109,14 +109,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The encoding context (namespace tables, server tables, quotas,
         /// telemetry) shared with the host server. Reused by the
-        /// controllers for body decode / encode so OPC UA built-ins are
+        /// endpoints for body decode / encode so OPC UA built-ins are
         /// (de)serialized with the same tables as binary / uajson channels.
         /// </summary>
         IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Indicates whether the dispatcher is wired up to a host server
-        /// callback. Controllers should reject requests with
+        /// callback. Endpoints should reject requests with
         /// <see cref="StatusCodes.BadServerHalted"/> when this is
         /// <c>false</c> (e.g. the listener has not yet been started or has
         /// been shut down).

@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.WebApi\Opc.Ua.Bindings.WebApi.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
@@ -31,6 +32,12 @@
     <ProjectReference Include="..\..\Applications\MinimalCalcServer\MinimalCalcServer.csproj">
       <Aliases>calcsample</Aliases>
     </ProjectReference>
+  </ItemGroup>
+  <!-- WebApi binding pulls in Microsoft.AspNetCore.App for Kestrel +
+       Minimal-API endpoints; required only when the WebApi AOT tests
+       run. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Quickstarts.ReferenceServer.Config.xml">

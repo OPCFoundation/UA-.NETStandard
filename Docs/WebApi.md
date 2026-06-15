@@ -1,7 +1,7 @@
 # OPC UA REST Binding (Part 6 §G.3 "OpenAPI Mapping")
 
-The OPC UA REST binding exposes the OPC UA service set as an ASP.NET
-Core MVC controller surface, implementing the **OpenAPI Mapping**
+The OPC UA REST binding exposes the OPC UA service set as ASP.NET
+Core **Minimal-API endpoints**, implementing the **OpenAPI Mapping**
 defined in [OPC UA Part 6 §G.3](https://reference.opcfoundation.org/specs/OPC-10000-6/g-3)
 (v1.05.07).
 
@@ -10,7 +10,9 @@ The binding ships as
 not replace) the binary and `application/opcua+uajson` sub-profiles
 already provided by `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`.
 
-- **Server side**: ASP.NET Core controllers serving every spec route.
+- **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
+  per spec service) — **NativeAOT-compatible**; no MVC reflection, no
+  `[UnconditionalSuppressMessage]` attributes.
 - **Client side**: symmetric `IWebApiClient` in
   `OPCFoundation.NetStandard.Opc.Ua.Client` under
   `Libraries/Opc.Ua.Client/WebApi/`.
@@ -172,6 +174,15 @@ client is responsible for calling `CreateSession` + `ActivateSession`
 with credentials in the request body — the binding does not
 double-authenticate.
 
+The `WebApiHttpsStartupContributor` automatically inserts
+`app.UseAuthentication()` between `UseRouting()` and `UseEndpoints()`
+whenever at least one auth scheme is registered (detected via
+`IOptions<AuthenticationOptions>.Schemes`), so the
+`HttpContext.User` is populated before the dispatcher invokes the
+sessionless identity provider. Bindings registered without any
+`AddWebApi*Auth()` call skip the authentication middleware entirely
+to preserve the historical anonymous request flow.
+
 The default `ISessionlessIdentityProvider` is intentionally
 conservative; register a custom implementation to map richer
 claim sets (e.g. JWT role claims → OPC UA roles).
@@ -218,10 +229,10 @@ services.AddWebApiTransport(opt =>
 });
 ```
 
-- **`SharedWithHttpsListener`** (default) — controllers mount into the
-  existing `HttpsTransportListener` Kestrel pipeline via the internal
-  `IHttpsListenerStartupContributor` hook. Single port for
-  binary / `opcua+uajson` / REST.
+- **`SharedWithHttpsListener`** (default) — Minimal-API endpoints
+  mount into the existing `HttpsTransportListener` Kestrel pipeline
+  via the internal `IHttpsListenerStartupContributor` hook. Single
+  port for binary / `opcua+uajson` / REST.
 - **`OwnListener`** — reserved for a follow-up PR; the API surface is
   in place (`opt.UseOwnListener(...)`) but the standalone listener
   implementation is deferred.
@@ -265,12 +276,13 @@ ReadResponse response = await client.ReadAsync(new ReadRequest
 The client lives in `OPCFoundation.NetStandard.Opc.Ua.Client` under
 `Libraries/Opc.Ua.Client/WebApi/`. It is multi-TFM (net48 /
 netstandard2.1 / net8+) — the server binding is net8+ only because of
-its dependency on `Microsoft.AspNetCore.OpenApi` and modern MVC
-infrastructure, but the client only needs `HttpClient`.
+its dependency on `Microsoft.AspNetCore.App` (Minimal-API endpoints,
+Kestrel host), but the client only needs `HttpClient`.
 
 `IWebApiClient` exposes one strongly-typed method per service plus a
 generic `InvokeAsync<TRequest, TResponse>` that resolves the route
-through the same table the controllers use.
+through the same `WebApiServiceRoutes` table the server-side
+`MapWebApiEndpoints` wires up.
 
 ## Tooling notes
 
@@ -283,9 +295,16 @@ through the same table the controllers use.
   `Opc.Ua.Bindings.Kestrel.Tcp`'s `RestrictForLegacyTfm` shell so it
   builds as an empty assembly on legacy CI matrix runs without
   pulling in net8+ APIs.
-- **AOT.** The binding is *not* Native-AOT compatible because MVC
-  controllers and `Microsoft.AspNetCore.OpenApi` rely on reflection
-  that is not trim-safe.
+- **NativeAOT.** The binding is **NativeAOT-compatible**
+  (`<IsAotCompatible>true</IsAotCompatible>` on net10): it wires the
+  28 OPC UA service routes via Minimal-API `MapPost` calls bound to
+  explicit `RequestDelegate` thunks (one per generic instantiation of
+  `WebApiEndpointDispatcher.HandleAsync<TRequest,TResponse>`), so the
+  trimmer sees every reachable type at compile time without any
+  reflection-based controller discovery or
+  `[UnconditionalSuppressMessage]` attributes. Coverage runs in
+  `Tests/Opc.Ua.Aot.Tests/WebApiAotTests.cs` against the AOT-published
+  binary.
 
 ## Related plans and follow-ups
 

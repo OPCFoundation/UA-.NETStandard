@@ -28,18 +28,20 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.WebApi.Controllers;
 
 namespace Opc.Ua.Bindings.WebApi
 {
     /// <summary>
-    /// Bridges the OPC UA REST MVC pipeline to the
+    /// Bridges the OPC UA REST Minimal-API endpoints to the
     /// <see cref="HttpsTransportListener"/> Kestrel host. Installed on
     /// every HTTPS / WSS listener factory by
     /// <c>AddWebApiTransport()</c>; ASP.NET Core invokes
@@ -47,6 +49,13 @@ namespace Opc.Ua.Bindings.WebApi
     /// once per listener instance, between
     /// <c>UseWebSockets()</c> and the terminal binary / JSON dispatcher.
     /// </summary>
+    /// <remarks>
+    /// The contributor registers Minimal-API routing services and
+    /// the OPC UA REST endpoints (see
+    /// <c>MapWebApiEndpoints</c>) — no MVC reflection-based
+    /// controller discovery — so the binding is fully
+    /// NativeAOT-compatible.
+    /// </remarks>
     internal sealed class WebApiHttpsStartupContributor :
         IHttpsListenerStartupContributor,
         IHttpsListenerServiceContributor
@@ -67,9 +76,9 @@ namespace Opc.Ua.Bindings.WebApi
 
             services.TryAddSingleton(m_server);
             services.TryAddSingleton<IWebApiServer>(m_server);
-            services
-                .AddControllers()
-                .AddApplicationPart(typeof(AttributeController).Assembly);
+            // Minimal-API endpoint mapping needs routing services; no
+            // MVC controllers / AddApplicationPart reflection scan.
+            services.AddRouting();
         }
 
         /// <inheritdoc/>
@@ -129,12 +138,38 @@ namespace Opc.Ua.Bindings.WebApi
                 m_server.UpdateDefaultEndpoint(defaultEndpoint);
             }
 
-            // Mount routing + MVC endpoints. Unmatched paths fall through
-            // to the listener's terminal binary / JSON dispatcher below,
-            // so the REST surface is additive — existing routes and
-            // sub-protocols are unaffected.
+            // Mount routing + Minimal-API endpoints. Unmatched paths
+            // fall through to the listener's terminal binary / JSON
+            // dispatcher below, so the REST surface is additive —
+            // existing routes and sub-protocols are unaffected.
             appBuilder.UseRouting();
-            appBuilder.UseEndpoints(endpoints => endpoints.MapControllers());
+
+            // app.UseAuthentication() must run after UseRouting() and
+            // before UseEndpoints() for the auth handler resolved per
+            // request to populate HttpContext.User in time for the
+            // ISessionlessIdentityProvider hook. Only insert it when
+            // at least one non-Anonymous auth scheme is registered;
+            // bare AddWebApiTransport() (no auth) skips the
+            // middleware entirely to preserve the historical anonymous
+            // request flow.
+            if (HasNonAnonymousAuthScheme(appBuilder.ApplicationServices))
+            {
+                appBuilder.UseAuthentication();
+            }
+            appBuilder.UseEndpoints(endpoints => endpoints.MapWebApiEndpoints());
+        }
+
+        // Resolves the AuthenticationOptions snapshot so that bindings
+        // composed without any AddWebApi*Auth() call don't pay the
+        // UseAuthentication() middleware cost (and don't change
+        // HttpContext.User semantics for the anonymous path). The
+        // options-based path keeps this purely synchronous — no
+        // sync-over-async on IAuthenticationSchemeProvider.
+        private static bool HasNonAnonymousAuthScheme(IServiceProvider services)
+        {
+            IOptions<AuthenticationOptions>? options = services
+                .GetService<IOptions<AuthenticationOptions>>();
+            return options?.Value.Schemes.Any() == true;
         }
     }
 }

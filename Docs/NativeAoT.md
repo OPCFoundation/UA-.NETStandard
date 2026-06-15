@@ -58,8 +58,20 @@ Tests/Opc.Ua.Aot.Tests/
 ├── ComplexTypeAotTests.cs     # Complex type loading & serialization
 ├── GdsClientAotTests.cs       # Global Discovery Server client
 ├── ClientSamplesAotTests.cs   # End-to-end client sample patterns
-└── AotClientSamples.cs        # Helper methods for client samples
+├── AotClientSamples.cs        # Helper methods for client samples
+├── WebApiAotFixture.cs        # Kestrel host for REST endpoint round-trips
+├── WebApiAotTests.cs          # Opc.Ua.Bindings.WebApi smoke + Basic auth
+└── StubWebApiServer.cs        # IWebApiServer stub backing WebApiAotFixture
 ```
+
+`Opc.Ua.Bindings.WebApi` is `<IsAotCompatible>true</IsAotCompatible>`
+on net10: the binding uses ASP.NET Core Minimal-API endpoints (one
+`MapPost` per OPC UA service) bound to explicit `RequestDelegate`
+thunks, so the trimmer sees every generic instantiation of
+`WebApiEndpointDispatcher.HandleAsync<TRequest, TResponse>` at
+compile time. `WebApiAotTests.cs` round-trips Read / Browse /
+CreateSession / CreateSubscription / Publish plus anonymous and
+Basic-auth requests against the AOT-published binary.
 
 ### Why TUnit Instead of NUnit?
 
