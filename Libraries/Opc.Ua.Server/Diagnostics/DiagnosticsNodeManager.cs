@@ -456,23 +456,15 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerObjectState serverObject)
         {
-            // The generator's transitive singleton-instance gate (issue
-            // #3768) suppresses Optional Variable/Method descendants of
-            // singleton roots, so they have to be lazy-added by the SDK
-            // for the children this SDK actually implements. Add{Child}
-            // is idempotent (returns the existing typed child if present)
-            // and now dispatches the synthesized child NodeIds and the
-            // top-level NodeId on the owner's NodeId automatically, so no
-            // explicit NodeId override is needed at this call site.
-            //
-            // GetMonitoredItems / ResendData are wired unconditionally;
-            // SetSubscriptionDurable only when durable subscriptions are
-            // enabled.
-            // Server.Namespaces is consumed by ConfigurationNodeManager to
-            // register per-namespace NamespaceMetadata children.
-            // UrisVersion / EstimatedReturnTime / LocalTime are Optional
-            // Variables on ServerType that the SDK does not actively populate
-            // but were emitted on master at the well-known instance NodeIds.
+            // Lazy-add the Optional Variable/Method descendants of Server
+            // that this SDK actually implements; the generator's transitive
+            // singleton-instance gate (issue #3768) suppresses them at
+            // load time so clients reading the standard well-known instance
+            // NodeIds would otherwise get BadNodeIdUnknown. The generated
+            // Add{Child}(context) extensions dispatch the well-known
+            // NodeIds based on the owner's NodeId, so no explicit override
+            // is needed. SetSubscriptionDurable is only wired when durable
+            // subscriptions are enabled.
             serverObject
                 .AddGetMonitoredItems(context)
                 .AddResendData(context)
@@ -484,12 +476,6 @@ namespace Opc.Ua.Server
                 .AddEstimatedReturnTime(context)
                 .AddLocalTime(context);
 
-            // Optional Objects such as ServerCapabilities.OperationLimits
-            // and ServerCapabilities.RoleSet are intentionally exempt from
-            // the gate (their subtrees rely on well-known descendant
-            // NodeIds), so the dispatchers below treat the pre-existing
-            // Object as the common case and only lazy-add the missing
-            // Variable/Method children.
             if (serverObject.ServerCapabilities != null)
             {
                 AddServerCapabilitiesSdkOptionalChildren(
@@ -506,13 +492,9 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerCapabilitiesState serverCapabilities)
         {
-            // Each Add{Child}(context) helper dispatches the well-known
-            // singleton-instance NodeId based on the owner's NodeId
-            // (Server_ServerCapabilities here), so no explicit NodeId
-            // override is needed. The OperationLimits child needs its
-            // sub-tree populated, so access the typed slot via
-            // .AddOperationLimits(...).OperationLimits! to continue
-            // chaining the operational-limit Properties.
+            // OperationLimits needs its sub-tree populated, so access the
+            // typed slot via .AddOperationLimits(...).OperationLimits! to
+            // continue chaining the operational-limit Properties.
             serverCapabilities
                 .AddMaxArrayLength(context)
                 .AddMaxStringLength(context)

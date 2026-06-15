@@ -961,13 +961,6 @@ namespace Opc.Ua.SourceGeneration
                     else if (context.NodeIdFactory != null &&
                         state.NodeId.Equals({{Tokens.NodeIdConstant}}))
                     {
-                        // The factory's singleton-instance dispatch did not
-                        // fire (the owner is not a well-known singleton),
-                        // so mint a fresh NodeId via the manager's
-                        // NodeIdFactory. When the dispatch DID fire,
-                        // state.NodeId already holds the well-known
-                        // singleton-instance NodeId and must not be
-                        // overwritten.
                         state.NodeId = context.NodeIdFactory.New(context, state);
                     }
                     {{Tokens.ChildName}} = state;
@@ -2150,6 +2143,36 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
             };
 
+            """);
+
+        /// <summary>
+        /// Wrapper template for the singleton-instance NodeId override
+        /// emitted right after the type-level <c>state.NodeId</c>
+        /// assignment in <c>Create_ChildObject</c> / <c>Create_ChildVariable</c>
+        /// / <c>Create_ChildMethod</c>. Renders only when at least one
+        /// singleton-instance branch is collected; otherwise the token
+        /// expands to nothing.
+        /// </summary>
+        public static readonly TemplateString InstanceNodeIdOverride = TemplateString.Parse(
+            $$"""
+            if (forInstance && parent != null)
+            {
+                {{Tokens.ListOfInstanceNodeIdBranches}}
+            }
+            """);
+
+        /// <summary>
+        /// One per-singleton branch of the singleton-instance
+        /// <c>state.NodeId</c> override dispatch. Rebinds
+        /// <c>state.NodeId</c> to <see cref="Tokens.NodeIdConstant"/>
+        /// when the parent owner matches <see cref="Tokens.ParentNodeIdConstant"/>.
+        /// </summary>
+        public static readonly TemplateString InstanceNodeIdBranch = TemplateString.Parse(
+            $$"""
+            {{Tokens.IfOrElseIf}} (parent.NodeId.Equals({{Tokens.ParentNodeIdConstant}}))
+            {
+                state.NodeId = {{Tokens.NodeIdConstant}};
+            }
             """);
 
         /// <summary>

@@ -1372,9 +1372,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.NodeIdConstant,
                 root.GetNodeIdAsCode(m_context.ModelDesign.Namespaces, kNamespaceTableContextVariable));
-            context.Template.AddReplacement(
-                Tokens.InstanceNodeIdOverride,
-                BuildInstanceNodeIdOverride(node));
+            AddInstanceNodeIdOverrideReplacement(context, node);
 
             // .net efficiently interns constant string, so usage of the BrowseName constants is not needed.
             string symbolicNameSymbol = root.SymbolicName.Name.AsStringLiteral();
@@ -2687,54 +2685,75 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Computes the body of <see cref="Tokens.InstanceNodeIdOverride"/>
-        /// for the type-level factory currently being emitted. When the node
-        /// has well-known singleton instances (e.g. a method declared under
-        /// <c>ServerType</c> whose <c>Server</c> singleton has its own
-        /// well-known <c>NodeId</c>), emits a runtime override that re-binds
-        /// <c>state.NodeId</c> to the singleton-instance value when
-        /// <c>forInstance: true</c> is passed AND the parent owner is one of
-        /// the known singleton instances. Returns an empty string when no
-        /// dispatch is applicable, so the token expansion is a no-op.
+        /// Registers the <see cref="Tokens.InstanceNodeIdOverride"/>
+        /// replacement for the type-level factory currently being emitted.
+        /// When the node has well-known singleton instances (e.g. a method
+        /// declared under <c>ServerType</c> whose <c>Server</c> singleton
+        /// has its own well-known <c>NodeId</c>), the wrapper template
+        /// renders a runtime dispatch that rebinds <c>state.NodeId</c> to
+        /// the singleton-instance value when <c>forInstance: true</c> is
+        /// passed AND <c>parent</c> matches one of the known singleton
+        /// instances. The token expands to nothing when no singleton
+        /// dispatch is applicable.
         /// </summary>
-        private string BuildInstanceNodeIdOverride(NodeToGenerate node)
+        private void AddInstanceNodeIdOverrideReplacement(
+            IWriteContext context,
+            NodeToGenerate node)
         {
             List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>
                 singletonChildren = FindSingletonChildren(node);
-            if (singletonChildren.Count == 0)
-            {
-                return string.Empty;
-            }
+            context.Template.AddReplacement(
+                Tokens.InstanceNodeIdOverride,
+                NodeStateTemplates.InstanceNodeIdOverride,
+                singletonChildren.Count > 0
+                    ? (IReadOnlyList<object>)new object[] { singletonChildren }
+                    : [],
+                WriteTemplate_InstanceNodeIdOverride);
+        }
 
-            using var sw = new System.IO.StringWriter(System.Globalization.CultureInfo.InvariantCulture);
-            sw.WriteLine("if (forInstance && parent != null)");
-            sw.WriteLine("            {");
-            for (int i = 0; i < singletonChildren.Count; i++)
+        /// <summary>
+        /// Wrapper writer for <see cref="NodeStateTemplates.InstanceNodeIdOverride"/>;
+        /// expands the inner <see cref="Tokens.ListOfInstanceNodeIdBranches"/>
+        /// token by iterating the collected per-singleton branches.
+        /// </summary>
+        private bool WriteTemplate_InstanceNodeIdOverride(IWriteContext context)
+        {
+            if (context.Target is not List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> branches)
             {
-                (NodeToGenerate singletonRoot,
-                    NodeToGenerate singletonChild,
-                    string _) = singletonChildren[i];
-                string keyword = i == 0 ? "if" : "else if";
-                sw.WriteLine(
-                    "                {0} (parent.NodeId.Equals({1}))",
-                    keyword,
-                    singletonRoot.Design.GetNodeIdAsCode(
-                        m_context.ModelDesign.Namespaces,
-                        kNamespaceTableContextVariable));
-                sw.WriteLine("                {");
-                sw.WriteLine(
-                    "                    state.NodeId = {0};",
-                    singletonChild.Design.GetNodeIdAsCode(
-                        m_context.ModelDesign.Namespaces,
-                        kNamespaceTableContextVariable));
-                sw.WriteLine("                }");
+                return false;
             }
-            // Closing brace for the outer 'if (forInstance && parent != null)'
-            // — the templating engine appends a newline after the token
-            // expansion, so we deliberately leave the trailing newline off
-            // to keep the surrounding template indentation consistent.
-            sw.Write("            }");
-            return sw.ToString();
+            context.Template.AddReplacement(
+                Tokens.ListOfInstanceNodeIdBranches,
+                NodeStateTemplates.InstanceNodeIdBranch,
+                branches.Cast<object>().ToArray(),
+                WriteTemplate_InstanceNodeIdBranch);
+            return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Per-branch writer for <see cref="NodeStateTemplates.InstanceNodeIdBranch"/>;
+        /// the first branch emits <c>if</c>, subsequent ones <c>else if</c>.
+        /// </summary>
+        private bool WriteTemplate_InstanceNodeIdBranch(IWriteContext context)
+        {
+            if (context.Target is not ValueTuple<NodeToGenerate, NodeToGenerate, string> branch)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.IfOrElseIf,
+                context.Index == 0 ? "if" : "else if");
+            context.Template.AddReplacement(
+                Tokens.ParentNodeIdConstant,
+                branch.Item1.Design.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable));
+            context.Template.AddReplacement(
+                Tokens.NodeIdConstant,
+                branch.Item2.Design.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable));
+            return context.Template.Render();
         }
 
         private void CollectEncodingNodes()
