@@ -6520,6 +6520,84 @@ namespace Opc.Ua.Types.Tests.Encoders
             return encoder.CloseAndReturnBuffer();
         }
 
+        // Issue 3546 follow-up: invalid attacker-controlled matrix dimensions
+        // received over the wire must surface as a BadDecodingError
+        // ServiceResultException, not the raw ArgumentException thrown by
+        // MatrixOf<T> constructor validation. Otherwise the fuzz harness (and
+        // production callers) treat an exploitable input as an unhandled
+        // exception instead of a normal parser-rejected message.
+
+        private static readonly int[] s_singleZero = [0];
+        private static readonly int[] s_singleOne = [1];
+        private static readonly int[] s_pair12 = [1, 2];
+        private static readonly int[] s_overflowDims = [65537, 65537];
+        private static readonly int[] s_negativeDim = [-1, 1];
+        private static readonly int[] s_mismatchDims = [2, 2];
+
+        [Test]
+        public void ReadMatrixWithOverflowingDimensionsThrowsBadDecodingError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+
+            // [65537, 65537] -> product 4_295_098_369 overflows Int32.MaxValue.
+            byte[] buffer = CreateMatrixBuffer(
+                messageContext,
+                encoder => encoder.WriteInt32Array(null, s_singleZero),
+                s_overflowDims);
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadVariantValue(
+                    null,
+                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
+            Assert.That((StatusCode)sre.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadMatrixWithNegativeDimensionThrowsBadDecodingError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+
+            // Negative dimension is rejected by MatrixOf<T> for security
+            // (downstream Array.CreateInstance / Span<T> would crash on it).
+            byte[] buffer = CreateMatrixBuffer(
+                messageContext,
+                encoder => encoder.WriteInt32Array(null, s_singleOne),
+                s_negativeDim);
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadVariantValue(
+                    null,
+                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
+            Assert.That((StatusCode)sre.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadMatrixWithLengthMismatchThrowsBadDecodingError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+
+            // Declared dims product (2x2=4) does not match payload length (2).
+            byte[] buffer = CreateMatrixBuffer(
+                messageContext,
+                encoder => encoder.WriteInt32Array(null, s_pair12),
+                s_mismatchDims);
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadVariantValue(
+                    null,
+                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
+            Assert.That((StatusCode)sre.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
         private enum TestEnum
         {
             Value0 = 0,
