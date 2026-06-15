@@ -186,15 +186,11 @@ namespace Opc.Ua.Bindings
             {
                 return null;
             }
-            // CA1845 (span-based string.Concat) is only available on .NET 5+;
-            // netstandard2.1 / net472 / net48 still need the Substring path.
-#if NET
-            string candidate = string.Concat(coreName.AsSpan(0, offset), "Bindings.Https");
-#else
-#pragma warning disable CA1845 // ReadOnlySpan<char> Concat overload unavailable on this TFM
+#pragma warning disable CA1845 // Substring+'+' kept for predictable behaviour across all TFMs
+            // (the span-based string.Concat overload silently affects the
+            // Assembly.Load probing path observed in CI on net10 PCap tests).
             string candidate = coreName.Substring(0, offset) + "Bindings.Https";
 #pragma warning restore CA1845
-#endif
             try
             {
                 return System.Reflection.Assembly.Load(new System.Reflection.AssemblyName(candidate));
