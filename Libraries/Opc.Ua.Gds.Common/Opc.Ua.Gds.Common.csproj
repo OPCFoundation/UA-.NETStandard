@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <Description>OPC UA GDS Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -49,5 +50,8 @@
     <AdditionalFiles Include="Design\OpcUaGdsModel.xml" />
     <AdditionalFiles Include="Design\OpcUaOnboardingModel.csv" />
     <AdditionalFiles Include="Design\OpcUaOnboardingModel.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

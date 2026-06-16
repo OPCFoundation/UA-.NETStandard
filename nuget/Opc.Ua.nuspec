@@ -30,6 +30,6 @@
   <files>
     <file src="logo.jpg" target="images/" />
     <file src="../LICENSE.txt" target="licenses/LICENSE.txt"/>
-    <file src="../Docs/NugetREADME.md" target="README.md"/>
+    <file src="MetaPackageREADME.md" target="README.md"/>
   </files>
 </package>
