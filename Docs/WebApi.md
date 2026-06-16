@@ -290,28 +290,6 @@ ReadResponse response = await session.ReadAsync(new ReadRequest
 The companion `UseWssOpenApiEndpoint(url)` shortcut binds the same
 session model to the WebSocket `opcua+openapi` sub-protocol.
 
-## Tooling notes
-
-- **No Swashbuckle.** If a runtime OpenAPI document is added in a
-  follow-up, it will be served by
-  `Microsoft.AspNetCore.OpenApi` (`app.MapOpenApi()`); Swashbuckle is
-  explicitly excluded from the binding.
-- **TFM constraint.** `Opc.Ua.Bindings.WebApi` targets `net8.0`,
-  `net9.0`, `net10.0` only. The package mirrors
-  `Opc.Ua.Bindings.Kestrel.Tcp`'s `RestrictForLegacyTfm` shell so it
-  builds as an empty assembly on legacy CI matrix runs without
-  pulling in net8+ APIs.
-- **NativeAOT.** The binding is **NativeAOT-compatible**
-  (`<IsAotCompatible>true</IsAotCompatible>` on net10): it wires the
-  28 OPC UA service routes via Minimal-API `MapPost` calls bound to
-  explicit `RequestDelegate` thunks (one per generic instantiation of
-  `WebApiEndpointDispatcher.HandleAsync<TRequest,TResponse>`), so the
-  trimmer sees every reachable type at compile time without any
-  reflection-based controller discovery or
-  `[UnconditionalSuppressMessage]` attributes. Coverage runs in
-  `Tests/Opc.Ua.Aot.Tests/WebApiAotTests.cs` against the AOT-published
-  binary.
-
 ## Related plans and follow-ups
 
 - **Source-generated OpenAPI document** (deferred) — the spec's
