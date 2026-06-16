@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using Opc.Ua;
 using Opc.Ua.Bindings;
@@ -71,3 +72,4 @@ namespace Microsoft.Extensions.DependencyInjection
         }
     }
 }
+#endif // NET8_0_OR_GREATER

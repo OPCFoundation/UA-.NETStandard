@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -583,3 +584,4 @@ namespace Opc.Ua.Bindings
         }
     }
 }
+#endif // NET8_0_OR_GREATER
