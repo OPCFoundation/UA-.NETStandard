@@ -218,19 +218,58 @@ telemetry stream isolated.
 
 #### Wiring into Microsoft.Extensions.DependencyInjection
 
+The OPC UA stack ships a fluent `IOpcUaBuilder` surface that
+registers a default `ITelemetryContext` for you. The recommended
+shape is:
+
 ```csharp
 HostApplicationBuilder builder = Host.CreateApplicationBuilder();
-builder.Logging.AddConsole();
 
-// One telemetry context for the whole host.
+builder.Services
+    .AddOpcUa()                              // registers ITelemetryContext
+    .AddLogging(b => b.AddConsole())         // wires ILoggerFactory through the same builder
+    .AddMetrics();                           // wires IMeterFactory through the same builder
+
+// Feature libraries hang off the same IOpcUaBuilder:
+builder.Services
+    .AddOpcUa()
+    .AddClient(opts => { /* ... */ })
+    .AddServer(opts => { /* ... */ });
+```
+
+`services.AddOpcUa()` registers
+[`ServiceProviderTelemetryContext`](../Stack/Opc.Ua.Core/Stack/Diagnostics/ServiceProviderTelemetryContext.cs)
+as a singleton `ITelemetryContext` via `TryAddSingleton`. That
+adapter resolves the host's `ILoggerFactory` from DI on first use
+(falling back to `NullLoggerFactory` when none is registered) and
+materializes a fresh `Meter` / `ActivitySource` per calling
+assembly &mdash; no further wiring needed for the common case.
+
+The fluent `.AddLogging(...)` / `.AddMetrics(...)` overloads on
+`IOpcUaBuilder` are thin pass-throughs to the standard
+`IServiceCollection` extensions, kept on the builder so the OPC UA
+registration stays a single fluent chain. Parameterless overloads
+exist for the "just turn it on" case.
+
+To **replace** the default telemetry context with a custom
+implementation (per-tenant context, prebuilt logger factory, opt-out
+context, etc.), register it **before** calling `AddOpcUa()` so
+`TryAddSingleton` keeps your registration:
+
+```csharp
 builder.Services.AddSingleton<ITelemetryContext>(sp
-    => DefaultTelemetry.Create(sp.GetRequiredService<ILoggerFactory>()));
+    => new TenantTelemetry("tenant-A", sp.GetRequiredService<ILoggerFactory>()));
+builder.Services.AddOpcUa();  // sees the existing registration; does not overwrite
+```
 
-// Or fine-grained per-component:
+Or, for fine-grained per-component contexts, use keyed singletons
+alongside the default one:
+
+```csharp
+builder.Services.AddOpcUa();
 builder.Services.AddKeyedSingleton<ITelemetryContext>(
     "Client",
-    (sp, _) => DefaultTelemetry.Create(
-        sp.GetRequiredService<ILoggerFactory>()));
+    (sp, _) => DefaultTelemetry.Create(sp.GetRequiredService<ILoggerFactory>()));
 ```
 
 #### OpenTelemetry exporter wiring
