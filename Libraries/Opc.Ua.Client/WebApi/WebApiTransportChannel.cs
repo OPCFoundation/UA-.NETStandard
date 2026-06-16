@@ -32,9 +32,11 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
@@ -80,6 +82,7 @@ namespace Opc.Ua.Client.WebApi
     public sealed class WebApiTransportChannel : ITransportChannel, ISecureChannel
     {
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private readonly WebApiClientOptions m_userOptions;
         private readonly IOpcUaHttpClientFactory? m_httpClientFactory;
         private readonly TimeProvider m_timeProvider;
@@ -120,6 +123,7 @@ namespace Opc.Ua.Client.WebApi
         {
             m_telemetry = telemetry
                 ?? throw new ArgumentNullException(nameof(telemetry));
+            m_logger = m_telemetry.CreateLogger<WebApiTransportChannel>();
             m_userOptions = options ?? new WebApiClientOptions();
             m_httpClientFactory = httpClientFactory;
             m_timeProvider = timeProvider ?? TimeProvider.System;
@@ -466,15 +470,16 @@ namespace Opc.Ua.Client.WebApi
 
         private WebApiClientOptions BuildClientOptions(TransportChannelSettings settings)
         {
-            // Compose: caller-supplied defaults + auto-derived mTLS from
-            // TransportChannelSettings.ClientCertificate, but only when the
-            // caller hasn't explicitly opted out by supplying an
-            // HttpMessageHandler.
+            // Compose: caller-supplied defaults + auto-derived TLS handler
+            // (server-cert validation when CertificateValidator is set, plus
+            // mutual TLS when ClientCertificate is set). The caller can
+            // opt out entirely by supplying a custom HttpMessageHandler.
             HttpMessageHandler? handler = m_userOptions.HttpMessageHandler;
             bool disposeHandler = m_userOptions.DisposeHandler;
-            if (handler == null && settings.ClientCertificate != null)
+            if (handler == null &&
+                (settings.ClientCertificate != null || settings.CertificateValidator != null))
             {
-                handler = CreateMutualTlsHandler(settings);
+                handler = CreateTlsHandler(settings);
                 disposeHandler = true;
             }
 
@@ -490,7 +495,7 @@ namespace Opc.Ua.Client.WebApi
             };
         }
 
-        private static HttpClientHandler CreateMutualTlsHandler(TransportChannelSettings settings)
+        private HttpClientHandler CreateTlsHandler(TransportChannelSettings settings)
         {
             var handler = new HttpClientHandler
             {
@@ -512,7 +517,83 @@ namespace Opc.Ua.Client.WebApi
                 }
             }
 
+            // sec-10: install a server-cert validation callback so the
+            // OPC UA CertificateValidator (TrustedPeers store,
+            // application-URI rule, rejected list) is consulted. Mirrors
+            // HttpsTransportChannel.ServerCertificateCustomValidationCallback.
+            // Without this, the WebApi client only ran the default TLS
+            // chain checks — OPC UA-specific trust state was bypassed.
+            if (settings.CertificateValidator != null)
+            {
+                handler.ServerCertificateCustomValidationCallback = ValidateServerCertificate;
+            }
+
             return handler;
+        }
+
+        private bool ValidateServerCertificate(
+            HttpRequestMessage request,
+            X509Certificate2? certificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            try
+            {
+                var validationChain = new X509Certificate2Collection();
+                if (chain != null && chain.ChainElements != null)
+                {
+                    foreach (X509ChainElement element in chain.ChainElements)
+                    {
+                        validationChain.Add(element.Certificate);
+                    }
+                }
+                else if (certificate != null)
+                {
+                    validationChain.Add(certificate);
+                }
+
+                using var validationCollection = CertificateCollection.From(validationChain);
+                ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
+                if (validator != null)
+                {
+                    // CA2025: task awaited via GetAwaiter().GetResult(); the
+                    // disposable's using scope extends past the await. Mirrors
+                    // HttpsTransportChannel.
+#pragma warning disable CA2025
+                    CertificateValidationResult validationResult = validator
+                        .ValidateAsync(validationCollection, ct: default)
+                        .GetAwaiter()
+                        .GetResult();
+#pragma warning restore CA2025
+                    if (!validationResult.IsValid)
+                    {
+                        m_logger.LogError(
+                            "{ChannelType} Server certificate rejected by CertificateValidator: {Status}.",
+                            nameof(WebApiTransportChannel),
+                            validationResult.StatusCode);
+                        return false;
+                    }
+                    return true;
+                }
+
+                if (sslPolicyErrors != SslPolicyErrors.None)
+                {
+                    m_logger.LogError(
+                        "{ChannelType} No certificate validator configured and TLS reported {Errors}; rejecting server certificate.",
+                        nameof(WebApiTransportChannel),
+                        sslPolicyErrors);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "{ChannelType} Failed to validate server certificate.",
+                    nameof(WebApiTransportChannel));
+                return false;
+            }
         }
 
         private static Uri NormalizeUrl(Uri url)
