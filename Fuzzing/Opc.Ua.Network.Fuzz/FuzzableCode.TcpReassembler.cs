@@ -29,7 +29,7 @@
 using System;
 using System.IO;
 using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.Pcap.Frame;
+using Opc.Ua.Core.Diagnostics.Frame;
 
 namespace Opc.Ua.Fuzzing
 {

@@ -30,9 +30,9 @@ using System;
 using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
-using Opc.Ua.Bindings.Pcap.Capture;
-using Opc.Ua.Bindings.Pcap.Frame;
-using Opc.Ua.Bindings.Pcap.KeyLog;
+using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Core.Diagnostics.KeyLog;
 
 namespace Opc.Ua.Fuzzing
 {
@@ -44,7 +44,7 @@ namespace Opc.Ua.Fuzzing
 
         public static void FuzzInfo()
         {
-            Console.WriteLine("OPC UA network-layer fuzzer for Opc.Ua.Bindings.Pcap.");
+            Console.WriteLine("OPC UA network-layer fuzzer for Opc.Ua.Core.Diagnostics.");
             Console.WriteLine("Fuzzes TCP reassembly, UA-SC frame parsing, offline channel decode and replay seams.");
         }
 

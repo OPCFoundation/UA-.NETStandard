@@ -1,6 +1,6 @@
 # OPC UA Packet Capture, Dissection, and Replay
 
-The OPC UA packet-capture feature records UA traffic, stores the secure-channel keys needed for offline decoding, reconstructs service calls, and replays captured conversations. The reusable engine ships as `OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap`; the OPC UA MCP server exposes it as capture, decode, and replay tools. Decoding follows OPC UA Part 6 secure conversation framing and reuses the stack `UaSCUaBinaryChannel` path instead of reimplementing cryptography.
+The OPC UA packet-capture feature records UA traffic, stores the secure-channel keys needed for offline decoding, reconstructs service calls, and replays captured conversations. The reusable engine ships as `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`; the OPC UA MCP server exposes it as capture, decode, and replay tools. Decoding follows OPC UA Part 6 secure conversation framing and reuses the stack `UaSCUaBinaryChannel` path instead of reimplementing cryptography.
 
 ## Security model
 
@@ -130,7 +130,7 @@ builder.Services.AddPcapFromEnvironment();
 Every OPC UA secure-channel token activation is appended to the
 keylog file for the lifetime of the host. Use `decode_pcap_with_keys`
 or any external decoder that consumes
-`OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap`'s keylog format to
+`OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`'s keylog format to
 recover plaintext from a separately-recorded pcap.
 
 #### Security note
@@ -472,7 +472,7 @@ The Pcap binding has two native-code transitive dependencies:
 
 Both are pinned in `Directory.Packages.props` and tracked in the project SBOM. Operators deploying this binding should subscribe to the upstream advisory feeds and review at least monthly. HIGH or CRITICAL CVEs should be addressed within 30 days.
 
-Run `dotnet list package --vulnerable --include-transitive` against `Stack/Opc.Ua.Bindings.Pcap/Opc.Ua.Bindings.Pcap.csproj` in your CI pipeline; the project does this as part of its release gate.
+Run `dotnet list package --vulnerable --include-transitive` against `Stack/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj` in your CI pipeline; the project does this as part of its release gate.
 
 ## Security considerations
 

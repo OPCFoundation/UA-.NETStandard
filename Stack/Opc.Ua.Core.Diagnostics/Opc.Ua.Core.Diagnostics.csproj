@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Core.Diagnostics requires .NET 8+ APIs (AesGcm tag size, File.SetUnixFileMode,
+         OperatingSystem.IsWindows). Multi-target when not pinned by CI; otherwise
+         follow $(CustomTestTarget) so we stay in sync with Opc.Ua.Core's per-CI
+         TFM set (Core only exposes the CustomTestTarget TFM at restore time and
+         a static net8/9/10 list here would trigger NU1201). For legacy CI runs
+         (net472/net48/netstandard2.x), Directory.Build.targets strips this
+         project to an empty no-op shell via $(RestrictForLegacyTfm). -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Core.Diagnostics</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Core.Diagnostics</PackageId>
+    <RootNamespace>Opc.Ua.Core.Diagnostics</RootNamespace>
+    <Description>OPC UA core diagnostics: packet capture, dissection and replay engine.</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="System.Threading.Channels" />
+    <PackageReference Include="PacketDotNet" />
+    <PackageReference Include="SharpPcap" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+  </ItemGroup>
+</Project>

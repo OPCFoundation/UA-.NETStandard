@@ -30,10 +30,10 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.Pcap.Capture.Sources;
-using Opc.Ua.Bindings.Pcap.Frame;
-using Opc.Ua.Bindings.Pcap.Models;
-using Opc.Ua.Bindings.Pcap.Replay;
+using Opc.Ua.Core.Diagnostics.Capture.Sources;
+using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Core.Diagnostics.Replay;
 
 namespace Opc.Ua.Fuzzing
 {

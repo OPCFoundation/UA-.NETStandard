@@ -55,7 +55,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Replaces the current and previous tokens without re-deriving any
         /// key material. Used exclusively by the offline diagnostic
-        /// decoder (Opc.Ua.Bindings.Pcap) which reconstitutes
+        /// decoder (Opc.Ua.Core.Diagnostics) which reconstitutes
         /// <see cref="ChannelToken"/> instances directly from a keylog and
         /// must NOT trigger the live token-activation pipeline.
         /// </summary>
@@ -87,7 +87,7 @@ namespace Opc.Ua.Bindings
         private static void EnsureDiagnosticsCallerIsAllowed()
         {
             const string coreAssemblyName = "Opc.Ua.Core";
-            const string pcapAssemblyName = "Opc.Ua.Bindings.Pcap";
+            const string pcapAssemblyName = "Opc.Ua.Core.Diagnostics";
             var stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
 
             for (int ii = 0; ii < stackTrace.FrameCount; ii++)
@@ -105,11 +105,11 @@ namespace Opc.Ua.Bindings
                 }
 
                 throw new InvalidOperationException(
-                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Bindings.Pcap binding.");
+                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics binding.");
             }
 
             throw new InvalidOperationException(
-                "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Bindings.Pcap binding.");
+                "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics binding.");
         }
 
         private static string? GetStackFrameAssemblyName(System.Diagnostics.StackFrame? frame)

@@ -37,10 +37,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Opc.Ua.Bindings.Pcap.Capture;
-using Opc.Ua.Bindings.Pcap.Capture.Sources;
-using Opc.Ua.Bindings.Pcap.Formats;
-using Opc.Ua.Bindings.Pcap.Models;
+using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Core.Diagnostics.Capture.Sources;
+using Opc.Ua.Core.Diagnostics.Formats;
+using Opc.Ua.Core.Diagnostics.Models;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -90,7 +90,7 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentNullException.ThrowIfNull(request);
 
             // Every ITransportChannel created via ClientChannelManager is
-            // already capture-enabled by the Opc.Ua.Bindings.Pcap binding,
+            // already capture-enabled by the Opc.Ua.Core.Diagnostics binding,
             // so starting the session here is the only step needed to flip
             // recording on for both existing and future channels.
             CaptureSession session = await manager.StartAsync(request, ct).ConfigureAwait(false);
