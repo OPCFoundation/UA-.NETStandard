@@ -628,11 +628,11 @@ The metric tag set is also bounded for routine operation:
 
 | Instrument | Tag keys |
 |---|---|
-| `opcua.channel.open` / `opcua.channel.close` | `endpoint`, `reverse` (+ `reason` on close) |
-| `opcua.channel.active` / `opcua.channel.refcount` / `opcua.channel.participants` | `endpoint` |
-| `opcua.channel.reconnect.attempts` / `opcua.channel.reconnect.duration` | `endpoint`, `outcome` |
-| `opcua.channel.gate.wait` | `endpoint` |
-| `opcua.channel.participant.timeout.count` / `opcua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
+| `opc.ua.channel.open` / `opc.ua.channel.close` | `endpoint`, `reverse` (+ `reason` on close) |
+| `opc.ua.channel.active` / `opc.ua.channel.refcount` / `opc.ua.channel.participants` | `endpoint` |
+| `opc.ua.channel.reconnect.attempts` / `opc.ua.channel.reconnect.duration` | `endpoint`, `outcome` |
+| `opc.ua.channel.gate.wait` | `endpoint` |
+| `opc.ua.channel.participant.timeout.count` / `opc.ua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
 
 `outcome` is one of `success`, `transient-failure`, `policy-exhausted`,
 `fatal-channel`. `reason` is one of `lease-released`,

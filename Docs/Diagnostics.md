@@ -297,6 +297,140 @@ ActivitySource.AddActivityListener(listener);
 For metrics, use `MeterListener` to capture instrument writes without
 needing a full OpenTelemetry pipeline.
 
+### Metrics emitted by the stack
+
+The stack creates one `Meter` per assembly that records measurements.
+The meter's **name is the assembly name** of the component that
+created it (via `ITelemetryContext.CreateMeter()` &rarr;
+`Assembly.GetCallingAssembly().FullName`). Most tooling matches with
+wildcards, so subscribe with `AddMeter("Opc.Ua.Core*", "Opc.Ua.Client*")`
+to pick up everything the stack emits today.
+
+The instruments below are the complete current inventory. Tag values
+are documented next to the tag key.
+
+#### Meter `Opc.Ua.Core`
+
+Client transport channel manager &mdash; defined in
+`ClientChannelManagerMetrics.cs`:
+
+| Instrument | Kind | Unit | Tags | Description |
+|---|---|---|---|---|
+| `opc.ua.channel.open` | Counter&lt;long&gt; | &mdash; | `endpoint`, `reverse` (bool) | OPC UA client transport channels opened. |
+| `opc.ua.channel.close` | Counter&lt;long&gt; | &mdash; | `endpoint`, `reverse`, `reason` (`lease-released` \| `manager-disposed` \| `faulted`) | OPC UA client transport channels closed. |
+| `opc.ua.channel.active` | UpDownCounter&lt;long&gt; | &mdash; | `endpoint` | Current number of active OPC UA client channel entries. |
+| `opc.ua.channel.reconnect.attempts` | Counter&lt;long&gt; | &mdash; | `endpoint`, `outcome` | OPC UA client channel reconnect attempts. |
+| `opc.ua.channel.reconnect.duration` | Histogram&lt;double&gt; | `ms` | `endpoint`, `outcome` | Duration of reconnect cycles. |
+| `opc.ua.channel.gate.wait` | Histogram&lt;double&gt; | `ms` | `endpoint` | Time spent waiting for the per-channel ready gate. |
+| `opc.ua.channel.participant.timeout.count` | Counter&lt;long&gt; | &mdash; | `endpoint`, `participant` (kind prefix, e.g. `Session`, `Discovery`) | Reconnect participant callbacks that timed out. |
+| `opc.ua.channel.participant.recreate.count` | Counter&lt;long&gt; | &mdash; | `endpoint`, `participant`, `success` (bool) | Reconnect participant recreate callbacks. |
+| `opc.ua.channel.refcount` | ObservableGauge&lt;long&gt; | &mdash; | `endpoint` | Reference count per channel entry. |
+| `opc.ua.channel.participants` | ObservableGauge&lt;long&gt; | &mdash; | `endpoint` | Participant count per channel entry. |
+
+Note: the `participant` tag carries the **kind prefix only**
+(`Session`, `Discovery`, etc.). The per-instance participant id is
+deliberately omitted to keep metric cardinality bounded; the full id
+is available on the related Activity tags and EventSource events for
+correlation.
+
+Client request duration &mdash; defined in `ClientBase.cs`:
+
+| Instrument | Kind | Unit | Tags | Description |
+|---|---|---|---|---|
+| `opc.ua.client.request.duration` | Histogram&lt;double&gt; | `s` | `opc.ua.request.service` (service name), `opc.ua.response.status.code` (uint), `server.address` (endpoint URL), `opc.ua.request.timeout` (ms) | Wall-clock duration of each client service request. Default bucket boundaries: 5&nbsp;ms - 60&nbsp;s. Only emitted when the client's `ActivityTraceFlags` include `ClientTraceFlags.Metrics`. |
+
+Certificate cache &mdash; defined in `CertificateCache.cs`:
+
+| Instrument | Kind | Unit | Tags | Description |
+|---|---|---|---|---|
+| `opc.ua.certcache.hit` | ObservableCounter&lt;long&gt; | &mdash; | &mdash; | Total certificate cache hits (public + private key caches combined). |
+| `opc.ua.certcache.miss` | ObservableCounter&lt;long&gt; | &mdash; | &mdash; | Total certificate cache misses. |
+| `opc.ua.certcache.size` | ObservableGauge&lt;long&gt; | &mdash; | &mdash; | Current number of cached certificate entries (both caches). |
+| `opc.ua.certcache.private_key_entries` | ObservableGauge&lt;long&gt; | &mdash; | &mdash; | Current number of cached entries that hold private keys. |
+| `opc.ua.certcache.eviction` | ObservableCounter&lt;long&gt; | &mdash; | &mdash; | Total certificate cache evictions. |
+
+#### Meter `Opc.Ua.Client`
+
+Client node cache &mdash; defined in `NodeCache.cs`:
+
+| Instrument | Kind | Unit | Tags | Description |
+|---|---|---|---|---|
+| `opc.ua.client.nodecache.hits` | ObservableCounter&lt;long&gt; | &mdash; | `cache` (`nodes` \| `values` \| `references`) | Hits on the named sub-cache. |
+| `opc.ua.client.nodecache.misses` | ObservableCounter&lt;long&gt; | &mdash; | `cache` | Misses on the named sub-cache. |
+| `opc.ua.client.nodecache.evictions` | ObservableCounter&lt;long&gt; | &mdash; | `cache` | Evictions from the named sub-cache. |
+| `opc.ua.client.nodecache.size` | ObservableGauge&lt;long&gt; | &mdash; | `cache` | Current entry count of the named sub-cache. |
+
+### Wiring up a metrics exporter
+
+#### Prometheus (ASP.NET Core scrape endpoint)
+
+```csharp
+using OpenTelemetry.Metrics;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("opc-ua-client"))
+    .WithMetrics(m => m
+        .AddMeter("Opc.Ua.Core*")        // channel manager, ClientBase, cert cache
+        .AddMeter("Opc.Ua.Client*")      // node cache
+        .AddPrometheusExporter());
+
+WebApplication app = builder.Build();
+
+// Exposes /metrics in Prometheus text format.
+app.MapPrometheusScrapingEndpoint();
+
+await app.RunAsync();
+```
+
+Pair with the Prometheus server `scrape_configs` entry:
+
+```yaml
+scrape_configs:
+  - job_name: opc-ua-client
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["opc-ua-client.svc.cluster.local:8080"]
+```
+
+The OpenTelemetry Prometheus exporter exposes one Prometheus metric
+per OPC UA instrument; tag keys map directly to Prometheus labels.
+The `.` separators in instrument names become `_` per Prometheus
+naming rules (e.g. `opc_ua_client_request_duration`).
+
+#### OTLP (OpenTelemetry Protocol &rarr; collector / vendor backend)
+
+```csharp
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("opc-ua-client"))
+    .WithMetrics(m => m
+        .AddMeter("Opc.Ua.Core*")
+        .AddMeter("Opc.Ua.Client*")
+        .AddOtlpExporter(opt =>
+        {
+            opt.Endpoint = new Uri("http://otel-collector:4317");
+            opt.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+        }));
+
+await builder.Build().RunAsync();
+```
+
+For an HTTP/protobuf collector (default `http://otel-collector:4318/v1/metrics`),
+set `opt.Protocol = OtlpExportProtocol.HttpProtobuf` and adjust the
+endpoint.
+
+Make sure the host's `ITelemetryContext` is materialized through the
+same `ILoggerFactory` / `IServiceProvider` that wires the exporters
+(see [Wiring into Microsoft.Extensions.DependencyInjection](#wiring-into-microsoftextensionsdependencyinjection)
+above) so the `Meter` instances created by the stack are visible to
+the OpenTelemetry MeterProvider.
+
 ### Opt-out / no-op contexts
 
 Pass a no-op `ITelemetryContext` when telemetry is genuinely
