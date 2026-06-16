@@ -1,0 +1,245 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
+using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
+
+namespace Opc.Ua.PubSub.Udp.Tests
+{
+    /// <summary>
+    /// Validates <see cref="UdpMessageRepeater"/> retransmission semantics
+    /// as defined by Part 14 §6.4.1 — UDP-only publishers may repeat each
+    /// NetworkMessage <c>MessageRepeatCount</c> times with
+    /// <c>MessageRepeatDelay</c> spacing to mitigate IP-layer loss.
+    /// </summary>
+    [TestFixture]
+    [Category("Unit")]
+    [TestSpec("6.4.1")]
+    public sealed class UdpMessageRepeaterTests
+    {
+        [Test]
+        public async Task ZeroRepeats_SendsOnce()
+        {
+            var repeater = new UdpMessageRepeater(0, TimeSpan.FromMilliseconds(10), TimeProvider.System);
+            int count = 0;
+
+            await repeater.SendWithRepeatsAsync(_ =>
+            {
+                count++;
+                return default;
+            });
+
+            Assert.That(count, Is.EqualTo(1));
+            Assert.That(repeater.RepeatCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task NegativeCount_CoercedToZero_SendsOnce()
+        {
+            var repeater = new UdpMessageRepeater(-5, TimeSpan.FromMilliseconds(10), TimeProvider.System);
+            int count = 0;
+
+            await repeater.SendWithRepeatsAsync(_ =>
+            {
+                count++;
+                return default;
+            });
+
+            Assert.That(count, Is.EqualTo(1));
+            Assert.That(repeater.RepeatCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ThreeRepeats_SendsFourTimes_FakeTimerAdvanced()
+        {
+            var fake = new FakeTimeProvider();
+            var repeater = new UdpMessageRepeater(3, TimeSpan.FromMilliseconds(100), fake);
+            int count = 0;
+
+            ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
+            {
+                count++;
+                return default;
+            });
+
+            for (int i = 0; i < 3 && !sendTask.IsCompleted; i++)
+            {
+                fake.Advance(TimeSpan.FromMilliseconds(100));
+                await Task.Yield();
+            }
+
+            await sendTask;
+
+            Assert.That(count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public async Task ZeroDelay_StillRepeatsRequestedCount()
+        {
+            var repeater = new UdpMessageRepeater(2, TimeSpan.Zero, TimeProvider.System);
+            int count = 0;
+
+            await repeater.SendWithRepeatsAsync(_ =>
+            {
+                count++;
+                return default;
+            });
+
+            Assert.That(count, Is.EqualTo(3));
+            Assert.That(repeater.RepeatDelay, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
+        public async Task NegativeDelay_CoercedToZero()
+        {
+            var repeater = new UdpMessageRepeater(
+                1,
+                TimeSpan.FromMilliseconds(-10),
+                TimeProvider.System);
+
+            int count = 0;
+            await repeater.SendWithRepeatsAsync(_ =>
+            {
+                count++;
+                return default;
+            });
+
+            Assert.That(count, Is.EqualTo(2));
+            Assert.That(repeater.RepeatDelay, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
+        public void NullDelegate_Throws()
+        {
+            var repeater = new UdpMessageRepeater(0, TimeSpan.Zero, TimeProvider.System);
+
+            Assert.That(
+                async () => await repeater.SendWithRepeatsAsync(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void NullTimeProvider_Throws()
+        {
+            Assert.That(
+                () => new UdpMessageRepeater(0, TimeSpan.Zero, null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public async Task CancellationBeforeFirstSend_DoesNotInvokeDelegate()
+        {
+            var repeater = new UdpMessageRepeater(3, TimeSpan.FromMilliseconds(1), TimeProvider.System);
+            int count = 0;
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            try
+            {
+                await repeater.SendWithRepeatsAsync(_ =>
+                {
+                    count++;
+                    return default;
+                }, cts.Token);
+                Assert.Fail("Expected OperationCanceledException.");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            Assert.That(count, Is.Zero);
+        }
+
+        [Test]
+        public async Task CancellationBetweenRepeats_StopsLoop()
+        {
+            var fake = new FakeTimeProvider();
+            var repeater = new UdpMessageRepeater(5, TimeSpan.FromMilliseconds(50), fake);
+            int count = 0;
+            using var cts = new CancellationTokenSource();
+
+            ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
+            {
+                count++;
+                if (count == 2)
+                {
+                    cts.Cancel();
+                }
+                return default;
+            }, cts.Token);
+
+            for (int i = 0; i < 6 && !sendTask.IsCompleted; i++)
+            {
+                fake.Advance(TimeSpan.FromMilliseconds(50));
+                await Task.Yield();
+            }
+
+            try
+            {
+                await sendTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            Assert.That(count, Is.LessThan(6));
+            Assert.That(count, Is.GreaterThanOrEqualTo(2));
+        }
+
+        [Test]
+        public async Task CancellationWithZeroDelay_StopsLoop()
+        {
+            var repeater = new UdpMessageRepeater(10, TimeSpan.Zero, TimeProvider.System);
+            int count = 0;
+            using var cts = new CancellationTokenSource();
+
+            try
+            {
+                await repeater.SendWithRepeatsAsync(_ =>
+                {
+                    count++;
+                    if (count == 3)
+                    {
+                        cts.Cancel();
+                    }
+                    return default;
+                }, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            Assert.That(count, Is.EqualTo(3));
+        }
+    }
+}

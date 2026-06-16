@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.NetworkInformation" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

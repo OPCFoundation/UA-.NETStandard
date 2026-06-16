@@ -1,0 +1,837 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Transports;
+
+namespace Opc.Ua.PubSub.Udp
+{
+    /// <summary>
+    /// UDP datagram <see cref="IPubSubTransport"/> implementation.
+    /// One instance corresponds to one
+    /// <see cref="PubSubConnectionDataType"/> bound to an
+    /// <c>opc.udp://</c> address: it owns the underlying
+    /// <see cref="Socket"/>, the receive loop, and the optional
+    /// send-side <see cref="UdpMessageRepeater"/>.
+    /// </summary>
+    /// <remarks>
+    /// Implements
+    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.2">
+    /// Part 14 §7.3.2 UDP datagram transport</see> with the
+    /// multicast / broadcast / unicast branches required by
+    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.2.2">
+    /// §7.3.2.2</see> and
+    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.2.3">
+    /// §7.3.2.3</see>. Async-first using <c>Socket.ReceiveFromAsync</c> /
+    /// <c>Socket.SendToAsync</c>; no APM, no sync-over-async. Per-packet
+    /// buffers are rented from <see cref="ArrayPool{T}.Shared"/> so the
+    /// steady-state receive loop is allocation-free.
+    /// </remarks>
+    public sealed class UdpDatagramTransport : IPubSubTransport
+    {
+        private const int SIO_UDP_CONNRESET = unchecked((int)0x9800000C);
+        private const string LocalSendStateLabel = "send-only";
+
+        private static readonly byte[] s_disableConnReset = [0, 0, 0, 0];
+
+        private readonly PubSubConnectionDataType m_connection;
+        private readonly UdpEndpoint m_endpoint;
+        private readonly PubSubTransportDirection m_direction;
+        private readonly NetworkInterface? m_networkInterface;
+        private readonly TimeProvider m_timeProvider;
+        private readonly UdpTransportOptions m_options;
+        private readonly ILogger m_logger;
+        private readonly IPubSubDiagnostics? m_diagnostics;
+        private readonly UdpMessageRepeater m_repeater;
+        private readonly System.Threading.Lock m_sync = new();
+
+        private Socket? m_socket;
+        private CancellationTokenSource? m_receiveLoopCts;
+        private Task? m_receiveLoopTask;
+        private Channel<PubSubTransportFrame>? m_channel;
+        private bool m_isConnected;
+        private bool m_disposed;
+        private IPEndPoint? m_sendDestination;
+        private bool m_socketIsConnected;
+
+        /// <summary>
+        /// Initializes a new <see cref="UdpDatagramTransport"/>.
+        /// </summary>
+        /// <param name="connection">
+        /// PubSubConnection configuration the transport is bound to.
+        /// </param>
+        /// <param name="endpoint">
+        /// Parsed UDP endpoint from
+        /// <see cref="UdpEndpointParser.Parse"/>.
+        /// </param>
+        /// <param name="direction">
+        /// Direction the transport services. Determines whether the
+        /// receive loop starts on <see cref="OpenAsync"/>.
+        /// </param>
+        /// <param name="networkInterface">
+        /// Optional <see cref="NetworkInterface"/> used to scope
+        /// multicast joins and source-address selection.
+        /// </param>
+        /// <param name="telemetry">
+        /// Telemetry context for per-instance logger creation. Must
+        /// not be <see langword="null"/>.
+        /// </param>
+        /// <param name="timeProvider">
+        /// Clock used for receive timestamps and inter-repeat
+        /// scheduling. Must not be <see langword="null"/>.
+        /// </param>
+        /// <param name="options">
+        /// Transport tunables; must not be <see langword="null"/>.
+        /// </param>
+        /// <param name="diagnostics">
+        /// Optional diagnostics sink; counters are incremented per
+        /// inbound / outbound frame when non-null.
+        /// </param>
+        public UdpDatagramTransport(
+            PubSubConnectionDataType connection,
+            UdpEndpoint endpoint,
+            PubSubTransportDirection direction,
+            NetworkInterface? networkInterface,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            UdpTransportOptions options,
+            IPubSubDiagnostics? diagnostics = null)
+        {
+            if (connection is null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            if (!endpoint.IsValid)
+            {
+                throw new ArgumentException(
+                    "Endpoint is not valid (address null or port out of range).",
+                    nameof(endpoint));
+            }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+            if (timeProvider is null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            m_connection = connection;
+            m_endpoint = endpoint;
+            m_direction = direction;
+            m_networkInterface = networkInterface;
+            m_timeProvider = timeProvider;
+            m_options = options;
+            m_diagnostics = diagnostics;
+            m_logger = telemetry.CreateLogger<UdpDatagramTransport>();
+            m_repeater = new UdpMessageRepeater(
+                options.MessageRepeatCount,
+                options.MessageRepeatDelay,
+                timeProvider);
+        }
+
+        /// <inheritdoc/>
+        public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+        /// <inheritdoc/>
+        public PubSubTransportDirection Direction => m_direction;
+
+        /// <inheritdoc/>
+        public bool IsConnected
+        {
+            get
+            {
+                lock (m_sync)
+                {
+                    return m_isConnected;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Parsed endpoint the transport is bound to. Exposed so
+        /// integration tests can confirm port selection without
+        /// re-parsing.
+        /// </summary>
+        public UdpEndpoint Endpoint => m_endpoint;
+
+        /// <inheritdoc/>
+        public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged;
+
+        /// <inheritdoc/>
+        public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_sync)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(UdpDatagramTransport));
+                }
+                if (m_socket is not null)
+                {
+                    return default;
+                }
+                Socket socket = new(
+                    m_endpoint.Address.AddressFamily,
+                    SocketType.Dgram,
+                    ProtocolType.Udp);
+                try
+                {
+                    ConfigureSocket(socket);
+                    BindAndJoin(socket);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+                m_socket = socket;
+                if (HasReceiveDirection)
+                {
+                    m_channel = Channel.CreateBounded<PubSubTransportFrame>(
+                        new BoundedChannelOptions(GetReceiveQueueCapacity())
+                        {
+                            FullMode = BoundedChannelFullMode.DropOldest,
+                            SingleReader = false,
+                            SingleWriter = true
+                        });
+                    m_receiveLoopCts = CancellationTokenSource.CreateLinkedTokenSource(
+                        CancellationToken.None);
+                    CancellationToken loopToken = m_receiveLoopCts.Token;
+                    m_receiveLoopTask = Task.Run(() => ReceiveLoopAsync(loopToken), CancellationToken.None);
+                }
+                m_isConnected = true;
+                m_logger.LogInformation(
+                    "UDP transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction}",
+                    m_connection.Name,
+                    m_endpoint,
+                    m_direction);
+            }
+            RaiseStateChanged(true, StatusCodes.Good, null);
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask CloseAsync(CancellationToken cancellationToken = default)
+        {
+            Socket? socket;
+            CancellationTokenSource? loopCts;
+            Task? loopTask;
+            Channel<PubSubTransportFrame>? channel;
+            bool wasConnected;
+            lock (m_sync)
+            {
+                socket = m_socket;
+                loopCts = m_receiveLoopCts;
+                loopTask = m_receiveLoopTask;
+                channel = m_channel;
+                wasConnected = m_isConnected;
+                m_socket = null;
+                m_receiveLoopCts = null;
+                m_receiveLoopTask = null;
+                m_channel = null;
+                m_isConnected = false;
+                m_socketIsConnected = false;
+            }
+            if (loopCts is not null)
+            {
+                try
+                {
+                    loopCts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
+            if (socket is not null)
+            {
+                try
+                {
+                    DropMembershipsIfNeeded(socket);
+                }
+                catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
+                {
+                    m_logger.LogDebug(ex,
+                        "Multicast drop on close for connection '{Connection}' raised {Type}.",
+                        m_connection.Name,
+                        ex.GetType().Name);
+                }
+                try
+                {
+                    socket.Close();
+                }
+                catch (SocketException ex)
+                {
+                    m_logger.LogDebug(ex,
+                        "Socket close for connection '{Connection}' raised SocketException.",
+                        m_connection.Name);
+                }
+                socket.Dispose();
+            }
+            if (loopTask is not null)
+            {
+                try
+                {
+                    await loopTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogDebug(ex,
+                        "Receive loop terminated with exception for connection '{Connection}'.",
+                        m_connection.Name);
+                }
+            }
+            channel?.Writer.TryComplete();
+            loopCts?.Dispose();
+            if (wasConnected)
+            {
+                RaiseStateChanged(false, StatusCodes.Good, "Transport closed.");
+            }
+            await Task.CompletedTask.ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SendAsync(
+            ReadOnlyMemory<byte> payload,
+            string? topic = null,
+            CancellationToken cancellationToken = default)
+        {
+            _ = topic;
+            cancellationToken.ThrowIfCancellationRequested();
+            Socket? socket;
+            IPEndPoint? destination;
+            bool isConnectedSocket;
+            lock (m_sync)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(UdpDatagramTransport));
+                }
+                socket = m_socket;
+                destination = m_sendDestination;
+                isConnectedSocket = m_socketIsConnected;
+            }
+            if (socket is null)
+            {
+                throw new InvalidOperationException(
+                    "UDP transport must be opened before sending.");
+            }
+            if (payload.Length > m_options.MaxFrameSize)
+            {
+                throw new ArgumentException(
+                    $"Payload size {payload.Length} exceeds MaxFrameSize {m_options.MaxFrameSize}.",
+                    nameof(payload));
+            }
+            return m_repeater.SendWithRepeatsAsync(
+                ct => SendOnceAsync(socket, destination, isConnectedSocket, payload, ct),
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            Channel<PubSubTransportFrame>? channel;
+            lock (m_sync)
+            {
+                channel = m_channel;
+            }
+            if (channel is null)
+            {
+                yield break;
+            }
+            ChannelReader<PubSubTransportFrame> reader = channel.Reader;
+            while (await reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                while (reader.TryRead(out PubSubTransportFrame frame))
+                {
+                    yield return frame;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            bool alreadyDisposed;
+            lock (m_sync)
+            {
+                alreadyDisposed = m_disposed;
+                m_disposed = true;
+            }
+            if (alreadyDisposed)
+            {
+                return;
+            }
+            await CloseAsync().ConfigureAwait(false);
+        }
+
+        private async ValueTask SendOnceAsync(
+            Socket socket,
+            IPEndPoint? destination,
+            bool isConnectedSocket,
+            ReadOnlyMemory<byte> payload,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (isConnectedSocket)
+                {
+#if NET8_0_OR_GREATER
+                    await socket.SendAsync(payload, SocketFlags.None, cancellationToken)
+                        .ConfigureAwait(false);
+#else
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ArraySegment<byte> segment = ToSegment(payload);
+                    await socket.SendAsync(segment, SocketFlags.None).ConfigureAwait(false);
+#endif
+                }
+                else
+                {
+                    if (destination is null)
+                    {
+                        throw new InvalidOperationException(
+                            "UDP transport has no send destination configured.");
+                    }
+#if NET8_0_OR_GREATER
+                    await socket.SendToAsync(payload, SocketFlags.None, destination, cancellationToken)
+                        .ConfigureAwait(false);
+#else
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ArraySegment<byte> segment = ToSegment(payload);
+                    await socket.SendToAsync(segment, SocketFlags.None, destination)
+                        .ConfigureAwait(false);
+#endif
+                }
+                m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages);
+            }
+            catch (SocketException ex)
+            {
+                m_logger.LogWarning(ex,
+                    "UDP send failed on connection '{Connection}' to {Endpoint}.",
+                    m_connection.Name,
+                    destination ?? (object)LocalSendStateLabel);
+                throw;
+            }
+        }
+
+        private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
+        {
+            Socket? socket;
+            Channel<PubSubTransportFrame>? channel;
+            lock (m_sync)
+            {
+                socket = m_socket;
+                channel = m_channel;
+            }
+            if (socket is null || channel is null)
+            {
+                return;
+            }
+            ChannelWriter<PubSubTransportFrame> writer = channel.Writer;
+            int maxFrameSize = m_options.MaxFrameSize;
+            EndPoint anyEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                ? new IPEndPoint(IPAddress.IPv6Any, 0)
+                : new IPEndPoint(IPAddress.Any, 0);
+            byte[] receiveBuffer = ArrayPool<byte>.Shared.Rent(maxFrameSize);
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    SocketReceiveFromResult result;
+                    try
+                    {
+#if NET8_0_OR_GREATER
+                        result = await socket.ReceiveFromAsync(
+                            receiveBuffer,
+                            SocketFlags.None,
+                            anyEndPoint,
+                            cancellationToken).ConfigureAwait(false);
+#else
+                        result = await socket.ReceiveFromAsync(
+                            new ArraySegment<byte>(receiveBuffer, 0, maxFrameSize),
+                            SocketFlags.None,
+                            anyEndPoint).ConfigureAwait(false);
+#endif
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
+                    catch (SocketException ex) when (ex.SocketErrorCode == SocketError.OperationAborted
+                        || ex.SocketErrorCode == SocketError.Interrupted)
+                    {
+                        break;
+                    }
+                    catch (SocketException ex)
+                    {
+                        m_logger.LogWarning(ex,
+                            "UDP receive on connection '{Connection}' raised {Code}; continuing.",
+                            m_connection.Name,
+                            ex.SocketErrorCode);
+                        continue;
+                    }
+                    if (result.ReceivedBytes <= 0)
+                    {
+                        continue;
+                    }
+                    if (result.ReceivedBytes > maxFrameSize)
+                    {
+                        m_diagnostics?.Increment(
+                            PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                        continue;
+                    }
+                    byte[] copy = new byte[result.ReceivedBytes];
+                    Buffer.BlockCopy(receiveBuffer, 0, copy, 0, result.ReceivedBytes);
+                    var frame = new PubSubTransportFrame(
+                        new ReadOnlyMemory<byte>(copy),
+                        topic: null,
+                        receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime));
+                    m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                    try
+                    {
+                        await writer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (ChannelClosedException)
+                    {
+                        break;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(receiveBuffer);
+                writer.TryComplete();
+            }
+        }
+
+        private void ConfigureSocket(Socket socket)
+        {
+            try
+            {
+                socket.SendBufferSize = m_options.SendBufferSize;
+            }
+            catch (SocketException ex)
+            {
+                m_logger.LogDebug(ex, "Setting SO_SNDBUF failed for connection '{Connection}'.", m_connection.Name);
+            }
+            try
+            {
+                socket.ReceiveBufferSize = m_options.ReceiveBufferSize;
+            }
+            catch (SocketException ex)
+            {
+                m_logger.LogDebug(ex, "Setting SO_RCVBUF failed for connection '{Connection}'.", m_connection.Name);
+            }
+            try
+            {
+                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            }
+            catch (SocketException ex)
+            {
+                m_logger.LogDebug(ex, "Setting SO_REUSEADDR failed for connection '{Connection}'.", m_connection.Name);
+            }
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                try
+                {
+                    socket.IOControl(SIO_UDP_CONNRESET, s_disableConnReset, null);
+                }
+                catch (SocketException ex)
+                {
+                    m_logger.LogDebug(ex,
+                        "SIO_UDP_CONNRESET disable failed for connection '{Connection}'.", m_connection.Name);
+                }
+            }
+            if (m_endpoint.AddressType is UdpAddressType.Broadcast or UdpAddressType.SubnetBroadcast)
+            {
+                try
+                {
+                    socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+                }
+                catch (SocketException ex)
+                {
+                    m_logger.LogDebug(ex,
+                        "Setting SO_BROADCAST failed for connection '{Connection}'.", m_connection.Name);
+                }
+            }
+            if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+            {
+                try
+                {
+                    socket.SetSocketOption(
+                        SocketOptionLevel.IP,
+                        SocketOptionName.MulticastTimeToLive,
+                        m_options.Ttl);
+                    socket.SetSocketOption(SocketOptionLevel.IP,
+                        SocketOptionName.IpTimeToLive,
+                        m_options.Ttl);
+                }
+                catch (SocketException ex)
+                {
+                    m_logger.LogDebug(ex,
+                        "Setting IPv4 TTL failed for connection '{Connection}'.", m_connection.Name);
+                }
+            }
+            else if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                try
+                {
+                    socket.SetSocketOption(
+                        SocketOptionLevel.IPv6,
+                        SocketOptionName.MulticastTimeToLive,
+                        m_options.Ttl);
+                    socket.SetSocketOption(SocketOptionLevel.IPv6,
+                        SocketOptionName.HopLimit,
+                        m_options.Ttl);
+                }
+                catch (SocketException ex)
+                {
+                    m_logger.LogDebug(ex,
+                        "Setting IPv6 hop limit failed for connection '{Connection}'.", m_connection.Name);
+                }
+            }
+            try
+            {
+                socket.MulticastLoopback = m_options.MulticastLoopback;
+            }
+            catch (SocketException ex)
+            {
+                m_logger.LogDebug(ex,
+                    "Setting IP_MULTICAST_LOOP failed for connection '{Connection}'.", m_connection.Name);
+            }
+        }
+
+        private void BindAndJoin(Socket socket)
+        {
+            switch (m_endpoint.AddressType)
+            {
+                case UdpAddressType.Multicast:
+                    BindForMulticast(socket);
+                    JoinMulticastGroup(socket);
+                    m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
+                    break;
+                case UdpAddressType.Broadcast:
+                case UdpAddressType.SubnetBroadcast:
+                    BindForBroadcast(socket);
+                    m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
+                    break;
+                case UdpAddressType.Unicast:
+                default:
+                    BindForUnicast(socket);
+                    break;
+            }
+        }
+
+        private void BindForMulticast(Socket socket)
+        {
+            EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                ? new IPEndPoint(IPAddress.IPv6Any, m_endpoint.Port)
+                : new IPEndPoint(IPAddress.Any, m_endpoint.Port);
+            socket.Bind(bindEndPoint);
+        }
+
+        private void BindForBroadcast(Socket socket)
+        {
+            EndPoint bindEndPoint = new IPEndPoint(IPAddress.Any, m_endpoint.Port);
+            socket.Bind(bindEndPoint);
+        }
+
+        private void BindForUnicast(Socket socket)
+        {
+            if (HasSendDirection && !HasReceiveDirection)
+            {
+                EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                    ? new IPEndPoint(IPAddress.IPv6Any, 0)
+                    : new IPEndPoint(IPAddress.Any, 0);
+                socket.Bind(bindEndPoint);
+                IPEndPoint remote = new(m_endpoint.Address, m_endpoint.Port);
+                socket.Connect(remote);
+                m_sendDestination = remote;
+                m_socketIsConnected = true;
+            }
+            else
+            {
+                EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                    ? new IPEndPoint(IPAddress.IPv6Any, m_endpoint.Port)
+                    : new IPEndPoint(IPAddress.Any, m_endpoint.Port);
+                socket.Bind(bindEndPoint);
+                m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
+            }
+        }
+
+        private void JoinMulticastGroup(Socket socket)
+        {
+            if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+            {
+                IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
+                var option = new MulticastOption(m_endpoint.Address, localAddress);
+                socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, option);
+            }
+            else
+            {
+                int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
+                var option = new IPv6MulticastOption(m_endpoint.Address, interfaceIndex);
+                socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.AddMembership, option);
+            }
+        }
+
+        private void DropMembershipsIfNeeded(Socket socket)
+        {
+            if (m_endpoint.AddressType != UdpAddressType.Multicast)
+            {
+                return;
+            }
+            if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+            {
+                IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
+                var option = new MulticastOption(m_endpoint.Address, localAddress);
+                socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.DropMembership, option);
+            }
+            else
+            {
+                int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
+                var option = new IPv6MulticastOption(m_endpoint.Address, interfaceIndex);
+                socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DropMembership, option);
+            }
+        }
+
+        private static IPAddress? SelectLocalIPv4(NetworkInterface? networkInterface)
+        {
+            if (networkInterface is null)
+            {
+                return null;
+            }
+            try
+            {
+                IPInterfaceProperties props = networkInterface.GetIPProperties();
+                foreach (UnicastIPAddressInformation info in props.UnicastAddresses)
+                {
+                    if (info.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        return info.Address;
+                    }
+                }
+            }
+            catch (NetworkInformationException)
+            {
+            }
+            return null;
+        }
+
+        private static int SelectIPv6InterfaceIndex(NetworkInterface? networkInterface)
+        {
+            if (networkInterface is null)
+            {
+                return 0;
+            }
+            try
+            {
+                IPInterfaceProperties props = networkInterface.GetIPProperties();
+                IPv6InterfaceProperties? ipv6 = props.GetIPv6Properties();
+                return ipv6?.Index ?? 0;
+            }
+            catch (NetworkInformationException)
+            {
+                return 0;
+            }
+        }
+
+        private int GetReceiveQueueCapacity()
+        {
+            int capacity = m_options.ReceiveQueueCapacity;
+            return capacity > 0 ? capacity : 1;
+        }
+
+        private bool HasReceiveDirection
+            => (m_direction & PubSubTransportDirection.Receive) == PubSubTransportDirection.Receive;
+
+        private bool HasSendDirection
+            => (m_direction & PubSubTransportDirection.Send) == PubSubTransportDirection.Send;
+
+#if !NET8_0_OR_GREATER
+        private static ArraySegment<byte> ToSegment(ReadOnlyMemory<byte> payload)
+        {
+            if (MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> segment))
+            {
+                return segment;
+            }
+            byte[] copy = payload.ToArray();
+            return new ArraySegment<byte>(copy);
+        }
+#endif
+
+        private void RaiseStateChanged(bool connected, StatusCode status, string? reason)
+        {
+            EventHandler<PubSubTransportStateChangedEventArgs>? handler = StateChanged;
+            if (handler is null)
+            {
+                return;
+            }
+            try
+            {
+                handler.Invoke(this, new PubSubTransportStateChangedEventArgs(connected, status, reason));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex,
+                    "StateChanged handler threw for connection '{Connection}'.",
+                    m_connection.Name);
+            }
+        }
+    }
+}

@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" PrivateAssets="all" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />
@@ -30,6 +32,7 @@
     <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
       <ItemGroup>
         <PackageReference Include="MQTTnet" />
+        <PackageReference Include="MQTTnet.Server" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -40,6 +43,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Tests\TestSpecAttribute.cs" Link="TestSpecAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />

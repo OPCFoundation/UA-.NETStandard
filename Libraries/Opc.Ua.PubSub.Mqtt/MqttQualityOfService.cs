@@ -27,23 +27,38 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-
-namespace Opc.Ua.PubSub.Udp.Tests
+namespace Opc.Ua.PubSub.Mqtt
 {
     /// <summary>
-    /// Placeholder test fixture used during Phase 0 scaffolding so the
-    /// test runner has at least one assertion. Will be replaced by real
-    /// Part 14 §7.3.2 spec-tagged fixtures starting in Phase 5.
+    /// MQTT delivery guarantee mapped onto the Part 14
+    /// <c>BrokerTransportQualityOfService</c> enumeration.
     /// </summary>
-    [TestFixture]
-    public class ScaffoldingTests
+    /// <remarks>
+    /// Implements the QoS mapping table of
+    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.4.5">
+    /// Part 14 §7.3.4.5 MQTT Quality of Service mapping</see>. Numeric
+    /// values match the MQTT wire QoS encoding so the adapter can cast
+    /// without an extra lookup.
+    /// </remarks>
+    public enum MqttQualityOfService
     {
-        [Test]
-        public void ScaffoldingIsInPlace()
-        {
-            var marker = new object();
-            Assert.That(marker, Is.Not.Null);
-        }
+        /// <summary>
+        /// QoS 0 — fire and forget. Maps to
+        /// <c>BrokerTransportQualityOfService.BestEffort</c> /
+        /// <c>AtMostOnce</c>.
+        /// </summary>
+        AtMostOnce = 0,
+
+        /// <summary>
+        /// QoS 1 — delivery acknowledged. Maps to
+        /// <c>BrokerTransportQualityOfService.AtLeastOnce</c>.
+        /// </summary>
+        AtLeastOnce = 1,
+
+        /// <summary>
+        /// QoS 2 — exactly-once handshake. Maps to
+        /// <c>BrokerTransportQualityOfService.ExactlyOnce</c>.
+        /// </summary>
+        ExactlyOnce = 2
     }
 }

@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,14 +28,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.PubSub.Mqtt
+using System;
+
+namespace Opc.Ua.PubSub.Mqtt.Internal
 {
     /// <summary>
-    /// Placeholder type used during Phase 0 scaffolding so the
-    /// <c>Opc.Ua.PubSub.Mqtt</c> assembly produces output. Will be removed
-    /// once the first real public type lands in Phase 6.
+    /// Default <see cref="IMqttClientFactory"/> implementation backed
+    /// by MQTTnet (v4 on netstandard / net48, v5 on net8+).
     /// </summary>
-    internal static class AssemblyMarker
+    /// <remarks>
+    /// Wired into the DI container by the PubSub transport composition
+    /// in Phase 9; tests may instantiate it directly or substitute a
+    /// fake factory to avoid an actual broker connection.
+    /// </remarks>
+    internal sealed class MqttClientAdapterFactory : IMqttClientFactory
     {
+        /// <inheritdoc/>
+        public IMqttClientAdapter CreateAdapter(
+            MqttConnectionOptions options,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+            if (timeProvider is null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+            return new MqttClientAdapter(telemetry, timeProvider);
+        }
     }
 }

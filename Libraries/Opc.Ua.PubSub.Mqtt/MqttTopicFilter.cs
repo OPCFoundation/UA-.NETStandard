@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,14 +28,27 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.PubSub.Udp
+namespace Opc.Ua.PubSub.Mqtt
 {
     /// <summary>
-    /// Placeholder type used during Phase 0 scaffolding so the
-    /// <c>Opc.Ua.PubSub.Udp</c> assembly produces output. Will be removed
-    /// once the first real public type lands in Phase 5.
+    /// Topic filter installed against the broker by the MQTT broker
+    /// transport when opening a subscriber.
     /// </summary>
-    internal static class AssemblyMarker
-    {
-    }
+    /// <remarks>
+    /// Implements the topic-subscription envelope used by the MQTT
+    /// transport per
+    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.4">
+    /// Part 14 §7.3.4 Broker transport (MQTT)</see>. MQTT wildcards
+    /// (<c>+</c>, <c>#</c>) are intentionally accepted in topic
+    /// filters but the PubSub layer should only ever supply the
+    /// narrowest topics that match a reader's expected writer-group
+    /// and writer-id (research §5 supplement).
+    /// </remarks>
+    /// <param name="Topic">
+    /// Topic filter pattern (MQTT v3.1.1 / v5 syntax).
+    /// </param>
+    /// <param name="Qos">
+    /// Maximum delivery guarantee to negotiate with the broker.
+    /// </param>
+    public readonly record struct MqttTopicFilter(string Topic, MqttQualityOfService Qos);
 }
