@@ -20,6 +20,8 @@ this binding should treat every output file as a secret.
 | Mock-client replay | **off** | `PcapOptions.AllowMockClientReplay = true` AND populate `PcapOptions.AllowedReplayEndpoints` |
 | Tamper-evident audit log | **off** | `PcapOptions.EnableTamperEvidentAudit = true` |
 | KMS-backed key escrow (instead of disk) | not registered | register your own `IKeyEscrowProvider` in DI |
+| Env-var auto-start pcap | **off** | `AddOpcUaBindingsPcapFromEnvironment()` + `OPCUA_PCAP_FILE=<path>` |
+| Env-var stand-alone keylog | **off** | `AddOpcUaBindingsPcapFromEnvironment()` + `OPCUA_KEYLOGFILE=<path>` |
 
 When any diagnostic tool is enabled the host emits a `Warning`-level log
 line at startup so the choice is observable in production logs.
@@ -47,6 +49,108 @@ shared `/tmp` directory:
 
 The base folder is created with mode `0700` on Unix and inherits the
 user profile ACL on Windows. Override via `PcapOptions.BaseFolder`.
+
+### Environment-variable configuration
+
+For deployments where the operator sets capture / keylog destinations
+out-of-band (Kubernetes manifests, systemd unit files, container
+launchers) the binding ships an optional auto-start path activated by
+the dedicated DI extension:
+
+```csharp
+services.AddOpcUaBindingsPcapFromEnvironment();
+// optional: configure other PcapOptions on the same call
+services.AddOpcUaBindingsPcapFromEnvironment(options =>
+{
+    options.MaxBytesPerCapture = 64L * 1024 * 1024;
+});
+```
+
+The extension reads two environment variables **once** during the
+`AddXXX` call and registers an `IHostedService` that materializes the
+behaviour at host start. Changing the variables later in the process
+lifetime has no effect (matches the existing
+`OPCUA_PCAP_ENABLE_DIAGNOSTICS` opt-in semantics):
+
+| Variable | Effect |
+|---|---|
+| `OPCUA_PCAP_FILE` | Auto-start an in-process capture session on host start. Frames are written verbatim to this path; the parent directory becomes `PcapOptions.BaseFolder` so the capture-session's path-traversal validation still runs. |
+| `OPCUA_KEYLOGFILE` | When set without `OPCUA_PCAP_FILE`: install a stand-alone keylog observer (SSLKEYLOGFILE-style) directly into `IChannelCaptureRegistry`. No pcap, no `CaptureSession`, no `BaseFolder` plumbing. When set together with `OPCUA_PCAP_FILE`: keylog records are written to this path inside the auto-started capture instead of the conventional `*.uakeys.json` next to the pcap. |
+
+The keylog file extension selects the writer format:
+
+- `*.txt` &rarr; NSS-style space-delimited hex tokens
+  (`UaKeyLogTextWriter`).
+- everything else (including `*.json` and `*.uakeys.json`) &rarr;
+  JSON-lines (`UaKeyLogJsonWriter`).
+
+Whitespace-only values are treated as unset, so accidentally exporting
+`OPCUA_PCAP_FILE=""` does not silently activate auto-capture. When
+both variables are unset `AddOpcUaBindingsPcapFromEnvironment` behaves
+exactly like `AddOpcUaBindingsPcap`: the capture binding is registered
+and no auto-start happens.
+
+When the auto-start path is active the host emits a `Warning`-level
+log line at startup naming the env var(s) consumed and the resolved
+path(s); the variable values are never logged as anything other than
+the literal path, and key material is never logged at all.
+
+#### Example: Kubernetes / Docker
+
+```yaml
+env:
+  - name: OPCUA_PCAP_FILE
+    value: /var/log/opcua/cap.pcap
+  - name: OPCUA_KEYLOGFILE
+    value: /var/log/opcua/keys.uakeys.json
+```
+
+```csharp
+// Program.cs
+HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+builder.Services.AddOpcUa().AddClient(options => { });
+builder.Services.AddOpcUaBindingsPcapFromEnvironment();
+await builder.Build().RunAsync();
+```
+
+#### Example: SSLKEYLOGFILE-style keylog only
+
+When you only need to decrypt traffic captured by Wireshark or
+`tcpdump` running outside the process, set just the keylog variable:
+
+```bash
+export OPCUA_KEYLOGFILE=$HOME/opcua-keys.uakeys.json
+```
+
+```csharp
+builder.Services.AddOpcUa().AddClient(options => { });
+builder.Services.AddOpcUaBindingsPcapFromEnvironment();
+```
+
+Every OPC UA secure-channel token activation is appended to the
+keylog file for the lifetime of the host. Use `decode_pcap_with_keys`
+or any external decoder that consumes
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap`'s keylog format to
+recover plaintext from a separately-recorded pcap.
+
+#### Security note
+
+Anyone (process, container runtime, host operator, sidecar) that can
+set these environment variables can divert OPC UA channel keys and
+traffic to attacker-controlled paths. Treat
+`AddOpcUaBindingsPcapFromEnvironment` as a privileged configuration
+surface:
+
+1. Only enable it on hosts where the env var is itself protected
+   (e.g., Kubernetes Secret with a restricted `serviceAccount`,
+   systemd `EnvironmentFile=` pointing at a `0600` file).
+2. Pair the destination directory with file-system permissions so
+   only the service account can read the resulting `*.pcap` /
+   `*.uakeys.json` files. The binding writes them with mode `0600`
+   on Unix; the directory permissions are the operator's
+   responsibility.
+3. The "Operator checklist" below applies in full when either
+   variable is set.
 
 ### Audit events
 
@@ -77,7 +181,13 @@ Before enabling any part of this binding in a non-development environment:
    minimum set of hostnames required. Never use a wildcard.
 5. If using a KMS, register `IKeyEscrowProvider` and verify the disk
    writer is no longer invoked.
-6. Subscribe to upstream CVE feeds for `SharpPcap` and `PacketDotNet`
+6. If using `AddOpcUaBindingsPcapFromEnvironment`, confirm the
+   `OPCUA_PCAP_FILE` / `OPCUA_KEYLOGFILE` values are set by a
+   privileged orchestrator (Kubernetes Secret, systemd
+   `EnvironmentFile`) and that the destination directory is owned by
+   the service account with mode `0700`. See the
+   **Environment-variable configuration** section above.
+7. Subscribe to upstream CVE feeds for `SharpPcap` and `PacketDotNet`
    (see the **Dependencies and governance** section near the bottom of
    this document).
 

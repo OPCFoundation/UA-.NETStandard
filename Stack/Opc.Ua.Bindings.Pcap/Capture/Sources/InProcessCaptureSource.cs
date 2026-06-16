@@ -111,7 +111,6 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
     {
         private const string kPcapFileName = "capture.pcap";
         private const string kKeyLogJsonFileName = "keys.uakeys.json";
-        private const string kKeyLogTextFileName = "keys.uakeys.txt";
         private const int kQueueCapacity = 4096;
 
         private readonly IChannelCaptureRegistry m_registry;
@@ -121,6 +120,9 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
         private UaKeyLogJsonWriter? m_jsonKeyWriter;
         private UaKeyLogTextWriter? m_textKeyWriter;
         private string? m_sessionFolder;
+        private string? m_resolvedPcapPath;
+        private string? m_resolvedJsonKeyLogPath;
+        private string? m_resolvedTextKeyLogPath;
         private Channel<CaptureWorkItem>? m_queue;
         private Task? m_workerTask;
         private long m_frameCount;
@@ -194,9 +196,23 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
             m_maxDuration = TimeSpan.FromSeconds(request.MaxDurationSeconds ?? (30 * 60));
             m_startedAt = DateTimeOffset.UtcNow;
 
-            string pcapPath = Path.Combine(m_sessionFolder, kPcapFileName);
-            string jsonPath = Path.Combine(m_sessionFolder, kKeyLogJsonFileName);
-            string textPath = Path.Combine(m_sessionFolder, kKeyLogTextFileName);
+            string pcapPath = ResolveArtifactPath(
+                request.PcapFilePath,
+                m_sessionFolder,
+                kPcapFileName);
+            string jsonPath = ResolveArtifactPath(
+                request.KeyLogFilePath,
+                m_sessionFolder,
+                kKeyLogJsonFileName);
+            string textPath = ResolveTextKeyLogPath(jsonPath, m_sessionFolder);
+
+            EnsureParentDirectoryExists(pcapPath);
+            EnsureParentDirectoryExists(jsonPath);
+            EnsureParentDirectoryExists(textPath);
+
+            m_resolvedPcapPath = pcapPath;
+            m_resolvedJsonKeyLogPath = jsonPath;
+            m_resolvedTextKeyLogPath = textPath;
 
             m_pcapWriter = new PcapFileWriter(pcapPath, PcapFileWriter.LinkTypeNull);
             m_jsonKeyWriter = new UaKeyLogJsonWriter(jsonPath);
@@ -278,25 +294,15 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
         /// <inheritdoc/>
         public string? GetRawPcapFilePath()
         {
-            string? folder = m_sessionFolder;
-            if (folder is null)
-            {
-                return null;
-            }
-            string path = Path.Combine(folder, kPcapFileName);
-            return File.Exists(path) ? path : null;
+            string? path = m_resolvedPcapPath;
+            return path is not null && File.Exists(path) ? path : null;
         }
 
         /// <inheritdoc/>
         public string? GetKeyLogFilePath()
         {
-            string? folder = m_sessionFolder;
-            if (folder is null)
-            {
-                return null;
-            }
-            string path = Path.Combine(folder, kKeyLogJsonFileName);
-            return File.Exists(path) ? path : null;
+            string? path = m_resolvedJsonKeyLogPath;
+            return path is not null && File.Exists(path) ? path : null;
         }
 
         /// <inheritdoc/>
@@ -489,6 +495,45 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
                 {
                     Logger.LogWarning(ex, "Failed to persist key material snapshot.");
                 }
+            }
+        }
+
+        private static string ResolveArtifactPath(
+            string? requestedPath,
+            string sessionFolder,
+            string defaultFileName)
+        {
+            if (string.IsNullOrWhiteSpace(requestedPath))
+            {
+                return Path.Combine(sessionFolder, defaultFileName);
+            }
+            return Path.IsPathRooted(requestedPath)
+                ? requestedPath
+                : Path.Combine(sessionFolder, requestedPath);
+        }
+
+        private static string ResolveTextKeyLogPath(string jsonKeyLogPath, string sessionFolder)
+        {
+            string? directory = Path.GetDirectoryName(jsonKeyLogPath);
+            string baseName = Path.GetFileNameWithoutExtension(jsonKeyLogPath);
+            // Strip a trailing ".uakeys" segment so e.g. "keys.uakeys.json"
+            // produces a "keys.uakeys.txt" sibling rather than "keys.txt".
+            if (baseName.EndsWith(".uakeys", StringComparison.OrdinalIgnoreCase))
+            {
+                baseName = baseName[..^".uakeys".Length];
+            }
+            string textName = baseName + ".uakeys.txt";
+            return string.IsNullOrEmpty(directory)
+                ? Path.Combine(sessionFolder, textName)
+                : Path.Combine(directory, textName);
+        }
+
+        private static void EnsureParentDirectoryExists(string filePath)
+        {
+            string? directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
             }
         }
 

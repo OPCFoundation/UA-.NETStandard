@@ -59,16 +59,37 @@ namespace Opc.Ua.Bindings.Pcap.Models
         public bool? Promiscuous { get; init; }
 
         /// <summary>
-        /// Path to an existing pcap file (required for
-        /// <see cref="CaptureSourceKind.Replay"/>).
+        /// Path to the pcap (or pcapng) file to write to (in-process
+        /// capture sources) or to read from
+        /// (<see cref="CaptureSourceKind.Replay"/>).
         /// </summary>
+        /// <remarks>
+        /// For in-process sources this overrides the conventional
+        /// <c>capture.pcap</c> file name inside <see cref="SessionFolder"/>;
+        /// when <c>null</c> (default) the conventional name is used. Absolute
+        /// paths are written verbatim; relative paths are resolved against
+        /// <see cref="SessionFolder"/>. The <see cref="CaptureSourceKind.Replay"/>
+        /// source requires this property to be set.
+        /// </remarks>
         public string? PcapFilePath { get; init; }
 
         /// <summary>
-        /// Path to an existing keylog file (optional for
-        /// <see cref="CaptureSourceKind.Replay"/>; without it the source
-        /// can only replay the raw bytes, not decode them).
+        /// Path to the keylog file to write to (in-process capture
+        /// sources) or to read from
+        /// (<see cref="CaptureSourceKind.Replay"/>).
         /// </summary>
+        /// <remarks>
+        /// For in-process sources this overrides the conventional
+        /// <c>keys.uakeys.json</c> file name inside
+        /// <see cref="SessionFolder"/>; when <c>null</c> (default) the
+        /// conventional name is used. Absolute paths are written
+        /// verbatim; relative paths are resolved against
+        /// <see cref="SessionFolder"/>. The sibling NSS-format
+        /// <c>*.uakeys.txt</c> file is derived by changing the
+        /// extension. For <see cref="CaptureSourceKind.Replay"/> the
+        /// keylog is optional; without it the source can only replay
+        /// raw bytes, not decode them.
+        /// </remarks>
         public string? KeyLogFilePath { get; init; }
 
         /// <summary>

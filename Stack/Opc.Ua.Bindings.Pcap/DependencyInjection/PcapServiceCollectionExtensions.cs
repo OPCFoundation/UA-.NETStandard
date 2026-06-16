@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings.Pcap.Audit;
@@ -169,6 +170,113 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
 
             services.AddSingleton<ReplaySessionManager>();
             return services;
+        }
+
+        /// <summary>
+        /// Registers the Pcap binding plus an
+        /// <see cref="IHostedService"/> that materializes
+        /// environment-variable defaults at host start. The variables
+        /// are read once during this call; changing them later in the
+        /// process lifetime has no effect.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Recognized variables (see
+        /// <see cref="PcapEnvironmentVariableNames"/> for canonical
+        /// names):
+        /// </para>
+        /// <list type="bullet">
+        ///   <item><description>
+        ///     <c>OPCUA_PCAP_FILE</c> - when set, an in-process
+        ///     capture session is auto-started on host start. Frames
+        ///     are written to the literal path supplied. The pcap
+        ///     parent directory becomes
+        ///     <see cref="PcapOptions.BaseFolder"/> so the env var
+        ///     stays authoritative for the auto-start path.
+        ///   </description></item>
+        ///   <item><description>
+        ///     <c>OPCUA_KEYLOGFILE</c> - when set without
+        ///     <c>OPCUA_PCAP_FILE</c>, a stand-alone key-log observer
+        ///     is installed (SSLKEYLOGFILE-style) without a packet
+        ///     capture. When both variables are set, the keylog is
+        ///     written at this path inside the auto-started capture.
+        ///     The file extension selects the format (<c>.txt</c>
+        ///     selects the NSS-style text writer; everything else
+        ///     selects JSON-lines).
+        ///   </description></item>
+        /// </list>
+        /// <para>
+        /// When neither variable is set the call behaves exactly like
+        /// <see cref="AddOpcUaBindingsPcap(IServiceCollection, Action{PcapOptions})"/>:
+        /// the binding and capture services are registered and no
+        /// auto-start happens.
+        /// </para>
+        /// <para>
+        /// Anyone (process, container, operator) that can set these
+        /// env vars can divert OPC UA channel keys and traffic to
+        /// attacker-controlled paths. Treat the variables as a
+        /// privileged operation and pair them with file-system
+        /// permissions on the destination directory.
+        /// </para>
+        /// </remarks>
+        public static IServiceCollection AddOpcUaBindingsPcapFromEnvironment(
+            this IServiceCollection services)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+            return services.AddOpcUaBindingsPcapFromEnvironment(static _ => { });
+        }
+
+        /// <summary>
+        /// Registers the Pcap binding with caller-supplied options PLUS
+        /// the environment-variable driven hosted service. See the
+        /// parameter-less overload for the recognized variables and
+        /// the security-relevant interaction with
+        /// <see cref="PcapOptions.BaseFolder"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="services"/> or <paramref name="configure"/>
+        /// is <c>null</c>.
+        /// </exception>
+        public static IServiceCollection AddOpcUaBindingsPcapFromEnvironment(
+            this IServiceCollection services,
+            Action<PcapOptions> configure)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configure);
+
+            PcapEnvironmentSnapshot environment = PcapEnvironmentDefaults.ReadFromEnvironment();
+
+            services.AddOpcUaBindingsPcap(options =>
+            {
+                configure(options);
+                ApplyEnvironmentBaseFolderOverride(options, environment);
+            });
+
+            services.AddHostedService(sp =>
+                new PcapEnvironmentAutoStartHostedService(
+                    environment,
+                    sp.GetRequiredService<CaptureSessionManager>(),
+                    sp.GetRequiredService<IChannelCaptureRegistry>(),
+                    sp.GetService<ILoggerFactory>()));
+
+            return services;
+        }
+
+        private static void ApplyEnvironmentBaseFolderOverride(
+            PcapOptions options,
+            PcapEnvironmentSnapshot environment)
+        {
+            if (environment.PcapFilePath is null)
+            {
+                return;
+            }
+
+            string fullPath = Path.GetFullPath(environment.PcapFilePath);
+            string? parent = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(parent))
+            {
+                options.BaseFolder = parent;
+            }
         }
     }
 
