@@ -29,10 +29,12 @@
 
 using System;
 using System.IO;
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
@@ -66,6 +68,7 @@ namespace Opc.Ua.Client.WebApi
     public sealed class WebApiWssTransportChannel : ITransportChannel, ISecureChannel
     {
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private readonly WebApiClientOptions m_userOptions;
         private readonly TimeProvider m_timeProvider;
         private readonly SemaphoreSlim m_sendLock = new(1, 1);
@@ -95,6 +98,7 @@ namespace Opc.Ua.Client.WebApi
         {
             m_telemetry = telemetry
                 ?? throw new ArgumentNullException(nameof(telemetry));
+            m_logger = m_telemetry.CreateLogger<WebApiWssTransportChannel>();
             m_userOptions = options ?? new WebApiClientOptions();
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
@@ -200,10 +204,14 @@ namespace Opc.Ua.Client.WebApi
                 }
             }
 
-            // Allow self-signed test server certificates when the caller
-            // supplied a custom CertificateValidator (matches the relaxed
-            // behaviour of HttpsTransportChannel in the same scenario).
-            ws.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+            // TLS server-certificate validation: delegate to the OPC UA
+            // CertificateValidator when one is configured (mirrors the
+            // sibling HttpsTransportChannel.ServerCertificateCustom...
+            // callback). When no validator is configured, fall back to
+            // the TLS chain/hostname result so an attacker MITM can no
+            // longer present an arbitrary certificate and be silently
+            // trusted.
+            ws.Options.RemoteCertificateValidationCallback = ValidateServerCertificate;
 
             try
             {
@@ -483,6 +491,77 @@ namespace Opc.Ua.Client.WebApi
                 {
                     return buffer.ToArray();
                 }
+            }
+        }
+
+        private bool ValidateServerCertificate(
+            object sender,
+            X509Certificate? certificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            try
+            {
+                var validationChain = new X509Certificate2Collection();
+                if (chain != null && chain.ChainElements != null)
+                {
+                    foreach (X509ChainElement element in chain.ChainElements)
+                    {
+                        validationChain.Add(element.Certificate);
+                    }
+                }
+                else if (certificate is X509Certificate2 x509)
+                {
+                    validationChain.Add(x509);
+                }
+                else if (certificate != null)
+                {
+                    validationChain.Add(new X509Certificate2(certificate));
+                }
+
+                using var validationCollection = CertificateCollection.From(validationChain);
+                ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
+                if (validator != null)
+                {
+                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                    // using scope extends past the await. Mirrors HttpsTransportChannel.
+#pragma warning disable CA2025
+                    CertificateValidationResult validationResult = validator
+                        .ValidateAsync(validationCollection, ct: default)
+                        .GetAwaiter()
+                        .GetResult();
+#pragma warning restore CA2025
+                    if (!validationResult.IsValid)
+                    {
+                        m_logger.LogError(
+                            "{ChannelType} Server certificate rejected by CertificateValidator: {Status}.",
+                            nameof(WebApiWssTransportChannel),
+                            validationResult.StatusCode);
+                        return false;
+                    }
+                    return true;
+                }
+
+                if (sslPolicyErrors != SslPolicyErrors.None)
+                {
+                    // No OPC UA certificate validator configured: do not
+                    // blindly accept the server certificate. Fall back to
+                    // the default TLS chain/hostname result (MITM guard).
+                    m_logger.LogError(
+                        "{ChannelType} No certificate validator configured and TLS reported {Errors}; rejecting server certificate.",
+                        nameof(WebApiWssTransportChannel),
+                        sslPolicyErrors);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "{ChannelType} Failed to validate server certificate.",
+                    nameof(WebApiWssTransportChannel));
+                return false;
             }
         }
 
