@@ -1337,6 +1337,28 @@ namespace Opc.Ua.Bindings
             }
             if (selected.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal))
             {
+                // sec-3: refuse to accept a bearer access token in the WSS
+                // sub-protocol name over plain HTTP — the WebSocket spec
+                // requires the server to echo the selected sub-protocol
+                // back in the 101 handshake, which would broadcast the
+                // credential through every TCP intermediary (proxies,
+                // WAFs, packet capture). HTTPS hides the credential from
+                // the network at least; the credential still appears in
+                // server access logs unless operators redact it, which
+                // is why short-lived tokens (≤ 60s TTL) are recommended
+                // even on the TLS path.
+                if (!context.Request.IsHttps)
+                {
+                    m_logger.LogWarning(
+                        "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
+                        "bearer credentials in the sub-protocol name must not flow over plain HTTP.");
+                    await WriteResponseAsync(
+                        context.Response,
+                        "HTTPSLISTENER - opcua+openapi+<accesstoken> requires HTTPS — bearer " +
+                        "credentials must not flow over plain HTTP.",
+                        HttpStatusCode.UpgradeRequired).ConfigureAwait(false);
+                    return;
+                }
                 string accessToken = selected[Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix.Length..];
                 Func<HttpContext, string, Task<bool>>? bearerValidator = WssBearerTokenValidator;
                 if (bearerValidator == null)

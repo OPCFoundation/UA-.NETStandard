@@ -186,6 +186,26 @@ namespace Opc.Ua.Client.WebApi
                 ? Profiles.OpcUaWsSubProtocolOpenApi
                 : Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + m_userOptions.BearerToken;
 
+            if (!string.IsNullOrEmpty(m_userOptions.BearerToken))
+            {
+                // sec-3: bearer-in-sub-protocol exposes the token to every
+                // TCP intermediary in the 101 handshake (the spec requires
+                // the server to echo the selected sub-protocol). When the
+                // negotiated URL is not wss://, refuse to send the token
+                // in cleartext.
+                if (!IsSecureScheme(m_url))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Bearer access token must not be sent over plain HTTP/WS. " +
+                        "Use a wss:// (TLS) endpoint or omit BearerToken.");
+                }
+                m_logger.LogWarning(
+                    "WSS opcua+openapi+<accesstoken>: bearer token rides in the WebSocket " +
+                    "sub-protocol name (browser-compatible). Prefer short-lived tokens (<= 60s) " +
+                    "and redact the Sec-WebSocket-Protocol header from proxy / WAF logs.");
+            }
+
             var ws = new ClientWebSocket();
             ws.Options.AddSubProtocol(subProtocol);
 
@@ -574,6 +594,20 @@ namespace Opc.Ua.Client.WebApi
                     nameof(WebApiWssTransportChannel));
                 return false;
             }
+        }
+
+        // sec-3: WSS-bearer requires TLS so the token cannot be observed
+        // by network intermediaries. The sub-protocol still appears in
+        // the server's access log on the wss path; that's why short
+        // token TTLs (<= 60s) and log redaction are still recommended.
+        private static bool IsSecureScheme(Uri? url)
+        {
+            if (url == null)
+            {
+                return false;
+            }
+            return string.Equals(url.Scheme, Utils.UriSchemeWss, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(url.Scheme, Utils.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
         }
 
         private static Uri NormalizeUrl(Uri url)

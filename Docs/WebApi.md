@@ -125,6 +125,23 @@ endpoint description with all of these fields pre-populated.
 > tokens ride in the sub-protocol name
 > (`opcua+openapi+<accesstoken>`) because browser WebSocket APIs forbid
 > custom HTTP request headers.
+>
+> **Security considerations for the bearer-prefix sub-protocol:**
+> the WebSocket spec requires the server to echo the selected
+> sub-protocol back to the client in the 101 handshake. The bearer
+> token therefore appears in plain text in:
+> 1. The 101 response on the wire (rejected by the client when the
+>    URL scheme is not `wss://`; rejected by the server when the
+>    request is not `IsHttps`).
+> 2. The server's Kestrel access log (`Sec-WebSocket-Protocol` header).
+> 3. Any HTTP proxy / WAF / load-balancer log on the path.
+>
+> Operators **must** redact the `Sec-WebSocket-Protocol` header from
+> logs and **should** use short-lived tokens (≤ 60 s TTL) so a
+> captured token expires before it can be replayed. The server also
+> requires `AddWebApiBearerAuth(...)` to be registered: without a
+> bearer validator the listener fail-closed rejects every
+> bearer-prefix upgrade rather than echo the token back.
 
 ## Wire format
 

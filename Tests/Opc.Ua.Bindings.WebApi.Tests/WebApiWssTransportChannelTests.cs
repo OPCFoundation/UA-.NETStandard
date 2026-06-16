@@ -202,27 +202,24 @@ namespace Opc.Ua.Bindings.WebApi.Tests
         }
 
         [Test]
-        public async Task OpenAsyncNegotiatesBearerSubProtocolWhenTokenSuppliedAsync()
+        public async Task OpenAsyncRejectsBearerTokenOverPlainWebSocketAsync()
         {
+            // sec-3 fix: the bearer-prefix sub-protocol leaks the token
+            // through every TCP intermediary in the 101 handshake. The
+            // client now refuses to send the token over plain ws://.
+            // Over wss:// (real TLS) the credential is at least hidden
+            // from network observers; that path is covered by the
+            // integration tests against the reference server.
             const string token = "abc.def.ghi";
-            using WebApiWssTransportChannel channel = await OpenChannelAsync(
-                new WebApiClientOptions { BearerToken = token })
-                .ConfigureAwait(false);
-
-            var request = new ReadRequest
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
-                RequestHeader = new RequestHeader { RequestHandle = 1 },
-                NodesToRead = new ArrayOf<ReadValueId>()
-            };
-            _ = await channel
-                .SendRequestAsync(request, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            Assert.That(m_lastNegotiatedSubProtocol,
-                Is.EqualTo(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + token),
-                "Bearer-token transport must encode the credential as the " +
-                "sub-protocol name suffix ('opcua+openapi+<token>') because " +
-                "browser WebSocket APIs forbid custom HTTP headers.");
+                using WebApiWssTransportChannel channel = await OpenChannelAsync(
+                    new WebApiClientOptions { BearerToken = token })
+                    .ConfigureAwait(false);
+            })!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed),
+                "Bearer-prefix sub-protocol over plain ws:// must be rejected with " +
+                "BadSecurityChecksFailed (sec-3 fix).");
         }
 
         [Test]
