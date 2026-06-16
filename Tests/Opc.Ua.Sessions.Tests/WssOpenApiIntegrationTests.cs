@@ -188,33 +188,32 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        public async Task ManagedSessionOverWssOpenApiBearerNegotiatesSubProtocolAsync()
+        public async Task ManagedSessionOverWssOpenApiBearerRejectedWhenNoBearerAuthRegisteredAsync()
         {
-            // Bearer-token variant: the access token is carried in the
-            // sub-protocol name (opcua+openapi+<accesstoken>) per
-            // Part 6 §7.5.2 because browser WebSocket APIs forbid
-            // custom HTTP headers. The reference server's default
-            // ISessionlessIdentityProvider doesn't validate the token
-            // (Phase 3 follow-up), so the test only asserts that the
-            // sub-protocol negotiates and the session reaches
-            // ActivateSession with a UserName identity (which the server
-            // does validate). This proves the WSS bearer-token framing
-            // is wired end-to-end.
+            // sec-2 fix: the server now fail-closed rejects the WSS
+            // opcua+openapi+<accesstoken> upgrade when no bearer auth
+            // scheme is registered (no AddWebApiBearerAuth() on the
+            // reference server, which is the case for this fixture).
+            // Pre-fix, the server silently accepted any token; that
+            // behaviour was a silent auth bypass (CWE-287). The server
+            // now returns HTTP 401 which the WebSocket client surfaces
+            // as a WebSocketException; ManagedSession logs the failure
+            // and reports Connected == false.
             ApplicationConfiguration appConfig = m_clientFixture.Config;
 
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
             await using ManagedSession session = await new ManagedSessionBuilder(appConfig, m_telemetry)
                 .UseWssOpenApiEndpoint(m_baseAddress.ToString())
                 .WithWebApiAuthentication(opts =>
                     opts.BearerToken = "test-bearer-token-placeholder")
                 .WithUserIdentity(new UserIdentity("user1", "password"u8))
-                .WithSessionName("ManagedSessionWssOpenApi-Bearer")
+                .WithSessionName("ManagedSessionWssOpenApi-Bearer-Rejected")
                 .WithCheckDomain(false)
-                .ConnectAsync(default).ConfigureAwait(false);
+                .ConnectAsync(cts.Token).ConfigureAwait(false);
 
-            Assert.That(session.Connected, Is.True,
-                "ManagedSession over the WSS opcua+openapi+<accesstoken> sub-protocol " +
-                "must report Connected after ConnectAsync.");
-            Assert.That(session.SessionId.IsNull, Is.False);
+            Assert.That(session.Connected, Is.False,
+                "WSS opcua+openapi+<accesstoken> upgrade must be rejected when no " +
+                "bearer auth scheme is registered on the server (HTTP 401).");
         }
     }
 }

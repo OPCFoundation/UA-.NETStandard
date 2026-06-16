@@ -406,6 +406,22 @@ namespace Opc.Ua.Bindings
         internal IReadOnlyList<EndpointDescription>? Descriptions => m_descriptions;
 
         /// <summary>
+        /// Optional WSS <c>opcua+openapi+&lt;accesstoken&gt;</c> bearer-
+        /// token validator. Registered by
+        /// <see cref="IHttpsListenerStartupContributor"/> implementations
+        /// (e.g. the WebApi contributor) so the listener can validate
+        /// the bearer token presented in the WebSocket sub-protocol name
+        /// against the application's auth scheme (JwtBearer) before
+        /// accepting the upgrade. The callback receives the
+        /// <see cref="HttpContext"/> and the raw access token; it must
+        /// return <c>true</c> if the token authenticates, <c>false</c>
+        /// otherwise. When no validator is registered the listener
+        /// fail-closed rejects every bearer-prefix sub-protocol upgrade
+        /// (so unconfigured deployments cannot silently accept tokens).
+        /// </summary>
+        internal Func<HttpContext, string, Task<bool>>? WssBearerTokenValidator { get; set; }
+
+        /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
         /// <param name="baseAddress">The base address.</param>
@@ -1314,6 +1330,42 @@ namespace Opc.Ua.Bindings
             if (selected.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal))
             {
                 string accessToken = selected[Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix.Length..];
+                Func<HttpContext, string, Task<bool>>? bearerValidator = WssBearerTokenValidator;
+                if (bearerValidator == null)
+                {
+                    // Fail-closed: no bearer validator registered (no
+                    // AddWebApiBearerAuth() or similar). Refuse the
+                    // upgrade rather than echo the token back.
+                    m_logger.LogWarning(
+                        "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
+                        "no WSS bearer token validator registered.");
+                    await WriteResponseAsync(
+                        context.Response,
+                        "HTTPSLISTENER - opcua+openapi+<accesstoken> requires a bearer auth scheme " +
+                        "(call AddWebApiBearerAuth on the server builder).",
+                        HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                    return;
+                }
+                bool validated;
+                try
+                {
+                    validated = await bearerValidator(context, accessToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(ex,
+                        "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
+                        "bearer token validator threw.");
+                    validated = false;
+                }
+                if (!validated)
+                {
+                    await WriteResponseAsync(
+                        context.Response,
+                        "HTTPSLISTENER - bearer access token validation failed.",
+                        HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                    return;
+                }
                 await AcceptWebSocketOpenApiAsync(context, accessToken).ConfigureAwait(false);
                 return;
             }

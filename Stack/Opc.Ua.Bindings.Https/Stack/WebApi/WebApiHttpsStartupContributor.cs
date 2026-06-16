@@ -30,14 +30,17 @@
 #if NET8_0_OR_GREATER
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings;
+using Opc.Ua.Bindings.WebApi.Authentication;
 
 namespace Opc.Ua.Bindings.WebApi
 {
@@ -158,6 +161,53 @@ namespace Opc.Ua.Bindings.WebApi
                 appBuilder.UseAuthentication();
             }
             appBuilder.UseEndpoints(endpoints => endpoints.MapWebApiEndpoints());
+
+            // Wire WSS bearer-token validation so the
+            // opcua+openapi+<accesstoken> sub-protocol no longer
+            // accepts arbitrary tokens. The listener fail-closed
+            // rejects when no validator is registered (sec-2 fix).
+            listener.WssBearerTokenValidator = ValidateWssBearerTokenAsync;
+        }
+
+        // Validates the bearer token presented in the WSS
+        // opcua+openapi+<accesstoken> sub-protocol by delegating to the
+        // registered JwtBearer authentication scheme. Returns true only
+        // when the token authenticates; on success the resolved
+        // ClaimsPrincipal is published on HttpContext.User so downstream
+        // code (sec-6 identity plumbing) can route it through the
+        // ISessionlessIdentityProvider hook.
+        internal static async Task<bool> ValidateWssBearerTokenAsync(
+            HttpContext context,
+            string accessToken)
+        {
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return false;
+            }
+            IAuthenticationSchemeProvider schemes = context.RequestServices
+                .GetRequiredService<IAuthenticationSchemeProvider>();
+            AuthenticationScheme? bearerScheme = await schemes
+                .GetSchemeAsync(WebApiAuthSchemes.Bearer)
+                .ConfigureAwait(false);
+            if (bearerScheme == null)
+            {
+                return false;
+            }
+            // Place the token in the Authorization header so JwtBearerHandler
+            // resolves the credential from its standard location instead of
+            // requiring a bespoke per-handler API.
+            context.Request.Headers["Authorization"] = $"Bearer {accessToken}";
+            IAuthenticationService authService = context.RequestServices
+                .GetRequiredService<IAuthenticationService>();
+            AuthenticateResult result = await authService
+                .AuthenticateAsync(context, WebApiAuthSchemes.Bearer)
+                .ConfigureAwait(false);
+            if (result.Succeeded && result.Principal != null)
+            {
+                context.User = result.Principal;
+                return true;
+            }
+            return false;
         }
 
         // Resolves the AuthenticationOptions snapshot so that bindings
