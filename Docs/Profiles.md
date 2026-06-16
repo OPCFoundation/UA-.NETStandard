@@ -226,7 +226,7 @@ PubSub additionally supports certificate-based MQTT authentication and
 considers `WriterGroup`s in MQTT keep-alive calculations.
 
 All transport profiles defined in OPC UA Part 6 §7.4 (HTTPS) and §7.5
-(WebSockets) are now supported. The `opcua+openapi` and
+(WebSockets) are supported. The `opcua+openapi` and
 `opcua+openapi+<accesstoken>` WebSocket sub-protocols (Part 6 §7.5.2
 Table 81) are tracked in
 [`plans/25-wss-openapi-subprotocols.md`](../plans/25-wss-openapi-subprotocols.md).
