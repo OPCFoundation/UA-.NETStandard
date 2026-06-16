@@ -37,7 +37,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings.Pcap.Audit;
-using Opc.Ua.Bindings.Pcap.Capture.Sources;
 using Opc.Ua.Bindings.Pcap.KeyLog;
 using Opc.Ua.Bindings.Pcap.Models;
 

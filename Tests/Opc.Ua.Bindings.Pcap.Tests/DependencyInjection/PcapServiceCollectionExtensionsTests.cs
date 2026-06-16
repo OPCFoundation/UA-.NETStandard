@@ -120,10 +120,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddPcapBinding();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
-            var registry = provider.GetRequiredService<IChannelCaptureRegistry>();
-            var factory = provider.GetRequiredService<ICaptureSourceFactory>();
-            await using var manager = provider.GetRequiredService<CaptureSessionManager>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
+            IChannelCaptureRegistry registry = provider.GetRequiredService<IChannelCaptureRegistry>();
+            ICaptureSourceFactory factory = provider.GetRequiredService<ICaptureSourceFactory>();
+            await using CaptureSessionManager manager = provider.GetRequiredService<CaptureSessionManager>();
 
             Assert.That(options, Is.Not.Null);
             Assert.That(registry, Is.InstanceOf<ChannelCaptureRegistry>());
@@ -138,10 +138,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddPcapBinding();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var registry1 = provider.GetRequiredService<IChannelCaptureRegistry>();
-            var registry2 = provider.GetRequiredService<IChannelCaptureRegistry>();
-            var manager1 = provider.GetRequiredService<CaptureSessionManager>();
-            var manager2 = provider.GetRequiredService<CaptureSessionManager>();
+            IChannelCaptureRegistry registry1 = provider.GetRequiredService<IChannelCaptureRegistry>();
+            IChannelCaptureRegistry registry2 = provider.GetRequiredService<IChannelCaptureRegistry>();
+            CaptureSessionManager manager1 = provider.GetRequiredService<CaptureSessionManager>();
+            CaptureSessionManager manager2 = provider.GetRequiredService<CaptureSessionManager>();
 
             Assert.That(registry2, Is.SameAs(registry1));
             Assert.That(manager2, Is.SameAs(manager1));
@@ -179,7 +179,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             });
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
 
             Assert.That(options.BaseFolder, Is.EqualTo(desiredFolder));
             Assert.That(options.MaxActiveSessions, Is.EqualTo(3));
@@ -198,7 +198,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             });
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var manager = provider.GetRequiredService<CaptureSessionManager>();
+            CaptureSessionManager manager = provider.GetRequiredService<CaptureSessionManager>();
 
             // The cap configured on PcapOptions must reach the manager
             // instance (this is what makes the option meaningful for
@@ -214,7 +214,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddPcapBinding();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
 
             Assert.That(
                 options.BaseFolder,
@@ -271,8 +271,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddPcapFormatters();
             using ServiceProvider provider = services.BuildServiceProvider();
 
-            var registry1 = provider.GetRequiredService<TraceFormatterRegistry>();
-            var registry2 = provider.GetRequiredService<TraceFormatterRegistry>();
+            TraceFormatterRegistry registry1 = provider.GetRequiredService<TraceFormatterRegistry>();
+            TraceFormatterRegistry registry2 = provider.GetRequiredService<TraceFormatterRegistry>();
 
             Assert.That(registry1, Is.SameAs(registry2));
             Assert.That(registry1.Available, Contains.Item(FormatKind.Pcap),
@@ -311,8 +311,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddPcapReplay();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var manager1 = provider.GetRequiredService<ReplaySessionManager>();
-            var manager2 = provider.GetRequiredService<ReplaySessionManager>();
+            ReplaySessionManager manager1 = provider.GetRequiredService<ReplaySessionManager>();
+            ReplaySessionManager manager2 = provider.GetRequiredService<ReplaySessionManager>();
 
             Assert.That(manager2, Is.SameAs(manager1));
         }

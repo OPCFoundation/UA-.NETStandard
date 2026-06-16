@@ -60,16 +60,16 @@ namespace Opc.Ua.Bindings.Pcap.Tests
             string? pcapFilePath = null,
             string? keyLogFilePath = null)
         {
-            m_frames = new List<CaptureFrame>(frames ?? Array.Empty<CaptureFrame>());
-            m_materials = new List<ChannelKeyMaterial>(materials ?? Array.Empty<ChannelKeyMaterial>());
-            m_supportedFormats = new HashSet<FormatKind>(supportedFormats ?? new[]
+            m_frames = [.. frames ?? Array.Empty<CaptureFrame>()];
+            m_materials = [.. materials ?? Array.Empty<ChannelKeyMaterial>()];
+            m_supportedFormats = [.. supportedFormats ?? new[]
             {
                 FormatKind.PcapNg,
                 FormatKind.Json,
                 FormatKind.Csv,
                 FormatKind.Text,
                 FormatKind.ServiceTimeline
-            });
+            }];
             m_pcapFilePath = pcapFilePath;
             m_keyLogFilePath = keyLogFilePath;
         }

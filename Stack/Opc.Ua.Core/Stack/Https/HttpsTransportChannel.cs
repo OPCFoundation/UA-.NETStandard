@@ -660,6 +660,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+
         /// <summary>
         /// Media type written to the HTTP <c>Content-Type</c> header on
         /// outbound requests. Defaults to <c>application/octet-stream</c>

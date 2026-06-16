@@ -55,6 +55,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <param name="nodeBuilder">The node builder produced by
         /// <see cref="INodeBuilder.As{TState}"/> or one of the
         /// typed-child helpers.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static StateMachineBuilder<TState> AsStateMachine<TState>(
             this INodeBuilder<TState> nodeBuilder)
             where TState : FiniteStateMachineState

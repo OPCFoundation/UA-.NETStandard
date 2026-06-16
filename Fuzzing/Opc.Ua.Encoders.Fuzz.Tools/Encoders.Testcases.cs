@@ -174,6 +174,8 @@ namespace Opc.Ua.Fuzzing
 
             yield return BrowseRequest;
             yield return WriteRequest;
+            yield return DataTypeNodeMessage;
+            yield return VariableNodeMessage;
         }
 
         private static void BrowseRequest(IEncoder encoder)
@@ -234,6 +236,148 @@ namespace Opc.Ua.Fuzzing
                 })
             };
         }
+
+        // The two Node seeds below are permanent regression coverage for
+        // https://github.com/OPCFoundation/UA-.NETStandard/issues/3546 — they
+        // populate the fields (References, RolePermissions, DataTypeDefinition,
+        // multi-dim Value Variant) that the original failure-pattern exercises.
+        // Keeping them as seeds means FuzzGoodTestcases (the assertive theory
+        // in FuzzTargetTestsBase) covers the IsEqual round-trip end-to-end on
+        // every run, not only when the libfuzz pipeline happens to mutate
+        // into these shapes.
+
+        private static void DataTypeNodeMessage(IEncoder encoder)
+        {
+            var dataTypeNode = new DataTypeNode
+            {
+                NodeId = new NodeId(1234, 2),
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName("Issue3546DataType", 2),
+                DisplayName = new LocalizedText("en", "Issue 3546 DataType"),
+                Description = new LocalizedText("en", "Round-trip regression seed"),
+                IsAbstract = false,
+                DataTypeDefinition = new ExtensionObject(
+                    new StructureDefinition
+                    {
+                        DefaultEncodingId = new NodeId(5678, 2),
+                        BaseDataType = DataTypeIds.Structure,
+                        StructureType = StructureType.Structure,
+                        Fields =
+                        [
+                            new StructureField
+                            {
+                                Name = "Field0",
+                                DataType = DataTypeIds.UInt32,
+                                ValueRank = ValueRanks.Scalar,
+                                IsOptional = false
+                            },
+                            new StructureField
+                            {
+                                Name = "Field1",
+                                DataType = DataTypeIds.String,
+                                ValueRank = ValueRanks.Scalar,
+                                IsOptional = false
+                            }
+                        ]
+                    }),
+                References =
+                [
+                    new ReferenceNode
+                    {
+                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                        IsInverse = true,
+                        TargetId = (ExpandedNodeId)DataTypeIds.Structure
+                    },
+                    new ReferenceNode
+                    {
+                        ReferenceTypeId = ReferenceTypeIds.HasEncoding,
+                        IsInverse = false,
+                        TargetId = new ExpandedNodeId(new NodeId(5678, 2))
+                    }
+                ],
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ],
+                UserRolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ]
+            };
+
+            encoder.EncodeMessage(dataTypeNode);
+        }
+
+        private static void VariableNodeMessage(IEncoder encoder)
+        {
+            var variableNode = new VariableNode
+            {
+                NodeId = new NodeId(4321, 2),
+                NodeClass = NodeClass.Variable,
+                BrowseName = new QualifiedName("Issue3546Variable", 2),
+                DisplayName = new LocalizedText("en", "Issue 3546 Variable"),
+                Description = new LocalizedText("en", "Round-trip regression seed"),
+                Value = Variant.From(new ExtensionObject(
+                    new Argument
+                    {
+                        Name = "Sample",
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.Scalar,
+                        Description = new LocalizedText("en", "fuzz #3546 sample")
+                    })),
+                DataType = DataTypeIds.Argument,
+                ValueRank = ValueRanks.Scalar,
+                ArrayDimensions = new ArrayOf<uint>(s_arrayDimensions),
+                AccessLevel = (byte)(AccessLevels.CurrentRead | AccessLevels.CurrentWrite),
+                UserAccessLevel = (byte)AccessLevels.CurrentRead,
+                MinimumSamplingInterval = 0,
+                Historizing = false,
+                AccessLevelEx = 0,
+                References =
+                [
+                    new ReferenceNode
+                    {
+                        ReferenceTypeId = ReferenceTypeIds.HasTypeDefinition,
+                        IsInverse = false,
+                        TargetId = (ExpandedNodeId)VariableTypeIds.BaseDataVariableType
+                    },
+                    new ReferenceNode
+                    {
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        IsInverse = true,
+                        TargetId = (ExpandedNodeId)ObjectIds.ObjectsFolder
+                    }
+                ],
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ],
+                UserRolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ]
+            };
+
+            encoder.EncodeMessage(variableNode);
+        }
+
+        private static readonly uint[] s_arrayDimensions = [1u, 2u];
 
         private static void WriteBuiltInTypeTestcases(string workPath)
         {

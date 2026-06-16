@@ -81,11 +81,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         public PartitionForwardingHandler(ISubscriptionNotificationHandler userHandler)
         {
-            if (userHandler == null)
-            {
-                throw new ArgumentNullException(nameof(userHandler));
-            }
-            m_userHandler = userHandler;
+            m_userHandler = userHandler ?? throw new ArgumentNullException(nameof(userHandler));
         }
 
         /// <summary>

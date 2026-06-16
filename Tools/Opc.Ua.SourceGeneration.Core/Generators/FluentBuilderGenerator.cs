@@ -814,9 +814,7 @@ namespace Opc.Ua.SourceGeneration
             if (wrapper.SupportsPublish)
 
             {
-
                 EmitPublishOverloads(writer, wrapper, memberIndent);
-
             }
             // Emit the nested method wrappers, then the nested object
             // wrappers. Sibling order is leaf-name ordinal (set up by
@@ -973,7 +971,7 @@ namespace Opc.Ua.SourceGeneration
                 "[global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]");
             writer.WriteLine("public static partial class {0}", className);
             writer.WriteLine("{");
-            string memberIndent = Indent;
+            const string memberIndent = Indent;
             foreach (InstanceDesign child in children
                 .OrderBy(c => c.SymbolicName?.Name, StringComparer.Ordinal))
             {
@@ -1127,7 +1125,8 @@ namespace Opc.Ua.SourceGeneration
                 for (int i = 0; i < namespaces.Length; i++)
                 {
                     Namespace ns = namespaces[i];
-                    if (ns != null && string.Equals(ns.Value, nsUri,
+                    if (ns != null &&
+                        string.Equals(ns.Value, nsUri,
                             StringComparison.Ordinal))
                     {
                         return ns.Prefix ?? string.Empty;
@@ -1136,6 +1135,7 @@ namespace Opc.Ua.SourceGeneration
             }
             return string.Empty;
         }
+
         private void EmitChildAccessor(
             ITemplateWriter writer,
             ChildAccessor child,
@@ -1864,7 +1864,9 @@ namespace Opc.Ua.SourceGeneration
                 .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
-        // State
+        /// <summary>
+        /// State
+        /// </summary>
         private readonly IGeneratorContext m_context;
         private Dictionary<string, InstanceWrapper> m_wrappers = [];
         private Dictionary<string, MethodWrapper> m_methodWrappers = [];

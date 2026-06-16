@@ -124,8 +124,8 @@ namespace Opc.Ua.Fuzzing
         {
             FuzzParser(() =>
             {
-                Uuid uuid = Uuid.Parse(input);
-                Uuid roundTripped = Uuid.Parse(uuid.ToString());
+                var uuid = Uuid.Parse(input);
+                var roundTripped = Uuid.Parse(uuid.ToString());
                 if (!uuid.Equals(roundTripped))
                 {
                     throw new InvalidOperationException("Uuid round-trip failed.");

@@ -30,7 +30,6 @@ using System;
 using System.IO;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Dissection;
-using Opc.Ua.Bindings.Pcap.Frame;
 
 namespace Opc.Ua.Fuzzing
 {

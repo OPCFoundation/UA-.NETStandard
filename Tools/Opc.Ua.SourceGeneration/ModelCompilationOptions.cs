@@ -211,10 +211,12 @@ namespace Opc.Ua.SourceGeneration
         /// Emit only when building a library.
         /// </summary>
         Auto,
+
         /// <summary>
         /// Always emit (override).
         /// </summary>
         Always,
+
         /// <summary>
         /// Never emit (override).
         /// </summary>

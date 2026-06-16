@@ -178,6 +178,7 @@ namespace Opc.Ua.Client
         /// to include. When <c>null</c> every subscription currently
         /// managed by <paramref name="session"/> is included.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static ValueTask SaveSubscriptionsAsync(
             this ManagedSession session,
             Stream destination,
@@ -212,6 +213,7 @@ namespace Opc.Ua.Client
         /// state via <c>TransferSubscriptions</c>; if that fails for any
         /// subscription the V2 manager falls back to recreate.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<ISubscription>> LoadSubscriptionsAsync(
             this ManagedSession session, Stream source,
             Func<string, ISubscriptionNotificationHandler> handlerFactory,
@@ -235,6 +237,7 @@ namespace Opc.Ua.Client
         /// <see cref="RestoreSubscriptionsAsync"/>, which regroups
         /// snapshots by their <c>LogicalGroupId</c>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static IReadOnlyList<SubscriptionStateSnapshot> SnapshotSubscriptions(
             this ManagedSession session)
         {
@@ -245,7 +248,7 @@ namespace Opc.Ua.Client
             var result = new List<SubscriptionStateSnapshot>();
             foreach (ISubscription s in session.SubscriptionManager.Items)
             {
-                if (s is Subscriptions.LogicalSubscription logical)
+                if (s is LogicalSubscription logical)
                 {
                     result.AddRange(logical.SnapshotAllPartitions());
                 }
@@ -283,6 +286,7 @@ namespace Opc.Ua.Client
         /// state via <c>TransferSubscriptions</c>; if that fails for
         /// any subscription the V2 manager falls back to recreate.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static async ValueTask<IReadOnlyList<ISubscription>> RestoreSubscriptionsAsync(
             this ManagedSession session,
             IReadOnlyList<SubscriptionStateSnapshot> states,
@@ -303,7 +307,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
             var result = new List<ISubscription>(states.Count);
-            SubscriptionManager manager =
+            var manager =
                 (SubscriptionManager)session.SubscriptionManager;
 
             // Group by LogicalGroupId; null group = standalone. The
@@ -434,7 +438,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Convenience overload of
-        /// <see cref="Subscriptions.ISubscription.SetTriggeringAsync"/>
+        /// <see cref="ISubscription.SetTriggeringAsync"/>
         /// that resolves the triggering item and triggered items by
         /// stable name against the subscription's
         /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
@@ -449,8 +453,8 @@ namespace Opc.Ua.Client
         /// added; pass an empty array to query an existing trigger
         /// without adding new links.
         /// </param>
-        public static ValueTask<Subscriptions.SetTriggeringResult> SetTriggeringAsync(
-            this Subscriptions.ISubscription subscription,
+        public static ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            this ISubscription subscription,
             string triggeringItemName,
             params string[] triggeredItemNames)
         {
@@ -463,14 +467,16 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Convenience overload of
-        /// <see cref="Subscriptions.ISubscription.SetTriggeringAsync"/>
+        /// <see cref="ISubscription.SetTriggeringAsync"/>
         /// that resolves the triggering item and triggered items by
         /// stable name against the subscription's
         /// <see cref="Subscriptions.MonitoredItems.IMonitoredItemCollection"/>.
         /// Unknown names cause <see cref="ArgumentException"/>.
         /// </summary>
-        public static ValueTask<Subscriptions.SetTriggeringResult> SetTriggeringAsync(
-            this Subscriptions.ISubscription subscription,
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        public static ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            this ISubscription subscription,
             string triggeringItemName,
             IReadOnlyCollection<string>? add = null,
             IReadOnlyCollection<string>? remove = null,

@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Di.Client;
 using Opc.Ua.Di.Client.Hosting;
 
 namespace Opc.Ua.Di.Tests
@@ -61,8 +62,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ConstructorThrowsOnNullTelemetry()
         {
-            Func<CancellationToken, Task<ManagedSession>> accessor =
-                _ => Task.FromResult<ManagedSession>(null!);
+            static Task<ManagedSession> accessor(CancellationToken _) => Task.FromResult<ManagedSession>(null!);
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
                 () => new DiDiscoveryService(accessor, null!))!;
@@ -77,19 +77,19 @@ namespace Opc.Ua.Di.Tests
             // exception must surface when iteration starts.
             int accessorCalls = 0;
             var sentinel = new InvalidOperationException("accessor-called");
-            Func<CancellationToken, Task<ManagedSession>> accessor = _ =>
+            Task<ManagedSession> accessor(CancellationToken _)
             {
                 accessorCalls++;
                 throw sentinel;
-            };
+            }
 
             var service = new DiDiscoveryService(
-                accessor, new Mock<ITelemetryContext>().Object);
+accessor, new Mock<ITelemetryContext>().Object);
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                 {
-                    await foreach (var _ in service.EnumerateDevicesAsync())
+                    await foreach (DeviceEntry _ in service.EnumerateDevicesAsync())
                     {
                     }
                 })!;
@@ -101,14 +101,14 @@ namespace Opc.Ua.Di.Tests
         public void EnumerateDevicesAsyncPropagatesCancellation()
         {
             CancellationToken capturedToken = default;
-            Func<CancellationToken, Task<ManagedSession>> accessor = ct =>
+            Task<ManagedSession> accessor(CancellationToken ct)
             {
                 capturedToken = ct;
                 throw new OperationCanceledException(ct);
-            };
+            }
 
             var service = new DiDiscoveryService(
-                accessor, new Mock<ITelemetryContext>().Object);
+accessor, new Mock<ITelemetryContext>().Object);
 
             using var cts = new CancellationTokenSource();
             cts.Cancel();
@@ -116,7 +116,7 @@ namespace Opc.Ua.Di.Tests
             Assert.ThrowsAsync<OperationCanceledException>(
                 async () =>
                 {
-                    await foreach (var _ in service.EnumerateDevicesAsync(cts.Token))
+                    await foreach (DeviceEntry _ in service.EnumerateDevicesAsync(cts.Token))
                     {
                     }
                 });

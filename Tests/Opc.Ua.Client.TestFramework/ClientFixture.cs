@@ -108,6 +108,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <see cref="DefaultSessionFactory"/> that uses the supplied
         /// engine.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void UseSubscriptionEngineFactory(ISubscriptionEngineFactory engineFactory)
         {
             SubscriptionEngineFactory = engineFactory

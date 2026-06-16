@@ -53,6 +53,7 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="INodeBuilder.As{TState}"/> or
         /// <see cref="INodeManagerBuilder.Node{TState}(string)"/>.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="nodeBuilder"/> is <c>null</c>.</exception>
         public static IStateMachineBuilder<TState> AsStateMachine<TState>(
             this INodeBuilder<TState> nodeBuilder)
             where TState : FiniteStateMachineState
@@ -69,6 +70,7 @@ namespace Opc.Ua.Server.Fluent
         /// fluent calls operate on the state machine's parent again.
         /// </summary>
         /// <typeparam name="TState">Concrete finite state machine state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static INodeBuilder Done<TState>(this IStateMachineBuilder<TState> builder)
             where TState : FiniteStateMachineState
         {

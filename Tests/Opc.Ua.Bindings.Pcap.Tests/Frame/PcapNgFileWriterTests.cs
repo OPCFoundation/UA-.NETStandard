@@ -117,7 +117,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
                 //                + 2  (padding)
                 //                + 4  (trailer length)
                 //                = 40 bytes.
-                byte[] payload = { 1, 2, 3, 4, 5, 6 };
+                byte[] payload = [1, 2, 3, 4, 5, 6];
                 await writer.WriteAsync(
                     new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
                     payload,
@@ -158,7 +158,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             {
                 // 8-byte payload is already a multiple of 4 → 0 padding bytes
                 // → EPB length = 8 + 20 + 8 + 0 + 4 = 40 bytes.
-                byte[] payload = { 0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11 };
+                byte[] payload = [0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11];
                 await writer.WriteAsync(
                     new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
                     payload,

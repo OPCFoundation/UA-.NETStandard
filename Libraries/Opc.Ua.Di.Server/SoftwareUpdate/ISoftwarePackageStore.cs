@@ -50,7 +50,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
     /// </para>
     /// <para>
     /// The default <see cref="FileSystemPackageStore"/> composes over
-    /// an <see cref="Opc.Ua.Server.FileSystem.IFileSystemProvider"/> so any
+    /// an <see cref="Ua.Server.FileSystem.IFileSystemProvider"/> so any
     /// provider already used for the server's <c>FileSystem</c> mount
     /// can also serve software packages.
     /// </para>

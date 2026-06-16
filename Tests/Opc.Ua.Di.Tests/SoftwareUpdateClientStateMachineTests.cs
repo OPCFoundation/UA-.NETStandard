@@ -159,9 +159,9 @@ namespace Opc.Ua.Di.Tests
                 // The child-resolution call sends exactly ONE BrowsePath
                 // targeting the Installation child. State-snapshot calls
                 // send 4 paths (CurrentState, .Id, .Number, .EffectiveDisplayName).
-                if (paths.Count == 1
-                    && paths[0].RelativePath.Elements.Count == 1
-                    && paths[0].RelativePath.Elements[0].TargetName.Name == "Installation")
+                if (paths.Count == 1 &&
+                    paths[0].RelativePath.Elements.Count == 1 &&
+                    paths[0].RelativePath.Elements[0].TargetName.Name == "Installation")
                 {
                     Interlocked.Increment(ref childResolutionCalls);
                     // Return Bad so the higher-level call returns null but

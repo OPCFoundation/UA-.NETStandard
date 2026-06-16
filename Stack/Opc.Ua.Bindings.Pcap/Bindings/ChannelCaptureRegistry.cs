@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Threading;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Bindings
 {

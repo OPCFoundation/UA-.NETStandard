@@ -412,7 +412,8 @@ namespace Opc.Ua.Client
             }
 
             ISubscriptionEngineFactory engineFactory =
-                opts.SubscriptionEngineFactory ?? (opts.TimeProvider == null
+                opts.SubscriptionEngineFactory ??
+                (opts.TimeProvider == null
                     ? DefaultSubscriptionEngineFactory.Instance
                     : new DefaultSubscriptionEngineFactory(opts.TimeProvider));
 

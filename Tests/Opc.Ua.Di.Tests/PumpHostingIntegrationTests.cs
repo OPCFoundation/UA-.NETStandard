@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
@@ -63,17 +62,17 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "pumptest"; })
+                .AddServer(o => o.ApplicationName = "pumptest")
                 .AddNodeManager<PumpNodeManagerFactory>()
                 .ConfigureDevicesFor<PumpNodeManager>(_ => { });
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var factory = provider.GetService<PumpNodeManagerFactory>();
+            PumpNodeManagerFactory? factory = provider.GetService<PumpNodeManagerFactory>();
             Assert.That(factory, Is.Not.Null);
 
             // The runner should have been auto-registered by
             // ConfigureDevicesFor.
-            var runner = provider.GetService<IDiPostSetupRunner>();
+            IDiPostSetupRunner? runner = provider.GetService<IDiPostSetupRunner>();
             Assert.That(runner, Is.Not.Null);
         }
 
@@ -82,7 +81,7 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "pumptest"; })
+                .AddServer(o => o.ApplicationName = "pumptest")
                 .AddNodeManager<PumpNodeManagerFactory>()
                 .ConfigureDevicesFor<PumpNodeManager>(_ => { });
 

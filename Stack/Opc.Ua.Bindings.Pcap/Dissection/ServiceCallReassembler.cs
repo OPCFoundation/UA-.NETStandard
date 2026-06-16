@@ -38,7 +38,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Frame;
 using Opc.Ua.Bindings.Pcap.KeyLog;
@@ -173,7 +172,7 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
         /// </summary>
         public IReadOnlyList<DecodedServiceCall> DrainCompleted()
         {
-            DecodedServiceCall[] completed = m_completed.ToArray();
+            DecodedServiceCall[] completed = [.. m_completed];
             m_completed.Clear();
             return completed;
         }
@@ -319,7 +318,7 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
             DateTimeOffset timestamp,
             bool fromClient)
         {
-            var key = (decoded.ChannelId, decoded.RequestId);
+            (uint ChannelId, uint RequestId) key = (decoded.ChannelId, decoded.RequestId);
             if (m_pending.TryGetValue(key, out PendingServiceCall? pending))
             {
                 if (!fromClient || !pending.RequestIsComplete)

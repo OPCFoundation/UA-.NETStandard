@@ -134,7 +134,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
             services.AddSingleton<ICaptureSourceFactory>(provider =>
                 new DefaultCaptureSourceFactory(
                     provider.GetRequiredService<IChannelCaptureRegistry>()));
-            services.AddSingleton<CaptureSessionManager>(provider =>
+            services.AddSingleton(provider =>
             {
                 PcapOptions configuredOptions = provider.GetRequiredService<PcapOptions>();
                 ICaptureSourceFactory sourceFactory = provider.GetRequiredService<ICaptureSourceFactory>();
@@ -249,7 +249,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         /// <see cref="StringComparison.OrdinalIgnoreCase"/>.
         /// </summary>
         public IReadOnlyList<string> AllowedReplayEndpoints { get; set; } =
-            Array.Empty<string>();
+            [];
 
         /// <summary>
         ///

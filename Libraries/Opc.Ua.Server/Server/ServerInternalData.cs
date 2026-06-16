@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
             IServiceMessageContext messageContext,
             TimeProvider? timeProvider)
         {
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
         /// remain unaffected.
         /// </remarks>
         public IReadOnlyList<ITransportListener> TransportListeners
-            => m_transportListeners ?? (IReadOnlyList<ITransportListener>)Array.Empty<ITransportListener>();
+            => m_transportListeners ?? [];
 
         /// <summary>
         /// Called by <see cref="StandardServer"/> after listeners are
@@ -199,7 +199,6 @@ namespace Opc.Ua.Server
         {
             m_transportListeners = listeners;
         }
-
 
         /// <summary>
         /// The server-wide registry of Part 11 historian providers.
@@ -217,7 +216,7 @@ namespace Opc.Ua.Server
         /// discover it without any change to <see cref="IServerInternal"/>;
         /// never <c>null</c>.
         /// </summary>
-        public TimeProvider TimeProvider => m_timeProvider;
+        public TimeProvider TimeProvider { get; }
 
         /// <summary>
         /// The session manager to use with the server.
@@ -770,10 +769,7 @@ namespace Opc.Ua.Server
 
             BaseVariableState conformanceUnits = DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
                 VariableIds.Server_ServerCapabilities_ConformanceUnits);
-            if (conformanceUnits != null)
-            {
-                conformanceUnits.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
-            }
+            conformanceUnits?.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
 
             serverCapabilities.MinSupportedSampleRate!.Value = 0;
             serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)
@@ -880,7 +876,7 @@ namespace Opc.Ua.Server
             serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
             // initialize status.
-            DateTime nowUtc = m_timeProvider.GetUtcNow().UtcDateTime;
+            DateTime nowUtc = TimeProvider.GetUtcNow().UtcDateTime;
             var serverStatus = new ServerStatusDataType
             {
                 StartTime = nowUtc,
@@ -1009,7 +1005,7 @@ namespace Opc.Ua.Server
         {
             lock (NonThreadSafeStatus.Lock)
             {
-                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;
                 NonThreadSafeStatus.Value.CurrentTime = now;
 
@@ -1118,7 +1114,6 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
-        private readonly TimeProvider m_timeProvider;
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
     }

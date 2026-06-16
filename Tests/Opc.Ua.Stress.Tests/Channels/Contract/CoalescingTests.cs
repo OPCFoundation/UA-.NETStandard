@@ -30,14 +30,14 @@
 #nullable enable
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Stress.Tests.Channels.Contract
 {
@@ -219,14 +219,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             CancellationToken startToken)
         {
             var startBarrier = new ChaosBarrier(callerCount);
-            return Enumerable.Range(0, callerCount)
+            return [.. Enumerable.Range(0, callerCount)
                 .Select(index => Task.Run(async () =>
                 {
                     await startBarrier.SignalAndWaitAsync(startToken).ConfigureAwait(false);
                     await manager.ReconnectAsync(channel, cancellationTokenFactory(index))
                         .ConfigureAwait(false);
-                }))
-                .ToArray();
+                }))];
         }
 
         private static Task WaitForReconnectBarrierAsync(ChaosBarrier barrier, CancellationToken ct)

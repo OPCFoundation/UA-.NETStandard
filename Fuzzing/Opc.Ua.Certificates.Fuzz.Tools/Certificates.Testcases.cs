@@ -32,7 +32,6 @@ using System.Formats.Asn1;
 using System.IO;
 using System.Numerics;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Fuzzing
@@ -129,7 +128,7 @@ namespace Opc.Ua.Fuzzing
             WriteTestcase(workPath, "X509Cert", "certificate-ecc.der", eccApplicationCertificate.RawData);
 
             // CRL with a single revoked entry (original).
-            var crlBuilder = CrlBuilder
+            CrlBuilder crlBuilder = CrlBuilder
                 .Create(issuerCertificate.SubjectName)
                 .SetThisUpdate(DateTime.UtcNow.AddDays(-1))
                 .SetNextUpdate(DateTime.UtcNow.AddDays(7))
@@ -140,7 +139,7 @@ namespace Opc.Ua.Fuzzing
             WriteTestcase(workPath, "X509CRL", "crl.der", crlDer);
 
             // CRL with multiple revoked entries (exercises the revoked-list loop in EnsureDecoded).
-            var crlMultiBuilder = CrlBuilder
+            CrlBuilder crlMultiBuilder = CrlBuilder
                 .Create(issuerCertificate.SubjectName)
                 .SetThisUpdate(DateTime.UtcNow.AddDays(-2))
                 .SetNextUpdate(DateTime.UtcNow.AddDays(14))
@@ -152,7 +151,7 @@ namespace Opc.Ua.Fuzzing
             WriteTestcase(workPath, "X509CRL", "crl-multi-revoked.der", crlMulti.RawData);
 
             // Empty CRL (no revoked entries) — boundary case for the loop.
-            var crlEmptyBuilder = CrlBuilder
+            CrlBuilder crlEmptyBuilder = CrlBuilder
                 .Create(issuerCertificate.SubjectName)
                 .SetThisUpdate(DateTime.UtcNow.AddDays(-1))
                 .SetNextUpdate(DateTime.UtcNow.AddDays(7))
@@ -196,7 +195,7 @@ namespace Opc.Ua.Fuzzing
                 ["localhost", "127.0.0.1"]).RawData;
             WriteTestcase(workPath, "ASN1", "subject-alt-name.der", subjectAltName);
 
-            byte[] authorityKeyIdentifier = new Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
+            byte[] authorityKeyIdentifier = new Security.Certificates.X509AuthorityKeyIdentifierExtension(
                 [0x01, 0x02, 0x03, 0x04]).RawData;
             WriteTestcase(workPath, "ASN1", "authority-key-identifier.der", authorityKeyIdentifier);
 
@@ -268,7 +267,7 @@ namespace Opc.Ua.Fuzzing
             var writer = new AsnWriter(AsnEncodingRules.DER);
             // 256-bit BigInteger — exercises AsnReader.ReadInteger past the
             // 32 / 64-bit fast paths into the multi-limb branch.
-            var big = (BigInteger.One << 255) - BigInteger.One;
+            BigInteger big = (BigInteger.One << 255) - BigInteger.One;
             writer.WriteInteger(big);
             return writer.Encode();
         }

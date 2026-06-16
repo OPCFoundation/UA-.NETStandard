@@ -60,7 +60,7 @@ namespace Pumps
         /// simulation tick can mutate its DI properties in response to
         /// supervision flags. Set by CreatePumpInstanceAsync.
         /// </summary>
-        private Opc.Ua.Pumps.PumpState? m_pump1;
+        private PumpState? m_pump1;
 
         /// <summary>
         /// Optional DI DeviceHealth variable supplied by a declarative
@@ -178,14 +178,19 @@ namespace Pumps
         {
             public static readonly EUInformation Pascal =
                 new("Pa", "Pascal", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Kelvin =
                 new("K", "Kelvin", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Watt =
                 new("W", "Watt", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation KilogramsPerSecond =
                 new("kg/s", "Kilograms per Second", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Percent =
                 new("%", "Percent", "http://www.opcfoundation.org/UA/units/un/cefact");
+
             public static readonly EUInformation Metre =
                 new("m", "Metre", "http://www.opcfoundation.org/UA/units/un/cefact");
         }
@@ -208,8 +213,8 @@ namespace Pumps
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
 
-            Opc.Ua.Server.Fluent.INodeBuilder<Opc.Ua.Pumps.PumpState> pump =
-                builder.Node<Opc.Ua.Pumps.PumpState>("Pump #1");
+            INodeBuilder<PumpState> pump =
+                builder.Node<PumpState>("Pump #1");
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = pump
                 .Components().Events()

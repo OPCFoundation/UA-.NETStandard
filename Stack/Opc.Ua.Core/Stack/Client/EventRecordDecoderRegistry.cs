@@ -131,6 +131,7 @@ namespace Opc.Ua
         /// Registers a decoder for the given event type. Throws if
         /// a decoder for the same type id is already registered.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public EventRecordDecoderRegistry Register(
             NodeId eventTypeId,
             QualifiedName[][] standardFields,
@@ -151,6 +152,8 @@ namespace Opc.Ua
         /// same type id. Intended for inline registration patterns
         /// where duplicate calls are safe.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="standardFields"/> is <c>null</c>.</exception>
         public bool TryRegister(
             NodeId eventTypeId,
             QualifiedName[][] standardFields,
@@ -222,6 +225,7 @@ namespace Opc.Ua
         /// closest registered ancestor). Returns <c>null</c> when
         /// no ancestor decoder is registered.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="fields"/> is <c>null</c>.</exception>
         public EventRecord? DecodeAs(NodeId eventType, IReadOnlyList<Variant> fields)
         {
             if (fields == null)
@@ -397,7 +401,7 @@ namespace Opc.Ua
             // lives in this same assembly (Opc.Ua.Core) — call it
             // directly so the Default registry always offers the
             // standard event-type decoders out of the box.
-            OpcUaEventRecordDecoders.RegisterOpcUaDecoders(registry);
+            registry.RegisterOpcUaDecoders();
             DefaultRegistrar?.Invoke(registry);
             return registry;
         }
@@ -414,6 +418,7 @@ namespace Opc.Ua
 
             public QualifiedName[][] StandardFields { get; }
             public Func<IReadOnlyList<Variant>, EventRecord?> Decode { get; }
+
             /// <summary>
             /// Composed-layout → local-layout remap cache. Rebuilt when
             /// RemapVersion differs from the composed-fields snapshot's

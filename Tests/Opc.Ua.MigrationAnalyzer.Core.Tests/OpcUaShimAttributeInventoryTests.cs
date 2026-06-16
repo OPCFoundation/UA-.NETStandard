@@ -51,7 +51,11 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
         [GeneratedRegex(@"^UA\d{4}$", RegexOptions.CultureInvariant)]
         private static partial Regex RuleIdRegex();
 #else
-        private static Regex RuleIdRegex() => s_ruleIdRegex;
+        private static Regex RuleIdRegex()
+        {
+            return s_ruleIdRegex;
+        }
+
         private static readonly Regex s_ruleIdRegex =
             new(@"^UA\d{4}$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 #endif
@@ -83,7 +87,7 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
         [Test]
         public Task ShimAssemblyContainsAttributedMembersAsync()
         {
-            MemberInfo[] members = ShimMembers().ToArray();
+            MemberInfo[] members = [.. ShimMembers()];
             Assert.That(members, Is.Not.Empty,
                 "Expected at least one [OpcUaShim] member in the shim assembly.");
             return Task.CompletedTask;
@@ -97,10 +101,9 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
         [Test]
         public Task EveryShimMemberIsAlsoObsoleteAsync()
         {
-            var missing = ShimMembers()
+            string[] missing = [.. ShimMembers()
                 .Where(m => m.GetCustomAttribute<ObsoleteAttribute>() == null)
-                .Select(m => $"{m.DeclaringType?.FullName}.{m.Name}")
-                .ToArray();
+                .Select(m => $"{m.DeclaringType?.FullName}.{m.Name}")];
 
             Assert.That(missing, Is.Empty,
                 "These shim members are missing [Obsolete]: " +
@@ -115,11 +118,10 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
         [Test]
         public Task EveryShimRuleIdMatchesUa00xxConventionAsync()
         {
-            var malformed = ShimMembers()
+            string[] malformed = [.. ShimMembers()
                 .Select(m => (Member: m, Id: m.GetCustomAttribute<OpcUaShimAttribute>()!.RuleId))
                 .Where(t => !RuleIdRegex().IsMatch(t.Id))
-                .Select(t => $"{t.Member.DeclaringType?.FullName}.{t.Member.Name}={t.Id}")
-                .ToArray();
+                .Select(t => $"{t.Member.DeclaringType?.FullName}.{t.Member.Name}={t.Id}")];
 
             Assert.That(malformed, Is.Empty,
                 "These shim members have non-UA00xx rule ids: " +

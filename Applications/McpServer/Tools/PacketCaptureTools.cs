@@ -30,14 +30,13 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Opc.Ua;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Capture.Sources;
 using Opc.Ua.Bindings.Pcap.Formats;
@@ -156,7 +155,7 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentNullException.ThrowIfNull(formatters);
 
             CaptureSession session = manager.Get(sessionId);
-            await using var sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
             ValidateReadable(session, allowPartial);
 
             FormatKind kind = ParseFormat(format);
@@ -196,7 +195,7 @@ namespace Opc.Ua.Mcp.Tools
                 await session.StopAsync(ct).ConfigureAwait(false);
 
                 ITraceFormatter formatter = formatters.Get(request.Format);
-                await using var sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
                 FormatResult result = await formatter.FormatAsync(session.Source, null, ct).ConfigureAwait(false);
                 return BuildContentBlocks(session.Id, result, formatter);
             }

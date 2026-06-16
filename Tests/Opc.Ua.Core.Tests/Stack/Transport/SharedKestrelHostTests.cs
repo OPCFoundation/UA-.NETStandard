@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     key, (HttpsTransportListener)null!, "/test", null!, kThumbprint));
             Assert.Throws<ArgumentException>(
                 () => SharedKestrelHostRegistry.Instance.Acquire(
-                    key, (HttpsTransportListener)null!, "/test", acc => MakeStubHost(), ""));
+                    key, (HttpsTransportListener)null!, "/test", acc => MakeStubHost(), string.Empty));
         }
 
         [Test]

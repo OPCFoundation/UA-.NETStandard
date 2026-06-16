@@ -102,6 +102,8 @@ namespace Opc.Ua.Server.Fluent
         /// <c>TypeDefinitionId</c>.
         /// </summary>
         /// <typeparam name="TState">Concrete instance state class.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static IInstanceBuilder<TState> CreateInstance<TState>(
             this INodeBuilder parent,
             QualifiedName browseName,
@@ -122,7 +124,8 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(factory));
             }
             string symbolicName = browseName.Name ?? string.Empty;
-            TState instance = factory(parent.Node) ?? throw ServiceResultException.Create(
+            TState instance = factory(parent.Node) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadInvalidArgument,
                     "Factory returned null for instance '{0}'.",
                     browseName);
@@ -139,9 +142,7 @@ namespace Opc.Ua.Server.Fluent
             if (!typeDefinitionId.IsNull)
 
             {
-
                 instance.TypeDefinitionId = typeDefinitionId;
-
             }
             parent.Node.AddChild(instance);
 
@@ -330,22 +331,27 @@ namespace Opc.Ua.Server.Fluent
             handler(Builder.Context, Node);
             return this;
         }
+
         public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler)
         {
             return this;
         }
+
         public INodeBuilder OnHistoryRead(HistoryReadHandler handler)
         {
             return this;
         }
+
         public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler)
         {
             return this;
         }
+
         public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler)
         {
             return this;
         }
+
         public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
         {
             return this;
@@ -368,7 +374,8 @@ namespace Opc.Ua.Server.Fluent
 
         public INodeBuilder Child(QualifiedName browseName)
         {
-            NodeState? c = Node.FindChild(Builder.Context, browseName) ?? throw ServiceResultException.Create(
+            NodeState? c = Node.FindChild(Builder.Context, browseName) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "Child '{0}' not found on '{1}'.",
                     browseName, Node.BrowseName);

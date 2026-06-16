@@ -30,13 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Fakes;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Tests;
 using TestMonitoredItem = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemManagerTriggeringTests.TestMonitoredItem;
 
@@ -61,7 +57,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Id = 7,
                 CreateMonitoredItemFactory = (name, options, context) =>
                     new TestMonitoredItem(context, name,
-                        (Opc.Ua.OptionsMonitor<MonitoredItemOptions>)options,
+                        (OptionsMonitor<MonitoredItemOptions>)options,
                         m_telemetry.CreateLogger("TestMonitoredItem"))
             };
             m_collection = new MonitoredItemManager(m_managerContext, m_telemetry);
@@ -99,8 +95,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     capturedRemove = remove;
                     return new ValueTask<SetTriggeringResult>(new SetTriggeringResult(
                         trig,
-                        Array.Empty<(IMonitoredItem, StatusCode)>(),
-                        Array.Empty<(IMonitoredItem, StatusCode)>(),
+                        [],
+                        [],
                         StatusCodes.Good));
                 };
 
@@ -112,7 +108,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(capturedAdd, Is.Not.Null);
             Assert.That(capturedAdd!, Has.Count.EqualTo(2));
             Assert.That(capturedAdd!.Select(x => x.Name),
-                Is.EquivalentTo(new[] { "tgt1", "tgt2" }));
+                Is.EquivalentTo(["tgt1", "tgt2"]));
             Assert.That(capturedRemove, Is.Null);
         }
 
@@ -131,14 +127,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     capturedRemove = remove;
                     return new ValueTask<SetTriggeringResult>(new SetTriggeringResult(
                         trig,
-                        Array.Empty<(IMonitoredItem, StatusCode)>(),
-                        Array.Empty<(IMonitoredItem, StatusCode)>(),
+                        [],
+                        [],
                         StatusCodes.Good));
                 };
 
             await m_subscription.SetTriggeringAsync("trig",
-                add: new[] { "tgt1" },
-                remove: new[] { "tgt2" }).ConfigureAwait(false);
+                add: ["tgt1"],
+                remove: ["tgt2"]).ConfigureAwait(false);
 
             Assert.That(capturedAdd, Has.Count.EqualTo(1));
             Assert.That(capturedRemove, Has.Count.EqualTo(1));
@@ -155,10 +151,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void ThrowsOnEmptyTriggeringName()
         {
-            Assert.That(() => m_subscription.SetTriggeringAsync(""),
+            Assert.That(() => m_subscription.SetTriggeringAsync(string.Empty),
                 Throws.ArgumentException);
             Assert.That(() => m_subscription.SetTriggeringAsync(
-                "", add: Array.Empty<string>()),
+                string.Empty, add: []),
                 Throws.ArgumentException);
         }
 
@@ -187,8 +183,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             AddItem("tgt");
             Assert.That(() => m_subscription.SetTriggeringAsync(
                 "trig",
-                add: new[] { "tgt" },
-                remove: new[] { "ghost" }),
+                add: ["tgt"],
+                remove: ["ghost"]),
                 Throws.ArgumentException);
         }
 
@@ -205,8 +201,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     seenNullRemove = remove == null;
                     return new ValueTask<SetTriggeringResult>(new SetTriggeringResult(
                         trig,
-                        Array.Empty<(IMonitoredItem, StatusCode)>(),
-                        Array.Empty<(IMonitoredItem, StatusCode)>(),
+                        [],
+                        [],
                         StatusCodes.Good));
                 };
 
@@ -219,7 +215,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private IMonitoredItem AddItem(string name)
         {
-            m_collection.TryAdd(name, Opc.Ua.OptionsFactory.Create(
+            m_collection.TryAdd(name, OptionsFactory.Create(
                 new MonitoredItemOptions
                 {
                     StartNodeId = new NodeId(name, 0)

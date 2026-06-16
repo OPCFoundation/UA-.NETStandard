@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -85,7 +86,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             File.WriteAllText(path, string.Empty, Encoding.UTF8);
 
             var reader = new UaKeyLogJsonReader();
-            var materials = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> materials = await PcapTestHelpers.ToListAsync(
                 reader.ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(materials, Is.Empty);
@@ -98,7 +99,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             File.WriteAllText(path, "\r\n   \n\t\n", Encoding.UTF8);
 
             var reader = new UaKeyLogJsonReader();
-            var materials = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> materials = await PcapTestHelpers.ToListAsync(
                 reader.ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(materials, Is.Empty,

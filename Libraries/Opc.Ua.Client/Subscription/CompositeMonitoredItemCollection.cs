@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="secondaryIdleTimeout">Idle timeout after
         /// which an empty secondary partition is removed by
         /// <paramref name="secondaryDisposer"/>. Pass
-        /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
+        /// <see cref="Timeout.InfiniteTimeSpan"/>
         /// (the default) to disable idle-delete.</param>
         /// <param name="secondaryDisposer">Async callback that
         /// removes the partition from the owning subscription
@@ -113,10 +113,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 throw new ArgumentNullException(nameof(partitions));
             }
-            if (partitionLock == null)
-            {
-                throw new ArgumentNullException(nameof(partitionLock));
-            }
+
             if (partitions.Count == 0)
             {
                 throw new ArgumentException(
@@ -124,12 +121,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     nameof(partitions));
             }
             m_partitions = partitions;
-            m_partitionLock = partitionLock;
+            m_partitionLock = partitionLock ?? throw new ArgumentNullException(nameof(partitionLock));
             m_policy = policy;
             m_partitionFactory = partitionFactory;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_secondaryIdleTimeout = secondaryIdleTimeout
-                ?? System.Threading.Timeout.InfiniteTimeSpan;
+                ?? Timeout.InfiniteTimeSpan;
             m_secondaryDisposer = secondaryDisposer;
 
             // Seed the policy with the pre-existing partitions so the
@@ -422,13 +419,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return m_partitions[0].MonitoredItems.TryRemove(clientHandle);
             }
             IManagedSubscription? owner = null;
-            string? name = null;
             lock (m_partitionLock)
             {
                 if (m_byClientHandle.TryGetValue(clientHandle, out Entry entry))
                 {
                     owner = entry.Partition;
-                    name = entry.Item.Name;
+                    string? name = entry.Item.Name;
                     m_byClientHandle.Remove(clientHandle);
                     m_byName.Remove(name);
                     m_policy!.OnItemRemoved(owner);
@@ -477,7 +473,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private void MaybeArmIdleTimer(IManagedSubscription partition)
         {
             if (m_secondaryDisposer == null ||
-                m_secondaryIdleTimeout == System.Threading.Timeout.InfiniteTimeSpan)
+                m_secondaryIdleTimeout == Timeout.InfiniteTimeSpan)
             {
                 return;
             }
@@ -499,11 +495,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     existing.Dispose();
                 }
-                var armed = m_timeProvider.CreateTimer(
+                ITimer armed = m_timeProvider.CreateTimer(
                     _ => RunIdleDelete(partition),
                     null,
                     m_secondaryIdleTimeout,
-                    System.Threading.Timeout.InfiniteTimeSpan);
+                    Timeout.InfiniteTimeSpan);
                 m_idleTimers[partition] = armed;
             }
         }

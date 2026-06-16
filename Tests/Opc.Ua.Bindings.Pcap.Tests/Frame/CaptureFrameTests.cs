@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         public void ConstructorAssignsEveryProperty()
         {
             var timestamp = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
-            byte[] data = { 9, 8, 7, 6 };
+            byte[] data = [9, 8, 7, 6];
 
             var frame = new CaptureFrame(
                 timestamp,
@@ -77,7 +77,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         public void EqualsReturnsTrueForIdenticalValues()
         {
             var ts = new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero);
-            byte[] data = { 1, 2, 3, 4, 5 };
+            byte[] data = [1, 2, 3, 4, 5];
             var left = new CaptureFrame(ts, CaptureFrameDirection.ServerToClient, "a", "b", data);
             var right = new CaptureFrame(ts, CaptureFrameDirection.ServerToClient, "a", "b", data);
             bool equalsResult = left.Equals(right);
@@ -94,7 +94,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void EqualsCompareDataBytesNotReference()
         {
-            var ts = DateTimeOffset.UtcNow;
+            DateTimeOffset ts = DateTimeOffset.UtcNow;
             var left = new CaptureFrame(
                 ts,
                 CaptureFrameDirection.ClientToServer,
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void EqualsReturnsFalseWhenDataBytesDiffer()
         {
-            var ts = DateTimeOffset.UtcNow;
+            DateTimeOffset ts = DateTimeOffset.UtcNow;
             var left = new CaptureFrame(
                 ts,
                 CaptureFrameDirection.ClientToServer,
@@ -134,8 +134,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void EqualsReturnsFalseWhenDirectionDiffers()
         {
-            var ts = DateTimeOffset.UtcNow;
-            byte[] data = { 0 };
+            DateTimeOffset ts = DateTimeOffset.UtcNow;
+            byte[] data = [0];
             var left = new CaptureFrame(ts, CaptureFrameDirection.ClientToServer, "a", "b", data);
             var right = new CaptureFrame(ts, CaptureFrameDirection.ServerToClient, "a", "b", data);
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void EqualsReturnsFalseWhenTimestampDiffers()
         {
-            byte[] data = { 0 };
+            byte[] data = [0];
             var left = new CaptureFrame(
                 DateTimeOffset.UnixEpoch,
                 CaptureFrameDirection.Unknown,
@@ -165,8 +165,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void EqualsReturnsFalseWhenEndpointsDiffer()
         {
-            var ts = DateTimeOffset.UtcNow;
-            byte[] data = { 0 };
+            DateTimeOffset ts = DateTimeOffset.UtcNow;
+            byte[] data = [0];
             var clientDiff = new CaptureFrame(ts, CaptureFrameDirection.Unknown, "a1", "b", data);
             var serverDiff = new CaptureFrame(ts, CaptureFrameDirection.Unknown, "a", "b1", data);
             var baseline = new CaptureFrame(ts, CaptureFrameDirection.Unknown, "a", "b", data);
@@ -184,8 +184,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
                 string.Empty,
                 string.Empty,
                 Array.Empty<byte>());
-            bool equalsString = frame.Equals((object)"not a frame");
-            bool equalsNull = frame.Equals((object?)null);
+            bool equalsString = frame.Equals("not a frame");
+            bool equalsNull = frame.Equals(null);
 
             Assert.That(equalsString, Is.False);
             Assert.That(equalsNull, Is.False);

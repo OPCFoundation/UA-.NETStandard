@@ -59,7 +59,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// <c>CachedLoadingType</c> — pending + fallback versions
         /// archived for two-stage rollouts.
         /// </summary>
-        Cached = 2,
+        Cached = 2
     }
 
     /// <summary>
@@ -88,7 +88,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// <summary>
         /// The work failed.
         /// </summary>
-        Failed = 3,
+        Failed = 3
     }
 
     /// <summary>

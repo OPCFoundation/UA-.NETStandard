@@ -56,7 +56,7 @@ namespace Opc.Ua.Di.Tests
         public async Task MemoryStoreAddAndGetRoundTrip()
         {
             var store = new MemoryPackageStore();
-            byte[] payload = new byte[] { 1, 2, 3, 4, 5 };
+            byte[] payload = [1, 2, 3, 4, 5];
             SoftwarePackage stored = await store.AddAsync(
                 NewMetadata("fw-1"),
                 new MemoryStream(payload));
@@ -78,9 +78,9 @@ namespace Opc.Ua.Di.Tests
         public async Task MemoryStoreListEnumeratesAllPackages()
         {
             var store = new MemoryPackageStore();
-            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream(new byte[] { 1 }));
-            await store.AddAsync(NewMetadata("fw-2"), new MemoryStream(new byte[] { 2, 3 }));
-            await store.AddAsync(NewMetadata("fw-3"), new MemoryStream(new byte[] { 4, 5, 6 }));
+            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream([1]));
+            await store.AddAsync(NewMetadata("fw-2"), new MemoryStream([2, 3]));
+            await store.AddAsync(NewMetadata("fw-3"), new MemoryStream([4, 5, 6]));
 
             var seen = new HashSet<string>();
             await foreach (SoftwarePackage p in store.ListAsync())
@@ -95,7 +95,7 @@ namespace Opc.Ua.Di.Tests
         public async Task MemoryStoreExistsAndDelete()
         {
             var store = new MemoryPackageStore();
-            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream(new byte[] { 1 }));
+            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream([1]));
 
             Assert.That(await store.ExistsAsync("fw-1"), Is.True);
             Assert.That(await store.ExistsAsync("fw-missing"), Is.False);
@@ -139,7 +139,7 @@ namespace Opc.Ua.Di.Tests
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/SoftwarePackages");
 
-                byte[] payload = new byte[] { 10, 20, 30, 40, 50 };
+                byte[] payload = [10, 20, 30, 40, 50];
                 SoftwarePackage stored = await store.AddAsync(
                     NewMetadata("fw-x"),
                     new MemoryStream(payload));
@@ -181,8 +181,8 @@ namespace Opc.Ua.Di.Tests
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
 
-                await store.AddAsync(NewMetadata("a"), new MemoryStream(new byte[] { 1 }));
-                await store.AddAsync(NewMetadata("b"), new MemoryStream(new byte[] { 2, 3 }));
+                await store.AddAsync(NewMetadata("a"), new MemoryStream([1]));
+                await store.AddAsync(NewMetadata("b"), new MemoryStream([2, 3]));
 
                 var seen = new HashSet<string>();
                 await foreach (SoftwarePackage p in store.ListAsync())
@@ -215,7 +215,7 @@ namespace Opc.Ua.Di.Tests
                     mountName: "Packages",
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
-                await store.AddAsync(NewMetadata("doomed"), new MemoryStream(new byte[] { 0 }));
+                await store.AddAsync(NewMetadata("doomed"), new MemoryStream([0]));
 
                 Assert.That(await store.DeleteAsync("doomed"), Is.True);
                 Assert.That(await store.ExistsAsync("doomed"), Is.False);
@@ -258,8 +258,9 @@ namespace Opc.Ua.Di.Tests
             }
         }
 
-        private static SoftwarePackage NewMetadata(string id) =>
-            new(
+        private static SoftwarePackage NewMetadata(string id)
+        {
+            return new(
                 Id: id,
                 Version: "1.0.0",
                 Vendor: "Acme",
@@ -267,5 +268,6 @@ namespace Opc.Ua.Di.Tests
                 SizeBytes: 0,
                 CreatedAt: default,
                 Hash: string.Empty);
+        }
     }
 }

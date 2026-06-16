@@ -212,7 +212,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
                 return;
             }
 
-            if (listenPort.Value < 1024 || listenPort.Value > 65535)
+            if (listenPort.Value is < 1024 or > 65535)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(listenPort),

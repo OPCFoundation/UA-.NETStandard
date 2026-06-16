@@ -53,6 +53,7 @@ namespace Opc.Ua.Client.Alarms
         /// <see cref="AcknowledgeableConditionTypeRecord"/>, and the
         /// alarm subtypes generated for the standard NodeSet).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeAlarmsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
@@ -94,6 +95,7 @@ namespace Opc.Ua.Client.Alarms
         /// Subscribes to condition events (any condition type) from
         /// the supplied notifier and yields decoded records.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeConditionsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
@@ -115,6 +117,7 @@ namespace Opc.Ua.Client.Alarms
         /// Subscribes to dialog events from the supplied notifier and
         /// yields decoded <see cref="DialogConditionTypeRecord"/>s.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
@@ -153,4 +156,3 @@ namespace Opc.Ua.Client.Alarms
         }
     }
 }
-

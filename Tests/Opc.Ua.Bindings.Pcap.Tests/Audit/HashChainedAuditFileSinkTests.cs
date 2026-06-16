@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Audit
             }
 
             string line = AssertSingleLine(filePath);
-            using JsonDocument document = JsonDocument.Parse(line);
+            using var document = JsonDocument.Parse(line);
             JsonElement root = document.RootElement;
 
             Assert.That(root.TryGetProperty("event", out _), Is.True);
@@ -203,7 +203,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Audit
 
         private static string MutateHmac(string line)
         {
-            using JsonDocument document = JsonDocument.Parse(line);
+            using var document = JsonDocument.Parse(line);
             JsonElement root = document.RootElement;
             string hmac = root.GetProperty("hmac").GetString()!;
             char replacement = hmac[0] == 'A' ? 'B' : 'A';
