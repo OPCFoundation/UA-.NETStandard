@@ -151,20 +151,22 @@ jobs:
     inputs:
       command: test
       projects: $(file)
-      # --blame-hang-timeout/--blame-hang-dump-type: kill (and name) any single test
-      # that exceeds 10 min so silent hangs surface as "Test <Name> exceeded the
-      # configured timeout" instead of burning the full 90-min step timeout with no
-      # diagnostic info (observed on mac PR build 14598 log 933: 28 min of silence
-      # after the previous test before the step timeout fired). LongRunning/Stress
-      # tests are already filtered out, so 10 min is well above any legitimate run.
-      # --logger trx + --results-directory: emit trx ourselves because we set
-      # publishTestResults: false below to decouple "ran tests" from "published
-      # results to AzDO" - the inline publish step inside DotNetCoreCLI@2 fails
-      # the whole task on transient DNS / network blips when reaching back to
-      # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
-      # all 707 tests passed, then post-test publish errored with
-      # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type none --logger trx --results-directory $(Agent.TempDirectory)'
+      # --blame (full): enables both the sequence collector (so the in-flight
+      # test name lands in the trx attachment when the test host hangs/crashes)
+      # and the crash collector. --blame-hang-timeout 5m kills any single test
+      # exceeding 5 min (LongRunning/Stress already filtered out; legit tests
+      # in this suite cap at ~60 s, so 5 min is comfortable headroom). All
+      # dump-types are 'none' to keep artifacts small - we want the named
+      # culprit, not GB of process state.
+      # Background: mac PR build 14598 log 933 burned the full 90-min step
+      # timeout on a silent hang with no diagnostics. The first iteration of
+      # this fix (PR #3872) caught the hang at 10 min but did not name the
+      # test (build 14707 log 1067 - 'Sequence file will not be generated'
+      # because plain --blame was missing). This iteration enables --blame +
+      # --blame-crash so the next hang/crash points at a specific test name.
+      # --logger trx + --results-directory: emit trx ourselves; publishTestResults
+      # is false below so a transient publish DNS hiccup cannot flip the job.
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame --blame-hang-timeout 5m --blame-hang-dump-type none --blame-crash --blame-crash-dump-type none --logger trx --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
