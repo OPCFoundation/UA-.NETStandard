@@ -267,7 +267,6 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test]
-        [Retry(2)]
         public async Task FakeTimeProviderDrivesDeterministicSchedulingAsync()
         {
             var fake = new FakeTimeProvider();
@@ -306,17 +305,6 @@ namespace Opc.Ua.PubSub.Tests
             for (int i = 0; i < 3; i++)
             {
                 int before = Volatile.Read(ref executionCount);
-
-                // Yield + small real-time wait so the worker thread that just
-                // completed the previous iteration has the scheduler slot to
-                // register the next Delay against the fake provider BEFORE we
-                // Advance. Without this the Advance can fire into nothingness
-                // on a slow CI runner (observed on a Windows GH Actions agent:
-                // 5-second WaitForAsync timed out because no Delay was active
-                // at the moment Advance(100) fired).
-                await Task.Yield();
-                await Task.Delay(20).ConfigureAwait(false);
-
                 fake.Advance(TimeSpan.FromMilliseconds(100));
                 await WaitForAsync(() => Volatile.Read(ref executionCount) >= before + 1)
                     .ConfigureAwait(false);
