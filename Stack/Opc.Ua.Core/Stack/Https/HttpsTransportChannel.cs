@@ -647,6 +647,10 @@ namespace Opc.Ua.Bindings
                     serverCertificateCustomValidationCallback = null;
                 }
 
+                // CA5400: revocation (CRL) is enforced by the UA CertificateValidator
+                // in the server-certificate callback above, consistent with the rest
+                // of the stack, so TLS-layer revocation on the HttpClient handler is
+                // intentionally left disabled to avoid duplicate / inconsistent checks.
 #pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 var client = new HttpClient(handler);
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList

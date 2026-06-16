@@ -683,6 +683,10 @@ namespace Opc.Ua.Bindings
         {
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
+                // TLS-layer revocation is intentionally disabled: certificate
+                // revocation (CRL) is enforced by the UA CertificateValidator in
+                // ValidateClientCertificate, consistent with the raw-TCP UA
+                // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.AllowCertificate
@@ -791,6 +795,10 @@ namespace Opc.Ua.Bindings
             // top of Start(); use the pinned cert directly.
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
+                // TLS-layer revocation is intentionally disabled: certificate
+                // revocation (CRL) is enforced by the UA CertificateValidator in
+                // ValidateClientCertificate, consistent with the raw-TCP UA
+                // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.AllowCertificate

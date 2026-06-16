@@ -408,6 +408,16 @@ namespace Opc.Ua.Bindings
                     ws.Options.ClientCertificates ??= new X509CertificateCollection();
                     ws.Options.ClientCertificates.Add(clientCert);
                 }
+#else
+                // net472 / net48 / netstandard2.1: ClientWebSocketOptions does not
+                // expose RemoteCertificateValidationCallback or per-connection client
+                // certificates, so the configured OPC UA certificate validator cannot
+                // be attached at the TLS layer here. TLS server validation falls back
+                // to the OS default (chain + hostname), which fails closed for the
+                // self-signed / private-CA certificates typical of OPC UA. For binary
+                // opcua+uacp the UASC OpenSecureChannel exchange still authenticates
+                // the peer; for the TLS-only opcua+uajson sub-protocol prefer net8.0+
+                // where the UA validator is honored.
 #endif
 
                 await ws.ConnectAsync(wsUrl, ct).ConfigureAwait(false);
