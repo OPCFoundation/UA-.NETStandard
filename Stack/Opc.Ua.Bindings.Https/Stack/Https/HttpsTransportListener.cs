@@ -786,8 +786,12 @@ namespace Opc.Ua.Bindings
                 // ValidateClientCertificate, consistent with the raw-TCP UA
                 // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
+                // sec-8: HttpsMutualTls=true means the client MUST present a
+                // TLS client certificate (per TransportListenerSettings.HttpsMutualTls
+                // doc). AllowCertificate let cert-less clients reach the
+                // dispatcher anonymously, defeating the mTLS contract.
                 ClientCertificateMode = m_mutualTlsEnabled
-                    ? ClientCertificateMode.AllowCertificate
+                    ? ClientCertificateMode.RequireCertificate
                     : ClientCertificateMode.NoCertificate,
                 ServerCertificate = m_pinnedServerCertX509,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -902,8 +906,12 @@ namespace Opc.Ua.Bindings
                 // ValidateClientCertificate, consistent with the raw-TCP UA
                 // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
+                // sec-8: HttpsMutualTls=true means the client MUST present a
+                // TLS client certificate (per TransportListenerSettings.HttpsMutualTls
+                // doc). AllowCertificate let cert-less clients reach the
+                // dispatcher anonymously, defeating the mTLS contract.
                 ClientCertificateMode = m_mutualTlsEnabled
-                    ? ClientCertificateMode.AllowCertificate
+                    ? ClientCertificateMode.RequireCertificate
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = m_pinnedServerCertX509,
