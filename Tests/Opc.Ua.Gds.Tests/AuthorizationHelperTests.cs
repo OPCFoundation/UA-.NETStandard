@@ -423,7 +423,7 @@ namespace Opc.Ua.Gds.Tests
                 innerIdentity,
                 [GdsRole.ApplicationAdmin],
                 NodeId.Null,
-                new[] { managedApp1, managedApp2 },
+                [managedApp1, managedApp2],
                 m_namespaceTable);
             var context = new SessionSystemContext(m_telemetry)
             {
@@ -454,7 +454,7 @@ namespace Opc.Ua.Gds.Tests
                 innerIdentity,
                 [GdsRole.ApplicationAdmin],
                 NodeId.Null,
-                new[] { managedApp },
+                [managedApp],
                 m_namespaceTable);
             var context = new SessionSystemContext(m_telemetry)
             {
@@ -480,7 +480,7 @@ namespace Opc.Ua.Gds.Tests
                 innerIdentity,
                 [GdsRole.ApplicationAdmin],
                 NodeId.Null,
-                new[] { managedApp },
+                [managedApp],
                 m_namespaceTable);
             var context = new SessionSystemContext(m_telemetry)
             {

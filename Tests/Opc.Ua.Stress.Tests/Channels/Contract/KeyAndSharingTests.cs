@@ -316,7 +316,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             var reverseIdentity = new object();
             ManagedChannelKey firstKey = CreateManagedChannelKey(reverseIdentity);
             ManagedChannelKey equivalentKey = CreateManagedChannelKey(reverseIdentity);
-            ManagedChannelKey differentKey = new ManagedChannelKey(
+            var differentKey = new ManagedChannelKey(
                 "opc.tcp://localhost:4841",
                 SecurityPolicies.Basic256Sha256,
                 MessageSecurityMode.SignAndEncrypt,

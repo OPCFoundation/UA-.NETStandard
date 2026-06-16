@@ -66,6 +66,7 @@ namespace Opc.Ua.Client.StateMachines
         /// <param name="client">The proxy client.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The current <see cref="StateMachineSnapshot"/>.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static async ValueTask<StateMachineSnapshot> GetCurrentStateAsync(
             this StateMachineTypeClient client,
             CancellationToken ct = default)
@@ -102,6 +103,7 @@ namespace Opc.Ua.Client.StateMachines
         /// variable and yields a fresh snapshot for each state
         /// transition.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<StateMachineSnapshot> ObserveStateChangesAsync(
             this StateMachineTypeClient client,
             IStreamingSubscription streaming,
@@ -162,6 +164,7 @@ namespace Opc.Ua.Client.StateMachines
         /// scheduler; defaults to <see cref="TimeProvider.System"/>.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static async ValueTask WaitForStateAsync(
             this StateMachineTypeClient client,
             IStreamingSubscription streaming,

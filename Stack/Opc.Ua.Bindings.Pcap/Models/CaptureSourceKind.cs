@@ -43,15 +43,15 @@ namespace Opc.Ua.Bindings.Pcap.Models
 
         /// <summary>
         /// Passive in-process tap that hooks the channel
-        /// <see cref="Opc.Ua.Bindings.IFrameCaptureSink"/> on each new
-        /// <see cref="Opc.Ua.ITransportChannel"/> created by an OPC UA
+        /// <see cref="IFrameCaptureSink"/> on each new
+        /// <see cref="ITransportChannel"/> created by an OPC UA
         /// client.
         /// </summary>
         InProcessClient = 1,
 
         /// <summary>
         /// Passive in-process tap that hooks every server-side
-        /// <see cref="Opc.Ua.Bindings.TcpServerChannel"/> created by a
+        /// <see cref="TcpServerChannel"/> created by a
         /// hosted OPC UA server.
         /// </summary>
         InProcessServer = 2,

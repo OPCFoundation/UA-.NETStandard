@@ -54,9 +54,9 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         /// <summary>
         /// Registers the default Pcap capture services AND installs the
         /// Pcap transport channel binding into
-        /// <see cref="Opc.Ua.Bindings.TransportBindings.Channels"/>.
+        /// <see cref="TransportBindings.Channels"/>.
         /// After this call every OPC UA client channel created through
-        /// <see cref="Opc.Ua.ClientChannelManager"/> uses a capture-aware
+        /// <see cref="ClientChannelManager"/> uses a capture-aware
         /// socket; the actual recording is gated by the
         /// <see cref="IChannelCaptureRegistry"/> and turned on or off by
         /// a <see cref="CaptureSessionManager"/>.
@@ -88,7 +88,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
             // CurrentObserver picks up StartAsync / StopAsync writes
             // without any further coordination.
             var registry = new ChannelCaptureRegistry();
-            Opc.Ua.Bindings.Pcap.Bindings.PcapBindings.Install(registry);
+            PcapBindings.Install(registry);
 
             services.AddSingleton(options);
             // LoggerPcapAuditSink (and HashChainedAuditFileSink when
@@ -130,7 +130,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
             services.AddSingleton<ICaptureSourceFactory>(provider =>
                 new DefaultCaptureSourceFactory(
                     provider.GetRequiredService<IChannelCaptureRegistry>()));
-            services.AddSingleton<CaptureSessionManager>(provider =>
+            services.AddSingleton(provider =>
             {
                 PcapOptions configuredOptions = provider.GetRequiredService<PcapOptions>();
                 ICaptureSourceFactory sourceFactory = provider.GetRequiredService<ICaptureSourceFactory>();
@@ -352,7 +352,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
         /// <see cref="StringComparison.OrdinalIgnoreCase"/>.
         /// </summary>
         public IReadOnlyList<string> AllowedReplayEndpoints { get; set; } =
-            Array.Empty<string>();
+            [];
 
         /// <summary>
         ///

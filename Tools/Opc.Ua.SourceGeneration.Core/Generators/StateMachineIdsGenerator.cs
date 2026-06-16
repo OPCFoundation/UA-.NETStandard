@@ -169,7 +169,7 @@ namespace Opc.Ua.SourceGeneration
                 parent.AddReplacement(
                     token,
                     StateMachineIdsTemplates.EmptySectionComment,
-                    new object[] { EmptyMarker.Instance },
+                    [EmptyMarker.Instance],
                     null,
                     static ctx => ctx.Template.Render());
                 return;
@@ -223,8 +223,12 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        // onLoad callback that picks NumberEntry or NumberMissingComment
-        // template per-item based on whether the entry has a value.
+        /// <summary>
+        /// onLoad callback that picks NumberEntry or NumberMissingComment
+        /// template per-item based on whether the entry has a value.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         private static TemplateString LoadNumberTemplate(ILoadContext context)
         {
             if (context.Target is FsmEntry entry && !entry.Number.HasValue)
@@ -234,13 +238,18 @@ namespace Opc.Ua.SourceGeneration
             return context.TemplateString;
         }
 
-        // Sentinel marker used as the single 'target' in empty
-        // sections so the EmptySectionComment template gets rendered
-        // exactly once.
+        /// <summary>
+        /// Sentinel marker used as the single 'target' in empty
+        /// sections so the EmptySectionComment template gets rendered
+        /// exactly once.
+        /// </summary>
         private sealed class EmptyMarker
         {
             public static readonly EmptyMarker Instance = new();
-            private EmptyMarker() { }
+
+            private EmptyMarker()
+            {
+            }
         }
 
         private List<FsmTypeInfo> CollectFiniteStateMachineTypes()
@@ -329,9 +338,7 @@ namespace Opc.Ua.SourceGeneration
             if (info.States.Count == 0 && info.Transitions.Count == 0)
 
             {
-
                 return null;
-
             }
             info.States.Sort(static (a, b) => string.CompareOrdinal(a.Name, b.Name));
             info.Transitions.Sort(static (a, b) => string.CompareOrdinal(a.Name, b.Name));
@@ -366,7 +373,8 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 System.Xml.XmlElement element = property.DefaultValue;
-                if (element != null && !string.IsNullOrWhiteSpace(element.InnerText) &&
+                if (element != null &&
+                    !string.IsNullOrWhiteSpace(element.InnerText) &&
                     uint.TryParse(element.InnerText.Trim(), NumberStyles.Integer,
                         CultureInfo.InvariantCulture, out uint value))
                 {
@@ -403,4 +411,3 @@ namespace Opc.Ua.SourceGeneration
         }
     }
 }
-

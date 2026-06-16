@@ -152,6 +152,7 @@ namespace Opc.Ua.Server.Fluent
         /// (e.g. severity table, retain flag, branches).
         /// </summary>
         /// <typeparam name="TState">Concrete alarm condition state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IAlarmBuilder<TState> ConfigureAlarm<TState>(
             this IAlarmBuilder<TState> builder,
             Action<TState> configure)
@@ -175,6 +176,7 @@ namespace Opc.Ua.Server.Fluent
         /// when chaining multiple alarms.
         /// </summary>
         /// <typeparam name="TState">Concrete alarm condition state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static INodeBuilder Done<TState>(this IAlarmBuilder<TState> builder)
             where TState : ConditionState
         {

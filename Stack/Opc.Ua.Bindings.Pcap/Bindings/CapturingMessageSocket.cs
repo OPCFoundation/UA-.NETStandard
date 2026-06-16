@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Bindings
 {
@@ -119,13 +118,21 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
 
         /// <inheritdoc/>
         public Task ConnectAsync(Uri endpointUrl, CancellationToken ct = default)
-            => m_inner.ConnectAsync(endpointUrl, ct);
+        {
+            return m_inner.ConnectAsync(endpointUrl, ct);
+        }
 
         /// <inheritdoc/>
-        public void Close() => m_inner.Close();
+        public void Close()
+        {
+            m_inner.Close();
+        }
 
         /// <inheritdoc/>
-        public void ReadNextMessage() => m_inner.ReadNextMessage();
+        public void ReadNextMessage()
+        {
+            m_inner.ReadNextMessage();
+        }
 
         /// <inheritdoc/>
         public void ChangeSink(IMessageSink sink)
@@ -150,10 +157,15 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
 
         /// <inheritdoc/>
         public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
-            => m_inner.MessageSocketEventArgs();
+        {
+            return m_inner.MessageSocketEventArgs();
+        }
 
         /// <inheritdoc/>
-        public void Dispose() => m_inner.Dispose();
+        public void Dispose()
+        {
+            m_inner.Dispose();
+        }
 
         /// <summary>
         /// Called by the wrapped sink on the receive path. Reads the

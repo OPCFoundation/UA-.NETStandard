@@ -86,16 +86,8 @@ namespace Opc.Ua.Client
             IClientChannelManager manager,
             IManagedTransportChannel channel)
         {
-            if (manager == null)
-            {
-                throw new ArgumentNullException(nameof(manager));
-            }
-            if (channel == null)
-            {
-                throw new ArgumentNullException(nameof(channel));
-            }
-            m_channelManager = manager;
-            m_managedChannel = channel;
+            m_channelManager = manager ?? throw new ArgumentNullException(nameof(manager));
+            m_managedChannel = channel ?? throw new ArgumentNullException(nameof(channel));
         }
 
         /// <inheritdoc/>

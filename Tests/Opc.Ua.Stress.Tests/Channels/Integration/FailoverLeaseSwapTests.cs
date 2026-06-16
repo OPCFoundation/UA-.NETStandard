@@ -36,8 +36,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Client;
+using Opc.Ua.Stress.Tests.Channels.Helpers;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 // CA2000: integration-test disposables are released by helper cleanup paths.

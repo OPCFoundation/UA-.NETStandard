@@ -61,8 +61,8 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
 
         /// <summary>
         /// The 32-bit message-type marker, e.g.
-        /// <see cref="Opc.Ua.Bindings.TcpMessageType.MessageFinal"/>,
-        /// <see cref="Opc.Ua.Bindings.TcpMessageType.Open"/>, etc.
+        /// <see cref="TcpMessageType.MessageFinal"/>,
+        /// <see cref="TcpMessageType.Open"/>, etc.
         /// </summary>
         public uint MessageType { get; }
 

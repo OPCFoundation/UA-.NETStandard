@@ -45,7 +45,7 @@ namespace Opc.Ua.Mcp
     {
         /// <summary>
         /// Base directory under which the
-        /// <see cref="Opc.Ua.Mcp.Tools.NodeSetExportTools"/> is
+        /// <see cref="Tools.NodeSetExportTools"/> is
         /// allowed to write exported NodeSet2 XML files. When
         /// <c>null</c> or whitespace the tool falls back to the
         /// <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable and
@@ -55,7 +55,7 @@ namespace Opc.Ua.Mcp
 
         /// <summary>
         /// Base directory under which
-        /// <see cref="Opc.Ua.Mcp.Tools.PacketDecodeTools"/> is
+        /// <see cref="Tools.PacketDecodeTools"/> is
         /// allowed to read pcap and keylog files. When <c>null</c>
         /// or whitespace the tool falls back to
         /// <c>PcapOptions.BaseFolder</c> resolved from DI, and

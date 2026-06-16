@@ -54,7 +54,7 @@ namespace Opc.Ua.Di.Server.Hosting
     /// <para>
     /// The context intentionally exposes a narrow
     /// <see cref="GetRequiredService{T}"/> helper rather than a raw
-    /// <see cref="System.IServiceProvider"/> to discourage service-
+    /// <see cref="IServiceProvider"/> to discourage service-
     /// locator usage and lifetime-scoped traps.
     /// </para>
     /// </remarks>

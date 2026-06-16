@@ -67,7 +67,7 @@ namespace Opc.Ua.Di.Tests
                 () => OpcUaServerDiBuilderExtensions
                     .ConfigureDevicesFor<DiNodeManager>(
                         builder: null!,
-                        configure: (Action<IDiPostSetupContext>)(_ => { })))!;
+                        configure: _ => { }))!;
             Assert.That(ex.ParamName, Is.EqualTo("builder"));
         }
 
@@ -76,7 +76,7 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; });
+                .AddServer(o => o.ApplicationName = "test");
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
                 () => serverBuilder.ConfigureDevicesFor<DiNodeManager>(
@@ -91,7 +91,7 @@ namespace Opc.Ua.Di.Tests
                 () => OpcUaServerDiBuilderExtensions
                     .ConfigureDevicesFor<DiNodeManager>(
                         builder: null!,
-                        configure: (Func<IDiPostSetupContext, ValueTask>)(_ => default)))!;
+                        configure: _ => default))!;
             Assert.That(ex.ParamName, Is.EqualTo("builder"));
         }
 
@@ -100,11 +100,11 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; });
+                .AddServer(o => o.ApplicationName = "test");
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
                 () => serverBuilder.ConfigureDevicesFor<DiNodeManager>(
-                    (Func<IDiPostSetupContext, ValueTask>)null!))!;
+                    null!))!;
             Assert.That(ex.ParamName, Is.EqualTo("configure"));
         }
 
@@ -116,11 +116,11 @@ namespace Opc.Ua.Di.Tests
             // for the configurator pipeline to be reachable.
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .ConfigureDevicesFor<DiNodeManager>(_ => { });
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var runner = provider.GetService<IDiPostSetupRunner>();
+            IDiPostSetupRunner? runner = provider.GetService<IDiPostSetupRunner>();
 
             Assert.That(runner, Is.Not.Null);
             Assert.That(runner, Is.InstanceOf<DiPostSetupRunner>());
@@ -134,7 +134,7 @@ namespace Opc.Ua.Di.Tests
             // hosted-service graph returns the canonical implementation.
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .AddOpcUaDi();
 
             ServiceProvider provider = services.BuildServiceProvider();
@@ -153,8 +153,8 @@ namespace Opc.Ua.Di.Tests
             IServiceCollection services = new ServiceCollection();
             bool ran = false;
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
-                .ConfigureDevicesFor<DiNodeManager>(_ => { ran = true; });
+                .AddServer(o => o.ApplicationName = "test")
+                .ConfigureDevicesFor<DiNodeManager>(_ => ran = true);
 
             ServiceProvider provider = services.BuildServiceProvider();
             IDiPostSetupConfigurator configurator =
@@ -174,10 +174,10 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .ConfigureDevicesFor<DiNodeManager>(_ => { })
-                .ConfigureDevicesFor<DiNodeManager>((Func<IDiPostSetupContext, ValueTask>)
-                    (_ => default))
+                .ConfigureDevicesFor<DiNodeManager>(
+                    _ => default)
                 .ConfigureDevicesFor<DiNodeManager>(_ => { });
 
             ServiceProvider provider = services.BuildServiceProvider();
@@ -204,30 +204,40 @@ namespace Opc.Ua.Di.Tests
             public System.Threading.CancellationToken CancellationToken => default;
 
             public T GetRequiredService<T>() where T : notnull
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
 
-            public ValueTask<Opc.Ua.Di.Server.Builders.IDeviceBuilder<DeviceState>> CreateDeviceAsync(
+            public ValueTask<Server.Builders.IDeviceBuilder<DeviceState>> CreateDeviceAsync(
                 QualifiedName browseName,
                 NodeState? parent = null)
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
 
-            public ValueTask<Opc.Ua.Di.Server.Builders.IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
+            public ValueTask<Server.Builders.IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
                 QualifiedName browseName,
                 NodeId typeDefinitionId,
                 Func<NodeState, TDevice> factory,
                 NodeState? parent = null)
                 where TDevice : ComponentState
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
 
-            public Opc.Ua.Di.Server.Builders.IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId)
+            public Server.Builders.IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId)
                 where TDevice : ComponentState
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
 
-            public Opc.Ua.Di.Server.Builders.IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
+            public Server.Builders.IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
                 QualifiedName browseName,
                 NodeState? parent = null)
                 where TDevice : ComponentState
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

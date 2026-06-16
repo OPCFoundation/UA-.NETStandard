@@ -108,7 +108,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(phases, Is.EqualTo(new[]
             {
                 SoftwareUpdatePhase.Started,
-                SoftwareUpdatePhase.Completed,
+                SoftwareUpdatePhase.Completed
             }));
             Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Idle"),
                 "Installation FSM must return to Idle on success.");
@@ -143,7 +143,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(phases, Is.EqualTo(new[]
             {
                 SoftwareUpdatePhase.Started,
-                SoftwareUpdatePhase.Failed,
+                SoftwareUpdatePhase.Failed
             }));
             Assert.That(messages[0], Is.EqualTo(string.Empty),
                 "Started phase has no message.");
@@ -177,7 +177,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(phases, Is.EqualTo(new[]
             {
                 SoftwareUpdatePhase.Started,
-                SoftwareUpdatePhase.Completed,
+                SoftwareUpdatePhase.Completed
             }));
             Assert.That(prep.CurrentState!.Value.Text, Is.EqualTo("PreparedForUpdate"));
             Assert.That(prep.LastTransition!.Value.Text,
@@ -260,7 +260,7 @@ namespace Opc.Ua.Di.Tests
                 new Variant(manufacturerUri),
                 new Variant(softwareRevision),
                 new Variant(Array.Empty<string>()),
-                new Variant(Array.Empty<byte>()),
+                new Variant(Array.Empty<byte>())
             });
             return InvokeMethodAsync(install.InstallSoftwarePackage!, objectId, inputs);
         }

@@ -63,9 +63,11 @@ namespace Opc.Ua.Fuzzing
 #pragma warning disable CA2000
                 // Ownership of source transfers to MockClientReplay. TODO: replace once replay exposes a sync fuzz tick.
                 ReplayCaptureSource source = CreateReplaySource(input, serverFrame: false);
-                var replay = new MockClientReplay(source, "opc.tcp://127.0.0.1:4840");
+                var replay = new MockClientReplay(source, "opc.tcp://127.0.0.1:4840")
+                {
 #pragma warning restore CA2000
-                replay.Speed = 1000;
+                    Speed = 1000
+                };
                 Complete(replay.DisposeAsync());
             }
             catch (Exception ex) when (IsExpected(ex))

@@ -89,4 +89,3 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             CancellationToken ct = default);
     }
 }
-

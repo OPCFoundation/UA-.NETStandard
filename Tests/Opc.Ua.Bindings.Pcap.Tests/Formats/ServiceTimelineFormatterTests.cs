@@ -58,15 +58,15 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         {
             var formatter = new ServiceTimelineFormatter();
             // Frames present but no key material → must fail per contract.
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     DateTimeOffset.UtcNow,
                     CaptureFrameDirection.ClientToServer,
                     string.Empty,
                     string.Empty,
-                    new byte[] { 0x48, 0x45, 0x4C, 0x46 })
-            };
+                    "HELF"u8.ToArray())
+            ];
             using var source = new InMemoryCaptureSource(frames);
 
             Assert.That(
@@ -106,23 +106,23 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
             // key material to produce a completed call. 16-byte chunk =
             // 4 byte type marker + 4 byte length + 4 byte channelId
             // + 4 byte tokenId.
-            byte[] open = new byte[]
-            {
+            byte[] open =
+            [
                 0x4F, 0x50, 0x4E, 0x46, // "OPNF" (TcpMessageType.Open + Final)
                 0x10, 0x00, 0x00, 0x00, // length = 16
                 0xAA, 0xBB, 0xCC, 0xDD, // channelId
                 0x11, 0x22, 0x33, 0x44  // tokenId
-            };
+            ];
 
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     new DateTimeOffset(2026, 5, 6, 7, 8, 9, TimeSpan.Zero),
                     CaptureFrameDirection.ClientToServer,
                     string.Empty,
                     string.Empty,
                     open)
-            };
+            ];
             await using var source = new InMemoryCaptureSource(
                 frames,
                 materials: new[] { material });

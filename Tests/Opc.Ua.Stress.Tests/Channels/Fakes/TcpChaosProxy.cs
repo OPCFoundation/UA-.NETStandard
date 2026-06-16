@@ -443,8 +443,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
 
         private static bool IsExpectedSocketClose(Exception ex)
         {
-            return ex is IOException || ex is ObjectDisposedException ||
-                ex is SocketException || ex is OperationCanceledException;
+            return ex is IOException or ObjectDisposedException or
+                SocketException or OperationCanceledException;
         }
 
         private bool IsDisposed => Volatile.Read(ref m_disposed) != 0;

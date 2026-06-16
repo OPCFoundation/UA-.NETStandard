@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             CallMethodRequest captured = await CaptureCallAsync(
                 _ => m_client.AddCommentAsync(
                     m_conditionId,
-                    new ByteString(new byte[] { 9 }),
+                    new ByteString("\t"u8.ToArray()),
                     new LocalizedText("en", "note"))).ConfigureAwait(false);
 
             Assert.That(captured.ObjectId, Is.EqualTo(m_conditionId));

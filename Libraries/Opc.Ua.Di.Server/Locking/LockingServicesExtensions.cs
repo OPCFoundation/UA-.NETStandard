@@ -57,6 +57,7 @@ namespace Opc.Ua.Di.Server.Locking
         /// dictionary key inside the service.
         /// </param>
         /// <param name="service">The lock service instance.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="lockState"/> is <c>null</c>.</exception>
         public static void BindToLockService(
             this LockingServicesState lockState,
             NodeId elementId,

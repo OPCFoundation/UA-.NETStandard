@@ -82,6 +82,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Supplies hosted-GDS certificate defaults to the default issuer.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public void Initialize(ApplicationConfiguration configuration)
         {
             if (configuration == null)

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -85,7 +86,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             File.WriteAllText(path, string.Empty, Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();
-            var materials = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> materials = await PcapTestHelpers.ToListAsync(
                 reader.ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(materials, Is.Empty);
@@ -103,7 +104,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
                 Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();
-            var materials = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> materials = await PcapTestHelpers.ToListAsync(
                 reader.ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(materials, Is.Empty);
@@ -208,7 +209,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             File.WriteAllText(path, line + "\n", Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();
-            var materials = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> materials = await PcapTestHelpers.ToListAsync(
                 reader.ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(materials, Has.Count.EqualTo(1));

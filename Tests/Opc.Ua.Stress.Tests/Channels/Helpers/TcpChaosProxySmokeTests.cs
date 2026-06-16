@@ -221,7 +221,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 0,
                 buffer.Length,
                 CancellationToken.None).AsTask();
-            Task timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
             Task completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
             if (!ReferenceEquals(completedTask, readTask))
             {

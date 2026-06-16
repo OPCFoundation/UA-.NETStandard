@@ -61,6 +61,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Thrown when the supplied node does not expose the two
         /// expected child methods.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="registrar"/> is <c>null</c>.</exception>
         public static void BindToTicketStore(
             this BaseObjectState registrar,
             ITicketStore store)
@@ -126,7 +127,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 catch (Exception ex)
                 {
-                    results[i] = (int)(uint)new ServiceResult(ex).StatusCode.Code;
+                    results[i] = (int)new ServiceResult(ex).StatusCode.Code;
                 }
             }
 
@@ -159,7 +160,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 catch (Exception ex)
                 {
-                    results[i] = (int)(uint)new ServiceResult(ex).StatusCode.Code;
+                    results[i] = (int)new ServiceResult(ex).StatusCode.Code;
                 }
             }
 
@@ -175,8 +176,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 byte[][] arr => arr,
                 ByteString[] bs => Array.ConvertAll(bs, b => b.ToArray()),
                 ArrayOf<ByteString> abs => abs.ToArray()
-                    is { } abu ? Array.ConvertAll(abu, b => b.ToArray()) : Array.Empty<byte[]>(),
-                _ => Array.Empty<byte[]>()
+                    is { } abu ? Array.ConvertAll(abu, b => b.ToArray()) : [],
+                _ => []
             };
         }
 
@@ -187,7 +188,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             byte[] hash = System.Security.Cryptography.SHA256.HashData(ticket);
 #else
             byte[] hash;
-            using (System.Security.Cryptography.SHA256 sha =
+            using (var sha =
                 System.Security.Cryptography.SHA256.Create())
             {
                 hash = sha.ComputeHash(ticket);
@@ -205,7 +206,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private static MethodState? FindMethodChild(
             BaseObjectState parent, string browseName)
         {
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
             parent.GetChildren(context: null!, children);
             foreach (BaseInstanceState child in children)
             {

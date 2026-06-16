@@ -92,6 +92,7 @@ namespace Opc.Ua.Identity
         /// Creates a provider by UTF-8 encoding a compact JWT string,
         /// using the supplied <see cref="TimeProvider"/> for expiry checks.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="jwt"/> is <c>null</c>.</exception>
         public static JwtBearerAccessTokenProvider FromJwtString(
             string authorityUri,
             string jwt,

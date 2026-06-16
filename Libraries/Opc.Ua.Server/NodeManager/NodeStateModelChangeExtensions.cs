@@ -97,6 +97,7 @@ namespace Opc.Ua.Server.NodeManager
         /// installed by <see cref="EnableModelChangeTracking"/> does not
         /// echo the change as a <c>BaseModelChangeEvent</c>.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="node"/> is <c>null</c>.</exception>
         public static void BumpNodeVersion(this NodeState node, ISystemContext context)
         {
             if (node == null)
@@ -111,8 +112,8 @@ namespace Opc.Ua.Server.NodeManager
             }
 
             ulong current = 0;
-            if (!string.IsNullOrEmpty(nodeVersion.Value)
-                && !ulong.TryParse(nodeVersion.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out current))
+            if (!string.IsNullOrEmpty(nodeVersion.Value) &&
+                !ulong.TryParse(nodeVersion.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out current))
             {
                 current = 0;
             }
@@ -166,6 +167,7 @@ namespace Opc.Ua.Server.NodeManager
         /// The existing or newly attached NodeVersion property. Always
         /// non-null.
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="node"/> is <c>null</c>.</exception>
         public static PropertyState<string> EnableModelChangeTracking(
             this NodeState node,
             ushort namespaceIndex,
@@ -208,8 +210,8 @@ namespace Opc.Ua.Server.NodeManager
                     ref statusCode,
                     ref timestamp) =>
                 {
-                    if (target is PropertyState<string> property
-                        && value.TryGetValue(out string? newValue))
+                    if (target is PropertyState<string> property &&
+                        value.TryGetValue(out string? newValue))
                     {
                         property.Value = newValue;
                     }

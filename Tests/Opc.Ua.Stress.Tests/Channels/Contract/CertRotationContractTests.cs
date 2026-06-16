@@ -35,9 +35,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
-using Opc.Ua.Security.Certificates;
 
 // CA2000: contract-test disposables are released by test cleanup paths.
 // CA2007: NUnit invokes test code without requiring ConfigureAwait on framework calls.

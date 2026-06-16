@@ -166,6 +166,7 @@ namespace Opc.Ua
         /// <paramref name="passwordBytes"/> (if non-null/non-empty)
         /// under <see cref="kDefaultSecretName"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static (ISecretRegistry registry, SecretIdentifier id) CreateInMemoryRegistry(
             byte[]? passwordBytes)
         {

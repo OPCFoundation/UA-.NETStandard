@@ -60,7 +60,7 @@ namespace Opc.Ua.Lds.Server
         /// Creates a new LDS server.
         /// </summary>
         /// <param name="telemetry">Telemetry context for logging.</param>
-        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> used by the
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
         /// registered-server store for prune scheduling and registration timestamps.
         /// Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public LdsServer(ITelemetryContext telemetry = null, TimeProvider timeProvider = null)

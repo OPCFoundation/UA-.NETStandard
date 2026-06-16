@@ -41,7 +41,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         [Test]
         public void CreateDefaultAdvertisesEveryBuiltInFormat()
         {
-            TraceFormatterRegistry registry = TraceFormatterRegistry.CreateDefault();
+            var registry = TraceFormatterRegistry.CreateDefault();
 
             Assert.That(registry.Available, Is.EquivalentTo(new[]
             {
@@ -62,7 +62,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         [TestCase(FormatKind.ServiceTimeline, typeof(ServiceTimelineFormatter))]
         public void GetReturnsConcreteFormatterMatchingKind(FormatKind kind, Type expectedType)
         {
-            TraceFormatterRegistry registry = TraceFormatterRegistry.CreateDefault();
+            var registry = TraceFormatterRegistry.CreateDefault();
 
             ITraceFormatter formatter = registry.Get(kind);
 

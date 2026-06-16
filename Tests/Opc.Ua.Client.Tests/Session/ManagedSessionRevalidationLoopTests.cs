@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             // Use a longer debounce so we can reliably cancel while
             // the loop is still inside Delay.
-            TimeSpan debounce = TimeSpan.FromSeconds(2);
+            var debounce = TimeSpan.FromSeconds(2);
 
             var cts = new CancellationTokenSource();
             Task loop = ManagedSessionClass.RunRevalidationLoopAsync(

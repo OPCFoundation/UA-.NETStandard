@@ -82,6 +82,9 @@ namespace Opc.Ua.Di.Client
         /// <returns>
         /// The number of payload bytes uploaded.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public async ValueTask<long> UploadPackageAsync(
             Stream payload,
             string? suggestedPackageId = null,
@@ -181,6 +184,7 @@ namespace Opc.Ua.Di.Client
         /// <summary>
         /// Convenience overload that uploads a byte buffer.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<long> UploadPackageAsync(
             byte[] payload,
             string? suggestedPackageId = null,
@@ -201,9 +205,9 @@ namespace Opc.Ua.Di.Client
         private async ValueTask<(NodeId FileTransfer, NodeId GenerateForWrite, NodeId CloseAndCommit)>
             ResolveFileTransferMethodsAsync(CancellationToken ct)
         {
-            if (m_cachedFileTransferNodeId is { } cachedFt
-                && m_cachedGenerateFileForWriteNodeId is { } cachedGen
-                && m_cachedCloseAndCommitNodeId is { } cachedCmt)
+            if (m_cachedFileTransferNodeId is { } cachedFt &&
+                m_cachedGenerateFileForWriteNodeId is { } cachedGen &&
+                m_cachedCloseAndCommitNodeId is { } cachedCmt)
             {
                 return (cachedFt, cachedGen, cachedCmt);
             }
@@ -271,7 +275,7 @@ namespace Opc.Ua.Di.Client
                         IsInverse = false,
                         IncludeSubtypes = true,
                         TargetName = new QualifiedName("CloseAndCommit")
-                    }),
+                    })
             });
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
@@ -298,7 +302,7 @@ namespace Opc.Ua.Di.Client
             {
                 MakeBrowsePathFromFile(fileNodeId, "Open"),
                 MakeBrowsePathFromFile(fileNodeId, "Write"),
-                MakeBrowsePathFromFile(fileNodeId, "Close"),
+                MakeBrowsePathFromFile(fileNodeId, "Close")
             });
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
@@ -327,7 +331,7 @@ namespace Opc.Ua.Di.Client
                     {
                         ObjectId = fileTransferId,
                         MethodId = methodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { generateOptions }),
+                        InputArguments = ArrayOf.Wrapped(new[] { generateOptions })
                     }
                 }),
                 ct).ConfigureAwait(false);
@@ -364,14 +368,14 @@ namespace Opc.Ua.Di.Client
                     {
                         ObjectId = fileNodeId,
                         MethodId = openMethodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(mode) }),
+                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(mode) })
                     }
                 }),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "FileState.Open");
-            if (result.OutputArguments.Count < 1
-                || !result.OutputArguments[0].TryGetValue(out uint handle))
+            if (result.OutputArguments.Count < 1 ||
+                !result.OutputArguments[0].TryGetValue(out uint handle))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -395,8 +399,8 @@ namespace Opc.Ua.Di.Client
                         InputArguments = ArrayOf.Wrapped(new[]
                         {
                             new Variant(fileHandle),
-                            new Variant(ByteString.From(data)),
-                        }),
+                            new Variant(ByteString.From(data))
+                        })
                     }
                 }),
                 ct).ConfigureAwait(false);
@@ -416,7 +420,7 @@ namespace Opc.Ua.Di.Client
                     {
                         ObjectId = fileNodeId,
                         MethodId = closeMethodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(fileHandle) }),
+                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(fileHandle) })
                     }
                 }),
                 ct).ConfigureAwait(false);
@@ -436,14 +440,14 @@ namespace Opc.Ua.Di.Client
                     {
                         ObjectId = fileTransferId,
                         MethodId = methodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(commitHandle) }),
+                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(commitHandle) })
                     }
                 }),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "CloseAndCommit");
-            if (result.OutputArguments.Count < 1
-                || !result.OutputArguments[0].TryGetValue(out NodeId completion))
+            if (result.OutputArguments.Count < 1 ||
+                !result.OutputArguments[0].TryGetValue(out NodeId completion))
             {
                 return NodeId.Null;
             }

@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Models;
 using SharpPcap.LibPcap;
 

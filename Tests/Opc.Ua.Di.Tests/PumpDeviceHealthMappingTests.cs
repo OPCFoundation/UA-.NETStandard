@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.Di;
 using Pumps;
 
 namespace Opc.Ua.Di.Tests

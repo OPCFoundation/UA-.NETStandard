@@ -64,6 +64,7 @@ namespace Quickstarts
         /// <param name="session">An active managed session.</param>
         /// <param name="durationMs">How long to listen for alarms.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public async Task SubscribeToAlarmsAsync(
             ManagedSession session,
             int durationMs,
@@ -100,6 +101,7 @@ namespace Quickstarts
         /// Demonstrates acknowledging an alarm by EventId after waiting
         /// for an active record using the TakeUntilAsync helper.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public async Task WaitForAndAcknowledgeAsync(
             ManagedSession session,
             NodeId conditionId,
@@ -148,6 +150,7 @@ namespace Quickstarts
         /// <summary>
         /// Demonstrates calling shelving methods on an alarm.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public async Task ShelveAlarmAsync(
             ManagedSession session,
             NodeId conditionId,
