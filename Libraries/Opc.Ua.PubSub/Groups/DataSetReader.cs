@@ -137,7 +137,12 @@ namespace Opc.Ua.PubSub.Groups
 
         /// <summary>
         /// Returns <see langword="true"/> if the message identity tuple
-        /// matches the reader's filter.
+        /// matches the reader's filter. Filters checked in order:
+        /// <c>DataSetWriterId</c>, <c>WriterGroupId</c>,
+        /// <c>PublisherId</c> and — per Part 14 §6.2.7.1 / §6.2.9 —
+        /// the reader's <c>DataSetMetaData.DataSetClassId</c> when it
+        /// is non-empty: it must match the inbound network message's
+        /// <c>DataSetClassId</c>.
         /// </summary>
         /// <param name="networkMessage">Inbound network message.</param>
         /// <param name="dataSetMessage">Inbound dataset message.</param>
@@ -164,7 +169,26 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
+            Uuid expectedClassId = Configuration.DataSetMetaData?.DataSetClassId ?? Uuid.Empty;
+            if (expectedClassId != Uuid.Empty)
+            {
+                Uuid messageClassId = ExtractDataSetClassId(networkMessage);
+                if (messageClassId == Uuid.Empty || messageClassId != expectedClassId)
+                {
+                    return false;
+                }
+            }
             return true;
+        }
+
+        private static Uuid ExtractDataSetClassId(PubSubNetworkMessage networkMessage)
+        {
+            return networkMessage switch
+            {
+                Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp => uadp.DataSetClassId,
+                Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage json => json.DataSetClassId,
+                _ => Uuid.Empty
+            };
         }
 
         /// <summary>

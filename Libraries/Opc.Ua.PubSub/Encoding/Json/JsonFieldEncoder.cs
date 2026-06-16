@@ -62,12 +62,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// names when a <see cref="DataSetField"/> omits its name.</param>
         /// <param name="mode">Encoding mode for the network message.</param>
         /// <param name="context">Stack message context.</param>
+        /// <param name="fieldContentMask">Per-field content mask honoured
+        /// when a field is emitted via the <c>DataValue</c> envelope.
+        /// Defaults to <see cref="DataSetFieldContentMask.None"/> for
+        /// backward compatibility (every member emitted).</param>
         public static void EncodeFields(
             Utf8JsonWriter writer,
             IReadOnlyList<DataSetField> fields,
             DataSetMetaDataType? metaData,
             JsonEncodingMode mode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            DataSetFieldContentMask fieldContentMask = DataSetFieldContentMask.None)
         {
             if (writer is null)
             {
@@ -87,7 +92,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 DataSetField field = fields[i];
                 string name = ResolveFieldName(field, metaData, i);
-                WriteOneField(writer, name, field, mode, context);
+                WriteOneField(writer, name, field, mode, context, fieldContentMask);
             }
             writer.WriteEndObject();
         }
@@ -131,12 +136,15 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="field">Source field.</param>
         /// <param name="mode">Encoding mode.</param>
         /// <param name="context">Stack message context.</param>
+        /// <param name="fieldContentMask">Per-field content mask honoured
+        /// when the field is emitted as a <c>DataValue</c> envelope.</param>
         private static void WriteOneField(
             Utf8JsonWriter writer,
             string propertyName,
             DataSetField field,
             JsonEncodingMode mode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            DataSetFieldContentMask fieldContentMask)
         {
             switch (field.Encoding)
             {
@@ -149,11 +157,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         context);
                     break;
                 case PubSubFieldEncoding.DataValue:
-                    DataValue dv = new(
-                        field.Value,
-                        field.StatusCode,
-                        field.SourceTimestamp,
-                        DateTimeUtc.MinValue);
+                    DataValue dv = BuildDataValue(field, fieldContentMask);
                     JsonVariantEncoder.WriteDataValueProperty(
                         writer,
                         propertyName,
@@ -171,6 +175,51 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         context);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Builds the <see cref="DataValue"/> envelope serialised for one
+        /// field. When <paramref name="mask"/> is
+        /// <see cref="DataSetFieldContentMask.None"/> every populated
+        /// envelope member from the field is preserved (backward-compatible
+        /// behaviour). Otherwise only the members whose mask bit is set
+        /// flow into the result; the rest are reset to defaults so the
+        /// underlying JSON writer omits them via standard
+        /// <c>DataValue</c> reversible encoding rules.
+        /// </summary>
+        /// <param name="field">Source field.</param>
+        /// <param name="mask">Per-field content mask from the writer.</param>
+        /// <returns>The <see cref="DataValue"/> to serialise.</returns>
+        private static DataValue BuildDataValue(
+            DataSetField field, DataSetFieldContentMask mask)
+        {
+            if (mask == DataSetFieldContentMask.None)
+            {
+                return new DataValue(
+                    field.Value,
+                    field.StatusCode,
+                    field.SourceTimestamp,
+                    field.ServerTimestamp,
+                    field.SourcePicoSeconds,
+                    field.ServerPicoSeconds);
+            }
+            StatusCode statusCode = (mask & DataSetFieldContentMask.StatusCode) != 0
+                ? field.StatusCode : default;
+            DateTimeUtc sourceTimestamp = (mask & DataSetFieldContentMask.SourceTimestamp) != 0
+                ? field.SourceTimestamp : default;
+            ushort sourcePico = (mask & DataSetFieldContentMask.SourcePicoSeconds) != 0
+                ? field.SourcePicoSeconds : (ushort)0;
+            DateTimeUtc serverTimestamp = (mask & DataSetFieldContentMask.ServerTimestamp) != 0
+                ? field.ServerTimestamp : default;
+            ushort serverPico = (mask & DataSetFieldContentMask.ServerPicoSeconds) != 0
+                ? field.ServerPicoSeconds : (ushort)0;
+            return new DataValue(
+                field.Value,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                sourcePico,
+                serverPico);
         }
     }
 }

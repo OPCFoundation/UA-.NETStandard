@@ -70,6 +70,12 @@ namespace Opc.Ua.PubSub.Server.Internal
             new(PubSubDiagnosticsCounterKind.StateDisabledByMethod, new NodeId((uint)17451))
         ];
 
+        /// <summary>
+        /// Number of counter NodeIds that are bound by the status binding.
+        /// Exposed for testing purposes.
+        /// </summary>
+        public static int CounterNodeIdCount => s_counterNodeIds.Length;
+
         private readonly IPubSubApplication m_application;
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly IDiagnosticsNodeManager m_diagnosticsNodeManager;

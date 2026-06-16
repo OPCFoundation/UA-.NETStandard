@@ -272,7 +272,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 dsm.Fields,
                 metaData,
                 Mode,
-                context.MessageContext);
+                context.MessageContext,
+                dsm.FieldContentMask);
         }
 
         /// <summary>

@@ -72,5 +72,24 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// of DataSetFlags1 (Variant / RawData / DataValue).
         /// </summary>
         public PubSubFieldEncoding FieldEncoding { get; init; } = PubSubFieldEncoding.Variant;
+
+        /// <summary>
+        /// Per-field content mask honoured when
+        /// <see cref="FieldEncoding"/> is
+        /// <see cref="PubSubFieldEncoding.DataValue"/>. The encoder
+        /// suppresses any <c>DataValue</c> member whose corresponding
+        /// bit is not set; the decoder populates the matching
+        /// <see cref="DataSetField"/> properties only for set bits.
+        /// </summary>
+        /// <remarks>
+        /// Implements the per-field selector of
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.3.1.3">
+        /// Part 14 §6.3.1.3 DataSetFieldContentMask</see>. The default
+        /// <see cref="DataSetFieldContentMask.None"/> preserves
+        /// pre-Phase-15 behaviour (all four <c>DataValue</c> members
+        /// emitted unconditionally).
+        /// </remarks>
+        public DataSetFieldContentMask FieldContentMask { get; init; }
+            = DataSetFieldContentMask.None;
     }
 }

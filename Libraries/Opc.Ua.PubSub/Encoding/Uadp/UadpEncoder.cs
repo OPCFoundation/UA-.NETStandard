@@ -586,7 +586,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpFieldEncoder.EncodeFields(
                 ref writer, message.Fields, message.FieldEncoding,
                 message.MessageType,
-                ResolveMetaData(message, parent, context), context.MessageContext);
+                ResolveMetaData(message, parent, context), context.MessageContext,
+                message.FieldContentMask);
 
             ApplyConfiguredSize(ref writer, message, payloadStart);
         }

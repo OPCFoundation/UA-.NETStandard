@@ -297,12 +297,17 @@ namespace Opc.Ua.PubSub.Groups
             }
             else
             {
+                DeadbandDescriptor[]? deadbands = GetDeadbandDescriptors(
+                    writer.PublishedDataSet);
                 var delta = new List<DataSetField>();
                 IReadOnlyList<DataSetField> previous = runtime.LastSnapshot.Fields;
                 int min = Math.Min(previous.Count, snapshot.Fields.Count);
                 for (int i = 0; i < min; i++)
                 {
-                    if (!FieldEquals(previous[i], snapshot.Fields[i]))
+                    DeadbandDescriptor descriptor = deadbands is not null && i < deadbands.Length
+                        ? deadbands[i]
+                        : default;
+                    if (FieldChanged(previous[i], snapshot.Fields[i], descriptor))
                     {
                         delta.Add(snapshot.Fields[i]);
                     }
@@ -329,7 +334,8 @@ namespace Opc.Ua.PubSub.Groups
                     Timestamp = now,
                     MetaDataVersion = snapshot.MetaDataVersion,
                     MessageType = messageType,
-                    Fields = fields
+                    Fields = fields,
+                    FieldContentMask = writer.FieldContentMask
                 };
             }
 
@@ -341,7 +347,8 @@ namespace Opc.Ua.PubSub.Groups
                 MetaDataVersion = snapshot.MetaDataVersion,
                 MessageType = messageType,
                 Fields = fields,
-                FieldEncoding = PubSubFieldEncoding.Variant
+                FieldEncoding = PubSubFieldEncoding.Variant,
+                FieldContentMask = writer.FieldContentMask
             };
         }
 
@@ -409,7 +416,8 @@ namespace Opc.Ua.PubSub.Groups
                     Timestamp = now,
                     MetaDataVersion = metaDataVersion,
                     MessageType = PubSubDataSetMessageType.KeepAlive,
-                    Fields = []
+                    Fields = [],
+                    FieldContentMask = writer.FieldContentMask
                 };
             }
 
@@ -421,7 +429,8 @@ namespace Opc.Ua.PubSub.Groups
                 MetaDataVersion = metaDataVersion,
                 MessageType = PubSubDataSetMessageType.KeepAlive,
                 Fields = [],
-                FieldEncoding = PubSubFieldEncoding.Variant
+                FieldEncoding = PubSubFieldEncoding.Variant,
+                FieldContentMask = writer.FieldContentMask
             };
         }
 
@@ -436,15 +445,50 @@ namespace Opc.Ua.PubSub.Groups
             return elapsed >= Schedule.KeepAliveTime;
         }
 
-        private static bool FieldEquals(DataSetField a, DataSetField b)
+        private static bool FieldChanged(
+            DataSetField a, DataSetField b, DeadbandDescriptor deadband)
         {
             if (ReferenceEquals(a, b))
             {
+                return false;
+            }
+            if (!string.Equals(a.Name, b.Name, StringComparison.Ordinal))
+            {
                 return true;
             }
-            return string.Equals(a.Name, b.Name, StringComparison.Ordinal)
-                && a.Value.Equals(b.Value)
-                && a.StatusCode.Equals(b.StatusCode);
+            return DeadbandFilter.PassesFilter(a, b, deadband);
+        }
+
+        private static DeadbandDescriptor[]? GetDeadbandDescriptors(
+            IPublishedDataSet publishedDataSet)
+        {
+            if (publishedDataSet is not PublishedDataSet concrete)
+            {
+                return null;
+            }
+            ExtensionObject src = concrete.Configuration.DataSetSource;
+            if (src.IsNull
+                || !src.TryGetValue(out PublishedDataItemsDataType? items)
+                || items is null
+                || items.PublishedData.IsNull)
+            {
+                return null;
+            }
+            var result = new DeadbandDescriptor[items.PublishedData.Count];
+            for (int i = 0; i < items.PublishedData.Count; i++)
+            {
+                PublishedVariableDataType pv = items.PublishedData[i];
+                if (pv is null)
+                {
+                    result[i] = default;
+                    continue;
+                }
+                result[i] = new DeadbandDescriptor(
+                    (DeadbandType)pv.DeadbandType,
+                    pv.DeadbandValue,
+                    null);
+            }
+            return result;
         }
 
         /// <inheritdoc/>

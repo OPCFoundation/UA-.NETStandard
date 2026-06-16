@@ -59,13 +59,19 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// scalar/array layout; may be <c>null</c> for Variant / DataValue
         /// encodings.</param>
         /// <param name="context">Stack service message context.</param>
+        /// <param name="fieldContentMask">Per-field content mask honoured
+        /// when <paramref name="encoding"/> is
+        /// <see cref="PubSubFieldEncoding.DataValue"/>. Defaults to
+        /// <see cref="DataSetFieldContentMask.None"/> for backward
+        /// compatibility (all members emitted).</param>
         public static void EncodeFields(
             ref UadpBinaryWriter writer,
             IReadOnlyList<DataSetField> fields,
             PubSubFieldEncoding encoding,
             PubSubDataSetMessageType messageType,
             DataSetMetaDataType? metaData,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            DataSetFieldContentMask fieldContentMask = DataSetFieldContentMask.None)
         {
             if (fields is null)
             {
@@ -83,11 +89,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             if (messageType == PubSubDataSetMessageType.DeltaFrame)
             {
-                EncodeDeltaFrame(ref writer, fields, encoding, metaData, context);
+                EncodeDeltaFrame(
+                    ref writer, fields, encoding, metaData, context, fieldContentMask);
                 return;
             }
 
-            EncodeKeyOrEventFrame(ref writer, fields, encoding, metaData, context);
+            EncodeKeyOrEventFrame(
+                ref writer, fields, encoding, metaData, context, fieldContentMask);
         }
 
         private static void EncodeKeyOrEventFrame(
@@ -95,7 +103,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IReadOnlyList<DataSetField> fields,
             PubSubFieldEncoding encoding,
             DataSetMetaDataType? metaData,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            DataSetFieldContentMask fieldContentMask)
         {
             switch (encoding)
             {
@@ -110,9 +119,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     writer.WriteUInt16Le((ushort)fields.Count);
                     for (int i = 0; i < fields.Count; i++)
                     {
-                        DataSetField field = fields[i];
-                        var dv = new DataValue(
-                            field.Value, field.StatusCode, field.SourceTimestamp);
+                        DataValue dv = BuildDataValue(fields[i], fieldContentMask);
                         writer.WriteDataValue(dv, context);
                     }
                     break;
@@ -135,7 +142,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IReadOnlyList<DataSetField> fields,
             PubSubFieldEncoding encoding,
             DataSetMetaDataType? metaData,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            DataSetFieldContentMask fieldContentMask)
         {
             writer.WriteUInt16Le((ushort)fields.Count);
             for (int i = 0; i < fields.Count; i++)
@@ -149,8 +157,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         writer.WriteVariant(field.Value, context);
                         break;
                     case PubSubFieldEncoding.DataValue:
-                        var dv = new DataValue(
-                            field.Value, field.StatusCode, field.SourceTimestamp);
+                        DataValue dv = BuildDataValue(field, fieldContentMask);
                         writer.WriteDataValue(dv, context);
                         break;
                     case PubSubFieldEncoding.RawData:
@@ -174,6 +181,57 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                             $"Unsupported PubSubFieldEncoding {encoding}.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Builds the <see cref="DataValue"/> emitted for one field. When
+        /// <paramref name="mask"/> is
+        /// <see cref="DataSetFieldContentMask.None"/> every populated
+        /// envelope member from the field is preserved (backward-compatible
+        /// behaviour). Otherwise only the members whose mask bit is set
+        /// flow into the resulting <see cref="DataValue"/>; the rest are
+        /// reset to defaults so the underlying
+        /// <c>BinaryEncoder.WriteDataValue</c> omits them via its
+        /// encoding-mask byte.
+        /// </summary>
+        /// <param name="field">Source field.</param>
+        /// <param name="mask">Per-field content mask from the writer.</param>
+        /// <returns>The <see cref="DataValue"/> to serialise.</returns>
+        private static DataValue BuildDataValue(
+            DataSetField field, DataSetFieldContentMask mask)
+        {
+            if (mask == DataSetFieldContentMask.None)
+            {
+                return new DataValue(
+                    field.Value,
+                    field.StatusCode,
+                    field.SourceTimestamp,
+                    field.ServerTimestamp,
+                    field.SourcePicoSeconds,
+                    field.ServerPicoSeconds);
+            }
+            StatusCode statusCode = (mask & DataSetFieldContentMask.StatusCode) != 0
+                ? field.StatusCode
+                : StatusCodes.Good;
+            DateTimeUtc sourceTimestamp = (mask & DataSetFieldContentMask.SourceTimestamp) != 0
+                ? field.SourceTimestamp
+                : DateTimeUtc.MinValue;
+            DateTimeUtc serverTimestamp = (mask & DataSetFieldContentMask.ServerTimestamp) != 0
+                ? field.ServerTimestamp
+                : DateTimeUtc.MinValue;
+            ushort sourcePico = (mask & DataSetFieldContentMask.SourcePicoSeconds) != 0
+                ? field.SourcePicoSeconds
+                : (ushort)0;
+            ushort serverPico = (mask & DataSetFieldContentMask.ServerPicoSeconds) != 0
+                ? field.ServerPicoSeconds
+                : (ushort)0;
+            return new DataValue(
+                field.Value,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                sourcePico,
+                serverPico);
         }
 
         private static void EncodeRawFields(

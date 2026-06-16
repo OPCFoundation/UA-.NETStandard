@@ -113,6 +113,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     Value = dv.WrappedValue,
                     StatusCode = dv.StatusCode,
                     SourceTimestamp = dv.SourceTimestamp,
+                    SourcePicoSeconds = dv.SourcePicoseconds,
+                    ServerTimestamp = dv.ServerTimestamp,
+                    ServerPicoSeconds = dv.ServerPicoseconds,
                     Encoding = PubSubFieldEncoding.DataValue
                 };
             }

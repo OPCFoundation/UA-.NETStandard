@@ -36,6 +36,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt.Internal;
 using Opc.Ua.PubSub.Transports;
 
@@ -77,7 +78,7 @@ namespace Opc.Ua.PubSub.Mqtt
     /// <see cref="MqttTopicOptions.RetainMetaDataMessages"/> is on.
     /// </para>
     /// </remarks>
-    public sealed class MqttBrokerTransport : IPubSubTransport
+    public sealed class MqttBrokerTransport : IPubSubTransport, IPubSubTopicProvider
     {
         private const string MetaDataTopicSegment = "/metadata/";
 
@@ -476,6 +477,36 @@ namespace Opc.Ua.PubSub.Mqtt
             handler?.Invoke(
                 this,
                 new PubSubTransportStateChangedEventArgs(isConnected, status, reason));
+        }
+
+        /// <summary>
+        /// Builds the per-DataSetWriter metadata topic for this
+        /// connection per Part 14 §7.3.4.7.4. The encoding segment is
+        /// chosen from <see cref="TransportProfileUri"/> so the same
+        /// MQTT broker transport works for both JSON and UADP MQTT
+        /// connections without further configuration.
+        /// </summary>
+        /// <param name="publisherId">PublisherId.</param>
+        /// <param name="writerGroupId">WriterGroupId.</param>
+        /// <param name="dataSetWriterId">DataSetWriterId.</param>
+        /// <returns>The constructed topic string.</returns>
+        public string BuildMetaDataTopic(
+            PublisherId publisherId,
+            ushort writerGroupId,
+            ushort dataSetWriterId)
+        {
+            MqttEncoding encoding = string.Equals(
+                m_transportProfileUri,
+                Profiles.PubSubMqttUadpTransport,
+                StringComparison.Ordinal)
+                ? MqttEncoding.Uadp
+                : MqttEncoding.Json;
+            return MqttTopicBuilder.BuildMetaDataTopic(
+                m_options.Topics.Prefix,
+                encoding,
+                publisherId.ToVariant(),
+                writerGroupId,
+                dataSetWriterId);
         }
 
         private static bool IsMetaDataTopic(string topic)

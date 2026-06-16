@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 
@@ -43,19 +44,12 @@ namespace Opc.Ua.PubSub.Server
     /// §9.1.10 and §8.3.1).
     /// </summary>
     /// <remarks>
+    /// Phase 17 implements the configuration-mutation entry-points
+    /// via the mutable <see cref="IPubSubApplication"/> surface.
     /// All entry-points adhere to the legacy synchronous
     /// <c>GenericMethodCalledEventHandler</c> contract; every async
     /// call is forwarded via <c>.AsTask().GetAwaiter().GetResult()</c>
-    /// — the single sanctioned sync-over-async bridge, matching the
-    /// rationale documented on
-    /// <see cref="SksMethodHandler.HandleGetSecurityKeys"/>.
-    /// Configuration-mutation entry-points return
-    /// <see cref="StatusCodes.BadNotImplemented"/> because the
-    /// Phase 9 <see cref="IPubSubApplication"/> runtime is
-    /// immutable: configuration is owned by the
-    /// <see cref="Configuration.IPubSubConfigurationStore"/> and the
-    /// host process must restart the application to apply a new
-    /// snapshot. The contract is documented per-method.
+    /// — the single sanctioned sync-over-async bridge.
     /// </remarks>
     internal sealed class PubSubMethodHandlers
     {
@@ -165,15 +159,181 @@ namespace Opc.Ua.PubSub.Server
         }
 
         /// <summary>
-        /// Implements Part 14 §9.1.3.4 <c>AddConnection</c>. Returns
-        /// <see cref="StatusCodes.BadNotImplemented"/> because the
-        /// Phase 9 runtime is immutable.
+        /// Implements Part 14 §9.1.3.4 <c>AddConnection</c>.
+        /// Delegates to
+        /// <see cref="IPubSubApplication.AddConnectionAsync"/>.
         /// </summary>
-        /// <param name="context">System context.</param>
-        /// <param name="method">Calling method node.</param>
-        /// <param name="inputArguments">Input arguments.</param>
-        /// <param name="outputArguments">Output arguments.</param>
         public ServiceResult OnAddConnection(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddConnection expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out ExtensionObject ext))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddConnection argument 0 is not an ExtensionObject."));
+            }
+            if (!ext.TryGetValue(out PubSubConnectionDataType? cfg) || cfg is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddConnection argument 0 body is not a PubSubConnectionDataType."));
+            }
+            try
+            {
+                NodeId id = m_application.AddConnectionAsync(cfg)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From(id));
+                return ServiceResult.Good;
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "AddConnection failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.3.5 <c>RemoveConnection</c>.
+        /// Delegates to
+        /// <see cref="IPubSubApplication.RemoveConnectionAsync"/>.
+        /// </summary>
+        public ServiceResult OnRemoveConnection(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveConnection expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
+                || connectionId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveConnection argument 0 is not a valid NodeId."));
+            }
+            try
+            {
+                m_application.RemoveConnectionAsync(connectionId)
+                    .AsTask().GetAwaiter().GetResult();
+                return ServiceResult.Good;
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "RemoveConnection failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6 <c>SetConfiguration</c>.
+        /// </summary>
+        public ServiceResult OnSetConfiguration(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("SetConfiguration expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out ExtensionObject ext))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("SetConfiguration argument 0 is not an ExtensionObject."));
+            }
+            if (!ext.TryGetValue(out PubSubConfigurationDataType? cfg) || cfg is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "SetConfiguration argument 0 body is not a PubSubConfigurationDataType."));
+            }
+            try
+            {
+                IList<StatusCode> results = m_application
+                    .ReplaceConfigurationAsync(cfg)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From([.. results]));
+                return ServiceResult.Good;
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "SetConfiguration failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6 <c>GetConfiguration</c>.
+        /// </summary>
+        public ServiceResult OnGetConfiguration(
             ISystemContext context,
             MethodState method,
             ArrayOf<Variant> inputArguments,
@@ -186,21 +346,28 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
-            outputArguments.Add(Variant.From(NodeId.Null));
-            return new ServiceResult(
-                StatusCodes.BadNotImplemented,
-                new LocalizedText("Runtime PubSub configuration mutation is not supported by the immutable Phase 9 application surface."));
+            try
+            {
+                PubSubConfigurationDataType config = m_application.GetConfiguration();
+                outputArguments.Add(Variant.From(new ExtensionObject(config)));
+                return ServiceResult.Good;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "GetConfiguration failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
         }
 
         /// <summary>
-        /// Implements Part 14 §9.1.3.5 <c>RemoveConnection</c>.
-        /// Returns <see cref="StatusCodes.BadNotImplemented"/>.
+        /// Implements Part 14 §9.1.6.4 <c>AddPublishedDataItems</c>.
+        /// Returns <see cref="StatusCodes.BadNotSupported"/> — clients
+        /// must use <c>SetConfiguration</c> with a fully populated
+        /// <see cref="PublishedDataSetDataType"/> instead.
         /// </summary>
-        /// <param name="context">System context.</param>
-        /// <param name="method">Calling method node.</param>
-        /// <param name="inputArguments">Input arguments.</param>
-        /// <param name="outputArguments">Output arguments.</param>
-        public ServiceResult OnRemoveConnection(
+        public ServiceResult OnAddPublishedDataItems(
             ISystemContext context,
             MethodState method,
             ArrayOf<Variant> inputArguments,
@@ -215,8 +382,612 @@ namespace Opc.Ua.PubSub.Server
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
             return new ServiceResult(
-                StatusCodes.BadNotImplemented,
-                new LocalizedText("Runtime PubSub configuration mutation is not supported by the immutable Phase 9 application surface."));
+                StatusCodes.BadNotSupported,
+                new LocalizedText(
+                    "AddPublishedDataItems is not supported via method call. "
+                    + "Use SetConfiguration with a fully populated "
+                    + "PublishedDataSetDataType instead."));
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6.4 <c>AddPublishedEvents</c>.
+        /// Returns <see cref="StatusCodes.BadNotSupported"/> — clients
+        /// must use <c>SetConfiguration</c>.
+        /// </summary>
+        public ServiceResult OnAddPublishedEvents(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = inputArguments;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            return new ServiceResult(
+                StatusCodes.BadNotSupported,
+                new LocalizedText(
+                    "AddPublishedEvents is not supported via method call. "
+                    + "Use SetConfiguration with a fully populated "
+                    + "PublishedDataSetDataType instead."));
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6 <c>RemovePublishedDataSet</c>.
+        /// </summary>
+        public ServiceResult OnRemovePublishedDataSet(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemovePublishedDataSet expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId dataSetId)
+                || dataSetId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "RemovePublishedDataSet argument 0 is not a valid NodeId."));
+            }
+            try
+            {
+                m_application.RemovePublishedDataSetAsync(dataSetId)
+                    .AsTask().GetAwaiter().GetResult();
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "RemovePublishedDataSet failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.5 <c>AddDataSetFolder</c>.
+        /// Folders are pure addressing and not first-class in the
+        /// configuration model — returns Good with a synthetic NodeId.
+        /// </summary>
+        public ServiceResult OnAddDataSetFolder(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddDataSetFolder expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out string folderName)
+                || string.IsNullOrEmpty(folderName))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetFolder argument 0 (FolderName) is missing or empty."));
+            }
+            outputArguments.Add(Variant.From(
+                new NodeId($"pubsub:folder:{folderName}", 0)));
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.5 <c>RemoveDataSetFolder</c>.
+        /// Symmetric to <see cref="OnAddDataSetFolder"/>; no-op.
+        /// </summary>
+        public ServiceResult OnRemoveDataSetFolder(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveDataSetFolder expects 1 input argument."));
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6 <c>AddWriterGroup</c>.
+        /// </summary>
+        public ServiceResult OnAddWriterGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 2)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddWriterGroup expects 2 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
+                || connectionId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddWriterGroup argument 0 (ConnectionId) is not a valid NodeId."));
+            }
+            if (!inputArguments[1].TryGetValue(out ExtensionObject ext))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddWriterGroup argument 1 is not an ExtensionObject."));
+            }
+            if (!ext.TryGetValue(out WriterGroupDataType? cfg) || cfg is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddWriterGroup argument 1 body is not a WriterGroupDataType."));
+            }
+            try
+            {
+                NodeId id = m_application.AddWriterGroupAsync(connectionId, cfg)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From(id));
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "AddWriterGroup failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6 <c>AddReaderGroup</c>.
+        /// </summary>
+        public ServiceResult OnAddReaderGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 2)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddReaderGroup expects 2 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
+                || connectionId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddReaderGroup argument 0 (ConnectionId) is not a valid NodeId."));
+            }
+            if (!inputArguments[1].TryGetValue(out ExtensionObject ext))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddReaderGroup argument 1 is not an ExtensionObject."));
+            }
+            if (!ext.TryGetValue(out ReaderGroupDataType? cfg) || cfg is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddReaderGroup argument 1 body is not a ReaderGroupDataType."));
+            }
+            try
+            {
+                NodeId id = m_application.AddReaderGroupAsync(connectionId, cfg)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From(id));
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "AddReaderGroup failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.6 <c>RemoveGroup</c>.
+        /// </summary>
+        public ServiceResult OnRemoveGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveGroup expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId groupId)
+                || groupId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "RemoveGroup argument 0 is not a valid NodeId."));
+            }
+            try
+            {
+                m_application.RemoveGroupAsync(groupId)
+                    .AsTask().GetAwaiter().GetResult();
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "RemoveGroup failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.7 <c>AddDataSetWriter</c>.
+        /// </summary>
+        public ServiceResult OnAddDataSetWriter(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 2)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddDataSetWriter expects 2 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId writerGroupId)
+                || writerGroupId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetWriter argument 0 (WriterGroupId) is not a valid NodeId."));
+            }
+            if (!inputArguments[1].TryGetValue(out ExtensionObject ext))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetWriter argument 1 is not an ExtensionObject."));
+            }
+            if (!ext.TryGetValue(out DataSetWriterDataType? cfg) || cfg is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetWriter argument 1 body is not a DataSetWriterDataType."));
+            }
+            try
+            {
+                NodeId id = m_application.AddDataSetWriterAsync(writerGroupId, cfg)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From(id));
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "AddDataSetWriter failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.7 <c>RemoveDataSetWriter</c>.
+        /// </summary>
+        public ServiceResult OnRemoveDataSetWriter(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveDataSetWriter expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId writerId)
+                || writerId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "RemoveDataSetWriter argument 0 is not a valid NodeId."));
+            }
+            try
+            {
+                m_application.RemoveDataSetWriterAsync(writerId)
+                    .AsTask().GetAwaiter().GetResult();
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "RemoveDataSetWriter failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.8 <c>AddDataSetReader</c>.
+        /// </summary>
+        public ServiceResult OnAddDataSetReader(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 2)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddDataSetReader expects 2 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId readerGroupId)
+                || readerGroupId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetReader argument 0 (ReaderGroupId) is not a valid NodeId."));
+            }
+            if (!inputArguments[1].TryGetValue(out ExtensionObject ext))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetReader argument 1 is not an ExtensionObject."));
+            }
+            if (!ext.TryGetValue(out DataSetReaderDataType? cfg) || cfg is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "AddDataSetReader argument 1 body is not a DataSetReaderDataType."));
+            }
+            try
+            {
+                NodeId id = m_application.AddDataSetReaderAsync(readerGroupId, cfg)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From(id));
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "AddDataSetReader failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.8 <c>RemoveDataSetReader</c>.
+        /// </summary>
+        public ServiceResult OnRemoveDataSetReader(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveDataSetReader expects 1 input argument."));
+            }
+            if (!inputArguments[0].TryGetValue(out NodeId readerId)
+                || readerId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText(
+                        "RemoveDataSetReader argument 0 is not a valid NodeId."));
+            }
+            try
+            {
+                m_application.RemoveDataSetReaderAsync(readerId)
+                    .AsTask().GetAwaiter().GetResult();
+                return ServiceResult.Good;
+            }
+            catch (ArgumentException aex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadNodeIdUnknown,
+                    new LocalizedText(aex.Message));
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "RemoveDataSetReader failed.");
+                return new ServiceResult(
+                    StatusCodes.BadInvalidState,
+                    new LocalizedText(ex.Message));
+            }
         }
 
         /// <summary>

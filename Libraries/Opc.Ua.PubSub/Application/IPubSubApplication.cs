@@ -31,7 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.StateMachine;
 
@@ -47,12 +49,12 @@ namespace Opc.Ua.PubSub.Application
     /// Implements the Application abstraction described in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.2">
     /// Part 14 §9.1.2 PubSub address space root</see>.
+    /// Phase 17 added runtime mutation API per Part 14 §9.1.6.
     /// </remarks>
     public interface IPubSubApplication : IAsyncDisposable
     {
         /// <summary>
-        /// Application identifier (typically the OPC UA application
-        /// URI). Surfaces in diagnostics and logging.
+        /// Application identifier.
         /// </summary>
         string ApplicationId { get; }
 
@@ -62,29 +64,135 @@ namespace Opc.Ua.PubSub.Application
         IReadOnlyList<IPubSubConnection> Connections { get; }
 
         /// <summary>
-        /// Shared metadata registry. Publishers register; subscribers
-        /// resolve at decode time.
+        /// Shared metadata registry.
         /// </summary>
         IDataSetMetaDataRegistry MetaDataRegistry { get; }
 
         /// <summary>
-        /// Root state machine. Disabling the application cascades
-        /// disable to every connection per Part 14 §9.1.3.
+        /// Root state machine.
         /// </summary>
         PubSubStateMachine State { get; }
 
         /// <summary>
-        /// Starts the application, opening all configured
-        /// connections.
+        /// Per-component diagnostics aggregator (Part 14 §9.1.11).
         /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask StartAsync(CancellationToken cancellationToken = default);
+        IPubSubDiagnostics Diagnostics { get; }
 
         /// <summary>
-        /// Stops the application, cascading disable to all
-        /// connections and draining in-flight operations.
+        /// Application configuration version (Part 14 §5.2.3).
         /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask StopAsync(CancellationToken cancellationToken = default);
+        ConfigurationVersionDataType ConfigurationVersion { get; }
+
+        /// <summary>
+        /// Raised after any successful runtime configuration
+        /// mutation.
+        /// </summary>
+        event EventHandler<PubSubConfigurationChangedEventArgs>?
+            ConfigurationChanged;
+
+        /// <summary>
+        /// Starts the application.
+        /// </summary>
+        ValueTask StartAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Stops the application.
+        /// </summary>
+        ValueTask StopAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a snapshot copy of the current configuration.
+        /// </summary>
+        PubSubConfigurationDataType GetConfiguration();
+
+        /// <summary>
+        /// Replaces the entire configuration.
+        /// </summary>
+        ValueTask<IList<StatusCode>> ReplaceConfigurationAsync(
+            PubSubConfigurationDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a new connection.
+        /// </summary>
+        ValueTask<NodeId> AddConnectionAsync(
+            PubSubConnectionDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a connection by NodeId.
+        /// </summary>
+        ValueTask RemoveConnectionAsync(
+            NodeId connectionId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a WriterGroup to a connection.
+        /// </summary>
+        ValueTask<NodeId> AddWriterGroupAsync(
+            NodeId connectionId,
+            WriterGroupDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a ReaderGroup to a connection.
+        /// </summary>
+        ValueTask<NodeId> AddReaderGroupAsync(
+            NodeId connectionId,
+            ReaderGroupDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a group by NodeId.
+        /// </summary>
+        ValueTask RemoveGroupAsync(
+            NodeId groupId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a DataSetWriter to a WriterGroup.
+        /// </summary>
+        ValueTask<NodeId> AddDataSetWriterAsync(
+            NodeId writerGroupId,
+            DataSetWriterDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a DataSetWriter.
+        /// </summary>
+        ValueTask RemoveDataSetWriterAsync(
+            NodeId writerId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a DataSetReader to a ReaderGroup.
+        /// </summary>
+        ValueTask<NodeId> AddDataSetReaderAsync(
+            NodeId readerGroupId,
+            DataSetReaderDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a DataSetReader.
+        /// </summary>
+        ValueTask RemoveDataSetReaderAsync(
+            NodeId readerId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a PublishedDataSet.
+        /// </summary>
+        ValueTask<NodeId> AddPublishedDataSetAsync(
+            PublishedDataSetDataType configuration,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a PublishedDataSet by NodeId.
+        /// </summary>
+        ValueTask RemovePublishedDataSetAsync(
+            NodeId publishedDataSetId,
+            CancellationToken cancellationToken = default);
     }
 }

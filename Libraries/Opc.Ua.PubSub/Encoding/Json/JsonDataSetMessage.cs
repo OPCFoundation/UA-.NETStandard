@@ -60,6 +60,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// allowing forward-compatibility with future message types.
         /// </summary>
         public string MessageTypeName { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Per-field content mask honoured when
+        /// <see cref="JsonEncodingMode"/> emits <c>DataValue</c>
+        /// envelopes. The encoder suppresses any <c>DataValue</c>
+        /// member whose corresponding bit is not set; the decoder
+        /// populates the matching <see cref="DataSetField"/>
+        /// properties only for set bits.
+        /// </summary>
+        /// <remarks>
+        /// Implements the per-field selector of
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.3.2.3">
+        /// Part 14 §6.3.2.3 DataSetFieldContentMask</see>. The default
+        /// <see cref="DataSetFieldContentMask.None"/> preserves
+        /// pre-Phase-15 behaviour (all four <c>DataValue</c> members
+        /// emitted unconditionally).
+        /// </remarks>
+        public DataSetFieldContentMask FieldContentMask { get; init; }
+            = DataSetFieldContentMask.None;
     }
 
     /// <summary>

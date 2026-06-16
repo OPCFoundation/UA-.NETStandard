@@ -59,15 +59,48 @@ namespace Opc.Ua.PubSub.Application
     /// Part 14 §9.1.2 PubSub application root</see>. Lifecycle is
     /// cascade-driven via <see cref="PubSubStateMachine"/>: enabling /
     /// disabling the application cascades to every connection.
+    /// Phase 17 added runtime mutation API per Part 14 §9.1.6.
     /// </remarks>
     public sealed class PubSubApplication : IPubSubApplication
     {
-        private readonly PubSubConnection[] m_connections;
+        private readonly List<PubSubConnection> m_connections;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger<PubSubApplication> m_logger;
         private readonly System.Threading.Lock m_gate = new();
+        private readonly SemaphoreSlim m_mutationGate = new(1, 1);
+
+        private readonly IPubSubTransportFactory[] m_factories;
+        private readonly INetworkMessageEncoder[] m_encoderArray;
+        private readonly INetworkMessageDecoder[] m_decoderArray;
+        private readonly IPubSubSecurityPolicy[] m_securityPolicies;
+        private readonly IPubSubScheduler m_scheduler;
+        private readonly TimeProvider m_timeProvider;
+        private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
+            m_publishedDataSetSources;
+        private readonly IReadOnlyDictionary<string, ISubscribedDataSetSink>?
+            m_subscribedDataSetSinks;
+        private readonly IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+        private readonly Func<PubSubConnectionDataType, int>?
+            m_maxNetworkMessageSizeResolver;
+        private readonly Dictionary<string, IPubSubTransportFactory> m_factoryMap;
+        private readonly Dictionary<string, INetworkMessageEncoder> m_encoderMap;
+        private readonly Dictionary<string, INetworkMessageDecoder> m_decoderMap;
+        private readonly AggregatingPubSubDiagnostics m_aggregatingDiagnostics;
+
+        private readonly Dictionary<string, NodeId> m_connectionNodeIdsByName
+            = new(StringComparer.Ordinal);
+        private readonly Dictionary<NodeId, string> m_connectionNamesByNodeId = new();
+        private readonly Dictionary<NodeId, (string ConnectionName, string GroupName)>
+            m_groupRefs = new();
+        private readonly Dictionary<NodeId, (string ConnectionName,
+            string GroupName, string WriterName)> m_writerRefs = new();
+        private readonly Dictionary<NodeId, (string ConnectionName,
+            string GroupName, string ReaderName)> m_readerRefs = new();
+        private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
+
         private bool m_started;
         private bool m_disposed;
+        private MetaDataPublisher? m_metaDataPublisher;
 
         /// <summary>
         /// Initializes a new <see cref="PubSubApplication"/>.
@@ -158,20 +191,41 @@ namespace Opc.Ua.PubSub.Application
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
-            Snapshot = snapshot;
-            MetaDataRegistry = metaDataRegistry;
-            Diagnostics = diagnostics;
+            m_factories = transportFactories.ToArray();
+            m_encoderArray = encoders.ToArray();
+            m_decoderArray = decoders.ToArray();
+            m_securityPolicies = securityPolicies.ToArray();
+            m_scheduler = scheduler;
+            m_timeProvider = timeProvider;
+            m_publishedDataSetSources = publishedDataSetSources;
+            m_subscribedDataSetSinks = subscribedDataSetSinks;
+            m_securityWrapperResolver = securityWrapperResolver;
+            m_maxNetworkMessageSizeResolver = maxNetworkMessageSizeResolver;
+            m_factoryMap = m_factories.ToDictionary(
+                factory => factory.TransportProfileUri,
+                StringComparer.Ordinal);
+            m_encoderMap = m_encoderArray.ToDictionary(
+                encoder => encoder.TransportProfileUri,
+                StringComparer.Ordinal);
+            m_decoderMap = m_decoderArray.ToDictionary(
+                decoder => decoder.TransportProfileUri,
+                StringComparer.Ordinal);
+            m_connections = new List<PubSubConnection>(snapshot.ConnectionsByName.Count);
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<PubSubApplication>();
 
-            IPubSubTransportFactory[] factories = transportFactories.ToArray();
-            INetworkMessageEncoder[] encoderArray = encoders.ToArray();
-            INetworkMessageDecoder[] decoderArray = decoders.ToArray();
+            Snapshot = snapshot;
+            MetaDataRegistry = metaDataRegistry;
+            m_aggregatingDiagnostics = new AggregatingPubSubDiagnostics(
+                diagnostics,
+                EnumerateComponentDiagnostics);
+            Diagnostics = m_aggregatingDiagnostics;
+            ConfigurationVersion = CreateConfigurationVersion(snapshot.CreatedAt.ToDateTime());
 
-            // Validate against registered factories.
             var validator = new PubSubConfigurationValidator(
-                factories.Select(f => f.TransportProfileUri));
-            PubSubConfigurationValidationResult result = validator.Validate(snapshot.Configuration);
+                m_factories.Select(factory => factory.TransportProfileUri));
+            PubSubConfigurationValidationResult result =
+                validator.Validate(snapshot.Configuration);
             result.ThrowIfInvalid();
 
             ApplicationId = ResolveApplicationId(snapshot);
@@ -180,146 +234,148 @@ namespace Opc.Ua.PubSub.Application
                 PubSubComponentKind.Application,
                 m_logger);
 
-            var encoderMap = encoderArray.ToDictionary(
-                e => e.TransportProfileUri, StringComparer.Ordinal);
-            var decoderMap = decoderArray.ToDictionary(
-                d => d.TransportProfileUri, StringComparer.Ordinal);
-            var factoryMap = factories.ToDictionary(
-                f => f.TransportProfileUri, StringComparer.Ordinal);
-
-            // Build runtime PublishedDataSet objects keyed by name.
-            var publishedDataSets = new Dictionary<string, IPublishedDataSet>(
-                StringComparer.Ordinal);
-            foreach (KeyValuePair<string, PublishedDataSetDataType> kvp
-                in snapshot.PublishedDataSetsByName)
-            {
-                IPublishedDataSetSource source = publishedDataSetSources is not null
-                    && publishedDataSetSources.TryGetValue(kvp.Key, out IPublishedDataSetSource? configured)
-                    ? configured
-                    : EmptyPublishedDataSetSource.Instance;
-                publishedDataSets[kvp.Key] = new PublishedDataSet(kvp.Value, source);
-            }
-
-            // Build connections.
-            var connections = new List<PubSubConnection>(snapshot.ConnectionsByName.Count);
+            Dictionary<string, IPublishedDataSet> publishedDataSets =
+                BuildPublishedDataSets(snapshot);
             if (!snapshot.Configuration.Connections.IsNull)
             {
                 foreach (PubSubConnectionDataType connectionConfig
                     in snapshot.Configuration.Connections)
                 {
-                    if (!factoryMap.TryGetValue(connectionConfig.TransportProfileUri ?? string.Empty,
-                        out IPubSubTransportFactory? factory))
+                    PubSubConnection? connection = BuildConnection(
+                        connectionConfig,
+                        publishedDataSets);
+                    if (connection is null)
                     {
-                        m_logger.LogWarning(
-                            "Skipping connection '{Name}' — no transport factory for {Profile}.",
-                            connectionConfig.Name, connectionConfig.TransportProfileUri);
                         continue;
                     }
-                    BuildConnection(
-                        connectionConfig, factory, encoderMap, decoderMap,
-                        publishedDataSets, subscribedDataSetSinks, scheduler,
-                        metaDataRegistry, diagnostics, timeProvider,
-                        securityWrapperResolver,
-                        maxNetworkMessageSizeResolver,
-                        connections);
+
+                    m_connections.Add(connection);
+                    RegisterConnection(connection);
                 }
             }
-            m_connections = connections.ToArray();
+
+            RegisterPublishedDataSets();
         }
 
-        private void BuildConnection(
+        private PubSubConnection? BuildConnection(
             PubSubConnectionDataType connectionConfig,
-            IPubSubTransportFactory factory,
-            IReadOnlyDictionary<string, INetworkMessageEncoder> encoderMap,
-            IReadOnlyDictionary<string, INetworkMessageDecoder> decoderMap,
-            Dictionary<string, IPublishedDataSet> publishedDataSets,
-            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
-            IPubSubScheduler scheduler,
-            IDataSetMetaDataRegistry metaDataRegistry,
-            IPubSubDiagnostics diagnostics,
-            TimeProvider timeProvider,
-            IPubSubSecurityWrapperResolver? securityWrapperResolver,
-            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
-            List<PubSubConnection> connections)
+            Dictionary<string, IPublishedDataSet> publishedDataSets)
         {
+            if (!m_factoryMap.TryGetValue(
+                connectionConfig.TransportProfileUri ?? string.Empty,
+                out IPubSubTransportFactory? factory))
+            {
+                m_logger.LogWarning(
+                    "Skipping connection '{Name}' — no transport factory for {Profile}.",
+                    connectionConfig.Name,
+                    connectionConfig.TransportProfileUri);
+                return null;
+            }
+
             var writerGroups = new List<WriterGroup>();
             if (!connectionConfig.WriterGroups.IsNull)
             {
-                foreach (WriterGroupDataType wgConfig in connectionConfig.WriterGroups)
+                foreach (WriterGroupDataType writerGroupConfig in connectionConfig.WriterGroups)
                 {
                     var writers = new List<DataSetWriter>();
-                    if (!wgConfig.DataSetWriters.IsNull)
+                    if (!writerGroupConfig.DataSetWriters.IsNull)
                     {
-                        foreach (DataSetWriterDataType dswConfig in wgConfig.DataSetWriters)
+                        foreach (DataSetWriterDataType writerConfig
+                            in writerGroupConfig.DataSetWriters)
                         {
-                            string pdsName = dswConfig.DataSetName ?? string.Empty;
-                            if (!publishedDataSets.TryGetValue(pdsName,
-                                out IPublishedDataSet? pds))
+                            string publishedDataSetName =
+                                writerConfig.DataSetName ?? string.Empty;
+                            if (!publishedDataSets.TryGetValue(
+                                publishedDataSetName,
+                                out IPublishedDataSet? publishedDataSet))
                             {
                                 m_logger.LogWarning(
                                     "DataSetWriter '{Writer}' references unknown "
                                     + "PublishedDataSet '{Pds}'; skipping.",
-                                    dswConfig.Name, pdsName);
+                                    writerConfig.Name,
+                                    publishedDataSetName);
                                 continue;
                             }
-                            writers.Add(new DataSetWriter(dswConfig, pds, m_telemetry));
+
+                            writers.Add(new DataSetWriter(
+                                writerConfig,
+                                publishedDataSet,
+                                m_telemetry));
                         }
                     }
-                    double intervalMs = wgConfig.PublishingInterval > 0
-                        ? wgConfig.PublishingInterval : 1000;
+
+                    double intervalMs = writerGroupConfig.PublishingInterval > 0
+                        ? writerGroupConfig.PublishingInterval
+                        : 1000;
                     var schedule = new PubSubSchedule(
                         TimeSpan.FromMilliseconds(intervalMs),
-                        wgConfig.KeepAliveTime > 0
-                            ? TimeSpan.FromMilliseconds(wgConfig.KeepAliveTime)
+                        writerGroupConfig.KeepAliveTime > 0
+                            ? TimeSpan.FromMilliseconds(writerGroupConfig.KeepAliveTime)
                             : TimeSpan.FromSeconds(30),
                         TimeSpan.Zero,
                         TimeSpan.Zero);
                     writerGroups.Add(new WriterGroup(
-                        wgConfig, writers, schedule, scheduler, m_telemetry, timeProvider));
+                        writerGroupConfig,
+                        writers,
+                        schedule,
+                        m_scheduler,
+                        m_telemetry,
+                        m_timeProvider));
                 }
             }
 
             var readerGroups = new List<ReaderGroup>();
             if (!connectionConfig.ReaderGroups.IsNull)
             {
-                foreach (ReaderGroupDataType rgConfig in connectionConfig.ReaderGroups)
+                foreach (ReaderGroupDataType readerGroupConfig in connectionConfig.ReaderGroups)
                 {
                     var readers = new List<DataSetReader>();
-                    if (!rgConfig.DataSetReaders.IsNull)
+                    if (!readerGroupConfig.DataSetReaders.IsNull)
                     {
-                        foreach (DataSetReaderDataType drConfig in rgConfig.DataSetReaders)
+                        foreach (DataSetReaderDataType readerConfig
+                            in readerGroupConfig.DataSetReaders)
                         {
-                            ISubscribedDataSetSink sink = subscribedDataSetSinks is not null
-                                && subscribedDataSetSinks.TryGetValue(drConfig.Name ?? string.Empty,
+                            ISubscribedDataSetSink sink = m_subscribedDataSetSinks is not null
+                                && m_subscribedDataSetSinks.TryGetValue(
+                                    readerConfig.Name ?? string.Empty,
                                     out ISubscribedDataSetSink? configured)
                                 ? configured
                                 : NullSubscribedDataSetSink.Instance;
-                            readers.Add(new DataSetReader(drConfig, sink, m_telemetry, timeProvider));
+                            readers.Add(new DataSetReader(
+                                readerConfig,
+                                sink,
+                                m_telemetry,
+                                m_timeProvider));
                         }
                     }
+
                     readerGroups.Add(new ReaderGroup(
-                        rgConfig, readers, m_telemetry, scheduler, diagnostics));
+                        readerGroupConfig,
+                        readers,
+                        m_telemetry,
+                        m_scheduler,
+                        Diagnostics));
                 }
             }
 
-            PubSubSecurityContext? securityContext = securityWrapperResolver?.Resolve(connectionConfig);
-            int maxMessageSize = maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
-            var connection = new PubSubConnection(
+            PubSubSecurityContext? securityContext =
+                m_securityWrapperResolver?.Resolve(connectionConfig);
+            int maxMessageSize =
+                m_maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
+            return new PubSubConnection(
                 connectionConfig,
                 factory,
-                encoderMap,
-                decoderMap,
+                m_encoderMap,
+                m_decoderMap,
                 writerGroups,
                 readerGroups,
-                metaDataRegistry,
-                diagnostics,
+                MetaDataRegistry,
+                Diagnostics,
                 m_telemetry,
-                timeProvider,
+                m_timeProvider,
                 securityContext?.Wrapper,
                 securityContext?.WrapOptions ?? UadpSecurityWrapOptions.SignAndEncrypt,
                 maxMessageSize);
-            State.AttachChild(connection.State);
-            connections.Add(connection);
         }
 
         /// <inheritdoc/>
@@ -341,14 +397,25 @@ namespace Opc.Ua.PubSub.Application
         public IPubSubDiagnostics Diagnostics { get; }
 
         /// <summary>
+        /// Current application configuration version.
+        /// </summary>
+        public ConfigurationVersionDataType ConfigurationVersion { get; private set; }
+
+        /// <summary>
+        /// Raised after the runtime configuration has been replaced.
+        /// </summary>
+        public event EventHandler<PubSubConfigurationChangedEventArgs>? ConfigurationChanged;
+
+        /// <summary>
         /// Configuration snapshot the application was built from.
         /// </summary>
-        public PubSubConfigurationSnapshot Snapshot { get; }
+        public PubSubConfigurationSnapshot Snapshot { get; private set; }
 
         /// <inheritdoc/>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            PubSubConnection[] connections;
             lock (m_gate)
             {
                 if (m_disposed)
@@ -360,9 +427,10 @@ namespace Opc.Ua.PubSub.Application
                     return;
                 }
                 m_started = true;
+                connections = [.. m_connections];
             }
             _ = State.TryEnable();
-            foreach (PubSubConnection connection in m_connections)
+            foreach (PubSubConnection connection in connections)
             {
                 try
                 {
@@ -374,6 +442,29 @@ namespace Opc.Ua.PubSub.Application
                         "Failed to enable connection '{Name}'.", connection.Name);
                 }
             }
+            // Phase 16 §16a — start the metadata publisher AFTER the
+            // connections are enabled so a transport is bound for the
+            // initial announcement (Part 14 §7.3.4.8 / §7.2.4.6.4).
+            var metaDataPublisher = new MetaDataPublisher(
+                this,
+                MetaDataRegistry,
+                m_encoderMap,
+                m_aggregatingDiagnostics,
+                m_telemetry,
+                m_timeProvider);
+            try
+            {
+                await metaDataPublisher.StartAsync(cancellationToken).ConfigureAwait(false);
+                lock (m_gate)
+                {
+                    m_metaDataPublisher = metaDataPublisher;
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "Failed to start metadata publisher.");
+                await metaDataPublisher.DisposeAsync().ConfigureAwait(false);
+            }
             _ = State.TryMarkOperational();
         }
 
@@ -381,6 +472,8 @@ namespace Opc.Ua.PubSub.Application
         public async ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            PubSubConnection[] connections;
+            MetaDataPublisher? metaDataPublisher;
             lock (m_gate)
             {
                 if (!m_started)
@@ -388,18 +481,32 @@ namespace Opc.Ua.PubSub.Application
                     return;
                 }
                 m_started = false;
+                connections = [.. m_connections];
+                metaDataPublisher = m_metaDataPublisher;
+                m_metaDataPublisher = null;
             }
-            for (int i = m_connections.Length - 1; i >= 0; i--)
+            if (metaDataPublisher is not null)
             {
                 try
                 {
-                    await m_connections[i].DisableAsync(cancellationToken)
+                    await metaDataPublisher.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex, "Failed to dispose metadata publisher.");
+                }
+            }
+            for (int i = connections.Length - 1; i >= 0; i--)
+            {
+                try
+                {
+                    await connections[i].DisableAsync(cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     m_logger.LogError(ex,
-                        "Failed to disable connection '{Name}'.", m_connections[i].Name);
+                        "Failed to disable connection '{Name}'.", connections[i].Name);
                 }
             }
             _ = State.TryDisable();
@@ -408,11 +515,16 @@ namespace Opc.Ua.PubSub.Application
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (m_disposed)
+            PubSubConnection[] connections;
+            lock (m_gate)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                connections = [.. m_connections];
             }
-            m_disposed = true;
             try
             {
                 await StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -420,7 +532,7 @@ namespace Opc.Ua.PubSub.Application
             catch
             {
             }
-            foreach (PubSubConnection connection in m_connections)
+            foreach (PubSubConnection connection in connections)
             {
                 try
                 {
@@ -430,11 +542,1195 @@ namespace Opc.Ua.PubSub.Application
                 {
                 }
             }
+
+            m_mutationGate.Dispose();
+        }
+
+        /// <summary>
+        /// Returns a clone of the currently active configuration.
+        /// </summary>
+        public PubSubConfigurationDataType GetConfiguration()
+        {
+            return (PubSubConfigurationDataType)Snapshot.Configuration.Clone();
+        }
+
+        /// <summary>
+        /// Replaces the entire runtime configuration.
+        /// </summary>
+        public ValueTask<IList<StatusCode>> ReplaceConfigurationAsync(
+            PubSubConfigurationDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return ApplyMutationAsync(
+                _ => (
+                    (PubSubConfigurationDataType)configuration.Clone(),
+                    (IList<StatusCode>)new List<StatusCode>(1) { StatusCodes.Good },
+                    true),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Adds a connection to the running configuration.
+        /// </summary>
+        public ValueTask<NodeId> AddConnectionAsync(
+            PubSubConnectionDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            string connectionName = configuration.Name ?? string.Empty;
+            if (connectionName.Length == 0)
+            {
+                throw new ArgumentException(
+                    "configuration.Name must not be empty.",
+                    nameof(configuration));
+            }
+
+            return ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    connections.Add((PubSubConnectionDataType)configuration.Clone());
+                    clone.Connections = [.. connections];
+                    return (clone, CreateConnectionNodeId(connectionName), true);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Removes a connection by runtime node identifier.
+        /// </summary>
+        public async ValueTask RemoveConnectionAsync(
+            NodeId connectionId,
+            CancellationToken cancellationToken = default)
+        {
+            string connectionName = GetConnectionName(connectionId);
+
+            await ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    if (!RemoveByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name))
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    clone.Connections = [.. connections];
+                    return (clone, false, true);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds a WriterGroup to an existing connection.
+        /// </summary>
+        public ValueTask<NodeId> AddWriterGroupAsync(
+            NodeId connectionId,
+            WriterGroupDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            string connectionName = GetConnectionName(connectionId);
+            string writerGroupName = GetRequiredName(
+                configuration.Name,
+                nameof(configuration),
+                $"{nameof(configuration)}.{nameof(WriterGroupDataType.Name)}");
+
+            return ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    List<WriterGroupDataType> writerGroups =
+                        CloneWriterGroups(connections[connectionIndex]);
+                    writerGroups.Add((WriterGroupDataType)configuration.Clone());
+                    connections[connectionIndex].WriterGroups = [.. writerGroups];
+                    clone.Connections = [.. connections];
+                    return (
+                        clone,
+                        CreateWriterGroupNodeId(connectionName, writerGroupName),
+                        true);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Adds a ReaderGroup to an existing connection.
+        /// </summary>
+        public ValueTask<NodeId> AddReaderGroupAsync(
+            NodeId connectionId,
+            ReaderGroupDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            string connectionName = GetConnectionName(connectionId);
+            string readerGroupName = GetRequiredName(
+                configuration.Name,
+                nameof(configuration),
+                $"{nameof(configuration)}.{nameof(ReaderGroupDataType.Name)}");
+
+            return ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    List<ReaderGroupDataType> readerGroups =
+                        CloneReaderGroups(connections[connectionIndex]);
+                    readerGroups.Add((ReaderGroupDataType)configuration.Clone());
+                    connections[connectionIndex].ReaderGroups = [.. readerGroups];
+                    clone.Connections = [.. connections];
+                    return (
+                        clone,
+                        CreateReaderGroupNodeId(connectionName, readerGroupName),
+                        true);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Removes a WriterGroup or ReaderGroup by runtime node identifier.
+        /// </summary>
+        public async ValueTask RemoveGroupAsync(
+            NodeId groupId,
+            CancellationToken cancellationToken = default)
+        {
+            (string connectionName, string groupName) = GetGroupReference(groupId);
+
+            _ = await ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    PubSubConnectionDataType connection = connections[connectionIndex];
+                    bool removed = false;
+
+                    List<WriterGroupDataType> writerGroups = CloneWriterGroups(connection);
+                    if (RemoveByName(
+                        writerGroups,
+                        groupName,
+                        static writerGroup => writerGroup.Name))
+                    {
+                        connection.WriterGroups = [.. writerGroups];
+                        removed = true;
+                    }
+                    else
+                    {
+                        List<ReaderGroupDataType> readerGroups =
+                            CloneReaderGroups(connection);
+                        if (RemoveByName(
+                            readerGroups,
+                            groupName,
+                            static readerGroup => readerGroup.Name))
+                        {
+                            connection.ReaderGroups = [.. readerGroups];
+                            removed = true;
+                        }
+                    }
+
+                    if (!removed)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced group no longer exists in the current configuration.");
+                    }
+
+                    clone.Connections = [.. connections];
+                    return (clone, false, true);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds a DataSetWriter to an existing WriterGroup.
+        /// </summary>
+        public ValueTask<NodeId> AddDataSetWriterAsync(
+            NodeId writerGroupId,
+            DataSetWriterDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            (string connectionName, string writerGroupName) =
+                GetGroupReference(writerGroupId);
+            string writerName = GetRequiredName(
+                configuration.Name,
+                nameof(configuration),
+                $"{nameof(configuration)}.{nameof(DataSetWriterDataType.Name)}");
+
+            return ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    List<WriterGroupDataType> writerGroups =
+                        CloneWriterGroups(connections[connectionIndex]);
+                    int writerGroupIndex = FindIndexByName(
+                        writerGroups,
+                        writerGroupName,
+                        static writerGroup => writerGroup.Name);
+                    if (writerGroupIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced WriterGroup no longer exists in the current configuration.");
+                    }
+
+                    List<DataSetWriterDataType> writers =
+                        CloneDataSetWriters(writerGroups[writerGroupIndex]);
+                    writers.Add((DataSetWriterDataType)configuration.Clone());
+                    writerGroups[writerGroupIndex].DataSetWriters = [.. writers];
+                    connections[connectionIndex].WriterGroups = [.. writerGroups];
+                    clone.Connections = [.. connections];
+                    return (
+                        clone,
+                        CreateWriterNodeId(connectionName, writerGroupName, writerName),
+                        true);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Removes a DataSetWriter by runtime node identifier.
+        /// </summary>
+        public async ValueTask RemoveDataSetWriterAsync(
+            NodeId writerId,
+            CancellationToken cancellationToken = default)
+        {
+            (string connectionName, string writerGroupName, string writerName) =
+                GetWriterReference(writerId);
+
+            _ = await ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    List<WriterGroupDataType> writerGroups =
+                        CloneWriterGroups(connections[connectionIndex]);
+                    int writerGroupIndex = FindIndexByName(
+                        writerGroups,
+                        writerGroupName,
+                        static writerGroup => writerGroup.Name);
+                    if (writerGroupIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced WriterGroup no longer exists in the current configuration.");
+                    }
+
+                    List<DataSetWriterDataType> writers =
+                        CloneDataSetWriters(writerGroups[writerGroupIndex]);
+                    if (!RemoveByName(
+                        writers,
+                        writerName,
+                        static writer => writer.Name))
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced DataSetWriter no longer exists in the current configuration.");
+                    }
+
+                    writerGroups[writerGroupIndex].DataSetWriters = [.. writers];
+                    connections[connectionIndex].WriterGroups = [.. writerGroups];
+                    clone.Connections = [.. connections];
+                    return (clone, false, true);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds a DataSetReader to an existing ReaderGroup.
+        /// </summary>
+        public ValueTask<NodeId> AddDataSetReaderAsync(
+            NodeId readerGroupId,
+            DataSetReaderDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            (string connectionName, string readerGroupName) =
+                GetGroupReference(readerGroupId);
+            string readerName = GetRequiredName(
+                configuration.Name,
+                nameof(configuration),
+                $"{nameof(configuration)}.{nameof(DataSetReaderDataType.Name)}");
+
+            return ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    List<ReaderGroupDataType> readerGroups =
+                        CloneReaderGroups(connections[connectionIndex]);
+                    int readerGroupIndex = FindIndexByName(
+                        readerGroups,
+                        readerGroupName,
+                        static readerGroup => readerGroup.Name);
+                    if (readerGroupIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced ReaderGroup no longer exists in the current configuration.");
+                    }
+
+                    List<DataSetReaderDataType> readers =
+                        CloneDataSetReaders(readerGroups[readerGroupIndex]);
+                    readers.Add((DataSetReaderDataType)configuration.Clone());
+                    readerGroups[readerGroupIndex].DataSetReaders = [.. readers];
+                    connections[connectionIndex].ReaderGroups = [.. readerGroups];
+                    clone.Connections = [.. connections];
+                    return (
+                        clone,
+                        CreateReaderNodeId(connectionName, readerGroupName, readerName),
+                        true);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Removes a DataSetReader by runtime node identifier.
+        /// </summary>
+        public async ValueTask RemoveDataSetReaderAsync(
+            NodeId readerId,
+            CancellationToken cancellationToken = default)
+        {
+            (string connectionName, string readerGroupName, string readerName) =
+                GetReaderReference(readerId);
+
+            _ = await ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    int connectionIndex = FindIndexByName(
+                        connections,
+                        connectionName,
+                        static connection => connection.Name);
+                    if (connectionIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced connection no longer exists in the current configuration.");
+                    }
+
+                    List<ReaderGroupDataType> readerGroups =
+                        CloneReaderGroups(connections[connectionIndex]);
+                    int readerGroupIndex = FindIndexByName(
+                        readerGroups,
+                        readerGroupName,
+                        static readerGroup => readerGroup.Name);
+                    if (readerGroupIndex < 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced ReaderGroup no longer exists in the current configuration.");
+                    }
+
+                    List<DataSetReaderDataType> readers =
+                        CloneDataSetReaders(readerGroups[readerGroupIndex]);
+                    if (!RemoveByName(
+                        readers,
+                        readerName,
+                        static reader => reader.Name))
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced DataSetReader no longer exists in the current configuration.");
+                    }
+
+                    readerGroups[readerGroupIndex].DataSetReaders = [.. readers];
+                    connections[connectionIndex].ReaderGroups = [.. readerGroups];
+                    clone.Connections = [.. connections];
+                    return (clone, false, true);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds a PublishedDataSet to the running configuration.
+        /// </summary>
+        public ValueTask<NodeId> AddPublishedDataSetAsync(
+            PublishedDataSetDataType configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            string publishedDataSetName = GetRequiredName(
+                configuration.Name,
+                nameof(configuration),
+                $"{nameof(configuration)}.{nameof(PublishedDataSetDataType.Name)}");
+
+            return ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PublishedDataSetDataType> publishedDataSets =
+                        ClonePublishedDataSets(clone);
+                    publishedDataSets.Add((PublishedDataSetDataType)configuration.Clone());
+                    clone.PublishedDataSets = [.. publishedDataSets];
+                    return (
+                        clone,
+                        CreatePublishedDataSetNodeId(publishedDataSetName),
+                        true);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Removes a PublishedDataSet by runtime node identifier.
+        /// </summary>
+        public async ValueTask RemovePublishedDataSetAsync(
+            NodeId publishedDataSetId,
+            CancellationToken cancellationToken = default)
+        {
+            string publishedDataSetName =
+                GetPublishedDataSetName(publishedDataSetId);
+
+            _ = await ApplyMutationAsync(
+                currentConfiguration =>
+                {
+                    var clone =
+                        (PubSubConfigurationDataType)currentConfiguration.Clone();
+                    List<PublishedDataSetDataType> publishedDataSets =
+                        ClonePublishedDataSets(clone);
+                    if (!RemoveByName(
+                        publishedDataSets,
+                        publishedDataSetName,
+                        static publishedDataSet => publishedDataSet.Name))
+                    {
+                        throw new InvalidOperationException(
+                            "The referenced PublishedDataSet no longer exists in the current configuration.");
+                    }
+
+                    clone.PublishedDataSets = [.. publishedDataSets];
+
+                    List<PubSubConnectionDataType> connections =
+                        CloneConnections(clone);
+                    for (int connectionIndex = 0;
+                        connectionIndex < connections.Count;
+                        connectionIndex++)
+                    {
+                        List<WriterGroupDataType> writerGroups =
+                            CloneWriterGroups(connections[connectionIndex]);
+                        bool writerGroupsChanged = false;
+                        for (int writerGroupIndex = 0;
+                            writerGroupIndex < writerGroups.Count;
+                            writerGroupIndex++)
+                        {
+                            List<DataSetWriterDataType> writers =
+                                CloneDataSetWriters(writerGroups[writerGroupIndex]);
+                            int removedCount = writers.RemoveAll(writer =>
+                                StringComparer.Ordinal.Equals(
+                                    writer.DataSetName,
+                                    publishedDataSetName));
+                            if (removedCount > 0)
+                            {
+                                writerGroups[writerGroupIndex].DataSetWriters = [.. writers];
+                                writerGroupsChanged = true;
+                            }
+                        }
+
+                        if (writerGroupsChanged)
+                        {
+                            connections[connectionIndex].WriterGroups = [.. writerGroups];
+                        }
+                    }
+
+                    clone.Connections = [.. connections];
+                    return (clone, false, true);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private Dictionary<string, IPublishedDataSet> BuildPublishedDataSets(
+            PubSubConfigurationSnapshot snapshot)
+        {
+            var publishedDataSets = new Dictionary<string, IPublishedDataSet>(
+                StringComparer.Ordinal);
+            foreach (KeyValuePair<string, PublishedDataSetDataType> kvp
+                in snapshot.PublishedDataSetsByName)
+            {
+                IPublishedDataSetSource source = m_publishedDataSetSources is not null
+                    && m_publishedDataSetSources.TryGetValue(
+                        kvp.Key,
+                        out IPublishedDataSetSource? configured)
+                    ? configured
+                    : EmptyPublishedDataSetSource.Instance;
+                publishedDataSets[kvp.Key] = new PublishedDataSet(kvp.Value, source);
+            }
+
+            return publishedDataSets;
+        }
+
+        private void RegisterConnection(PubSubConnection connection)
+        {
+            State.AttachChild(connection.State);
+
+            string connectionName = connection.Name;
+            NodeId connectionNodeId = CreateConnectionNodeId(connectionName);
+            m_connectionNodeIdsByName[connectionName] = connectionNodeId;
+            m_connectionNamesByNodeId[connectionNodeId] = connectionName;
+
+            foreach (WriterGroup writerGroup in connection.WriterGroups.OfType<WriterGroup>())
+            {
+                string writerGroupName = writerGroup.Name;
+                NodeId writerGroupNodeId =
+                    CreateWriterGroupNodeId(connectionName, writerGroupName);
+                m_groupRefs[writerGroupNodeId] =
+                    (connectionName, writerGroupName);
+
+                foreach (DataSetWriter writer
+                    in writerGroup.DataSetWriters.OfType<DataSetWriter>())
+                {
+                    NodeId writerNodeId = CreateWriterNodeId(
+                        connectionName,
+                        writerGroupName,
+                        writer.Name);
+                    m_writerRefs[writerNodeId] =
+                        (connectionName, writerGroupName, writer.Name);
+                }
+            }
+
+            foreach (ReaderGroup readerGroup in connection.ReaderGroups.OfType<ReaderGroup>())
+            {
+                string readerGroupName = readerGroup.Name;
+                NodeId readerGroupNodeId =
+                    CreateReaderGroupNodeId(connectionName, readerGroupName);
+                m_groupRefs[readerGroupNodeId] =
+                    (connectionName, readerGroupName);
+
+                foreach (DataSetReader reader
+                    in readerGroup.DataSetReaders.OfType<DataSetReader>())
+                {
+                    NodeId readerNodeId = CreateReaderNodeId(
+                        connectionName,
+                        readerGroupName,
+                        reader.Name);
+                    m_readerRefs[readerNodeId] =
+                        (connectionName, readerGroupName, reader.Name);
+                }
+            }
+        }
+
+        private void RegisterPublishedDataSets()
+        {
+            foreach (DataSetMetaDataKey key in MetaDataRegistry.Keys)
+            {
+                MetaDataRegistry.Remove(key);
+            }
+
+            m_publishedDataSetRefs.Clear();
+            foreach (KeyValuePair<string, PublishedDataSetDataType> kvp
+                in Snapshot.PublishedDataSetsByName)
+            {
+                m_publishedDataSetRefs[CreatePublishedDataSetNodeId(kvp.Key)] = kvp.Key;
+            }
+
+            foreach (PubSubConnection connection in m_connections)
+            {
+                foreach (WriterGroup writerGroup in connection.WriterGroups.OfType<WriterGroup>())
+                {
+                    foreach (DataSetWriter writer
+                        in writerGroup.DataSetWriters.OfType<DataSetWriter>())
+                    {
+                        if (writer.PublishedDataSet is not PublishedDataSet publishedDataSet)
+                        {
+                            continue;
+                        }
+
+                        DataSetMetaDataType metaData = publishedDataSet.MetaData;
+                        ConfigurationVersionDataType version =
+                            metaData.ConfigurationVersion
+                            ?? new ConfigurationVersionDataType();
+                        var key = new DataSetMetaDataKey(
+                            connection.PublisherId,
+                            writerGroup.WriterGroupId,
+                            writer.DataSetWriterId,
+                            publishedDataSet.DataSetClassId,
+                            version.MajorVersion);
+                        MetaDataRegistry.Register(key, metaData);
+                    }
+                }
+            }
+        }
+
+        private async ValueTask<TResult> ApplyMutationAsync<TResult>(
+            Func<PubSubConfigurationDataType,
+                (PubSubConfigurationDataType Configuration, TResult Result, bool HasChanges)>
+                mutator,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (mutator is null)
+            {
+                throw new ArgumentNullException(nameof(mutator));
+            }
+
+            await m_mutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(PubSubApplication));
+                    }
+                }
+
+                PubSubConfigurationDataType previousConfiguration =
+                    GetConfiguration();
+                (PubSubConfigurationDataType configuration,
+                    TResult result,
+                    bool hasChanges) = mutator(previousConfiguration);
+                if (!hasChanges)
+                {
+                    return result;
+                }
+
+                RebuiltState rebuilt = BuildRebuiltState(configuration);
+                bool restartRequired;
+                lock (m_gate)
+                {
+                    restartRequired = m_started;
+                }
+
+                if (restartRequired)
+                {
+                    await StopAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                PubSubConnection[] oldConnections = [.. m_connections];
+                foreach (PubSubConnection oldConnection in oldConnections)
+                {
+                    State.DetachChild(oldConnection.State);
+                }
+
+                m_connections.Clear();
+                m_connectionNodeIdsByName.Clear();
+                m_connectionNamesByNodeId.Clear();
+                m_groupRefs.Clear();
+                m_writerRefs.Clear();
+                m_readerRefs.Clear();
+                m_publishedDataSetRefs.Clear();
+
+                Snapshot = rebuilt.Snapshot;
+                foreach (PubSubConnection connection in rebuilt.Connections)
+                {
+                    m_connections.Add(connection);
+                    RegisterConnection(connection);
+                }
+
+                RegisterPublishedDataSets();
+                ConfigurationVersion = CreateConfigurationVersion(
+                    m_timeProvider.GetUtcNow().UtcDateTime);
+
+                foreach (PubSubConnection oldConnection in oldConnections)
+                {
+                    try
+                    {
+                        await oldConnection.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogDebug(
+                            ex,
+                            "Failed to dispose old connection '{Name}' during configuration replacement.",
+                            oldConnection.Name);
+                    }
+                }
+
+                if (restartRequired)
+                {
+                    await StartAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                try
+                {
+                    ConfigurationChanged?.Invoke(
+                        this,
+                        new PubSubConfigurationChangedEventArgs(
+                            previousConfiguration,
+                            GetConfiguration()));
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(
+                        ex,
+                        "PubSubApplication ConfigurationChanged handler threw.");
+                }
+
+                return result;
+            }
+            finally
+            {
+                _ = m_mutationGate.Release();
+            }
+        }
+
+        private IEnumerable<IPubSubDiagnostics> EnumerateComponentDiagnostics()
+        {
+            yield break;
+        }
+
+        private static List<PubSubConnectionDataType> CloneConnections(
+            PubSubConfigurationDataType configuration)
+        {
+            if (configuration.Connections.IsNull)
+            {
+                return [];
+            }
+
+            var connections = new List<PubSubConnectionDataType>(
+                configuration.Connections.Count);
+            foreach (PubSubConnectionDataType connection in configuration.Connections)
+            {
+                connections.Add((PubSubConnectionDataType)connection.Clone());
+            }
+
+            return connections;
+        }
+
+        private static List<WriterGroupDataType> CloneWriterGroups(
+            PubSubConnectionDataType connection)
+        {
+            if (connection.WriterGroups.IsNull)
+            {
+                return [];
+            }
+
+            var writerGroups = new List<WriterGroupDataType>(
+                connection.WriterGroups.Count);
+            foreach (WriterGroupDataType writerGroup in connection.WriterGroups)
+            {
+                writerGroups.Add((WriterGroupDataType)writerGroup.Clone());
+            }
+
+            return writerGroups;
+        }
+
+        private static List<ReaderGroupDataType> CloneReaderGroups(
+            PubSubConnectionDataType connection)
+        {
+            if (connection.ReaderGroups.IsNull)
+            {
+                return [];
+            }
+
+            var readerGroups = new List<ReaderGroupDataType>(
+                connection.ReaderGroups.Count);
+            foreach (ReaderGroupDataType readerGroup in connection.ReaderGroups)
+            {
+                readerGroups.Add((ReaderGroupDataType)readerGroup.Clone());
+            }
+
+            return readerGroups;
+        }
+
+        private static List<DataSetWriterDataType> CloneDataSetWriters(
+            WriterGroupDataType writerGroup)
+        {
+            if (writerGroup.DataSetWriters.IsNull)
+            {
+                return [];
+            }
+
+            var writers = new List<DataSetWriterDataType>(
+                writerGroup.DataSetWriters.Count);
+            foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)
+            {
+                writers.Add((DataSetWriterDataType)writer.Clone());
+            }
+
+            return writers;
+        }
+
+        private static List<DataSetReaderDataType> CloneDataSetReaders(
+            ReaderGroupDataType readerGroup)
+        {
+            if (readerGroup.DataSetReaders.IsNull)
+            {
+                return [];
+            }
+
+            var readers = new List<DataSetReaderDataType>(
+                readerGroup.DataSetReaders.Count);
+            foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
+            {
+                readers.Add((DataSetReaderDataType)reader.Clone());
+            }
+
+            return readers;
+        }
+
+        private static List<PublishedDataSetDataType> ClonePublishedDataSets(
+            PubSubConfigurationDataType configuration)
+        {
+            if (configuration.PublishedDataSets.IsNull)
+            {
+                return [];
+            }
+
+            var publishedDataSets = new List<PublishedDataSetDataType>(
+                configuration.PublishedDataSets.Count);
+            foreach (PublishedDataSetDataType publishedDataSet
+                in configuration.PublishedDataSets)
+            {
+                publishedDataSets.Add(
+                    (PublishedDataSetDataType)publishedDataSet.Clone());
+            }
+
+            return publishedDataSets;
+        }
+
+        private static int FindIndexByName<T>(
+            List<T> items,
+            string name,
+            Func<T, string?> nameSelector)
+        {
+            return items.FindIndex(item =>
+                StringComparer.Ordinal.Equals(nameSelector(item), name));
+        }
+
+        private static bool RemoveByName<T>(
+            List<T> items,
+            string name,
+            Func<T, string?> nameSelector)
+        {
+            int index = FindIndexByName(items, name, nameSelector);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            items.RemoveAt(index);
+            return true;
+        }
+
+        private static NodeId CreateConnectionNodeId(string connectionName)
+        {
+            return new($"pubsub:connection:{connectionName}", 0);
+        }
+
+        private static NodeId CreateWriterGroupNodeId(
+            string connectionName,
+            string writerGroupName)
+        {
+            return new($"pubsub:writer-group:{connectionName}:{writerGroupName}", 0);
+        }
+
+        private static NodeId CreateReaderGroupNodeId(
+            string connectionName,
+            string readerGroupName)
+        {
+            return new($"pubsub:reader-group:{connectionName}:{readerGroupName}", 0);
+        }
+
+        private static NodeId CreateWriterNodeId(
+            string connectionName,
+            string writerGroupName,
+            string writerName)
+        {
+            return new($"pubsub:writer:{connectionName}:{writerGroupName}:{writerName}", 0);
+        }
+
+        private static NodeId CreateReaderNodeId(
+            string connectionName,
+            string readerGroupName,
+            string readerName)
+        {
+            return new($"pubsub:reader:{connectionName}:{readerGroupName}:{readerName}", 0);
+        }
+
+        private static NodeId CreatePublishedDataSetNodeId(string publishedDataSetName)
+        {
+            return new($"pubsub:published-data-set:{publishedDataSetName}", 0);
+        }
+
+        private static string GetRequiredName(
+            string? name,
+            string argumentName,
+            string propertyPath)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentException(
+                    $"{propertyPath} must not be empty.",
+                    argumentName);
+            }
+
+            return name;
+        }
+
+        private string GetConnectionName(NodeId connectionId)
+        {
+            if (connectionId.IsNull)
+            {
+                throw new ArgumentException(
+                    "connectionId must not be null.",
+                    nameof(connectionId));
+            }
+
+            lock (m_gate)
+            {
+                if (m_connectionNamesByNodeId.TryGetValue(
+                    connectionId,
+                    out string? connectionName))
+                {
+                    return connectionName;
+                }
+            }
+
+            throw new ArgumentException(
+                "The specified connectionId does not exist.",
+                nameof(connectionId));
+        }
+
+        private (string ConnectionName, string GroupName) GetGroupReference(NodeId groupId)
+        {
+            if (groupId.IsNull)
+            {
+                throw new ArgumentException(
+                    "groupId must not be null.",
+                    nameof(groupId));
+            }
+
+            lock (m_gate)
+            {
+                if (m_groupRefs.TryGetValue(
+                    groupId,
+                    out (string ConnectionName, string GroupName) groupReference))
+                {
+                    return groupReference;
+                }
+            }
+
+            throw new ArgumentException(
+                "The specified groupId does not exist.",
+                nameof(groupId));
+        }
+
+        private (string ConnectionName, string GroupName, string WriterName) GetWriterReference(
+            NodeId writerId)
+        {
+            if (writerId.IsNull)
+            {
+                throw new ArgumentException(
+                    "writerId must not be null.",
+                    nameof(writerId));
+            }
+
+            lock (m_gate)
+            {
+                if (m_writerRefs.TryGetValue(
+                    writerId,
+                    out (string ConnectionName, string GroupName, string WriterName) writerReference))
+                {
+                    return writerReference;
+                }
+            }
+
+            throw new ArgumentException(
+                "The specified writerId does not exist.",
+                nameof(writerId));
+        }
+
+        private (string ConnectionName, string GroupName, string ReaderName) GetReaderReference(
+            NodeId readerId)
+        {
+            if (readerId.IsNull)
+            {
+                throw new ArgumentException(
+                    "readerId must not be null.",
+                    nameof(readerId));
+            }
+
+            lock (m_gate)
+            {
+                if (m_readerRefs.TryGetValue(
+                    readerId,
+                    out (string ConnectionName, string GroupName, string ReaderName) readerReference))
+                {
+                    return readerReference;
+                }
+            }
+
+            throw new ArgumentException(
+                "The specified readerId does not exist.",
+                nameof(readerId));
+        }
+
+        private string GetPublishedDataSetName(NodeId publishedDataSetId)
+        {
+            if (publishedDataSetId.IsNull)
+            {
+                throw new ArgumentException(
+                    "publishedDataSetId must not be null.",
+                    nameof(publishedDataSetId));
+            }
+
+            lock (m_gate)
+            {
+                if (m_publishedDataSetRefs.TryGetValue(
+                    publishedDataSetId,
+                    out string? publishedDataSetName))
+                {
+                    return publishedDataSetName;
+                }
+            }
+
+            throw new ArgumentException(
+                "The specified publishedDataSetId does not exist.",
+                nameof(publishedDataSetId));
+        }
+
+        private RebuiltState BuildRebuiltState(
+            PubSubConfigurationDataType configuration)
+        {
+            PubSubConfigurationSnapshot snapshot =
+                PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
+            var validator = new PubSubConfigurationValidator(
+                m_factories.Select(factory => factory.TransportProfileUri));
+            PubSubConfigurationValidationResult validationResult =
+                validator.Validate(snapshot.Configuration);
+            validationResult.ThrowIfInvalid();
+
+            Dictionary<string, IPublishedDataSet> publishedDataSets =
+                BuildPublishedDataSets(snapshot);
+            var connections = new List<PubSubConnection>(
+                snapshot.ConnectionsByName.Count);
+            if (!snapshot.Configuration.Connections.IsNull)
+            {
+                foreach (PubSubConnectionDataType connectionConfig
+                    in snapshot.Configuration.Connections)
+                {
+                    PubSubConnection? connection = BuildConnection(
+                        connectionConfig,
+                        publishedDataSets);
+                    if (connection is not null)
+                    {
+                        connections.Add(connection);
+                    }
+                }
+            }
+
+            return new RebuiltState(snapshot, connections);
+        }
+
+        private static ConfigurationVersionDataType CreateConfigurationVersion(
+            DateTime timeOfConfiguration)
+        {
+            uint versionTime =
+                ConfigurationVersionUtils.CalculateVersionTime(timeOfConfiguration);
+            return new ConfigurationVersionDataType
+            {
+                MajorVersion = versionTime,
+                MinorVersion = versionTime
+            };
         }
 
         private static string ResolveApplicationId(PubSubConfigurationSnapshot snapshot)
         {
-            // Use the first connection's PublisherId as a stable default.
             if (snapshot.ConnectionsByName.Count == 0)
             {
                 return "urn:opc:ua:pubsub:application";
@@ -478,6 +1774,110 @@ namespace Opc.Ua.PubSub.Application
             {
                 return default;
             }
+        }
+
+        private sealed record RebuiltState(
+            PubSubConfigurationSnapshot Snapshot,
+            List<PubSubConnection> Connections);
+    }
+}
+
+namespace Opc.Ua.PubSub.Diagnostics
+{
+    /// <summary>
+    /// Aggregates one root diagnostics sink and optional child sinks
+    /// into a single application-facing view.
+    /// </summary>
+    public sealed class AggregatingPubSubDiagnostics : IPubSubDiagnostics
+    {
+        private readonly IPubSubDiagnostics m_root;
+        private readonly Func<IEnumerable<IPubSubDiagnostics>>? m_componentResolver;
+        private readonly System.Threading.Lock m_gate = new();
+        private PubSubDiagnosticsLevel m_level;
+
+        /// <summary>
+        /// Initializes a new <see cref="AggregatingPubSubDiagnostics"/>.
+        /// </summary>
+        /// <param name="root">Root diagnostics sink.</param>
+        /// <param name="componentResolver">
+        /// Optional callback returning child diagnostics sinks.
+        /// </param>
+        public AggregatingPubSubDiagnostics(
+            IPubSubDiagnostics root,
+            Func<IEnumerable<IPubSubDiagnostics>>? componentResolver = null)
+        {
+            m_root = root ?? throw new ArgumentNullException(nameof(root));
+            m_componentResolver = componentResolver;
+            m_level = root.Level;
+        }
+
+        /// <inheritdoc/>
+        public PubSubDiagnosticsLevel Level
+        {
+            get
+            {
+                lock (m_gate)
+                {
+                    return m_level;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the exposed diagnostics level.
+        /// </summary>
+        /// <param name="level">New level.</param>
+        public void SetLevel(PubSubDiagnosticsLevel level)
+        {
+            lock (m_gate)
+            {
+                m_level = level;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void Increment(PubSubDiagnosticsCounterKind kind, long delta = 1)
+        {
+            m_root.Increment(kind, delta);
+        }
+
+        /// <inheritdoc/>
+        public long Read(PubSubDiagnosticsCounterKind kind)
+        {
+            long total = m_root.Read(kind);
+            foreach (IPubSubDiagnostics diagnostics in ResolveComponents())
+            {
+                if (!ReferenceEquals(diagnostics, m_root))
+                {
+                    total += diagnostics.Read(kind);
+                }
+            }
+            return total;
+        }
+
+        /// <inheritdoc/>
+        public void RecordError(StatusCode statusCode, string message)
+        {
+            m_root.RecordError(statusCode, message);
+        }
+
+        /// <inheritdoc/>
+        public void Reset()
+        {
+            m_root.Reset();
+            foreach (IPubSubDiagnostics diagnostics in ResolveComponents())
+            {
+                if (!ReferenceEquals(diagnostics, m_root))
+                {
+                    diagnostics.Reset();
+                }
+            }
+        }
+
+        private IEnumerable<IPubSubDiagnostics> ResolveComponents()
+        {
+            return m_componentResolver?.Invoke()
+                ?? Array.Empty<IPubSubDiagnostics>();
         }
     }
 }

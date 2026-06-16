@@ -250,6 +250,27 @@ namespace Opc.Ua.PubSub.Connections
         /// <inheritdoc/>
         public PubSubStateMachine State { get; }
 
+        /// <summary>
+        /// Currently bound transport, or <see langword="null"/> when
+        /// the connection has not yet been enabled. Exposed only to
+        /// the application-internal metadata publisher so it can
+        /// emit retained-metadata frames per
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.4.8">
+        /// Part 14 §7.3.4.8</see> /
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.6.4">
+        /// §7.2.4.6.4</see> without re-implementing transport ownership.
+        /// </summary>
+        internal IPubSubTransport? CurrentTransport
+        {
+            get
+            {
+                lock (m_gate)
+                {
+                    return m_transport;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask EnableAsync(CancellationToken cancellationToken = default)
         {

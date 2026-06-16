@@ -29,12 +29,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Server.Tests
@@ -82,11 +85,11 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         // -------------------------------------------------------------
-        // AddConnection / RemoveConnection — deviation: BadNotImplemented
+        // AddConnection / RemoveConnection
         // -------------------------------------------------------------
 
         [Test]
-        public void OnAddConnection_ReturnsBadNotImplemented()
+        public void OnAddConnection_NoArgs_ReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = CreateHandlers(out _, out _);
             var outputs = new List<Variant>();
@@ -94,7 +97,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddConnection(
                 BuildContext(), method: null!, inputArguments: default, outputArguments: outputs);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotImplemented));
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -113,7 +116,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
-        public void OnRemoveConnection_ReturnsBadNotImplemented()
+        public void OnRemoveConnection_NoArgs_ReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = CreateHandlers(out _, out _);
             var outputs = new List<Variant>();
@@ -121,7 +124,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveConnection(
                 BuildContext(), method: null!, inputArguments: default, outputArguments: outputs);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotImplemented));
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -468,6 +471,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     PublishedDataSets = []
                 })
                 .UseAllStandardEncoders()
+                .AddTransportFactory(new StubTransportFactory())
                 .Build();
         }
 
@@ -482,6 +486,77 @@ namespace Opc.Ua.PubSub.Server.Tests
         private static ArrayOf<Variant> BuildArray(params Variant[] values)
         {
             return new ArrayOf<Variant>(values);
+        }
+
+        private sealed class StubTransportFactory : IPubSubTransportFactory
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public IPubSubTransport Create(
+                PubSubConnectionDataType connection,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+            {
+                _ = connection;
+                _ = telemetry;
+                _ = timeProvider;
+                return new StubTransport();
+            }
+        }
+
+        private sealed class StubTransport : IPubSubTransport
+        {
+            private bool m_isConnected;
+
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected => m_isConnected;
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                _ = cancellationToken;
+                m_isConnected = true;
+                return default;
+            }
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                _ = cancellationToken;
+                m_isConnected = false;
+                return default;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                _ = payload;
+                _ = topic;
+                _ = cancellationToken;
+                return default;
+            }
+
+            public IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                CancellationToken cancellationToken = default)
+            {
+                _ = cancellationToken;
+                return AsyncEnumerable.Empty<PubSubTransportFrame>();
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                m_isConnected = false;
+                return default;
+            }
         }
     }
 }

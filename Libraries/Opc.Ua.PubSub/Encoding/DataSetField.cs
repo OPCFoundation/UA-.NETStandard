@@ -68,9 +68,35 @@ namespace Opc.Ua.PubSub.Encoding
 
         /// <summary>
         /// Per-field source timestamp; meaningful only for
-        /// <see cref="PubSubFieldEncoding.DataValue"/> encoding.
+        /// <see cref="PubSubFieldEncoding.DataValue"/> encoding when the
+        /// writer's <c>DataSetFieldContentMask</c> includes
+        /// <see cref="DataSetFieldContentMask.SourceTimestamp"/>.
         /// </summary>
         public DateTimeUtc SourceTimestamp { get; init; }
+
+        /// <summary>
+        /// Per-field source picoseconds; meaningful only for
+        /// <see cref="PubSubFieldEncoding.DataValue"/> encoding when the
+        /// writer's <c>DataSetFieldContentMask</c> includes
+        /// <see cref="DataSetFieldContentMask.SourcePicoSeconds"/>.
+        /// </summary>
+        public ushort SourcePicoSeconds { get; init; }
+
+        /// <summary>
+        /// Per-field server timestamp; meaningful only for
+        /// <see cref="PubSubFieldEncoding.DataValue"/> encoding when the
+        /// writer's <c>DataSetFieldContentMask</c> includes
+        /// <see cref="DataSetFieldContentMask.ServerTimestamp"/>.
+        /// </summary>
+        public DateTimeUtc ServerTimestamp { get; init; }
+
+        /// <summary>
+        /// Per-field server picoseconds; meaningful only for
+        /// <see cref="PubSubFieldEncoding.DataValue"/> encoding when the
+        /// writer's <c>DataSetFieldContentMask</c> includes
+        /// <see cref="DataSetFieldContentMask.ServerPicoSeconds"/>.
+        /// </summary>
+        public ushort ServerPicoSeconds { get; init; }
 
         /// <summary>
         /// Field encoding chosen by the producing writer.
