@@ -14,14 +14,14 @@ this binding should treat every output file as a secret.
 
 | Capability | Default | Opt-in mechanism |
 |---|---|---|
-| Frame capture (`start_capture`) | available | `PcapBindings.Install()` or `AddOpcUaBindingsPcap()` |
+| Frame capture (`start_capture`) | available | `PcapBindings.Install()` or `AddPcap()` |
 | Keylog extraction | available when capture runs | implicit when capture is active |
 | MCP `dump_keys` / `decode_pcap_with_keys` / `replay_pcap` | **off** | `PcapOptions.EnableDiagnosticsTools = true` or env `OPCUA_PCAP_ENABLE_DIAGNOSTICS=1` |
 | Mock-client replay | **off** | `PcapOptions.AllowMockClientReplay = true` AND populate `PcapOptions.AllowedReplayEndpoints` |
 | Tamper-evident audit log | **off** | `PcapOptions.EnableTamperEvidentAudit = true` |
 | KMS-backed key escrow (instead of disk) | not registered | register your own `IKeyEscrowProvider` in DI |
-| Env-var auto-start pcap | **off** | `AddOpcUaBindingsPcapFromEnvironment()` + `OPCUA_PCAP_FILE=<path>` |
-| Env-var stand-alone keylog | **off** | `AddOpcUaBindingsPcapFromEnvironment()` + `OPCUA_KEYLOGFILE=<path>` |
+| Env-var auto-start pcap | **off** | `AddPcapFromEnvironment()` + `OPCUA_PCAP_FILE=<path>` |
+| Env-var stand-alone keylog | **off** | `AddPcapFromEnvironment()` + `OPCUA_KEYLOGFILE=<path>` |
 
 When any diagnostic tool is enabled the host emits a `Warning`-level log
 line at startup so the choice is observable in production logs.
@@ -58,9 +58,9 @@ launchers) the binding ships an optional auto-start path activated by
 the dedicated DI extension:
 
 ```csharp
-services.AddOpcUaBindingsPcapFromEnvironment();
+services.AddPcapFromEnvironment();
 // optional: configure other PcapOptions on the same call
-services.AddOpcUaBindingsPcapFromEnvironment(options =>
+services.AddPcapFromEnvironment(options =>
 {
     options.MaxBytesPerCapture = 64L * 1024 * 1024;
 });
@@ -86,8 +86,8 @@ The keylog file extension selects the writer format:
 
 Whitespace-only values are treated as unset, so accidentally exporting
 `OPCUA_PCAP_FILE=""` does not silently activate auto-capture. When
-both variables are unset `AddOpcUaBindingsPcapFromEnvironment` behaves
-exactly like `AddOpcUaBindingsPcap`: the capture binding is registered
+both variables are unset `AddPcapFromEnvironment` behaves
+exactly like `AddPcap`: the capture binding is registered
 and no auto-start happens.
 
 When the auto-start path is active the host emits a `Warning`-level
@@ -109,7 +109,7 @@ env:
 // Program.cs
 HostApplicationBuilder builder = Host.CreateApplicationBuilder();
 builder.Services.AddOpcUa().AddClient(options => { });
-builder.Services.AddOpcUaBindingsPcapFromEnvironment();
+builder.Services.AddPcapFromEnvironment();
 await builder.Build().RunAsync();
 ```
 
@@ -124,7 +124,7 @@ export OPCUA_KEYLOGFILE=$HOME/opcua-keys.uakeys.json
 
 ```csharp
 builder.Services.AddOpcUa().AddClient(options => { });
-builder.Services.AddOpcUaBindingsPcapFromEnvironment();
+builder.Services.AddPcapFromEnvironment();
 ```
 
 Every OPC UA secure-channel token activation is appended to the
@@ -138,7 +138,7 @@ recover plaintext from a separately-recorded pcap.
 Anyone (process, container runtime, host operator, sidecar) that can
 set these environment variables can divert OPC UA channel keys and
 traffic to attacker-controlled paths. Treat
-`AddOpcUaBindingsPcapFromEnvironment` as a privileged configuration
+`AddPcapFromEnvironment` as a privileged configuration
 surface:
 
 1. Only enable it on hosts where the env var is itself protected
@@ -181,7 +181,7 @@ Before enabling any part of this binding in a non-development environment:
    minimum set of hostnames required. Never use a wildcard.
 5. If using a KMS, register `IKeyEscrowProvider` and verify the disk
    writer is no longer invoked.
-6. If using `AddOpcUaBindingsPcapFromEnvironment`, confirm the
+6. If using `AddPcapFromEnvironment`, confirm the
    `OPCUA_PCAP_FILE` / `OPCUA_KEYLOGFILE` values are set by a
    privileged orchestrator (Kubernetes Secret, systemd
    `EnvironmentFile`) and that the destination directory is owned by
@@ -248,7 +248,7 @@ graph TD
 
 ## Integration with the central channel manager
 
-The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the global `TransportBindings.Channels` registry: `AddOpcUaBindingsPcap` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory, and `ClientChannelManager` — which by default reads from that same global registry — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
+The Pcap binding composes with the central [`IClientChannelManager`](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect) introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288) via the global `TransportBindings.Channels` registry: `AddPcap` installs a `PcapTransportChannelBinding` decorator over the TCP channel factory, and `ClientChannelManager` — which by default reads from that same global registry — picks the wrapped factory up automatically. There is no extra wiring code; the composition is pure layering at the transport binding level.
 
 Three properties of the channel manager flow through to capture for free:
 
@@ -261,9 +261,9 @@ If you compose the channel manager and the capture binding via DI the standard r
 ```csharp
 services.AddOpcUa().AddClient(options => { });    // central IClientChannelManager
 services.AddSingleton<OpcUaSessionManager>();     // your application services
-services.AddOpcUaBindingsPcap();                  // capture binding + CaptureSessionManager
-services.AddOpcUaBindingsPcapFormatters();        // service-timeline / pcap / pcapng / json / csv / text
-services.AddOpcUaBindingsPcapReplay();            // mock-client / mock-server replay engines
+services.AddPcap();                  // capture binding + CaptureSessionManager
+services.AddPcapFormatters();        // service-timeline / pcap / pcapng / json / csv / text
+services.AddPcapReplay();            // mock-client / mock-server replay engines
 ```
 
 Registration order does not strictly matter (the Pcap binding installs synchronously into the process-wide registry), but the order above reads top-down as "register the channel manager, then your services, then opt in to capture". For non-DI consumers, call `PcapBindings.Install()` at startup to achieve the same effect.
@@ -282,7 +282,7 @@ Registration order does not strictly matter (the Pcap binding installs synchrono
 
 ```csharp
 services.AddOpcUa().AddClient(options => { });   // central IClientChannelManager
-services.AddOpcUaBindingsPcap();                  // capture binding + CaptureSessionManager
+services.AddPcap();                  // capture binding + CaptureSessionManager
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -310,7 +310,7 @@ var bytes = await manager.GetCaptureAsync(
 ## Quick start: replay and decode an existing pcap
 
 ```csharp
-services.AddOpcUaBindingsPcap();
+services.AddPcap();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -331,7 +331,7 @@ var timeline = await manager.GetCaptureAsync(
 ## Quick start: mock-server replay
 
 ```csharp
-services.AddOpcUaBindingsPcap();
+services.AddPcap();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 

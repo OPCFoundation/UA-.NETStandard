@@ -135,14 +135,14 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
     services.AddSingleton(_ => CreateMcpServerOptions());
-    services.AddOpcUaBindingsPcap(options =>
+    services.AddPcap(options =>
     {
         options.BaseFolder = pcapOptions.BaseFolder;
         options.MaxActiveSessions = pcapOptions.MaxActiveSessions;
         options.EnableDiagnosticsTools = pcapOptions.EnableDiagnosticsTools;
     });
-    services.AddOpcUaBindingsPcapFormatters();
-    services.AddOpcUaBindingsPcapReplay();
+    services.AddPcapFormatters();
+    services.AddPcapReplay();
 }
 
 static McpServerOptions CreateMcpServerOptions()

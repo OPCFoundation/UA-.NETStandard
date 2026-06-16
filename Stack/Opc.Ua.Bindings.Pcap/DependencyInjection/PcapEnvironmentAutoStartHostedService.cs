@@ -44,7 +44,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
 {
     /// <summary>
     /// <see cref="IHostedService"/> registered by
-    /// <c>AddOpcUaBindingsPcapFromEnvironment</c> that materializes the
+    /// <c>AddPcapFromEnvironment</c> that materializes the
     /// env-var driven capture / key-log behaviour at host start.
     /// </summary>
     /// <remarks>
@@ -96,7 +96,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
 
         /// <summary>
         /// Constructs the hosted service. Resolved by the DI container
-        /// when <c>AddOpcUaBindingsPcapFromEnvironment</c> registers
+        /// when <c>AddPcapFromEnvironment</c> registers
         /// it as an <see cref="IHostedService"/>.
         /// </summary>
         public PcapEnvironmentAutoStartHostedService(

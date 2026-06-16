@@ -46,11 +46,11 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
 {
     /// <summary>
     /// Behavioural tests for the <c>IHostedService</c> registered by
-    /// <c>AddOpcUaBindingsPcapFromEnvironment</c>. The hosted service is
+    /// <c>AddPcapFromEnvironment</c>. The hosted service is
     /// exercised directly so the tests do not depend on the
     /// <c>Microsoft.Extensions.Hosting</c> generic-host bootstrapping
     /// path; that path is covered by
-    /// <see cref="AddOpcUaBindingsPcapFromEnvironmentTests"/>.
+    /// <see cref="AddPcapFromEnvironmentTests"/>.
     /// </summary>
     [TestFixture]
     public sealed class PcapEnvironmentAutoStartHostedServiceTests : TempDirectoryFixture
@@ -231,13 +231,13 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
 
     /// <summary>
     /// End-to-end tests that exercise
-    /// <c>AddOpcUaBindingsPcapFromEnvironment</c> through process-wide
+    /// <c>AddPcapFromEnvironment</c> through process-wide
     /// environment variables. The variables are restored in
     /// <see cref="TearDown"/> so other test fixtures running in the same
     /// process are not affected.
     /// </summary>
     [TestFixture]
-    public sealed class AddOpcUaBindingsPcapFromEnvironmentTests : TempDirectoryFixture
+    public sealed class AddPcapFromEnvironmentTests : TempDirectoryFixture
     {
         private string? m_priorPcapFile;
         private string? m_priorKeyLogFile;
@@ -290,7 +290,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             IServiceCollection? services = null;
 
             Assert.That(
-                () => services!.AddOpcUaBindingsPcapFromEnvironment(),
+                () => services!.AddPcapFromEnvironment(),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("services"));
         }
@@ -302,7 +302,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             Action<PcapOptions>? configure = null;
 
             Assert.That(
-                () => services.AddOpcUaBindingsPcapFromEnvironment(configure!),
+                () => services.AddPcapFromEnvironment(configure!),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("configure"));
         }
@@ -311,7 +311,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         public async Task NoEnvVarsRegistersHostedServiceButDoesNothingOnStart()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapFromEnvironment();
+            services.AddPcapFromEnvironment();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             IHostedService[] hostedServices = provider.GetServices<IHostedService>().ToArray();
@@ -335,7 +335,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
                 keyLogPath);
 
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapFromEnvironment();
+            services.AddPcapFromEnvironment();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             IHostedService autoStart = provider.GetServices<IHostedService>()
@@ -362,7 +362,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
                 pcapPath);
 
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapFromEnvironment(options =>
+            services.AddPcapFromEnvironment(options =>
             {
                 // The user's BaseFolder is intentionally set to a path
                 // that does not contain pcapPath; the env-var override
@@ -384,7 +384,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             Directory.CreateDirectory(userBase);
 
             var services = new ServiceCollection();
-            services.AddOpcUaBindingsPcapFromEnvironment(options
+            services.AddPcapFromEnvironment(options
                 => options.BaseFolder = userBase);
             await using ServiceProvider provider = services.BuildServiceProvider();
 

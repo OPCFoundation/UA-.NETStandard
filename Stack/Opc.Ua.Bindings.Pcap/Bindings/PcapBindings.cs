@@ -37,7 +37,7 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
     /// <see cref="TransportBindings.Channels"/> registry. Use this when
     /// the application is not built around
     /// Microsoft.Extensions.DependencyInjection and therefore cannot
-    /// rely on the <c>AddOpcUaBindingsPcap</c> extension method.
+    /// rely on the <c>AddPcap</c> extension method.
     /// </summary>
     public static class PcapBindings
     {

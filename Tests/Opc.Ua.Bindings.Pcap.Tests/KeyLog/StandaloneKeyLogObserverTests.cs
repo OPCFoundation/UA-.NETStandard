@@ -39,7 +39,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
 {
     /// <summary>
     /// Behavioural tests for the stand-alone keylog observer that
-    /// <c>AddOpcUaBindingsPcapFromEnvironment</c> installs when only
+    /// <c>AddPcapFromEnvironment</c> installs when only
     /// <c>OPCUA_KEYLOGFILE</c> is set.
     /// </summary>
     [TestFixture]

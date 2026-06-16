@@ -42,7 +42,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
     /// Stand-alone <see cref="IFrameCaptureSink"/> observer that writes
     /// only <see cref="ChannelKeyMaterial"/> snapshots (no frames) to a
     /// single keylog file. Used by the env-var driven
-    /// <c>AddOpcUaBindingsPcapFromEnvironment</c> registration when the
+    /// <c>AddPcapFromEnvironment</c> registration when the
     /// caller asks for key-logging without packet capture
     /// (SSLKEYLOGFILE-style behaviour).
     /// </summary>

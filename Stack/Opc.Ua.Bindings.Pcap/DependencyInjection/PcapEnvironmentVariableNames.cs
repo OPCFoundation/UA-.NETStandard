@@ -31,7 +31,7 @@ namespace Opc.Ua.Bindings.Pcap.DependencyInjection
 {
     /// <summary>
     /// Names of the environment variables the
-    /// <c>AddOpcUaBindingsPcapFromEnvironment</c> registration consults
+    /// <c>AddPcapFromEnvironment</c> registration consults
     /// at host start time. Exposed as constants so operators and tests
     /// can reference the canonical spelling without hard-coding it.
     /// </summary>

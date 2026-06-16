@@ -59,7 +59,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
 
         /// <summary>
         /// Restores the process-wide opc.tcp binding after tests that call
-        /// AddOpcUaBindingsPcap.
+        /// AddPcap.
         /// </summary>
         [TearDown]
         public void RestorePreviousBinding()
@@ -92,11 +92,11 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public async Task AddOpcUaBindingsPcapInvokesUserConfigureCallbackForDiagnosticsToolsFlag()
+        public async Task AddPcapInvokesUserConfigureCallbackForDiagnosticsToolsFlag()
         {
             var services = new ServiceCollection();
 
-            services.AddOpcUaBindingsPcap(options => options.EnableDiagnosticsTools = true);
+            services.AddPcap(options => options.EnableDiagnosticsTools = true);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             PcapOptions options = provider.GetRequiredService<PcapOptions>();
