@@ -30,12 +30,12 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Capture.Sources
+namespace Opc.Ua.Pcap.Capture.Sources
 {
     /// <summary>
     /// Default capture source factory for the built-in pcap capture sources.

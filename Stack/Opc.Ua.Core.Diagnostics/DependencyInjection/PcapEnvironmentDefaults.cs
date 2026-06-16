@@ -31,7 +31,7 @@ using System;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.DependencyInjection
+namespace Opc.Ua.Pcap.DependencyInjection
 {
     /// <summary>
     /// Reader that resolves

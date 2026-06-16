@@ -29,11 +29,11 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Pcap.Frame;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Frame
+namespace Opc.Ua.Pcap.Tests.Frame
 {
     /// <summary>
     /// Equality and projection-property tests for <see cref="CaptureFrame"/>.

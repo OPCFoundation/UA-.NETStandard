@@ -29,11 +29,11 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.KeyLog;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.KeyLog
+namespace Opc.Ua.Pcap.Tests.KeyLog
 {
     /// <summary>
     /// Verifies that <see cref="ChannelKeyMaterial"/> clears sensitive arrays

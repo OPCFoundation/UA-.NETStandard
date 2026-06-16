@@ -33,9 +33,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.KeyLog;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.KeyLog
+namespace Opc.Ua.Pcap.Tests.KeyLog
 {
     /// <summary>
     /// Behavioural tests for the stand-alone keylog observer that

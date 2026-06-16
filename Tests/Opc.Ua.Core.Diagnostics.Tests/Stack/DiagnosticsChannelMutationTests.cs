@@ -33,7 +33,7 @@ using NUnit.Framework;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Stack
+namespace Opc.Ua.Pcap.Tests.Stack
 {
     /// <summary>
     /// Verifies the privileged diagnostics token mutation surface is limited
@@ -79,7 +79,7 @@ namespace Opc.Ua.Core.Diagnostics.Tests.Stack
                 Assert.That(
                     exception.InnerException!.Message,
                     Is.EqualTo(
-                        "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics binding."));
+                        "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics assembly."));
                 Assert.That(channel.LoadedCurrentToken, Is.Null);
                 Assert.That(channel.LoadedPreviousToken, Is.Null);
             }

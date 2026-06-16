@@ -31,7 +31,7 @@ using System;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Dissection
+namespace Opc.Ua.Pcap.Dissection
 {
     /// <summary>
     /// The result of decoding a single OPC UA UA-SC chunk offline.

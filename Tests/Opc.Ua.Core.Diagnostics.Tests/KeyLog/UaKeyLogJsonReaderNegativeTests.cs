@@ -33,12 +33,12 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.KeyLog;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.KeyLog
+namespace Opc.Ua.Pcap.Tests.KeyLog
 {
     /// <summary>
     /// Negative / failure-mode tests for <see cref="UaKeyLogJsonReader"/>.

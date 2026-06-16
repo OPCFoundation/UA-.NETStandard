@@ -31,7 +31,7 @@ using System;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Frame
+namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>
     /// Direction of a captured OPC UA chunk relative to the client (the

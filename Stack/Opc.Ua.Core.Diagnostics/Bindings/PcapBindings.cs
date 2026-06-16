@@ -30,7 +30,7 @@
 using System;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Bindings
+namespace Opc.Ua.Pcap.Bindings
 {
     /// <summary>
     /// Convenience helper that installs (or removes) the Pcap channel

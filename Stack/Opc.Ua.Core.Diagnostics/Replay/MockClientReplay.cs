@@ -36,14 +36,14 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
-using Opc.Ua.Core.Diagnostics.Dissection;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Dissection;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Core.Diagnostics.Replay
+namespace Opc.Ua.Pcap.Replay
 {
     /// <summary>
     /// Diagnostic helper that replays selected captured service requests

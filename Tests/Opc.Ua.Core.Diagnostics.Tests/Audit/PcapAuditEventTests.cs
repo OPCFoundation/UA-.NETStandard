@@ -30,11 +30,11 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Audit;
+using Opc.Ua.Pcap.Audit;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Audit
+namespace Opc.Ua.Pcap.Tests.Audit
 {
     [TestFixture]
     public sealed class PcapAuditEventTests

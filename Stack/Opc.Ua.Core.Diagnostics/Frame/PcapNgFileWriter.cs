@@ -35,7 +35,7 @@ using System.Threading.Tasks;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Frame
+namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>
     /// Writes a minimal little-endian pcapng stream with one interface.

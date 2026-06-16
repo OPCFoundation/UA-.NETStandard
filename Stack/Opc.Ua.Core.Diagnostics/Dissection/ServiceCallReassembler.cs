@@ -38,13 +38,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Dissection
+namespace Opc.Ua.Pcap.Dissection
 {
     /// <summary>
     /// Reassembles decrypted OPC UA service calls from captured UA-SC

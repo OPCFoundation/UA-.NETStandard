@@ -32,7 +32,7 @@ using System.Threading.Tasks;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Audit
+namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
     /// Receives Pcap binding audit events for security-sensitive operations.

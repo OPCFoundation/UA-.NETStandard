@@ -36,13 +36,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Audit;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Audit;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Audit
+namespace Opc.Ua.Pcap.Tests.Audit
 {
     [TestFixture]
     public sealed class LoggerPcapAuditSinkTests : TempDirectoryFixture

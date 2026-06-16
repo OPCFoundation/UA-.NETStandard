@@ -41,14 +41,14 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.Audit;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Capture.Sources;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
-using Opc.Ua.Core.Diagnostics.Dissection;
-using Opc.Ua.Core.Diagnostics.Formats;
-using Opc.Ua.Core.Diagnostics.KeyLog;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Audit;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Dissection;
+using Opc.Ua.Pcap.Formats;
+using Opc.Ua.Pcap.KeyLog;
+using Opc.Ua.Pcap.Models;
 
 using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 

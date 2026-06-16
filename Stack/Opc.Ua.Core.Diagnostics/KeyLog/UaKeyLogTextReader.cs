@@ -34,11 +34,11 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Pcap.Capture;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.KeyLog
+namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
     /// Reads OPC UA channel key material from Wireshark-style text key logs.

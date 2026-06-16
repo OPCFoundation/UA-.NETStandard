@@ -33,11 +33,11 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Pcap.Capture;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Frame
+namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>
     /// Splits TCP byte streams into discrete OPC UA UA-SC chunks.

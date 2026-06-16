@@ -35,13 +35,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Capture.Sources;
-using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.Frame;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Replay
+namespace Opc.Ua.Pcap.Replay
 {
     /// <summary>
     /// Mock-server replays raw captured server bytes to a connecting client.

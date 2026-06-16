@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings
         /// symmetric channel keys carried by the activated <see cref="ChannelToken"/>
         /// — signing key, encryption key, IV, and nonces. This is a key-disclosure
         /// surface intended only for in-process diagnostic bindings (for example,
-        /// the <c>Opc.Ua.Core.Diagnostics</c> capture binding).
+        /// the <c>Opc.Ua.Pcap</c> capture binding).
         /// </para>
         /// <para>
         /// All non-diagnostic consumers MUST instead inject an

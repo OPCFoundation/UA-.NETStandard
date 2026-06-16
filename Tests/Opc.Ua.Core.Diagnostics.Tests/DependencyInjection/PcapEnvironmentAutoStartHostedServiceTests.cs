@@ -35,16 +35,16 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Capture.Sources;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
-using Opc.Ua.Core.Diagnostics.KeyLog;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.KeyLog;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.DependencyInjection
+namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
     /// <summary>
     /// Behavioural tests for the <c>IHostedService</c> registered by

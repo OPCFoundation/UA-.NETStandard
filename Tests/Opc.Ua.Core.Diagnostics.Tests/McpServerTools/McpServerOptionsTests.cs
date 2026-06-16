@@ -33,11 +33,11 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
+using Opc.Ua.Pcap.DependencyInjection;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.McpServerTools
+namespace Opc.Ua.Pcap.Tests.McpServerTools
 {
     /// <summary>
     /// Precedence tests for <c>McpServerOptions</c>: DI registration

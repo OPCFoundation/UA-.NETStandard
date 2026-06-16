@@ -31,7 +31,7 @@ using System;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Models
+namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
     /// Status / metadata describing a capture session.

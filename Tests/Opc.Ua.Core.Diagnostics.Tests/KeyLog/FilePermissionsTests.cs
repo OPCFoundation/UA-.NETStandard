@@ -32,12 +32,12 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.KeyLog
+namespace Opc.Ua.Pcap.Tests.KeyLog
 {
     /// <summary>
     /// Verifies that packet capture writers restrict file permissions on Unix platforms.

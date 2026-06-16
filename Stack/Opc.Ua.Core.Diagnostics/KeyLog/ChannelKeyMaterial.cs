@@ -31,7 +31,7 @@ using System;
 using System.Security.Cryptography;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.KeyLog
+namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
     /// Immutable snapshot of the key material associated with a single

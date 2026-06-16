@@ -28,7 +28,7 @@
  * ======================================================================*/
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Bindings
+namespace Opc.Ua.Pcap.Bindings
 {
     /// <summary>
     /// A process-wide registry that publishes the currently-active

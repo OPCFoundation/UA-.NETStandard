@@ -29,11 +29,11 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Dissection;
+using Opc.Ua.Pcap.Dissection;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Dissection
+namespace Opc.Ua.Pcap.Tests.Dissection
 {
     /// <summary>
     /// Equality and projection-property tests for the

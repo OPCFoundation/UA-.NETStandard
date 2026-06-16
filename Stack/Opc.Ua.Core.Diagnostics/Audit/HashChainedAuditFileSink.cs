@@ -40,7 +40,7 @@ using Microsoft.Extensions.Logging;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Audit
+namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
     /// Verification result for a tamper-evident Pcap audit ledger.

@@ -32,7 +32,7 @@ using System.Collections.Generic;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Dissection
+namespace Opc.Ua.Pcap.Dissection
 {
     /// <summary>
     /// One reassembled OPC UA service request / response observed during

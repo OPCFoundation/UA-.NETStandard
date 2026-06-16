@@ -29,7 +29,7 @@
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Models
+namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
     /// Parameters for <c>start_capture</c>.

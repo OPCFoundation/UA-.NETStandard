@@ -31,11 +31,11 @@ using System;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Pcap.Frame;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Frame
+namespace Opc.Ua.Pcap.Tests.Frame
 {
     [TestFixture]
     public sealed class TcpStreamReassemblerTests

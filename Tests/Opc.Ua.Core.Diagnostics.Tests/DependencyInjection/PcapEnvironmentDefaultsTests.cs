@@ -30,11 +30,11 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
+using Opc.Ua.Pcap.DependencyInjection;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.DependencyInjection
+namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
     /// <summary>
     /// Tests for the env-var snapshot helper that drives the env-var

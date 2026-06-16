@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.KeyLog
+namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
     /// Default key escrow provider that writes encrypted key-log

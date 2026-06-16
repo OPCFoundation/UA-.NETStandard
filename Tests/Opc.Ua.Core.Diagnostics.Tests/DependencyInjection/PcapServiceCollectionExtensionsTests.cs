@@ -33,17 +33,17 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Capture.Sources;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
-using Opc.Ua.Core.Diagnostics.Formats;
-using Opc.Ua.Core.Diagnostics.Models;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Formats;
+using Opc.Ua.Pcap.Models;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.DependencyInjection
+namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
     /// <summary>
     /// Behavioural tests for the DI extension methods that wire the OPC UA

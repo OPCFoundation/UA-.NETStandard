@@ -34,11 +34,11 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Pcap.Capture;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Frame
+namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>
     /// Writes little-endian libpcap files.

@@ -30,11 +30,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Pcap.Capture;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Replay
+namespace Opc.Ua.Pcap.Replay
 {
     /// <summary>
     /// Replay operating mode.

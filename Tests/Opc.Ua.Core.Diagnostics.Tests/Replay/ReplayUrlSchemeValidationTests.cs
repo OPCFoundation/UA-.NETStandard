@@ -29,13 +29,13 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Replay
+namespace Opc.Ua.Pcap.Tests.Replay
 {
     /// <summary>
     /// Tests mock-client replay target endpoint URL scheme validation.

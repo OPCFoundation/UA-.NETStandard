@@ -29,7 +29,7 @@
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.DependencyInjection
+namespace Opc.Ua.Pcap.DependencyInjection
 {
     /// <summary>
     /// Names of the environment variables the

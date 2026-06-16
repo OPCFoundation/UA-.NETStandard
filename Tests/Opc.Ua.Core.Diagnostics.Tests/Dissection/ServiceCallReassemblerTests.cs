@@ -34,12 +34,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Dissection;
-using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Pcap.Dissection;
+using Opc.Ua.Pcap.Frame;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Dissection
+namespace Opc.Ua.Pcap.Tests.Dissection
 {
     /// <summary>
     /// Tests for the <see cref="ServiceCallReassembler"/> public surface —

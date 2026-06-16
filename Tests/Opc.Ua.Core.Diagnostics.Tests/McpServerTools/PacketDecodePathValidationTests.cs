@@ -36,7 +36,7 @@ using NUnit.Framework;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.McpServerTools
+namespace Opc.Ua.Pcap.Tests.McpServerTools
 {
     /// <summary>
     /// Tests path validation used by MCP packet-decode tools.

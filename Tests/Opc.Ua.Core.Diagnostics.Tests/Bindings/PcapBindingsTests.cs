@@ -29,11 +29,11 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Bindings;
+using Opc.Ua.Pcap.Bindings;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Bindings
+namespace Opc.Ua.Pcap.Tests.Bindings
 {
     [TestFixture]
     public sealed class PcapBindingsTests

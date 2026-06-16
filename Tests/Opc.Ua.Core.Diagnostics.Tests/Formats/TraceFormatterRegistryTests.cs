@@ -29,13 +29,13 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Formats;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Formats;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Formats
+namespace Opc.Ua.Pcap.Tests.Formats
 {
     [TestFixture]
     public sealed class TraceFormatterRegistryTests

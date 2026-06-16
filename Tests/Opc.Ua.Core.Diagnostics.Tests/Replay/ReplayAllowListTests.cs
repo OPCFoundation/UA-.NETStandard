@@ -32,16 +32,16 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.KeyLog;
-using Opc.Ua.Core.Diagnostics.Models;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
+using Opc.Ua.Pcap.Models;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Replay
+namespace Opc.Ua.Pcap.Tests.Replay
 {
     /// <summary>
     /// Tests the mock-client replay endpoint consent flag and hostname

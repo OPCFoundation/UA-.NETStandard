@@ -34,12 +34,12 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Frame;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Frame
+namespace Opc.Ua.Pcap.Tests.Frame
 {
     /// <summary>
     /// Verifies pcap reader bounds checks for captured packet lengths.

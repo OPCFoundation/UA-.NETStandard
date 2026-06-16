@@ -35,7 +35,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Bindings
+namespace Opc.Ua.Pcap.Bindings
 {
     /// <summary>
     /// <see cref="IMessageSocket"/> decorator that forwards every call to

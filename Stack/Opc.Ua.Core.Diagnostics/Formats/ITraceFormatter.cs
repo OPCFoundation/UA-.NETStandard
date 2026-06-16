@@ -29,12 +29,12 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Formats
+namespace Opc.Ua.Pcap.Formats
 {
     /// <summary>
     /// Formats the contents of a completed capture session into a single

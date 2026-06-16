@@ -31,11 +31,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Replay
+namespace Opc.Ua.Pcap.Tests.Replay
 {
     /// <summary>
     /// Unit tests for the unified <see cref="ReplaySession"/> wrapper that

@@ -36,7 +36,7 @@ using System.Threading.Tasks;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.KeyLog
+namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
     /// Encrypts newline-delimited key-log payloads as AES-256-GCM records.

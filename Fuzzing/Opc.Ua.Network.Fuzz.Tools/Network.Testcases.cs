@@ -32,9 +32,9 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
 
 namespace Opc.Ua.Fuzzing
 {

@@ -35,7 +35,7 @@ using System.Net;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Frame
+namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>
     /// Reassembles best-effort unidirectional TCP byte streams from pcap records.

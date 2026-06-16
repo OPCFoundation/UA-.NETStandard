@@ -33,10 +33,10 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.KeyLog;
 
-namespace Opc.Ua.Core.Diagnostics.Dissection
+namespace Opc.Ua.Pcap.Dissection
 {
     /// <summary>
     /// Offline decoder that reuses the stack's own

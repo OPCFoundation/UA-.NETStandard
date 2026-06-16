@@ -30,7 +30,7 @@
 using System.Threading;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Bindings
+namespace Opc.Ua.Pcap.Bindings
 {
     /// <summary>
     /// Default <see cref="IChannelCaptureRegistry"/> implementation. A

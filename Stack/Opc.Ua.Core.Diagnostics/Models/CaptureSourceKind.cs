@@ -28,7 +28,7 @@
  * ======================================================================*/
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Models
+namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
     /// Identifies a kind of capture source the

@@ -36,11 +36,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Audit;
+using Opc.Ua.Pcap.Audit;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Audit
+namespace Opc.Ua.Pcap.Tests.Audit
 {
     /// <summary>
     ///

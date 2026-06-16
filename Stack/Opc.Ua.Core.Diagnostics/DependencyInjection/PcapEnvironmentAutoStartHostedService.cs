@@ -35,12 +35,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.KeyLog;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.KeyLog;
+using Opc.Ua.Pcap.Models;
 
-namespace Opc.Ua.Core.Diagnostics.DependencyInjection
+namespace Opc.Ua.Pcap.DependencyInjection
 {
     /// <summary>
     /// <see cref="IHostedService"/> registered by

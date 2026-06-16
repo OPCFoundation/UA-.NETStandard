@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Models
+namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
     /// Parameters for replaying a pcap recording.

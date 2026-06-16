@@ -33,7 +33,7 @@ using System.Security.Cryptography;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.KeyLog
+namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
     /// Manages per-session encryption keys for key-log files.

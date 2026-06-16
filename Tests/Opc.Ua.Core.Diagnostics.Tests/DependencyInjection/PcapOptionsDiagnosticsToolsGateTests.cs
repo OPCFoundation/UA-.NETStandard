@@ -30,11 +30,11 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
+using Opc.Ua.Pcap.DependencyInjection;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.DependencyInjection
+namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
     /// <summary>
     /// Tests the diagnostics tools opt-in flag exposed through pcap

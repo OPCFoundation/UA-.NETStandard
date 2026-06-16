@@ -35,7 +35,7 @@ using Microsoft.Extensions.Logging;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Audit
+namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
     /// Default audit sink that writes Pcap audit events to the configured logger.

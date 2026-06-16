@@ -35,11 +35,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Core.Diagnostics.Capture;
+using Opc.Ua.Pcap.Capture;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.KeyLog
+namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
     /// Writes OPC UA channel key material as JSON-lines records.

@@ -33,13 +33,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Formats;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Formats;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Formats
+namespace Opc.Ua.Pcap.Tests.Formats
 {
     [TestFixture]
     public sealed class CsvFormatterTests

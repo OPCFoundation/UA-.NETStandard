@@ -31,7 +31,7 @@ using System.Collections.Generic;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Models
+namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
     /// Describes a local network interface returned by

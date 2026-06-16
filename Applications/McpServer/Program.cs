@@ -36,7 +36,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Core.Diagnostics.DependencyInjection;
+using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 

@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Bindings
+namespace Opc.Ua.Pcap.Bindings
 {
     /// <summary>
     /// <see cref="IMessageSocketFactory"/> decorator that wraps every

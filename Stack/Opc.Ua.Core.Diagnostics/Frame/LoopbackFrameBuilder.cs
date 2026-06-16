@@ -32,7 +32,7 @@ using System.Buffers.Binary;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Frame
+namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>
     /// Builds synthetic BSD-loopback IPv4/TCP packets around OPC UA chunks.

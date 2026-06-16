@@ -31,13 +31,13 @@ using System;
 using System.Buffers.Binary;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Dissection;
-using Opc.Ua.Core.Diagnostics.KeyLog;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Dissection;
+using Opc.Ua.Pcap.KeyLog;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Dissection
+namespace Opc.Ua.Pcap.Tests.Dissection
 {
     /// <summary>
     /// Negative / failure-mode tests for <see cref="OfflineSecureChannel"/>.

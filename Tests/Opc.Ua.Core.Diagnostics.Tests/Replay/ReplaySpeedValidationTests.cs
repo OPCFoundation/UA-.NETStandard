@@ -31,11 +31,11 @@ using System;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Replay
+namespace Opc.Ua.Pcap.Tests.Replay
 {
     /// <summary>
     /// Tests replay speed validation rejects non-finite and non-positive

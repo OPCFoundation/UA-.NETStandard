@@ -29,7 +29,7 @@
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Audit
+namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
     /// Categorizes a <see cref="PcapAuditEvent"/>. Each kind corresponds

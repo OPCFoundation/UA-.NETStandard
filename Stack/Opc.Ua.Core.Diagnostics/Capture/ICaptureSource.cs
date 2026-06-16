@@ -32,13 +32,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Core.Diagnostics.Frame;
-using Opc.Ua.Core.Diagnostics.KeyLog;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Capture
+namespace Opc.Ua.Pcap.Capture
 {
     /// <summary>
     /// An OPC UA-aware packet-capture source. Implementations buffer the

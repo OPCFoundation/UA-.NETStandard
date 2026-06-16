@@ -31,12 +31,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Models;
 using SharpPcap.LibPcap;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Capture.Sources
+namespace Opc.Ua.Pcap.Capture.Sources
 {
     /// <summary>
     /// Enumerates local libpcap/Npcap network interfaces.

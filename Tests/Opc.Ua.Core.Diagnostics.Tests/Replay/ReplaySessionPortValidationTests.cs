@@ -30,11 +30,11 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Replay;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Replay
+namespace Opc.Ua.Pcap.Tests.Replay
 {
     /// <summary>
     /// Tests listen-port validation at the mock-server replay session entry

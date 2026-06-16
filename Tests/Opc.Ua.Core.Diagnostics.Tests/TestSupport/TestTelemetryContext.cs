@@ -34,7 +34,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests
+namespace Opc.Ua.Pcap.Tests
 {
     /// <summary>
     /// Minimal <see cref="ITelemetryContext"/> for unit tests: routes all

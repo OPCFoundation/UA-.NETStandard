@@ -32,12 +32,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Formats
+namespace Opc.Ua.Pcap.Formats
 {
     /// <summary>
     /// Pass-through formatter for sources that already produce a libpcap file.

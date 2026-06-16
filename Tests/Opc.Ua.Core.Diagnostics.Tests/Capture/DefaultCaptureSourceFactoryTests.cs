@@ -31,14 +31,14 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Capture.Sources;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Capture
+namespace Opc.Ua.Pcap.Tests.Capture
 {
     [TestFixture]
     public sealed class DefaultCaptureSourceFactoryTests : TempDirectoryFixture

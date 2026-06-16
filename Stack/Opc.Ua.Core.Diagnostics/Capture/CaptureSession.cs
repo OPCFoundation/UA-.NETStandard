@@ -32,11 +32,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Capture
+namespace Opc.Ua.Pcap.Capture
 {
     /// <summary>
     /// Wraps an <see cref="ICaptureSource"/> with a state machine, a

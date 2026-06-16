@@ -13,7 +13,7 @@
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>$(AssemblyPrefix).Core.Diagnostics</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Core.Diagnostics</PackageId>
-    <RootNamespace>Opc.Ua.Core.Diagnostics</RootNamespace>
+    <RootNamespace>Opc.Ua.Pcap</RootNamespace>
     <Description>OPC UA core diagnostics: packet capture, dissection and replay engine.</Description>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

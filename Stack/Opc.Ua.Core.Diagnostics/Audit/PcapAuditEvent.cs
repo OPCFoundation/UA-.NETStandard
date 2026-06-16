@@ -32,7 +32,7 @@ using System.Collections.Generic;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Audit
+namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
     /// Describes one security-sensitive Pcap binding operation. The kind

@@ -33,11 +33,11 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Frame;
+using Opc.Ua.Pcap.Frame;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Frame
+namespace Opc.Ua.Pcap.Tests.Frame
 {
     [TestFixture]
     public sealed class OpcUaFrameParserTests

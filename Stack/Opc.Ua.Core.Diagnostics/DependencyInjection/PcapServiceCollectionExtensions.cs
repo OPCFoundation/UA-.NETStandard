@@ -36,15 +36,15 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
-using Opc.Ua.Core.Diagnostics.Audit;
-using Opc.Ua.Core.Diagnostics.Bindings;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Capture.Sources;
-using Opc.Ua.Core.Diagnostics.Formats;
-using Opc.Ua.Core.Diagnostics.KeyLog;
-using Opc.Ua.Core.Diagnostics.Replay;
+using Opc.Ua.Pcap.Audit;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.Formats;
+using Opc.Ua.Pcap.KeyLog;
+using Opc.Ua.Pcap.Replay;
 
-namespace Opc.Ua.Core.Diagnostics.DependencyInjection
+namespace Opc.Ua.Pcap.DependencyInjection
 {
     /// <summary>
     /// Dependency injection registration helpers for the OPC UA

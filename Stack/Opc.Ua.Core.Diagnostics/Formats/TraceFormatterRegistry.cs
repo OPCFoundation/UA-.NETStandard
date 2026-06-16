@@ -29,12 +29,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Opc.Ua.Core.Diagnostics.Capture;
-using Opc.Ua.Core.Diagnostics.Models;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Models;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Formats
+namespace Opc.Ua.Pcap.Formats
 {
     /// <summary>
     /// Registry for trace formatters keyed by output format.

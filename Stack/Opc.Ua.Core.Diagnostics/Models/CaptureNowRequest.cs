@@ -29,7 +29,7 @@
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Models
+namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
     /// Convenience request for <c>capture_now</c>.

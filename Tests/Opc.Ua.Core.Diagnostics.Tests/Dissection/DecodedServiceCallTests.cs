@@ -30,11 +30,11 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Core.Diagnostics.Dissection;
+using Opc.Ua.Pcap.Dissection;
 
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Diagnostics.Tests.Dissection
+namespace Opc.Ua.Pcap.Tests.Dissection
 {
     /// <summary>
     /// Init-only property and derived-property tests for
