@@ -20,7 +20,6 @@
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.Kestrel.Tcp" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.WebApi" />

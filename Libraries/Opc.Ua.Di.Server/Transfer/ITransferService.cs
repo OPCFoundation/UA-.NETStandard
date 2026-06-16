@@ -60,7 +60,7 @@ namespace Opc.Ua.Di.Server.Transfer
         /// records the <paramref name="parameters"/> internally and
         /// returns a transfer ID the client can poll with
         /// <see cref="FetchAsync"/> to retrieve the per-parameter
-        /// status codes (mostly <see cref="Opc.Ua.StatusCodes.Good"/>
+        /// status codes (mostly <see cref="StatusCodes.Good"/>
         /// on success).
         /// </summary>
         ValueTask<int> TransferToDeviceAsync(

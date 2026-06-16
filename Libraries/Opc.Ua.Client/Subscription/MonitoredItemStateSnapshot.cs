@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -232,6 +231,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Runtime desired triggering set captured at snapshot time.
         /// Stored on the wire as <see cref="TriggeredByNames"/>.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static MonitoredItemStateSnapshot AsOptions(
             string name,
             MonitoredItemOptions options,
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 TriggeredByNames = triggeredByNames is { Count: > 0 }
                     ? new ArrayOf<string>(triggeredByNames is string[] arr
                         ? arr
-                        : triggeredByNames.ToArray())
+                        : [.. triggeredByNames])
                     : new ArrayOf<string>(Array.Empty<string>()),
                 Order = options.Order,
                 StartNodeId = options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId,

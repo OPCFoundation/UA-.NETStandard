@@ -38,7 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -178,11 +177,19 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await session.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
             }
         }
 

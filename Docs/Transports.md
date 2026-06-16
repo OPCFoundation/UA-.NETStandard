@@ -93,8 +93,8 @@ single listener for its scheme.
 
 * The `opc.tcp` listener uses the lightweight raw-socket
   `TcpTransportListener` by default (no ASP.NET Core dependency). An
-  opt-in alternative — `Opc.Ua.Bindings.Kestrel.Tcp` — is described
-  below.
+  opt-in alternative shipped in `Opc.Ua.Bindings.Https` (`net8.0`+) is
+  described below.
 * The `opc.https` and `opc.wss` listeners both share a single
   `HttpsTransportListener` per `(host, port)` — Kestrel routes the
   inbound HTTP request to the right handler based on the
@@ -203,7 +203,7 @@ By default the stack ships **two** listener implementations for
 | Package | Listener | When to use |
 | --- | --- | --- |
 | `Opc.Ua.Core` (default) | `TcpTransportListener` | Raw `Socket` + `SocketAsyncEventArgs`. No ASP.NET Core dependency. The right choice for trimmed / AOT deployments and for environments that already avoid pulling in `Microsoft.AspNetCore.App`. |
-| `Opc.Ua.Bindings.Kestrel.Tcp` (opt-in) | `KestrelTcpTransportListener` | Hosts `opc.tcp://` on Kestrel via `Microsoft.AspNetCore.Connections.ConnectionHandler`. Lets a single `IHost` serve `opc.tcp`, `opc.https`, and `opc.wss` so consumers manage one HTTP-style runtime, share TLS plumbing, and share observability middleware. |
+| `Opc.Ua.Bindings.Https` (opt-in, `net8.0`+) | `KestrelTcpTransportListener` | Hosts `opc.tcp://` on Kestrel via `Microsoft.AspNetCore.Connections.ConnectionHandler`. Lets a single `IHost` serve `opc.tcp`, `opc.https`, and `opc.wss` so consumers manage one HTTP-style runtime, share TLS plumbing, and share observability middleware. |
 
 The Kestrel-TCP listener uses the same `IUaSCByteTransport` runtime
 boundary as the raw-socket listener, so the UASC channel pipeline is

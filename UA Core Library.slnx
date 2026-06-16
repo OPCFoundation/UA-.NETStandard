@@ -26,7 +26,6 @@
     <Project Path="Tools/Opc.Ua.MigrationAnalyzer.Core/Opc.Ua.MigrationAnalyzer.Core.csproj" />
     <Project Path="Tools/Opc.Ua.MigrationAnalyzer.Generator/Opc.Ua.MigrationAnalyzer.Generator.csproj" />
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
-    <Project Path="Stack/Opc.Ua.Bindings.Kestrel.Tcp/Opc.Ua.Bindings.Kestrel.Tcp.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
     <Project Path="Stack/Opc.Ua.Bindings.Pcap/Opc.Ua.Bindings.Pcap.csproj" />

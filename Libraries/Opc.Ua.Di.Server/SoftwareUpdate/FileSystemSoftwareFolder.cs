@@ -33,7 +33,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.FileSystem;
@@ -71,10 +70,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             string rootPath = "/Software",
             TimeProvider? timeProvider = null)
         {
-            if (provider == null)
-            {
-                throw new ArgumentNullException(nameof(provider));
-            }
             if (elementId.IsNull)
             {
                 throw new ArgumentNullException(nameof(elementId));
@@ -85,7 +80,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                     "Root path must be a non-empty string.", nameof(rootPath));
             }
 
-            m_provider = provider;
+            m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             m_rootPath = rootPath;
             m_time = timeProvider ?? TimeProvider.System;
             ElementId = elementId;
@@ -138,14 +133,16 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             using (Stream stream = await m_provider
                 .OpenReadAsync(markerPath, cancellationToken)
                 .ConfigureAwait(false))
-            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
             {
                 version = await ReadAllTextAsync(reader, cancellationToken)
                     .ConfigureAwait(false);
             }
 
             if (string.IsNullOrEmpty(version))
-            { return null; }
+            {
+                return null;
+            }
             return await TryReadMetadataAsync(version, cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -287,13 +284,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
 
             // Ensure the version exists before marking it active.
             SoftwarePackage? existing = await TryReadMetadataAsync(
-                version, cancellationToken).ConfigureAwait(false);
-            if (existing == null)
-            {
+                version, cancellationToken).ConfigureAwait(false) ??
                 throw new ArgumentException(
                     $"Cannot set unknown version '{version}' as current.",
                     nameof(version));
-            }
 
             byte[] payload = Encoding.UTF8.GetBytes(version);
             using Stream stream = await m_provider
@@ -367,7 +361,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             using Stream stream = await m_provider
                 .OpenReadAsync(BuildPath(CurrentMarkerFileName), cancellationToken)
                 .ConfigureAwait(false);
-            using StreamReader reader = new StreamReader(stream, Encoding.UTF8);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
             return await ReadAllTextAsync(reader, cancellationToken).ConfigureAwait(false);
         }
 
@@ -433,6 +427,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
         private readonly string m_rootPath;
         private readonly TimeProvider m_time;
 
-        private static readonly char[] s_invalidVersionChars = new[] { '/', '\\' };
+        private static readonly char[] s_invalidVersionChars = ['/', '\\'];
     }
 }

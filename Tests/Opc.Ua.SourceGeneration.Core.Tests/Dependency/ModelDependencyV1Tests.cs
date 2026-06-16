@@ -124,7 +124,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void Read_ReturnsNullForWrongMagic()
         {
-            byte[] bogus = new byte[] { 0x00, 0x00, 0x01, 0x01 };
+            byte[] bogus = [0x00, 0x00, 0x01, 0x01];
             string payload = Convert.ToBase64String(bogus);
             var result = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(result, Is.Null);
@@ -134,7 +134,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Read_ReturnsNullForFutureVersion()
         {
             // Header with version=2 (unknown) — reader should refuse.
-            byte[] bogus = new byte[] { 0xAA, 0xC7, 0x02, 0x01 };
+            byte[] bogus = [0xAA, 0xC7, 0x02, 0x01];
             string payload = Convert.ToBase64String(bogus);
             var result = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(result, Is.Null);

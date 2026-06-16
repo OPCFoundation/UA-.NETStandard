@@ -47,6 +47,7 @@ namespace Opc.Ua.Client.Historian
         /// Reads the value of <paramref name="nodeId"/> at the supplied
         /// timestamps (Part 11 §5.2.6.6 ReadAtTimeDetails).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="times"/> is <c>null</c>.</exception>
         public IAsyncEnumerable<DataValue> ReadAtTimeAsync(
             NodeId nodeId,
             IReadOnlyList<DateTime> times,

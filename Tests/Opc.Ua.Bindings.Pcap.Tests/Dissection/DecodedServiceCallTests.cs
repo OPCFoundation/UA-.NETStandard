@@ -66,7 +66,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
         public void LatencyIsComputedFromRequestAndResponseTimestamps()
         {
             var request = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
-            var response = request.AddMilliseconds(250);
+            DateTimeOffset response = request.AddMilliseconds(250);
 
             var call = new DecodedServiceCall
             {
@@ -93,7 +93,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
         public void InitOnlyPropertiesAreAssignableViaObjectInitializer()
         {
             var ts1 = new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero);
-            var ts2 = ts1.AddSeconds(1);
+            DateTimeOffset ts2 = ts1.AddSeconds(1);
 
             var call = new DecodedServiceCall
             {
@@ -141,7 +141,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
             // The property surfaces the computed difference verbatim so a
             // caller can detect clock anomalies in their capture.
             var request = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
-            var response = request.AddMilliseconds(-50);
+            DateTimeOffset response = request.AddMilliseconds(-50);
 
             var call = new DecodedServiceCall
             {

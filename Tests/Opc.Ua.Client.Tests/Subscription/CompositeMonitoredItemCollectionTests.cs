@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void ConstructorThrowsOnEmptyPartitionList()
         {
             Assert.That(() => new CompositeMonitoredItemCollection(
-                new List<IManagedSubscription>(),
+                [],
                 new object()),
                 Throws.TypeOf<ArgumentException>());
         }
@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(() => new CompositeMonitoredItemCollection(null!, new object()),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(() => new CompositeMonitoredItemCollection(
-                new List<IManagedSubscription> { NewFake(1) }, null!),
+                [NewFake(1)], null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             // No policy + no factory ⇒ fast path. Every member must
             // call straight through to the primary's collection.
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             var inner = new RecordingCollection();
             primary.MonitoredItems = inner;
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 MakeOptions(new V2Options()),
                 out _);
             _ = composite.TryRemove(7);
-            _ = composite.Update(Array.Empty<(string, IOptionsMonitor<V2Options>)>());
+            _ = composite.Update([]);
 
             Assert.Multiple(() =>
             {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryAddPlacesItemInPrimaryWhenCapacityAvailable()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             var primaryInner = new InMemoryCollection();
             primary.MonitoredItems = primaryInner;
 
@@ -148,10 +148,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryAddMintsNewPartitionWhenPrimaryAtCap()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
 
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1); // primary holds at most 1
@@ -177,9 +177,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryAddRejectsDuplicateNameAcrossPartitions()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -206,9 +206,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryAddRespectsStrictAffinity()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(10);
@@ -251,9 +251,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryRemoveLooksUpOwningPartitionAndDelegates()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -278,9 +278,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryGetByNameReturnsItemAcrossPartitions()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -291,7 +291,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary);
 
             Assert.That(composite.TryAdd("alpha", MakeOptions(new V2Options()), out _), Is.True);
-            Assert.That(composite.TryAdd("beta",  MakeOptions(new V2Options()), out _), Is.True);
+            Assert.That(composite.TryAdd("beta", MakeOptions(new V2Options()), out _), Is.True);
 
             Assert.That(composite.TryGetMonitoredItemByName("alpha", out IMonitoredItem? alpha), Is.True);
             Assert.That(alpha?.Name, Is.EqualTo("alpha"));
@@ -303,9 +303,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void TryGetByClientHandleReturnsItemAcrossPartitions()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -318,16 +318,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(composite.TryAdd("alpha", MakeOptions(new V2Options()), out IMonitoredItem? a), Is.True);
             Assert.That(composite.TryAdd("beta", MakeOptions(new V2Options()), out IMonitoredItem? b), Is.True);
 
-            Assert.That(composite.TryGetMonitoredItemByClientHandle(b!.ClientHandle, out var found), Is.True);
+            Assert.That(composite.TryGetMonitoredItemByClientHandle(b!.ClientHandle, out IMonitoredItem? found), Is.True);
             Assert.That(found?.ClientHandle, Is.EqualTo(b.ClientHandle));
         }
 
         [Test]
         public void ItemsEnumeratesAcrossAllPartitions()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -384,7 +384,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             public IEnumerable<IMonitoredItem> Items
             {
-                get { ItemsCalls++; return Array.Empty<IMonitoredItem>(); }
+                get { ItemsCalls++; return []; }
             }
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
@@ -422,7 +422,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 IReadOnlyList<(string Name, IOptionsMonitor<V2Options> Options)> state)
             {
                 UpdateCalls++;
-                return Array.Empty<IMonitoredItem>();
+                return [];
             }
         }
 
@@ -442,7 +442,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             public uint Count => (uint)m_byHandle.Count;
 
-            public IEnumerable<IMonitoredItem> Items => m_byHandle.Values.ToArray();
+            public IEnumerable<IMonitoredItem> Items => [.. m_byHandle.Values];
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
                 [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
@@ -499,7 +499,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 IReadOnlyList<(string Name, IOptionsMonitor<V2Options> Options)> state)
             {
                 // Not exercised in these tests.
-                return Array.Empty<IMonitoredItem>();
+                return [];
             }
 
             // Globally-unique counter mirrors production
@@ -527,8 +527,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public TimeSpan CurrentSamplingInterval => TimeSpan.Zero;
             public uint CurrentQueueSize => 0;
             public uint ClientHandle { get; }
-            public IEnumerable<IMonitoredItem> TriggeringItems => Array.Empty<IMonitoredItem>();
-            public IEnumerable<IMonitoredItem> TriggeredItems => Array.Empty<IMonitoredItem>();
+            public IEnumerable<IMonitoredItem> TriggeringItems => [];
+            public IEnumerable<IMonitoredItem> TriggeredItems => [];
 
             public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
             {

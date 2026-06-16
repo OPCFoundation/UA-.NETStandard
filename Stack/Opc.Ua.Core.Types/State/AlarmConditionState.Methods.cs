@@ -116,7 +116,7 @@ namespace Opc.Ua
                 // Only clear SuppressedOrShelved if not suppressed and not shelved
                 if ((SuppressedState == null || !SuppressedState.Id!.Value) &&
                     (ShelvingState == null ||
-                     ShelvingState.CurrentState!.Id!.Value == ObjectIds.ShelvedStateMachineType_Unshelved))
+                        ShelvingState.CurrentState!.Id!.Value == ObjectIds.ShelvedStateMachineType_Unshelved))
                 {
                     SuppressedOrShelved!.Value = false;
                 }
@@ -771,7 +771,6 @@ namespace Opc.Ua
 
             ClearChangeMasks(context, includeChildren: true);
         }
-
     }
 
     /// <summary>

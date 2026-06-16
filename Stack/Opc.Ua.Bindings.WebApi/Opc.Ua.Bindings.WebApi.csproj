@@ -6,9 +6,8 @@
       framework reference used by this binding are net8+ only. The
       companion Opc.Ua.Bindings.Https package still supports net472 /
       net48 / netstandard2.x via downlevel Microsoft.AspNetCore.Server.Kestrel
-      packages and cannot adopt these APIs without dropping legacy support —
-      hence this dedicated net8+-only project (same pattern as
-      Opc.Ua.Bindings.Kestrel.Tcp).
+      packages and cannot adopt these APIs without dropping legacy
+      support — hence this dedicated net8+-only project.
     -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>

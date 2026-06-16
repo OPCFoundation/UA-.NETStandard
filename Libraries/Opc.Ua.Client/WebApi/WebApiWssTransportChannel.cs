@@ -124,10 +124,10 @@ namespace Opc.Ua.Client.WebApi
         public byte[] ChannelThumbprint => [];
 
         /// <inheritdoc/>
-        public byte[] ClientChannelCertificate { get; private set; } = [];
+        public byte[] ClientChannelCertificate { get; } = [];
 
         /// <inheritdoc/>
-        public byte[] ServerChannelCertificate { get; private set; } = [];
+        public byte[] ServerChannelCertificate { get; } = [];
 
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated

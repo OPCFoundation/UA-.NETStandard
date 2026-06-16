@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.Transfer;
@@ -53,7 +52,7 @@ namespace Opc.Ua.Di.Tests
             return new SystemContext(telemetry: null!);
         }
 
-        private static NodeId ElementId => new NodeId("Device", 2);
+        private static NodeId ElementId => new("Device", 2);
 
         [Test]
         public async Task TransferFromDeviceWithExporterReturnsEntries()
@@ -64,7 +63,7 @@ namespace Opc.Ua.Di.Tests
                 Entries =
                 {
                     new ParameterEntry(
-                        new[] { new QualifiedName("Manufacturer", 2) },
+                        [new QualifiedName("Manufacturer", 2)],
                         new Variant("Acme"),
                         StatusCodes.Good)
                 }
@@ -94,7 +93,7 @@ namespace Opc.Ua.Di.Tests
             FetchResult chunk = await service.FetchAsync(
                 CreateContext(), transferId, 0, 0, false);
 
-            Assert.That(chunk.TransferError, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(chunk.TransferError, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(chunk.EndOfResults, Is.True);
             Assert.That(chunk.Entries, Is.Empty);
         }
@@ -106,7 +105,7 @@ namespace Opc.Ua.Di.Tests
             FetchResult chunk = await service.FetchAsync(
                 CreateContext(), transferId: 9999, sequenceNumber: 0,
                 maxResults: 0, omitGoodResults: false);
-            Assert.That(chunk.TransferError, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(chunk.TransferError, Is.EqualTo(StatusCodes.BadNotFound));
             Assert.That(chunk.EndOfResults, Is.True);
         }
 
@@ -118,7 +117,7 @@ namespace Opc.Ua.Di.Tests
             for (int i = 0; i < 5; i++)
             {
                 set.Entries.Add(new ParameterEntry(
-                    new[] { new QualifiedName($"P{i}", 2) },
+                    [new QualifiedName($"P{i}", 2)],
                     new Variant(i),
                     StatusCodes.Good));
             }
@@ -156,10 +155,10 @@ namespace Opc.Ua.Di.Tests
                 Entries =
                 {
                     new ParameterEntry(
-                        new[] { new QualifiedName("Ok", 2) },
+                        [new QualifiedName("Ok", 2)],
                         new Variant(1), StatusCodes.Good),
                     new ParameterEntry(
-                        new[] { new QualifiedName("Bad", 2) },
+                        [new QualifiedName("Bad", 2)],
                         new Variant(2), StatusCodes.BadInternalError)
                 }
             };
@@ -183,11 +182,11 @@ namespace Opc.Ua.Di.Tests
                 (ctx, parameters, ct) =>
                 {
                     capturedInput = parameters;
-                    return new ValueTask<StatusCode[]>(new StatusCode[]
-                    {
+                    return new ValueTask<StatusCode[]>(
+                    [
                         StatusCodes.Good,
                         StatusCodes.BadOutOfRange
-                    });
+                    ]);
                 });
 
             var input = new ParameterSet(ElementId)
@@ -195,10 +194,10 @@ namespace Opc.Ua.Di.Tests
                 Entries =
                 {
                     new ParameterEntry(
-                        new[] { new QualifiedName("A", 2) },
+                        [new QualifiedName("A", 2)],
                         new Variant(10), StatusCodes.Good),
                     new ParameterEntry(
-                        new[] { new QualifiedName("B", 2) },
+                        [new QualifiedName("B", 2)],
                         new Variant(200), StatusCodes.Good)
                 }
             };
@@ -212,9 +211,9 @@ namespace Opc.Ua.Di.Tests
                 CreateContext(), transferId, 0, 0, false);
             Assert.That(chunk.Entries, Has.Length.EqualTo(2));
             Assert.That(chunk.Entries[0].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.Good));
+                Is.EqualTo(StatusCodes.Good));
             Assert.That(chunk.Entries[1].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+                Is.EqualTo(StatusCodes.BadOutOfRange));
         }
 
         [Test]
@@ -228,7 +227,7 @@ namespace Opc.Ua.Di.Tests
             FetchResult chunk = await service.FetchAsync(
                 CreateContext(), transferId, 0, 0, false);
 
-            Assert.That(chunk.TransferError, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(chunk.TransferError, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -257,7 +256,7 @@ namespace Opc.Ua.Di.Tests
                     Entries =
                     {
                         new ParameterEntry(
-                            new[] { new QualifiedName("X", 2) },
+                            [new QualifiedName("X", 2)],
                             new Variant(1), StatusCodes.Good)
                     }
                 }));
@@ -274,7 +273,7 @@ namespace Opc.Ua.Di.Tests
             FetchResult second = await service.FetchAsync(
                 CreateContext(), transferId, 0, 0, false);
             Assert.That(second.TransferError,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+                Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]

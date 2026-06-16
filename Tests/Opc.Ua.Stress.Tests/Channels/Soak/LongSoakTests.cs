@@ -38,10 +38,10 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Stress.Tests.Channels.Integration;
-using Opc.Ua.Client;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 // CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.

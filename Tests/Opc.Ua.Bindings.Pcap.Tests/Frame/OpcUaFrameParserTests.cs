@@ -33,7 +33,6 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Frame;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Frame
@@ -47,7 +46,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             var parser = new OpcUaFrameParser();
             byte[] chunk = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 100);
 
-            OpcUaChunk[] chunks = parser.Process(PcapTestHelpers.CreateSegment("flow", chunk)).ToArray();
+            OpcUaChunk[] chunks = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", chunk))];
 
             Assert.That(chunks, Has.Length.EqualTo(1));
             Assert.That(chunks[0].Data.Length, Is.EqualTo(108));
@@ -61,8 +60,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             byte[] first = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 10, 1);
             byte[] second = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 11, 2);
 
-            OpcUaChunk[] chunks = parser.Process(PcapTestHelpers.CreateSegment("flow", first.Concat(second).ToArray()))
-                .ToArray();
+            OpcUaChunk[] chunks = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", [.. first, .. second]))];
 
             Assert.That(chunks, Has.Length.EqualTo(2));
             Assert.That(chunks[0].Data.Length, Is.EqualTo(first.Length));
@@ -75,8 +73,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             var parser = new OpcUaFrameParser();
             byte[] chunk = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 20);
 
-            OpcUaChunk[] first = parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[..12])).ToArray();
-            OpcUaChunk[] second = parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[12..])).ToArray();
+            OpcUaChunk[] first = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[..12]))];
+            OpcUaChunk[] second = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[12..]))];
 
             Assert.That(first, Is.Empty);
             Assert.That(second, Has.Length.EqualTo(1));
@@ -89,8 +87,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             var parser = new OpcUaFrameParser();
             byte[] chunk = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 20);
 
-            OpcUaChunk[] first = parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[..8])).ToArray();
-            OpcUaChunk[] second = parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[8..])).ToArray();
+            OpcUaChunk[] first = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[..8]))];
+            OpcUaChunk[] second = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", chunk[8..]))];
 
             Assert.That(first, Is.Empty);
             Assert.That(second, Has.Length.EqualTo(1));
@@ -104,9 +102,9 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             byte[] first = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 10, 1);
             byte[] second = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 10, 2);
 
-            OpcUaChunk[] firstHalf = parser.Process(PcapTestHelpers.CreateSegment("flow-a", first[..8])).ToArray();
-            OpcUaChunk[] otherFlow = parser.Process(PcapTestHelpers.CreateSegment("flow-b", second)).ToArray();
-            OpcUaChunk[] completeFirst = parser.Process(PcapTestHelpers.CreateSegment("flow-a", first[8..])).ToArray();
+            OpcUaChunk[] firstHalf = [.. parser.Process(PcapTestHelpers.CreateSegment("flow-a", first[..8]))];
+            OpcUaChunk[] otherFlow = [.. parser.Process(PcapTestHelpers.CreateSegment("flow-b", second))];
+            OpcUaChunk[] completeFirst = [.. parser.Process(PcapTestHelpers.CreateSegment("flow-a", first[8..]))];
 
             Assert.That(firstHalf, Is.Empty);
             Assert.That(otherFlow, Has.Length.EqualTo(1));
@@ -126,7 +124,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             BinaryPrimitives.WriteUInt32LittleEndian(invalid.AsSpan(4), 12);
             valid.CopyTo(invalid.AsSpan(12));
 
-            OpcUaChunk[] chunks = parser.Process(PcapTestHelpers.CreateSegment("flow", invalid)).ToArray();
+            OpcUaChunk[] chunks = [.. parser.Process(PcapTestHelpers.CreateSegment("flow", invalid))];
 
             Assert.That(chunks, Has.Length.EqualTo(1));
             Assert.That(chunks[0].Data.ToArray(), Is.EqualTo(valid).AsCollection);

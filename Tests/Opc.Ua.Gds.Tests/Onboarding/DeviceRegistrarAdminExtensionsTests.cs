@@ -109,15 +109,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var store = new MemoryTicketStore();
             reg.BindToTicketStore(store);
 
-            byte[][] tickets = new[]
-            {
+            byte[][] tickets =
+            [
                 new byte[] { 1, 2, 3 },
-                new byte[] { 4, 5, 6 }
-            };
+                [4, 5, 6]
+            ];
             ByteString[] ticketsBs = Array.ConvertAll(tickets, b => new ByteString(b));
 
             ArrayOf<Variant> inputs = new[] { new Variant(ticketsBs.ToArrayOf()) }.ToArrayOf();
-            List<Variant> outputs = new List<Variant>();
+            List<Variant> outputs = [];
             ServiceResult result = register.OnCallMethod2!(
                 context: new SystemContext(telemetry: null!),
                 method: register,
@@ -140,11 +140,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var store = new MemoryTicketStore();
             reg.BindToTicketStore(store);
 
-            byte[] ticket = new byte[] { 0xAA };
-            ByteString[] ticketsBs = new[] { new ByteString(ticket) };
+            byte[] ticket = [0xAA];
+            ByteString[] ticketsBs = [new ByteString(ticket)];
             ArrayOf<Variant> registerInputs = new[]
                 { new Variant(ticketsBs.ToArrayOf()) }.ToArrayOf();
-            List<Variant> registerOutputs = new List<Variant>();
+            List<Variant> registerOutputs = [];
             register.OnCallMethod2!(
                 new SystemContext(telemetry: null!), register, reg.NodeId,
                 registerInputs, registerOutputs);
@@ -158,7 +158,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             ArrayOf<Variant> unregisterInputs = new[]
                 { new Variant(ticketsBs.ToArrayOf()) }.ToArrayOf();
-            List<Variant> unregisterOutputs = new List<Variant>();
+            List<Variant> unregisterOutputs = [];
             unregister.OnCallMethod2!(
                 new SystemContext(telemetry: null!), unregister, reg.NodeId,
                 unregisterInputs, unregisterOutputs);

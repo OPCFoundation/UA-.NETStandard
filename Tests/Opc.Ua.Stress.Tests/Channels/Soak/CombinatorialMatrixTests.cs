@@ -38,10 +38,10 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Stress.Tests.Channels.Integration;
-using Opc.Ua.Client;
 using ClassicMonitoredItem = Opc.Ua.Client.MonitoredItem;
 using ClassicSubscription = Opc.Ua.Client.Subscription;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
@@ -686,7 +686,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
             private readonly NotificationCounter m_counter;
         }
 
-        private sealed class NotificationCounter : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+        private sealed class NotificationCounter : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             public long Count => Volatile.Read(ref m_count);
 

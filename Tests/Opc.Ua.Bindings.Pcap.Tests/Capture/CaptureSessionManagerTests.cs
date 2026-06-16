@@ -332,9 +332,9 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
                 m_throwOnStart = throwOnStart;
             }
 
-            public List<InMemoryCaptureSource> Created { get; } = new();
+            public List<InMemoryCaptureSource> Created { get; } = [];
 
-            public List<ThrowingStartSource> ThrowingCreated { get; } = new();
+            public List<ThrowingStartSource> ThrowingCreated { get; } = [];
 
             public ICaptureSource Create(
                 CaptureSourceKind kind,

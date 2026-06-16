@@ -4,7 +4,9 @@
 `https://` / `opc.https://` (HTTPS-binary + HTTPS-JSON) and
 `wss://` / `opc.wss://` (WSS-binary + WSS-JSON) listeners and
 channels on top of `OPCFoundation.NetStandard.Opc.Ua.Core`. The
-listeners are hosted by Kestrel.
+listeners are hosted by Kestrel. On `net8.0`+ it also provides an
+opt-in Kestrel-hosted `opc.tcp://` listener so a single `IHost` can
+serve every OPC UA transport.
 
 ## Overview
 
@@ -25,9 +27,16 @@ The package contains:
 - An `IHttpsListenerStartupContributor` extension hook that allows
   companion bindings (e.g.
   `OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi`) to mount
-  additional middleware (typically routing + MVC controllers) into the
-  same Kestrel host that already serves binary / `opcua+uajson` /
-  WebSocket traffic.
+  additional middleware (typically routing + Minimal-API endpoints)
+  into the same Kestrel host that already serves binary /
+  `opcua+uajson` / WebSocket traffic.
+- `KestrelTcpTransportListener` (`net8.0`+, opt-in) — hosts the
+  `opc.tcp://` listener on Kestrel via
+  `Microsoft.AspNetCore.Connections.ConnectionHandler` instead of the
+  raw-socket `TcpTransportListener` (which ships in `Opc.Ua.Core` and
+  stays the default). Registered with `AddKestrelOpcTcpTransport()`; it
+  has full feature parity with the raw-socket listener (forward
+  endpoints, reverse-connect, TLS certificate hot-update, discovery).
 
 ## Getting started
 
@@ -40,6 +49,14 @@ services
     .AddOpcTcpTransport()
     .AddHttpsTransport()   // https:// + opc.https://
     .AddWssTransport();    // wss://   + opc.wss://
+
+// Optional (net8.0+): host opc.tcp:// on Kestrel too, so a single
+// IHost serves opc.tcp, opc.https, and opc.wss. Call AFTER
+// AddOpcTcpTransport(); last-writer-wins per URI scheme.
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()
+    .AddKestrelOpcTcpTransport();
 ```
 
 ## Companion REST binding
@@ -53,6 +70,12 @@ on the same Kestrel port.
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`.
+The opt-in Kestrel-hosted `opc.tcp://` listener
+(`AddKestrelOpcTcpTransport()`) is available on `net8.0`+ only — the
+ASP.NET Core `ConnectionContext` surface it relies on
+(`LocalEndPoint` / `RemoteEndPoint` / `ConnectionClosed`) is not
+available on the .NET Framework / netstandard targets, where the
+default raw-socket `opc.tcp` listener remains the right choice.
 
 ## Additional documentation
 

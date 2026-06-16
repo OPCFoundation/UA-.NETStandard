@@ -36,10 +36,10 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Stress.Tests.Channels.Integration;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Stress.Tests.Channels.Chaos
 {

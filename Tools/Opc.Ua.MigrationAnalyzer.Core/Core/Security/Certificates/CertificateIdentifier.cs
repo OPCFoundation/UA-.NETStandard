@@ -48,6 +48,7 @@ namespace Opc.Ua
             /// Returns the resolved X.509 certificate. Removed in 1.6 because
             /// resolution is now async and requires a registry.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             [Obsolete("CertificateIdentifier.Certificate was removed in 1.6 because " +
                 "resolution requires a registry/telemetry context. " +
                 "Use CertificateIdentifierResolver.ResolveAsync(id, registry, needPrivateKey, applicationUri, telemetry, ct). " +

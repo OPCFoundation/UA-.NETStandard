@@ -89,19 +89,17 @@ namespace Opc.Ua.Di.Server.Locking
         /// Call once during DI node-manager startup; calling twice
         /// throws.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public void AttachToSessionManager(ISessionManager sessionManager)
         {
-            if (sessionManager == null)
-            {
-                throw new ArgumentNullException(nameof(sessionManager));
-            }
             if (m_sessionManager != null)
             {
                 throw new InvalidOperationException(
                     "DefaultLockService is already attached to a session manager.");
             }
 
-            m_sessionManager = sessionManager;
+            m_sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
             m_sessionClosingHandler = OnSessionClosing;
             sessionManager.SessionClosing += m_sessionClosingHandler;
         }

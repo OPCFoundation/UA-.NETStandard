@@ -147,9 +147,15 @@ namespace Opc.Ua.Di.Tests
             {
                 var calls = new List<int>();
                 DiPostSetupRunner runner = BuildRunner(
-                    Configurator(typeof(DiNodeManager), _ => { calls.Add(1); return default; }),
-                    Configurator(typeof(DiNodeManager), _ => { calls.Add(2); return default; }),
-                    Configurator(typeof(DiNodeManager), _ => { calls.Add(3); return default; }));
+                    Configurator(typeof(DiNodeManager), _ => {
+                    calls.Add(1);
+                    return default; }),
+                    Configurator(typeof(DiNodeManager), _ => {
+                    calls.Add(2);
+                    return default; }),
+                    Configurator(typeof(DiNodeManager), _ => {
+                    calls.Add(3);
+                    return default; }));
 
                 await runner.RunAsync(fixture.Manager, CancellationToken.None)
                     .ConfigureAwait(false);
@@ -172,10 +178,14 @@ namespace Opc.Ua.Di.Tests
                 bool diRan = false;
                 bool unrelatedRan = false;
                 DiPostSetupRunner runner = BuildRunner(
-                    Configurator(typeof(DiNodeManager), _ => { diRan = true; return default; }),
+                    Configurator(typeof(DiNodeManager), _ => {
+                    diRan = true;
+                    return default; }),
                     Configurator(
                         typeof(UnrelatedSubclass),
-                        _ => { unrelatedRan = true; return default; }));
+                        _ => {
+                        unrelatedRan = true;
+                        return default; }));
 
                 await runner.RunAsync(fixture.Manager, CancellationToken.None)
                     .ConfigureAwait(false);
@@ -322,7 +332,9 @@ namespace Opc.Ua.Di.Tests
         private sealed class UnrelatedSubclass : DiNodeManager
         {
             private UnrelatedSubclass(IServerInternal s, ApplicationConfiguration c)
-                : base(s, c) { }
+                : base(s, c)
+            {
+            }
         }
 
         /// <summary>

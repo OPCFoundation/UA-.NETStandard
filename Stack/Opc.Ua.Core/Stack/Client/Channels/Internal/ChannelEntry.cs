@@ -34,8 +34,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using ChannelCloseReason = Opc.Ua.ClientChannelManager.ChannelCloseReason;
 using Opc.Ua.Security.Certificates;
+using ChannelCloseReason = Opc.Ua.ClientChannelManager.ChannelCloseReason;
 
 namespace Opc.Ua
 {
@@ -642,7 +642,7 @@ namespace Opc.Ua
                     IRetryBudget? budget = GetEffectiveBudget();
                     if (budget != null && budget.IsExhausted)
                     {
-                        ServiceResult error = ServiceResult.Create(
+                        var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Channel reconnect budget exhausted after {0} attempts.",
                             attempt);
@@ -664,7 +664,7 @@ namespace Opc.Ua
 #endif
                     if (delay < TimeSpan.Zero)
                     {
-                        ServiceResult error = ServiceResult.Create(
+                        var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Channel reconnect policy exhausted after {0} attempts.",
                             attempt);
@@ -701,7 +701,7 @@ namespace Opc.Ua
                     budget = GetEffectiveBudget();
                     if (budget != null && budget.IsExhausted)
                     {
-                        ServiceResult error = ServiceResult.Create(
+                        var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Channel reconnect budget exhausted after {0} attempts.",
                             attempt);
@@ -781,7 +781,7 @@ namespace Opc.Ua
 
                     if (outcome.AnyTransient)
                     {
-                        ServiceResult error = ServiceResult.Create(
+                        var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Participant signaled transient channel reconnect failure.");
                         m_host.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);

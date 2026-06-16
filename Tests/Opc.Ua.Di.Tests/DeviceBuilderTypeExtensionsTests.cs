@@ -29,7 +29,6 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 
 namespace Opc.Ua.Di.Tests

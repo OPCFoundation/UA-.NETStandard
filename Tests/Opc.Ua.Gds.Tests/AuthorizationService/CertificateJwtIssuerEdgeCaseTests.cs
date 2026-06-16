@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
                     "subject",
                     Audience,
-                    Array.Empty<string>(),
+                    [],
                     new Dictionary<string, object?>(),
                     TimeSpan.FromMinutes(5))).ConfigureAwait(false));
 
@@ -97,7 +97,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
                     string.Empty,
                     Audience,
-                    Array.Empty<string>(),
+                    [],
                     new Dictionary<string, object?>(),
                     TimeSpan.FromMinutes(5))).ConfigureAwait(false));
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
                     "subject",
                     string.Empty,
-                    Array.Empty<string>(),
+                    [],
                     new Dictionary<string, object?>(),
                     TimeSpan.FromMinutes(5))).ConfigureAwait(false));
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 new TokenIssuanceRequest(
                     "subject",
                     Audience,
-                    Array.Empty<string>(),
+                    [],
                     new Dictionary<string, object?>(),
                     TimeSpan.FromMinutes(5)))
                 .ConfigureAwait(false);
@@ -188,7 +188,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 new TokenIssuanceRequest(
                     "subject",
                     Audience,
-                    Array.Empty<string>(),
+                    [],
                     new Dictionary<string, object?>(),
                     TimeSpan.FromMinutes(5)))
                 .ConfigureAwait(false);
@@ -237,7 +237,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 new TokenIssuanceRequest(
                     "subject-1",
                     Audience,
-                    Array.Empty<string>(),
+                    [],
                     additional,
                     TimeSpan.FromMinutes(5)))
                 .ConfigureAwait(false);
@@ -297,7 +297,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 new TokenIssuanceRequest(
                     "subject-1",
                     Audience,
-                    Array.Empty<string>(),
+                    [],
                     new Dictionary<string, object?>(),
                     TimeSpan.Zero))
                 .ConfigureAwait(false);

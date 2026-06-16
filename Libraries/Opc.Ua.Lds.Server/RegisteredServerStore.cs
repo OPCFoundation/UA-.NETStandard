@@ -66,7 +66,7 @@ namespace Opc.Ua.Lds.Server
         /// Creates a new in-memory store.
         /// </summary>
         /// <param name="logger">Optional logger; defaults to a null logger.</param>
-        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> used for the
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used for the
         /// background prune timer and registration timestamps. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public RegisteredServerStore(ILogger logger = null, TimeProvider timeProvider = null)

@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1396,7 +1394,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // Act + Assert: validation by reference identity
                 // rejects the stray item.
                 Assert.That(async () => await sut.SetTriggeringAsync(
-                    trig, new IMonitoredItem[] { stray }, null, default)
+                    trig, [stray], null, default)
                     .ConfigureAwait(false),
                     Throws.ArgumentException);
             }
@@ -1416,7 +1414,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .ReturnsAsync(new SetTriggeringResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    AddResults = new[] { (StatusCode)StatusCodes.Good }.ToArrayOf(),
+                    AddResults = new[] { StatusCodes.Good }.ToArrayOf(),
                     RemoveResults = Array.Empty<StatusCode>().ToArrayOf()
                 })
                 .Verifiable(Times.Once);
@@ -1438,7 +1436,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // Act
                 SetTriggeringResult result = await sut.SetTriggeringAsync(
                     trig,
-                    new IMonitoredItem[] { tgt },
+                    [tgt],
                     null,
                     default).ConfigureAwait(false);
 

@@ -30,15 +30,15 @@
 #nullable enable
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Client;
+using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Stress.Tests.Channels.Contract

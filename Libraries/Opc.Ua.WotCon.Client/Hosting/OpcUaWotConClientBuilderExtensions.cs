@@ -86,9 +86,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (configure is null)
 
             {
-
                 builder.Services.AddOptions<WotConClientOptions>();
-
             }
             else
             {

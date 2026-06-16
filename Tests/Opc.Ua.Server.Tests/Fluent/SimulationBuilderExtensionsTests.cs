@@ -40,7 +40,7 @@ using Opc.Ua.Server.Fluent;
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>
-    /// Tests for <see cref="SimulationBuilderExtensions"/> / 
+    /// Tests for <see cref="SimulationBuilderExtensions"/> /
     /// <see cref="ISimulationBuilder"/> — fluent simulation tick API.
     /// </summary>
     [TestFixture]

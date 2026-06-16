@@ -443,6 +443,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configure">Callback used to populate
         /// <see cref="AuthorizationServiceOptions"/>.</param>
         /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder WithAuthorizationService<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TIssuer>(
                 this IGdsServerBuilder gdsBuilder,
@@ -605,7 +606,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 // GDS-specific membership API directly.
                 if (typeof(IGdsUserDatabase).IsAssignableFrom(typeof(T)))
                 {
-                    Services.AddSingleton<IGdsUserDatabase>(
+                    Services.AddSingleton(
                         sp => (IGdsUserDatabase)sp.GetRequiredService<T>());
                 }
                 return this;

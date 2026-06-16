@@ -517,7 +517,7 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                 reader.MoveToContent();
                 using var decoder = new XmlDecoder(reader, MessageContext);
                 decode(decoder);

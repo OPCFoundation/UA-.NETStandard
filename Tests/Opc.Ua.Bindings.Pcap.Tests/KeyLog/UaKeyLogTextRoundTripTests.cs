@@ -72,7 +72,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
                 await writer.DisposeAsync().ConfigureAwait(false);
             }
 
-            var roundTripped = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> roundTripped = await PcapTestHelpers.ToListAsync(
                 new UaKeyLogTextReader().ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(roundTripped, Has.Count.EqualTo(records.Count));
@@ -106,7 +106,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
                 await writer.DisposeAsync().ConfigureAwait(false);
             }
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
                 new UaKeyLogTextReader().ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(records.Select(static record => record.TokenId), Is.EqualTo(new uint[] { 1, 2 }).AsCollection);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             string path = CreateTempPath("empty.uakeys.txt");
             await System.IO.File.WriteAllTextAsync(path, string.Empty, CancellationToken.None).ConfigureAwait(false);
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
                 new UaKeyLogTextReader().ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(records, Is.Empty);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
                 "# comment\r\n   \r\n" + line + "\r\n",
                 CancellationToken.None).ConfigureAwait(false);
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
                 new UaKeyLogTextReader().ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
 
             Assert.That(records, Has.Count.EqualTo(1));

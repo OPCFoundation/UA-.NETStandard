@@ -2556,7 +2556,7 @@ namespace Opc.Ua.Client
 
             if (manager != null && channel == null && oldManagedLease != null)
             {
-                ManagedChannelKey targetKey = ManagedChannelKey.FromEndpoint(
+                var targetKey = ManagedChannelKey.FromEndpoint(
                     targetEndpoint,
                     m_instanceCertificate,
                     connection);

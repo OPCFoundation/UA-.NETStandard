@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// Tests for the reactive-fallback path on
     /// <see cref="CompositeMonitoredItemCollection"/>: when a
     /// partition's
-    /// <see cref="Opc.Ua.Client.Subscriptions.Subscription.OnPartitionCapReached"/>
+    /// <see cref="Subscription.OnPartitionCapReached"/>
     /// hook signals
     /// <see cref="StatusCodes.BadTooManyMonitoredItems"/>, the
     /// placement policy must mark the partition no-grow so
@@ -59,8 +59,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void OnPartitionCapReachedMarksPartitionNoGrow()
         {
-            var primary = NewFake(1);
-            var secondary = NewFake(2);
+            FakeManagedSubscription primary = NewFake(1);
+            FakeManagedSubscription secondary = NewFake(2);
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
             int factoryCalls = 0;
             var partitions = new List<IManagedSubscription> { primary };
@@ -96,9 +96,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Fast path: composite has no policy / no factory. The
             // reactive fallback hook degrades to a no-op so callers
             // can wire it unconditionally.
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             var composite = new CompositeMonitoredItemCollection(
-                new List<IManagedSubscription> { primary },
+                [primary],
                 new object());
 
             Assert.DoesNotThrow(() => composite.OnPartitionCapReached(primary));
@@ -107,10 +107,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public void OnPartitionCapReachedThrowsOnNull()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
             var composite = new CompositeMonitoredItemCollection(
-                new List<IManagedSubscription> { primary },
+                [primary],
                 new object(),
                 policy,
                 () => NewFake(2));

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -277,3 +278,4 @@ namespace Opc.Ua.Bindings
         private int m_closed;
     }
 }
+#endif // NET8_0_OR_GREATER

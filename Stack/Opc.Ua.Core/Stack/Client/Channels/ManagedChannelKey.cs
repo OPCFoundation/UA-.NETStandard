@@ -184,7 +184,7 @@ namespace Opc.Ua
 #if NET6_0_OR_GREATER
             return System.Security.Cryptography.SHA1.HashData(data);
 #else
-            using System.Security.Cryptography.SHA1 sha1 = System.Security.Cryptography.SHA1.Create();
+            using var sha1 = System.Security.Cryptography.SHA1.Create();
 
             return sha1.ComputeHash(data);
 #endif

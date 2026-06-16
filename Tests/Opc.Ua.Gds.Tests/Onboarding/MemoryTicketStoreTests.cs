@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task AddStoresTicket()
         {
             var store = new MemoryTicketStore();
-            byte[] payload = new byte[] { 1, 2, 3 };
+            byte[] payload = [1, 2, 3];
 
             await store.AddAsync("ticket-1", payload, Metadata()).ConfigureAwait(false);
             TicketRecord? fetched = await store.GetAsync("ticket-1").ConfigureAwait(false);
@@ -77,7 +77,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task AddClonesPayloadBytes()
         {
             var store = new MemoryTicketStore();
-            byte[] payload = new byte[] { 1, 2, 3 };
+            byte[] payload = [1, 2, 3];
             await store.AddAsync("ticket-1", payload, Metadata()).ConfigureAwait(false);
 
             // Mutate the original after add — store contents must
@@ -91,8 +91,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task AddWithExistingIdReplaces()
         {
             var store = new MemoryTicketStore();
-            await store.AddAsync("t1", new byte[] { 1 }, Metadata("S1")).ConfigureAwait(false);
-            await store.AddAsync("t1", new byte[] { 2 }, Metadata("S2")).ConfigureAwait(false);
+            await store.AddAsync("t1", [1], Metadata("S1")).ConfigureAwait(false);
+            await store.AddAsync("t1", [2], Metadata("S2")).ConfigureAwait(false);
 
             TicketRecord? fetched = await store.GetAsync("t1").ConfigureAwait(false);
             Assert.That(fetched, Is.Not.Null);
@@ -105,18 +105,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var store = new MemoryTicketStore();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.AddAsync(string.Empty, Array.Empty<byte>(), Metadata()).ConfigureAwait(false));
+                async () => await store.AddAsync(string.Empty, [], Metadata()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync("t1", null!, Metadata()).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await store.AddAsync("t1", Array.Empty<byte>(), null!).ConfigureAwait(false));
+                async () => await store.AddAsync("t1", [], null!).ConfigureAwait(false));
         }
 
         [Test]
         public async Task RemoveReturnsTrueOnlyWhenPresent()
         {
             var store = new MemoryTicketStore();
-            await store.AddAsync("t1", new byte[] { 1 }, Metadata()).ConfigureAwait(false);
+            await store.AddAsync("t1", [1], Metadata()).ConfigureAwait(false);
 
             Assert.That(await store.RemoveAsync("t1").ConfigureAwait(false), Is.True);
             Assert.That(await store.RemoveAsync("t1").ConfigureAwait(false), Is.False);
@@ -135,9 +135,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task ListEnumeratesAllTickets()
         {
             var store = new MemoryTicketStore();
-            await store.AddAsync("t1", new byte[] { 1 }, Metadata("S1")).ConfigureAwait(false);
-            await store.AddAsync("t2", new byte[] { 2 }, Metadata("S2")).ConfigureAwait(false);
-            await store.AddAsync("t3", new byte[] { 3 }, Metadata("S3")).ConfigureAwait(false);
+            await store.AddAsync("t1", [1], Metadata("S1")).ConfigureAwait(false);
+            await store.AddAsync("t2", [2], Metadata("S2")).ConfigureAwait(false);
+            await store.AddAsync("t3", [3], Metadata("S3")).ConfigureAwait(false);
 
             var seen = new List<string>();
             await foreach (TicketRecord r in store.ListAsync().ConfigureAwait(false))
@@ -153,9 +153,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task FindByProductInstanceUriFindsMatch()
         {
             var store = new MemoryTicketStore();
-            await store.AddAsync("t1", new byte[] { 1 },
+            await store.AddAsync("t1", [1],
                 Metadata(productUri: "urn:acme:device:1")).ConfigureAwait(false);
-            await store.AddAsync("t2", new byte[] { 2 },
+            await store.AddAsync("t2", [2],
                 Metadata(productUri: "urn:acme:device:2")).ConfigureAwait(false);
 
             TicketRecord? r = await store.FindByProductInstanceUriAsync(
@@ -168,7 +168,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task FindByProductInstanceUriReturnsNullForUnknown()
         {
             var store = new MemoryTicketStore();
-            await store.AddAsync("t1", new byte[] { 1 }, Metadata()).ConfigureAwait(false);
+            await store.AddAsync("t1", [1], Metadata()).ConfigureAwait(false);
 
             TicketRecord? r = await store.FindByProductInstanceUriAsync(
                 "urn:nobody").ConfigureAwait(false);

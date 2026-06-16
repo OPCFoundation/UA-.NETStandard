@@ -339,7 +339,7 @@ namespace Opc.Ua.Bindings
         /// </exception>
         public static HelloMessage ReadHelloMessage(ArraySegment<byte> body)
         {
-            using var decoder = CreateDecoder(body);
+            using BinaryDecoder decoder = CreateDecoder(body);
             uint protocolVersion = decoder.ReadUInt32(null);
             uint receiveBufferSize = decoder.ReadUInt32(null);
             uint sendBufferSize = decoder.ReadUInt32(null);
@@ -376,7 +376,7 @@ namespace Opc.Ua.Bindings
         /// </exception>
         public static AcknowledgeMessage ReadAcknowledgeMessage(ArraySegment<byte> body)
         {
-            using var decoder = CreateDecoder(body);
+            using BinaryDecoder decoder = CreateDecoder(body);
             uint protocolVersion = decoder.ReadUInt32(null);
             uint receiveBufferSize = decoder.ReadUInt32(null);
             uint sendBufferSize = decoder.ReadUInt32(null);
@@ -418,7 +418,7 @@ namespace Opc.Ua.Bindings
         /// </exception>
         public static ErrorMessage ReadErrorMessage(ArraySegment<byte> body)
         {
-            using var decoder = CreateDecoder(body);
+            using BinaryDecoder decoder = CreateDecoder(body);
             uint statusCode = decoder.ReadUInt32(null);
             string? reason = null;
             int reasonLength = decoder.ReadInt32(null);
@@ -463,7 +463,7 @@ namespace Opc.Ua.Bindings
         /// </exception>
         public static ReverseHelloMessage ReadReverseHelloMessage(ArraySegment<byte> body)
         {
-            using var decoder = CreateDecoder(body);
+            using BinaryDecoder decoder = CreateDecoder(body);
             string? serverUri = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
             string? endpointUrl = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
 
@@ -505,7 +505,7 @@ namespace Opc.Ua.Bindings
         /// </exception>
         public static AsymmetricHeaderFields ReadAsymmetricMessageHeader(ArraySegment<byte> body)
         {
-            using var decoder = CreateDecoder(body);
+            using BinaryDecoder decoder = CreateDecoder(body);
             uint secureChannelId = decoder.ReadUInt32(null);
             string securityPolicyUri = decoder.ReadString(
                 null,

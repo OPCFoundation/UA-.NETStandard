@@ -39,7 +39,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings.Pcap.Frame;
 using Opc.Ua.Bindings.Pcap.KeyLog;
 using Opc.Ua.Bindings.Pcap.Models;
-using PacketDotNet;
 using SharpPcap;
 using SharpPcap.LibPcap;
 

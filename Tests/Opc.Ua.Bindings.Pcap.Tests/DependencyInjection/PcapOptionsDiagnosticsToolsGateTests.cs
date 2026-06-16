@@ -68,7 +68,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddPcapBinding(options => options.EnableDiagnosticsTools = true);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
 
             Assert.That(options.EnableDiagnosticsTools, Is.True);
         }

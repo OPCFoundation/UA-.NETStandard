@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// Positional read helpers shared by source-generated event-record
     /// decoders. Mirrors the inlined helpers that lived on
     /// <c>AlarmEventDecoder</c> before decoder generation landed —
-    /// the conversion semantics (especially <c>DateTimeUtc</c> → 
+    /// the conversion semantics (especially <c>DateTimeUtc</c> →
     /// <c>DateTime</c>) match the historic hand-rolled behavior.
     /// </summary>
     /// <remarks>

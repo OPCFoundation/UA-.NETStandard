@@ -223,9 +223,10 @@ namespace Opc.Ua.Client
                 checkDomain,
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
-                channelManager);
-
-            managed.m_engineFactory = engineFactory;
+                channelManager)
+            {
+                m_engineFactory = engineFactory
+            };
 
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
@@ -1220,11 +1221,8 @@ namespace Opc.Ua.Client
                 OnInnerSessionConfigurationChanged;
             session.RenewUserIdentity +=
                 OnInnerRenewUserIdentity;
-            if (session.ManagedChannel != null)
-            {
-                session.ManagedChannel.StateChanged
+            session.ManagedChannel?.StateChanged
                     += OnManagedChannelStateChanged;
-            }
         }
 
         private void UnwireSessionEvents(Session session)
@@ -1241,11 +1239,8 @@ namespace Opc.Ua.Client
                 OnInnerSessionConfigurationChanged;
             session.RenewUserIdentity -=
                 OnInnerRenewUserIdentity;
-            if (session.ManagedChannel != null)
-            {
-                session.ManagedChannel.StateChanged
+            session.ManagedChannel?.StateChanged
                     -= OnManagedChannelStateChanged;
-            }
         }
 
         private void OnInnerKeepAlive(ISession session, KeepAliveEventArgs e)

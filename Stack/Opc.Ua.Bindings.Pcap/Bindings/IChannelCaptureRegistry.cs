@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Bindings.Pcap.Bindings
 {
     /// <summary>

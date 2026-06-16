@@ -32,7 +32,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.KeyLog;
 
@@ -107,9 +106,9 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
             m_logger = loggerFactory.CreateLogger<OfflineSecureChannel>();
             m_channelId = firstToken.ChannelId;
             m_currentTokenId = firstToken.TokenId;
-            m_tokens = new Dictionary<uint, ChannelKeyMaterial>();
+            m_tokens = [];
 
-            var telemetry = NoopTelemetryContext.Instance;
+            NoopTelemetryContext telemetry = NoopTelemetryContext.Instance;
             m_clientToServer = new ChannelDecoderShim(firstToken, telemetry);
             m_serverToClient = new ChannelDecoderShim(firstToken, telemetry);
 

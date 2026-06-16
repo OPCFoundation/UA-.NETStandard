@@ -89,8 +89,9 @@ namespace Boiler
                     }
 
                     m_simulationContext = context;
-                    TimeProvider timeProvider = ((context as ServerSystemContext)?.Server
-                        as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+                    TimeProvider timeProvider = ((context as ServerSystemContext)?.Server as
+                        ITimeProviderProvider)?.TimeProvider ??
+                        TimeProvider.System;
                     m_simulationTimer = timeProvider.CreateTimer(
                         DoSimulation,
                         null,

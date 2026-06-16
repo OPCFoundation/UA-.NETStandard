@@ -276,6 +276,7 @@ namespace Opc.Ua.Server.StateMachines
         /// the given state. Order within a single transition is
         /// <c>OnExitState(from) → OnTransition(from, to) → OnEnterState(to)</c>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> OnEnterState(
             uint stateId,
             Action<ISystemContext, TState> handler)
@@ -297,6 +298,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <c>Result</c>) and never blocks the transition. Exceptions
         /// are captured and logged.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
 #pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
         public StateMachineBuilder<TState> OnEnterStateAsync(
             uint stateId,
@@ -316,6 +318,7 @@ namespace Opc.Ua.Server.StateMachines
         /// Registers a handler invoked when the state machine leaves
         /// the given state.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> OnExitState(
             uint stateId,
             Action<ISystemContext, TState> handler)
@@ -333,6 +336,7 @@ namespace Opc.Ua.Server.StateMachines
         /// Async overload of <see cref="OnExitState"/>. See
         /// <see cref="OnEnterStateAsync"/> for invocation semantics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
 #pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
         public StateMachineBuilder<TState> OnExitStateAsync(
             uint stateId,
@@ -354,6 +358,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <c>to</c> state ids (extracted from <c>LastState</c> /
         /// <c>CurrentState</c>).
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> OnTransition(
             Action<ISystemContext, TState, uint, uint> handler)
         {
@@ -370,6 +375,7 @@ namespace Opc.Ua.Server.StateMachines
         /// Async overload of <see cref="OnTransition"/>. See
         /// <see cref="OnEnterStateAsync"/> for invocation semantics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
 #pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
         public StateMachineBuilder<TState> OnTransitionAsync(
             Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask> handler)
@@ -391,6 +397,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <c>OnBeforeTransition</c> delegate the state machine had
         /// when the builder adopted it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> OnBeforeTransition(
             Func<ISystemContext, TState, uint, uint, ServiceResult> guard)
         {
@@ -425,6 +432,7 @@ namespace Opc.Ua.Server.StateMachines
         /// that lets the caller customize the deny status returned
         /// when the predicate evaluates to <c>false</c>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> WhenTransition(
             uint transitionId,
             Func<ISystemContext, TState, bool> predicate,
@@ -463,6 +471,7 @@ namespace Opc.Ua.Server.StateMachines
         /// Overload of <see cref="WhenCause(uint, Func{ISystemContext, TState, bool})"/>
         /// with a caller-supplied deny status.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> WhenCause(
             uint causeId,
             Func<ISystemContext, TState, bool> predicate,
@@ -505,6 +514,8 @@ namespace Opc.Ua.Server.StateMachines
         /// Overload of <see cref="WhenEnter(uint, Func{ISystemContext, TState, bool})"/>
         /// with a caller-supplied deny status.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public StateMachineBuilder<TState> WhenEnter(
             uint toStateId,
             Func<ISystemContext, TState, bool> predicate,
@@ -517,9 +528,9 @@ namespace Opc.Ua.Server.StateMachines
             if (m_definition == null)
             {
                 throw new InvalidOperationException(
-                    "WhenEnter is only available in definition mode. "
-                    + "Use WhenTransition with the relevant transition id "
-                    + "in lifecycle mode.");
+                    "WhenEnter is only available in definition mode. " +
+                    "Use WhenTransition with the relevant transition id " +
+                    "in lifecycle mode.");
             }
             FreezeDefinition();
             // Snapshot the matching transitions at registration time;
@@ -562,6 +573,7 @@ namespace Opc.Ua.Server.StateMachines
         /// Overload of <see cref="WhenExit(uint, Func{ISystemContext, TState, bool})"/>
         /// with a caller-supplied deny status.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> WhenExit(
             uint fromStateId,
             Func<ISystemContext, TState, bool> predicate,
@@ -640,6 +652,8 @@ namespace Opc.Ua.Server.StateMachines
         /// Definition-mode only — the builder must own a
         /// <see cref="FluentFiniteStateMachineState"/>.
         /// </exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public StateMachineBuilder<TState> WithSubStateMachine(
             uint parentStateId,
             QualifiedName browseName,
@@ -658,10 +672,10 @@ namespace Opc.Ua.Server.StateMachines
             if (m_definition == null)
             {
                 throw new InvalidOperationException(
-                    "WithSubStateMachine is only available in definition "
-                    + "mode (use StateMachineBuilder.Create). Lifecycle-mode "
-                    + "FSMs already declare their sub-state-machines as part "
-                    + "of the type definition.");
+                    "WithSubStateMachine is only available in definition " +
+                    "mode (use StateMachineBuilder.Create). Lifecycle-mode " +
+                    "FSMs already declare their sub-state-machines as part " +
+                    "of the type definition.");
             }
 
             FreezeDefinition();
@@ -876,6 +890,7 @@ namespace Opc.Ua.Server.StateMachines
         /// invoking generated-type setters that the builder does not
         /// surface directly.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public StateMachineBuilder<TState> ConfigureStateMachine(
             Action<TState> configure)
         {
@@ -1065,6 +1080,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <exception cref="ArgumentException">
         /// <paramref name="nodeId"/> or <paramref name="browseName"/>
         /// is null.</exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static StateMachineBuilder<FluentFiniteStateMachineState> Create(
             NodeState? parent,
             ISystemContext context,
@@ -1115,6 +1131,7 @@ namespace Opc.Ua.Server.StateMachines
         /// generator-emitted vendor type).</param>
         /// <param name="context">The system context used to drive
         /// auto-transitions and method dispatch.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static StateMachineBuilder<TState> For<TState>(
             TState stateMachine,
             ISystemContext context)
@@ -1153,6 +1170,7 @@ namespace Opc.Ua.Server.StateMachines
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
         private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
         private readonly Dictionary<uint, TimedTransitionEntry> m_timedTransitions = [];
+
         /// <summary>
         /// Async observer counterparts. Scheduled fire-and-forget from
         /// the sync transition path (which itself remains sync since
@@ -1165,9 +1183,11 @@ namespace Opc.Ua.Server.StateMachines
         private readonly Dictionary<uint,
             List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>>
                 m_enterHandlersAsync = [];
+
         private readonly Dictionary<uint,
             List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>>
                 m_exitHandlersAsync = [];
+
         private readonly
             List<Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask>>
                 m_transitionObserversAsync = [];
@@ -1402,8 +1422,9 @@ namespace Opc.Ua.Server.StateMachines
                     SafeInvoke(() => h(context, m_stateMachine));
                 }
             }
-            if (from != 0 && m_exitHandlersAsync.TryGetValue(from,
-                out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? exitListAsync))
+            if (from != 0 &&
+                m_exitHandlersAsync.TryGetValue(from,
+                    out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? exitListAsync))
             {
                 foreach (Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> h in exitListAsync)
                 {
@@ -1428,8 +1449,9 @@ namespace Opc.Ua.Server.StateMachines
                     SafeInvoke(() => h(context, m_stateMachine));
                 }
             }
-            if (to != 0 && m_enterHandlersAsync.TryGetValue(to,
-                out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? enterListAsync))
+            if (to != 0 &&
+                m_enterHandlersAsync.TryGetValue(to,
+                    out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? enterListAsync))
             {
                 foreach (Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> h in enterListAsync)
                 {
