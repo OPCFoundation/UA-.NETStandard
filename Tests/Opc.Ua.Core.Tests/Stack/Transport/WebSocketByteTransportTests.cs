@@ -186,6 +186,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ReceiveChunkAsyncRejectsMessageExceedingBufferSize()
+        {
+            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            // Stream a full buffer's worth of bytes without ever setting
+            // EndOfMessage. The receive loop must reject with
+            // BadTcpMessageTooLarge instead of spinning on a zero-length
+            // destination (the zero-progress / capacity CPU-DoS guard).
+            byte[] oversized = new byte[kBufferSize];
+            await pair.Client.SendAsync(
+                new ArraySegment<byte>(oversized),
+                WebSocketMessageType.Binary,
+                endOfMessage: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
+        }
+
+        [Test]
         public async Task ReceiveChunkAsyncReportsCloseFrameAsBadConnectionClosed()
         {
             using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);

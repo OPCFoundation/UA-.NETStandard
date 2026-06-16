@@ -765,6 +765,10 @@ namespace Opc.Ua.Bindings
         {
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
+                // TLS-layer revocation is intentionally disabled: certificate
+                // revocation (CRL) is enforced by the UA CertificateValidator in
+                // ValidateClientCertificate, consistent with the raw-TCP UA
+                // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.AllowCertificate
@@ -877,6 +881,10 @@ namespace Opc.Ua.Bindings
             // top of Start(); use the pinned cert directly.
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
+                // TLS-layer revocation is intentionally disabled: certificate
+                // revocation (CRL) is enforced by the UA CertificateValidator in
+                // ValidateClientCertificate, consistent with the raw-TCP UA
+                // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.AllowCertificate
@@ -968,7 +976,18 @@ namespace Opc.Ua.Bindings
                 }
 
                 int length = (int)(context.Request.ContentLength ?? 0);
-                byte[] buffer = await ReadBodyAsync(context.Request).ConfigureAwait(false);
+                int maxMessageSize = m_quotas.MessageContext.MaxMessageSize;
+                if (maxMessageSize > 0 && length > maxMessageSize)
+                {
+                    message = "HTTPSLISTENER - Request body exceeds MaxMessageSize.";
+                    await WriteResponseAsync(
+                        context.Response,
+                        message,
+                        HttpStatusCode.RequestEntityTooLarge).ConfigureAwait(false);
+                    return;
+                }
+                byte[] buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
+                    .ConfigureAwait(false);
 
                 if (buffer.Length != length)
                 {
@@ -1187,6 +1206,21 @@ namespace Opc.Ua.Bindings
                         endpoint = ep;
                         break;
                     }
+                }
+
+                if (endpoint == null && !IsDiscoveryRequest(input.TypeId))
+                {
+                    // Fail closed (mirror the binary path): a JSON channel with no
+                    // matching MessageSecurityMode.None endpoint may only be used
+                    // for discovery services (Part 4 §5.4 / §5.5).
+                    IServiceResponse discoveryFault = EndpointBase.CreateFault(
+                        m_logger,
+                        null,
+                        new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "Channel can only be used for discovery."));
+                    await WriteJsonResponseAsync(context, discoveryFault, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 var secureChannelContext = new SecureChannelContext(
@@ -1573,6 +1607,19 @@ namespace Opc.Ua.Bindings
                             return;
                         }
                         completed = result.EndOfMessage;
+
+                        // Guard against zero-progress / buffer-filling continuation
+                        // frames that never terminate the message (CPU DoS); the
+                        // cap check above uses '>'.
+                        if (!completed &&
+                            (result.Count == 0 || totalRead >= m_quotas.MaxBufferSize))
+                        {
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.MessageTooBig,
+                                "Continuation frame made no progress or exceeded the configured limit.",
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
                     }
                     while (!completed);
 
@@ -1586,9 +1633,23 @@ namespace Opc.Ua.Bindings
                             m_quotas.MessageContext);
                         request.RequestHeader ??= new RequestHeader();
 
-                        responseToSend = await m_callback!
-                            .ProcessRequestAsync(channelContext, request, ct)
-                            .ConfigureAwait(false);
+                        if (endpoint == null && !IsDiscoveryRequest(request.TypeId))
+                        {
+                            // Fail closed (mirror the binary path): discovery-only
+                            // when no MessageSecurityMode.None JSON endpoint matches.
+                            responseToSend = EndpointBase.CreateFault(
+                                m_logger,
+                                null,
+                                new ServiceResultException(
+                                    StatusCodes.BadSecurityPolicyRejected,
+                                    "Channel can only be used for discovery."));
+                        }
+                        else
+                        {
+                            responseToSend = await m_callback!
+                                .ProcessRequestAsync(channelContext, request, ct)
+                                .ConfigureAwait(false);
+                        }
                     }
                     catch (ServiceResultException sre)
                     {
@@ -2031,12 +2092,21 @@ namespace Opc.Ua.Bindings
             return response.WriteAsync(message);
         }
 
-        private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
+        private static bool IsDiscoveryRequest(ExpandedNodeId typeId)
         {
-            using var memory = new MemoryStream();
-            using var reader = new StreamReader(req.Body);
-            await reader.BaseStream.CopyToAsync(memory).ConfigureAwait(false);
-            return memory.ToArray();
+            return typeId == DataTypeIds.GetEndpointsRequest ||
+                typeId == DataTypeIds.FindServersRequest ||
+                typeId == DataTypeIds.FindServersOnNetworkRequest;
+        }
+
+        private static async Task<byte[]> ReadBodyAsync(
+            HttpRequest req,
+            int maxLength,
+            CancellationToken ct)
+        {
+            return await JsonRequestMapper
+                .ReadAllBoundedAsync(req.Body, maxLength, ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2056,9 +2126,24 @@ namespace Opc.Ua.Bindings
                 return true;
             }
 
+            if (clientCertificate == null)
+            {
+                // TLS reported policy errors but no client certificate was
+                // presented; there is nothing to validate against the UA trust
+                // list, so reject.
+                return false;
+            }
+
             try
             {
-                using var cert = Certificate.FromRawData(clientCertificate!.RawData);
+                using var cert = Certificate.FromRawData(clientCertificate.RawData);
+                // CA2025: the TLS ClientCertificateValidation callback is
+                // synchronous by contract on every supported TFM, so the async UA
+                // validator is bridged with GetAwaiter().GetResult(); the 'using
+                // cert' scope deliberately extends past the await. The call is a
+                // single bounded chain validation but blocks a handshake thread.
+                // TODO: replace with a non-blocking validation bridge to remove the
+                // thread-pool-starvation risk under connection floods.
 #pragma warning disable CA2025
                 CertificateValidationResult result = m_quotas.CertificateValidator!
                     .ValidateAsync(cert, ct: default)

@@ -562,7 +562,7 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    serverCertificateCustomValidationCallback = (_, cert, chain, sslPolicyErrors) =>
                     {
                         try
                         {
@@ -611,6 +611,17 @@ namespace Opc.Ua.Bindings
                                     throw new ServiceResultException(validationResult.StatusCode);
                                 }
                             }
+                            else if (sslPolicyErrors != SslPolicyErrors.None)
+                            {
+                                // No OPC UA certificate validator configured: do not
+                                // blindly accept the server certificate. Fall back to
+                                // the default TLS chain/hostname result (MITM guard).
+                                m_logger.LogError(
+                                    "{ChannelType} No certificate validator configured and TLS reported {Errors}; rejecting server certificate.",
+                                    nameof(HttpsTransportChannel),
+                                    sslPolicyErrors);
+                                return false;
+                            }
                             ServerChannelCertificate = cert.RawData;
                             return true;
                         }
@@ -636,6 +647,10 @@ namespace Opc.Ua.Bindings
                     serverCertificateCustomValidationCallback = null;
                 }
 
+                // CA5400: revocation (CRL) is enforced by the UA CertificateValidator
+                // in the server-certificate callback above, consistent with the rest
+                // of the stack, so TLS-layer revocation on the HttpClient handler is
+                // intentionally left disabled to avoid duplicate / inconsistent checks.
 #pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 var client = new HttpClient(handler);
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
