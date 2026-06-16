@@ -249,7 +249,14 @@ namespace Opc.Ua.Bindings
                 context.Endpoint ?? defaultEndpoint,
                 RequestEncoding.Json,
                 context.ClientCertificate,
-                context.ServerCertificate);
+                context.ServerCertificate)
+            {
+                // sec-6: publish the upstream-authenticated identity so
+                // the OPC UA service pipeline (SessionManager / role
+                // resolution) can cross-check it against any body-level
+                // UserIdentityToken on ActivateSession.
+                UpstreamIdentity = context.Identity
+            };
 
             try
             {
