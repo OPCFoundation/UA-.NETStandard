@@ -200,9 +200,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             // unique port per test to avoid cross-test pollution in the
             // process-wide registry (tests are Parallelizable).
-            return new SharedHostKey(
-                $"shared-test-{Guid.NewGuid():N}",
-                UnsecureRandom.Shared.Next(40000, 60000));
+#pragma warning disable CA5394 // Random is non-crypto-safe by design — only used to pick a unique test port
+            int port = UnsecureRandom.Shared.Next(40000, 60000);
+#pragma warning restore CA5394
+            return new SharedHostKey($"shared-test-{Guid.NewGuid():N}", port);
         }
 
         private static IHost MakeStubHost()

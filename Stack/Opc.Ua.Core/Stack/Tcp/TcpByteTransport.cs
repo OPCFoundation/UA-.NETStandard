@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -281,11 +282,11 @@ namespace Opc.Ua.Bindings
                 // available on all targets but does not accept a CancellationToken,
                 // so we use it directly and rely on Close()/Dispose() for cancel.
                 int sent = await socket
-                    .SendAsync((System.Collections.Generic.IList<ArraySegment<byte>>)buffers, SocketFlags.None)
+                    .SendAsync((IList<ArraySegment<byte>>)buffers, SocketFlags.None)
                     .ConfigureAwait(false);
 #else
                 int sent = await socket
-                    .SendAsync((System.Collections.Generic.IList<ArraySegment<byte>>)buffers, SocketFlags.None)
+                    .SendAsync((IList<ArraySegment<byte>>)buffers, SocketFlags.None)
                     .ConfigureAwait(false);
 #endif
                 if (sent < buffers.TotalSize)
