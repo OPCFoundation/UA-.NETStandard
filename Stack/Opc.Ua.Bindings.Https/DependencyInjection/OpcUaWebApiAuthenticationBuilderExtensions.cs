@@ -29,12 +29,14 @@
 
 #if NET8_0_OR_GREATER
 using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
@@ -107,6 +109,7 @@ namespace Microsoft.Extensions.DependencyInjection
             ArgumentNullException.ThrowIfNull(configure);
 
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
+            EnsureWebApiPolicyScheme(builder.Services);
             builder.Services
                 .AddAuthentication()
                 .AddJwtBearer(WebApiAuthSchemes.Bearer, configure);
@@ -203,6 +206,7 @@ namespace Microsoft.Extensions.DependencyInjection
             ArgumentNullException.ThrowIfNull(validate);
 
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
+            EnsureWebApiPolicyScheme(builder.Services);
             builder.Services
                 .AddAuthentication()
                 .AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(
@@ -242,6 +246,7 @@ namespace Microsoft.Extensions.DependencyInjection
             ArgumentNullException.ThrowIfNull(builder);
 
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
+            EnsureWebApiPolicyScheme(builder.Services);
 
             AuthenticationBuilder authBuilder = builder.Services.AddAuthentication();
             if (configure != null)
@@ -253,6 +258,64 @@ namespace Microsoft.Extensions.DependencyInjection
                 authBuilder.AddCertificate(WebApiAuthSchemes.MutualTls);
             }
             return builder;
+        }
+
+        // Sentinel ensures the policy scheme is registered exactly once,
+        // regardless of which AddWebApi*Auth() methods (or how many) the
+        // caller chains. The policy scheme becomes the default
+        // authenticate / challenge / forbid scheme so UseAuthentication()
+        // populates HttpContext.User on every request (sec-5 fix).
+        private sealed class WebApiPolicySchemeSentinel
+        {
+        }
+
+        private static void EnsureWebApiPolicyScheme(IServiceCollection services)
+        {
+            if (services.Any(d => d.ServiceType == typeof(WebApiPolicySchemeSentinel)))
+            {
+                return;
+            }
+            services.AddSingleton<WebApiPolicySchemeSentinel>();
+            services
+                .AddAuthentication(o =>
+                {
+                    o.DefaultScheme = WebApiAuthSchemes.Default;
+                    o.DefaultAuthenticateScheme = WebApiAuthSchemes.Default;
+                    o.DefaultChallengeScheme = WebApiAuthSchemes.Default;
+                    o.DefaultForbidScheme = WebApiAuthSchemes.Default;
+                })
+                .AddPolicyScheme(
+                    WebApiAuthSchemes.Default,
+                    displayName: "OPC UA WebApi (multi-scheme)",
+                    options => options.ForwardDefaultSelector = SelectWebApiAuthScheme);
+        }
+
+        // Picks the auth scheme that should handle the current request
+        // based on the credentials presented. Returning null falls
+        // through to anonymous (no scheme processed) — which is correct
+        // for unauthenticated requests; RequireAuthorization() on the
+        // endpoint (sec-7) is what actually rejects them.
+        private static string? SelectWebApiAuthScheme(HttpContext context)
+        {
+            string? authHeader = context.Request.Headers.Authorization.Count > 0
+                ? context.Request.Headers.Authorization[0]
+                : null;
+            if (!string.IsNullOrEmpty(authHeader))
+            {
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    return WebApiAuthSchemes.Bearer;
+                }
+                if (authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+                {
+                    return WebApiAuthSchemes.Basic;
+                }
+            }
+            if (context.Connection.ClientCertificate != null)
+            {
+                return WebApiAuthSchemes.MutualTls;
+            }
+            return null;
         }
     }
 }

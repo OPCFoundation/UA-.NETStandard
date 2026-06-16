@@ -59,6 +59,15 @@ namespace Opc.Ua.Bindings.WebApi.Authentication
 
         /// <summary>Anonymous (no authentication).</summary>
         public const string Anonymous = "OpcUaWebApi.Anonymous";
+
+        /// <summary>
+        /// Policy-scheme that forwards to the registered Bearer / Basic /
+        /// MutualTls scheme based on the request shape. Wired as the
+        /// default scheme by the AddWebApi*Auth() extensions so
+        /// <c>UseAuthentication()</c> populates <c>HttpContext.User</c>
+        /// for every request (sec-5).
+        /// </summary>
+        public const string Default = "OpcUaWebApi.Default";
     }
 
     /// <summary>
