@@ -30,6 +30,7 @@
 #if NET8_0_OR_GREATER
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -91,6 +92,22 @@ namespace Microsoft.AspNetCore.Builder
             ArgumentNullException.ThrowIfNull(endpoints);
 
             RouteGroupBuilder group = endpoints.MapGroup(string.Empty);
+
+            // Discovery routes are anonymous-exempt per OPC UA spec:
+            // FindServers / GetEndpoints must be callable without
+            // authentication so clients can discover the server's
+            // endpoints and user-token policies before establishing a
+            // session. Mark them explicitly so they bypass any
+            // RequireAuthorization() metadata applied at the group
+            // level by the contributor (sec-7).
+            group.MapPost("/findservers", FindServersAsync).AllowAnonymous();
+            group.MapPost("/getendpoints", GetEndpointsAsync).AllowAnonymous();
+
+            // All other services are subject to authorization when an
+            // auth scheme is registered. The contributor decides
+            // whether to apply RequireAuthorization() to the group;
+            // when no auth scheme is registered, no metadata is added
+            // and the historical anonymous flow is preserved.
             group.MapPost("/read", ReadAsync);
             group.MapPost("/write", WriteAsync);
             group.MapPost("/historyread", HistoryReadAsync);
@@ -101,8 +118,6 @@ namespace Microsoft.AspNetCore.Builder
             group.MapPost("/translate", TranslateAsync);
             group.MapPost("/registernodes", RegisterNodesAsync);
             group.MapPost("/unregisternodes", UnregisterNodesAsync);
-            group.MapPost("/findservers", FindServersAsync);
-            group.MapPost("/getendpoints", GetEndpointsAsync);
             group.MapPost("/createsession", CreateSessionAsync);
             group.MapPost("/activatesession", ActivateSessionAsync);
             group.MapPost("/closesession", CloseSessionAsync);

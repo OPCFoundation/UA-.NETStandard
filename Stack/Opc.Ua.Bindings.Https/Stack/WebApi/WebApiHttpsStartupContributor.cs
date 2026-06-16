@@ -83,6 +83,13 @@ namespace Opc.Ua.Bindings.WebApi
             // Minimal-API endpoint mapping needs routing services; no
             // MVC controllers / AddApplicationPart reflection scan.
             services.AddRouting();
+            // RequireAuthorization() metadata is enforced by the
+            // UseAuthorization() middleware (added conditionally below)
+            // which depends on AuthorizationPolicy services. Register
+            // them unconditionally so the contributor's no-op pipeline
+            // remains valid even before an auth opt-in lands; this is
+            // a cheap registration (no runtime cost when no policies).
+            services.AddAuthorization();
         }
 
         /// <inheritdoc/>
@@ -156,11 +163,28 @@ namespace Opc.Ua.Bindings.WebApi
             // bare AddWebApiTransport() (no auth) skips the
             // middleware entirely to preserve the historical anonymous
             // request flow.
-            if (HasNonAnonymousAuthScheme(appBuilder.ApplicationServices))
+            bool hasAuth = HasNonAnonymousAuthScheme(appBuilder.ApplicationServices);
+            if (hasAuth)
             {
                 appBuilder.UseAuthentication();
+                // UseAuthorization() enforces metadata produced by
+                // RequireAuthorization() on the route group (sec-7).
+                // Without this middleware the authorization policy is
+                // silently ignored.
+                appBuilder.UseAuthorization();
             }
-            appBuilder.UseEndpoints(endpoints => endpoints.MapWebApiEndpoints());
+            appBuilder.UseEndpoints(endpoints =>
+            {
+                IEndpointConventionBuilder group = endpoints.MapWebApiEndpoints();
+                if (hasAuth)
+                {
+                    // Require any successful authentication on every
+                    // route; the discovery routes (FindServers /
+                    // GetEndpoints) carry AllowAnonymous metadata so
+                    // they remain reachable without a credential.
+                    group.RequireAuthorization();
+                }
+            });
 
             // Wire WSS bearer-token validation so the
             // opcua+openapi+<accesstoken> sub-protocol no longer
