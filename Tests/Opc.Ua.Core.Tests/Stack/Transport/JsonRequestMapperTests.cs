@@ -226,11 +226,58 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(encoded, Has.Length.GreaterThan(smallContext.MaxMessageSize));
 
             using var stream = new MemoryStream(encoded);
+
+            // The body is now bounded by MaxMessageSize at read time (before
+            // decode), so an oversized body is rejected with BadRequestTooLarge
+            // rather than buffered in full and rejected by the decoder.
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await JsonRequestMapper
                     .DecodeRequestAsync(stream, smallContext, CancellationToken.None)
                     .ConfigureAwait(false))!;
-            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTooLarge));
+        }
+
+        [Test]
+        public void ReadAllBoundedRejectsBodyExceedingMaxLength()
+        {
+            byte[] body = new byte[1024];
+            using var stream = new MemoryStream(body);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await JsonRequestMapper
+                    .ReadAllBoundedAsync(stream, 256, CancellationToken.None)
+                    .ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTooLarge));
+        }
+
+        [Test]
+        public async Task ReadAllBoundedAllowsBodyExactlyAtLimitAsync()
+        {
+            byte[] body = new byte[256];
+            using var stream = new MemoryStream(body);
+
+            byte[] result = await JsonRequestMapper
+                .ReadAllBoundedAsync(stream, 256, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Has.Length.EqualTo(256));
+        }
+
+        [Test]
+        public async Task ReadAllBoundedWithNonPositiveMaxReadsEntireBodyAsync()
+        {
+            byte[] body = new byte[4096];
+            for (int i = 0; i < body.Length; i++)
+            {
+                body[i] = (byte)(i & 0xFF);
+            }
+            using var stream = new MemoryStream(body);
+
+            byte[] result = await JsonRequestMapper
+                .ReadAllBoundedAsync(stream, 0, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(body));
         }
 
         [Test]

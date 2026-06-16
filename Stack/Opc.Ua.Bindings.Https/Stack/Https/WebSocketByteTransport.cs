@@ -221,6 +221,20 @@ namespace Opc.Ua.Bindings
                         buffer = null!; // ownership transferred to the caller
                         return segment;
                     }
+
+                    // Not end-of-message: guard against a peer that streams
+                    // zero-length or buffer-filling continuation frames without
+                    // ever terminating the UASC chunk. Without this the next
+                    // ReceiveAsync would get a zero-length destination and spin
+                    // the loop (CPU DoS), because the size check above uses '>'.
+                    if (result.Count == 0 || totalRead >= m_receiveBufferSize)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadTcpMessageTooLarge,
+                            "WebSocket continuation frame made no progress or exceeds the " +
+                            "negotiated max message size ({0} bytes).",
+                            m_receiveBufferSize);
+                    }
                 }
             }
             catch

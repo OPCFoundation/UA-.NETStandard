@@ -562,7 +562,7 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    serverCertificateCustomValidationCallback = (_, cert, chain, sslPolicyErrors) =>
                     {
                         try
                         {
@@ -610,6 +610,17 @@ namespace Opc.Ua.Bindings
                                 {
                                     throw new ServiceResultException(validationResult.StatusCode);
                                 }
+                            }
+                            else if (sslPolicyErrors != SslPolicyErrors.None)
+                            {
+                                // No OPC UA certificate validator configured: do not
+                                // blindly accept the server certificate. Fall back to
+                                // the default TLS chain/hostname result (MITM guard).
+                                m_logger.LogError(
+                                    "{ChannelType} No certificate validator configured and TLS reported {Errors}; rejecting server certificate.",
+                                    nameof(HttpsTransportChannel),
+                                    sslPolicyErrors);
+                                return false;
                             }
                             ServerChannelCertificate = cert.RawData;
                             return true;
