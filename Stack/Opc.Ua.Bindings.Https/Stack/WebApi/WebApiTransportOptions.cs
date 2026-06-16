@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 
 namespace Opc.Ua.Bindings.WebApi
@@ -120,3 +121,4 @@ namespace Opc.Ua.Bindings.WebApi
         }
     }
 }
+#endif

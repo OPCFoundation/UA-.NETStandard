@@ -22,7 +22,6 @@
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.WebApi" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

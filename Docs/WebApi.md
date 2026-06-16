@@ -5,10 +5,10 @@ Core **Minimal-API endpoints**, implementing the **OpenAPI Mapping**
 defined in [OPC UA Part 6 §G.3](https://reference.opcfoundation.org/specs/OPC-10000-6/g-3)
 (v1.05.07).
 
-The binding ships as
-`OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi` and complements (does
-not replace) the binary and `application/opcua+uajson` sub-profiles
-already provided by `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`.
+The binding ships as part of
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` (net8+ only;
+mounted on the same Kestrel host as the binary and
+`application/opcua+uajson` sub-profiles).
 
 - **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
   per spec service) — **NativeAOT-compatible**; no MVC reflection, no

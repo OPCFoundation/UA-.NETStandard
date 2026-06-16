@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -227,3 +228,4 @@ namespace Microsoft.AspNetCore.Builder
                 DeleteSubscriptionsResponse>(ctx);
     }
 }
+#endif

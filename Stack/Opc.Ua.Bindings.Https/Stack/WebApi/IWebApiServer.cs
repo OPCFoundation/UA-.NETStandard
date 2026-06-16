@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 
@@ -139,3 +140,4 @@ namespace Opc.Ua.Bindings
             System.Threading.CancellationToken ct);
     }
 }
+#endif

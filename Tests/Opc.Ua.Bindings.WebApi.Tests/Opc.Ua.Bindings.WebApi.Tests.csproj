@@ -30,7 +30,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.WebApi\Opc.Ua.Bindings.WebApi.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>
 </Project>

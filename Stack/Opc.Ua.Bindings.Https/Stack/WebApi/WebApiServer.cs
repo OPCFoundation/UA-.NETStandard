@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -273,3 +274,4 @@ namespace Opc.Ua.Bindings
         }
     }
 }
+#endif

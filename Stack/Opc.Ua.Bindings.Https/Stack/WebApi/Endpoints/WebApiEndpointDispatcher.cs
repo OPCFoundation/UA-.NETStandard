@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Net;
 using System.Threading;
@@ -198,3 +199,4 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
         }
     }
 }
+#endif

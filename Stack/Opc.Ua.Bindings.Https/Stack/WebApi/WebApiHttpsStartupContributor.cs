@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Linq;
 using Microsoft.AspNetCore.Authentication;
@@ -173,3 +174,4 @@ namespace Opc.Ua.Bindings.WebApi
         }
     }
 }
+#endif

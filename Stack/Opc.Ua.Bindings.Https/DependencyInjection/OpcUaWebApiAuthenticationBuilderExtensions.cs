@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -255,3 +256,4 @@ namespace Microsoft.Extensions.DependencyInjection
         }
     }
 }
+#endif

@@ -60,12 +60,13 @@ Tests/Opc.Ua.Aot.Tests/
 ├── ClientSamplesAotTests.cs   # End-to-end client sample patterns
 ├── AotClientSamples.cs        # Helper methods for client samples
 ├── WebApiAotFixture.cs        # Kestrel host for REST endpoint round-trips
-├── WebApiAotTests.cs          # Opc.Ua.Bindings.WebApi smoke + Basic auth
+├── WebApiAotTests.cs          # REST binding (Opc.Ua.Bindings.Https) smoke + Basic auth
 └── StubWebApiServer.cs        # IWebApiServer stub backing WebApiAotFixture
 ```
 
-`Opc.Ua.Bindings.WebApi` is `<IsAotCompatible>true</IsAotCompatible>`
-on net10: the binding uses ASP.NET Core Minimal-API endpoints (one
+The REST binding folded into `Opc.Ua.Bindings.Https` (Part 6 §G.3
+OpenAPI Mapping; net8+) is `<IsAotCompatible>true</IsAotCompatible>`
+on net10: it uses ASP.NET Core Minimal-API endpoints (one
 `MapPost` per OPC UA service) bound to explicit `RequestDelegate`
 thunks, so the trimmer sees every generic instantiation of
 `WebApiEndpointDispatcher.HandleAsync<TRequest, TResponse>` at

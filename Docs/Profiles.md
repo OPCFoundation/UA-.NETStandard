@@ -220,7 +220,7 @@ The stack implements the following transport profiles:
   - Restricted to `MessageSecurityMode.None`
   - Authentication via Anonymous, Bearer JWT, HTTP Basic, or Mutual TLS (see [WebApi.md](WebApi.md))
   - Server-side discovery emission: `HttpsServiceHost` emits this sub-profile as a discovery-only twin alongside each `SecurityMode.None` HTTPS-binary endpoint, so discovery-driven clients can find the OpenAPI endpoint without hard-coding the URL.
-  - Shipped in the optional `OPCFoundation.NetStandard.Opc.Ua.Bindings.WebApi` package (net8+ only)
+  - Shipped as part of the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package (net8+ only)
   - Surfaced via `Profiles.HttpsOpenApiTransport` (renamed from `Profiles.HttpsWebApiTransport`; obsolete alias retained for binary compatibility)
 
 - **[WSS OpenAPI](https://profiles.opcfoundation.org/profile/2339)** (`opc.wss://` and `wss://`) - OPC UA OpenAPI Mapping over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) — official OPC Foundation profile/2339, URI `http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi`
