@@ -120,7 +120,7 @@
     <File Path="Docs/EccProfiles.md" />
     <File Path="Docs/AsyncServerSupport.md" />
     <File Path="Docs/Certificates.md" />
-    <File Path="Docs/Observability.md" />
+    <File Path="Docs/Diagnostics.md" />
     <File Path="Docs/PlatformBuild.md" />
     <File Path="Docs/PubSub.md" />
     <File Path="Docs/ReverseConnect.md" />

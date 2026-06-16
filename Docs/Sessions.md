@@ -996,6 +996,6 @@ Pick the entry point that best matches your call site:
 - [2.0 migration guide — ManagedSession and Automatic Reconnection](migrate/2.0.x/sessions-subscriptions.md#managedsession-and-automatic-reconnection)
 - [2.0 migration guide — Sessions, GDS Client, and Subscriptions](migrate/2.0.x/sessions-subscriptions.md) — V2 subscription engine, fluent builder, and DI integration are covered alongside ManagedSession.
 - [TransferSubscription](TransferSubscription.md) — server-driven session-handoff support.
-- [Observability](Observability.md) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
+- [Diagnostics](Diagnostics.md#1-telemetry-context-itelemetrycontext) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
 - [Reverse Connect](ReverseConnect.md) — works with both `Session` and `ManagedSession`.
-- [Packet Capture, Dissection, and Replay](PacketCapture.md) — `Opc.Ua.Core.Diagnostics` composes with `IClientChannelManager` via the global `TransportBindings.Channels` registry; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.
+- [Diagnostics — Packet capture, dissection, and replay](Diagnostics.md#4-packet-capture-dissection-and-replay) — `Opc.Ua.Core.Diagnostics` composes with `IClientChannelManager` via the global `TransportBindings.Channels` registry; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.
