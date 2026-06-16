@@ -55,7 +55,7 @@ namespace Opc.Ua.Di.Tests
             m_fixture = new ServerFixture<StandardServer>(t => new StandardServer(t))
             {
                 AutoAccept = true,
-                SecurityNone = true,
+                SecurityNone = true
             };
 
             Server = await m_fixture.StartAsync().ConfigureAwait(false);

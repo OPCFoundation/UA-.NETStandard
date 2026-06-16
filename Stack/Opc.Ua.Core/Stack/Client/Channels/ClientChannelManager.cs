@@ -28,18 +28,18 @@
  * ======================================================================*/
 
 using System;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
-using Opc.Ua.Bindings;
-using Opc.Ua.Security.Certificates;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -417,14 +417,13 @@ namespace Opc.Ua
             return -1;
         }
 
-
         /// <summary>
         /// Initializes a managed client channel factory.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="telemetry">Telemetry context for logger creation.</param>
         /// <param name="channelFactory">Optional channel binding registry;
-        /// defaults to the static <see cref="Opc.Ua.Bindings.TransportBindings.Channels"/>.</param>
+        /// defaults to the static <see cref="TransportBindings.Channels"/>.</param>
         /// <param name="reconnectPolicy">Optional channel-level retry
         /// policy. Defaults to
         /// <see cref="ExponentialBackoffChannelReconnectPolicy"/> with
@@ -435,7 +434,7 @@ namespace Opc.Ua
         public ClientChannelManager(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry,
-            Bindings.ITransportChannelBindings? channelFactory = null,
+            ITransportChannelBindings? channelFactory = null,
             IChannelReconnectPolicy? reconnectPolicy = null,
             TimeProvider? timeProvider = null,
             ChannelManagerOptions? options = null)
@@ -623,7 +622,7 @@ namespace Opc.Ua
 
         internal ApplicationConfiguration Configuration => m_configuration;
 
-        internal Bindings.ITransportChannelBindings? ChannelBindings => m_channelFactory;
+        internal ITransportChannelBindings? ChannelBindings => m_channelFactory;
 
         internal IChannelReconnectPolicy ReconnectPolicy => m_reconnectPolicy;
 
@@ -839,7 +838,7 @@ namespace Opc.Ua
                 clientCertificateVersion = m_clientCertificateVersion;
             }
 
-            ManagedChannelKey key = ManagedChannelKey.FromEndpoint(
+            var key = ManagedChannelKey.FromEndpoint(
                 endpoint, clientCert, reverseConnection);
 
             ChannelEntry entry;
@@ -1030,7 +1029,6 @@ namespace Opc.Ua
             Faulted
         }
 
-
         private readonly Meter? m_meter;
         private readonly ClientChannelManagerMetrics? m_metrics;
         private readonly CancellationTokenSource m_shutdownCts = new();
@@ -1100,7 +1098,7 @@ namespace Opc.Ua
 
         CancellationToken IChannelEntryHost.ShutdownToken => m_shutdownCts.Token;
 
-        Bindings.ITransportChannelBindings? IChannelEntryHost.ChannelFactory => m_channelFactory;
+        ITransportChannelBindings? IChannelEntryHost.ChannelFactory => m_channelFactory;
 
         ApplicationConfiguration IChannelEntryHost.Configuration => m_configuration;
 

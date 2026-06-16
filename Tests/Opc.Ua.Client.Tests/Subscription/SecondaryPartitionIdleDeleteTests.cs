@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // The primary partition must survive even when its
             // monitored-item count drops to zero — its server-side
             // id is the wrapper's stable identifier.
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
             var policy = new PartitionPlacementPolicy(10);
             var timeProvider = new FakeTimeProvider();
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => throw new InvalidOperationException("no secondary expected"),
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                _ => { disposeCalls++; return default(ValueTask); });
+                _ => { disposeCalls++; return default; });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -94,9 +94,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public async Task SecondaryPartitionDisposedAfterIdleTimeoutAsync()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1); // forces a secondary on item 2
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                p => { disposeSignal.TrySetResult(p); return default(ValueTask); });
+                p => { disposeSignal.TrySetResult(p); return default; });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -137,9 +137,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [Test]
         public async Task ReAddingItemBeforeTimeoutCancelsIdleDeleteAsync()
         {
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -152,7 +152,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                _ => { disposeCalls++; return default(ValueTask); });
+                _ => { disposeCalls++; return default; });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -179,9 +179,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             // Infinite timeout = feature off, no timer is ever armed
             // regardless of secondary disposer being supplied.
-            var primary = NewFake(1);
+            FakeManagedSubscription primary = NewFake(1);
             primary.MonitoredItems = new InMemoryCollection();
-            var secondary = NewFake(2);
+            FakeManagedSubscription secondary = NewFake(2);
             secondary.MonitoredItems = new InMemoryCollection();
 
             var policy = new PartitionPlacementPolicy(1);
@@ -193,8 +193,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 policy,
                 () => secondary,
                 timeProvider,
-                System.Threading.Timeout.InfiniteTimeSpan,
-                _ => { disposeCalls++; return default(ValueTask); });
+                Timeout.InfiniteTimeSpan,
+                _ => { disposeCalls++; return default; });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out _), Is.True);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public IReadOnlyList<IMonitoredItem> Update(
                 IReadOnlyList<(string Name, IOptionsMonitor<V2Options> Options)> state)
             {
-                return Array.Empty<IMonitoredItem>();
+                return [];
             }
 
             private static int s_nextHandle;
@@ -318,8 +318,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public TimeSpan CurrentSamplingInterval => TimeSpan.Zero;
             public uint CurrentQueueSize => 0;
             public uint ClientHandle { get; }
-            public IEnumerable<IMonitoredItem> TriggeringItems => Array.Empty<IMonitoredItem>();
-            public IEnumerable<IMonitoredItem> TriggeredItems => Array.Empty<IMonitoredItem>();
+            public IEnumerable<IMonitoredItem> TriggeringItems => [];
+            public IEnumerable<IMonitoredItem> TriggeredItems => [];
             public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
             {
                 return default;

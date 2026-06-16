@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -42,7 +43,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void HeadersAreCorrect()
         {
-            byte[] chunk = { 0xDE, 0xAD, 0xBE, 0xEF };
+            byte[] chunk = [0xDE, 0xAD, 0xBE, 0xEF];
             byte[] packet = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, chunk);
 
             Assert.That(packet[..4], Is.EqualTo(new byte[] { 0x02, 0x00, 0x00, 0x00 }).AsCollection);
@@ -58,7 +59,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void Ipv4ChecksumVerifies()
         {
-            byte[] packet = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, new byte[] { 1, 2, 3 });
+            byte[] packet = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, [1, 2, 3]);
             ushort sum = PcapTestHelpers.FoldOnesComplement(PcapTestHelpers.SumWords(packet.AsSpan(4, 20)));
 
             Assert.That(sum, Is.EqualTo(0xFFFF));
@@ -67,7 +68,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void TcpChecksumVerifies()
         {
-            byte[] packet = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, new byte[] { 1, 2, 3 });
+            byte[] packet = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, [1, 2, 3]);
             uint sum = PcapTestHelpers.SumWords(packet.AsSpan(16, 4)) + PcapTestHelpers.SumWords(packet.AsSpan(20, 4));
             sum += 6;
             sum += (uint)(packet.Length - 24);
@@ -79,8 +80,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public void DirectionFlipsSourceAndDestination()
         {
-            byte[] fromClient = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, new byte[] { 1 });
-            byte[] fromServer = LoopbackFrameBuilder.Build(fromClient: false, 0x1234, new byte[] { 1 });
+            byte[] fromClient = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, [1]);
+            byte[] fromServer = LoopbackFrameBuilder.Build(fromClient: false, 0x1234, [1]);
 
             Assert.That(fromClient.AsSpan(16, 4).ToArray(), Is.EqualTo(fromServer.AsSpan(20, 4).ToArray()).AsCollection);
             Assert.That(fromClient.AsSpan(20, 4).ToArray(), Is.EqualTo(fromServer.AsSpan(16, 4).ToArray()).AsCollection);
@@ -91,7 +92,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         [Test]
         public async Task BuiltPacketsRoundTripThroughPcap()
         {
-            byte[] chunk = { 0xDE, 0xAD, 0xBE, 0xEF };
+            byte[] chunk = [0xDE, 0xAD, 0xBE, 0xEF];
             byte[] packet = LoopbackFrameBuilder.Build(fromClient: true, 0x1234, chunk);
             string path = CreateTempPath("loopback.pcap");
 
@@ -105,7 +106,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
                 await writer.DisposeAsync().ConfigureAwait(false);
             }
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                 maxCount: 1).ConfigureAwait(false);
 

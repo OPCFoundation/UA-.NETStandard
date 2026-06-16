@@ -31,6 +31,7 @@ using System;
 using System.Formats.Asn1;
 using System.IO;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Fuzzing
@@ -71,12 +72,12 @@ namespace Opc.Ua.Fuzzing
                 {
                     _ = revokedCertificate.SerialNumber;
                     _ = revokedCertificate.RevocationDate;
-                    foreach (var extension in revokedCertificate.CrlEntryExtensions)
+                    foreach (X509Extension extension in revokedCertificate.CrlEntryExtensions)
                     {
                         _ = extension.Format(false);
                     }
                 }
-                foreach (var extension in crl.CrlExtensions)
+                foreach (X509Extension extension in crl.CrlExtensions)
                 {
                     _ = extension.Format(false);
                 }

@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Replay;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Replay

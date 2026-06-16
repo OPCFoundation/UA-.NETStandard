@@ -46,8 +46,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         public async Task OneRecordRoundTrips()
         {
             string path = CreateTempPath("one.pcap");
-            byte[] payload = { 1, 2, 3, 4, 5 };
-            var timestamp = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero).AddTicks(123450);
+            byte[] payload = [1, 2, 3, 4, 5];
+            DateTimeOffset timestamp = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero).AddTicks(123450);
 
             var writer = new PcapFileWriter(path, PcapFileWriter.LinkTypeEthernet);
             try
@@ -59,7 +59,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
                 await writer.DisposeAsync().ConfigureAwait(false);
             }
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                 maxCount: 1).ConfigureAwait(false);
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
                 await writer.DisposeAsync().ConfigureAwait(false);
             }
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                 maxCount: 100).ConfigureAwait(false);
 
@@ -111,10 +111,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             await WriteSinglePacketAsync(nullPath, PcapFileWriter.LinkTypeNull).ConfigureAwait(false);
             await WriteSinglePacketAsync(ethernetPath, PcapFileWriter.LinkTypeEthernet).ConfigureAwait(false);
 
-            var nullRecords = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> nullRecords = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(nullPath, CancellationToken.None),
                 maxCount: 1).ConfigureAwait(false);
-            var ethernetRecords = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> ethernetRecords = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(ethernetPath, CancellationToken.None),
                 maxCount: 1).ConfigureAwait(false);
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         public async Task TruncatedPartialHeaderStopsAfterCompleteRecords()
         {
             string path = CreateTempPath("truncated.pcap");
-            byte[] payload = { 9, 8, 7 };
+            byte[] payload = [9, 8, 7];
             var writer = new PcapFileWriter(path, PcapFileWriter.LinkTypeEthernet);
             try
             {
@@ -142,7 +142,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
                 await stream.WriteAsync(new byte[] { 1, 2, 3, 4 }, CancellationToken.None).ConfigureAwait(false);
             }
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                 maxCount: 1).ConfigureAwait(false);
 

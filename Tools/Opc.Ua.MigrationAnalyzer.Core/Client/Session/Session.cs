@@ -52,7 +52,8 @@ namespace Opc.Ua.Client
                 "LastKeepAliveTickCount is a 32-bit value that wraps every ~49.7 days.")]
             public int LastKeepAliveTickCount
                 => unchecked((int)(session.LastKeepAliveTimestamp *
-                    1000L / TimeProvider.System.TimestampFrequency));
+                    1000L /
+                    TimeProvider.System.TimestampFrequency));
         }
 
         /// <summary>

@@ -27,12 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.StateMachines;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -302,9 +300,10 @@ namespace Opc.Ua.Di.Client
         {
             PrepareForUpdateStateMachineTypeClient? proxy =
                 await ResolvePrepareProxyAsync(ct).ConfigureAwait(false);
-            return proxy ?? throw new ServiceResultException(
-                StatusCodes.BadNotFound,
-                "PrepareForUpdate child not exposed by the server.");
+            return proxy ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "PrepareForUpdate child not exposed by the server.");
         }
 
         private async ValueTask<InstallationStateMachineTypeClient?>
@@ -319,9 +318,10 @@ namespace Opc.Ua.Di.Client
         {
             InstallationStateMachineTypeClient? proxy =
                 await ResolveInstallationProxyAsync(ct).ConfigureAwait(false);
-            return proxy ?? throw new ServiceResultException(
-                StatusCodes.BadNotFound,
-                "Installation child not exposed by the server.");
+            return proxy ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "Installation child not exposed by the server.");
         }
 
         private async ValueTask<ConfirmationStateMachineTypeClient?>
@@ -336,9 +336,10 @@ namespace Opc.Ua.Di.Client
         {
             ConfirmationStateMachineTypeClient? proxy =
                 await ResolveConfirmationProxyAsync(ct).ConfigureAwait(false);
-            return proxy ?? throw new ServiceResultException(
-                StatusCodes.BadNotFound,
-                "Confirmation child not exposed by the server.");
+            return proxy ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "Confirmation child not exposed by the server.");
         }
 
         private async ValueTask<PowerCycleStateMachineTypeClient?>

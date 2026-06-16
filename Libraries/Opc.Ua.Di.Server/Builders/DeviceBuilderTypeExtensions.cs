@@ -118,7 +118,7 @@ namespace Opc.Ua.Di.Server.Builders
             child.BrowseName = browseName;
             child.DisplayName = new LocalizedText(browseName.Name ?? string.Empty);
             child.NodeId = device.Context.NodeIdFactory.New(device.Context, child);
-            child.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            child.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
 
             device.Device.AddChild(child);
 

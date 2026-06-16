@@ -226,11 +226,20 @@ namespace Opc.Ua.Di.Tests
         {
             private DateTimeOffset m_now;
 
-            public FakeTimeProvider(DateTimeOffset start) { m_now = start; }
+            public FakeTimeProvider(DateTimeOffset start)
+            {
+                m_now = start;
+            }
 
-            public override DateTimeOffset GetUtcNow() => m_now;
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_now;
+            }
 
-            public void Advance(TimeSpan delta) { m_now += delta; }
+            public void Advance(TimeSpan delta)
+            {
+                m_now += delta;
+            }
         }
     }
 }

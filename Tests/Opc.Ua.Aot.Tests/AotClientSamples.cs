@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Text;
-using Opc.Ua;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Aot.Tests

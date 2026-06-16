@@ -106,6 +106,7 @@ namespace Opc.Ua.Identity
         /// span is only valid while the <see cref="AccessToken"/> is not
         /// disposed.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public ReadOnlySpan<byte> TokenData
         {
             get

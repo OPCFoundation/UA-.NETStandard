@@ -84,6 +84,7 @@ namespace Opc.Ua.Server.Fluent
         /// Convenience overload that takes a <see cref="NodeState"/> for
         /// the target.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="target"/> is <c>null</c>.</exception>
         public static INodeBuilder Organizes(
             this INodeBuilder builder,
             NodeState target)
@@ -130,6 +131,7 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <param name="targetId">NodeId of the target node.</param>
         /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static INodeBuilder AddReference(
             this INodeBuilder builder,
             NodeId referenceTypeId,
@@ -176,6 +178,7 @@ namespace Opc.Ua.Server.Fluent
         /// newly created child, ready for further wiring (e.g.
         /// <see cref="Organizes(INodeBuilder, NodeId)"/>).
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
         public static INodeBuilder<BaseObjectState> AddObject(
             this INodeBuilder parent,
             QualifiedName browseName,
@@ -267,38 +270,47 @@ namespace Opc.Ua.Server.Fluent
             {
                 return SetVariable(v => v.OnReadValue = handler);
             }
+
             public INodeBuilder OnRead(NodeValueSimpleEventHandler handler)
             {
                 return SetVariable(v => v.OnSimpleReadValue = handler);
             }
+
             public INodeBuilder OnWrite(NodeValueEventHandler handler)
             {
                 return SetVariable(v => v.OnWriteValue = handler);
             }
+
             public INodeBuilder OnWrite(NodeValueSimpleEventHandler handler)
             {
                 return SetVariable(v => v.OnSimpleWriteValue = handler);
             }
+
             public INodeBuilder OnRead(NodeValueEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnReadValueAsync = handler);
             }
+
             public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnSimpleReadValueAsync = handler);
             }
+
             public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnWriteValueAsync = handler);
             }
+
             public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnSimpleWriteValueAsync = handler);
             }
+
             public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
             {
                 return SetMethod(m => m.OnCallMethod2 = handler);
             }
+
             public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
             {
                 return SetMethod(m => m.OnCallMethod2Async = handler);
@@ -309,26 +321,32 @@ namespace Opc.Ua.Server.Fluent
                 handler(Builder.Context, Node);
                 return this;
             }
+
             public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler)
             {
                 return this;
             }
+
             public INodeBuilder OnHistoryRead(HistoryReadHandler handler)
             {
                 return this;
             }
+
             public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler)
             {
                 return this;
             }
+
             public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler)
             {
                 return this;
             }
+
             public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
             {
                 return this;
             }
+
             public INodeBuilder OnEvent(EventNotificationHandler handler)
             {
                 Node.OnReportEvent = (ctx, n, ev) => handler(ctx, n, ev);
@@ -346,7 +364,8 @@ namespace Opc.Ua.Server.Fluent
 
             public INodeBuilder Child(QualifiedName browseName)
             {
-                NodeState? c = Node.FindChild(Builder.Context, browseName) ?? throw ServiceResultException.Create(
+                NodeState? c = Node.FindChild(Builder.Context, browseName) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Child '{0}' not found on '{1}'.",
                         browseName,

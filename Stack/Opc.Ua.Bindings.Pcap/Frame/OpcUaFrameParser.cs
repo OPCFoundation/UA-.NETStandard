@@ -33,7 +33,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
 
 namespace Opc.Ua.Bindings.Pcap.Frame
@@ -125,7 +124,7 @@ namespace Opc.Ua.Bindings.Pcap.Frame
             {
                 return false;
             }
-            return port == 4840 || port is >= 48010 and <= 48020;
+            return port is 4840 or >= 48010 and <= 48020;
         }
 
         private static int FindNextValidStart(ReadOnlySpan<byte> span)

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -67,11 +66,11 @@ namespace Opc.Ua
             m_participantRecreate = meter.CreateCounter<long>(
                 "opcua.channel.participant.recreate.count",
                 description: "Number of OPC UA client reconnect participant recreate callbacks.");
-            m_refCountGauge = meter.CreateObservableGauge<long>(
+            m_refCountGauge = meter.CreateObservableGauge(
                 "opcua.channel.refcount",
                 ObserveRefCounts,
                 description: "Current reference count for OPC UA client channel entries.");
-            m_participantGauge = meter.CreateObservableGauge<long>(
+            m_participantGauge = meter.CreateObservableGauge(
                 "opcua.channel.participants",
                 ObserveParticipants,
                 description: "Current participant count for OPC UA client channel entries.");
@@ -198,7 +197,7 @@ namespace Opc.Ua
                 return string.Empty;
             }
             int dash = participantId.IndexOf('-', StringComparison.Ordinal);
-            return dash > 0 ? participantId.Substring(0, dash) : participantId;
+            return dash > 0 ? participantId[..dash] : participantId;
         }
 
         private static KeyValuePair<string, object?>[] CreateEndpointTagsArray(ChannelEntry entry)

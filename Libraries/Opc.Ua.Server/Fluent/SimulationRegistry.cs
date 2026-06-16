@@ -80,6 +80,7 @@ namespace Opc.Ua.Server.Fluent
         /// Returns a builder for a new simulation loop with the given
         /// tick interval.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ISimulationBuilder NewSimulation(TimeSpan interval)
         {
             lock (m_gate)
@@ -137,9 +138,7 @@ namespace Opc.Ua.Server.Fluent
             if (cts == null)
 
             {
-
                 return;
-
             }
             try
             {

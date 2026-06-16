@@ -91,7 +91,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 0)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
@@ -106,7 +106,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 2)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, publishingIntervalMs: 250)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("PublishingIntervalMs"));
@@ -135,7 +135,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, keepAliveCount: 20)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("KeepAliveCount"));
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, lifetimeCount: 200)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("LifetimeCount"));
@@ -165,7 +165,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, maxNotificationsPerPublish: 2000)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("MaxNotificationsPerPublish"));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, minLifetimeIntervalMs: 2000)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("MinLifetimeIntervalMs"));
@@ -195,7 +195,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, priority: 5)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("Priority"));
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, publishingEnabled: false)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("PublishingEnabled"));
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, disabled: true)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("Disabled"));
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client
                 NewSnap(partitionIndex: 1, sendInitialValuesOnTransfer: false)
             };
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => ManagedSessionExtensions.ValidateAndSortGroup("g1", bucket));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("SendInitialValuesOnTransfer"));

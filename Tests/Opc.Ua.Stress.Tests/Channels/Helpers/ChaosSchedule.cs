@@ -127,7 +127,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 events.Add(CreateEvent(random, at, kind, minInterval, maxInterval));
             }
 
-            return events.ToArray();
+            return [.. events];
         }
 
         private static ChaosEvent CreateEvent(
@@ -222,7 +222,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                     TimeSpan delay = chaosEvent.At - elapsed;
                     if (delay > TimeSpan.Zero)
                     {
-                        await Opc.Ua.TimeProviderExtensions.Delay(m_timeProvider, delay, ct).ConfigureAwait(false);
+                        await TimeProviderExtensions.Delay(m_timeProvider, delay, ct).ConfigureAwait(false);
                     }
 
                     ct.ThrowIfCancellationRequested();

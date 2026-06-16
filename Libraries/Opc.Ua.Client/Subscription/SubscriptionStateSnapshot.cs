@@ -207,6 +207,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="availableSequenceNumbers">Server's
         /// retransmission-queue sequence numbers.</param>
         /// <param name="monitoredItems">Per-item snapshots.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static SubscriptionStateSnapshot AsOptions(
             SubscriptionOptions options,
             uint serverId,

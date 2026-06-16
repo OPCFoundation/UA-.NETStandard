@@ -128,7 +128,7 @@ namespace Opc.Ua.Di.Server.Builders
             (Confirmation_NotWaitingForConfirm,
              ConfirmationStateMachineTypeIds.StateNumbers.NotWaitingForConfirm, "NotWaitingForConfirm"),
             (Confirmation_WaitingForConfirm,
-             ConfirmationStateMachineTypeIds.StateNumbers.WaitingForConfirm, "WaitingForConfirm"),
+             ConfirmationStateMachineTypeIds.StateNumbers.WaitingForConfirm, "WaitingForConfirm")
         ];
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace Opc.Ua.Di.Server.Builders
              "NotWaitingForConfirmToWaitingForConfirm"),
             (Confirmation_WaitingToNotWaiting,
              ConfirmationStateMachineTypeIds.TransitionNumbers.WaitingForConfirmToNotWaitingForConfirm,
-             "WaitingForConfirmToNotWaitingForConfirm"),
+             "WaitingForConfirmToNotWaitingForConfirm")
         ];
 
         /// <summary>
@@ -207,16 +207,12 @@ namespace Opc.Ua.Di.Server.Builders
             if (sm.CurrentState.Id is { } idVar)
 
             {
-
                 idVar.Value = new NodeId(stateId, diNamespaceIndex);
-
             }
             if (sm.CurrentState.Number is { } numberVar)
 
             {
-
                 numberVar.Value = number;
-
             }
             sm.CurrentState.ClearChangeMasks(context, includeChildren: true);
         }
@@ -242,9 +238,7 @@ namespace Opc.Ua.Di.Server.Builders
             if (sm.LastTransition is null)
 
             {
-
                 return;
-
             }
             (uint _, uint number, string name) = Lookup(s_transitions, transitionId, "Unknown");
 
@@ -253,23 +247,17 @@ namespace Opc.Ua.Di.Server.Builders
             if (sm.LastTransition.Id is { } idVar)
 
             {
-
                 idVar.Value = new NodeId(transitionId, diNamespaceIndex);
-
             }
             if (sm.LastTransition.Number is { } numberVar)
 
             {
-
                 numberVar.Value = number;
-
             }
             if (sm.LastTransition.TransitionTime is { } ttVar)
 
             {
-
                 ttVar.Value = DateTime.UtcNow;
-
             }
             sm.LastTransition.ClearChangeMasks(context, includeChildren: true);
         }
@@ -353,23 +341,17 @@ namespace Opc.Ua.Di.Server.Builders
             if (sm.LastTransition.Id is { } idVar)
 
             {
-
                 idVar.Value = default;
-
             }
             if (sm.LastTransition.Number is { } numberVar)
 
             {
-
                 numberVar.Value = 0;
-
             }
             if (sm.LastTransition.TransitionTime is { } ttVar)
 
             {
-
                 ttVar.Value = DateTime.MinValue;
-
             }
         }
 

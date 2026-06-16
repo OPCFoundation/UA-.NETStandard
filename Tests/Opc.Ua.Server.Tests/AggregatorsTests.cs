@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Moq;
 
 namespace Opc.Ua.Server.Tests
 {

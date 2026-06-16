@@ -71,6 +71,7 @@ namespace Opc.Ua.Core.Security.Tests
         /// PKI directory which is cleaned up when the context is
         /// disposed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="clientCertificate"/> is <c>null</c>.</exception>
         public static async Task<CertSessionContext> CreateAsync(
             Certificate clientCertificate,
             string applicationUri,
@@ -147,6 +148,7 @@ namespace Opc.Ua.Core.Security.Tests
         /// <see cref="CreateAsync"/>. Bypasses the retry wrapper so
         /// the caller observes the first error directly.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task<ISession> OpenSessionAsync(
             ConfiguredEndpoint endpoint,
             ITelemetryContext telemetry,

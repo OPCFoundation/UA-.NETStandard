@@ -78,6 +78,7 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         public ISubscriptionEngineFactory ClientFixtureSubscriptionEngineFactory { get; set; }
             = ClassicSubscriptionEngineFactory.Instance;
+
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }

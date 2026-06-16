@@ -58,6 +58,7 @@ namespace Opc.Ua.Client.StateMachines
         /// machine, including the typed state and last transition
         /// NodeIds.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static async ValueTask<FiniteStateSnapshot> GetCurrentFiniteStateAsync(
             this FiniteStateMachineTypeClient client,
             CancellationToken ct = default)
@@ -172,6 +173,7 @@ namespace Opc.Ua.Client.StateMachines
         /// and <c>LastTransition.Id</c> so the consumer sees consistent
         /// typed state + transition data per transition.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<FiniteStateSnapshot> ObserveFiniteTransitionsAsync(
             this FiniteStateMachineTypeClient client,
             IStreamingSubscription streaming,
@@ -227,6 +229,9 @@ namespace Opc.Ua.Client.StateMachines
         /// scheduler; defaults to <see cref="TimeProvider.System"/>.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="OperationCanceledException"></exception>
         public static async ValueTask<FiniteStateSnapshot> WaitForStateAsync(
             this FiniteStateMachineTypeClient client,
             IStreamingSubscription streaming,
@@ -284,6 +289,7 @@ namespace Opc.Ua.Client.StateMachines
         /// instance. Useful for introspecting the machine's available
         /// states at runtime.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<FiniteStateInfo>> GetAvailableStatesAsync(
             this FiniteStateMachineTypeClient client,
             CancellationToken ct = default)
@@ -304,6 +310,7 @@ namespace Opc.Ua.Client.StateMachines
         /// Returns every <c>TransitionType</c> child of the state
         /// machine instance.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<FiniteTransitionInfo>> GetAvailableTransitionsAsync(
             this FiniteStateMachineTypeClient client,
             CancellationToken ct = default)
@@ -333,7 +340,7 @@ namespace Opc.Ua.Client.StateMachines
                 MakePath(client.ObjectId, BrowseNames.CurrentState),
                 MakeNestedPath(client.ObjectId, BrowseNames.CurrentState, BrowseNames.Id),
                 MakePath(client.ObjectId, BrowseNames.LastTransition),
-                MakeNestedPath(client.ObjectId, BrowseNames.LastTransition, BrowseNames.Id),
+                MakeNestedPath(client.ObjectId, BrowseNames.LastTransition, BrowseNames.Id)
             ];
 
             TranslateBrowsePathsToNodeIdsResponse response =
@@ -541,6 +548,8 @@ namespace Opc.Ua.Client.StateMachines
         /// <param name="telemetry">Telemetry context for the returned
         /// sub-SM client.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static async ValueTask<FiniteStateMachineTypeClient?>
             GetSubStateMachineAsync(
                 this FiniteStateMachineTypeClient parent,
@@ -610,6 +619,7 @@ namespace Opc.Ua.Client.StateMachines
         /// parent is NOT in the state that owns that sub-SM are
         /// discarded.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<FiniteStateSnapshot>
             ObserveEffectiveStateAsync(
                 this FiniteStateMachineTypeClient parent,

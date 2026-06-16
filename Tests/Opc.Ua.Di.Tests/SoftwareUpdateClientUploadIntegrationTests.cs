@@ -35,7 +35,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Di.Client;
-using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
@@ -130,7 +129,7 @@ namespace Opc.Ua.Di.Tests
                 sessionMock.Object, su.NodeId, NullTelemetry());
 
             long uploaded = await client
-                .UploadPackageAsync(Array.Empty<byte>(), "empty-package")
+                .UploadPackageAsync([], "empty-package")
                 .ConfigureAwait(false);
 
             Assert.That(uploaded, Is.Zero);

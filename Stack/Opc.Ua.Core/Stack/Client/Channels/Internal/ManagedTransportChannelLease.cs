@@ -38,20 +38,11 @@ namespace Opc.Ua
         internal ManagedTransportChannelLease(
             ChannelEntry entry, IReconnectParticipant participant)
         {
-            if (entry == null)
-            {
-                throw new ArgumentNullException(nameof(entry));
-            }
-            if (participant == null)
-            {
-                throw new ArgumentNullException(nameof(participant));
-            }
-
-            m_entry = entry;
+            m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
             ReverseConnection = entry.ReverseConnection;
-            m_participant = participant;
+            m_participant = participant ?? throw new ArgumentNullException(nameof(participant));
             m_participantFactory = _ => Participant;
             m_active = 1;
         }
@@ -60,16 +51,12 @@ namespace Opc.Ua
             ChannelEntry entry,
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory)
         {
-            if (entry == null)
-            {
-                throw new ArgumentNullException(nameof(entry));
-            }
             if (participantFactory == null)
             {
                 throw new ArgumentNullException(nameof(participantFactory));
             }
 
-            m_entry = entry;
+            m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
             ReverseConnection = entry.ReverseConnection;
@@ -229,10 +216,7 @@ namespace Opc.Ua
             set
             {
                 ITransportChannel? u = Entry.Underlying;
-                if (u != null)
-                {
-                    u.OperationTimeout = value;
-                }
+                u?.OperationTimeout = value;
             }
         }
 

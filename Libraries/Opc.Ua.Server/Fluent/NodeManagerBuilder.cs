@@ -357,6 +357,8 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="SimulationBuilderExtensions.Simulation(INodeManagerBuilder, TimeSpan)"/>
         /// extension can route loop registrations to the owning manager.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void AttachSimulations(SimulationRegistry registry)
         {
             if (Simulations != null)
@@ -501,9 +503,7 @@ namespace Opc.Ua.Server.Fluent
             if (enable)
 
             {
-
                 acnm.MultiConsumerNodeIds[node.NodeId] = true;
-
             }
             else
             {

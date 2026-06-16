@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
@@ -141,7 +140,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
 
             var observer = new RecordingSink();
             registry.SetObserver(observer);
-            using var args = new StubAsyncEventArgs(new byte[] { 0x10, 0x20, 0x30 });
+            using var args = new StubAsyncEventArgs([0x10, 0x20, 0x30]);
             socket.Send(args);
 
             Assert.That(innerSocket.SendCount, Is.EqualTo(1));
@@ -190,7 +189,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
 
             public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
             {
-                return new StubAsyncEventArgs(Array.Empty<byte>());
+                return new StubAsyncEventArgs([]);
             }
         }
 
@@ -260,7 +259,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
 
         private sealed class RecordingSink : IFrameCaptureSink
         {
-            public List<(uint ChannelId, byte[] Bytes)> SentChunks { get; } = new();
+            public List<(uint ChannelId, byte[] Bytes)> SentChunks { get; } = [];
 
             public void OnFrameSent(uint channelId, ReadOnlySpan<byte> chunk)
             {

@@ -55,26 +55,31 @@ namespace Opc.Ua.Client.ModelChange
         /// No change.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// A new node was added.
         /// </summary>
         NodeAdded = 1,
+
         /// <summary>
         /// An existing node was deleted.
         /// </summary>
         NodeDeleted = 2,
+
         /// <summary>
         /// A reference was added.
         /// </summary>
         ReferenceAdded = 4,
+
         /// <summary>
         /// A reference was deleted.
         /// </summary>
         ReferenceDeleted = 8,
+
         /// <summary>
         /// The DataType attribute changed.
         /// </summary>
-        DataTypeChanged = 16,
+        DataTypeChanged = 16
     }
 
     /// <summary>
@@ -100,7 +105,7 @@ namespace Opc.Ua.Client.ModelChange
             IReadOnlyList<ModelChange> changes,
             bool requiresFullCacheInvalidation)
         {
-            Changes = changes ?? Array.Empty<ModelChange>();
+            Changes = changes ?? [];
             RequiresFullCacheInvalidation = requiresFullCacheInvalidation;
         }
     }

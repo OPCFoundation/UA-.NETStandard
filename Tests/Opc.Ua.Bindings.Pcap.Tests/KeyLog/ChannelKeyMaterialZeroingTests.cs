@@ -95,14 +95,14 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
                 securityMode: MessageSecurityMode.SignAndEncrypt,
                 createdAt: DateTime.UtcNow,
                 lifetime: 60000,
-                clientNonce: Array.Empty<byte>(),
-                serverNonce: Array.Empty<byte>(),
-                clientSigningKey: Array.Empty<byte>(),
-                clientEncryptingKey: Array.Empty<byte>(),
-                clientInitializationVector: Array.Empty<byte>(),
-                serverSigningKey: Array.Empty<byte>(),
-                serverEncryptingKey: Array.Empty<byte>(),
-                serverInitializationVector: Array.Empty<byte>());
+                clientNonce: [],
+                serverNonce: [],
+                clientSigningKey: [],
+                clientEncryptingKey: [],
+                clientInitializationVector: [],
+                serverSigningKey: [],
+                serverEncryptingKey: [],
+                serverInitializationVector: []);
 
             Assert.DoesNotThrow(material.Dispose);
         }

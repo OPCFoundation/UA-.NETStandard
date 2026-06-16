@@ -66,6 +66,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <param name="mutate">The mutation to apply.</param>
         /// <returns>A handle that, when disposed, removes the
         /// expectation if it has not already fired.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="mutate"/> is <c>null</c>.</exception>
         public IDisposable ExpectNextResponse<TResponse>(Action<TResponse> mutate)
             where TResponse : class, IServiceResponse
         {
@@ -100,6 +101,7 @@ namespace Opc.Ua.Client.TestFramework
         /// available for inspection.</param>
         /// <returns>A handle that, when disposed, removes the
         /// expectation.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="mutate"/> is <c>null</c>.</exception>
         public IDisposable WhenRequest<TRequest, TResponse>(
             Action<TRequest, TResponse> mutate)
             where TRequest : class, IServiceRequest

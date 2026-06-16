@@ -27,10 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.Topology;
@@ -139,7 +137,7 @@ namespace Opc.Ua.Di.Tests
                 .CreateDeviceAsync(new QualifiedName("TopologyDeviceB", ns))
                 .ConfigureAwait(false);
 
-            ComponentState[] devices = m_topology.Devices.ToArray();
+            ComponentState[] devices = [.. m_topology.Devices];
 
             Assert.That(devices, Does.Contain(builder.Device));
         }

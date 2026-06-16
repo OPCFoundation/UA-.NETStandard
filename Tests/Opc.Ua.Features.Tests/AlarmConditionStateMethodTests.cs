@@ -29,7 +29,6 @@
 
 #pragma warning disable CA2000
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 

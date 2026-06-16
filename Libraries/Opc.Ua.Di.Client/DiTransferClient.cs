@@ -155,6 +155,7 @@ namespace Opc.Ua.Di.Client
         /// When true, ask the server to skip <c>Good</c> entries.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public async IAsyncEnumerable<ParameterFetchEntry> StreamAsync(
             int transferId,
             int maxResultsPerChunk = 50,
@@ -241,9 +242,9 @@ namespace Opc.Ua.Di.Client
                         StatusCode: p.StatusCode));
                 }
                 return new FetchChunk(
-                    NextSequenceNumber: data.SequenceNumber + 1,
+                    Entries: entries,
                     EndOfResults: data.EndOfResults,
-                    Entries: entries);
+                    NextSequenceNumber: data.SequenceNumber + 1);
             }
             return new FetchChunk(EndOfResults: true);
         }

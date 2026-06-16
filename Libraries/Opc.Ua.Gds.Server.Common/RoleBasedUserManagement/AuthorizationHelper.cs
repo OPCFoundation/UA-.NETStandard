@@ -220,7 +220,8 @@ namespace Opc.Ua.Gds.Server
                 SessionSystemContext sc => sc.OperationContext as OperationContext,
                 SystemContext sc => sc.OperationContext as OperationContext,
                 _ => null
-            } ?? throw new ServiceResultException(
+            } ??
+                throw new ServiceResultException(
                     StatusCodes.BadSecurityModeInsufficient,
                     "Unable to verify secure channel requirements.");
 

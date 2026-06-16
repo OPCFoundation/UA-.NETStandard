@@ -382,9 +382,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(afterReportCount - beforeReportCount, Is.EqualTo(1));
 
             int baseOnlyCount = m_mockServer.Invocations.Count(i =>
-                i.Method.Name == "ReportEvent"
-                && i.Arguments.Count > 0
-                && i.Arguments[i.Arguments.Count - 1]?.GetType() == typeof(BaseModelChangeEventState));
+                i.Method.Name == "ReportEvent" &&
+                i.Arguments.Count > 0 &&
+                i.Arguments[i.Arguments.Count - 1]?.GetType() == typeof(BaseModelChangeEventState));
             Assert.That(baseOnlyCount, Is.EqualTo(1));
         }
 
@@ -4548,6 +4548,7 @@ namespace Opc.Ua.Server.Tests
         NodeState Find(NodeId nodeId);
         NodeId New(ISystemContext context, NodeState node);
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
+
         ValueTask<NodeId> CreateNodeAsync(
             ServerSystemContext context,
             NodeId parentId,
@@ -4555,6 +4556,7 @@ namespace Opc.Ua.Server.Tests
             QualifiedName browseName,
             BaseInstanceState instance,
             CancellationToken ct = default);
+
         ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken ct = default);
         ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
         T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
@@ -4823,6 +4825,7 @@ namespace Opc.Ua.Server.Tests
         public ServerSystemContext SystemContext => m_cnm2.SystemContext;
         public IReadOnlyList<ushort> NamespaceIndexes => m_cnm2.NamespaceIndexes;
         public ushort NamespaceIndex => m_cnm2.NamespaceIndex;
+
         public NodeState Find(NodeId nodeId)
         {
             return m_cnm2.Find(nodeId)!;

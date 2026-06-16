@@ -170,6 +170,8 @@ namespace Opc.Ua.Gds.Server
         /// Registers a managed application. Call this before starting
         /// the GDS to seed the <c>ManagedApplications</c> folder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="info"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void AddApplication(ManagedApplicationInfo info)
         {
             if (info == null)

@@ -61,8 +61,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
                 channelId: 0x11112222,
                 tokenId: 0x33334444);
 
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     new DateTimeOffset(2026, 6, 7, 8, 9, 10, TimeSpan.Zero),
                     CaptureFrameDirection.ClientToServer,
@@ -75,7 +75,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
                     "client:1",
                     "server:1",
                     chunk)
-            };
+            ];
             await using var source = new InMemoryCaptureSource(frames);
             var formatter = new JsonFormatter();
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
             Assert.That(result.FramesFormatted, Is.EqualTo(2));
 
             string json = Encoding.UTF8.GetString(result.Bytes);
-            using JsonDocument doc = JsonDocument.Parse(json);
+            using var doc = JsonDocument.Parse(json);
             Assert.That(doc.RootElement.ValueKind, Is.EqualTo(JsonValueKind.Array));
             Assert.That(doc.RootElement.GetArrayLength(), Is.EqualTo(2));
             JsonElement first = doc.RootElement[0];

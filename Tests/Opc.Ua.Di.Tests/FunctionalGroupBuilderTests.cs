@@ -30,7 +30,6 @@
 using System;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server.Fluent;
 
@@ -112,11 +111,11 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(result, Is.SameAs(builder));
             Assert.That(
-                group.ReferenceExists(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, target.NodeId),
+                group.ReferenceExists(Types.ReferenceTypeIds.Organizes, false, target.NodeId),
                 Is.True,
                 "Group should have a forward Organizes reference to target.");
             Assert.That(
-                target.ReferenceExists(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, group.NodeId),
+                target.ReferenceExists(Types.ReferenceTypeIds.Organizes, true, group.NodeId),
                 Is.True,
                 "Target should have an inverse Organizes reference back to group.");
         }
@@ -133,7 +132,7 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(result, Is.SameAs(builder));
             Assert.That(
-                group.ReferenceExists(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, targetId),
+                group.ReferenceExists(Types.ReferenceTypeIds.Organizes, false, targetId),
                 Is.True);
         }
 
