@@ -61,8 +61,14 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
         }
 
         [Test]
-        public void AuthenticatedWithNameClaimReturnsUserIdentity()
+        public void AuthenticatedWithNameClaimReturnsNullSec4()
         {
+            // sec-4 fix: never synthesize a UserName token with an
+            // empty / placeholder password. The upstream-authenticated
+            // principal (if any) flows out-of-band via
+            // SecureChannelContext.UpstreamIdentity (sec-6). Custom
+            // providers (e.g. JwtClaimSessionlessIdentityProvider) own
+            // the richer mapping.
             var provider = new DefaultSessionlessIdentityProvider();
             ClaimsIdentity claimsIdentity = new(
                 [new Claim(ClaimTypes.Name, "alice")],
@@ -74,15 +80,14 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
 
             IUserIdentity? identity = provider.Resolve(context);
 
-            Assert.That(identity, Is.Not.Null);
-            Assert.That(identity, Is.InstanceOf<UserIdentity>());
-            Assert.That(identity!.TokenHandler.Token, Is.InstanceOf<UserNameIdentityToken>());
-            var token = (UserNameIdentityToken)identity.TokenHandler.Token;
-            Assert.That(token.UserName, Is.EqualTo("alice"));
+            Assert.That(identity, Is.Null,
+                "DefaultSessionlessIdentityProvider must never forge a UserName " +
+                "token with an empty password. Upstream identity flows through " +
+                "SecureChannelContext.UpstreamIdentity (sec-6).");
         }
 
         [Test]
-        public void AuthenticatedWithoutNameClaimReturnsAnonymous()
+        public void AuthenticatedWithoutNameClaimReturnsNullSec4()
         {
             var provider = new DefaultSessionlessIdentityProvider();
             var context = new DefaultHttpContext
@@ -92,8 +97,9 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
 
             IUserIdentity? identity = provider.Resolve(context);
 
-            Assert.That(identity, Is.Not.Null);
-            Assert.That(identity!.TokenHandler.Token, Is.InstanceOf<AnonymousIdentityToken>());
+            Assert.That(identity, Is.Null,
+                "Authenticated principal with no name claim still returns null — " +
+                "the binding does not synthesize identity tokens.");
         }
     }
 }

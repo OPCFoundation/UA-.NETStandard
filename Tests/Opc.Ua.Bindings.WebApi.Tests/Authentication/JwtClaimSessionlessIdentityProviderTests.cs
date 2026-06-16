@@ -248,24 +248,28 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
         }
 
         [Test]
-        public void AuthenticatedWithoutBearerHeaderFallsBackToUsernameIdentity()
+        public void AuthenticatedWithoutBearerHeaderReturnsAnonymousSec4()
         {
+            // sec-4 fix: when no raw bearer token is recoverable, the
+            // provider used to fall back to a UserName projection with
+            // an empty password — same anti-pattern as
+            // DefaultSessionlessIdentityProvider before the fix. It
+            // now returns null (or anonymous per options) so an
+            // upstream-authenticated principal cannot impersonate a
+            // UserName account if the server trusts upstream auth
+            // without re-verifying passwords.
             var provider = new JwtClaimSessionlessIdentityProvider();
-            // No Authorization header — synthesised principal (e.g. a
-            // test-only middleware that authenticates without a token).
             DefaultHttpContext context = BuildContext(
                 bearer: null,
                 claims: new Claim("sub", "alice"));
 
             IUserIdentity? identity = provider.Resolve(context);
 
-            Assert.That(identity, Is.Not.Null,
-                "When the principal is authenticated but no raw bearer is recoverable, " +
-                "the provider must still surface the subject — falling back to " +
-                "UserName projection.");
-            Assert.That(identity!.TokenHandler.Token, Is.InstanceOf<UserNameIdentityToken>());
-            var token = (UserNameIdentityToken)identity.TokenHandler.Token;
-            Assert.That(token.UserName, Is.EqualTo("alice"));
+            Assert.That(identity, Is.Null,
+                "Default options (ReturnAnonymousForUnauthenticated = false) must " +
+                "return null when no bearer is recoverable, NOT a UserName token " +
+                "with an empty password. Upstream subject still available via " +
+                "SecureChannelContext.UpstreamIdentity (sec-6).");
         }
         private static DefaultHttpContext BuildContext(
             string? bearer,

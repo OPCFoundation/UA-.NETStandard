@@ -182,16 +182,18 @@ namespace Opc.Ua.Bindings.WebApi
             }
             else
             {
-                // No raw token recoverable — fall back to UserName projection
-                // so the subject still flows through. This branch is rare
-                // in practice (the bearer middleware needs a token to have
-                // authenticated successfully) but covers principals
-                // synthesised by tests / custom middleware.
-                if (string.IsNullOrEmpty(subject))
-                {
-                    return m_options.ReturnAnonymousForUnauthenticated ? new UserIdentity() : null;
-                }
-                identity = new UserIdentity(subject, ReadOnlySpan<byte>.Empty);
+                // No raw token recoverable — covers principals synthesised
+                // by tests / custom middleware. We previously fell back to
+                // UserIdentity(subject, ReadOnlySpan<byte>.Empty) here,
+                // forging a UserName token with an empty password. That
+                // matches the sec-4 anti-pattern (a server that trusts
+                // the username without re-verifying the password lets
+                // any authenticated principal impersonate any user), so
+                // we now return anonymous (or null per options). The
+                // upstream subject still flows through
+                // SecureChannelContext.UpstreamIdentity via sec-6 so
+                // callers that need it can recover it from there.
+                return m_options.ReturnAnonymousForUnauthenticated ? new UserIdentity() : null;
             }
 
             IReadOnlyList<string> scopes = ExtractScopes(principal, m_options.ScopeClaim);

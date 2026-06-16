@@ -30,7 +30,6 @@
 #if NET8_0_OR_GREATER
 using System;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Http;
 using Opc.Ua;
 
@@ -72,13 +71,29 @@ namespace Opc.Ua.Bindings.WebApi
     }
 
     /// <summary>
-    /// Default <see cref="ISessionlessIdentityProvider"/> that maps the
-    /// ASP.NET Core <see cref="ClaimsPrincipal"/> to a username-based
-    /// <see cref="UserIdentity"/> when authenticated, and to
-    /// <see cref="UserIdentity()"/> (anonymous) otherwise. The mapping
-    /// is intentionally conservative: callers should register a custom
-    /// provider for richer mappings (e.g. JWT claim → role assignment).
+    /// Default <see cref="ISessionlessIdentityProvider"/> that returns
+    /// <see cref="UserIdentity()"/> (anonymous) for every request. The
+    /// upstream-authenticated principal (when present) flows through
+    /// <see cref="SecureChannelContext.UpstreamIdentity"/> instead, so
+    /// the OPC UA service pipeline can consume it without the binding
+    /// having to forge a UserName token with an empty / placeholder
+    /// password.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Earlier versions of this provider materialized a
+    /// <see cref="UserNameIdentityToken"/> with an empty password when
+    /// <see cref="HttpContext.User"/> was authenticated. If the server's
+    /// <c>IUserTokenAuthenticator</c> trusted the username without
+    /// re-verifying the password (the documented expectation for
+    /// upstream-authenticated bindings), any authenticated principal
+    /// could impersonate any user. The fallback is removed; callers
+    /// that need richer mappings (JWT claims → scopes/roles, mTLS subject
+    /// → X.509 identity) must register a custom provider — e.g.
+    /// <see cref="JwtClaimSessionlessIdentityProvider"/> for the bearer
+    /// case.
+    /// </para>
+    /// </remarks>
     public sealed class DefaultSessionlessIdentityProvider : ISessionlessIdentityProvider
     {
         /// <inheritdoc/>
@@ -86,34 +101,12 @@ namespace Opc.Ua.Bindings.WebApi
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            // Anonymous when the auth pipeline did not produce an
-            // authenticated principal — controllers will treat null
-            // identical to UserIdentity() (anonymous token).
-            if (context.User.Identity is not { IsAuthenticated: true })
-            {
-                return null;
-            }
-
-            string? name = context.User.Identity.Name
-                ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(name))
-            {
-                // Authenticated but no usable username claim — fall
-                // back to anonymous. A custom provider should be
-                // registered to map richer identities.
-                return new UserIdentity();
-            }
-
-            // OPC UA UserName tokens carry a password; for upstream
-            // authentication models (JWT / mutual-TLS) the password is
-            // not available here, so we wire up a UserNameIdentityToken
-            // with an empty password marker. The server's
-            // IUserTokenAuthenticator is expected to honor the upstream
-            // authentication outcome rather than re-verify the
-            // password, OR a custom provider should be registered.
-            byte[] password = Encoding.UTF8.GetBytes(string.Empty);
-            return new UserIdentity(name, password);
+            // Never synthesize a UserName token with an empty password
+            // (sec-4 fix). The upstream-authenticated principal — if any
+            // — is published on SecureChannelContext.UpstreamIdentity by
+            // WebApiServer.InvokeAsync (sec-6); the dispatcher pipeline
+            // can consult that without the provider forging a credential.
+            return null;
         }
     }
 }
