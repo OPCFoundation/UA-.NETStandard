@@ -91,6 +91,17 @@ namespace Opc.Ua.PubSub.Application
         /// Optional pre-registered <see cref="ISubscribedDataSetSink"/>
         /// instances keyed by data-set reader name.
         /// </param>
+        /// <param name="securityWrapperResolver">
+        /// Optional per-connection resolver that materialises the
+        /// <see cref="UadpSecurityWrapper"/> used by every PubSub
+        /// connection. Defaults to <see langword="null"/> meaning no
+        /// security wrapping is applied.
+        /// </param>
+        /// <param name="maxNetworkMessageSizeResolver">
+        /// Optional per-connection resolver supplying the maximum
+        /// outbound UADP NetworkMessage size before chunking. Returning
+        /// <c>0</c> disables chunking for that connection.
+        /// </param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -103,7 +114,9 @@ namespace Opc.Ua.PubSub.Application
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
             IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources = null,
-            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks = null)
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks = null,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null)
         {
             if (snapshot is null)
             {
@@ -205,7 +218,10 @@ namespace Opc.Ua.PubSub.Application
                     BuildConnection(
                         connectionConfig, factory, encoderMap, decoderMap,
                         publishedDataSets, subscribedDataSetSinks, scheduler,
-                        metaDataRegistry, diagnostics, timeProvider, connections);
+                        metaDataRegistry, diagnostics, timeProvider,
+                        securityWrapperResolver,
+                        maxNetworkMessageSizeResolver,
+                        connections);
                 }
             }
             m_connections = connections.ToArray();
@@ -222,6 +238,8 @@ namespace Opc.Ua.PubSub.Application
             IDataSetMetaDataRegistry metaDataRegistry,
             IPubSubDiagnostics diagnostics,
             TimeProvider timeProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
             List<PubSubConnection> connections)
         {
             var writerGroups = new List<WriterGroup>();
@@ -279,10 +297,13 @@ namespace Opc.Ua.PubSub.Application
                             readers.Add(new DataSetReader(drConfig, sink, m_telemetry, timeProvider));
                         }
                     }
-                    readerGroups.Add(new ReaderGroup(rgConfig, readers, m_telemetry));
+                    readerGroups.Add(new ReaderGroup(
+                        rgConfig, readers, m_telemetry, scheduler, diagnostics));
                 }
             }
 
+            PubSubSecurityContext? securityContext = securityWrapperResolver?.Resolve(connectionConfig);
+            int maxMessageSize = maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
             var connection = new PubSubConnection(
                 connectionConfig,
                 factory,
@@ -293,7 +314,10 @@ namespace Opc.Ua.PubSub.Application
                 metaDataRegistry,
                 diagnostics,
                 m_telemetry,
-                timeProvider);
+                timeProvider,
+                securityContext?.Wrapper,
+                securityContext?.WrapOptions ?? UadpSecurityWrapOptions.SignAndEncrypt,
+                maxMessageSize);
             State.AttachChild(connection.State);
             connections.Add(connection);
         }

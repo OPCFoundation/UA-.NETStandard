@@ -370,6 +370,245 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             };
         }
 
+        /// <summary>
+        /// Parses just the UADP NetworkMessage prefix (Common Header,
+        /// optional Extended Flags, optional PublisherId, optional
+        /// DataSetClassId, optional GroupHeader, optional PayloadHeader
+        /// writer-ids, optional Timestamp / PicoSeconds / PromotedFields,
+        /// and optional PayloadHeader sizes) and reports the offset at
+        /// which the SecurityHeader / DataSetMessages region begins.
+        /// </summary>
+        /// <remarks>
+        /// Used by <c>PubSubConnection</c> to split an inbound frame
+        /// when <c>ExtendedFlags1.SecurityEnabled</c> is set so the
+        /// security wrapper can verify, decrypt and rebuild a cleartext
+        /// frame that the full decoder can then process.
+        /// </remarks>
+        /// <param name="frame">Inbound frame bytes.</param>
+        /// <param name="prefixLength">
+        /// On success, the byte length of the prefix region.
+        /// </param>
+        /// <param name="securityEnabled">
+        /// On success, <see langword="true"/> when
+        /// <c>ExtendedFlags1.SecurityEnabled</c> is set.
+        /// </param>
+        /// <param name="publisherId">
+        /// On success, the parsed publisher identity (used by the
+        /// reassembler routing key on chunked frames).
+        /// </param>
+        /// <param name="writerGroupId">
+        /// On success, the WriterGroupId carried in the optional
+        /// GroupHeader (0 when absent).
+        /// </param>
+        /// <returns><see langword="true"/> when parsing succeeded.</returns>
+        public static bool TryReadOuterPrefix(
+            ReadOnlyMemory<byte> frame,
+            out int prefixLength,
+            out bool securityEnabled,
+            out PublisherId publisherId,
+            out ushort writerGroupId)
+        {
+            return TryReadOuterPrefix(
+                frame,
+                out prefixLength,
+                out securityEnabled,
+                out _,
+                out publisherId,
+                out writerGroupId);
+        }
+
+        /// <summary>
+        /// Variant of <see cref="TryReadOuterPrefix(ReadOnlyMemory{byte},
+        /// out int, out bool, out PublisherId, out ushort)"/> that also
+        /// reports whether the frame carries the
+        /// <c>ExtendedFlags2.ChunkMessage</c> bit. Used by the connection
+        /// to route inbound chunked NetworkMessages through the
+        /// reassembler.
+        /// </summary>
+        public static bool TryReadOuterPrefix(
+            ReadOnlyMemory<byte> frame,
+            out int prefixLength,
+            out bool securityEnabled,
+            out bool chunkMessage,
+            out PublisherId publisherId,
+            out ushort writerGroupId)
+        {
+            prefixLength = 0;
+            securityEnabled = false;
+            chunkMessage = false;
+            publisherId = PublisherId.Null;
+            writerGroupId = 0;
+
+            if (frame.IsEmpty)
+            {
+                return false;
+            }
+            var reader = new UadpBinaryReader(frame.ToArray(), 0, frame.Length);
+            if (!reader.TryReadByte(out byte rawFlags))
+            {
+                return false;
+            }
+            (byte version, UadpFlagsEncodingMask uadpFlags) =
+                UadpFlagsEncodingMaskExtensions.Split(rawFlags);
+            if (version != 1)
+            {
+                return false;
+            }
+
+            ExtendedFlags1EncodingMask ext1 = 0;
+            ExtendedFlags2EncodingMask ext2 = 0;
+            if ((uadpFlags & UadpFlagsEncodingMask.ExtendedFlags1Enabled) != 0)
+            {
+                if (!reader.TryReadByte(out byte ext1Byte))
+                {
+                    return false;
+                }
+                ext1 = (ExtendedFlags1EncodingMask)ext1Byte;
+            }
+            if ((ext1 & ExtendedFlags1EncodingMask.ExtendedFlags2Enabled) != 0)
+            {
+                if (!reader.TryReadByte(out byte ext2Byte))
+                {
+                    return false;
+                }
+                ext2 = (ExtendedFlags2EncodingMask)ext2Byte;
+            }
+
+            securityEnabled = (ext1 & ExtendedFlags1EncodingMask.SecurityEnabled) != 0;
+            chunkMessage = (ext2 & ExtendedFlags2EncodingMask.ChunkMessage) != 0;
+
+            if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
+            {
+                if (!ExtendedFlags1EncodingMaskExtensions.TryGetPublisherIdType(
+                    (byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask),
+                    out PublisherIdType pidType))
+                {
+                    return false;
+                }
+                if (!TryReadPublisherId(ref reader, pidType, out publisherId))
+                {
+                    return false;
+                }
+            }
+
+            if ((ext1 & ExtendedFlags1EncodingMask.DataSetClassIdEnabled) != 0)
+            {
+                if (!reader.TryReadGuid(out _))
+                {
+                    return false;
+                }
+            }
+
+            // Discovery frames are not in scope for security wrapping
+            // — keep them detectable so the caller can route them elsewhere.
+            if ((ext2 & ExtendedFlags2EncodingMask
+                .NetworkMessageWithDiscoveryRequest) != 0
+                || (ext2 & ExtendedFlags2EncodingMask
+                    .NetworkMessageWithDiscoveryResponse) != 0)
+            {
+                prefixLength = reader.Position;
+                return true;
+            }
+
+            int payloadCount = 0;
+            if ((uadpFlags & UadpFlagsEncodingMask.GroupHeaderEnabled) != 0)
+            {
+                if (!reader.TryReadByte(out byte gfByte))
+                {
+                    return false;
+                }
+                var groupFlags = (GroupFlagsEncodingMask)gfByte;
+                if ((groupFlags & GroupFlagsEncodingMask.WriterGroupIdEnabled) != 0)
+                {
+                    if (!reader.TryReadUInt16Le(out ushort wgid))
+                    {
+                        return false;
+                    }
+                    writerGroupId = wgid;
+                }
+                if ((groupFlags & GroupFlagsEncodingMask.GroupVersionEnabled) != 0
+                    && !reader.TryReadUInt32Le(out _))
+                {
+                    return false;
+                }
+                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0
+                    && !reader.TryReadUInt16Le(out _))
+                {
+                    return false;
+                }
+                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0
+                    && !reader.TryReadUInt16Le(out _))
+                {
+                    return false;
+                }
+            }
+
+            if (chunkMessage)
+            {
+                // Chunked envelopes carry only the optional GroupHeader
+                // before the inner chunk payload. Stop the prefix here.
+                prefixLength = reader.Position;
+                return true;
+            }
+
+            ushort[]? payloadWriterIds = null;
+            if ((uadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0)
+            {
+                if (!reader.TryReadByte(out byte count))
+                {
+                    return false;
+                }
+                payloadCount = count;
+                payloadWriterIds = new ushort[count];
+                for (int i = 0; i < count; i++)
+                {
+                    if (!reader.TryReadUInt16Le(out ushort wid))
+                    {
+                        return false;
+                    }
+                    payloadWriterIds[i] = wid;
+                }
+            }
+
+            if ((ext1 & ExtendedFlags1EncodingMask.TimestampEnabled) != 0
+                && !reader.TryReadInt64Le(out _))
+            {
+                return false;
+            }
+            if ((ext1 & ExtendedFlags1EncodingMask.PicoSecondsEnabled) != 0
+                && !reader.TryReadUInt16Le(out _))
+            {
+                return false;
+            }
+
+            if ((ext2 & ExtendedFlags2EncodingMask.PromotedFields) != 0)
+            {
+                // PromotedFields is prefixed by a UInt16 byte-size we
+                // can skip over without decoding individual Variants.
+                if (!reader.TryReadUInt16Le(out ushort promotedSize)
+                    || promotedSize > reader.Remaining)
+                {
+                    return false;
+                }
+                reader.Advance(promotedSize);
+            }
+
+            if (payloadWriterIds is not null && payloadWriterIds.Length > 1)
+            {
+                for (int i = 0; i < payloadCount; i++)
+                {
+                    if (!reader.TryReadUInt16Le(out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            prefixLength = reader.Position;
+            return true;
+        }
+
+
         private static bool TryReadPublisherId(
             ref UadpBinaryReader reader,
             PublisherIdType type,

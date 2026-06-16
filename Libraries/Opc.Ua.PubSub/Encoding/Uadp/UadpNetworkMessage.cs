@@ -119,6 +119,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public UadpNetworkMessageType MessageType { get; init; }
             = UadpNetworkMessageType.DataSetMessage;
 
+        /// <summary>
+        /// When set, the encoder marks
+        /// <c>ExtendedFlags1.SecurityEnabled</c> in the wire header so
+        /// the recipient knows to invoke the security wrapper before
+        /// continuing to parse the payload. The encoder itself does
+        /// <em>not</em> insert the <c>SecurityHeader</c>; that is the
+        /// responsibility of <see cref="Security.UadpSecurityWrapper"/>,
+        /// which is invoked by the connection after encode.
+        /// </summary>
+        /// <remarks>
+        /// Drives the
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3">
+        /// Part 14 §7.2.4.4.3</see>
+        /// <c>ExtendedFlags1.SecurityEnabled = 0x10</c> bit.
+        /// </remarks>
+        public bool SecurityEnabled { get; init; }
+
         /// <inheritdoc/>
         public override string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
     }

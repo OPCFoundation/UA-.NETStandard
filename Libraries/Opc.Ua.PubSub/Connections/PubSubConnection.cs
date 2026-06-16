@@ -34,8 +34,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 
@@ -62,6 +64,11 @@ namespace Opc.Ua.PubSub.Connections
         private readonly TimeProvider m_timeProvider;
         private readonly IDataSetMetaDataRegistry m_metaDataRegistry;
         private readonly IPubSubDiagnostics m_diagnostics;
+        private readonly UadpSecurityWrapper? m_securityWrapper;
+        private readonly UadpSecurityWrapOptions m_securityWrapOptions;
+        private readonly int m_maxNetworkMessageSize;
+        private readonly UadpReassembler m_reassembler;
+        private int m_chunkSequenceNumber;
         private readonly ILogger<PubSubConnection> m_logger;
         private readonly System.Threading.Lock m_gate = new();
         private IPubSubTransport? m_transport;
@@ -93,6 +100,58 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubDiagnostics diagnostics,
             ITelemetryContext telemetry,
             TimeProvider timeProvider)
+            : this(configuration, transportFactory, encoders, decoders,
+                  writerGroups, readerGroups, metaDataRegistry, diagnostics,
+                  telemetry, timeProvider,
+                  securityWrapper: null,
+                  securityWrapOptions: UadpSecurityWrapOptions.SignAndEncrypt,
+                  maxNetworkMessageSize: 0)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="PubSubConnection"/> with an
+        /// optional UADP security wrapper. When supplied the wrapper is
+        /// invoked on every outbound UADP NetworkMessage and on every
+        /// inbound UADP frame whose
+        /// <c>ExtendedFlags1.SecurityEnabled</c> bit is set.
+        /// </summary>
+        /// <param name="configuration">Connection configuration.</param>
+        /// <param name="transportFactory">Factory used to materialise the transport.</param>
+        /// <param name="encoders">Encoders keyed by transport profile URI.</param>
+        /// <param name="decoders">Decoders keyed by transport profile URI.</param>
+        /// <param name="writerGroups">Writer groups owned by the connection.</param>
+        /// <param name="readerGroups">Reader groups owned by the connection.</param>
+        /// <param name="metaDataRegistry">Shared metadata registry.</param>
+        /// <param name="diagnostics">Diagnostics sink.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">Clock.</param>
+        /// <param name="securityWrapper">
+        /// Optional UADP security wrapper resolved from the connection's
+        /// SecurityKeyServices configuration.
+        /// </param>
+        /// <param name="securityWrapOptions">
+        /// Sign/encrypt selection passed to
+        /// <see cref="UadpSecurityWrapper.WrapAsync"/>.
+        /// </param>
+        /// <param name="maxNetworkMessageSize">
+        /// Maximum size in bytes of a single outbound UADP NetworkMessage
+        /// before chunking. <c>0</c> disables chunking.
+        /// </param>
+        public PubSubConnection(
+            PubSubConnectionDataType configuration,
+            IPubSubTransportFactory transportFactory,
+            IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
+            IReadOnlyDictionary<string, INetworkMessageDecoder> decoders,
+            IReadOnlyList<WriterGroup> writerGroups,
+            IReadOnlyList<ReaderGroup> readerGroups,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            UadpSecurityWrapper? securityWrapper,
+            UadpSecurityWrapOptions securityWrapOptions,
+            int maxNetworkMessageSize = 0)
         {
             if (configuration is null)
             {
@@ -140,6 +199,10 @@ namespace Opc.Ua.PubSub.Connections
             m_diagnostics = diagnostics;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
+            m_securityWrapper = securityWrapper;
+            m_securityWrapOptions = securityWrapOptions;
+            m_maxNetworkMessageSize = maxNetworkMessageSize;
+            m_reassembler = new UadpReassembler(timeProvider);
             Name = configuration.Name ?? string.Empty;
             TransportProfileUri = configuration.TransportProfileUri ?? string.Empty;
             PublisherId = configuration.PublisherId.IsNull
@@ -341,10 +404,43 @@ namespace Opc.Ua.PubSub.Connections
                     in transport.ReceiveAsync(cancellationToken).ConfigureAwait(false))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    ReadOnlyMemory<byte> framePayload = frame.Payload;
+
+                    if (UadpDecoder.TryReadOuterPrefix(framePayload,
+                        out int prefixLength,
+                        out bool securityEnabled,
+                        out bool chunkMessage,
+                        out PublisherId framePublisherId,
+                        out ushort frameWriterGroupId))
+                    {
+                        if (chunkMessage)
+                        {
+                            ReadOnlyMemory<byte>? reassembled = TryReassembleChunk(
+                                framePayload, prefixLength,
+                                framePublisherId, frameWriterGroupId);
+                            if (reassembled is null)
+                            {
+                                continue;
+                            }
+                            framePayload = reassembled.Value;
+                        }
+                        else if (m_securityWrapper is not null && securityEnabled)
+                        {
+                            ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
+                                framePayload, prefixLength, cancellationToken)
+                                .ConfigureAwait(false);
+                            if (unwrapped is null)
+                            {
+                                continue;
+                            }
+                            framePayload = unwrapped.Value;
+                        }
+                    }
+
                     PubSubNetworkMessage? message;
                     try
                     {
-                        message = await decoder.TryDecodeAsync(frame.Payload, context, cancellationToken)
+                        message = await decoder.TryDecodeAsync(framePayload, context, cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
@@ -415,12 +511,97 @@ namespace Opc.Ua.PubSub.Connections
                 m_metaDataRegistry,
                 m_diagnostics,
                 m_timeProvider);
-            ReadOnlyMemory<byte> payload = await encoder.EncodeAsync(
-                networkMessage,
-                context,
-                cancellationToken).ConfigureAwait(false);
+
+            ReadOnlyMemory<byte> payload;
+            if (m_securityWrapper is not null
+                && networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp)
+            {
+                payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                payload = await encoder.EncodeAsync(
+                    networkMessage,
+                    context,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (m_maxNetworkMessageSize > 0
+                && payload.Length > m_maxNetworkMessageSize
+                && networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadpForChunk)
+            {
+                await SendChunkedAsync(
+                    transport, payload, uadpForChunk, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             await transport.SendAsync(payload, topic: null, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        private async ValueTask SendChunkedAsync(
+            IPubSubTransport transport,
+            ReadOnlyMemory<byte> encoded,
+            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage message,
+            CancellationToken cancellationToken)
+        {
+            ushort sequenceNumber = unchecked(
+                (ushort)Interlocked.Increment(ref m_chunkSequenceNumber));
+            var chunker = new UadpChunker();
+            IReadOnlyList<byte[]> chunkFrames;
+            try
+            {
+                chunkFrames = chunker.Split(
+                    encoded, sequenceNumber, m_maxNetworkMessageSize);
+            }
+            catch (Exception ex)
+            {
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    $"UADP chunking failed: {ex.Message}");
+                throw;
+            }
+            foreach (byte[] chunk in chunkFrames)
+            {
+                ReadOnlyMemory<byte> envelope = UadpEncoder.WriteChunkEnvelope(
+                    chunk, message.PublisherId, message.WriterGroupId);
+                await transport.SendAsync(envelope, topic: null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
+            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
+                    message, context, out int payloadOffset);
+                ReadOnlyMemory<byte> prefix = encoded.Slice(0, payloadOffset);
+                ReadOnlyMemory<byte> inner = encoded.Slice(payloadOffset);
+                ReadOnlyMemory<byte> wrapped = await m_securityWrapper!
+                    .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
+                    .ConfigureAwait(false);
+                return wrapped;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadSecurityChecksFailed,
+                    $"UADP security wrap failed: {ex.Message}");
+                m_logger.LogError(ex, "UADP security wrap failed; dropping message.");
+                throw;
+            }
         }
 
         private INetworkMessageEncoder? ResolveEncoder()
@@ -476,6 +657,103 @@ namespace Opc.Ua.PubSub.Connections
                 : "Uadp";
         }
 
+        private ReadOnlyMemory<byte>? TryReassembleChunk(
+            ReadOnlyMemory<byte> frame,
+            int prefixLength,
+            PublisherId publisherId,
+            ushort writerGroupId)
+        {
+            m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReceived);
+            ReadOnlyMemory<byte> inner = frame.Slice(prefixLength);
+            if (!UadpChunker.TryParseChunk(inner,
+                out _, out _, out _, out _))
+            {
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadDecodingError,
+                    "Inbound UADP chunk frame header malformed.");
+                return null;
+            }
+            int pendingBefore = m_reassembler.PendingCount;
+            if (!m_reassembler.TryAddChunk(
+                publisherId, writerGroupId, inner,
+                out ReadOnlyMemory<byte>? reassembled))
+            {
+                int pendingAfter = m_reassembler.PendingCount;
+                if (pendingAfter < pendingBefore)
+                {
+                    m_diagnostics.Increment(
+                        PubSubDiagnosticsCounterKind.ChunkTimeouts);
+                }
+                return null;
+            }
+            m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReassembled);
+            return reassembled;
+        }
+
+        private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
+            ReadOnlyMemory<byte> frame,
+            int prefixLength,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                ReadOnlyMemory<byte> prefix = frame.Slice(0, prefixLength);
+                ReadOnlyMemory<byte> securityAndPayload = frame.Slice(prefixLength);
+
+                UadpSecurityWrapper.UnwrapResult result = await m_securityWrapper!
+                    .TryUnwrapAsync(prefix, securityAndPayload, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!result.IsSuccess || result.InnerPayload is null)
+                {
+                    RecordSecurityFailure(result.Status, result.Reason ?? "Unwrap failed");
+                    return null;
+                }
+
+                ReadOnlyMemory<byte> cleartext = result.InnerPayload.Value;
+                int totalLength = prefix.Length + cleartext.Length;
+                var combined = new byte[totalLength];
+                prefix.Span.CopyTo(combined);
+                cleartext.Span.CopyTo(combined.AsSpan(prefix.Length));
+                return combined;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                RecordSecurityFailure(StatusCodes.BadSecurityChecksFailed, ex.Message);
+                m_logger.LogError(ex, "UADP unwrap threw on inbound frame.");
+                return null;
+            }
+        }
+
+        private void RecordSecurityFailure(StatusCode status, string message)
+        {
+            PubSubDiagnosticsCounterKind kind;
+            uint statusCode = status.Code;
+            if (statusCode == StatusCodes.BadSecurityChecksFailed)
+            {
+                kind = PubSubDiagnosticsCounterKind.SignatureErrors;
+            }
+            else if (statusCode == StatusCodes.BadDecodingError)
+            {
+                kind = PubSubDiagnosticsCounterKind.EncryptionErrors;
+            }
+            else
+            {
+                kind = PubSubDiagnosticsCounterKind.SecurityTokenErrors;
+            }
+            m_diagnostics.Increment(kind);
+            if (message.Contains("Replay", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("nonce", StringComparison.OrdinalIgnoreCase))
+            {
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ReplayErrors);
+            }
+            m_diagnostics.RecordError(status, message);
+        }
+
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
@@ -491,6 +769,7 @@ namespace Opc.Ua.PubSub.Connections
             catch
             {
             }
+            m_reassembler.Dispose();
         }
     }
 }

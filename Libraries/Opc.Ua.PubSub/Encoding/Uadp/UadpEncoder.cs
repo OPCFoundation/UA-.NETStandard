@@ -104,6 +104,38 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         /// <summary>
+        /// Encodes a <see cref="UadpNetworkMessage"/> with the
+        /// <c>ExtendedFlags1.SecurityEnabled</c> bit set in the header
+        /// and reports the byte offset at which the DataSetMessages
+        /// portion (the region that must be encrypted by
+        /// <see cref="Security.UadpSecurityWrapper"/>) begins. Callers
+        /// split the returned buffer at <paramref name="payloadOffset"/>
+        /// and hand the two slices to the wrapper.
+        /// </summary>
+        /// <param name="networkMessage">UADP message to encode.</param>
+        /// <param name="context">Network message context.</param>
+        /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
+        /// <returns>The complete encoded buffer.</returns>
+        public static ReadOnlyMemory<byte> EncodeWithSecurityBoundary(
+            UadpNetworkMessage networkMessage,
+            PubSubNetworkMessageContext context,
+            out int payloadOffset)
+        {
+            if (networkMessage is null)
+            {
+                throw new ArgumentNullException(nameof(networkMessage));
+            }
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            UadpNetworkMessage withFlag = networkMessage.SecurityEnabled
+                ? networkMessage
+                : networkMessage with { SecurityEnabled = true };
+            return EncodeData(withFlag, context, out payloadOffset);
+        }
+
+        /// <summary>
         /// Encodes a data NetworkMessage (non-discovery) and returns the
         /// resulting bytes copied to a heap-allocated array. Internal
         /// callers (e.g. the chunker) reuse this entry point.
@@ -113,6 +145,28 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         internal static byte[] EncodeData(
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context)
+        {
+            return EncodeData(message, context, out _);
+        }
+
+        /// <summary>
+        /// Encodes a data NetworkMessage and additionally reports the
+        /// byte offset at which the DataSetMessages payload begins.
+        /// Callers wiring a <see cref="Security.UadpSecurityWrapper"/>
+        /// split the returned buffer at this boundary so the wrapper
+        /// can insert the SecurityHeader and encrypt the payload.
+        /// </summary>
+        /// <param name="message">Source UADP message.</param>
+        /// <param name="context">Network message context.</param>
+        /// <param name="payloadOffset">
+        /// Offset within the returned buffer where the DataSetMessages
+        /// portion starts (i.e. immediately after the PayloadHeader
+        /// sizes reservation).
+        /// </param>
+        internal static byte[] EncodeData(
+            UadpNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            out int payloadOffset)
         {
             if (message.UadpVersion != 1)
             {
@@ -124,11 +178,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             try
             {
                 int written = 0;
+                int localOffset = 0;
                 while (true)
                 {
                     try
                     {
-                        written = EncodeIntoBuffer(message, context, rented);
+                        written = EncodeIntoBuffer(message, context, rented, out localOffset);
                         break;
                     }
                     catch (ArgumentException)
@@ -144,6 +199,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 var result = new byte[written];
                 Buffer.BlockCopy(rented, 0, result, 0, written);
+                payloadOffset = localOffset;
                 return result;
             }
             finally
@@ -156,6 +212,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
             byte[] buffer)
+        {
+            return EncodeIntoBuffer(message, context, buffer, out _);
+        }
+
+        private static int EncodeIntoBuffer(
+            UadpNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            byte[] buffer,
+            out int payloadOffset)
         {
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
 
@@ -189,6 +254,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 payloadHeaderSizesPos = writer.Reserve(2 * payloadCount);
             }
+
+            payloadOffset = writer.Position;
 
             var sizes = new ushort[payloadCount];
             for (int i = 0; i < payloadCount; i++)
@@ -293,6 +360,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 message.PromotedFields.Count > 0)
             {
                 ext2 |= ExtendedFlags2EncodingMask.PromotedFields;
+            }
+
+            if (message.SecurityEnabled)
+            {
+                ext1 |= ExtendedFlags1EncodingMask.SecurityEnabled;
             }
 
             if (ext1 != 0 || ext2 != 0)
@@ -609,6 +681,109 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             for (int i = 0; i < padding; i++)
             {
                 writer.WriteByte(0);
+            }
+        }
+
+        /// <summary>
+        /// Wraps a raw chunk frame produced by <see cref="UadpChunker"/>
+        /// in a self-contained UADP envelope carrying the
+        /// <see cref="ExtendedFlags2EncodingMask.ChunkMessage"/> bit so
+        /// that receivers can route it through
+        /// <see cref="UadpReassembler"/>.
+        /// </summary>
+        /// <remarks>
+        /// Implements
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
+        /// Part 14 §7.2.4.4.4 ChunkedNetworkMessage</see>. The chunker
+        /// emits header-prefixed payload bytes only; transport-level
+        /// routing requires a real UADP envelope around each chunk.
+        /// </remarks>
+        /// <param name="chunkFrame">Chunk frame produced by
+        /// <see cref="UadpChunker.Split"/>.</param>
+        /// <param name="publisherId">Publisher identity copied into the
+        /// envelope so the receiver can compute the reassembly key.</param>
+        /// <param name="writerGroupId">WriterGroupId carried in the
+        /// optional GroupHeader. When <c>null</c> the GroupHeader is
+        /// omitted.</param>
+        /// <returns>The fully framed envelope plus chunk payload.</returns>
+        public static ReadOnlyMemory<byte> WriteChunkEnvelope(
+            ReadOnlyMemory<byte> chunkFrame,
+            PublisherId publisherId,
+            ushort? writerGroupId)
+        {
+            if (chunkFrame.IsEmpty)
+            {
+                throw new ArgumentException(
+                    "Chunk frame must not be empty.",
+                    nameof(chunkFrame));
+            }
+            if (publisherId.IsNull)
+            {
+                throw new ArgumentException(
+                    "PublisherId must not be null.",
+                    nameof(publisherId));
+            }
+
+            PublisherIdType pidType = publisherId.Type;
+            var uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled
+                | UadpFlagsEncodingMask.ExtendedFlags1Enabled;
+            if (writerGroupId.HasValue)
+            {
+                uadpFlags |= UadpFlagsEncodingMask.GroupHeaderEnabled;
+            }
+            byte ext1 = (byte)ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
+            if (pidType != PublisherIdType.Byte)
+            {
+                ext1 |= ExtendedFlags1EncodingMaskExtensions
+                    .EncodePublisherIdType(pidType);
+            }
+            byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
+
+            int envelopeSize = 1 + 1 + 1
+                + EstimatePublisherIdSize(publisherId, pidType)
+                + (writerGroupId.HasValue ? 3 : 0);
+            byte[] result = new byte[envelopeSize + chunkFrame.Length];
+            var writer = new UadpBinaryWriter(result, 0, result.Length);
+
+            byte version = 1;
+            writer.WriteByte(
+                (byte)((byte)uadpFlags | (version & 0x0F)));
+            writer.WriteByte(ext1);
+            writer.WriteByte(ext2);
+            WritePublisherId(ref writer, publisherId, pidType);
+            if (writerGroupId.HasValue)
+            {
+                writer.WriteByte((byte)GroupFlagsEncodingMask.WriterGroupIdEnabled);
+                writer.WriteUInt16Le(writerGroupId.Value);
+            }
+            writer.WriteBytes(chunkFrame.Span);
+            return result;
+        }
+
+        private static int EstimatePublisherIdSize(
+            PublisherId publisherId, PublisherIdType type)
+        {
+            switch (type)
+            {
+                case PublisherIdType.Byte:
+                    return 1;
+                case PublisherIdType.UInt16:
+                    return 2;
+                case PublisherIdType.UInt32:
+                    return 4;
+                case PublisherIdType.UInt64:
+                    return 8;
+                case PublisherIdType.Guid:
+                    return 16;
+                case PublisherIdType.String:
+                {
+                    string? s = publisherId.TryGetString(out string? str) ? str : null;
+                    int byteLen = s is null ? 0 : System.Text.Encoding.UTF8.GetByteCount(s);
+                    return 4 + byteLen;
+                }
+                default:
+                    throw new InvalidOperationException(
+                        $"Unsupported PublisherIdType {type}.");
             }
         }
     }

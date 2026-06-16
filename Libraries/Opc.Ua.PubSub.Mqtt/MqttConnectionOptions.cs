@@ -127,6 +127,21 @@ namespace Opc.Ua.PubSub.Mqtt
         public int MaxConcurrentSubscriptions { get; set; } = 64;
 
         /// <summary>
+        /// Maximum size (in bytes) of a single UADP NetworkMessage
+        /// before the publisher chunks it via
+        /// <see cref="Opc.Ua.PubSub.Encoding.Uadp.UadpChunker"/>. The
+        /// default of 65535 matches the MQTT v3.1.1 maximum single
+        /// PUBLISH payload size; raise on broker / client pairs that
+        /// negotiate a larger MQTT v5 maximum packet size.
+        /// </summary>
+        /// <remarks>
+        /// Implements
+        /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
+        /// Part 14 §7.2.4.4.4 ChunkedNetworkMessage</see>.
+        /// </remarks>
+        public int MaxNetworkMessageSize { get; set; } = 65535;
+
+        /// <summary>
         /// Resolved password bytes populated by the transport factory
         /// after looking up <see cref="PasswordSecretId"/> in the
         /// secret store. Not bound from configuration; never persisted

@@ -130,6 +130,8 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="outerPrefix">Outer UADP prefix bytes.</param>
         /// <param name="innerPayload">Inner payload bytes.</param>
+        /// <param name="options">Sign/encrypt selection (default
+        /// <see cref="UadpSecurityWrapOptions.SignAndEncrypt"/>).</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>
         /// The wrapped message bytes:
@@ -138,11 +140,17 @@ namespace Opc.Ua.PubSub.Security
         public async ValueTask<ReadOnlyMemory<byte>> WrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> innerPayload,
+            UadpSecurityWrapOptions options = UadpSecurityWrapOptions.SignAndEncrypt,
             CancellationToken cancellationToken = default)
         {
             PubSubSecurityKey key = await m_keyProvider
                 .GetCurrentKeyAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            bool sign = options is UadpSecurityWrapOptions.SignOnly
+                or UadpSecurityWrapOptions.SignAndEncrypt;
+            bool encrypt = options is UadpSecurityWrapOptions.EncryptOnly
+                or UadpSecurityWrapOptions.SignAndEncrypt;
 
             byte[] nonceBytes = m_policy.NonceLength == 0
                 ? []
@@ -152,9 +160,16 @@ namespace Opc.Ua.PubSub.Security
                 m_nonceProvider.GetNext(nonceBytes);
             }
 
-            byte flags = (byte)(
-                UadpSecurityFlagsEncodingMask.NetworkMessageSigned
-                | UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted);
+            UadpSecurityFlagsEncodingMask flagsMask = 0;
+            if (sign)
+            {
+                flagsMask |= UadpSecurityFlagsEncodingMask.NetworkMessageSigned;
+            }
+            if (encrypt)
+            {
+                flagsMask |= UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted;
+            }
+            byte flags = (byte)flagsMask;
 
             var header = new UadpSecurityHeader(
                 flags,
@@ -162,7 +177,7 @@ namespace Opc.Ua.PubSub.Security
                 nonceBytes);
 
             int headerSize = header.GetEncodedSize();
-            int signatureLength = m_policy.SignatureLength;
+            int signatureLength = sign ? m_policy.SignatureLength : 0;
             int totalSize = outerPrefix.Length + headerSize + innerPayload.Length + signatureLength;
             byte[] result = new byte[totalSize];
 
@@ -175,7 +190,7 @@ namespace Opc.Ua.PubSub.Security
             }
 
             int payloadOffset = outerPrefix.Length + headerSize;
-            if (m_policy.EncryptingKeyLength > 0)
+            if (encrypt && m_policy.EncryptingKeyLength > 0)
             {
                 m_policy.Encrypt(
                     innerPayload.Span,
@@ -189,7 +204,7 @@ namespace Opc.Ua.PubSub.Security
             }
 
             int signedLength = outerPrefix.Length + headerSize + innerPayload.Length;
-            if (signatureLength > 0)
+            if (sign && signatureLength > 0)
             {
                 m_policy.Sign(
                     result.AsSpan(0, signedLength),
@@ -198,8 +213,9 @@ namespace Opc.Ua.PubSub.Security
             }
 
             m_logger.LogDebug(
-                "UadpSecurityWrapper wrapped message tokenId={TokenId} payload={PayloadLength} signed={SignedLength}",
+                "UadpSecurityWrapper wrapped message tokenId={TokenId} options={Options} payload={PayloadLength} signed={SignedLength}",
                 key.TokenId,
+                options,
                 innerPayload.Length,
                 signedLength);
 
@@ -234,7 +250,11 @@ namespace Opc.Ua.PubSub.Security
                 return UnwrapResult.Failure(StatusCodes.BadDecodingError, "SecurityHeader malformed");
             }
 
-            int signatureLength = m_policy.SignatureLength;
+            var flagsMask = (UadpSecurityFlagsEncodingMask)header.SecurityFlags;
+            bool encrypted = (flagsMask & UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) != 0;
+            bool signed = (flagsMask & UadpSecurityFlagsEncodingMask.NetworkMessageSigned) != 0;
+
+            int signatureLength = signed ? m_policy.SignatureLength : 0;
             int payloadAndFooterLength = securityAndPayload.Length - headerLength - signatureLength;
             if (payloadAndFooterLength < 0)
             {
@@ -264,7 +284,7 @@ namespace Opc.Ua.PubSub.Security
                     .Slice(0, headerLength + payloadAndFooterLength)
                     .CopyTo(signedBuffer.AsSpan(outerPrefix.Length, headerLength + payloadAndFooterLength));
 
-                if (signatureLength > 0)
+                if (signed && signatureLength > 0)
                 {
                     ReadOnlySpan<byte> signature = securityAndPayload
                         .Span
@@ -306,7 +326,7 @@ namespace Opc.Ua.PubSub.Security
                 }
 
                 byte[] plaintext = new byte[payloadAndFooterLength];
-                if (m_policy.EncryptingKeyLength > 0)
+                if (encrypted && m_policy.EncryptingKeyLength > 0)
                 {
                     m_policy.Decrypt(
                         securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),

@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Groups
@@ -48,10 +50,14 @@ namespace Opc.Ua.PubSub.Groups
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.8">
     /// Part 14 §6.2.8 ReaderGroup</see>.
     /// </remarks>
-    public sealed class ReaderGroup : IReaderGroup
+    public sealed class ReaderGroup : IReaderGroup, IAsyncDisposable
     {
         private readonly IReadOnlyList<DataSetReader> m_readers;
         private readonly ILogger<ReaderGroup> m_logger;
+        private readonly IPubSubScheduler? m_scheduler;
+        private readonly IPubSubDiagnostics? m_diagnostics;
+        private readonly ITelemetryContext m_telemetry;
+        private DataSetReaderTimeoutWatcher? m_timeoutWatcher;
 
         /// <summary>
         /// Initializes a new <see cref="ReaderGroup"/>.
@@ -63,6 +69,33 @@ namespace Opc.Ua.PubSub.Groups
             ReaderGroupDataType configuration,
             IReadOnlyList<DataSetReader> readers,
             ITelemetryContext telemetry)
+            : this(configuration, readers, telemetry, scheduler: null, diagnostics: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="ReaderGroup"/> with optional
+        /// scheduler and diagnostics for the
+        /// <see cref="DataSetReaderTimeoutWatcher"/>.
+        /// </summary>
+        /// <param name="configuration">Configured reader group.</param>
+        /// <param name="readers">Concrete reader instances.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="scheduler">
+        /// Scheduler used to drive the timeout watcher. When
+        /// <see langword="null"/> the watcher is not started and
+        /// receive-timeout enforcement is left to a higher-level loop.
+        /// </param>
+        /// <param name="diagnostics">
+        /// Diagnostics sink for receive-timeout counter increments. When
+        /// <see langword="null"/> no counters are emitted.
+        /// </param>
+        public ReaderGroup(
+            ReaderGroupDataType configuration,
+            IReadOnlyList<DataSetReader> readers,
+            ITelemetryContext telemetry,
+            IPubSubScheduler? scheduler,
+            IPubSubDiagnostics? diagnostics)
         {
             if (configuration is null)
             {
@@ -72,9 +105,16 @@ namespace Opc.Ua.PubSub.Groups
             {
                 throw new ArgumentNullException(nameof(readers));
             }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             Configuration = configuration;
             m_readers = readers;
             Name = configuration.Name ?? string.Empty;
+            m_telemetry = telemetry;
+            m_scheduler = scheduler;
+            m_diagnostics = diagnostics;
             m_logger = telemetry.CreateLogger<ReaderGroup>();
             State = new PubSubStateMachine(
                 string.IsNullOrEmpty(Name) ? "reader-group" : Name,
@@ -145,7 +185,7 @@ namespace Opc.Ua.PubSub.Groups
         /// <summary>
         /// Drives the reader group to operational; enables every reader.
         /// </summary>
-        public ValueTask EnableAsync(CancellationToken cancellationToken = default)
+        public async ValueTask EnableAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (State.TryEnable())
@@ -157,17 +197,36 @@ namespace Opc.Ua.PubSub.Groups
                 }
                 _ = State.TryMarkOperational();
             }
-            return default;
+            if (m_scheduler is not null && m_diagnostics is not null && m_timeoutWatcher is null)
+            {
+                m_timeoutWatcher = new DataSetReaderTimeoutWatcher(
+                    m_readers,
+                    m_scheduler,
+                    m_diagnostics,
+                    m_telemetry);
+                await m_timeoutWatcher.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
         /// Disables the reader group and every child reader.
         /// </summary>
-        public ValueTask DisableAsync(CancellationToken cancellationToken = default)
+        public async ValueTask DisableAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            DataSetReaderTimeoutWatcher? watcher = m_timeoutWatcher;
+            m_timeoutWatcher = null;
+            if (watcher is not null)
+            {
+                await watcher.DisposeAsync().ConfigureAwait(false);
+            }
             _ = State.TryDisable();
-            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            return DisableAsync(CancellationToken.None);
         }
     }
 }

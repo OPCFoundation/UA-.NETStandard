@@ -223,10 +223,25 @@ namespace Opc.Ua.PubSub.Groups
                     dataSetMessages.Add(message);
                 }
             }
-            if (dataSetMessages.Count == 0
-                && !ShouldEmitKeepAlive())
+            if (dataSetMessages.Count == 0)
             {
-                return;
+                if (!ShouldEmitKeepAlive())
+                {
+                    return;
+                }
+                foreach (DataSetWriter writer in m_writers)
+                {
+                    if (writer.State.State == PubSubState.Disabled)
+                    {
+                        continue;
+                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    dataSetMessages.Add(BuildKeepAliveMessage(writer));
+                }
+                if (dataSetMessages.Count == 0)
+                {
+                    return;
+                }
             }
             PubSubNetworkMessage networkMessage = BuildNetworkMessage(dataSetMessages);
             try
@@ -368,6 +383,47 @@ namespace Opc.Ua.PubSub.Groups
         /// <c>PubSubConnection</c> after construction.
         /// </summary>
         internal PublisherIdHolder PubSubAddressing { get; set; } = new();
+
+        private PubSubDataSetMessage BuildKeepAliveMessage(DataSetWriter writer)
+        {
+            // Per Part 14 §6.2.9.6, §7.2.4.5.5 (UADP) and §7.2.5.2 (JSON):
+            // a KeepAlive DataSetMessage carries the writer's identity,
+            // a fresh SequenceNumber, the current Timestamp and the last
+            // known MetaDataVersion. The field list is empty so that the
+            // subscriber resets its MessageReceiveTimeout without any
+            // dataset data being conveyed.
+            WriterRuntimeState runtime = m_writerState[writer.DataSetWriterId];
+            uint sequenceNumber = ++runtime.SequenceNumber;
+            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            ConfigurationVersionDataType metaDataVersion = runtime.LastSnapshot is not null
+                ? runtime.LastSnapshot.MetaDataVersion
+                : new ConfigurationVersionDataType();
+
+            if (string.Equals(GetEncodingProfile(), Profiles.PubSubMqttJsonTransport,
+                StringComparison.Ordinal))
+            {
+                return new JsonDataSetMessageV2
+                {
+                    DataSetWriterId = writer.DataSetWriterId,
+                    SequenceNumber = sequenceNumber,
+                    Timestamp = now,
+                    MetaDataVersion = metaDataVersion,
+                    MessageType = PubSubDataSetMessageType.KeepAlive,
+                    Fields = []
+                };
+            }
+
+            return new UadpDataSetMessageV2
+            {
+                DataSetWriterId = writer.DataSetWriterId,
+                SequenceNumber = sequenceNumber,
+                Timestamp = now,
+                MetaDataVersion = metaDataVersion,
+                MessageType = PubSubDataSetMessageType.KeepAlive,
+                Fields = [],
+                FieldEncoding = PubSubFieldEncoding.Variant
+            };
+        }
 
         private bool ShouldEmitKeepAlive()
         {
