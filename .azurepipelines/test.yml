@@ -151,22 +151,24 @@ jobs:
     inputs:
       command: test
       projects: $(file)
-      # --blame (full): enables both the sequence collector (so the in-flight
-      # test name lands in the trx attachment when the test host hangs/crashes)
-      # and the crash collector. --blame-hang-timeout 5m kills any single test
-      # exceeding 5 min (LongRunning/Stress already filtered out; legit tests
-      # in this suite cap at ~60 s, so 5 min is comfortable headroom). All
-      # dump-types are 'none' to keep artifacts small - we want the named
-      # culprit, not GB of process state.
+      # --blame (plain): enables the sequence collector so the in-flight test
+      # name lands in the trx attachment when the test host hangs OR crashes.
+      # --blame-hang-timeout 5m kills any single test exceeding 5 min
+      # (LongRunning/Stress already filtered out; legit tests in this suite
+      # cap at ~60 s, so 5 min is comfortable headroom). --blame-hang-dump-type
+      # 'none' keeps artifacts small - we want the named culprit, not GB of
+      # process state. We intentionally do NOT add --blame-crash because
+      # --blame-crash-dump-type does not accept 'none' (only full/mini) and we
+      # don't want dump bloat; plain --blame already names the in-flight test
+      # on a crash via the Sequence file.
       # Background: mac PR build 14598 log 933 burned the full 90-min step
-      # timeout on a silent hang with no diagnostics. The first iteration of
-      # this fix (PR #3872) caught the hang at 10 min but did not name the
-      # test (build 14707 log 1067 - 'Sequence file will not be generated'
-      # because plain --blame was missing). This iteration enables --blame +
-      # --blame-crash so the next hang/crash points at a specific test name.
+      # timeout on a silent hang with no diagnostics. PR #3872 caught the hang
+      # at 10 min but did not name the test (Sequence file not enabled). This
+      # iteration enables --blame so the next hang/crash points at a specific
+      # test name.
       # --logger trx + --results-directory: emit trx ourselves; publishTestResults
       # is false below so a transient publish DNS hiccup cannot flip the job.
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame --blame-hang-timeout 5m --blame-hang-dump-type none --blame-crash --blame-crash-dump-type none --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame --blame-hang-timeout 5m --blame-hang-dump-type none --logger trx --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
