@@ -655,5 +655,162 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 result.Issues,
                 Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0004"));
         }
+
+        [Test]
+        [TestSpec("7.2.4.5.11",
+            Summary = "RawData encoding requires MaxStringLength / ArrayDimensions")]
+        public void Validate_RawDataWithMaxStringLength_NoPaddingWarning()
+        {
+            var config = NewMinimalValidConfig();
+            var publishedDataSet = new PublishedDataSetDataType
+            {
+                Name = "DS1",
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Name = "DS1",
+                    Fields = new ArrayOf<FieldMetaData>(new[]
+                    {
+                        new FieldMetaData
+                        {
+                            Name = "stringField",
+                            BuiltInType = (byte)BuiltInType.String,
+                            ValueRank = ValueRanks.Scalar,
+                            MaxStringLength = 10
+                        }
+                    })
+                }
+            };
+            config.PublishedDataSets =
+                new ArrayOf<PublishedDataSetDataType>(new[] { publishedDataSet });
+            DataSetWriterDataType writer =
+                config.Connections[0].WriterGroups[0].DataSetWriters[0];
+            writer.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            Assert.That(
+                result.Issues,
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0025"));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11",
+            Summary = "RawData String field without MaxStringLength must warn")]
+        public void Validate_RawDataStringFieldWithoutMaxStringLength_EmitsWarning()
+        {
+            var config = NewMinimalValidConfig();
+            var publishedDataSet = new PublishedDataSetDataType
+            {
+                Name = "DS1",
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Name = "DS1",
+                    Fields = new ArrayOf<FieldMetaData>(new[]
+                    {
+                        new FieldMetaData
+                        {
+                            Name = "stringField",
+                            BuiltInType = (byte)BuiltInType.String,
+                            ValueRank = ValueRanks.Scalar,
+                            MaxStringLength = 0
+                        }
+                    })
+                }
+            };
+            config.PublishedDataSets =
+                new ArrayOf<PublishedDataSetDataType>(new[] { publishedDataSet });
+            DataSetWriterDataType writer =
+                config.Connections[0].WriterGroups[0].DataSetWriters[0];
+            writer.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            PubSubConfigurationIssue? issue = result.Issues
+                .FirstOrDefault(static i => i.Code == "PSC0025");
+            Assert.That(issue, Is.Not.Null);
+            Assert.That(issue!.Severity,
+                Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
+            Assert.That(issue.SpecClause, Is.EqualTo("7.2.4.5.11"));
+            Assert.That(issue.Message, Does.Contain("RawData"));
+            Assert.That(issue.Message, Does.Contain("stringField"));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11",
+            Summary = "RawData array field without ArrayDimensions must warn")]
+        public void Validate_RawDataArrayFieldWithoutArrayDimensions_EmitsWarning()
+        {
+            var config = NewMinimalValidConfig();
+            var publishedDataSet = new PublishedDataSetDataType
+            {
+                Name = "DS1",
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Name = "DS1",
+                    Fields = new ArrayOf<FieldMetaData>(new[]
+                    {
+                        new FieldMetaData
+                        {
+                            Name = "intArrayField",
+                            BuiltInType = (byte)BuiltInType.Int32,
+                            ValueRank = ValueRanks.OneDimension
+                        }
+                    })
+                }
+            };
+            config.PublishedDataSets =
+                new ArrayOf<PublishedDataSetDataType>(new[] { publishedDataSet });
+            DataSetWriterDataType writer =
+                config.Connections[0].WriterGroups[0].DataSetWriters[0];
+            writer.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            PubSubConfigurationIssue? issue = result.Issues
+                .FirstOrDefault(static i => i.Code == "PSC0025");
+            Assert.That(issue, Is.Not.Null);
+            Assert.That(issue!.Severity,
+                Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
+            Assert.That(issue.SpecClause, Is.EqualTo("7.2.4.5.11"));
+            Assert.That(issue.Message, Does.Contain("intArrayField"));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11",
+            Summary = "Non-RawData encoding suppresses PSC0025")]
+        public void Validate_VariantEncodingWithoutBounds_NoPaddingWarning()
+        {
+            var config = NewMinimalValidConfig();
+            var publishedDataSet = new PublishedDataSetDataType
+            {
+                Name = "DS1",
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Name = "DS1",
+                    Fields = new ArrayOf<FieldMetaData>(new[]
+                    {
+                        new FieldMetaData
+                        {
+                            Name = "stringField",
+                            BuiltInType = (byte)BuiltInType.String,
+                            ValueRank = ValueRanks.Scalar,
+                            MaxStringLength = 0
+                        }
+                    })
+                }
+            };
+            config.PublishedDataSets =
+                new ArrayOf<PublishedDataSetDataType>(new[] { publishedDataSet });
+            DataSetWriterDataType writer =
+                config.Connections[0].WriterGroups[0].DataSetWriters[0];
+            writer.DataSetFieldContentMask = 0;
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            Assert.That(
+                result.Issues,
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0025"));
+        }
     }
 }
+

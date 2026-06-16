@@ -45,6 +45,14 @@ namespace Opc.Ua.PubSub.Configuration
     /// The configurationId can be obtained using the <see cref="FindIdForObject(object)"/> method.
     /// </para>
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(
+        "Use IPubSubConfigurationStore. See Docs/migrate/2.0.x/pubsub.md",
+        DiagnosticId = "UA0023",
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md#UA0023")]
+#else
+    [Obsolete("Use IPubSubConfigurationStore. See Docs/migrate/2.0.x/pubsub.md (UA0023)")]
+#endif
     public class UaPubSubConfigurator
     {
         /// <summary>

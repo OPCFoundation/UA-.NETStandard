@@ -313,7 +313,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 metaVersion,
                 context);
             JsonEncodingMode detectedMode = DetectMode(entry);
-            if (!JsonVariantEncoder.IsReversible(detectedMode) && metaData is null)
+            if (!JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode) && metaData is null)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ResolverErrors);
@@ -570,33 +570,37 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// inspecting the first non-trivial entry in its <c>Payload</c>.
         /// </summary>
         /// <param name="root">Source DataSetMessage object.</param>
-        /// <returns>Detected mode (Reversible by default).</returns>
+        /// <returns>
+        /// <see cref="JsonEncodingMode.Verbose"/> when the payload uses
+        /// the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> Variant envelope;
+        /// <see cref="JsonEncodingMode.RawData"/> when bodies are bare.
+        /// </returns>
         private static JsonEncodingMode DetectMode(JsonElement root)
         {
             if (!root.TryGetProperty("Payload", out JsonElement payload)
                 || payload.ValueKind != JsonValueKind.Object)
             {
-                return JsonEncodingMode.Reversible;
+                return JsonEncodingMode.Verbose;
             }
             foreach (JsonProperty member in payload.EnumerateObject())
             {
                 JsonElement value = member.Value;
                 if (value.ValueKind != JsonValueKind.Object)
                 {
-                    return JsonEncodingMode.NonReversible;
+                    return JsonEncodingMode.RawData;
                 }
                 if (value.TryGetProperty("Type", out _)
                     && value.TryGetProperty("Body", out _))
                 {
-                    return JsonEncodingMode.Reversible;
+                    return JsonEncodingMode.Verbose;
                 }
                 if (value.TryGetProperty("Value", out _))
                 {
-                    return JsonEncodingMode.Reversible;
+                    return JsonEncodingMode.Verbose;
                 }
-                return JsonEncodingMode.NonReversible;
+                return JsonEncodingMode.RawData;
             }
-            return JsonEncodingMode.Reversible;
+            return JsonEncodingMode.Verbose;
         }
 
         /// <summary>

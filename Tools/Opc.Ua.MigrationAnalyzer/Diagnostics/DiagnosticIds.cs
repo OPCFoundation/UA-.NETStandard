@@ -56,6 +56,7 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public const string UA0020 = "UA0020";
         public const string UA0021 = "UA0021";
         public const string UA0022 = "UA0022";
+        public const string UA0023 = "UA0023";
 
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";

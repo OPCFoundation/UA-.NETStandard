@@ -67,31 +67,30 @@ namespace Opc.Ua.PubSub.Encoding.Json
         {
             return mode switch
             {
-                JsonEncodingMode.Reversible => JsonEncoderOptions.Verbose,
-                JsonEncodingMode.NonReversible => JsonEncoderOptions.RawData,
-                JsonEncodingMode.Compact => JsonEncoderOptions.Compact,
                 JsonEncodingMode.Verbose => JsonEncoderOptions.Verbose,
+                JsonEncodingMode.Compact => JsonEncoderOptions.Compact,
+                JsonEncodingMode.RawData => JsonEncoderOptions.RawData,
                 _ => JsonEncoderOptions.Verbose
             };
         }
 
         /// <summary>
         /// <see langword="true"/> when the mode wraps every Variant in
-        /// the Part 6 reversible <c>{ "Type", "Body" }</c> envelope.
+        /// the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> envelope.
         /// </summary>
         /// <param name="mode">Selected mode.</param>
-        /// <returns>True for reversible / verbose.</returns>
-        public static bool IsReversible(JsonEncodingMode mode)
+        /// <returns>True for Verbose, false for Compact / RawData.</returns>
+        public static bool WrapsInVariantEnvelope(JsonEncodingMode mode)
         {
-            return mode is JsonEncodingMode.Reversible
-                or JsonEncodingMode.Verbose;
+            return mode is JsonEncodingMode.Verbose;
         }
 
         /// <summary>
-        /// Encodes a single <see cref="Variant"/> as a named property of
-        /// the destination writer. Reversible / Verbose modes emit the
-        /// Part 6 <c>{ "Type", "Body" }</c> envelope; NonReversible and
-        /// Compact emit the bare value.
+        /// Encodes a single <see cref="Variant"/> as a named property
+        /// of the destination writer. <see cref="JsonEncodingMode.Verbose"/>
+        /// emits the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> envelope;
+        /// <see cref="JsonEncodingMode.Compact"/> and
+        /// <see cref="JsonEncodingMode.RawData"/> emit the bare value.
         /// </summary>
         /// <param name="destination">Target writer (must currently be
         /// inside an object scope).</param>
@@ -127,7 +126,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             using JsonBufferWriter buffer = new(256);
             using (Opc.Ua.JsonEncoder encoder = new(buffer, context, options))
             {
-                if (IsReversible(mode))
+                if (WrapsInVariantEnvelope(mode))
                 {
                     encoder.WriteVariant(SpliceFieldName, value);
                 }
@@ -137,14 +136,15 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 }
             }
             SplicePropertyValue(destination, propertyName, buffer.WrittenSpan,
-                remapVariantKeys: IsReversible(mode));
+                remapVariantKeys: WrapsInVariantEnvelope(mode));
         }
 
         /// <summary>
         /// Encodes a single <see cref="DataValue"/> as a named property
         /// of the destination writer. DataValue is always emitted using
         /// the Stack DataValue encoder; the network-wide mode selects
-        /// the embedded Variant envelope (reversible vs bare).
+        /// the embedded Variant envelope (Verbose wraps; Compact /
+        /// RawData emit bare bodies).
         /// </summary>
         /// <param name="destination">Target writer.</param>
         /// <param name="propertyName">Property name to emit.</param>
@@ -199,9 +199,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="propertyName">Output property name.</param>
         /// <param name="encoded">Encoded single-property object bytes.</param>
         /// <param name="remapVariantKeys">
-        /// When true, the spliced JSON object is rewritten so the Stack
-        /// reversible Variant keys (<c>UaType</c>/<c>Value</c>) become
-        /// the Part 14 §7.2.5 wire keys (<c>Type</c>/<c>Body</c>).
+        /// When true, the spliced JSON object is rewritten so the
+        /// Stack Verbose Variant keys (<c>UaType</c>/<c>Value</c>)
+        /// become the Part 14 §7.2.5 wire keys
+        /// (<c>Type</c>/<c>Body</c>).
         /// </param>
         private static void SplicePropertyValue(
             Utf8JsonWriter destination,
@@ -240,7 +241,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <summary>
         /// Writes <paramref name="variant"/> to
         /// <paramref name="destination"/> after rewriting the Stack
-        /// reversible Variant key names so the wire matches Part 14
+        /// Verbose Variant key names so the wire matches Part 14
         /// §7.2.5 (<c>Type</c>, <c>Body</c>, <c>Dimensions</c>).
         /// </summary>
         /// <param name="destination">Destination writer.</param>

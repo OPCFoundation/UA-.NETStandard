@@ -36,6 +36,14 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// DataStore is a repository where Publisher applications will push data values for nodes + attributes published in data sets
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(
+        "Use IPublishedDataSetSource. See Docs/migrate/2.0.x/pubsub.md",
+        DiagnosticId = "UA0023",
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md#UA0023")]
+#else
+    [Obsolete("Use IPublishedDataSetSource. See Docs/migrate/2.0.x/pubsub.md (UA0023)")]
+#endif
     public class UaPubSubDataStore : IUaPubSubDataStore
     {
         private readonly Lock m_lock = new();

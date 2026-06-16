@@ -394,12 +394,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// MQTT protocol.
         /// </summary>
-        MQTT,
-
-        /// <summary>
-        /// AMQP protocol.
-        /// </summary>
-        AMQP
+        MQTT
     }
 
     /// <summary>

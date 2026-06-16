@@ -41,6 +41,17 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// A class that runs an OPC UA PubSub application.
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(
+        "Use PubSubApplicationBuilder and IPubSubApplication. "
+        + "See Docs/migrate/2.0.x/pubsub.md",
+        DiagnosticId = "UA0023",
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md#UA0023")]
+#else
+    [Obsolete(
+        "Use PubSubApplicationBuilder and IPubSubApplication. "
+        + "See Docs/migrate/2.0.x/pubsub.md (UA0023)")]
+#endif
     public class UaPubSubApplication : IDisposable
     {
         private readonly List<IUaPubSubConnection> m_uaPubSubConnections;

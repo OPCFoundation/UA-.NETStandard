@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using Opc.Ua.PubSub.Diagnostics;
 
 namespace Opc.Ua.PubSub.Application
@@ -69,5 +70,39 @@ namespace Opc.Ua.PubSub.Application
         /// that build the configuration programmatically.
         /// </summary>
         public PubSubConfigurationDataType? InlineConfiguration { get; set; }
+
+        /// <summary>
+        /// Endpoints of Security Key Service (SKS) instances the
+        /// PubSub application may pull keys from. Each entry is
+        /// resolved by the
+        /// <see cref="Opc.Ua.PubSub.Security.Sks.OpcUaSecurityKeyServiceClient"/>
+        /// registered by
+        /// <c>AddPubSubSecurityKeyServiceClient(...)</c>.
+        /// </summary>
+        public IList<EndpointDescription> SecurityKeyServiceEndpoints { get; set; }
+            = new List<EndpointDescription>();
+
+        /// <summary>
+        /// When <see langword="true"/> the builder registers UADP and
+        /// JSON encoders / decoders alongside the application. Set to
+        /// <see langword="false"/> when consumers want to register
+        /// their own encoder set explicitly.
+        /// </summary>
+        public bool RegisterAllStandardEncoders { get; set; } = true;
+
+        /// <summary>
+        /// When <see langword="true"/> the builder registers the
+        /// default UDP transport factory. Has no effect unless
+        /// <c>Opc.Ua.PubSub.Udp</c> has wired the underlying services.
+        /// </summary>
+        public bool RegisterUdpTransport { get; set; } = true;
+
+        /// <summary>
+        /// When <see langword="true"/> the builder registers the
+        /// default MQTT transport factory pair (UADP + JSON). Has no
+        /// effect unless <c>Opc.Ua.PubSub.Mqtt</c> has wired the
+        /// underlying services.
+        /// </summary>
+        public bool RegisterMqttTransport { get; set; } = true;
     }
 }

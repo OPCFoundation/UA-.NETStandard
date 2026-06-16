@@ -1,0 +1,139 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
+using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Udp;
+
+namespace Microsoft.Extensions.DependencyInjection
+{
+    /// <summary>
+    /// <see cref="IOpcUaBuilder"/> extensions that register the
+    /// <see cref="UdpPubSubTransportFactory"/> with the OPC UA
+    /// PubSub DI surface.
+    /// </summary>
+    /// <remarks>
+    /// Mirrors the convention used by every other OPC UA .NET
+    /// Standard 2.x DI extension: every <c>Add*Transport</c> method
+    /// returns the
+    /// <see cref="IOpcUaBuilder"/> so the call chain remains
+    /// composable. Implements
+    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.2">
+    /// Part 14 §7.3.2 UDP datagram transport</see>.
+    /// </remarks>
+    public static class UdpTransportServiceCollectionExtensions
+    {
+        /// <summary>
+        /// Default configuration section name read by
+        /// <see cref="AddUdpTransport(IOpcUaBuilder, IConfiguration)"/>.
+        /// </summary>
+        public const string DefaultConfigurationSection = "OpcUa:PubSub:Udp";
+
+        /// <summary>
+        /// Registers the
+        /// <see cref="UdpPubSubTransportFactory"/> as a singleton
+        /// <see cref="IPubSubTransportFactory"/> and binds
+        /// <see cref="UdpTransportOptions"/> via the optional
+        /// <paramref name="configure"/> callback.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configure">Optional options callback.</param>
+        public static IOpcUaBuilder AddUdpTransport(
+            this IOpcUaBuilder builder,
+            Action<UdpTransportOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                builder.Services.AddOptions<UdpTransportOptions>();
+            }
+            else
+            {
+                builder.Services.AddOptions<UdpTransportOptions>().Configure(configure);
+            }
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the
+        /// <see cref="UdpPubSubTransportFactory"/> and binds
+        /// <see cref="UdpTransportOptions"/> from <paramref name="configuration"/>.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configuration">Root configuration.</param>
+        public static IOpcUaBuilder AddUdpTransport(
+            this IOpcUaBuilder builder,
+            IConfiguration configuration)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            return builder.AddUdpTransport(configuration.GetSection(DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers the
+        /// <see cref="UdpPubSubTransportFactory"/> and binds
+        /// <see cref="UdpTransportOptions"/> from the supplied
+        /// section.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="section">Configuration section.</param>
+        public static IOpcUaBuilder AddUdpTransport(
+            this IOpcUaBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+            builder.Services.AddOptions<UdpTransportOptions>().Bind(section);
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
+            return builder;
+        }
+    }
+}

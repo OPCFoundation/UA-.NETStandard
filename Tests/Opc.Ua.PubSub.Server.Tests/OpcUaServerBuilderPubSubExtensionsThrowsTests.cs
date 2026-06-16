@@ -27,23 +27,50 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.PubSub.Server.Tests
 {
     /// <summary>
-    /// Placeholder test fixture used during Phase 0 scaffolding so the
-    /// test runner has at least one assertion. Will be replaced by real
-    /// Part 14 §9 spec-tagged fixtures starting in Phase 10.
+    /// Negative-path coverage for
+    /// <c>OpcUaServerBuilderPubSubExtensions.AddPubSub</c>: missing
+    /// Phase 9 runtime + missing OPC UA server must surface
+    /// <see cref="InvalidOperationException"/>.
     /// </summary>
     [TestFixture]
-    public class ScaffoldingTests
+    [TestSpec("9.1", Summary = "DI registration error contract")]
+    public class OpcUaServerBuilderPubSubExtensionsThrowsTests
     {
         [Test]
-        public void ScaffoldingIsInPlace()
+        public void AddPubSub_WhenPubSubRuntimeNotRegistered_ThrowsInvalidOperationException()
         {
-            var marker = new object();
-            Assert.That(marker, Is.Not.Null);
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder serverBuilder = services
+                .AddOpcUa()
+                .AddServer(opt => { });
+
+            InvalidOperationException? ex = Assert.Throws<InvalidOperationException>(
+                () => serverBuilder.AddPubSub());
+            Assert.That(
+                ex!.Message,
+                Does.Contain("IOpcUaBuilder.AddPubSub").Or.Contains("PubSub runtime"));
+        }
+
+        [Test]
+        public void AddPubSub_WithConfigurationSection_WhenRuntimeNotRegistered_Throws()
+        {
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder serverBuilder = services
+                .AddOpcUa()
+                .AddServer(opt => { });
+
+            var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+            Assert.That(
+                () => serverBuilder.AddPubSub(config),
+                Throws.InvalidOperationException);
         }
     }
 }

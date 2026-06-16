@@ -49,19 +49,17 @@ namespace OpcUaPubSubJsonTests
     [TestSpec("7.2.5.4")]
     public sealed class JsonDecoderTests
     {
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible,
-            PubSubDataSetMessageType.KeyFrame)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible,
-            PubSubDataSetMessageType.DeltaFrame)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible,
-            PubSubDataSetMessageType.Event)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible,
-            PubSubDataSetMessageType.KeepAlive)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible,
-            PubSubDataSetMessageType.KeyFrame)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact,
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose,
             PubSubDataSetMessageType.KeyFrame)]
         [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose,
+            PubSubDataSetMessageType.DeltaFrame)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose,
+            PubSubDataSetMessageType.Event)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose,
+            PubSubDataSetMessageType.KeepAlive)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact,
+            PubSubDataSetMessageType.KeyFrame)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.RawData,
             PubSubDataSetMessageType.KeyFrame)]
         public async Task RoundTripAsync(
             Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode mode,
@@ -110,7 +108,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(receivedDsm.SequenceNumber, Is.EqualTo(99));
             Assert.That(receivedDsm.MessageType, Is.EqualTo(type));
             if (type != PubSubDataSetMessageType.KeepAlive
-                && mode == Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible)
+                && mode == Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)
             {
                 Assert.That(receivedDsm.Fields, Has.Count.EqualTo(3));
             }

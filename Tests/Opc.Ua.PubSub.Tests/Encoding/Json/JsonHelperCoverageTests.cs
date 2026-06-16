@@ -63,13 +63,13 @@ namespace OpcUaPubSubJsonTests
             IServiceMessageContext ctx = ServiceMessageContext.CreateEmpty(null!);
 
             Assert.That(() => JsonVariantEncoder.WriteVariantProperty(
-                null!, "x", new Variant(1), JsonEncodingMode.Reversible, ctx),
+                null!, "x", new Variant(1), JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonVariantEncoder.WriteVariantProperty(
-                writer, null!, new Variant(1), JsonEncodingMode.Reversible, ctx),
+                writer, null!, new Variant(1), JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonVariantEncoder.WriteVariantProperty(
-                writer, "x", new Variant(1), JsonEncodingMode.Reversible, null!),
+                writer, "x", new Variant(1), JsonEncodingMode.Verbose, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -83,7 +83,7 @@ namespace OpcUaPubSubJsonTests
                 writer.WriteStartObject();
                 JsonVariantEncoder.WriteVariantProperty(
                     writer, "x", Variant.Null,
-                    JsonEncodingMode.Reversible,
+                    JsonEncodingMode.Verbose,
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
@@ -102,13 +102,13 @@ namespace OpcUaPubSubJsonTests
             DataValue dv = new(new Variant(1));
 
             Assert.That(() => JsonVariantEncoder.WriteDataValueProperty(
-                null!, "x", dv, JsonEncodingMode.Reversible, ctx),
+                null!, "x", dv, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonVariantEncoder.WriteDataValueProperty(
-                writer, null!, dv, JsonEncodingMode.Reversible, ctx),
+                writer, null!, dv, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonVariantEncoder.WriteDataValueProperty(
-                writer, "x", dv, JsonEncodingMode.Reversible, null!),
+                writer, "x", dv, JsonEncodingMode.Verbose, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -122,7 +122,7 @@ namespace OpcUaPubSubJsonTests
                 writer.WriteStartObject();
                 JsonVariantEncoder.WriteDataValueProperty(
                     writer, "x", DataValue.Null,
-                    JsonEncodingMode.Reversible,
+                    JsonEncodingMode.Verbose,
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
@@ -131,10 +131,9 @@ namespace OpcUaPubSubJsonTests
         }
 
         [Test]
-        [TestCase(JsonEncodingMode.Reversible)]
-        [TestCase(JsonEncodingMode.NonReversible)]
-        [TestCase(JsonEncodingMode.Compact)]
         [TestCase(JsonEncodingMode.Verbose)]
+        [TestCase(JsonEncodingMode.Compact)]
+        [TestCase(JsonEncodingMode.RawData)]
         [TestSpec("7.2.5")]
         public void WriteDataValuePropertyEmitsObjectForEveryMode(JsonEncodingMode mode)
         {
@@ -169,14 +168,14 @@ namespace OpcUaPubSubJsonTests
 
             Assert.That(() => JsonFieldEncoder.EncodeFields(
                 null!, JsonTestUtilities.CreateFields(),
-                null, JsonEncodingMode.Reversible, ctx),
+                null, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonFieldEncoder.EncodeFields(
-                writer, null!, null, JsonEncodingMode.Reversible, ctx),
+                writer, null!, null, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonFieldEncoder.EncodeFields(
                 writer, JsonTestUtilities.CreateFields(),
-                null, JsonEncodingMode.Reversible, null!),
+                null, JsonEncodingMode.Verbose, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -198,7 +197,7 @@ namespace OpcUaPubSubJsonTests
                 writer.WriteStartObject();
                 JsonFieldEncoder.EncodeFields(
                     writer, fields, meta,
-                    JsonEncodingMode.Reversible,
+                    JsonEncodingMode.Verbose,
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
@@ -238,7 +237,7 @@ namespace OpcUaPubSubJsonTests
                 writer.WriteStartObject();
                 JsonFieldEncoder.EncodeFields(
                     writer, fields, null,
-                    JsonEncodingMode.Reversible,
+                    JsonEncodingMode.Verbose,
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
@@ -262,16 +261,16 @@ namespace OpcUaPubSubJsonTests
             DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
 
             Assert.That(() => JsonMetaDataEncoder.WriteMetaData(
-                null!, "M", meta, JsonEncodingMode.Reversible, ctx),
+                null!, "M", meta, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonMetaDataEncoder.WriteMetaData(
-                writer, null!, meta, JsonEncodingMode.Reversible, ctx),
+                writer, null!, meta, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonMetaDataEncoder.WriteMetaData(
-                writer, "M", null!, JsonEncodingMode.Reversible, ctx),
+                writer, "M", null!, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonMetaDataEncoder.WriteMetaData(
-                writer, "M", meta, JsonEncodingMode.Reversible, null!),
+                writer, "M", meta, JsonEncodingMode.Verbose, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -286,7 +285,7 @@ namespace OpcUaPubSubJsonTests
                 JsonMetaDataEncoder.WriteMetaData(
                     writer, "M",
                     JsonTestUtilities.CreateMetaData(),
-                    JsonEncodingMode.Reversible,
+                    JsonEncodingMode.Verbose,
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
@@ -366,7 +365,7 @@ namespace OpcUaPubSubJsonTests
             using JsonDocument document = JsonDocument.Parse("{}");
             Assert.That(() => JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
-                JsonEncodingMode.Reversible, null!),
+                JsonEncodingMode.Verbose, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -377,7 +376,7 @@ namespace OpcUaPubSubJsonTests
             using JsonDocument document = JsonDocument.Parse("[1,2,3]");
             var fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
-                JsonEncodingMode.Reversible,
+                JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
             Assert.That(fields, Is.Empty);
         }
@@ -398,7 +397,7 @@ namespace OpcUaPubSubJsonTests
             using JsonDocument document = JsonDocument.Parse(json);
             var fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
-                JsonEncodingMode.Reversible,
+                JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
             Assert.That(fields, Has.Count.EqualTo(1));
             Assert.That(fields[0].Encoding,
@@ -417,7 +416,7 @@ namespace OpcUaPubSubJsonTests
             using JsonDocument document = JsonDocument.Parse(nonDataValueObject);
             var fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
-                JsonEncodingMode.Reversible,
+                JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
             Assert.That(fields, Has.Count.EqualTo(1));
             Assert.That(fields[0].Encoding,
@@ -431,7 +430,7 @@ namespace OpcUaPubSubJsonTests
             using JsonDocument document = JsonDocument.Parse("null");
             Variant value = JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
-                JsonEncodingMode.Reversible,
+                JsonEncodingMode.Verbose,
                 null,
                 ServiceMessageContext.CreateEmpty(null!));
             Assert.That(value.IsNull, Is.True);
@@ -444,7 +443,7 @@ namespace OpcUaPubSubJsonTests
             using JsonDocument document = JsonDocument.Parse("1");
             Assert.That(() => JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
-                JsonEncodingMode.Reversible,
+                JsonEncodingMode.Verbose,
                 null, null!),
                 Throws.ArgumentNullException);
         }
@@ -472,12 +471,25 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.2.5")]
-        public void DecodeVariantNonReversibleWithoutTypeInfoReturnsNull()
+        public void DecodeVariantCompactWithoutTypeInfoReturnsNull()
         {
             using JsonDocument document = JsonDocument.Parse("42");
             Variant value = JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
-                JsonEncodingMode.NonReversible,
+                JsonEncodingMode.Compact,
+                null,
+                ServiceMessageContext.CreateEmpty(null!));
+            Assert.That(value.IsNull, Is.True);
+        }
+
+        [Test]
+        [TestSpec("7.2.5")]
+        public void DecodeVariantRawDataWithoutTypeInfoReturnsNull()
+        {
+            using JsonDocument document = JsonDocument.Parse("42");
+            Variant value = JsonVariantDecoder.DecodeVariant(
+                document.RootElement,
+                JsonEncodingMode.RawData,
                 null,
                 ServiceMessageContext.CreateEmpty(null!));
             Assert.That(value.IsNull, Is.True);

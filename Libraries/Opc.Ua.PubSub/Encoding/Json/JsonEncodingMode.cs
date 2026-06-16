@@ -31,44 +31,44 @@ namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
     /// Encoding-mode selector for the JSON NetworkMessage / DataSet
-    /// message family. Each value mirrors a Part 6 §5.4.1 JSON encoding
-    /// profile mapped onto the Part 14 §7.2.5 wire shapes.
+    /// message family. Each value names a JSON encoding profile defined
+    /// in OPC UA Part 6 §5.4.1 and used by the PubSub JSON mapping in
+    /// Part 14 §7.2.5 (v1.05.06).
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5">
-    /// Part 14 §7.2.5</see> mode selector. Wraps the four Part 6 JSON
-    /// profiles in the names used by the v1.5 publisher / subscriber
-    /// API so existing call sites keep working.
+    /// Part 14 §7.2.5</see>. The three values correspond 1:1 to
+    /// <see cref="Opc.Ua.JsonEncoderOptions.Verbose"/>,
+    /// <see cref="Opc.Ua.JsonEncoderOptions.Compact"/>, and
+    /// <see cref="Opc.Ua.JsonEncoderOptions.RawData"/> from the Stack.
+    /// The 1.04-era <c>Reversible</c> / <c>NonReversible</c> names are
+    /// removed; <c>Verbose</c> replaces the former <c>Reversible</c> and
+    /// <c>Compact</c> replaces the former <c>NonReversible</c>.
     /// </remarks>
     public enum JsonEncodingMode
     {
         /// <summary>
-        /// Reversible JSON per Part 6 §5.4.1. Every Variant is wrapped in
-        /// the <c>{ "Type", "Body" }</c> envelope so the decoder can
-        /// recover the originating Built-In type without metadata.
+        /// Verbose JSON per Part 6 §5.4.1. Variants emit the
+        /// <c>{ "Type", "Body" }</c> envelope so decoders can recover
+        /// the originating Built-In type without consulting
+        /// DataSetMetaData.
         /// </summary>
-        Reversible = 0,
+        Verbose = 0,
 
         /// <summary>
-        /// Non-reversible JSON per Part 6 §5.4.1. Variants emit bare
-        /// values; the decoder requires DataSetMetaData to rehydrate
-        /// each field.
+        /// Compact JSON per Part 6 §5.4.1. Suppresses default values
+        /// and optional fields; the decoder requires DataSetMetaData
+        /// to rehydrate field types.
         /// </summary>
-        NonReversible = 1,
+        Compact = 1,
 
         /// <summary>
-        /// Compact JSON per Part 6 §5.4.1. Suppresses default values,
-        /// optional fields and pretty-printing artifacts. Behaves like
-        /// <see cref="NonReversible"/> for value bodies.
+        /// RawData JSON per Part 6 §5.4.1. Variants emit the bare body
+        /// without the <c>{ "Type", "Body" }</c> envelope; the decoder
+        /// requires DataSetMetaData and cannot recover OPC UA type
+        /// fidelity from the body alone.
         /// </summary>
-        Compact = 2,
-
-        /// <summary>
-        /// Verbose JSON per Part 6 §5.4.1. Emits every property
-        /// (including defaults) plus the reversible Variant envelope to
-        /// produce the most diagnosable wire form.
-        /// </summary>
-        Verbose = 3
+        RawData = 2
     }
 }

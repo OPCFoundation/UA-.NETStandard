@@ -145,7 +145,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         writer,
                         propertyName,
                         field.Value,
-                        JsonEncodingMode.NonReversible,
+                        JsonEncodingMode.RawData,
                         context);
                     break;
                 case PubSubFieldEncoding.DataValue:

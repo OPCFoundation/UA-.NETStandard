@@ -90,7 +90,8 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentNullException(nameof(configuration));
             }
             var issues = new List<PubSubConfigurationIssue>();
-            HashSet<string> publishedDataSetNames = ValidatePublishedDataSets(configuration, issues);
+            Dictionary<string, DataSetMetaDataType?> publishedDataSets =
+                ValidatePublishedDataSets(configuration, issues);
             var connectionNames = new HashSet<string>(StringComparer.Ordinal);
 
             if (!configuration.Connections.IsNull)
@@ -100,7 +101,7 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     string path = $"Connections[{connectionIndex}]";
                     ValidateConnection(connection, path, connectionNames, issues);
-                    ValidateWriterGroups(connection, path, publishedDataSetNames, issues);
+                    ValidateWriterGroups(connection, path, publishedDataSets, issues);
                     ValidateReaderGroups(connection, path, issues);
                     connectionIndex++;
                 }
@@ -108,14 +109,14 @@ namespace Opc.Ua.PubSub.Configuration
             return new PubSubConfigurationValidationResult(issues);
         }
 
-        private static HashSet<string> ValidatePublishedDataSets(
+        private static Dictionary<string, DataSetMetaDataType?> ValidatePublishedDataSets(
             PubSubConfigurationDataType configuration,
             List<PubSubConfigurationIssue> issues)
         {
-            var names = new HashSet<string>(StringComparer.Ordinal);
+            var lookup = new Dictionary<string, DataSetMetaDataType?>(StringComparer.Ordinal);
             if (configuration.PublishedDataSets.IsNull)
             {
-                return names;
+                return lookup;
             }
             int index = 0;
             foreach (PublishedDataSetDataType publishedDataSet in configuration.PublishedDataSets)
@@ -131,7 +132,7 @@ namespace Opc.Ua.PubSub.Configuration
                         path,
                         SpecClauses.PubSubObjectModel));
                 }
-                else if (!names.Add(name))
+                else if (lookup.ContainsKey(name))
                 {
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
@@ -140,9 +141,13 @@ namespace Opc.Ua.PubSub.Configuration
                         path,
                         SpecClauses.PubSubObjectModel));
                 }
+                else
+                {
+                    lookup[name] = publishedDataSet.DataSetMetaData;
+                }
                 index++;
             }
-            return names;
+            return lookup;
         }
 
         private void ValidateConnection(
@@ -285,7 +290,7 @@ namespace Opc.Ua.PubSub.Configuration
         private static void ValidateWriterGroups(
             PubSubConnectionDataType connection,
             string connectionPath,
-            HashSet<string> publishedDataSetNames,
+            Dictionary<string, DataSetMetaDataType?> publishedDataSets,
             List<PubSubConfigurationIssue> issues)
         {
             if (connection.WriterGroups.IsNull)
@@ -341,7 +346,7 @@ namespace Opc.Ua.PubSub.Configuration
                     writerGroup.SecurityKeyServices,
                     path,
                     issues);
-                ValidateDataSetWriters(writerGroup, path, publishedDataSetNames, issues);
+                ValidateDataSetWriters(writerGroup, path, publishedDataSets, issues);
                 wgIndex++;
             }
         }
@@ -349,7 +354,7 @@ namespace Opc.Ua.PubSub.Configuration
         private static void ValidateDataSetWriters(
             WriterGroupDataType writerGroup,
             string writerGroupPath,
-            HashSet<string> publishedDataSetNames,
+            Dictionary<string, DataSetMetaDataType?> publishedDataSets,
             List<PubSubConfigurationIssue> issues)
         {
             if (writerGroup.DataSetWriters.IsNull)
@@ -380,6 +385,7 @@ namespace Opc.Ua.PubSub.Configuration
                         SpecClauses.DataSetWriter));
                 }
                 string dataSetName = writer.DataSetName ?? string.Empty;
+                DataSetMetaDataType? metaData = null;
                 if (dataSetName.Length == 0)
                 {
                     issues.Add(new PubSubConfigurationIssue(
@@ -389,7 +395,7 @@ namespace Opc.Ua.PubSub.Configuration
                         path,
                         SpecClauses.DataSetWriter));
                 }
-                else if (!publishedDataSetNames.Contains(dataSetName))
+                else if (!publishedDataSets.TryGetValue(dataSetName, out metaData))
                 {
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
@@ -407,7 +413,66 @@ namespace Opc.Ua.PubSub.Configuration
                         path,
                         SpecClauses.DataSetWriter));
                 }
+                ValidateRawDataPaddingBounds(writer, metaData, path, issues);
                 dswIndex++;
+            }
+        }
+
+        private static void ValidateRawDataPaddingBounds(
+            DataSetWriterDataType writer,
+            DataSetMetaDataType? metaData,
+            string writerPath,
+            List<PubSubConfigurationIssue> issues)
+        {
+            if (((DataSetFieldContentMask)writer.DataSetFieldContentMask
+                & DataSetFieldContentMask.RawData) == 0)
+            {
+                return;
+            }
+            if (metaData is null || metaData.Fields.IsNull || metaData.Fields.Count == 0)
+            {
+                return;
+            }
+            string writerName = string.IsNullOrEmpty(writer.Name)
+                ? $"DataSetWriterId={writer.DataSetWriterId}"
+                : writer.Name!;
+            for (int i = 0; i < metaData.Fields.Count; i++)
+            {
+                FieldMetaData? field = metaData.Fields[i];
+                if (field is null)
+                {
+                    continue;
+                }
+                var builtIn = (BuiltInType)field.BuiltInType;
+                bool isVariableLengthScalar =
+                    field.ValueRank == ValueRanks.Scalar &&
+                    (builtIn == BuiltInType.String ||
+                     builtIn == BuiltInType.ByteString ||
+                     builtIn == BuiltInType.XmlElement);
+                bool needsArrayDimensions =
+                    field.ValueRank > 0 &&
+                    (field.ArrayDimensions.IsNull || field.ArrayDimensions.Count == 0);
+                bool needsMaxStringLength =
+                    isVariableLengthScalar && field.MaxStringLength == 0;
+                if (!needsArrayDimensions && !needsMaxStringLength)
+                {
+                    continue;
+                }
+                string fieldName = string.IsNullOrEmpty(field.Name)
+                    ? $"Fields[{i}]"
+                    : field.Name!;
+                string reason = needsMaxStringLength
+                    ? "MaxStringLength is 0"
+                    : "ArrayDimensions is empty";
+                string fieldPath = $"{writerPath}.PublishedDataSet.Fields[{i}]";
+                issues.Add(new PubSubConfigurationIssue(
+                    PubSubConfigurationIssueSeverity.Warning,
+                    IssueCodes.RawDataMissingFieldBound,
+                    $"DataSetWriter '{writerName}' uses RawData encoding for field '{fieldName}' " +
+                    $"but {reason}; the field will be encoded with a variable-length prefix, " +
+                    "breaking interop with strict v1.05.06 subscribers.",
+                    fieldPath,
+                    SpecClauses.RawDataFieldEncoding));
             }
         }
 
@@ -604,6 +669,7 @@ namespace Opc.Ua.PubSub.Configuration
             public const string DataSetNameMissing = "PSC0022";
             public const string DataSetNameUnresolved = "PSC0023";
             public const string KeyFrameCountZero = "PSC0024";
+            public const string RawDataMissingFieldBound = "PSC0025";
             public const string ReaderGroupNameMissing = "PSC0030";
             public const string DuplicateReaderGroupName = "PSC0031";
             public const string ReaderDataSetWriterIdZero = "PSC0040";
@@ -627,6 +693,7 @@ namespace Opc.Ua.PubSub.Configuration
             public const string DataSetReader = "9.1.9";
             public const string SecurityKeyServices = "6.2.5.4";
             public const string DatagramTransport = "9.1.5.2";
+            public const string RawDataFieldEncoding = "7.2.4.5.11";
         }
     }
 }

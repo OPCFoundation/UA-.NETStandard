@@ -162,7 +162,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         }
                         FieldMetaData fmd = metaData.Fields[i];
                         writer.WriteRawScalar(
-                            field.Value, fmd.BuiltInType.ToBuiltInType(), fmd.ValueRank, context);
+                            field.Value,
+                            fmd.BuiltInType.ToBuiltInType(),
+                            fmd.ValueRank,
+                            fmd.MaxStringLength,
+                            fmd.ArrayDimensions,
+                            context);
                         break;
                     default:
                         throw new InvalidOperationException(
@@ -182,7 +187,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 FieldMetaData fmd = metaData.Fields[i];
                 writer.WriteRawScalar(
-                    fields[i].Value, fmd.BuiltInType.ToBuiltInType(), fmd.ValueRank, context);
+                    fields[i].Value,
+                    fmd.BuiltInType.ToBuiltInType(),
+                    fmd.ValueRank,
+                    fmd.MaxStringLength,
+                    fmd.ArrayDimensions,
+                    context);
             }
         }
     }

@@ -40,10 +40,10 @@ using Opc.Ua.PubSub.Tests;
 namespace OpcUaPubSubJsonTests
 {
     /// <summary>
-    /// JSON encoder fixture exercising every encoding mode (Reversible,
-    /// NonReversible, Compact, Verbose) and every
+    /// JSON encoder fixture exercising every Part 6 §5.4.1 encoding
+    /// profile (Verbose, Compact, RawData) and every
     /// <see cref="PubSubDataSetMessageType"/> (KeyFrame, DeltaFrame,
-    /// Event, KeepAlive).
+    /// Event, KeepAlive) used by Part 14 §7.2.5 (v1.05.06).
     /// </summary>
     [TestFixture]
     [Category("PubSub")]
@@ -51,10 +51,9 @@ namespace OpcUaPubSubJsonTests
     [TestSpec("7.2.5.4")]
     public sealed class JsonEncoderTests
     {
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
         [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.RawData)]
         public async Task EncodeKeyFrameAsync(
             Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode mode)
         {
@@ -62,10 +61,9 @@ namespace OpcUaPubSubJsonTests
                 .ConfigureAwait(false);
         }
 
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
         [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.RawData)]
         public async Task EncodeDeltaFrameAsync(
             Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode mode)
         {
@@ -73,10 +71,9 @@ namespace OpcUaPubSubJsonTests
                 .ConfigureAwait(false);
         }
 
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
         [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.RawData)]
         public async Task EncodeEventAsync(
             Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode mode)
         {
@@ -84,10 +81,9 @@ namespace OpcUaPubSubJsonTests
                 .ConfigureAwait(false);
         }
 
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible)]
-        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
         [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact)]
+        [TestCase(Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.RawData)]
         public async Task EncodeKeepAliveAsync(
             Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode mode)
         {
@@ -133,7 +129,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(encoder.TransportProfileUri, Is.EqualTo(Profiles.PubSubMqttJsonTransport));
             Assert.That(encoder.EstimatedHeaderOverhead, Is.EqualTo(256));
             Assert.That(encoder.Mode, Is.EqualTo(
-                Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible));
+                Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose));
         }
 
         private static async Task EncodeAndAssertEnvelopeAsync(

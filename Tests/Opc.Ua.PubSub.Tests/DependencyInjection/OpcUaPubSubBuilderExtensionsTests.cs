@@ -1,0 +1,125 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Scheduling;
+
+namespace Opc.Ua.PubSub.Tests.DependencyInjection
+{
+    /// <summary>
+    /// Unit tests for
+    /// <see cref="OpcUaPubSubBuilderExtensions"/>.
+    /// </summary>
+    [TestFixture]
+    public class OpcUaPubSubBuilderExtensionsTests
+    {
+        [Test]
+        public void AddPubSub_RegistersCoreServices()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(sp.GetService<IDataSetMetaDataRegistry>(), Is.Not.Null);
+            Assert.That(sp.GetService<IPubSubDiagnostics>(), Is.Not.Null);
+            Assert.That(sp.GetService<IPubSubScheduler>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSub_RegistersHostedService()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            ServiceProvider sp = services.BuildServiceProvider();
+            IEnumerable<IHostedService> hosted = sp.GetServices<IHostedService>();
+            Assert.That(
+                hosted.OfType<PubSubApplicationHostedService>(),
+                Is.Not.Empty);
+        }
+
+        [Test]
+        public void AddPubSub_ResolvesIPubSubApplication()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            ServiceProvider sp = services.BuildServiceProvider();
+            IPubSubApplication? app = sp.GetService<IPubSubApplication>();
+            Assert.That(app, Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSubPublisher_RegistersServices()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSubPublisher();
+            ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(sp.GetService<IPubSubApplication>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSubSubscriber_RegistersServices()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSubSubscriber();
+            ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(sp.GetService<IPubSubApplication>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSub_NullBuilder_Throws()
+        {
+            IOpcUaBuilder? builder = null;
+            Assert.That(
+                () => builder!.AddPubSub(),
+                Throws.ArgumentNullException);
+        }
+    }
+}

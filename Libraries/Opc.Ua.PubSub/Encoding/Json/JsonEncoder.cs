@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="mode">
         /// Encoding mode applied to every Variant payload.
         /// </param>
-        public JsonEncoder(JsonEncodingMode mode = JsonEncodingMode.Reversible)
+        public JsonEncoder(JsonEncodingMode mode = JsonEncodingMode.Verbose)
         {
             Mode = mode;
         }

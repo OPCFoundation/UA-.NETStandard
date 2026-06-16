@@ -228,6 +228,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                             value = reader.ReadRawScalar(
                                 fmd.BuiltInType.ToBuiltInType(),
                                 fmd.ValueRank,
+                                fmd.MaxStringLength,
+                                fmd.ArrayDimensions,
                                 context);
                         }
                         catch

@@ -56,12 +56,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="element">JSON element holding the value.</param>
         /// <param name="mode">
-        /// Detected encoding mode. Reversible / Verbose modes expect the
-        /// Part 6 <c>{ "Type", "Body" }</c> envelope; NonReversible /
-        /// Compact expect bare values.
+        /// Detected encoding mode. <see cref="JsonEncodingMode.Verbose"/>
+        /// expects the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> envelope;
+        /// <see cref="JsonEncodingMode.Compact"/> and
+        /// <see cref="JsonEncodingMode.RawData"/> expect bare values.
         /// </param>
         /// <param name="typeInfo">
-        /// Required for non-reversible decoding when the metadata
+        /// Required for Compact / RawData decoding when the metadata
         /// declares the field's type.
         /// </param>
         /// <param name="context">Stack message context.</param>
@@ -80,12 +81,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return Variant.Null;
             }
-            bool reversible = JsonVariantEncoder.IsReversible(mode);
-            string wrapped = reversible
+            bool wrapsEnvelope = JsonVariantEncoder.WrapsInVariantEnvelope(mode);
+            string wrapped = wrapsEnvelope
                 ? WrapAndRenameVariant(element)
                 : WrapAsObject(element);
             using Opc.Ua.JsonDecoder decoder = new(wrapped, context);
-            if (reversible)
+            if (wrapsEnvelope)
             {
                 return decoder.ReadVariant(SpliceFieldName);
             }
@@ -135,11 +136,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Wraps the supplied reversible Variant element in the
+        /// Wraps the supplied Verbose Variant element in the
         /// synthetic <c>{ "v": &lt;raw&gt; }</c> envelope while
         /// re-mapping the Part 14 §7.2.5 wire key names
-        /// (<c>Type</c>/<c>Body</c>) back to the Stack
-        /// reversible Variant keys (<c>UaType</c>/<c>Value</c>) so the
+        /// (<c>Type</c>/<c>Body</c>) back to the Stack JSON encoder's
+        /// Variant key names (<c>UaType</c>/<c>Value</c>) so the
         /// Stack <see cref="Opc.Ua.JsonDecoder"/> can rehydrate it.
         /// </summary>
         /// <param name="element">Source variant element.</param>

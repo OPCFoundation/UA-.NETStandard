@@ -43,11 +43,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.4">
-    /// Part 14 §7.2.5.4</see>. NonReversible / Compact payloads do not
-    /// carry per-value type information and therefore require metadata
-    /// to round-trip; when metadata is absent the decoder yields
-    /// <see cref="Variant.Null"/> entries so the caller can decide
-    /// whether to reject the message or surface the structural skeleton.
+    /// Part 14 §7.2.5.4</see>. Compact and RawData payloads (per
+    /// Part 6 §5.4.1) do not carry per-value type information and
+    /// therefore require metadata to round-trip; when metadata is
+    /// absent the decoder yields <see cref="Variant.Null"/> entries so
+    /// the caller can decide whether to reject the message or surface
+    /// the structural skeleton.
     /// </remarks>
     public static class JsonFieldDecoder
     {
@@ -57,7 +58,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="payload">Payload JSON object.</param>
         /// <param name="metaData">Optional metadata used to resolve
-        /// field types for non-reversible payloads.</param>
+        /// field types for Compact / RawData payloads.</param>
         /// <param name="detectedMode">Detected encoding mode.</param>
         /// <param name="context">Stack message context.</param>
         /// <returns>Ordered list of decoded fields.</returns>
@@ -120,7 +121,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 : TypeInfo.Create(
                     (BuiltInType)metaData.BuiltInType,
                     metaData.ValueRank);
-            PubSubFieldEncoding encoding = JsonVariantEncoder.IsReversible(detectedMode)
+            PubSubFieldEncoding encoding = JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode)
                 ? PubSubFieldEncoding.Variant
                 : PubSubFieldEncoding.RawData;
             Variant variant = JsonVariantDecoder.DecodeVariant(
