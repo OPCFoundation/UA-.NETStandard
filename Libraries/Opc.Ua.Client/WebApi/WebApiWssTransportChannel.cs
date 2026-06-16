@@ -491,6 +491,17 @@ namespace Opc.Ua.Client.WebApi
                 {
                     return buffer.ToArray();
                 }
+                // sec-9: zero-progress continuation-frame guard. A peer
+                // that streams empty continuation frames without ever
+                // terminating the message would spin this loop (CPU
+                // DoS). Mirrors the WebSocketByteTransport guard the
+                // base shipped for opcua+uacp.
+                if (result.Count == 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "WebSocket continuation frame made no progress.");
+                }
             }
         }
 

@@ -1878,6 +1878,20 @@ namespace Opc.Ua.Bindings
                             return;
                         }
                         completed = result.EndOfMessage;
+                        if (!completed && result.Count == 0)
+                        {
+                            // sec-9: zero-progress continuation-frame guard.
+                            // A peer that streams empty continuation frames
+                            // without ever terminating the message would spin
+                            // this loop (CPU DoS). Mirrors the
+                            // WebSocketByteTransport guard the base shipped
+                            // for opcua+uacp.
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.MessageTooBig,
+                                "WebSocket continuation frame made no progress.",
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
                     }
                     while (!completed);
 

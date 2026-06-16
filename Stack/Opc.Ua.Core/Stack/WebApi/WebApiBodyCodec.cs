@@ -129,14 +129,62 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(context));
             }
 
-            byte[] payload;
-            using (var buffer = new MemoryStream())
-            {
-                await body.CopyToAsync(buffer, 81920, ct).ConfigureAwait(false);
-                payload = buffer.ToArray();
-            }
+            // sec-9: bound the buffered size by MaxMessageSize so an
+            // oversized or chunked / no-Content-Length body cannot
+            // exhaust memory before the in-buffer decode call enforces
+            // the quota. Throws BadRequestTooLarge the moment the quota
+            // is exceeded, before allocating the full payload.
+            byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
+                .ConfigureAwait(false);
 
             return DecodeBody<T>(payload, context, options);
+        }
+
+        // Mirrors JsonRequestMapper.ReadAllBoundedAsync (sec-9): caps
+        // the buffered body length at MaxMessageSize. A non-positive
+        // maxLength disables the cap.
+        internal static async ValueTask<byte[]> ReadAllBoundedAsync(
+            Stream body,
+            int maxLength,
+            CancellationToken ct)
+        {
+            if (body == null)
+            {
+                throw new ArgumentNullException(nameof(body));
+            }
+
+            using var buffer = new MemoryStream();
+            byte[] rented = System.Buffers.ArrayPool<byte>.Shared.Rent(81920);
+            try
+            {
+                int read;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                while ((read = await body
+                    .ReadAsync(rented.AsMemory(0, rented.Length), ct).ConfigureAwait(false)) > 0)
+#else
+                while ((read = await body
+                    .ReadAsync(rented, 0, rented.Length, ct).ConfigureAwait(false)) > 0)
+#endif
+                {
+                    if (maxLength > 0 && buffer.Length + read > maxLength)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadRequestTooLarge,
+                            "Request body exceeds the configured MaxMessageSize ({0} bytes).",
+                            maxLength);
+                    }
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                    await buffer.WriteAsync(rented.AsMemory(0, read), ct).ConfigureAwait(false);
+#else
+                    await buffer.WriteAsync(rented, 0, read, ct).ConfigureAwait(false);
+#endif
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+            }
+            return buffer.ToArray();
         }
 
         /// <summary>
@@ -298,12 +346,9 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(context));
             }
 
-            byte[] payload;
-            using (var buffer = new MemoryStream())
-            {
-                await body.CopyToAsync(buffer, 81920, ct).ConfigureAwait(false);
-                payload = buffer.ToArray();
-            }
+            // sec-9: bounded read enforces MaxMessageSize before allocation.
+            byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
+                .ConfigureAwait(false);
 
             return DecodeBody(bodyType, payload, context, options);
         }
