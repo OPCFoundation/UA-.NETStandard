@@ -103,6 +103,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         public IReadOnlyList<EndpointDescription> PublisherEndpoints { get; init; } = [];
 
+        /// <summary>
+        /// ApplicationInformation payload for the ApplicationInformation
+        /// response (Part 14 §7.2.4.6.7). Set only when
+        /// <see cref="DiscoveryType"/> is
+        /// <see cref="UadpDiscoveryType.ApplicationInformation"/>.
+        /// </summary>
+        public UadpApplicationInformation? ApplicationInformation { get; init; }
+
+        /// <summary>
+        /// PubSubConnection announcement payload (Part 14 §7.2.4.6.8).
+        /// Set only when <see cref="DiscoveryType"/> is
+        /// <see cref="UadpDiscoveryType.PubSubConnection"/>.
+        /// </summary>
+        public PubSubConnectionDataType? Connection { get; init; }
+
         /// <inheritdoc/>
         public override string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
     }

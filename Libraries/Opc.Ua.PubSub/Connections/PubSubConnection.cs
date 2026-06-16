@@ -478,6 +478,10 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
+                    if (TryRouteInboundMetaData(message))
+                    {
+                        continue;
+                    }
                     foreach (ReaderGroup rg in m_readerGroups)
                     {
                         try
@@ -505,6 +509,113 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.LogError(ex, "Receive loop terminated.");
             }
         }
+
+        /// <summary>
+        /// Routes an inbound MetaData NetworkMessage
+        /// (<c>JsonMetaDataMessage</c> or
+        /// <c>UadpDiscoveryResponseMessage</c> with
+        /// <c>DiscoveryType = DataSetMetaData</c>) into the connection
+        /// scoped <see cref="IDataSetMetaDataRegistry"/>, ensuring the
+        /// <c>MetaDataChanged</c> event fires per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/6.2.9.4">
+        /// Part 14 §6.2.9.4</see> and
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.3.4.8">
+        /// §7.3.4.8</see>.
+        /// </summary>
+        /// <param name="message">Decoded inbound NetworkMessage.</param>
+        /// <returns><see langword="true"/> when the message was a
+        /// metadata frame and was registered (so callers should skip
+        /// the data-side dispatch).</returns>
+        internal bool TryRouteInboundMetaData(PubSubNetworkMessage message)
+        {
+            return TryRouteInboundMetaData(m_metaDataRegistry, message, m_logger);
+        }
+
+        /// <summary>
+        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage)"/>
+        /// used by tests and by the receive loop. Dispatches the
+        /// JSON / UADP metadata variants into the supplied registry.
+        /// </summary>
+        /// <param name="registry">Target registry.</param>
+        /// <param name="message">Decoded NetworkMessage.</param>
+        /// <param name="logger">Logger for diagnostic events.</param>
+        /// <returns>Whether the message was recognised as metadata.</returns>
+        internal static bool TryRouteInboundMetaData(
+            IDataSetMetaDataRegistry registry,
+            PubSubNetworkMessage message,
+            ILogger logger)
+        {
+            if (registry is null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            DataSetMetaDataType? meta = null;
+            PublisherId publisherId = message.PublisherId;
+            ushort writerId = 0;
+            Uuid classId = default;
+
+            switch (message)
+            {
+                case Opc.Ua.PubSub.Encoding.Json.JsonMetaDataMessage json:
+                    meta = json.MetaDataPayload ?? json.MetaData;
+                    writerId = json.DataSetWriterId;
+                    classId = json.DataSetClassId;
+                    break;
+                case UadpDiscoveryResponseMessage uadp
+                    when uadp.DiscoveryType == UadpDiscoveryType.DataSetMetaData
+                        && uadp.DataSetMetaData is not null:
+                    meta = uadp.DataSetMetaData;
+                    writerId = uadp.DataSetWriterId;
+                    classId = uadp.DataSetClassId;
+                    break;
+                default:
+                    return false;
+            }
+
+            if (meta is null)
+            {
+                return true;
+            }
+
+            var key = new DataSetMetaDataKey(
+                publisherId,
+                0,
+                writerId,
+                classId,
+                meta.ConfigurationVersion?.MajorVersion ?? 0);
+
+            MetaDataMatchResult existing = registry.TryGet(in key, out DataSetMetaDataType? current);
+            if (existing == MetaDataMatchResult.MajorVersionMismatch
+                && current?.ConfigurationVersion is { } currentVersion
+                && currentVersion.MajorVersion > key.MajorVersion)
+            {
+                logger?.LogWarning(
+                    "Discarding stale inbound metadata for writer {WriterId}: incoming major {Incoming} < registered major {Existing}.",
+                    writerId, key.MajorVersion, currentVersion.MajorVersion);
+                return true;
+            }
+
+            try
+            {
+                registry.Register(in key, meta);
+                logger?.LogDebug(
+                    "Registered inbound metadata for writer {WriterId} (major {Major}).",
+                    writerId, key.MajorVersion);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex,
+                    "Inbound metadata registration failed for writer {WriterId}.",
+                    writerId);
+            }
+            return true;
+        }
+
 
         private async ValueTask SendNetworkMessageAsync(
             PubSubNetworkMessage networkMessage,

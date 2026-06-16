@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
@@ -67,7 +68,32 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// the DataSetWriterIds, response carries the writer
         /// configuration block.
         /// </summary>
-        DataSetWriterConfiguration = 3
+        DataSetWriterConfiguration = 3,
+
+        /// <summary>
+        /// ApplicationInformation discovery response — publisher
+        /// announces its application identity, transport profiles and
+        /// supported security policies. See
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.4.6.7">
+        /// Part 14 §7.2.4.6.7</see>.
+        /// </summary>
+        ApplicationInformation = 4,
+
+        /// <summary>
+        /// PubSubConnection announcement — publisher advertises one of
+        /// its connection configurations so subscribers can self-bind.
+        /// See
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.4.6.8">
+        /// Part 14 §7.2.4.6.8</see>.
+        /// </summary>
+        PubSubConnection = 5,
+
+        /// <summary>
+        /// Generic discovery probe (request side). See
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.4.6.12">
+        /// Part 14 §7.2.4.6.12</see>.
+        /// </summary>
+        Probe = 6
     }
 
     /// <summary>
@@ -163,6 +189,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 writer.WriteUInt16Le(id);
             }
+            if (message.DiscoveryType == UadpDiscoveryType.Probe)
+            {
+                WriteProbeFilter(ref writer, message.ProbeFilter);
+            }
             _ = context;
             return TrimToWritten(buffer, writer.Position);
         }
@@ -190,6 +220,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     break;
                 case UadpDiscoveryType.PublisherEndpoints:
                     WritePublisherEndpoints(ref writer, message, context.MessageContext);
+                    break;
+                case UadpDiscoveryType.ApplicationInformation:
+                    WriteApplicationInformation(ref writer, message);
+                    break;
+                case UadpDiscoveryType.PubSubConnection:
+                    WriteConnection(ref writer, message, context.MessageContext);
                     break;
                 default:
                     throw new InvalidOperationException(
@@ -221,6 +257,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 ids[i] = id;
             }
+            UadpDiscoveryProbeFilter? filter = null;
+            if ((UadpDiscoveryType)typeByte == UadpDiscoveryType.Probe)
+            {
+                filter = TryReadProbeFilter(ref reader);
+                if (filter is null)
+                {
+                    return null;
+                }
+            }
 
             return new UadpDiscoveryRequestMessage
             {
@@ -229,7 +274,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 DataSetClassId = header.DataSetClassId,
                 MessageType = UadpNetworkMessageType.DiscoveryRequest,
                 DiscoveryType = (UadpDiscoveryType)typeByte,
-                DataSetWriterIds = ids
+                DataSetWriterIds = ids,
+                ProbeFilter = filter
             };
         }
 
@@ -268,6 +314,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         ReadWriterConfiguration(ref reader, response, context.MessageContext),
                     UadpDiscoveryType.PublisherEndpoints =>
                         ReadPublisherEndpoints(ref reader, response, context.MessageContext),
+                    UadpDiscoveryType.ApplicationInformation =>
+                        ReadApplicationInformation(ref reader, response),
+                    UadpDiscoveryType.PubSubConnection =>
+                        ReadConnection(ref reader, response, context.MessageContext),
                     _ => response
                 };
             }
@@ -394,6 +444,159 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 PublisherEndpoints = list,
                 StatusCode = new StatusCode(statusCode)
             };
+        }
+
+        private static void WriteApplicationInformation(
+            ref UadpBinaryWriter writer,
+            UadpDiscoveryResponseMessage message)
+        {
+            UadpApplicationInformation info = message.ApplicationInformation
+                ?? new UadpApplicationInformation();
+            writer.WriteString(info.ApplicationName.Locale ?? string.Empty);
+            writer.WriteString(info.ApplicationName.Text ?? string.Empty);
+            writer.WriteString(info.ApplicationUri);
+            writer.WriteString(info.ProductUri);
+            writer.WriteUInt32Le((uint)info.ApplicationType);
+            WriteStringArray(ref writer, info.Capabilities);
+            WriteStringArray(ref writer, info.SupportedTransportProfiles);
+            WriteStringArray(ref writer, info.SupportedSecurityPolicies);
+            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+        }
+
+        private static UadpDiscoveryResponseMessage ReadApplicationInformation(
+            ref UadpBinaryReader reader,
+            UadpDiscoveryResponseMessage message)
+        {
+            if (!reader.TryReadString(out string? locale))
+            {
+                throw new InvalidOperationException("Failed reading ApplicationName locale.");
+            }
+            if (!reader.TryReadString(out string? text))
+            {
+                throw new InvalidOperationException("Failed reading ApplicationName text.");
+            }
+            if (!reader.TryReadString(out string? appUri))
+            {
+                throw new InvalidOperationException("Failed reading ApplicationUri.");
+            }
+            if (!reader.TryReadString(out string? productUri))
+            {
+                throw new InvalidOperationException("Failed reading ProductUri.");
+            }
+            if (!reader.TryReadUInt32Le(out uint appType))
+            {
+                throw new InvalidOperationException("Failed reading ApplicationType.");
+            }
+            string[] capabilities = ReadStringArray(ref reader);
+            string[] profiles = ReadStringArray(ref reader);
+            string[] policies = ReadStringArray(ref reader);
+            if (!reader.TryReadUInt32Le(out uint statusCode))
+            {
+                throw new InvalidOperationException("Failed reading StatusCode.");
+            }
+            return message with
+            {
+                ApplicationInformation = new UadpApplicationInformation
+                {
+                    ApplicationName = new LocalizedText(locale ?? string.Empty, text ?? string.Empty),
+                    ApplicationUri = appUri ?? string.Empty,
+                    ProductUri = productUri ?? string.Empty,
+                    ApplicationType = (ApplicationType)appType,
+                    Capabilities = capabilities,
+                    SupportedTransportProfiles = profiles,
+                    SupportedSecurityPolicies = policies
+                },
+                StatusCode = new StatusCode(statusCode)
+            };
+        }
+
+        private static void WriteConnection(
+            ref UadpBinaryWriter writer,
+            UadpDiscoveryResponseMessage message,
+            IServiceMessageContext context)
+        {
+            UadpDiscoveryWire.WriteEncodeable(ref writer, message.Connection, context);
+            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+        }
+
+        private static UadpDiscoveryResponseMessage ReadConnection(
+            ref UadpBinaryReader reader,
+            UadpDiscoveryResponseMessage message,
+            IServiceMessageContext context)
+        {
+            PubSubConnectionDataType cfg =
+                UadpDiscoveryWire.ReadEncodeable<PubSubConnectionDataType>(ref reader, context);
+            if (!reader.TryReadUInt32Le(out uint statusCode))
+            {
+                throw new InvalidOperationException("Failed reading StatusCode.");
+            }
+            return message with
+            {
+                Connection = cfg,
+                StatusCode = new StatusCode(statusCode)
+            };
+        }
+
+        private static void WriteProbeFilter(
+            ref UadpBinaryWriter writer,
+            UadpDiscoveryProbeFilter? filter)
+        {
+            UadpDiscoveryProbeFilter f = filter ?? new UadpDiscoveryProbeFilter();
+            writer.WriteString(f.ApplicationUri);
+            writer.WriteString(f.ProductUri);
+            writer.WriteString(f.Capability);
+        }
+
+        private static UadpDiscoveryProbeFilter? TryReadProbeFilter(
+            ref UadpBinaryReader reader)
+        {
+            if (!reader.TryReadString(out string? appUri))
+            {
+                return null;
+            }
+            if (!reader.TryReadString(out string? productUri))
+            {
+                return null;
+            }
+            if (!reader.TryReadString(out string? capability))
+            {
+                return null;
+            }
+            return new UadpDiscoveryProbeFilter
+            {
+                ApplicationUri = appUri ?? string.Empty,
+                ProductUri = productUri ?? string.Empty,
+                Capability = capability ?? string.Empty
+            };
+        }
+
+        private static void WriteStringArray(
+            ref UadpBinaryWriter writer,
+            IReadOnlyList<string> values)
+        {
+            writer.WriteUInt16Le((ushort)values.Count);
+            for (int i = 0; i < values.Count; i++)
+            {
+                writer.WriteString(values[i] ?? string.Empty);
+            }
+        }
+
+        private static string[] ReadStringArray(ref UadpBinaryReader reader)
+        {
+            if (!reader.TryReadUInt16Le(out ushort count))
+            {
+                throw new InvalidOperationException("Failed reading string-array count.");
+            }
+            var result = new string[count];
+            for (int i = 0; i < count; i++)
+            {
+                if (!reader.TryReadString(out string? entry))
+                {
+                    throw new InvalidOperationException("Failed reading string-array entry.");
+                }
+                result[i] = entry ?? string.Empty;
+            }
+            return result;
         }
 
         private static byte[] TrimToWritten(byte[] buffer, int written)

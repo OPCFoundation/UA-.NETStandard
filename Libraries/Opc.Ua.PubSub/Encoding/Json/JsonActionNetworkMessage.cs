@@ -29,57 +29,64 @@
 
 using System.Collections.Generic;
 
-namespace Opc.Ua.PubSub.Encoding.Uadp
+namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
-    /// UADP discovery request NetworkMessage. Carries a discovery
-    /// information type and a list of DataSetWriterIds the subscriber
-    /// is interested in.
+    /// JSON action NetworkMessage carrying an action invocation
+    /// request or response over JSON-on-MQTT.
     /// </summary>
     /// <remarks>
     /// Implements
-    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.6">
-    /// Part 14 §7.2.4.6</see>. Requests carry no payload other than the
-    /// DataSetWriterIds list; the publisher answers with one or more
-    /// <see cref="UadpDiscoveryResponseMessage"/> instances.
+    /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6">
+    /// Part 14 §7.2.5.6</see> request/response Action NetworkMessage
+    /// envelope with <c>MessageType=ua-action</c>, an
+    /// <see cref="Action"/> URI, named
+    /// <see cref="Parameters"/> (Variant-keyed) and a request /
+    /// response correlation pair (<see cref="RequestId"/> /
+    /// <see cref="ResponseId"/>).
     /// </remarks>
-    public sealed record UadpDiscoveryRequestMessage : PubSubNetworkMessage
+    public sealed record JsonActionNetworkMessage : PubSubNetworkMessage
     {
         /// <summary>
-        /// UADP protocol version (low nibble of header byte).
+        /// Wire literal for the JSON action envelope.
         /// </summary>
-        public byte UadpVersion { get; init; } = 1;
+        public const string MessageTypeAction = "ua-action";
 
         /// <summary>
-        /// DataSetClassId carried at the NetworkMessage level (Guid).
+        /// MessageId per Part 14 §7.2.5.3.
         /// </summary>
-        public Uuid DataSetClassId { get; init; }
+        public string MessageId { get; init; } = string.Empty;
 
         /// <summary>
-        /// Distinguishes data messages from discovery requests/responses.
+        /// Action URI invoked by this message.
         /// </summary>
-        public UadpNetworkMessageType MessageType { get; init; }
-            = UadpNetworkMessageType.DiscoveryRequest;
+        public string Action { get; init; } = string.Empty;
 
         /// <summary>
-        /// Information type the subscriber requests.
+        /// Named Variant parameters carrying the action arguments.
         /// </summary>
-        public UadpDiscoveryType DiscoveryType { get; init; }
+        public IReadOnlyDictionary<string, Variant> Parameters { get; init; }
+            = new Dictionary<string, Variant>();
 
         /// <summary>
-        /// DataSetWriterIds the subscriber is asking about. An empty
-        /// list means "all writers known to the publisher".
+        /// Correlation identifier for the originating request.
         /// </summary>
-        public IReadOnlyList<ushort> DataSetWriterIds { get; init; } = [];
+        public string RequestId { get; init; } = string.Empty;
 
         /// <summary>
-        /// Optional filter applied when <see cref="DiscoveryType"/> is
-        /// <see cref="UadpDiscoveryType.Probe"/> (Part 14 §7.2.4.6.12).
-        /// <see langword="null"/> for non-probe requests.
+        /// Correlation identifier for the matching response (only set
+        /// on response messages).
         /// </summary>
-        public UadpDiscoveryProbeFilter? ProbeFilter { get; init; }
+        public string ResponseId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Indicates the action carries a response (i.e.
+        /// <see cref="ResponseId"/> is non-empty).
+        /// </summary>
+        public bool IsResponse => !string.IsNullOrEmpty(ResponseId);
 
         /// <inheritdoc/>
-        public override string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+        public override string TransportProfileUri
+            => Profiles.PubSubMqttJsonTransport;
     }
 }

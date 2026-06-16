@@ -353,7 +353,7 @@ namespace Opc.Ua.PubSub.Groups
         }
 
         private PubSubNetworkMessage BuildNetworkMessage(
-            IReadOnlyList<PubSubDataSetMessage> dataSetMessages)
+            List<PubSubDataSetMessage> dataSetMessages)
         {
             string profile = GetEncodingProfile();
             if (string.Equals(profile, Profiles.PubSubMqttJsonTransport, StringComparison.Ordinal))
@@ -363,6 +363,7 @@ namespace Opc.Ua.PubSub.Groups
                     WriterGroupId = WriterGroupId,
                     DataSetMessages = dataSetMessages,
                     PublisherId = PubSubAddressing.PublisherId,
+                    SingleMessageMode = IsJsonSingleMessageMode() && dataSetMessages.Count == 1,
                 };
             }
             return new UadpNetworkMessageV2
@@ -371,6 +372,36 @@ namespace Opc.Ua.PubSub.Groups
                 DataSetMessages = dataSetMessages,
                 PublisherId = PubSubAddressing.PublisherId,
             };
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> when the writer group's
+        /// <see cref="JsonWriterGroupMessageDataType.NetworkMessageContentMask"/>
+        /// has <see cref="JsonNetworkMessageContentMask.SingleDataSetMessage"/>
+        /// set.
+        /// </summary>
+        /// <remarks>
+        /// Implements the runtime enforcement of
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.3.4.7.3">
+        /// Part 14 §7.3.4.7.3</see> and
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/A.3.3">
+        /// Annex A.3.3</see>: when the writer group is configured with
+        /// the <c>SingleDataSetMessage</c> bit, the publisher emits the
+        /// flat single-message JSON envelope.
+        /// </remarks>
+        private bool IsJsonSingleMessageMode()
+        {
+            ExtensionObject settings = Configuration.MessageSettings;
+            if (settings.IsNull)
+            {
+                return false;
+            }
+            if (!settings.TryGetValue(out JsonWriterGroupMessageDataType? json) || json is null)
+            {
+                return false;
+            }
+            return ((uint)json.NetworkMessageContentMask
+                & (uint)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
         }
 
         private string GetEncodingProfile()

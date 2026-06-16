@@ -97,6 +97,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     EncodeNetwork(data, context)),
                 JsonMetaDataMessage meta => new ValueTask<ReadOnlyMemory<byte>>(
                     EncodeMetaData(meta, context)),
+                JsonDiscoveryMessage discovery => new ValueTask<ReadOnlyMemory<byte>>(
+                    EncodeDiscovery(discovery, context)),
+                JsonActionNetworkMessage action => new ValueTask<ReadOnlyMemory<byte>>(
+                    EncodeAction(action, context)),
                 _ => throw new ArgumentException(
                     "Network message type is not supported by the JSON encoder.",
                     nameof(networkMessage))
@@ -114,6 +118,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonNetworkMessage message,
             PubSubNetworkMessageContext context)
         {
+            if (message.SingleMessageMode && message.DataSetMessages.Count != 1)
+            {
+                throw new ArgumentException(
+                    "JsonNetworkMessage with SingleMessageMode requires exactly one " +
+                    "DataSetMessage per Part 14 §7.2.5.4.5 / §7.3.4.7.3 / Annex A.3.3.",
+                    nameof(message));
+            }
             using JsonBufferWriter buffer = new(512);
             using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
             {
@@ -324,6 +335,262 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     meta,
                     Mode,
                     context.MessageContext);
+                writer.WriteEndObject();
+            }
+            return buffer.GetWritten();
+        }
+
+        /// <summary>
+        /// Encodes a <see cref="JsonDiscoveryMessage"/>
+        /// (<c>ua-discovery</c> envelope) per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
+        /// Part 14 §7.2.5.5</see>.
+        /// </summary>
+        /// <param name="message">Source discovery message.</param>
+        /// <param name="context">Encoder context.</param>
+        /// <returns>Encoded UTF-8 frame.</returns>
+        private ReadOnlyMemory<byte> EncodeDiscovery(
+            JsonDiscoveryMessage message,
+            PubSubNetworkMessageContext context)
+        {
+            using JsonBufferWriter buffer = new(1024);
+            using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
+            {
+                SkipValidation = true,
+                Indented = false
+            }))
+            {
+                writer.WriteStartObject();
+                if (!string.IsNullOrEmpty(message.MessageId))
+                {
+                    writer.WriteString("MessageId", message.MessageId);
+                }
+                writer.WriteString(
+                    "MessageType",
+                    JsonDiscoveryMessage.MessageTypeDiscovery);
+                WritePublisherId(writer, "PublisherId", message.PublisherId);
+                writer.WriteNumber("DiscoveryType", (uint)message.DiscoveryType);
+                if (message.DataSetWriterId != 0)
+                {
+                    writer.WriteNumber("DataSetWriterId", message.DataSetWriterId);
+                }
+                if (message.Status.Code != StatusCodes.Good)
+                {
+                    writer.WriteNumber("Status", message.Status.Code);
+                }
+                switch (message.DiscoveryType)
+                {
+                    case Uadp.UadpDiscoveryType.ApplicationInformation:
+                        WriteApplicationInformation(
+                            writer,
+                            message.ApplicationInformation
+                                ?? new Uadp.UadpApplicationInformation());
+                        break;
+                    case Uadp.UadpDiscoveryType.PubSubConnection:
+                        WriteEncodeableProperty(
+                            writer,
+                            "Connection",
+                            message.Connection,
+                            context.MessageContext);
+                        break;
+                    case Uadp.UadpDiscoveryType.DataSetMetaData:
+                        if (message.MetaData is not null)
+                        {
+                            JsonMetaDataEncoder.WriteMetaData(
+                                writer,
+                                "MetaData",
+                                message.MetaData,
+                                Mode,
+                                context.MessageContext);
+                        }
+                        break;
+                    case Uadp.UadpDiscoveryType.DataSetWriterConfiguration:
+                        WriteUInt16Array(
+                            writer,
+                            "DataSetWriterIds",
+                            message.DataSetWriterIds);
+                        WriteEncodeableProperty(
+                            writer,
+                            "WriterConfiguration",
+                            message.WriterConfiguration,
+                            context.MessageContext);
+                        break;
+                    case Uadp.UadpDiscoveryType.PublisherEndpoints:
+                        WriteEndpointsProperty(
+                            writer,
+                            "PublisherEndpoints",
+                            message.PublisherEndpoints,
+                            context.MessageContext);
+                        break;
+                }
+                writer.WriteEndObject();
+            }
+            return buffer.GetWritten();
+        }
+
+        private static void WriteApplicationInformation(
+            Utf8JsonWriter writer,
+            Uadp.UadpApplicationInformation info)
+        {
+            writer.WritePropertyName("ApplicationInformation");
+            writer.WriteStartObject();
+            writer.WriteString("ApplicationName",
+                info.ApplicationName.Text ?? string.Empty);
+            writer.WriteString("ApplicationLocale",
+                info.ApplicationName.Locale ?? string.Empty);
+            writer.WriteString("ApplicationUri", info.ApplicationUri);
+            writer.WriteString("ProductUri", info.ProductUri);
+            writer.WriteNumber("ApplicationType", (uint)info.ApplicationType);
+            writer.WritePropertyName("Capabilities");
+            WriteStringArray(writer, info.Capabilities);
+            writer.WritePropertyName("SupportedTransportProfiles");
+            WriteStringArray(writer, info.SupportedTransportProfiles);
+            writer.WritePropertyName("SupportedSecurityPolicies");
+            WriteStringArray(writer, info.SupportedSecurityPolicies);
+            writer.WriteEndObject();
+        }
+
+        private static void WriteStringArray(
+            Utf8JsonWriter writer,
+            System.Collections.Generic.IReadOnlyList<string> values)
+        {
+            writer.WriteStartArray();
+            foreach (string value in values)
+            {
+                writer.WriteStringValue(value ?? string.Empty);
+            }
+            writer.WriteEndArray();
+        }
+
+        private static void WriteUInt16Array(
+            Utf8JsonWriter writer,
+            string propertyName,
+            System.Collections.Generic.IReadOnlyList<ushort> values)
+        {
+            writer.WritePropertyName(propertyName);
+            writer.WriteStartArray();
+            foreach (ushort value in values)
+            {
+                writer.WriteNumberValue(value);
+            }
+            writer.WriteEndArray();
+        }
+
+        private static void WriteEncodeableProperty(
+            Utf8JsonWriter writer,
+            string propertyName,
+            IEncodeable? encodeable,
+            IServiceMessageContext context)
+        {
+            writer.WritePropertyName(propertyName);
+            if (encodeable is null)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+            using JsonBufferWriter buffer = new(1024);
+            using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+            {
+                encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
+            }
+            using JsonDocument doc = JsonDocument.Parse(buffer.WrittenMemory);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty(propertyName, out JsonElement v))
+            {
+                writer.WriteRawValue(v.GetRawText(), skipInputValidation: true);
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
+        }
+
+        private static void WriteEndpointsProperty(
+            Utf8JsonWriter writer,
+            string propertyName,
+            System.Collections.Generic.IReadOnlyList<EndpointDescription> endpoints,
+            IServiceMessageContext context)
+        {
+            writer.WritePropertyName(propertyName);
+            writer.WriteStartArray();
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                using JsonBufferWriter buffer = new(512);
+                using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+                {
+                    encoder.WriteEncodeable("Endpoint", endpoint);
+                }
+                using JsonDocument doc = JsonDocument.Parse(buffer.WrittenMemory);
+                if (doc.RootElement.TryGetProperty("Endpoint", out JsonElement v))
+                {
+                    writer.WriteRawValue(v.GetRawText(), skipInputValidation: true);
+                }
+                else
+                {
+                    writer.WriteNullValue();
+                }
+            }
+            writer.WriteEndArray();
+        }
+
+        /// <summary>
+        /// Encodes a <see cref="JsonActionNetworkMessage"/>
+        /// (<c>ua-action</c> envelope) per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6">
+        /// Part 14 §7.2.5.6</see>.
+        /// </summary>
+        /// <param name="message">Source action message.</param>
+        /// <param name="context">Encoder context.</param>
+        /// <returns>Encoded UTF-8 frame.</returns>
+        private ReadOnlyMemory<byte> EncodeAction(
+            JsonActionNetworkMessage message,
+            PubSubNetworkMessageContext context)
+        {
+            if (string.IsNullOrEmpty(message.Action))
+            {
+                throw new ArgumentException(
+                    "JsonActionNetworkMessage requires a non-empty Action URI " +
+                    "per Part 14 §7.2.5.6.",
+                    nameof(message));
+            }
+            using JsonBufferWriter buffer = new(512);
+            using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
+            {
+                SkipValidation = true,
+                Indented = false
+            }))
+            {
+                writer.WriteStartObject();
+                if (!string.IsNullOrEmpty(message.MessageId))
+                {
+                    writer.WriteString("MessageId", message.MessageId);
+                }
+                writer.WriteString(
+                    "MessageType",
+                    JsonActionNetworkMessage.MessageTypeAction);
+                WritePublisherId(writer, "PublisherId", message.PublisherId);
+                writer.WriteString("Action", message.Action);
+                if (!string.IsNullOrEmpty(message.RequestId))
+                {
+                    writer.WriteString("RequestId", message.RequestId);
+                }
+                if (!string.IsNullOrEmpty(message.ResponseId))
+                {
+                    writer.WriteString("ResponseId", message.ResponseId);
+                }
+                writer.WritePropertyName("Parameters");
+                writer.WriteStartObject();
+                foreach (System.Collections.Generic.KeyValuePair<string, Variant> kvp
+                    in message.Parameters)
+                {
+                    JsonVariantEncoder.WriteVariantProperty(
+                        writer,
+                        kvp.Key,
+                        kvp.Value,
+                        Mode,
+                        context.MessageContext);
+                }
+                writer.WriteEndObject();
                 writer.WriteEndObject();
             }
             return buffer.GetWritten();

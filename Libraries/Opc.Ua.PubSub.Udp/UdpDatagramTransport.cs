@@ -82,6 +82,7 @@ namespace Opc.Ua.PubSub.Udp
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly UdpMessageRepeater m_repeater;
         private readonly System.Threading.Lock m_sync = new();
+        private readonly DatagramV2Settings m_v2Settings;
 
         private Socket? m_socket;
         private CancellationTokenSource? m_receiveLoopCts;
@@ -169,6 +170,7 @@ namespace Opc.Ua.PubSub.Udp
                 options.MessageRepeatCount,
                 options.MessageRepeatDelay,
                 timeProvider);
+            m_v2Settings = ReadV2Settings(connection);
         }
 
         /// <inheritdoc/>
@@ -195,6 +197,31 @@ namespace Opc.Ua.PubSub.Udp
         /// re-parsing.
         /// </summary>
         public UdpEndpoint Endpoint => m_endpoint;
+
+        /// <summary>
+        /// DiscoveryAnnounceRate value (milliseconds) honoured from the
+        /// <c>DatagramConnectionTransport2DataType</c> per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/6.4.1.2.7">
+        /// Part 14 §6.4.1.2.7</see>. Zero means disabled.
+        /// </summary>
+        public uint DiscoveryAnnounceRate => m_v2Settings.DiscoveryAnnounceRate;
+
+        /// <summary>
+        /// DiscoveryMaxMessageSize cap (bytes) honoured from the
+        /// <c>DatagramConnectionTransport2DataType</c> per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/6.4.1.2.7">
+        /// Part 14 §6.4.1.2.7</see>. Zero means no cap.
+        /// </summary>
+        public uint DiscoveryMaxMessageSize => m_v2Settings.DiscoveryMaxMessageSize;
+
+        /// <summary>
+        /// Negotiated QosCategory string from the
+        /// <c>DatagramConnectionTransport2DataType</c>; mapped to a
+        /// DSCP / TOS byte per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/A.4">
+        /// Part 14 Annex A.4</see>.
+        /// </summary>
+        public string QosCategory => m_v2Settings.QosCategory ?? string.Empty;
 
         /// <inheritdoc/>
         public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged;
@@ -654,6 +681,43 @@ namespace Opc.Ua.PubSub.Udp
                 m_logger.LogDebug(ex,
                     "Setting IP_MULTICAST_LOOP failed for connection '{Connection}'.", m_connection.Name);
             }
+            ApplyQosCategory(socket);
+        }
+
+        private void ApplyQosCategory(Socket socket)
+        {
+            if (string.IsNullOrEmpty(m_v2Settings.QosCategory))
+            {
+                return;
+            }
+            int tos = MapQosCategoryToTos(m_v2Settings.QosCategory);
+            try
+            {
+                if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    socket.SetSocketOption(
+                        SocketOptionLevel.IP,
+                        SocketOptionName.TypeOfService,
+                        tos);
+                }
+                else if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    socket.SetSocketOption(
+                        SocketOptionLevel.IPv6,
+                        SocketOptionName.TypeOfService,
+                        tos);
+                }
+                m_logger.LogInformation(
+                    "Applied QosCategory '{QosCategory}' (TOS={Tos:X2}) on connection '{Connection}' " +
+                    "per Part 14 §6.4.1.2.7 / Annex A.4.",
+                    m_v2Settings.QosCategory, tos, m_connection.Name);
+            }
+            catch (SocketException ex)
+            {
+                m_logger.LogDebug(ex,
+                    "Setting IP_TOS for QosCategory '{QosCategory}' failed for connection '{Connection}'.",
+                    m_v2Settings.QosCategory, m_connection.Name);
+            }
         }
 
         private void BindAndJoin(Socket socket)
@@ -832,6 +896,79 @@ namespace Opc.Ua.PubSub.Udp
                     "StateChanged handler threw for connection '{Connection}'.",
                     m_connection.Name);
             }
+        }
+
+        /// <summary>
+        /// Enforces the <c>DiscoveryMaxMessageSize</c> cap defined by
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/6.4.1.2.7">
+        /// Part 14 §6.4.1.2.7</see>. Throws
+        /// <see cref="ServiceResultException"/> with status
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the
+        /// payload exceeds the cap.
+        /// </summary>
+        /// <param name="payload">Discovery payload to be sent.</param>
+        public void EnforceDiscoveryLimit(ReadOnlyMemory<byte> payload)
+        {
+            uint cap = m_v2Settings.DiscoveryMaxMessageSize;
+            if (cap == 0)
+            {
+                return;
+            }
+            if ((uint)payload.Length > cap)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    $"Discovery payload size {payload.Length} exceeds the " +
+                    $"DiscoveryMaxMessageSize cap of {cap} bytes.");
+            }
+        }
+
+        private static DatagramV2Settings ReadV2Settings(
+            PubSubConnectionDataType connection)
+        {
+            if (connection.TransportSettings.IsNull)
+            {
+                return default;
+            }
+            if (!connection.TransportSettings.TryGetValue(
+                    out DatagramConnectionTransport2DataType? v2)
+                || v2 is null)
+            {
+                return default;
+            }
+            return new DatagramV2Settings
+            {
+                DiscoveryAnnounceRate = v2.DiscoveryAnnounceRate,
+                DiscoveryMaxMessageSize = v2.DiscoveryMaxMessageSize,
+                QosCategory = v2.QosCategory ?? string.Empty
+            };
+        }
+
+        /// <summary>
+        /// Maps a QosCategory string from
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/6.4.1.2.7">
+        /// Part 14 §6.4.1.2.7</see> to the DSCP-encoded TOS byte
+        /// (Part 14 Annex A.4).
+        /// </summary>
+        /// <param name="category">QosCategory string.</param>
+        /// <returns>Encoded TOS byte (DSCP &lt;&lt; 2), or 0 when
+        /// <paramref name="category"/> is empty / unknown.</returns>
+        internal static int MapQosCategoryToTos(string category)
+        {
+            return category switch
+            {
+                "Reliable" => 0x48,
+                "BestEffort" => 0x00,
+                "ExpeditedForwarding" => 0xB8,
+                _ => 0
+            };
+        }
+
+        private readonly record struct DatagramV2Settings
+        {
+            public uint DiscoveryAnnounceRate { get; init; }
+            public uint DiscoveryMaxMessageSize { get; init; }
+            public string QosCategory { get; init; }
         }
     }
 }

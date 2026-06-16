@@ -118,6 +118,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         => DecodeData(root, context),
                     JsonNetworkMessage.MessageTypeMetaData
                         => DecodeMetaData(root, context),
+                    JsonDiscoveryMessage.MessageTypeDiscovery
+                        => DecodeDiscovery(root, context),
+                    JsonActionNetworkMessage.MessageTypeAction
+                        => DecodeAction(root, context),
                     _ => DecodeUnknown(context, messageType)
                 };
             }
@@ -245,6 +249,262 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 DataSetClassId = dataSetClassId,
                 MetaDataPayload = metaData,
                 MetaData = metaData
+            };
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-discovery</c> envelope into a
+        /// <see cref="JsonDiscoveryMessage"/> per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
+        /// Part 14 §7.2.5.5</see>.
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message or
+        /// <see langword="null"/>.</returns>
+        private static JsonDiscoveryMessage? DecodeDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            string messageId = ReadOptionalString(root, "MessageId");
+            PublisherId publisherId = ReadPublisherId(root);
+            uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
+            ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
+            uint statusCode = ReadOptionalUInt32(root, "Status");
+            var discoveryType = (Uadp.UadpDiscoveryType)typeCode;
+            var msg = new JsonDiscoveryMessage
+            {
+                MessageId = messageId,
+                PublisherId = publisherId,
+                DiscoveryType = discoveryType,
+                DataSetWriterId = writerId,
+                Status = new StatusCode(statusCode)
+            };
+            switch (discoveryType)
+            {
+                case Uadp.UadpDiscoveryType.ApplicationInformation:
+                    if (root.TryGetProperty("ApplicationInformation",
+                            out JsonElement appElement)
+                        && appElement.ValueKind == JsonValueKind.Object)
+                    {
+                        msg = msg with
+                        {
+                            ApplicationInformation = ReadApplicationInformation(appElement)
+                        };
+                    }
+                    break;
+                case Uadp.UadpDiscoveryType.PubSubConnection:
+                    if (root.TryGetProperty("Connection", out JsonElement connElement)
+                        && connElement.ValueKind == JsonValueKind.Object)
+                    {
+                        msg = msg with
+                        {
+                            Connection = DecodeEncodeable<PubSubConnectionDataType>(
+                                "Connection", connElement, context)
+                        };
+                    }
+                    break;
+                case Uadp.UadpDiscoveryType.DataSetMetaData:
+                    if (root.TryGetProperty("MetaData", out JsonElement metaElement)
+                        && metaElement.ValueKind == JsonValueKind.Object)
+                    {
+                        DataSetMetaDataType? meta = DecodeMetaDataPayload(
+                            metaElement, context);
+                        msg = msg with { MetaData = meta };
+                    }
+                    break;
+                case Uadp.UadpDiscoveryType.DataSetWriterConfiguration:
+                    msg = msg with
+                    {
+                        DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds")
+                    };
+                    if (root.TryGetProperty("WriterConfiguration",
+                            out JsonElement cfgElement)
+                        && cfgElement.ValueKind == JsonValueKind.Object)
+                    {
+                        msg = msg with
+                        {
+                            WriterConfiguration = DecodeEncodeable<WriterGroupDataType>(
+                                "WriterConfiguration", cfgElement, context)
+                        };
+                    }
+                    break;
+                case Uadp.UadpDiscoveryType.PublisherEndpoints:
+                    if (root.TryGetProperty("PublisherEndpoints",
+                            out JsonElement epsElement)
+                        && epsElement.ValueKind == JsonValueKind.Array)
+                    {
+                        msg = msg with
+                        {
+                            PublisherEndpoints = ReadEndpointArray(epsElement, context)
+                        };
+                    }
+                    break;
+            }
+            return msg;
+        }
+
+        private static T? DecodeEncodeable<T>(
+            string propertyName,
+            JsonElement element,
+            PubSubNetworkMessageContext context)
+            where T : class, IEncodeable, new()
+        {
+            try
+            {
+                string wrapped = string.Concat(
+                    "{\"", propertyName, "\":",
+                    element.GetRawText(),
+                    "}");
+                using Opc.Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
+                return decoder.ReadEncodeable<T>(propertyName);
+            }
+            catch (ServiceResultException)
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
+            catch (JsonException)
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
+        }
+
+        private static EndpointDescription[] ReadEndpointArray(
+            JsonElement array,
+            PubSubNetworkMessageContext context)
+        {
+            var list = new List<EndpointDescription>();
+            foreach (JsonElement entry in array.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                EndpointDescription? ep =
+                    DecodeEncodeable<EndpointDescription>("Endpoint", entry, context);
+                if (ep is not null)
+                {
+                    list.Add(ep);
+                }
+            }
+            return [.. list];
+        }
+
+        private static ushort[] ReadUInt16Array(JsonElement root, string name)
+        {
+            if (!root.TryGetProperty(name, out JsonElement array)
+                || array.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+            var list = new List<ushort>();
+            foreach (JsonElement entry in array.EnumerateArray())
+            {
+                if (entry.TryGetUInt16(out ushort v))
+                {
+                    list.Add(v);
+                }
+            }
+            return [.. list];
+        }
+
+        private static Uadp.UadpApplicationInformation ReadApplicationInformation(
+            JsonElement element)
+        {
+            string text = ReadOptionalString(element, "ApplicationName");
+            string locale = ReadOptionalString(element, "ApplicationLocale");
+            string appUri = ReadOptionalString(element, "ApplicationUri");
+            string productUri = ReadOptionalString(element, "ProductUri");
+            uint appType = ReadOptionalUInt32(element, "ApplicationType");
+            return new Uadp.UadpApplicationInformation
+            {
+                ApplicationName = new LocalizedText(locale, text),
+                ApplicationUri = appUri,
+                ProductUri = productUri,
+                ApplicationType = (ApplicationType)appType,
+                Capabilities = ReadStringList(element, "Capabilities"),
+                SupportedTransportProfiles =
+                    ReadStringList(element, "SupportedTransportProfiles"),
+                SupportedSecurityPolicies =
+                    ReadStringList(element, "SupportedSecurityPolicies")
+            };
+        }
+
+        private static string[] ReadStringList(JsonElement root, string name)
+        {
+            if (!root.TryGetProperty(name, out JsonElement array)
+                || array.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+            var list = new List<string>();
+            foreach (JsonElement entry in array.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.String)
+                {
+                    list.Add(entry.GetString() ?? string.Empty);
+                }
+            }
+            return [.. list];
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-action</c> envelope into a
+        /// <see cref="JsonActionNetworkMessage"/> per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6">
+        /// Part 14 §7.2.5.6</see>.
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded action message or
+        /// <see langword="null"/>.</returns>
+        private static JsonActionNetworkMessage? DecodeAction(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            string messageId = ReadOptionalString(root, "MessageId");
+            PublisherId publisherId = ReadPublisherId(root);
+            string action = ReadOptionalString(root, "Action");
+            if (string.IsNullOrEmpty(action))
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
+            string requestId = ReadOptionalString(root, "RequestId");
+            string responseId = ReadOptionalString(root, "ResponseId");
+            if (string.IsNullOrEmpty(requestId) && string.IsNullOrEmpty(responseId))
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
+            var parameters = new Dictionary<string, Variant>(StringComparer.Ordinal);
+            if (root.TryGetProperty("Parameters", out JsonElement paramsElement)
+                && paramsElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty prop in paramsElement.EnumerateObject())
+                {
+                    Variant variant = JsonVariantDecoder.DecodeVariant(
+                        prop.Value,
+                        JsonEncodingMode.Verbose,
+                        null,
+                        context.MessageContext);
+                    parameters[prop.Name] = variant;
+                }
+            }
+            return new JsonActionNetworkMessage
+            {
+                MessageId = messageId,
+                PublisherId = publisherId,
+                Action = action,
+                RequestId = requestId,
+                ResponseId = responseId,
+                Parameters = parameters
             };
         }
 

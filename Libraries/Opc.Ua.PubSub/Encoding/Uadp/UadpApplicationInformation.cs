@@ -32,54 +32,55 @@ using System.Collections.Generic;
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
     /// <summary>
-    /// UADP discovery request NetworkMessage. Carries a discovery
-    /// information type and a list of DataSetWriterIds the subscriber
-    /// is interested in.
+    /// Application-information payload of a discovery response per
+    /// Part 14 §7.2.4.6.7.
     /// </summary>
     /// <remarks>
     /// Implements
-    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.6">
-    /// Part 14 §7.2.4.6</see>. Requests carry no payload other than the
-    /// DataSetWriterIds list; the publisher answers with one or more
-    /// <see cref="UadpDiscoveryResponseMessage"/> instances.
+    /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.4.6.7">
+    /// Part 14 §7.2.4.6.7</see>. Carried in the
+    /// <see cref="UadpDiscoveryResponseMessage.ApplicationInformation"/>
+    /// slot when
+    /// <see cref="UadpDiscoveryResponseMessage.DiscoveryType"/> is
+    /// <see cref="UadpDiscoveryType.ApplicationInformation"/>.
     /// </remarks>
-    public sealed record UadpDiscoveryRequestMessage : PubSubNetworkMessage
+    public sealed record UadpApplicationInformation
     {
         /// <summary>
-        /// UADP protocol version (low nibble of header byte).
+        /// Display name of the publishing application.
         /// </summary>
-        public byte UadpVersion { get; init; } = 1;
+        public LocalizedText ApplicationName { get; init; } = LocalizedText.Null;
 
         /// <summary>
-        /// DataSetClassId carried at the NetworkMessage level (Guid).
+        /// Application URI (must match the URI in the publisher's
+        /// certificate, if signed).
         /// </summary>
-        public Uuid DataSetClassId { get; init; }
+        public string ApplicationUri { get; init; } = string.Empty;
 
         /// <summary>
-        /// Distinguishes data messages from discovery requests/responses.
+        /// Product URI of the publisher's product.
         /// </summary>
-        public UadpNetworkMessageType MessageType { get; init; }
-            = UadpNetworkMessageType.DiscoveryRequest;
+        public string ProductUri { get; init; } = string.Empty;
 
         /// <summary>
-        /// Information type the subscriber requests.
+        /// ApplicationType of the publisher.
         /// </summary>
-        public UadpDiscoveryType DiscoveryType { get; init; }
+        public ApplicationType ApplicationType { get; init; }
+            = ApplicationType.Server;
 
         /// <summary>
-        /// DataSetWriterIds the subscriber is asking about. An empty
-        /// list means "all writers known to the publisher".
+        /// Optional capability identifiers (e.g. <c>UAMA</c>, <c>NA</c>).
         /// </summary>
-        public IReadOnlyList<ushort> DataSetWriterIds { get; init; } = [];
+        public IReadOnlyList<string> Capabilities { get; init; } = [];
 
         /// <summary>
-        /// Optional filter applied when <see cref="DiscoveryType"/> is
-        /// <see cref="UadpDiscoveryType.Probe"/> (Part 14 §7.2.4.6.12).
-        /// <see langword="null"/> for non-probe requests.
+        /// Supported transport profile URIs.
         /// </summary>
-        public UadpDiscoveryProbeFilter? ProbeFilter { get; init; }
+        public IReadOnlyList<string> SupportedTransportProfiles { get; init; } = [];
 
-        /// <inheritdoc/>
-        public override string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+        /// <summary>
+        /// Supported PubSub security policy URIs.
+        /// </summary>
+        public IReadOnlyList<string> SupportedSecurityPolicies { get; init; } = [];
     }
 }
