@@ -1,108 +1,101 @@
+# OPC UA Console Reference Subscriber
 
-# OPC Foundation UA .NET Standard Library - Console Reference Subscriber
+A self-contained .NET 10 console application that subscribes to an OPC
+UA Part 14 PubSub DataSet over UDP/UADP or MQTT (UADP or JSON) using
+the fluent + DI hosting surface introduced in v2.0 of the .NET
+Standard stack. Pairs with `Applications/ConsoleReferencePublisher`.
 
-## Introduction
+## Quick start (UDP, default)
 
-This OPC application was created to provide the sample code for creating Subscriber applications using the OPC Foundation UA .NET Standard PubSub Library. There is a .NET Core 3.1 (2.1) console version of the Subscriber which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
-The Reference Subscriber is configured to run in parallel with the [Console Reference Publisher](../ConsoleReferencePublisher/README.md)
+```pwsh
+dotnet run -- --profile udp-uadp
+```
 
-## How to build and run the Windows OPC UA Reference Server from Visual Studio
+The subscriber binds the loopback multicast group
+`opc.udp://239.0.0.1:4840`, filters for `PublisherId=1` /
+`WriterGroupId=100` / `DataSetWriterId=1`, and prints every decoded
+DataSetMessage to the console.
 
-1. Open the solution **UA.slnx** with Visual Studio 2026.
-2. Choose the project `ConsoleReferenceSubscriber` in the Solution Explorer and set it with a right click as `Startup Project`.
-3. Hit `F5` to build and execute the sample.
+## Profiles
 
-## How to build and run the console OPC UA Reference Subscriber on Windows, Linux and iOS
+| `--profile`  | Transport | Encoding |
+|--------------|-----------|----------|
+| `udp-uadp`   | UDP datagram (Part 14 §7.3.2) | UADP binary (Part 14 §5.3) |
+| `mqtt-uadp`  | MQTT broker (Part 14 §7.3.4)  | UADP binary (Part 14 §5.3) |
+| `mqtt-json`  | MQTT broker (Part 14 §7.3.4)  | JSON       (Part 14 §5.4) |
 
-This section describes how to run the **ConsoleReferenceSubscriber**.
+The MQTT profiles assume a broker reachable at `mqtt://localhost:1883`
+unless overridden via `--endpoint`.
 
-Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform.
+## CLI flags
 
-## Start the Subscriber
+| Flag                         | Default                | Description |
+|------------------------------|------------------------|-------------|
+| `--profile`                  | `udp-uadp`             | Wire profile. |
+| `--config-file`              | _(unset)_              | Loads a Part 14 XML PubSub configuration instead of building one in-code. |
+| `--publisher-id-filter`      | `1`                    | PublisherId filter (Part 14 §6.2.9). |
+| `--writer-group-id-filter`   | `100`                  | WriterGroupId filter. |
+| `--data-set-writer-id-filter`| `1`                    | DataSetWriterId filter. |
+| `--endpoint`                 | profile-specific       | Transport endpoint URL. |
 
-1. Open a command prompt.
-2. Navigate to the folder **Applications/ConsoleReferenceSubscriber**.
-3. To run the Subscriber sample type
+## Configuration via XML
 
-`dotnet run --project ConsoleReferenceSubscriber.csproj --framework net10.0.`
+```pwsh
+dotnet run -- --profile udp-uadp --config-file Configuration\PubSubConfig.xml
+```
 
-The Subscriber will start and listen for network messages sent by the Reference Publisher.
+When `--config-file` is supplied the subscriber loads the XML through
+`XmlPubSubConfigurationStore` (Part 14 §9.1.6) and skips the in-code
+builder; the same in-process `ConsoleLoggingSink` is still wired to
+the DataSetReader named `Reader 1`.
 
-## Command Line Arguments for *ConsoleReferenceSubscriber*
+## NativeAOT publish
 
- **ConsoleReferenceSubscriber** can be executed using the following command line arguments:
+```pwsh
+dotnet publish -c Release -r win-x64
+```
 
-- -h|help - Shows usage information
-- -m|mqtt_json - Creates a connection using there MQTT with Json encoding Profile. This is the default option.
-- -u|udp_uadp - Creates a connection using there UDP with UADP encoding Profile.
+The csproj sets `<PublishAot>true</PublishAot>` on `net10.0` and
+references only the trim-clean PubSub libraries plus
+`Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Logging.Console`
+and `System.CommandLine`. The published executable lives under
+`bin/Release/net10.0/<rid>/publish/ConsoleReferenceSubscriber.exe` and
+boots a complete PubSub subscriber with no JIT and no
+reflection-driven configuration binding.
 
-To run the Subscriber sample using a connection with MQTT with Json encoding execute:
+## Fluent builder walkthrough
 
-  dotnet run --project ConsoleReferenceSubscriber.csproj --framework net10.0
+`Program.cs` shows the canonical subscriber wiring shape:
 
-  or
+```csharp
+builder.Services.AddSingleton<IPubSubApplication>(sp =>
+{
+    ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+    var sink = new ConsoleLoggingSink(loggerFactory.CreateLogger<ConsoleLoggingSink>());
 
-  dotnet run --project ConsoleReferenceSubscriber.csproj --framework net10.0 -m
+    PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
+        .WithApplicationId("urn:opcfoundation:ConsoleReferenceSubscriber")
+        .UseAllStandardEncoders()                       // Part 14 §5.3 / §5.4
+        .AddSubscribedDataSetSink("Reader 1", sink);    // Part 14 §6.2.9
 
-To run the Subscriber sample using a connection with the UDP with UADP encoding execute:
+    foreach (IPubSubTransportFactory factory
+        in sp.GetServices<IPubSubTransportFactory>())
+    {
+        pb.AddTransportFactory(factory);                // Part 14 §7.3
+    }
+    return pb
+        .UseConfiguration(SubscriberConfigurationBuilder.Build(...))
+        .Build();                                       // Part 14 §9.1.2
+});
 
-  dotnet run --project ConsoleReferenceSubscriber.csproj --framework net10.0 -u
+builder.Services.AddOpcUa()
+    .AddPubSubSubscriber()                              // hosted-service plumbing
+    .AddUdpTransport()                                  // Part 14 §7.3.2
+    .AddMqttTransport();                                // Part 14 §7.3.4
+```
 
-## Programmer's Guide
-
-To create a new OPC UA Subscriber application:
-
-- Open Microsoft Visual Studio 2019 environment,
-- Create a new project and give it a name,
-- Add a reference to the [OPCFoundation.NetStandard.Opc.Ua.PubSub NuGet package](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/),
-- Initialize Subscriber application (see [Subscriber Initialization](#subscriber-initialization)).
-
-### Subscriber Initialization
-
-The following four steps are required to implement a functional Subscriber:
-
- 1. Create [Subscriber Configuration](#subscriber-configuration).
-
-    ```csharp
-        // Create configuration using UDP protocol and UADP Encoding
-        PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp();
-    ```
-
-    Or use the alternative configuration object for MQTT with JSON encoding
-
-    ```csharp
-        // Create configuration using MQTT protocol and JSON Encoding
-        PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
-    ```
-
-    The CreateSubscriberConfiguration methods can be found in  [ConsoleReferenceSubscriber/Program.cs](./Program.cs) file.
-
- 2. Create an instance of the [UaPubSubApplication Class](../../Docs/PubSub.md#uapubsubapplication-class) using the configuration data from step 1.
-
-    ```csharp
-        // Subscribe to data events
-        UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration);
-    ```
-
- 3. Provide the event handler for the *DataReceived*  event. This event will be raised when data sets matching the subscriber configuration arrive over the network. See the DataReceived Event section for more details.
-
-    ```csharp
-        // Create an instance of UaPubSubApplication
-        uaPubSubApplication.DataReceived += PubSubApplication_DataReceived;
-    ```
-
- 4. Start PubSub application
-
-    ```csharp
-        // Start the publisher
-        uaPubSubApplication.Start();
-    ```
-
-After this step the *Subscriber* will listen for *NetworkMessages* as configured.
-
-### Subscriber Configuration
-
-The Subscriber configuration is a subset of the [PubSub Configuration](../../Docs/PubSub.md#pubsub-configuration). A functional *Subscriber* application needs to have a configuration (*PubSubConfigurationDataType* instance) that contains at least one connection (*PubSubConnectionDataType* instance) with at least one reader group configuration (*ReaderGroupDataType* instance). The reader group contains at least one data set reader (*DataSetReaderDataType* instance) that describes a published data set that can be processed and retrieved by the *Subscriber* application.
-The diagram shows the subset of classes involved in an *OPC UA Publisher* configuration.
-
-![SubscriberConfigClasses](../../Docs/Images/SubscriberConfigClasses.png)
+The runtime walks the `IPubSubApplication`'s ReaderGroup → DataSetReader
+hierarchy and dispatches every decoded `DataSetMessage` through the
+sink keyed by reader name. To project the values into an OPC UA Server
+address space, swap `ConsoleLoggingSink` for `TargetVariablesSink`; to
+mirror them in memory, use `MirroredVariablesSink`.

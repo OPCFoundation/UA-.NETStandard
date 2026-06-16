@@ -25,11 +25,20 @@
     <ProjectReference Include="..\..\Applications\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
     <ProjectReference Include="..\..\Applications\MinimalBoilerServer\MinimalBoilerServer.csproj">
       <Aliases>boilersample</Aliases>
     </ProjectReference>
     <ProjectReference Include="..\..\Applications\MinimalCalcServer\MinimalCalcServer.csproj">
       <Aliases>calcsample</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Applications\ConsoleReferencePublisher\ConsoleReferencePublisher.csproj">
+      <Aliases>publishersample</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Applications\ConsoleReferenceSubscriber\ConsoleReferenceSubscriber.csproj">
+      <Aliases>subscribersample</Aliases>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

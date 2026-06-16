@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -30,793 +30,216 @@
 using System;
 using System.CommandLine;
 using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Transport;
+using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Transports;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
-    public static class Program
+    /// <summary>
+    /// OPC UA Part 14 PubSub reference publisher built on the fluent
+    /// <see cref="PubSubApplicationBuilder"/> + DI + .NET Generic Host
+    /// surface (Part 14 §9.1.2). Demonstrates how to compose a UDP/UADP
+    /// or MQTT (UADP / JSON) publisher in <c>~150</c> LOC and publish
+    /// the build as a NativeAOT-ready single-file executable.
+    /// </summary>
+    internal static class Program
     {
-        /// <summary>
-        /// constant DateTime that represents the initial time when the metadata
-        /// for the configuration was created
-        /// </summary>
-        private static readonly DateTime s_timeOfConfiguration = new(
-            2021,
-            6,
-            1,
-            0,
-            0,
-            0,
-            DateTimeKind.Utc);
-
-        public static void Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
-            Console.WriteLine("OPC UA Console Reference Publisher");
-
-            // command line options
-            var mqttJsonOption = new Option<bool>("--mqtt_json", "-m") { Description = "Use MQTT with Json encoding Profile. This is the default option." };
-            var mqttUadpOption = new Option<bool>("--mqtt_uadp", "-p") { Description = "Use MQTT with UADP encoding Profile." };
-            var udpUadpOption = new Option<bool>("--udp_uadp", "-u") { Description = "Use UDP with UADP encoding Profile" };
-            var publisherUrlOption = new Option<string>("--publisher_url", "--url") { Description = "Publisher Url Address" };
-
-            var rootCommand = new RootCommand("OPC UA Console Reference Publisher")
+            var profileOption = new Option<string>("--profile")
             {
-                mqttJsonOption,
-                mqttUadpOption,
-                udpUadpOption,
-                publisherUrlOption
+                Description =
+                    "Transport profile: udp-uadp | mqtt-uadp | mqtt-json.",
+                DefaultValueFactory = _ => "udp-uadp"
+            };
+            var configFileOption = new Option<string?>("--config-file")
+            {
+                Description = "Optional path to a Part 14 XML PubSub configuration."
+            };
+            var publisherIdOption = new Option<ushort>("--publisher-id")
+            {
+                Description = "PublisherId published in every NetworkMessage header.",
+                DefaultValueFactory = _ => (ushort)1
+            };
+            var writerGroupIdOption = new Option<ushort>("--writer-group-id")
+            {
+                Description = "WriterGroupId for the single sample WriterGroup.",
+                DefaultValueFactory = _ => (ushort)100
+            };
+            var dataSetWriterIdOption = new Option<ushort>("--data-set-writer-id")
+            {
+                Description = "DataSetWriterId for the single sample writer.",
+                DefaultValueFactory = _ => (ushort)1
+            };
+            var endpointOption = new Option<string?>("--endpoint")
+            {
+                Description =
+                    "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 (UDP), " +
+                    "mqtt://localhost:1883 (MQTT)."
+            };
+            var intervalOption = new Option<int>("--interval")
+            {
+                Description = "Publishing interval in milliseconds.",
+                DefaultValueFactory = _ => 1000
             };
 
-            rootCommand.SetAction((parseResult) =>
+            var rootCommand = new RootCommand(
+                "OPC UA Part 14 PubSub Reference Publisher")
             {
-                bool useMqttUadp = parseResult.GetValue(mqttUadpOption);
-                bool useUdpUadp = parseResult.GetValue(udpUadpOption);
-                string? publisherUrl = parseResult.GetValue(publisherUrlOption);
+                profileOption,
+                configFileOption,
+                publisherIdOption,
+                writerGroupIdOption,
+                dataSetWriterIdOption,
+                endpointOption,
+                intervalOption
+            };
 
-                try
+            int exitCode = 0;
+            rootCommand.SetAction(async (parseResult, cancellationToken) =>
+            {
+                string? profileArg = parseResult.GetValue(profileOption);
+                if (!TryParseProfile(profileArg, out PublisherProfile profile))
                 {
-                    var telemetry = new ConsoleTelemetry();
-
-                    PubSubConfigurationDataType? pubSubConfiguration = null;
-                    if (useUdpUadp)
-                    {
-                        // set default UDP Publisher Url to local multi-cast if not sent in args.
-                        if (string.IsNullOrEmpty(publisherUrl))
-                        {
-                            publisherUrl = "opc.udp://239.0.0.1:4840";
-                        }
-
-                        // Create configuration using UDP protocol and UADP Encoding
-                        pubSubConfiguration = CreatePublisherConfiguration_UdpUadp(publisherUrl!);
-                        Console.WriteLine(
-                            "The PubSub Connection was initialized using UDP & UADP Profile.");
-                    }
-                    else
-                    {
-                        // set default MQTT Broker Url to localhost if not sent in args.
-                        if (string.IsNullOrEmpty(publisherUrl))
-                        {
-                            publisherUrl = "mqtt://localhost:1883";
-                        }
-
-                        if (useMqttUadp)
-                        {
-                            // Create configuration using MQTT protocol and UADP Encoding
-                            pubSubConfiguration = CreatePublisherConfiguration_MqttUadp(publisherUrl!);
-                            Console.WriteLine(
-                                "The PubSub Connection was initialized using MQTT & UADP Profile.");
-                        }
-                        else
-                        {
-                            // Create configuration using MQTT protocol and JSON Encoding
-                            pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl!);
-                            Console.WriteLine(
-                                "The PubSub Connection was initialized using MQTT & JSON Profile.");
-                        }
-                    }
-
-                    // Create the UA Publisher application using configuration file
-                    using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
-                    {
-                        // Start values simulator
-                        var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
-                        valuesSimulator.Start();
-
-                        // Start the publisher
-                        uaPubSubApplication.Start();
-
-                        Console.WriteLine("Publisher Started. Press Ctrl-C to exit...");
-
-                        var quitEvent = new ManualResetEvent(false);
-
-                        Console.CancelKeyPress += (sender, eArgs) =>
-                        {
-                            quitEvent.Set();
-                            eArgs.Cancel = true;
-                        };
-
-                        // wait for timeout or Ctrl-C
-                        quitEvent.WaitOne();
-                    }
-
-                    Console.WriteLine("Program ended.");
-                    Console.WriteLine("Press any key to finish...");
-                    Console.ReadKey();
+                    await Console.Error.WriteLineAsync(
+                        $"Unknown --profile value '{profileArg}'. " +
+                        "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
+                        .ConfigureAwait(false);
+                    exitCode = 2;
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
+                exitCode = await RunAsync(
+                    profile,
+                    parseResult.GetValue(configFileOption),
+                    parseResult.GetValue(publisherIdOption),
+                    parseResult.GetValue(writerGroupIdOption),
+                    parseResult.GetValue(dataSetWriterIdOption),
+                    parseResult.GetValue(endpointOption),
+                    parseResult.GetValue(intervalOption),
+                    cancellationToken).ConfigureAwait(false);
             });
 
-            ParseResult parseResult = rootCommand.Parse(args);
-            parseResult.Invoke(new InvocationConfiguration());
+            ParseResult parse = rootCommand.Parse(args);
+            await parse.InvokeAsync().ConfigureAwait(false);
+            return exitCode;
         }
 
-        /// <summary>
-        /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
-        /// </summary>
-        /// <returns></returns>
-        private static PubSubConfigurationDataType CreatePublisherConfiguration_UdpUadp(
-            string urlAddress)
+        private static bool TryParseProfile(string? text, out PublisherProfile profile)
         {
-            // Define a PubSub connection with PublisherId 1
-            var pubSubConnection1 = new PubSubConnectionDataType
+            switch (text)
             {
-                Name = "Publisher Connection UDP UADP",
-                Enabled = true,
-                PublisherId = (ushort)1,
-                TransportProfileUri = Profiles.PubSubUdpUadpTransport
-            };
-            var address = new NetworkAddressUrlDataType
-            {
-                // Specify the local Network interface name to be used
-                // e.g. address.NetworkInterface = "Ethernet";
-                // Leave empty to publish on all available local interfaces.
-                NetworkInterface = string.Empty,
-                Url = urlAddress
-            };
-            pubSubConnection1.Address = new ExtensionObject(address);
+                case "udp-uadp":
+                    profile = PublisherProfile.UdpUadp;
+                    return true;
+                case "mqtt-uadp":
+                    profile = PublisherProfile.MqttUadp;
+                    return true;
+                case "mqtt-json":
+                    profile = PublisherProfile.MqttJson;
+                    return true;
+                default:
+                    profile = PublisherProfile.UdpUadp;
+                    return false;
+            }
+        }
 
-            // configure custom DiscoveryAddress for Discovery messages
-            pubSubConnection1.TransportSettings = new ExtensionObject(
-                new DatagramConnectionTransportDataType
+        private static async Task<int> RunAsync(
+            PublisherProfile profile,
+            string? configFile,
+            ushort publisherId,
+            ushort writerGroupId,
+            ushort dataSetWriterId,
+            string? endpoint,
+            int intervalMs,
+            CancellationToken cancellationToken)
+        {
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+
+            string transportEndpoint = endpoint
+                ?? PublisherConfigurationBuilder.DefaultEndpointFor(profile);
+            var sampleSource = new SampleDataSetSource();
+
+            builder.Services.AddSingleton(sampleSource);
+
+            // Register the IPubSubApplication BEFORE AddPubSubPublisher so
+            // TryAddSingleton inside the DI extension skips its default
+            // factory. This lets the sample wire a fluent
+            // PubSubApplicationBuilder that pre-registers a custom
+            // IPublishedDataSetSource for live demo data.
+            builder.Services.AddSingleton<IPubSubApplication>(sp =>
+            {
+                ITelemetryContext telemetry =
+                    sp.GetRequiredService<ITelemetryContext>();
+                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
+                    .WithApplicationId("urn:opcfoundation:ConsoleReferencePublisher")
+                    .UseAllStandardEncoders()
+                    .AddDataSetSource(
+                        PublisherConfigurationBuilder.DataSetName,
+                        sp.GetRequiredService<SampleDataSetSource>());
+                foreach (IPubSubTransportFactory factory
+                    in sp.GetServices<IPubSubTransportFactory>())
                 {
-                    DiscoveryAddress = new ExtensionObject(
-                        new NetworkAddressUrlDataType
-                        {
-                            Url = "opc.udp://224.0.2.15:4840"
-                        })
-                });
-
-            var writerGroup1 = new WriterGroupDataType
-            {
-                Name = "WriterGroup 1",
-                Enabled = true,
-                WriterGroupId = 1,
-                PublishingInterval = 5000,
-                KeepAliveTime = 5000,
-                MaxNetworkMessageSize = 1500,
-                HeaderLayoutUri = "UADP-Cyclic-Fixed"
-            };
-            var uadpMessageSettings = new UadpWriterGroupMessageDataType
-            {
-                DataSetOrdering = DataSetOrderingType.AscendingWriterId,
-                GroupVersion = 0,
-                NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId |
-                    UadpNetworkMessageContentMask.GroupHeader |
-                    // needed to be able to decode the DataSetWriterId
-                    UadpNetworkMessageContentMask.PayloadHeader |
-                    UadpNetworkMessageContentMask.WriterGroupId |
-                    UadpNetworkMessageContentMask.GroupVersion |
-                    UadpNetworkMessageContentMask.NetworkMessageNumber |
-                    UadpNetworkMessageContentMask.SequenceNumber
-                )
-            };
-
-            writerGroup1.MessageSettings = new ExtensionObject(uadpMessageSettings);
-            // initialize Datagram (UDP) Transport Settings
-            writerGroup1.TransportSettings = new ExtensionObject(
-                new DatagramWriterGroupTransportDataType());
-
-            // Define DataSetWriter 'Simple'
-            var dataSetWriter1 = new DataSetWriterDataType
-            {
-                Name = "Writer 1",
-                DataSetWriterId = 1,
-                Enabled = true,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                DataSetName = "Simple",
-                KeyFrameCount = 1
-            };
-            var uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType
-            {
-                NetworkMessageNumber = 1,
-                DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status |
-                    UadpDataSetMessageContentMask.SequenceNumber
-                )
-            };
-
-            dataSetWriter1.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter1);
-
-            // Define DataSetWriter 'AllTypes'
-            var dataSetWriter2 = new DataSetWriterDataType
-            {
-                Name = "Writer 2",
-                DataSetWriterId = 2,
-                Enabled = true,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                DataSetName = "AllTypes",
-                KeyFrameCount = 1
-            };
-            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType
-            {
-                NetworkMessageNumber = 1,
-                DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status |
-                    UadpDataSetMessageContentMask.SequenceNumber
-                )
-            };
-
-            dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter2);
-            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
-
-            //  Define PublishedDataSet Simple
-            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
-
-            // Define PublishedDataSet AllTypes
-            PublishedDataSetDataType publishedDataSetAllTypes = CreatePublishedDataSetAllTypes();
-
-            //create  the PubSub configuration root object
-            return new PubSubConfigurationDataType
-            {
-                Enabled = true,
-                Connections = [pubSubConnection1],
-                PublishedDataSets = [publishedDataSetSimple, publishedDataSetAllTypes]
-            };
-        }
-
-        /// <summary>
-        /// Creates a PubSubConfiguration object for MQTT & Json programmatically.
-        /// </summary>
-        /// <returns></returns>
-        private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson(
-            string urlAddress)
-        {
-            // Define a PubSub connection with PublisherId 2
-            var pubSubConnection1 = new PubSubConnectionDataType
-            {
-                Name = "Publisher Connection MQTT Json",
-                Enabled = true,
-                PublisherId = (ushort)2,
-                TransportProfileUri = Profiles.PubSubMqttJsonTransport
-            };
-            var address = new NetworkAddressUrlDataType
-            {
-                // Specify the local Network interface name to be used
-                // e.g. address.NetworkInterface = "Ethernet";
-                // Leave empty to publish on all available local interfaces.
-                NetworkInterface = string.Empty,
-                Url = urlAddress
-            };
-            pubSubConnection1.Address = new ExtensionObject(address);
-
-            // Configure the mqtt specific configuration with the MQTT broker
-            var mqttConfiguration = new MqttClientProtocolConfiguration(
-                version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
-
-            const string brokerQueueName = "Json_WriterGroup_1";
-            const string brokerMetaData = "$Metadata";
-
-            var writerGroup1 = new WriterGroupDataType
-            {
-                Name = "WriterGroup 1",
-                Enabled = true,
-                WriterGroupId = 1,
-                PublishingInterval = 5000,
-                KeepAliveTime = 5000,
-                MaxNetworkMessageSize = 1500
-            };
-
-            var jsonMessageSettings = new JsonWriterGroupMessageDataType
-            {
-                NetworkMessageContentMask = (uint)(
-                    JsonNetworkMessageContentMask.NetworkMessageHeader |
-                    JsonNetworkMessageContentMask.DataSetMessageHeader |
-                    JsonNetworkMessageContentMask.PublisherId |
-                    JsonNetworkMessageContentMask.DataSetClassId |
-                    JsonNetworkMessageContentMask.ReplyTo
-                )
-            };
-
-            writerGroup1.MessageSettings = new ExtensionObject(jsonMessageSettings);
-            writerGroup1.TransportSettings = new ExtensionObject(
-                new BrokerWriterGroupTransportDataType { QueueName = brokerQueueName }
-            );
-
-            // Define DataSetWriter 'Simple' Variant encoding
-            var dataSetWriter1 = new DataSetWriterDataType
-            {
-                Name = "Writer Variant Encoding",
-                DataSetWriterId = 1,
-                Enabled = true,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.None, // Variant encoding;
-                DataSetName = "Simple",
-                KeyFrameCount = 3
-            };
-
-            var jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType
-            {
-                DataSetMessageContentMask = (uint)(
-                    JsonDataSetMessageContentMask.DataSetWriterId |
-                    JsonDataSetMessageContentMask.MetaDataVersion |
-                    JsonDataSetMessageContentMask.SequenceNumber |
-                    JsonDataSetMessageContentMask.Status |
-                    JsonDataSetMessageContentMask.Timestamp
-                )
-            };
-            dataSetWriter1.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
-
-            var jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType
-            {
-                QueueName = brokerQueueName,
-                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
-                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 0
-            };
-            dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
-
-            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter1);
-
-            // Define DataSetWriter 'Simple' - Variant encoding
-            var dataSetWriter2 = new DataSetWriterDataType
-            {
-                Name = "Writer RawData Encoding",
-                DataSetWriterId = 2,
-                Enabled = true,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                DataSetName = "AllTypes",
-                KeyFrameCount = 1
-            };
-
-            jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType
-            {
-                DataSetMessageContentMask = (uint)(
-                    JsonDataSetMessageContentMask.DataSetWriterId |
-                    JsonDataSetMessageContentMask.MetaDataVersion |
-                    JsonDataSetMessageContentMask.SequenceNumber |
-                    JsonDataSetMessageContentMask.Status |
-                    JsonDataSetMessageContentMask.Timestamp
-                )
-            };
-            dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
-
-            jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType
-            {
-                QueueName = brokerQueueName,
-                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
-                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 0
-            };
-            dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
-
-            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter2);
-            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
-
-            // Define PublishedDataSet Simple
-            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
-
-            // Define PublishedDataSet AllTypes
-            PublishedDataSetDataType publishedDataSetAllTypes = CreatePublishedDataSetAllTypes();
-
-            //create  the PubSub configuration root object
-            return new PubSubConfigurationDataType
-            {
-                Enabled = true,
-                Connections = [pubSubConnection1],
-                PublishedDataSets = [publishedDataSetSimple, publishedDataSetAllTypes]
-            };
-        }
-
-        /// <summary>
-        /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
-        /// </summary>
-        /// <returns></returns>
-        private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttUadp(
-            string urlAddress)
-        {
-            // Define a PubSub connection with PublisherId 3
-            var pubSubConnection1 = new PubSubConnectionDataType
-            {
-                Name = "Publisher Connection MQTT UADP",
-                Enabled = true,
-                PublisherId = (ushort)3,
-                TransportProfileUri = Profiles.PubSubMqttUadpTransport
-            };
-            var address = new NetworkAddressUrlDataType
-            {
-                // Specify the local Network interface name to be used
-                // e.g. address.NetworkInterface = "Ethernet";
-                // Leave empty to publish on all available local interfaces.
-                NetworkInterface = string.Empty,
-                Url = urlAddress
-            };
-            pubSubConnection1.Address = new ExtensionObject(address);
-
-            // Configure the mqtt specific configuration with the MQTTbroker
-            var mqttConfiguration = new MqttClientProtocolConfiguration(
-                version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
-
-            const string brokerQueueName = "Uadp_WriterGroup_1";
-            const string brokerMetaData = "$Metadata";
-
-            var writerGroup1 = new WriterGroupDataType
-            {
-                Name = "WriterGroup 1",
-                Enabled = true,
-                WriterGroupId = 1,
-                PublishingInterval = 5000,
-                KeepAliveTime = 5000,
-                MaxNetworkMessageSize = 1500,
-                HeaderLayoutUri = "UADP-Cyclic-Fixed"
-            };
-            var uadpMessageSettings = new UadpWriterGroupMessageDataType
-            {
-                DataSetOrdering = DataSetOrderingType.AscendingWriterId,
-                GroupVersion = 0,
-                NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId |
-                    UadpNetworkMessageContentMask.GroupHeader |
-                    UadpNetworkMessageContentMask.WriterGroupId |
-                    UadpNetworkMessageContentMask.PayloadHeader |
-                    UadpNetworkMessageContentMask.GroupVersion |
-                    UadpNetworkMessageContentMask.NetworkMessageNumber |
-                    UadpNetworkMessageContentMask.SequenceNumber
-                )
-            };
-
-            writerGroup1.MessageSettings = new ExtensionObject(uadpMessageSettings);
-            // initialize Broker transport settings
-            writerGroup1.TransportSettings = new ExtensionObject(
-                new BrokerWriterGroupTransportDataType { QueueName = brokerQueueName }
-            );
-
-            // Define DataSetWriter 'Simple'
-            var dataSetWriter1 = new DataSetWriterDataType
-            {
-                Name = "Writer 1",
-                DataSetWriterId = 1,
-                Enabled = true,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                DataSetName = "Simple",
-                KeyFrameCount = 1
-            };
-            var uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType
-            {
-                ConfiguredSize = 32,
-                DataSetOffset = 15,
-                NetworkMessageNumber = 1,
-                DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status |
-                    UadpDataSetMessageContentMask.SequenceNumber
-                )
-            };
-
-            dataSetWriter1.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-            var uadpDataSetWriterTransport = new BrokerDataSetWriterTransportDataType
-            {
-                QueueName = brokerQueueName,
-                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 60000
-            };
-            dataSetWriter1.TransportSettings = new ExtensionObject(uadpDataSetWriterTransport);
-
-            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter1);
-
-            // Define DataSetWriter 'AllTypes'
-            var dataSetWriter2 = new DataSetWriterDataType
-            {
-                Name = "Writer 2",
-                DataSetWriterId = 2,
-                Enabled = true,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                DataSetName = "AllTypes",
-                KeyFrameCount = 1
-            };
-            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType
-            {
-                ConfiguredSize = 32,
-                DataSetOffset = 47,
-                NetworkMessageNumber = 1,
-                DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status |
-                    UadpDataSetMessageContentMask.SequenceNumber
-                )
-            };
-
-            dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-
-            dataSetWriter2.TransportSettings = new ExtensionObject(uadpDataSetWriterTransport);
-            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter2);
-
-            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
-
-            //  Define PublishedDataSet Simple
-            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
-
-            // Define PublishedDataSet AllTypes
-            PublishedDataSetDataType publishedDataSetAllTypes = CreatePublishedDataSetAllTypes();
-
-            //create  the PubSub configuration root object
-            return new PubSubConfigurationDataType
-            {
-                Enabled = true,
-                Connections = [pubSubConnection1],
-                PublishedDataSets = [publishedDataSetSimple, publishedDataSetAllTypes]
-            };
-        }
-
-        /// <summary>
-        /// Creates the "Simple" DataSet
-        /// </summary>
-        /// <returns></returns>
-        private static PublishedDataSetDataType CreatePublishedDataSetSimple()
-        {
-            var publishedDataSetSimple = new PublishedDataSetDataType
-            {
-                Name = "Simple" //name shall be unique in a configuration
-            };
-            // Define  publishedDataSetSimple.DataSetMetaData
-            publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType
-            {
-                DataSetClassId = Uuid.Empty,
-                Name = publishedDataSetSimple.Name,
-                Fields =
-                [
-                    new FieldMetaData
-                    {
-                        Name = "BoolToggle",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Int32",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Int32Fast",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DateTime",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.DateTime,
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar
-                    }
-                ],
-
-                // set the ConfigurationVersion relative to kTimeOfConfiguration constant
-                ConfigurationVersion = new ConfigurationVersionDataType
-                {
-                    MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(
-                        s_timeOfConfiguration),
-                    MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(
-                        s_timeOfConfiguration)
+                    pb.AddTransportFactory(factory);
                 }
-            };
+                if (!string.IsNullOrEmpty(configFile))
+                {
+                    pb.UseConfigurationFile(configFile);
+                }
+                else
+                {
+                    pb.UseConfiguration(PublisherConfigurationBuilder.Build(
+                        profile,
+                        transportEndpoint,
+                        publisherId,
+                        writerGroupId,
+                        dataSetWriterId,
+                        intervalMs));
+                }
+                return pb.Build();
+            });
 
-            var publishedDataSetSimpleSource = new PublishedDataItemsDataType
+            IOpcUaBuilder ua = builder.Services.AddOpcUa()
+                .AddPubSubPublisher()
+                .AddUdpTransport();
+            if (profile != PublisherProfile.UdpUadp)
             {
-                PublishedData = []
-            };
-            //create PublishedData based on metadata names
-            foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
-            {
-                publishedDataSetSimpleSource.PublishedData = publishedDataSetSimpleSource.PublishedData.AddItem(
-                    new PublishedVariableDataType
-                    {
-                        PublishedVariable = new NodeId(
-                            field.Name!,
-                            PublishedValuesWrites.NamespaceIndexSimple),
-                        AttributeId = Attributes.Value
-                    }
-                );
+                ua.AddMqttTransport();
             }
 
-            publishedDataSetSimple.DataSetSource
-                = new ExtensionObject(publishedDataSetSimpleSource);
-
-            return publishedDataSetSimple;
+            IHost host = builder.Build();
+            ILogger logger = host.Services
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("ConsoleReferencePublisher");
+            logger.LogInformation(
+                "Application starting: profile={Profile} endpoint={Endpoint} " +
+                "interval={Interval}ms publisherId={PublisherId} writerGroup={WriterGroupId}",
+                profile, transportEndpoint, intervalMs, publisherId, writerGroupId);
+            logger.LogInformation("Publisher started. Press Ctrl-C to exit.");
+            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            return 0;
         }
+    }
 
-        /// <summary>
-        /// Creates the "AllTypes" DataSet
-        /// </summary>
-        /// <returns></returns>
-        private static PublishedDataSetDataType CreatePublishedDataSetAllTypes()
-        {
-            var publishedDataSetAllTypes = new PublishedDataSetDataType
-            {
-                Name = "AllTypes" //name shall be unique in a configuration
-            };
-            // Define  publishedDataSetAllTypes.DataSetMetaData
-            publishedDataSetAllTypes.DataSetMetaData = new DataSetMetaDataType
-            {
-                DataSetClassId = Uuid.Empty,
-                Name = publishedDataSetAllTypes.Name,
-                Fields =
-                [
-                    new FieldMetaData
-                    {
-                        Name = "BoolToggle",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Byte",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Byte,
-                        DataType = DataTypeIds.Byte,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Int16",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Int16,
-                        DataType = DataTypeIds.Int16,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Int32",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "SByte",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.SByte,
-                        DataType = DataTypeIds.SByte,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "UInt16",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.UInt16,
-                        DataType = DataTypeIds.UInt16,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "UInt32",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.UInt32,
-                        DataType = DataTypeIds.UInt32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "UInt64",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.UInt64,
-                        DataType = DataTypeIds.UInt64,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Float",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Float,
-                        DataType = DataTypeIds.Float,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Double",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Double,
-                        DataType = DataTypeIds.Double,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "String",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.String,
-                        DataType = DataTypeIds.String,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "ByteString",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.ByteString,
-                        DataType = DataTypeIds.ByteString,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Guid",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.Guid,
-                        DataType = DataTypeIds.Guid,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DateTime",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.DateTime,
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "UInt32Array",
-                        DataSetFieldId = Uuid.NewUuid(),
-                        BuiltInType = (byte)DataTypes.UInt32,
-                        DataType = DataTypeIds.UInt32,
-                        ValueRank = ValueRanks.OneDimension
-                    }
-                ],
+    /// <summary>
+    /// Wire profile selected via <c>--profile</c>.
+    /// </summary>
+    public enum PublisherProfile
+    {
+        /// <summary>UDP transport with UADP message mapping.</summary>
+        UdpUadp = 0,
 
-                // set the ConfigurationVersion relative to kTimeOfConfiguration constant
-                ConfigurationVersion = new ConfigurationVersionDataType
-                {
-                    MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(
-                        s_timeOfConfiguration),
-                    MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(
-                        s_timeOfConfiguration)
-                }
-            };
-            var publishedDataSetAllTypesSource = new PublishedDataItemsDataType();
+        /// <summary>MQTT broker transport with UADP message mapping.</summary>
+        MqttUadp = 1,
 
-            //create PublishedData based on metadata names
-            foreach (FieldMetaData field in publishedDataSetAllTypes.DataSetMetaData.Fields)
-            {
-                publishedDataSetAllTypesSource.PublishedData = publishedDataSetAllTypesSource.PublishedData.AddItem(
-                    new PublishedVariableDataType
-                    {
-                        PublishedVariable = new NodeId(
-                            field.Name!,
-                            PublishedValuesWrites.NamespaceIndexAllTypes),
-                        AttributeId = Attributes.Value
-                    }
-                );
-            }
-            publishedDataSetAllTypes.DataSetSource
-                = new ExtensionObject(publishedDataSetAllTypesSource);
-
-            return publishedDataSetAllTypes;
-        }
+        /// <summary>MQTT broker transport with JSON message mapping.</summary>
+        MqttJson = 2
     }
 }
