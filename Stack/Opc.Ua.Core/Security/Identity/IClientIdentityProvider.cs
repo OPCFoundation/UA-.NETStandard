@@ -107,6 +107,13 @@ namespace Opc.Ua.Identity
         /// <see cref="ArrayOf{T}.IsNull"/> the filter is disabled and
         /// every offered policy passes the gate.
         /// </summary>
+        /// <remarks>
+        /// Note that per OPC UA Part 4 v1.05.07 §7.40.2 a channel
+        /// secured with <see cref="SecurityPolicies.None"/> may still
+        /// advertise an ECC user-token policy; the selection logic
+        /// honours that combination provided the policy URI is in
+        /// <see cref="EnabledSecurityPolicyUris"/>.
+        /// </remarks>
         public ArrayOf<string> EnabledSecurityPolicyUris { get; init; }
 
         /// <summary>

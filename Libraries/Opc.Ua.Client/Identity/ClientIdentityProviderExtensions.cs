@@ -327,6 +327,8 @@ namespace Opc.Ua.Identity
 
             if (string.Equals(effectiveUri, SecurityPolicies.None, StringComparison.Ordinal))
             {
+                // Per Part 4 v1.05.07 §7.40.2 an effective policy of
+                // None implies no encryption — no curve constraint.
                 rejectionReason = null;
                 return true;
             }
@@ -358,6 +360,9 @@ namespace Opc.Ua.Identity
             return false;
         }
 
+        private const int MaxRejectionsInDiagnostic = 32;
+        private const int MaxDiagnosticFieldLength = 256;
+
         private static string BuildNoPolicyDiagnostic(
             IdentitySelectionContext context,
             List<(UserTokenPolicy Policy, string Reason)> rejections)
@@ -371,21 +376,36 @@ namespace Opc.Ua.Identity
                 return sb.ToString();
             }
 
+            int reportCount = Math.Min(rejections.Count, MaxRejectionsInDiagnostic);
             sb.Append(" Offered policies:");
-            foreach ((UserTokenPolicy policy, string reason) in rejections)
+            for (int i = 0; i < reportCount; i++)
             {
+                (UserTokenPolicy policy, string reason) = rejections[i];
                 sb.AppendLine();
-                sb.Append("  - PolicyId='").Append(policy?.PolicyId ?? string.Empty)
-                    .Append("', TokenType=").Append(policy?.TokenType.ToString() ?? "<null>");
+                sb.Append("  - PolicyId='")
+                    .Append(Truncate(policy?.PolicyId ?? string.Empty))
+                    .Append("', TokenType=")
+                    .Append(policy?.TokenType.ToString() ?? "<null>");
                 if (!string.IsNullOrEmpty(policy?.SecurityPolicyUri))
                 {
-                    sb.Append(", SecurityPolicyUri='").Append(policy.SecurityPolicyUri).Append('\'');
+                    sb.Append(", SecurityPolicyUri='")
+                        .Append(Truncate(policy.SecurityPolicyUri!))
+                        .Append('\'');
                 }
                 if (!string.IsNullOrEmpty(policy?.IssuedTokenType))
                 {
-                    sb.Append(", IssuedTokenType='").Append(policy.IssuedTokenType).Append('\'');
+                    sb.Append(", IssuedTokenType='")
+                        .Append(Truncate(policy.IssuedTokenType!))
+                        .Append('\'');
                 }
-                sb.Append(": ").Append(reason);
+                sb.Append(": ").Append(Truncate(reason ?? string.Empty));
+            }
+
+            if (rejections.Count > reportCount)
+            {
+                sb.AppendLine();
+                sb.Append("  +").Append(rejections.Count - reportCount)
+                    .Append(" more rejected policies (truncated).");
             }
 
             ArrayOf<string> enabled = context.EnabledSecurityPolicyUris;
@@ -393,19 +413,43 @@ namespace Opc.Ua.Identity
             {
                 sb.AppendLine();
                 sb.Append("  Client-enabled SecurityPolicyUris: ");
+                int enabledReportCount = Math.Min(enabled.Count, MaxRejectionsInDiagnostic);
                 bool first = true;
-                foreach (string uri in enabled)
+                for (int i = 0; i < enabledReportCount; i++)
                 {
                     if (!first)
                     {
                         sb.Append(", ");
                     }
-                    sb.Append(uri);
+                    sb.Append(Truncate(enabled[i]));
                     first = false;
+                }
+                if (enabled.Count > enabledReportCount)
+                {
+                    sb.Append(", +").Append(enabled.Count - enabledReportCount).Append(" more");
                 }
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Truncates a server-supplied or caller-supplied string to a
+        /// bounded length before embedding it in a client-side
+        /// diagnostic message, so that a malicious or buggy server
+        /// cannot inflate the resulting exception text unboundedly
+        /// (defense-in-depth against CR 7.1 / CR/SR 3.7).
+        /// </summary>
+        private static string Truncate(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= MaxDiagnosticFieldLength)
+            {
+                return value;
+            }
+
+            return string.Concat(
+                value.AsSpan(0, MaxDiagnosticFieldLength),
+                "…(truncated)".AsSpan());
         }
 
         private static bool HasSameEncryptionAlgorithm(

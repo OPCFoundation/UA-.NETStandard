@@ -1619,17 +1619,34 @@ namespace Opc.Ua.Client
                             "Not connected to server.");
                     }
 
-                    if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri) &&
-                        !IsUserTokenPolicyUriOffered(overrideUserTokenPolicyUri!))
+                    if (overrideUserTokenPolicyUri != null)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadIdentityTokenRejected,
-                            "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
-                            overrideUserTokenPolicyUri!);
+                        // A null override means "use the default
+                        // selection logic". A non-null override must
+                        // be a non-whitespace string that is in the
+                        // endpoint's offered policies; we reject
+                        // whitespace-only / empty strings up-front so
+                        // a buggy caller fails fast rather than
+                        // silently falling through to the default
+                        // selector (CR/SR 3.5).
+                        if (string.IsNullOrWhiteSpace(overrideUserTokenPolicyUri))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenRejected,
+                                "OverrideUserTokenPolicyUriNotOffered (override is empty or whitespace).");
+                        }
+                        if (!IsUserTokenPolicyUriOffered(overrideUserTokenPolicyUri))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenRejected,
+                                "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
+                                overrideUserTokenPolicyUri);
+                        }
                     }
 
+                    bool hasOverride = !string.IsNullOrEmpty(overrideUserTokenPolicyUri);
                     ArrayOf<string> enabledPolicies;
-                    if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                    if (hasOverride)
                     {
                         enabledPolicies = new[] { overrideUserTokenPolicyUri! };
                     }
@@ -1659,8 +1676,7 @@ namespace Opc.Ua.Client
                     // the ephemeral key will be renewed on the next
                     // service call AFTER UpdateSessionAsync succeeds).
                     string? boundEphemeralUri =
-                        string.IsNullOrEmpty(overrideUserTokenPolicyUri) &&
-                            m_eccServerEphemeralKey != null
+                        !hasOverride && m_eccServerEphemeralKey != null
                             ? m_userTokenSecurityPolicyUri
                             : null;
 
@@ -1681,6 +1697,7 @@ namespace Opc.Ua.Client
 
                 if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
                 {
+                    string? previousPolicyUri;
                     // Commit override state ONLY after the new identity
                     // has been materialised — if AcquireIdentityAsync
                     // threw (cert load failure, policy mismatch, etc.)
@@ -1688,10 +1705,20 @@ namespace Opc.Ua.Client
                     // intact so the existing identity stays usable.
                     lock (m_lock)
                     {
+                        previousPolicyUri = m_userTokenSecurityPolicyUri;
                         m_eccServerEphemeralKey?.Dispose();
                         m_eccServerEphemeralKey = null;
                         m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
                     }
+
+                    // Auditable security event (CR/SR 1.10, SR 2.8):
+                    // the user-token policy in effect for the active
+                    // session has changed at the client's request.
+                    m_logger.LogInformation(
+                        "Session {SessionId} switched user-token policy: '{Previous}' -> '{Override}'.",
+                        SessionId,
+                        previousPolicyUri ?? "<none>",
+                        overrideUserTokenPolicyUri);
                 }
 
                 await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);

@@ -408,6 +408,54 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(selected.PolicyId, Is.EqualTo("p256"));
         }
 
+        [Test]
+        public void DiagnosticTruncatesLongStringsAndCapsRejectedPolicyCount()
+        {
+            // Build an endpoint with many offered policies and very long
+            // server-supplied strings to exercise the bounded-diagnostic
+            // hardening (CR 7.1 / CR/SR 3.7).
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
+
+            string longString = new('A', 4096);
+            var policies = new List<UserTokenPolicy>();
+            for (int i = 0; i < 50; i++)
+            {
+                policies.Add(new UserTokenPolicy
+                {
+                    PolicyId = longString + i,
+                    TokenType = UserTokenType.Certificate,
+                    SecurityPolicyUri = longString
+                });
+            }
+
+            var endpoint = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = [.. policies]
+            };
+            var context = new IdentitySelectionContext(
+                endpoint,
+                endpoint.UserIdentityTokens,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(context)
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(ex.Message, Does.Contain("…(truncated)"));
+            Assert.That(ex.Message, Does.Contain("more rejected policies"));
+            // Diagnostic must not contain the full 4 KiB string verbatim
+            // (we truncate at 256 chars).
+            Assert.That(ex.Message, Does.Not.Contain(longString));
+            // And must not contain every single PolicyId (cap is 32).
+            Assert.That(ex.Message, Does.Not.Contain(longString + "49"));
+        }
+
         private static X509ClientIdentityProvider CreateProvider(Certificate cert)
         {
             var certId = new CertificateIdentifier
