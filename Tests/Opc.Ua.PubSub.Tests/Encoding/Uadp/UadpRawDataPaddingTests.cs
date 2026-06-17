@@ -237,6 +237,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void Int32Array_WithArrayDimensions3_AlwaysEmits12Bytes()
         {
             int[] payload = [1, 2];
+            uint[] arrayDimensions = [3u];
             byte[] buffer = new byte[64];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
@@ -246,7 +247,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 BuiltInType.Int32,
                 ValueRanks.OneDimension,
                 maxStringLength: 0,
-                arrayDimensions: new ArrayOf<uint>(new uint[] { 3u }),
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                 context);
 
             Assert.That(writer.Position, Is.EqualTo(12),
@@ -257,7 +258,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 BuiltInType.Int32,
                 ValueRanks.OneDimension,
                 maxStringLength: 0,
-                arrayDimensions: new ArrayOf<uint>(new uint[] { 3u }),
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                 context);
             Assert.That(decoded.TryGetValue(out ArrayOf<int> arr), Is.True);
             Assert.That(arr.Count, Is.EqualTo(3));
@@ -272,6 +273,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void Int32Array_ExceedingArrayDimensions_Throws()
         {
             int[] payload = [1, 2, 3, 4];
+            uint[] arrayDimensions = [3u];
             byte[] buffer = new byte[64];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
@@ -282,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     BuiltInType.Int32,
                     ValueRanks.OneDimension,
                     maxStringLength: 0,
-                    arrayDimensions: new ArrayOf<uint>(new uint[] { 3u }),
+                    arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                     context),
                 Throws.TypeOf<ArgumentException>(),
                 "Array longer than product(ArrayDimensions) must throw ArgumentException.");

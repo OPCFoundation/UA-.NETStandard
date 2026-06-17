@@ -1,0 +1,284 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using NUnit.Framework;
+using Opc.Ua;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Tests;
+
+#pragma warning disable CS0618 // Targeted tests for the legacy Newtonsoft PubSub JSON encoder/decoder.
+
+namespace OpcUaPubSubJsonTests
+{
+    /// <summary>
+    /// High-yield array round-trips for the legacy PubSub JSON encoder and
+    /// decoder implementations.
+    /// </summary>
+    [TestFixture]
+    [TestSpec("7.2.5")]
+    public sealed class PubSubJsonArrayCoverageTests
+    {
+        private static readonly sbyte[] s_sbytes = [-1, 2];
+        private static readonly byte[] s_bytes = [0x10, 0x20, 0x30];
+        private static readonly short[] s_int16s = [-100, 200];
+        private static readonly ushort[] s_uint16s = [100, 200];
+        private static readonly uint[] s_uint32s = [1000u, 2000u];
+        private static readonly ulong[] s_uint64s = [1000UL, 2000UL];
+        private static readonly DateTimeUtc[] s_dates =
+        [
+            new DateTimeUtc(2026, 6, 17, 12, 0, 0),
+            new DateTimeUtc(2026, 6, 17, 12, 1, 0)
+        ];
+        private static readonly Uuid[] s_guids =
+        [
+            new Uuid(new Guid("11111111-1111-1111-1111-111111111111")),
+            new Uuid(new Guid("22222222-2222-2222-2222-222222222222"))
+        ];
+        private static readonly ByteString[] s_byteStrings =
+        [
+            new ByteString(new byte[] { 1, 2 }),
+            new ByteString(new byte[] { 3, 4, 5 })
+        ];
+        private static readonly XmlElement[] s_xmlElements =
+        [
+            XmlElement.From("<a>1</a>"),
+            XmlElement.From("<b>2</b>")
+        ];
+        private static readonly NodeId[] s_nodeIds =
+        [
+            new NodeId(1u, 0),
+            new NodeId("name", 0)
+        ];
+        private static readonly ExpandedNodeId[] s_expandedNodeIds =
+        [
+            new ExpandedNodeId(1u, 0),
+            new ExpandedNodeId("name", 0)
+        ];
+        private static readonly StatusCode[] s_statusCodes =
+        [
+            StatusCodes.Good,
+            StatusCodes.BadNodeIdUnknown
+        ];
+        private static readonly QualifiedName[] s_qualifiedNames =
+        [
+            new QualifiedName("A", 0),
+            new QualifiedName("B", 0)
+        ];
+        private static readonly LocalizedText[] s_localizedTexts =
+        [
+            new LocalizedText("en-US", "Hello"),
+            new LocalizedText("de-DE", "Hallo")
+        ];
+        private static readonly Variant[] s_variants =
+        [
+            new Variant(1),
+            new Variant("two")
+        ];
+        private static readonly DataValue[] s_dataValues =
+        [
+            new DataValue(new Variant(1)),
+            new DataValue(new Variant("two"))
+        ];
+        private static readonly ExtensionObject[] s_extensionObjects =
+        [
+            new ExtensionObject(new NetworkAddressUrlDataType { Url = "opc.udp://localhost:4840" }),
+            new ExtensionObject(new NetworkAddressUrlDataType { Url = "opc.udp://localhost:4841" })
+        ];
+        private static readonly EnumValue[] s_enumValues =
+        [
+            new EnumValue(1, "One"),
+            new EnumValue(2, "Two")
+        ];
+
+        [Test]
+        public void PrimitiveNumericArraysRoundTrip()
+        {
+            string json = Encode(encoder =>
+            {
+                encoder.WriteSByteArray("sbytes", new ArrayOf<sbyte>(s_sbytes.AsMemory()));
+                encoder.WriteByteArray("bytes", new ArrayOf<byte>(s_bytes.AsMemory()));
+                encoder.WriteInt16Array("int16s", new ArrayOf<short>(s_int16s.AsMemory()));
+                encoder.WriteUInt16Array("uint16s", new ArrayOf<ushort>(s_uint16s.AsMemory()));
+                encoder.WriteUInt32Array("uint32s", new ArrayOf<uint>(s_uint32s.AsMemory()));
+                encoder.WriteUInt64Array("uint64s", new ArrayOf<ulong>(s_uint64s.AsMemory()));
+            });
+
+            using var decoder = MakeDecoder(json);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadSByteArray("sbytes").ToArray(), Is.EqualTo(s_sbytes));
+                Assert.That(decoder.ReadByteArray("bytes").ToArray(), Is.EqualTo(s_bytes));
+                Assert.That(decoder.ReadInt16Array("int16s").ToArray(), Is.EqualTo(s_int16s));
+                Assert.That(decoder.ReadUInt16Array("uint16s").ToArray(), Is.EqualTo(s_uint16s));
+                Assert.That(decoder.ReadUInt32Array("uint32s").ToArray(), Is.EqualTo(s_uint32s));
+                Assert.That(decoder.ReadUInt64Array("uint64s").ToArray(), Is.EqualTo(s_uint64s));
+            });
+        }
+
+        [Test]
+        public void StructuredArraysRoundTrip()
+        {
+            string json = Encode(encoder =>
+            {
+                encoder.WriteDateTimeArray("dates", new ArrayOf<DateTimeUtc>(s_dates.AsMemory()));
+                encoder.WriteGuidArray("guids", new ArrayOf<Uuid>(s_guids.AsMemory()));
+                encoder.WriteByteStringArray("bytes", new ArrayOf<ByteString>(s_byteStrings.AsMemory()));
+                encoder.WriteXmlElementArray("xml", new ArrayOf<XmlElement>(s_xmlElements.AsMemory()));
+                encoder.WriteNodeIdArray("nodeIds", new ArrayOf<NodeId>(s_nodeIds.AsMemory()));
+                encoder.WriteExpandedNodeIdArray(
+                    "expandedNodeIds",
+                    new ArrayOf<ExpandedNodeId>(s_expandedNodeIds.AsMemory()));
+                encoder.WriteStatusCodeArray("statusCodes", new ArrayOf<StatusCode>(s_statusCodes.AsMemory()));
+                encoder.WriteQualifiedNameArray(
+                    "qualifiedNames",
+                    new ArrayOf<QualifiedName>(s_qualifiedNames.AsMemory()));
+                encoder.WriteLocalizedTextArray(
+                    "localizedTexts",
+                    new ArrayOf<LocalizedText>(s_localizedTexts.AsMemory()));
+            });
+
+            using var decoder = MakeDecoder(json);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadDateTimeArray("dates").Count, Is.EqualTo(2));
+                Assert.That(decoder.ReadGuidArray("guids").ToArray(), Is.EqualTo(s_guids));
+                Assert.That(decoder.ReadByteStringArray("bytes").Count, Is.EqualTo(2));
+                Assert.That(decoder.ReadXmlElementArray("xml").Count, Is.EqualTo(2));
+                Assert.That(decoder.ReadNodeIdArray("nodeIds").Count, Is.EqualTo(2));
+                Assert.That(decoder.ReadExpandedNodeIdArray("expandedNodeIds").Count, Is.EqualTo(2));
+                Assert.That(decoder.ReadStatusCodeArray("statusCodes").ToArray(), Is.EqualTo(s_statusCodes));
+                Assert.That(decoder.ReadQualifiedNameArray("qualifiedNames").Count, Is.EqualTo(2));
+                Assert.That(decoder.ReadLocalizedTextArray("localizedTexts").Count, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void VariantDataValueAndExtensionObjectArraysRoundTrip()
+        {
+            string json = Encode(encoder =>
+            {
+                encoder.WriteVariantArray("variants", new ArrayOf<Variant>(s_variants.AsMemory()));
+                encoder.WriteDataValueArray("dataValues", new ArrayOf<DataValue>(s_dataValues.AsMemory()));
+                encoder.WriteExtensionObjectArray(
+                    "extensionObjects",
+                    new ArrayOf<ExtensionObject>(s_extensionObjects.AsMemory()));
+            });
+
+            using var decoder = MakeDecoder(json);
+            ArrayOf<Variant> variants = decoder.ReadVariantArray("variants");
+            ArrayOf<DataValue> dataValues = decoder.ReadDataValueArray("dataValues");
+            ArrayOf<ExtensionObject> extensionObjects = decoder.ReadExtensionObjectArray("extensionObjects");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(variants.Count, Is.EqualTo(2));
+                Assert.That(variants[0].TryGetValue(out int number), Is.True);
+                Assert.That(number, Is.EqualTo(1));
+                Assert.That(dataValues.Count, Is.EqualTo(2));
+                Assert.That(dataValues[0].WrappedValue.TryGetValue(out int dataValueNumber), Is.True);
+                Assert.That(dataValueNumber, Is.EqualTo(1));
+                Assert.That(extensionObjects.Count, Is.EqualTo(2));
+                Assert.That(extensionObjects[0].TypeId.IsNull, Is.False);
+            });
+        }
+
+        [Test]
+        public void EnumValueArrayAndGenericArrayRoundTrip()
+        {
+            string json = Encode(encoder =>
+            {
+                encoder.WriteEnumeratedArray("enumValues", new ArrayOf<EnumValue>(s_enumValues.AsMemory()));
+                encoder.WriteArray(
+                    "genericInt16",
+                    s_int16s,
+                    ValueRanks.OneDimension,
+                    BuiltInType.Int16);
+            });
+
+            using var decoder = MakeDecoder(json);
+            ArrayOf<EnumValue> enumValues = decoder.ReadEnumeratedArray("enumValues");
+            Array? generic = decoder.ReadArray(
+                "genericInt16",
+                ValueRanks.OneDimension,
+                BuiltInType.Int16);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(enumValues.Count, Is.EqualTo(2));
+                Assert.That(enumValues[1].Value, Is.EqualTo(2));
+                Assert.That(generic, Is.InstanceOf<short[]>());
+                Assert.That(generic, Is.EqualTo(s_int16s));
+            });
+        }
+
+        [Test]
+        public void RawValueWritesDataValueFacetsSelectedByMask()
+        {
+            var field = new FieldMetaData
+            {
+                Name = "Temperature",
+                BuiltInType = (byte)BuiltInType.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+            var timestamp = new DateTimeUtc(2026, 6, 17, 12, 34, 0);
+            var value = new DataValue(new Variant(42.5))
+                .WithStatus(StatusCodes.GoodClamped)
+                .WithSourceTimestamp(timestamp)
+                .WithServerTimestamp(timestamp);
+
+            string json = Encode(encoder => encoder.WriteRawValue(
+                field,
+                value,
+                DataSetFieldContentMask.StatusCode |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.RawData));
+
+            Assert.That(json, Does.Contain("42.5"));
+            Assert.That(json, Does.Contain("3145728"));
+        }
+
+        private static ServiceMessageContext NewContext()
+            => (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
+
+        private static string Encode(Action<PubSubJsonEncoder> write)
+        {
+            var context = NewContext();
+            using var encoder = new PubSubJsonEncoder(context, PubSubJsonEncoding.Reversible);
+            write(encoder);
+            return encoder.CloseAndReturnText();
+        }
+
+        private static PubSubJsonDecoder MakeDecoder(string json)
+            => new(json, NewContext());
+    }
+}
