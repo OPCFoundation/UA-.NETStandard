@@ -385,5 +385,224 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
                 .UnsubscribeAsync(null!, CancellationToken.None).ConfigureAwait(false));
         }
+
+        [Test]
+        public async Task ConnectAndDisconnect_RaiseConnectionStateChangedEventsAsync()
+        {
+            int port;
+            try { port = ReserveEphemeralTcpPort(); }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            MqttServer? broker = TryStartBroker(port);
+            if (broker is null)
+            {
+                Assert.Ignore("Embedded MQTTnet broker could not start on loopback.");
+                return;
+            }
+
+            try
+            {
+                var factory = new MqttClientAdapterFactory();
+                var options = new MqttConnectionOptions
+                {
+                    Endpoint = $"mqtt://127.0.0.1:{port}",
+                    ClientId = "StateEvents"
+                };
+                await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                    options,
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System);
+                var events = new System.Collections.Generic.List<MqttConnectionStateChangedEventArgs>();
+                var connected = new TaskCompletionSource<MqttConnectionStateChangedEventArgs>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var disconnected = new TaskCompletionSource<MqttConnectionStateChangedEventArgs>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                adapter.ConnectionStateChanged += (_, args) =>
+                {
+                    events.Add(args);
+                    if (args.IsConnected)
+                    {
+                        connected.TrySetResult(args);
+                    }
+                    else
+                    {
+                        disconnected.TrySetResult(args);
+                    }
+                };
+
+                await adapter.ConnectAsync(options, CancellationToken.None).ConfigureAwait(false);
+                _ = await connected.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await adapter.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
+                _ = await disconnected.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(events, Has.Count.GreaterThanOrEqualTo(2));
+                Assert.That(events[0].IsConnected, Is.True);
+                Assert.That(events[^1].IsConnected, Is.False);
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task IncomingMessage_WithPayloadContentTypeAndResponseTopic_RaisesEventAsync()
+        {
+            int port;
+            try { port = ReserveEphemeralTcpPort(); }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            MqttServer? broker = TryStartBroker(port);
+            if (broker is null)
+            {
+                Assert.Ignore("Embedded MQTTnet broker could not start on loopback.");
+                return;
+            }
+
+            try
+            {
+                var factory = new MqttClientAdapterFactory();
+                var subscriberOptions = new MqttConnectionOptions
+                {
+                    Endpoint = $"mqtt://127.0.0.1:{port}",
+                    ClientId = "Subscriber"
+                };
+                var publisherOptions = new MqttConnectionOptions
+                {
+                    Endpoint = $"mqtt://127.0.0.1:{port}",
+                    ClientId = "Publisher"
+                };
+
+                await using IMqttClientAdapter subscriber = ((IMqttClientFactory)factory).CreateAdapter(
+                    subscriberOptions,
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System);
+                await using IMqttClientAdapter publisher = ((IMqttClientFactory)factory).CreateAdapter(
+                    publisherOptions,
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System);
+
+                var received = new TaskCompletionSource<MqttIncomingMessageEventArgs>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                subscriber.IncomingMessage += (_, args) => received.TrySetResult(args);
+
+                await subscriber.ConnectAsync(subscriberOptions, CancellationToken.None).ConfigureAwait(false);
+                await publisher.ConnectAsync(publisherOptions, CancellationToken.None).ConfigureAwait(false);
+
+                const string topic = "opcua/pubsub/json/data/3/4/5";
+                await subscriber.SubscribeAsync(
+                    [new MqttTopicFilter(topic, MqttQualityOfService.ExactlyOnce)],
+                    CancellationToken.None).ConfigureAwait(false);
+
+                var outbound = new MqttMessage(
+                    topic,
+                    new byte[] { 0x10, 0x20, 0x30 },
+                    MqttQualityOfService.ExactlyOnce,
+                    Retain: true,
+                    ContentType: "application/octet-stream",
+                    ResponseTopic: "opcua/pubsub/response");
+                await publisher.PublishAsync(outbound, CancellationToken.None).ConfigureAwait(false);
+
+                MqttIncomingMessageEventArgs inbound =
+                    await received.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(inbound.Message.Topic, Is.EqualTo(topic));
+                    Assert.That(inbound.Message.Payload.ToArray(), Is.EqualTo(new byte[] { 0x10, 0x20, 0x30 }));
+                    Assert.That(inbound.Message.Qos, Is.EqualTo(MqttQualityOfService.ExactlyOnce));
+                    Assert.That(inbound.Message.ContentType, Is.EqualTo("application/octet-stream"));
+                    Assert.That(inbound.Message.ResponseTopic, Is.EqualTo("opcua/pubsub/response"));
+                });
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task IncomingMessage_EmptyPayload_RaisesEmptyBufferAsync()
+        {
+            int port;
+            try { port = ReserveEphemeralTcpPort(); }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            MqttServer? broker = TryStartBroker(port);
+            if (broker is null)
+            {
+                Assert.Ignore("Embedded MQTTnet broker could not start on loopback.");
+                return;
+            }
+
+            try
+            {
+                var factory = new MqttClientAdapterFactory();
+                var subscriberOptions = new MqttConnectionOptions
+                {
+                    Endpoint = $"mqtt://127.0.0.1:{port}",
+                    ClientId = "EmptyPayloadSub"
+                };
+                var publisherOptions = new MqttConnectionOptions
+                {
+                    Endpoint = $"mqtt://127.0.0.1:{port}",
+                    ClientId = "EmptyPayloadPub"
+                };
+
+                await using IMqttClientAdapter subscriber = ((IMqttClientFactory)factory).CreateAdapter(
+                    subscriberOptions,
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System);
+                await using IMqttClientAdapter publisher = ((IMqttClientFactory)factory).CreateAdapter(
+                    publisherOptions,
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System);
+
+                var received = new TaskCompletionSource<MqttIncomingMessageEventArgs>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                subscriber.IncomingMessage += (_, args) => received.TrySetResult(args);
+
+                await subscriber.ConnectAsync(subscriberOptions, CancellationToken.None).ConfigureAwait(false);
+                await publisher.ConnectAsync(publisherOptions, CancellationToken.None).ConfigureAwait(false);
+
+                const string topic = "opcua/pubsub/json/empty";
+                await subscriber.SubscribeAsync(
+                    [new MqttTopicFilter(topic, MqttQualityOfService.AtMostOnce)],
+                    CancellationToken.None).ConfigureAwait(false);
+                await publisher.PublishAsync(
+                    new MqttMessage(
+                        topic,
+                        Array.Empty<byte>(),
+                        MqttQualityOfService.AtMostOnce,
+                        Retain: false,
+                        ContentType: null,
+                        ResponseTopic: null),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                MqttIncomingMessageEventArgs inbound =
+                    await received.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(inbound.Message.Payload.Length, Is.Zero);
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
     }
 }

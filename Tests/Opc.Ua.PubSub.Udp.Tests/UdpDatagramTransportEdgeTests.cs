@@ -441,5 +441,101 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await transport.DisposeAsync();
             Assert.That(transport.IsConnected, Is.False);
         }
+
+        [Test]
+        public async Task EnforceDiscoveryLimit_ZeroCap_DoesNotThrowAsync()
+        {
+            UdpEndpoint endpoint = UdpEndpointParser.Parse("opc.udp://127.0.0.1:4840");
+            PubSubConnectionDataType connection = UdpIntegrationTestHelpers.NewConnection("opc.udp://127.0.0.1:4840");
+
+            await using var transport = new UdpDatagramTransport(
+                connection,
+                endpoint,
+                PubSubTransportDirection.Send,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                UdpIntegrationTestHelpers.LoopbackOptions());
+
+            Assert.That(() => transport.EnforceDiscoveryLimit(new byte[1024]), Throws.Nothing);
+        }
+
+        [Test]
+        public async Task EnforceDiscoveryLimit_OverCap_ThrowsServiceResultExceptionAsync()
+        {
+            UdpEndpoint endpoint = UdpEndpointParser.Parse("opc.udp://127.0.0.1:4840");
+            PubSubConnectionDataType connection = UdpIntegrationTestHelpers.NewConnection("opc.udp://127.0.0.1:4840");
+            connection.TransportSettings = new ExtensionObject(new DatagramConnectionTransport2DataType
+            {
+                DiscoveryMaxMessageSize = 8
+            });
+
+            await using var transport = new UdpDatagramTransport(
+                connection,
+                endpoint,
+                PubSubTransportDirection.Send,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                UdpIntegrationTestHelpers.LoopbackOptions());
+
+            Assert.That(
+                () => transport.EnforceDiscoveryLimit(new byte[9]),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void MapQosCategoryToTos_ReturnsExpectedValues()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(UdpDatagramTransport.MapQosCategoryToTos("Reliable"), Is.EqualTo(0x48));
+                Assert.That(UdpDatagramTransport.MapQosCategoryToTos("BestEffort"), Is.Zero);
+                Assert.That(UdpDatagramTransport.MapQosCategoryToTos("ExpeditedForwarding"), Is.EqualTo(0xB8));
+                Assert.That(UdpDatagramTransport.MapQosCategoryToTos("Unknown"), Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task StateChanged_HandlerThrows_DoesNotEscapeLifecycleAsync()
+        {
+            int port;
+            try
+            {
+                port = UdpIntegrationTestHelpers.ReserveEphemeralPort(IPAddress.Loopback);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            string url = $"opc.udp://127.0.0.1:{port}";
+            UdpEndpoint endpoint = UdpEndpointParser.Parse(url);
+
+            await using var transport = new UdpDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url),
+                endpoint,
+                PubSubTransportDirection.Send,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                UdpIntegrationTestHelpers.LoopbackOptions());
+            transport.StateChanged += (_, _) => throw new InvalidOperationException("boom");
+
+            try
+            {
+                Assert.That(async () => await transport.OpenAsync().ConfigureAwait(false), Throws.Nothing);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"UDP open failed: {ex.Message}");
+                return;
+            }
+
+            Assert.That(async () => await transport.CloseAsync().ConfigureAwait(false), Throws.Nothing);
+        }
     }
 }

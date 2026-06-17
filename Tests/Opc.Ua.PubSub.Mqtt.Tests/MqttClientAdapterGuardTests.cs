@@ -1,0 +1,199 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua.PubSub.Mqtt.Internal;
+using Opc.Ua.Tests;
+
+namespace Opc.Ua.PubSub.Mqtt.Tests
+{
+    /// <summary>
+    /// Guard-rail tests for <see cref="MqttClientAdapter"/> that do NOT
+    /// require a running broker. Covers the disposed-state
+    /// <see cref="ObjectDisposedException"/> paths in
+    /// <see cref="MqttClientAdapter.ConnectAsync"/>,
+    /// <see cref="MqttClientAdapter.SubscribeAsync"/>,
+    /// <see cref="MqttClientAdapter.UnsubscribeAsync"/>, and
+    /// <see cref="MqttClientAdapter.PublishAsync"/>, plus the
+    /// <see cref="MqttClientAdapter.DisconnectAsync"/> no-op guard when the
+    /// client has never connected.
+    /// </summary>
+    [TestFixture]
+    [Parallelizable(ParallelScope.All)]
+    [CancelAfter(10000)]
+    public sealed class MqttClientAdapterGuardTests
+    {
+        // ------------------------------------------------------------------
+        // DisconnectAsync – no-op when client is not connected (no broker)
+        // ------------------------------------------------------------------
+
+        [Test]
+        public async Task DisconnectAsync_WhenNotConnected_CompletesWithoutException(
+            CancellationToken cancellationToken)
+        {
+            await using var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+
+            // A freshly created adapter is not connected; DisconnectAsync
+            // should detect that and return immediately per
+            //   if (m_disposed || !m_client.IsConnected) return;
+            await adapter.DisconnectAsync(cancellationToken).ConfigureAwait(false);
+            Assert.That(adapter.IsConnected, Is.False);
+        }
+
+        // ------------------------------------------------------------------
+        // DisposeAsync – idempotent (double dispose must not throw)
+        // ------------------------------------------------------------------
+
+        [Test]
+        public async Task DisposeAsync_CalledTwice_DoesNotThrow()
+        {
+            var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+
+            await adapter.DisposeAsync().ConfigureAwait(false);
+            // Second dispose should be guarded by m_disposed flag.
+            await adapter.DisposeAsync().ConfigureAwait(false);
+        }
+
+        // ------------------------------------------------------------------
+        // Disposed-state guards: ConnectAsync, SubscribeAsync,
+        // UnsubscribeAsync, PublishAsync must all throw ObjectDisposedException
+        // after DisposeAsync.
+        // ------------------------------------------------------------------
+
+        [Test]
+        public async Task ConnectAsync_AfterDispose_ThrowsObjectDisposedException(
+            CancellationToken cancellationToken)
+        {
+            var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            await adapter.DisposeAsync().ConfigureAwait(false);
+
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://127.0.0.1:1883"
+            };
+
+            Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await adapter.ConnectAsync(options, cancellationToken)
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task SubscribeAsync_AfterDispose_ThrowsObjectDisposedException(
+            CancellationToken cancellationToken)
+        {
+            var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            await adapter.DisposeAsync().ConfigureAwait(false);
+
+            var filters = new List<MqttTopicFilter>
+            {
+                new MqttTopicFilter("test/topic", MqttQualityOfService.AtMostOnce)
+            };
+
+            Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await adapter.SubscribeAsync(filters, cancellationToken)
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task UnsubscribeAsync_AfterDispose_ThrowsObjectDisposedException(
+            CancellationToken cancellationToken)
+        {
+            var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            await adapter.DisposeAsync().ConfigureAwait(false);
+
+            var topics = new List<string> { "test/topic" };
+
+            Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await adapter.UnsubscribeAsync(topics, cancellationToken)
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task PublishAsync_AfterDispose_ThrowsObjectDisposedException(
+            CancellationToken cancellationToken)
+        {
+            var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            await adapter.DisposeAsync().ConfigureAwait(false);
+
+            var message = new MqttMessage(
+                Topic: "test/topic",
+                Payload: Array.Empty<byte>(),
+                Qos: MqttQualityOfService.AtMostOnce,
+                Retain: false,
+                ContentType: null,
+                ResponseTopic: null);
+
+            Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await adapter.PublishAsync(message, cancellationToken)
+                    .ConfigureAwait(false));
+        }
+
+        // ------------------------------------------------------------------
+        // PublishAsync – empty-topic guard fires before disposed check
+        // ------------------------------------------------------------------
+
+        [Test]
+        public async Task PublishAsync_WithEmptyTopic_ThrowsArgumentExceptionBeforeDisposedCheck(
+            CancellationToken cancellationToken)
+        {
+            // Even on a fresh (not-disposed) adapter the topic guard fires first.
+            await using var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+
+            var badMessage = new MqttMessage(
+                Topic: string.Empty,
+                Payload: Array.Empty<byte>(),
+                Qos: MqttQualityOfService.AtMostOnce,
+                Retain: false,
+                ContentType: null,
+                ResponseTopic: null);
+
+            Assert.ThrowsAsync<ArgumentException>(
+                async () => await adapter.PublishAsync(badMessage, cancellationToken)
+                    .ConfigureAwait(false));
+        }
+    }
+}

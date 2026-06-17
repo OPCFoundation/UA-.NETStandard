@@ -151,6 +151,43 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task AddPubSub_IConfiguration_BindsAllServerOptions()
+        {
+            ServiceCollection services = BuildServicesWithRuntime();
+            IConfigurationRoot config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OpcUa:Server:PubSub:ExposeSecurityKeyService"] = "true",
+                    ["OpcUa:Server:PubSub:ExposeConfigurationMethods"] = "false",
+                    ["OpcUa:Server:PubSub:DefaultSecurityGroupId"] = "bound-group",
+                    ["OpcUa:Server:PubSub:DefaultSecurityPolicyUri"] =
+                        "http://opcfoundation.org/UA/SecurityPolicy#PubSub-Aes128-CTR",
+                    ["OpcUa:Server:PubSub:DefaultKeyLifetimeMs"] = "1250.5",
+                    ["OpcUa:Server:PubSub:DiagnosticsExposure"] = "Full"
+                })
+                .Build();
+            services
+                .AddOpcUa()
+                .AddServer(opt => { })
+                .AddPubSub(config);
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            PubSubServerOptions opts = sp.GetRequiredService<IOptions<PubSubServerOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(opts.ExposeSecurityKeyService, Is.True);
+                Assert.That(opts.ExposeConfigurationMethods, Is.False);
+                Assert.That(opts.DefaultSecurityGroupId, Is.EqualTo("bound-group"));
+                Assert.That(
+                    opts.DefaultSecurityPolicyUri,
+                    Is.EqualTo("http://opcfoundation.org/UA/SecurityPolicy#PubSub-Aes128-CTR"));
+                Assert.That(opts.DefaultKeyLifetimeMs, Is.EqualTo(1250.5d));
+                Assert.That(opts.DiagnosticsExposure, Is.EqualTo(PubSubDiagnosticsExposure.Full));
+            });
+        }
+
+        [Test]
         public void AddPubSub_WithoutRuntime_ThrowsInvalidOperation()
         {
             // No prior AddPubSub on the IOpcUaBuilder; only AddServer.

@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <see cref="PublisherIdType.UInt16"/> with value 0 — the wire
         /// default when ExtendedFlags1 PublisherId-enabled bit is clear.
         /// </summary>
-        public static PublisherId Null { get; }
+        public static PublisherId Null { get; } = FromUInt16(0);
 
         /// <summary>
         /// <see langword="true"/> when this instance is the
