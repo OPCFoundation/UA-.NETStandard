@@ -30,9 +30,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -40,7 +40,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Audit;
 using Opc.Ua.Bindings.Pcap.Capture;
@@ -161,7 +160,7 @@ namespace Opc.Ua.Mcp.Tools
             keyLogPath = ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
 
             ReplayCaptureSource source = await CreateReplaySourceAsync(pcapPath, keyLogPath, ct).ConfigureAwait(false);
-            await using var sourceDispose = source.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable sourceDispose = source.ConfigureAwait(false);
             FormatKind kind = ParseDecodeFormat(format);
             if (kind == FormatKind.Json)
             {
@@ -207,13 +206,13 @@ namespace Opc.Ua.Mcp.Tools
 
                 ReplayCaptureSource source = await CreateReplaySourceAsync(pcapPath, keyLogPath, ct)
                     .ConfigureAwait(false);
-                await using var sourceDispose = source.ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable sourceDispose = source.ConfigureAwait(false);
                 calls = await DecodeServiceCallsAsync(source, null, ct).ConfigureAwait(false);
             }
             else
             {
                 CaptureSession session = manager.Get(sessionId);
-                await using var sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false))
+                await using ConfiguredAsyncDisposable sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 calls = await DecodeServiceCallsAsync(session.Source, null, ct).ConfigureAwait(false);
             }
@@ -351,7 +350,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static ServiceCallSummary CreateSummary(IReadOnlyList<DecodedServiceCall> calls)
         {
-            Dictionary<string, ServiceCallStat> perService = calls
+            var perService = calls
                 .GroupBy(static call => call.RequestName ?? "Unknown")
                 .ToDictionary(static group => group.Key, CreateServiceCallStat, StringComparer.OrdinalIgnoreCase);
             List<double> latencies = [.. calls.Select(static call => call.Latency?.TotalMilliseconds ?? 0D)];

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -146,7 +145,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 TimeSpan[] samples;
                 lock (m_latencyLock)
                 {
-                    samples = m_latencySamples.ToArray();
+                    samples = [.. m_latencySamples];
                 }
 
                 if (samples.Length == 0)
@@ -275,12 +274,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         private async Task WaitForPaceAsync(CancellationToken ct)
         {
             long ticket = Interlocked.Increment(ref m_pacerTickets) - 1;
-            TimeSpan targetElapsed = TimeSpan.FromSeconds((double)ticket / m_targetOpsPerSecond);
+            var targetElapsed = TimeSpan.FromSeconds((double)ticket / m_targetOpsPerSecond);
             TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_startTimestamp);
             TimeSpan delay = targetElapsed - elapsed;
             if (delay > TimeSpan.Zero)
             {
-                await Opc.Ua.TimeProviderExtensions.Delay(m_timeProvider, delay, ct).ConfigureAwait(false);
+                await TimeProviderExtensions.Delay(m_timeProvider, delay, ct).ConfigureAwait(false);
             }
         }
 

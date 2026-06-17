@@ -386,7 +386,7 @@ namespace Opc.Ua.Bindings.Pcap.Audit
 
             try
             {
-                using JsonDocument document = JsonDocument.Parse(line);
+                using var document = JsonDocument.Parse(line);
                 JsonElement root = document.RootElement;
                 if (root.ValueKind != JsonValueKind.Object)
                 {

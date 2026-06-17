@@ -89,6 +89,7 @@ namespace Opc.Ua.Gds.Client
         /// Invokes <c>RegisterTickets</c>. Returns the per-ticket
         /// status array reported by the server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="tickets"/> is <c>null</c>.</exception>
         public ValueTask<int[]> RegisterTicketsAsync(
             byte[][] tickets, CancellationToken ct = default)
         {
@@ -103,6 +104,7 @@ namespace Opc.Ua.Gds.Client
         /// Invokes <c>UnregisterTickets</c>. Returns the per-ticket
         /// status array.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="tickets"/> is <c>null</c>.</exception>
         public ValueTask<int[]> UnregisterTicketsAsync(
             byte[][] tickets, CancellationToken ct = default)
         {
@@ -121,18 +123,18 @@ namespace Opc.Ua.Gds.Client
             NodeId methodId = await ResolveMethodAsync(methodBrowseName, ct)
                 .ConfigureAwait(false);
 
-            ByteString[] bs = new ByteString[tickets.Length];
+            var bs = new ByteString[tickets.Length];
             for (int i = 0; i < tickets.Length; i++)
             {
-                bs[i] = new ByteString(tickets[i] ?? Array.Empty<byte>());
+                bs[i] = new ByteString(tickets[i] ?? []);
             }
 
-            CallMethodRequest request = new CallMethodRequest
+            var request = new CallMethodRequest
             {
                 ObjectId = RegistrarNodeId,
                 MethodId = methodId,
                 InputArguments =
-                    new Variant[] { new Variant(bs.ToArrayOf()) }.ToArrayOf()
+                    new Variant[] { new(bs.ToArrayOf()) }.ToArrayOf()
             };
 
             CallResponse response = await Session
@@ -160,23 +162,21 @@ namespace Opc.Ua.Gds.Client
             if (result.OutputArguments.Count == 0)
 
             {
-
-                return Array.Empty<int>();
-
+                return [];
             }
             object? boxed = result.OutputArguments[0].AsBoxedObject();
             return boxed switch
             {
                 int[] arr => arr,
-                ArrayOf<int> ai => ai.ToArray() ?? Array.Empty<int>(),
-                _ => Array.Empty<int>()
+                ArrayOf<int> ai => ai.ToArray() ?? [],
+                _ => []
             };
         }
 
         private async ValueTask<NodeId> ResolveMethodAsync(
             string browseName, CancellationToken ct)
         {
-            BrowsePath path = new BrowsePath
+            var path = new BrowsePath
             {
                 StartingNode = RegistrarNodeId,
                 RelativePath = new RelativePath
@@ -185,7 +185,7 @@ namespace Opc.Ua.Gds.Client
                     {
                         new RelativePathElement
                         {
-                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
                             IsInverse = false,
                             IncludeSubtypes = true,
                             TargetName = new QualifiedName(browseName)

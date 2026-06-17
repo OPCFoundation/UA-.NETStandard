@@ -41,22 +41,27 @@ namespace Opc.Ua.Di.Server.Builders
         /// Time-based lifetime (e.g. operating hours).
         /// </summary>
         Time,
+
         /// <summary>
         /// Count of produced parts.
         /// </summary>
         NumberOfParts,
+
         /// <summary>
         /// Count of usage cycles.
         /// </summary>
         NumberOfUsages,
+
         /// <summary>
         /// Linear length consumed (m).
         /// </summary>
         Length,
+
         /// <summary>
         /// Diameter remaining (m).
         /// </summary>
         Diameter,
+
         /// <summary>
         /// Substance volume remaining (m³).
         /// </summary>

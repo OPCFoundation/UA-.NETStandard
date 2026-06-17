@@ -482,14 +482,19 @@ namespace Opc.Ua.Server.Fluent
         private readonly INodeBuilder<TState> m_nodeBuilder;
         private readonly StateMachineTransitionHandler? m_existingBefore;
         private readonly StateMachineTransitionHandler? m_existingAfter;
+
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_onEnter
             = [];
+
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_onExit
             = [];
+
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_onTransition
             = [];
+
         private readonly List<Func<ISystemContext, TState, uint, ServiceResult>> m_guards
             = [];
+
         private readonly List<TimedTransition> m_timedTransitions = [];
         private uint m_pendingFromStateId;
         private uint m_currentStateForTimer;
@@ -507,6 +512,7 @@ namespace Opc.Ua.Server.Fluent
                 Timeout = timeout;
                 CauseId = causeId;
             }
+
             public uint FromStateId { get; }
             public TimeSpan Timeout { get; }
             public uint CauseId { get; }

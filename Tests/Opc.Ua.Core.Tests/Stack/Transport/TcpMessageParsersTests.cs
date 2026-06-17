@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => TcpMessageParsers.ReadReverseHelloMessage(new ArraySegment<byte>(body)));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]
@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => TcpMessageParsers.ReadReverseHelloMessage(new ArraySegment<byte>(body)));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]

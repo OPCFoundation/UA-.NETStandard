@@ -175,6 +175,7 @@ namespace Opc.Ua.Core.Security.Tests
         /// modification is made on a clone — the input certificate is
         /// not altered.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="cert"/> is <c>null</c>.</exception>
         public static Certificate CorruptCertSignature(Certificate cert)
         {
             if (cert == null)
@@ -207,6 +208,7 @@ namespace Opc.Ua.Core.Security.Tests
         /// untrusted-issued certs (the trust state is decided by what
         /// is added to the server's stores).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="issuerCa"/> is <c>null</c>.</exception>
         public static Certificate CreateCaIssuedAppInstanceCert(
             string subjectName,
             string applicationUri,

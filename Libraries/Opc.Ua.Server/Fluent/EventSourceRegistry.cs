@@ -332,9 +332,7 @@ namespace Opc.Ua.Server.Fluent
                 if (ct.IsCancellationRequested)
 
                 {
-
                     return;
-
                 }
                 ReconcileAll();
             }
@@ -395,9 +393,7 @@ namespace Opc.Ua.Server.Fluent
             if (cts == null)
 
             {
-
                 return;
-
             }
             try
             {
@@ -596,9 +592,7 @@ namespace Opc.Ua.Server.Fluent
             if (e.Time == null || e.Time.Value.IsNull)
 
             {
-
                 e.Time = PropertyState<DateTimeUtc>.With<VariantBuilder>(e, DateTimeUtc.Now);
-
             }
             if (e.ReceiveTime == null || e.ReceiveTime.Value.IsNull)
             {

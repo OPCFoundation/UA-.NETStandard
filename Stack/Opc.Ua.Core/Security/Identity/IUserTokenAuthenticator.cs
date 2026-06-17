@@ -125,6 +125,7 @@ namespace Opc.Ua.Identity
         /// Indicates the token was accepted and produced
         /// <paramref name="identity"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="identity"/> is <c>null</c>.</exception>
         public static AuthenticationResult Accept(IUserIdentity identity)
         {
             if (identity == null)
@@ -141,6 +142,7 @@ namespace Opc.Ua.Identity
         /// Indicates the token was rejected. The reason is reported back
         /// to the client as the <c>ActivateSession</c> response error.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="error"/> is <c>null</c>.</exception>
         public static AuthenticationResult Reject(ServiceResult error)
         {
             if (error == null)

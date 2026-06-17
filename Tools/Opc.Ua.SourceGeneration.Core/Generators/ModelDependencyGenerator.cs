@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using Opc.Ua.Schema.Model;
-using Opc.Ua.Schema.Types;
 using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration
@@ -159,7 +158,7 @@ namespace Opc.Ua.SourceGeneration
         private string BuildSelfPayload(Namespace target)
         {
             // OpcUa root is implicit to every consumer; do not emit a payload.
-            if (target.Value == Opc.Ua.Types.Namespaces.OpcUa)
+            if (target.Value == Types.Namespaces.OpcUa)
             {
                 return null;
             }
@@ -252,19 +251,19 @@ namespace Opc.Ua.SourceGeneration
                             }
                             byte instanceKind = child switch
                             {
-                                PropertyDesign => (byte)3,
-                                VariableDesign => (byte)2,
-                                MethodDesign => (byte)4,
-                                _ => (byte)1
+                                PropertyDesign => 3,
+                                VariableDesign => 2,
+                                MethodDesign => 4,
+                                _ => 1
                             };
                             byte modellingRule = child.ModellingRule switch
                             {
-                                ModellingRule.Mandatory => (byte)1,
-                                ModellingRule.Optional => (byte)2,
-                                ModellingRule.OptionalPlaceholder => (byte)3,
-                                ModellingRule.MandatoryPlaceholder => (byte)4,
-                                ModellingRule.ExposesItsArray => (byte)5,
-                                _ => (byte)0
+                                ModellingRule.Mandatory => 1,
+                                ModellingRule.Optional => 2,
+                                ModellingRule.OptionalPlaceholder => 3,
+                                ModellingRule.MandatoryPlaceholder => 4,
+                                ModellingRule.ExposesItsArray => 5,
+                                _ => 0
                             };
                             var entryChild = new DependencyChild
                             {

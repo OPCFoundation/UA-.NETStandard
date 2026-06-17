@@ -31,7 +31,6 @@ using System;
 using System.Buffers.Binary;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Dissection;
 using Opc.Ua.Bindings.Pcap.KeyLog;

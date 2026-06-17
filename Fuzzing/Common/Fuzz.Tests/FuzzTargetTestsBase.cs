@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -90,7 +91,7 @@ namespace Opc.Ua.Fuzzing
         [Theory]
         public void FuzzCrashAssets(FuzzTargetFunction fuzzableCode)
         {
-            int exceptions = 0;
+            var failures = new List<string>();
             foreach (TestcaseAsset messageEncoder in CrashAssets)
             {
                 try
@@ -100,10 +101,30 @@ namespace Opc.Ua.Fuzzing
                 }
                 catch (Exception ex)
                 {
+                    failures.Add(
+                        $"asset={messageEncoder} -> {ex.GetType().Name}: {ex.Message}");
                     TestContext.Error.WriteLine($"Failed: {messageEncoder}\n{ex}");
-                    exceptions++;
                 }
             }
+
+            // A crash asset under Assets/crash*.* is by definition an input that
+            // already produced an unhandled exception in a prior libfuzzer run.
+            // The contract is: once the regression has been fixed in the fuzz
+            // target (or the matching producer/decoder), replaying the asset
+            // through the target must NOT throw any more. The asset's continued
+            // existence in the tree therefore acts as a permanent regression
+            // gate. See https://github.com/OPCFoundation/UA-.NETStandard/issues/3546
+            // for the historical context that flipped this from
+            // log-and-swallow to assert-and-fail.
+            Assert.That(
+                failures,
+                Is.Empty,
+                "One or more crash assets reproduced under target " +
+                $"'{fuzzableCode.MethodInfo.Name}'. Each surfaced bug must be " +
+                "fixed (in the decoder/encoder/parser/whitelist) before the " +
+                "corresponding asset is left in place. Failures:" +
+                Environment.NewLine +
+                string.Join(Environment.NewLine, failures));
         }
 
         [Theory]

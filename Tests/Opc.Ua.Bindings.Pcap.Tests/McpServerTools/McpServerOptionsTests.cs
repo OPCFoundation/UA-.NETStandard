@@ -202,7 +202,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.McpServerTools
                 "ResolveExportRoot",
                 BindingFlags.Static | BindingFlags.NonPublic)
                 ?? throw new InvalidOperationException("ResolveExportRoot not found.");
-            return (string)method.Invoke(null, new object[] { services })!;
+            return (string)method.Invoke(null, [services])!;
         }
 
         private string InvokeGetDecodeAllowedRoot(IServiceProvider services)
@@ -213,7 +213,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.McpServerTools
                 "GetDecodeAllowedRoot",
                 BindingFlags.Static | BindingFlags.NonPublic)
                 ?? throw new InvalidOperationException("GetDecodeAllowedRoot not found.");
-            return (string)method.Invoke(null, new object[] { services })!;
+            return (string)method.Invoke(null, [services])!;
         }
 
         private static Type GetMcpServerOptionsType()

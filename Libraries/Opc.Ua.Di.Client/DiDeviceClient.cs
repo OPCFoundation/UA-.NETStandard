@@ -113,6 +113,9 @@ namespace Opc.Ua.Di.Client
         /// <paramref name="deviceNodeId"/> by verifying the node exists
         /// and reading its display name.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<DiDeviceClient> ForDeviceAsync(
             ISession session,
             NodeId deviceNodeId,
@@ -308,6 +311,7 @@ namespace Opc.Ua.Di.Client
         /// value cannot be converted to <typeparamref name="T"/>.
         /// </summary>
         /// <typeparam name="T">Expected property value type.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask<T?> ReadPropertyAsync<T>(
             string browseName,
             CancellationToken ct = default)

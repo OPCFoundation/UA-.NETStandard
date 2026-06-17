@@ -41,7 +41,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapOptionsDiagnosticsToolsGateTests
     {
-        private Opc.Ua.Bindings.ITransportChannelFactory? m_previousBinding;
+        private ITransportChannelFactory? m_previousBinding;
 
         /// <summary>
         /// Snapshots the process-wide opc.tcp binding before DI registration
@@ -50,10 +50,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         [SetUp]
         public void CapturePreviousBinding()
         {
-            var bindings = (Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                Opc.Ua.Bindings.TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Opc.Ua.Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Opc.Ua.Utils.UriSchemeOpcTcp, new TestTelemetryContext())
+            var bindings = (ITransportBindings<ITransportChannelFactory>)
+                TransportBindings.Channels;
+            m_previousBinding = bindings.HasBinding(Utils.UriSchemeOpcTcp)
+                ? bindings.GetBinding(Utils.UriSchemeOpcTcp, new TestTelemetryContext())
                 : null;
         }
 
@@ -66,8 +66,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
         {
             if (m_previousBinding is not null)
             {
-                ((Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                    Opc.Ua.Bindings.TransportBindings.Channels)
+                ((ITransportBindings<ITransportChannelFactory>)
+                    TransportBindings.Channels)
                     .SetBinding(m_previousBinding);
             }
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.DependencyInjection
             services.AddOpcUaBindingsPcap(options => options.EnableDiagnosticsTools = true);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
 
             Assert.That(options.EnableDiagnosticsTools, Is.True);
         }

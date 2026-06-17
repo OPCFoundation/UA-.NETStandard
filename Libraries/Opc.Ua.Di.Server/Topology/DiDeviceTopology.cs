@@ -97,8 +97,8 @@ namespace Opc.Ua.Di.Server.Topology
             {
                 return null;
             }
-            return deviceSet.FindChild(m_manager.SystemContext, browseName)
-                as ComponentState;
+            return deviceSet.FindChild(m_manager.SystemContext, browseName) as
+                ComponentState;
         }
 
         private BaseObjectState? ResolveWellKnown(uint id)

@@ -98,8 +98,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // BaseEventType should resolve to a BaseEventTypeRecord.
             int eventTypePosition = FindEventTypeIndex(registry.StandardFields);
             Assert.That(eventTypePosition, Is.GreaterThanOrEqualTo(0),
-                "Default registry must expose the EventType browse path "
-                + "for filter construction.");
+                "Default registry must expose the EventType browse path " +
+                "for filter construction.");
 
             var fields = new Variant[registry.StandardFields.Length];
             fields[eventTypePosition] = Variant.From(ObjectTypeIds.BaseEventType);
@@ -180,8 +180,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             int eventTypeIndex = FindEventTypeIndex(registry.StandardFields);
 
             Assert.That(eventTypeIndex, Is.GreaterThanOrEqualTo(0),
-                "EventType browse path must be present in the composed "
-                + "StandardFields so the registry can route on it.");
+                "EventType browse path must be present in the composed " +
+                "StandardFields so the registry can route on it.");
         }
 
         [Test]
@@ -219,8 +219,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(record, Is.InstanceOf<BaseEventTypeRecord>());
             var baseRecord = (BaseEventTypeRecord)record;
             Assert.That(baseRecord.Severity, Is.EqualTo((ushort)999),
-                "Registry must remap composed-layout fields to each "
-                + "decoder's local positional layout before decoding.");
+                "Registry must remap composed-layout fields to each " +
+                "decoder's local positional layout before decoding.");
         }
 
         [Test]

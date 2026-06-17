@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     secondParticipant.NotificationCount == 1 &&
                     openSettings.Count >= 2).ConfigureAwait(false);
 
-                TransportChannelSettings[] settings = openSettings.ToArray();
+                TransportChannelSettings[] settings = [.. openSettings];
                 Assert.That(settings[^1].ClientCertificate?.Thumbprint, Is.EqualTo(newCertificate.Thumbprint));
                 Assert.That(firstParticipant.NotificationCount, Is.EqualTo(1));
                 Assert.That(secondParticipant.NotificationCount, Is.EqualTo(1));

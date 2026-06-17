@@ -45,7 +45,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             byte[] payload = Encoding.ASCII.GetBytes("hello");
             PcapRecord record = CreateEthernetRecord(payload);
 
-            TcpFlowSegment[] segments = reassembler.Process(record).ToArray();
+            TcpFlowSegment[] segments = [.. reassembler.Process(record)];
 
             Assert.That(segments, Has.Length.EqualTo(1));
             Assert.That(segments[0].Data.ToArray(), Is.EqualTo(payload).AsCollection);
@@ -59,9 +59,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             byte[] first = Encoding.ASCII.GetBytes("hel");
             byte[] second = Encoding.ASCII.GetBytes("lo");
 
-            TcpFlowSegment[] segments = reassembler.Process(CreateEthernetRecord(first, 100))
-                .Concat(reassembler.Process(CreateEthernetRecord(second, 103)))
-                .ToArray();
+            TcpFlowSegment[] segments = [.. reassembler.Process(CreateEthernetRecord(first, 100))
+, .. reassembler.Process(CreateEthernetRecord(second, 103))];
 
             Assert.That(segments, Has.Length.EqualTo(2));
             Assert.That(
@@ -74,9 +73,12 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         {
             var reassembler = new TcpStreamReassembler();
 
-            TcpFlowSegment[] segments = reassembler.Process(CreateEthernetRecord(new byte[] { 1 }, sourcePort: 50000))
-                .Concat(reassembler.Process(CreateEthernetRecord(new byte[] { 2 }, sourcePort: 50001)))
-                .ToArray();
+            TcpFlowSegment[] segments =
+            [
+                .. reassembler.Process(CreateEthernetRecord([1], sourcePort: 50000))
+,
+                .. reassembler.Process(CreateEthernetRecord([2], sourcePort: 50001)),
+            ];
 
             Assert.That(segments, Has.Length.EqualTo(2));
             Assert.That(segments[0].FlowKey, Is.Not.EqualTo(segments[1].FlowKey));
@@ -87,7 +89,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         {
             var reassembler = new TcpStreamReassembler();
 
-            TcpFlowSegment[] segments = reassembler.Process(CreateEthernetRecord(new byte[] { 1 }, fin: true)).ToArray();
+            TcpFlowSegment[] segments = [.. reassembler.Process(CreateEthernetRecord([1], fin: true))];
 
             Assert.That(segments, Has.Length.EqualTo(1));
             Assert.That(segments[0].IsFin, Is.True);
@@ -104,7 +106,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             raw.CopyTo(packet.AsSpan(4));
             var record = new PcapRecord(DateTimeOffset.UtcNow, PcapFileWriter.LinkTypeNull, packet.Length, packet);
 
-            TcpFlowSegment[] segments = reassembler.Process(record).ToArray();
+            TcpFlowSegment[] segments = [.. reassembler.Process(record)];
 
             Assert.That(segments, Has.Length.EqualTo(1));
             Assert.That(segments[0].Data.ToArray(), Is.EqualTo(payload).AsCollection);

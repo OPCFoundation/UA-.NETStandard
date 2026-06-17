@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
 namespace Opc.Ua.Di.Server.Builders

@@ -135,9 +135,7 @@ namespace Opc.Ua.Di.Client
             if (translateResponse.Results.Count == 0)
 
             {
-
                 return string.Empty;
-
             }
             BrowsePathResult result = translateResponse.Results[0];
             if (!StatusCode.IsGood(result.StatusCode) || result.Targets.Count == 0)
@@ -164,9 +162,7 @@ namespace Opc.Ua.Di.Client
             if (readResponse.Results.Count == 0)
 
             {
-
                 return string.Empty;
-
             }
             DataValue dv = readResponse.Results[0];
             if (!StatusCode.IsGood(dv.StatusCode))

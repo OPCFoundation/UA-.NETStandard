@@ -75,6 +75,7 @@ namespace Opc.Ua.Client.TestFramework
         /// elapses before the server responds, otherwise propagates the
         /// underlying service result exception.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static async Task<PublishResponse> PublishWithTimeoutAsync(
             this ISession session,
             int timeoutMs = DefaultPublishTimeoutMs)
@@ -105,6 +106,8 @@ namespace Opc.Ua.Client.TestFramework
         /// client-side timeout AND a non-empty subscription-acknowledgement
         /// list. Same hang protection as <see cref="PublishWithTimeoutAsync"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<PublishResponse> PublishWithTimeoutAsync(
             this ISession session,
             ArrayOf<SubscriptionAcknowledgement> acks,

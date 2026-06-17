@@ -60,13 +60,13 @@ builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://localhost:{port}/PumpDeviceIntegrationServer");
     })
-    .AddNodeManager<Pumps.PumpNodeManagerFactory>()
+    .AddNodeManager<PumpNodeManagerFactory>()
     // Materialise a second pump declaratively at server startup. The
     // runner runs the delegate after the pump address space and
     // fluent wiring are complete.
-    .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
+    .ConfigureDevicesFor<PumpNodeManager>(async ctx =>
     {
-        var pump = await ctx.CreateDeviceAsync(
+        IDeviceBuilder<DeviceState> pump = await ctx.CreateDeviceAsync(
             new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex))
             .ConfigureAwait(false);
 

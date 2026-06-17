@@ -119,6 +119,8 @@ namespace Opc.Ua.Identity
         /// Uses <see cref="byte"/>[] parameters for compatibility with
         /// the netstandard2.1 / net472 / net48 surface.
         /// </remarks>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="signingInput"/> is <c>null</c>.</exception>
         public bool VerifySignature(byte[] signingInput, byte[] signature)
         {
             if (m_disposed)

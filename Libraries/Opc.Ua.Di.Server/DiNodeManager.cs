@@ -370,6 +370,8 @@ namespace Opc.Ua.Di.Server
         /// manager's <see cref="ResolveDefaultDeviceParent"/> is used.
         /// </param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
             QualifiedName browseName,
             NodeId typeDefinitionId,
@@ -390,10 +392,11 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(factory));
             }
-            NodeState effectiveParent = parent ?? ResolveDefaultDeviceParent()
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "No default device parent could be resolved. Override DiNodeManager.ResolveDefaultDeviceParent or supply an explicit parent.");
+            NodeState effectiveParent = parent ??
+                ResolveDefaultDeviceParent()
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "No default device parent could be resolved. Override DiNodeManager.ResolveDefaultDeviceParent or supply an explicit parent.");
 
             // Fail fast on duplicate browse names under the parent.
             NodeState? existing = effectiveParent.FindChild(SystemContext, browseName);
@@ -435,6 +438,7 @@ namespace Opc.Ua.Di.Server
         /// programmatically created devices alike.
         /// </summary>
         /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        /// <exception cref="System.ArgumentNullException"><paramref name="device"/> is <c>null</c>.</exception>
         public IDeviceBuilder<TDevice> Device<TDevice>(TDevice device)
             where TDevice : ComponentState
         {
@@ -452,6 +456,8 @@ namespace Opc.Ua.Di.Server
         /// <typeparamref name="TDevice"/>.
         /// </summary>
         /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId)
             where TDevice : ComponentState
         {
@@ -486,6 +492,8 @@ namespace Opc.Ua.Di.Server
         /// returns a fluent builder over it.
         /// </summary>
         /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
             QualifiedName browseName,
             NodeState? parent = null)
@@ -495,10 +503,11 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(browseName));
             }
-            NodeState effectiveParent = parent ?? ResolveDefaultDeviceParent()
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "No default device parent could be resolved.");
+            NodeState effectiveParent = parent ??
+                ResolveDefaultDeviceParent()
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "No default device parent could be resolved.");
 
             NodeState? child = effectiveParent.FindChild(SystemContext, browseName);
             if (child is not TDevice typed)
@@ -581,4 +590,3 @@ namespace Opc.Ua.Di.Server
         }
     }
 }
-

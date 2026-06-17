@@ -63,6 +63,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// browse-name <c>"SupportInfo"</c> in the device's namespace.
         /// </summary>
         /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="device"/> is <c>null</c>.</exception>
         public static IDeviceBuilder<TDevice> WithSupportInfo<TDevice>(
             this IDeviceBuilder<TDevice> device,
             Action<ISupportInfoState> configure)
@@ -76,11 +77,7 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            ISupportInfoState? existing = FindExistingSupportInfo(device.Device);
-            if (existing == null)
-            {
-                existing = CreateAndRegisterSupportInfo(device);
-            }
+            ISupportInfoState? existing = FindExistingSupportInfo(device.Device) ?? CreateAndRegisterSupportInfo(device);
             configure(existing);
             return device;
         }
@@ -111,7 +108,7 @@ namespace Opc.Ua.Di.Server.Builders
                 SymbolicName = "SupportInfo",
                 BrowseName = new QualifiedName("SupportInfo", nsIndex),
                 DisplayName = new LocalizedText("SupportInfo"),
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasInterface
+                ReferenceTypeId = Types.ReferenceTypeIds.HasInterface
             };
             info.NodeId = device.Context.NodeIdFactory.New(device.Context, info);
             device.Device.AddChild(info);

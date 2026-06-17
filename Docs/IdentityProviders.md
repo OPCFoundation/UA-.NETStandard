@@ -796,7 +796,7 @@ ManagedSession managed = await ManagedSession.CreateAsync(
 The event remains as a compatibility fallback, but it is marked
 `[Obsolete]`. New code should move validation into one
 `IUserTokenAuthenticator` per token type. See
-[Migration Guide — User Identity Providers](MigrationGuide.md#user-identity-providers)
+[2.0 migration guide — User Identity Providers](migrate/2.0.x/identity.md#user-identity-providers)
 for the full migration table.
 
 ### 1. Legacy event code
@@ -933,9 +933,9 @@ OPC UA identity abstractions plus the provider SDK you need.
 
 ## See also
 
-* [Migration Guide — User Identity Providers](MigrationGuide.md#user-identity-providers)
+* [2.0 migration guide — User Identity Providers](migrate/2.0.x/identity.md#user-identity-providers)
   for source migrations from obsolete identity APIs.
-* [Migration Guide — User Identity Token Handlers](MigrationGuide.md#user-identity-token-handlers)
+* [2.0 migration guide — User Identity Token Handlers](migrate/2.0.x/identity.md#user-identity-token-handlers)
   for the 1.6 token-handler async / non-disposable refactor.
 * [Role-Based Security (OPC UA Part 18)](RoleBasedUserManagement.md) for
   the role-mapping layer that consumes `IIdentityClaims`.

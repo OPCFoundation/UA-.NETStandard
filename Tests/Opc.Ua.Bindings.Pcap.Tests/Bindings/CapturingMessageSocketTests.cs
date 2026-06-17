@@ -33,7 +33,6 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
@@ -60,7 +59,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
                 registry,
                 originalSink);
 
-            using var args = new StubAsyncEventArgs(new byte[] { 1, 2, 3, 4 });
+            using var args = new StubAsyncEventArgs([1, 2, 3, 4]);
 
             // No observer installed: forwarded but not tapped.
             socket.Send(args);
@@ -69,7 +68,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
 
             // Install observer; subsequent sends must tap.
             registry.SetObserver(sink);
-            using var args2 = new StubAsyncEventArgs(new byte[] { 5, 6, 7 });
+            using var args2 = new StubAsyncEventArgs([5, 6, 7]);
             socket.Send(args2);
             Assert.That(inner.SendCount, Is.EqualTo(2));
             Assert.That(sink.SentChunks, Has.Count.EqualTo(1));
@@ -114,13 +113,13 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
 
             Assert.DoesNotThrow(() =>
             {
-                using var args = new StubAsyncEventArgs(new byte[] { 1, 2, 3 });
+                using var args = new StubAsyncEventArgs([1, 2, 3]);
                 socket.Send(args);
             });
             Assert.That(inner.SendCount, Is.EqualTo(1));
 
             Assert.DoesNotThrow(() =>
-                inner.LastSink!.OnMessageReceived(socket, new ArraySegment<byte>(new byte[] { 4 })));
+                inner.LastSink!.OnMessageReceived(socket, new ArraySegment<byte>([4])));
         }
 
         private sealed class RecordingMessageSocket : IMessageSocket
@@ -131,13 +130,24 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
             public TransportChannelFeatures MessageSocketFeatures => TransportChannelFeatures.None;
-            public Task ConnectAsync(Uri endpointUrl, CancellationToken ct = default) => Task.CompletedTask;
+            public Task ConnectAsync(Uri endpointUrl, CancellationToken ct = default)
+            {
+                return Task.CompletedTask;
+            }
+
             public void Close() { }
             public void Dispose() { }
             public void ReadNextMessage() { }
-            public void ChangeSink(IMessageSink sink) => LastSink = sink;
+            public void ChangeSink(IMessageSink sink)
+            {
+                LastSink = sink;
+            }
+
             public bool Send(IMessageSocketAsyncEventArgs args) { SendCount++; return true; }
-            public IMessageSocketAsyncEventArgs MessageSocketEventArgs() => new StubAsyncEventArgs(Array.Empty<byte>());
+            public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
+            {
+                return new StubAsyncEventArgs([]);
+            }
         }
 
         private sealed class TestSink : UaSCUaBinaryChannel
@@ -147,7 +157,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
                     contextId: "test",
                     bufferManager: new BufferManager(
                         "test",
-                        Opc.Ua.Bindings.TcpMessageLimits.DefaultMaxBufferSize,
+                        TcpMessageLimits.DefaultMaxBufferSize,
                         DummyTelemetry.Instance),
                     quotas: new ChannelQuotas(ServiceMessageContext.CreateEmpty(DummyTelemetry.Instance)),
                     serverCertificate: null,
@@ -159,46 +169,58 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
                 ChannelId = channelId;
             }
 
-            public List<byte[]> Received { get; } = new();
+            public List<byte[]> Received { get; } = [];
 
             public override void OnMessageReceived(IMessageSocket source, ArraySegment<byte> message)
             {
-                Received.Add(message.ToArray());
+                Received.Add([.. message]);
             }
         }
 
         private sealed class RecordingFrameCaptureSink : IFrameCaptureSink
         {
-            public List<(uint ChannelId, byte[] Bytes)> SentChunks { get; } = new();
-            public List<(uint ChannelId, byte[] Bytes)> ReceivedChunks { get; } = new();
-            public List<(uint ChannelId, uint TokenId)> Tokens { get; } = new();
+            public List<(uint ChannelId, byte[] Bytes)> SentChunks { get; } = [];
+            public List<(uint ChannelId, byte[] Bytes)> ReceivedChunks { get; } = [];
+            public List<(uint ChannelId, uint TokenId)> Tokens { get; } = [];
 
             public void OnFrameSent(uint channelId, ReadOnlySpan<byte> chunk)
-                => SentChunks.Add((channelId, chunk.ToArray()));
+            {
+                SentChunks.Add((channelId, chunk.ToArray()));
+            }
 
             public void OnFrameReceived(uint channelId, ReadOnlySpan<byte> chunk)
-                => ReceivedChunks.Add((channelId, chunk.ToArray()));
+            {
+                ReceivedChunks.Add((channelId, chunk.ToArray()));
+            }
 
             public void OnTokenActivated(
                 uint channelId,
                 ChannelToken currentToken,
                 ChannelToken? previousToken)
-                => Tokens.Add((channelId, currentToken.TokenId));
+            {
+                Tokens.Add((channelId, currentToken.TokenId));
+            }
         }
 
         private sealed class ThrowingFrameCaptureSink : IFrameCaptureSink
         {
             public void OnFrameSent(uint channelId, ReadOnlySpan<byte> chunk)
-                => throw new InvalidOperationException("boom-send");
+            {
+                throw new InvalidOperationException("boom-send");
+            }
 
             public void OnFrameReceived(uint channelId, ReadOnlySpan<byte> chunk)
-                => throw new InvalidOperationException("boom-recv");
+            {
+                throw new InvalidOperationException("boom-recv");
+            }
 
             public void OnTokenActivated(
                 uint channelId,
                 ChannelToken currentToken,
                 ChannelToken? previousToken)
-                => throw new InvalidOperationException("boom-token");
+            {
+                throw new InvalidOperationException("boom-token");
+            }
         }
 
         private sealed class StubAsyncEventArgs : IMessageSocketAsyncEventArgs
@@ -236,7 +258,10 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
             public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory
                 => Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
             public System.Diagnostics.ActivitySource ActivitySource { get; } = new("test");
-            public System.Diagnostics.Metrics.Meter CreateMeter() => new("test");
+            public System.Diagnostics.Metrics.Meter CreateMeter()
+            {
+                return new("test");
+            }
         }
     }
 }

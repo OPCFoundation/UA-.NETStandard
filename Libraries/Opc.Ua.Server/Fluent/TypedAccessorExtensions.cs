@@ -48,6 +48,7 @@ namespace Opc.Ua.Server.Fluent
         /// extension methods can walk the HasComponent children.
         /// </summary>
         /// <typeparam name="TState">Concrete owning state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IComponentAccessor<TState> Components<TState>(
             this INodeBuilder<TState> builder)
             where TState : NodeState
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server.Fluent
         /// extension methods can walk the HasProperty children.
         /// </summary>
         /// <typeparam name="TState">Concrete owning state type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IPropertyAccessor<TState> Properties<TState>(
             this INodeBuilder<TState> builder)
             where TState : NodeState

@@ -36,9 +36,9 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Stress.Tests.Channels.Helpers;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 // CA2000: ownership of the rotated certificate copy is transferred to CertificateManager.

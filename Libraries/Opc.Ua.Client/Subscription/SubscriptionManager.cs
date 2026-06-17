@@ -151,7 +151,7 @@ namespace Opc.Ua.Client.Subscriptions
                     // Expose logical wrappers — callers see one
                     // ISubscription per logical subscription regardless
                     // of how many partitions back it.
-                    return m_logicals.ToList<ISubscription>();
+                    return [.. m_logicals];
                 }
             }
         }
@@ -528,15 +528,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="SubscriptionOptions.SecondaryPartitionIdleTimeout"/>
         /// for the wrapper. Per the option docs,
         /// <see cref="TimeSpan.Zero"/> means immediate idle-delete
-        /// and <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
+        /// and <see cref="Timeout.InfiniteTimeSpan"/>
         /// (the only valid negative value) disables idle-delete. Any
         /// other negative value is treated as "disabled" defensively
-        /// because <see cref="System.Threading.ITimer"/> rejects them.
+        /// because <see cref="ITimer"/> rejects them.
         /// </summary>
         private static TimeSpan NormalizeIdleTimeout(TimeSpan idleTimeout)
         {
             return idleTimeout < TimeSpan.Zero
-                ? System.Threading.Timeout.InfiniteTimeSpan
+                ? Timeout.InfiniteTimeSpan
                 : idleTimeout;
         }
 

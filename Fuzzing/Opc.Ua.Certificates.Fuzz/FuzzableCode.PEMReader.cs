@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Security.Certificates;
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                var certificates = PEMReader.ImportPublicKeysFromPEM(input);
+                X509Certificate2Collection certificates = PEMReader.ImportPublicKeysFromPEM(input);
                 _ = certificates.Count;
             }
             catch (CryptographicException)

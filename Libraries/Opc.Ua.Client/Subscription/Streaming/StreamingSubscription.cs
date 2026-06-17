@@ -131,7 +131,8 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                     if (m_subscription!.MonitoredItems.TryAdd(
                             name,
                             new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
-                            out IMonitoredItem? item) && item != null)
+                            out IMonitoredItem? item) &&
+                        item != null)
                     {
                         monitoredItems.Add(item);
                         subscriber.AddClientHandle(item.ClientHandle);
@@ -216,7 +217,8 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 if (m_subscription!.MonitoredItems.TryAdd(
                         name,
                         new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
-                        out item) && item != null)
+                        out item) &&
+                    item != null)
                 {
                     subscriber.AddClientHandle(item.ClientHandle);
                 }
@@ -494,7 +496,5 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 return null;
             }
         }
-
     }
 }
-

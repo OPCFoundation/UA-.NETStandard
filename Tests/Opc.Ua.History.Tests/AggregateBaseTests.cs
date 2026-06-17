@@ -51,10 +51,12 @@ namespace Opc.Ua.History.Tests
         /// Standard processing intervals used by the aggregate base scenarios.
         /// </summary>
         private const double IntervalDefault = 0;          // server default
+
         /// <summary>
         /// 1 minute
         /// </summary>
         private const double IntervalShort = 60_000;
+
         /// <summary>
         /// 30 minutes
         /// </summary>

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -118,7 +117,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.KeyLog
             services.AddOpcUaBindingsPcap(options => options.BaseFolder = TempDirectory);
             services.AddSingleton<ICaptureSourceFactory>(new StubSourceFactory(material));
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
-            await using var manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
+            await using CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
             CaptureSession session = await manager.StartAsync(
                 new StartCaptureRequest { Source = CaptureSourceKind.InProcessClient },

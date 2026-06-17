@@ -101,6 +101,7 @@ namespace Opc.Ua.Server.Historian
         /// returns the status code that should be assigned to the caller's
         /// errors slot.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static ValueTask<ServiceResult> DispatchRawReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -160,6 +161,7 @@ namespace Opc.Ua.Server.Historian
         /// Dispatches a single update-data history operation
         /// (Insert / Replace / Update).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchUpdateDataAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -219,6 +221,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Dispatches a single delete-raw history operation.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchDeleteRawAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -275,6 +278,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Dispatches a single delete-at-time history operation.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchDeleteAtTimeAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -335,6 +339,7 @@ namespace Opc.Ua.Server.Historian
         /// standard streaming fallback when the provider does not
         /// implement <see cref="IHistorianProcessedProvider"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint or disposed inline by EmitProcessedPage.")]
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
@@ -375,7 +380,6 @@ namespace Opc.Ua.Server.Historian
 
             HistorianContinuationState? cont = TryRestoreContinuation(
                 systemContext, nodeToRead, HistorianReadKind.Processed);
-
 
             // Resume from buffered output if a continuation already exists.
             if (cont?.BufferedProcessedOutputs is { })
@@ -787,6 +791,7 @@ namespace Opc.Ua.Server.Historian
         /// Dispatches a single at-time history read with a streaming
         /// framework fallback that interpolates from raw values.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchAtTimeReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -878,6 +883,7 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="IHistorianAnnotationProvider"/> and wrapping each
         /// returned annotation as a <see cref="DataValue"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -981,6 +987,7 @@ namespace Opc.Ua.Server.Historian
         /// translating to the parent variable's
         /// <see cref="IHistorianAnnotationProvider"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchAnnotationUpdateAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1126,6 +1133,7 @@ namespace Opc.Ua.Server.Historian
         /// the supplied <c>EventFilter.SelectClauses</c> to build the
         /// returned <c>HistoryEventFieldList</c> entries.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1250,6 +1258,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Dispatches an UpdateEventDetails HistoryUpdate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchUpdateEventAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1316,6 +1325,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Dispatches a DeleteEventDetails HistoryUpdate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static async ValueTask<ServiceResult> DispatchDeleteEventsAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1376,6 +1386,7 @@ namespace Opc.Ua.Server.Historian
         /// <c>SelectClauses</c>. Operands whose browse path does not
         /// resolve to a field receive an empty <see cref="Variant"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="record"/> is <c>null</c>.</exception>
         public static HistoryEventFieldList ProjectEventFields(
             HistorianEventRecord record,
             EventFilter filter)
@@ -1524,6 +1535,7 @@ namespace Opc.Ua.Server.Historian
         /// Releases a continuation point that was previously saved by the
         /// dispatcher.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public static ServiceResult ReleaseContinuationPoint(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead)
@@ -2071,7 +2083,7 @@ namespace Opc.Ua.Server.Historian
 
         private static IReadOnlyList<DataValue> ToReadOnlyList(IList<DataValue> values)
         {
-            return values is IReadOnlyList<DataValue> rol ? rol : new List<DataValue>(values);
+            return values is IReadOnlyList<DataValue> rol ? rol : [.. values];
         }
 
         private static StatusCode[] RepeatStatus(StatusCode code, int count)

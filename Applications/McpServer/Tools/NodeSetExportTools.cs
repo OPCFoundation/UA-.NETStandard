@@ -429,7 +429,7 @@ namespace Opc.Ua.Mcp.Tools
         /// escape it.
         /// </summary>
         /// <param name="services">DI service provider used to look
-        /// up <see cref="McpServerOptions.NodeSetExportRoot"/>.
+        /// up <see cref="OpcUaMcpServerOptions.NodeSetExportRoot"/>.
         /// </param>
         /// <param name="requestedPath">Caller-supplied path.</param>
         /// <param name="parameterName">Tool parameter name used in
@@ -476,7 +476,7 @@ namespace Opc.Ua.Mcp.Tools
 
         /// <summary>
         /// Resolves the active export-root directory using the
-        /// precedence: <see cref="McpServerOptions.NodeSetExportRoot"/>
+        /// precedence: <see cref="OpcUaMcpServerOptions.NodeSetExportRoot"/>
         /// from DI &gt; <c>OPCUA_MCP_EXPORT_ROOT</c> environment
         /// variable &gt; per-user default. The environment variable and
         /// default are re-evaluated on every call so a host that

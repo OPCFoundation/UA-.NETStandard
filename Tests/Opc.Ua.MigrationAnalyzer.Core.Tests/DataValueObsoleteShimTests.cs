@@ -48,7 +48,7 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
         public Task IsGoodOnDefaultDataValueReturnsTrueAsync()
         {
 #pragma warning disable CS0618 // Intentional shim call.
-            bool isGood = DataValue.IsGood(default(DataValue));
+            bool isGood = DataValue.IsGood(default);
 #pragma warning restore CS0618
 
             Assert.That(isGood, Is.True);
@@ -60,8 +60,8 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
         {
             // Construct via FromStatusCode to avoid the obsolete numeric overload
             // ambiguity flagged on the DataValue(StatusCode) constructor.
-            StatusCode bad = Opc.Ua.Types.StatusCodes.Bad;
-            DataValue dv = DataValue.FromStatusCode(bad);
+            StatusCode bad = Types.StatusCodes.Bad;
+            var dv = DataValue.FromStatusCode(bad);
 
 #pragma warning disable CS0618 // Intentional shim call.
             bool isBad = DataValue.IsBad(dv);

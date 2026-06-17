@@ -352,9 +352,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.IsNotExplicitlyDefined)
 
             {
-
                 return null;
-
             }
             if (instance.IsOverriddenWithSameClass(
                 m_context.ModelDesign.TargetNamespace.Value,
@@ -456,9 +454,7 @@ namespace Opc.Ua.SourceGeneration
             if (fields.Count == 0)
 
             {
-
                 return null;
-
             }
             return context.TemplateString;
         }
@@ -475,9 +471,7 @@ namespace Opc.Ua.SourceGeneration
             if (fields.Count == 0)
 
             {
-
                 return false;
-
             }
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.DataType, type.DataTypeNode.GetDotNetTypeName(
@@ -618,9 +612,7 @@ namespace Opc.Ua.SourceGeneration
             if (effectiveRule == ModellingRule.None)
 
             {
-
                 return null;
-
             }
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
@@ -956,9 +948,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.IsNotExplicitlyDefined)
 
             {
-
                 return null;
-
             }
             if (GetEffectiveModellingRule(node, instance) != ModellingRule.Optional)
             {
@@ -1011,9 +1001,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.IsNotExplicitlyDefined)
 
             {
-
                 return null;
-
             }
             ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
 
@@ -1028,9 +1016,7 @@ namespace Opc.Ua.SourceGeneration
             if (effectiveRule == ModellingRule.None)
 
             {
-
                 return null;
-
             }
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
@@ -1107,9 +1093,7 @@ namespace Opc.Ua.SourceGeneration
                 if (child.IsNotExplicitlyDefined)
 
                 {
-
                     continue;
-
                 }
                 ModellingRule childEffectiveRule =
                     GetEffectiveModellingRule(child, instance);
@@ -1125,9 +1109,7 @@ namespace Opc.Ua.SourceGeneration
                 if (childEffectiveRule is ModellingRule.None)
 
                 {
-
                     continue;
-
                 }
                 if (childEffectiveRule is
                     ModellingRule.OptionalPlaceholder or
@@ -1149,9 +1131,7 @@ namespace Opc.Ua.SourceGeneration
             if (count == 0)
 
             {
-
                 return null;
-
             }
             return context.TemplateString;
         }
@@ -1469,7 +1449,8 @@ namespace Opc.Ua.SourceGeneration
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
-                    root.AccessRestrictionsSpecified) ?? root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
+                    root.AccessRestrictionsSpecified) ??
+                root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
                     root.DefaultAccessRestrictionsSpecified);
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
@@ -1810,9 +1791,7 @@ namespace Opc.Ua.SourceGeneration
             if (variableType.SymbolicName.Name == "TwoStateDiscreteType")
 
             {
-
                 variableType.ValueRank = ValueRank.Scalar;
-
             }
             if (!variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
@@ -2500,9 +2479,7 @@ namespace Opc.Ua.SourceGeneration
                 if (encoding.NotInAddressSpace)
 
                 {
-
                     continue;
-
                 }
                 if (m_context.ModelDesign.IsExcluded(encoding))
                 {
@@ -2693,9 +2670,7 @@ namespace Opc.Ua.SourceGeneration
                 if (m_context.Options.UseTypeDefinitionModellingRules)
 
                 {
-
                     return typeDefRule;
-
                 }
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
@@ -2727,9 +2702,7 @@ namespace Opc.Ua.SourceGeneration
                 if (m_context.Options.UseTypeDefinitionModellingRules)
 
                 {
-
                     return typeDefRule;
-
                 }
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
@@ -2815,9 +2788,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.Hierarchy == null)
 
             {
-
                 return;
-
             }
             foreach (HierarchyNode current in node.Hierarchy.NodeList)
             {
@@ -2858,9 +2829,7 @@ namespace Opc.Ua.SourceGeneration
                     if (parentPath != node.Path)
 
                     {
-
                         continue;
-
                     }
                 }
 
@@ -2877,9 +2846,7 @@ namespace Opc.Ua.SourceGeneration
                 if (current.Instance is not InstanceDesign child)
 
                 {
-
                     continue;
-
                 }
                 ModellingRule effectiveRule = GetEffectiveModellingRule(
                     current, child, node.RootIsTypeDefinition);
@@ -3070,9 +3037,7 @@ namespace Opc.Ua.SourceGeneration
                     if (!target.ExplicitlyDefined && node.RootIsTypeDefinition)
 
                     {
-
                         continue;
-
                     }
                     references.Add(new ReferenceToGenerate(
                         target.Instance,
@@ -3182,9 +3147,7 @@ namespace Opc.Ua.SourceGeneration
                     if (roleNode != null)
 
                     {
-
                         rolePermissions.Add(rp);
-
                     }
                 }
             }
@@ -3286,9 +3249,7 @@ namespace Opc.Ua.SourceGeneration
             if (type.BaseTypeNode == null)
 
             {
-
                 return "<T>";
-
             }
             if (GetTemplateParameter(type.BaseTypeNode, out variantBuilder) != "<T>")
             {

@@ -55,8 +55,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         [Test]
         public async Task FormatAsyncWritesShbAndIdbAndEpbBlocksForSuppliedFrames()
         {
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero),
                     CaptureFrameDirection.ClientToServer,
@@ -69,7 +69,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
                     "127.0.0.1:12345",
                     "127.0.0.1:4840",
                     new byte[] { 5, 6, 7, 8, 9 })
-            };
+            ];
             await using var source = new InMemoryCaptureSource(
                 frames,
                 supportedFormats: new[] { FormatKind.PcapNg });
@@ -94,15 +94,15 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         [Test]
         public async Task FormatAsyncHonoursMaxFramesLimit()
         {
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(DateTimeOffset.UtcNow, CaptureFrameDirection.Unknown,
                     string.Empty, string.Empty, new byte[] { 0xAA }),
                 new CaptureFrame(DateTimeOffset.UtcNow, CaptureFrameDirection.Unknown,
                     string.Empty, string.Empty, new byte[] { 0xBB }),
                 new CaptureFrame(DateTimeOffset.UtcNow, CaptureFrameDirection.Unknown,
                     string.Empty, string.Empty, new byte[] { 0xCC })
-            };
+            ];
             await using var source = new InMemoryCaptureSource(
                 frames,
                 supportedFormats: new[] { FormatKind.PcapNg });

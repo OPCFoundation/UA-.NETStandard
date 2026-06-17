@@ -115,6 +115,7 @@ namespace Opc.Ua.Di.Client
         /// container or device — typically used to recurse the
         /// <c>DeviceTopology</c> tree.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public IAsyncEnumerable<TopologyEntry> EnumerateChildrenAsync(
             NodeId parentNodeId,
             CancellationToken cancellationToken = default)
@@ -153,9 +154,7 @@ namespace Opc.Ua.Di.Client
             if (response.Results.Count == 0)
 
             {
-
                 yield break;
-
             }
             BrowseResult result = response.Results[0];
             if (StatusCode.IsBad(result.StatusCode))

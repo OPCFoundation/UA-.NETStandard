@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings.Pcap.Capture;

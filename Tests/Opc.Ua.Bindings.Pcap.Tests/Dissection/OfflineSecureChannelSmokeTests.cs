@@ -31,7 +31,6 @@ using System;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Dissection;
 using Opc.Ua.Bindings.Pcap.KeyLog;
 
@@ -116,7 +115,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Dissection
                 material.TokenId,
                 sequenceNumber);
 
-            return encrypted.ToArray();
+            return [.. encrypted];
         }
     }
 }
