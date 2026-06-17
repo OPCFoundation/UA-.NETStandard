@@ -341,6 +341,78 @@ namespace OpcUaPubSubJsonTests
             });
         }
 
+        [Test]
+        public void JsonEncoderDecoderEdgeBranchesCoverLimitsAndMappings()
+        {
+            ServiceMessageContext context = NewContext();
+            context.NamespaceUris.GetIndexOrAppend("urn:test");
+            context.ServerUris.GetIndexOrAppend("urn:server");
+
+            using var writerCtor = new PubSubJsonEncoder(
+                context,
+                PubSubJsonEncoding.Reversible,
+                writer: null!,
+                topLevelIsArray: false);
+            writerCtor.EncodeMessage(new MinimalEncodeable { Value = 321 });
+            string encodedMessage = writerCtor.CloseAndReturnText();
+
+            using var nonReversible = new PubSubJsonEncoder(context, PubSubJsonEncoding.NonReversible);
+            nonReversible.WriteByteString("nullBytes", null!, 0, 0);
+            nonReversible.WriteByteString("spanBytes", new byte[] { 1, 2, 3 }.AsSpan());
+            nonReversible.WriteByteString("emptySpan", ReadOnlySpan<byte>.Empty);
+            nonReversible.WriteXmlElement("emptyXml", default);
+            nonReversible.WriteXmlElement("xml", XmlElement.From("<x>value</x>"));
+            nonReversible.WriteNodeId("guidNode", new NodeId(new Guid("33333333-3333-3333-3333-333333333333"), 1));
+            nonReversible.WriteNodeId("opaqueNode", new NodeId(new ByteString(new byte[] { 4, 5, 6 }), 1));
+            nonReversible.WriteExpandedNodeId(
+                "expanded",
+                new ExpandedNodeId(new NodeId("name", 1), "urn:test", 1));
+            nonReversible.WriteString("escaped", "a\nb\tc");
+            string json = nonReversible.CloseAndReturnText();
+
+            using var decoder = MakeDecoder(
+                "{\"f\":\"Infinity\",\"g\":\"-Infinity\",\"h\":\"NaN\",\"i\":7,\"badDate\":\"not-a-date\"}");
+
+            var limitedContext = NewContext();
+            limitedContext.MaxByteStringLength = 1;
+            using var limitedBytes = new PubSubJsonEncoder(limitedContext, PubSubJsonEncoding.Reversible);
+            limitedContext.MaxStringLength = 1;
+            using var limitedString = new PubSubJsonEncoder(limitedContext, PubSubJsonEncoding.Reversible);
+            limitedContext.MaxMessageSize = 1;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(encodedMessage, Does.Contain("321"));
+                Assert.That(json, Does.Contain("nullBytes"));
+                Assert.That(json, Does.Contain("expanded"));
+                Assert.That(decoder.ReadFloat("f"), Is.EqualTo(float.PositiveInfinity));
+                Assert.That(decoder.ReadDouble("g"), Is.EqualTo(double.NegativeInfinity));
+                Assert.That(double.IsNaN(decoder.ReadDouble("h")), Is.True);
+                Assert.That(decoder.ReadFloat("i"), Is.EqualTo(7f));
+                Assert.That(
+                    () => decoder.ReadDateTime("badDate"),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(
+                    () => limitedBytes.WriteByteString("tooLong", new byte[] { 1, 2 }, 0, 2),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(
+                    () => limitedString.WriteXmlElement("tooLongXml", XmlElement.From("<x>value</x>")),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(
+                    () => PubSubJsonEncoder.EncodeMessage(null!, new byte[8], context),
+                    Throws.TypeOf<ArgumentNullException>());
+                Assert.That(
+                    () => PubSubJsonEncoder.EncodeMessage(new MinimalEncodeable(), null!, context),
+                    Throws.TypeOf<ArgumentNullException>());
+                Assert.That(
+                    () => PubSubJsonDecoder.DecodeMessage<MinimalEncodeable>(new byte[8], null!),
+                    Throws.TypeOf<ArgumentNullException>());
+                Assert.That(
+                    () => PubSubJsonDecoder.DecodeMessage<MinimalEncodeable>(new byte[8], limitedContext),
+                    Throws.TypeOf<ServiceResultException>());
+            });
+        }
+
         private static ServiceMessageContext NewContext()
             => (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
 

@@ -222,6 +222,31 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 () => configurator.AddDataSetWriter(uint.MaxValue, new DataSetWriterDataType { Name = "Missing" }),
                 Throws.TypeOf<ArgumentException>());
 
+            var readerGroup = new ReaderGroupDataType { Name = "ReaderGroup" };
+            Assert.That(configurator.AddReaderGroup(connectionId, readerGroup), Is.EqualTo(StatusCodes.Good));
+            uint readerGroupId = configurator.FindIdForObject(readerGroup);
+            Assert.That(
+                () => configurator.AddReaderGroup(connectionId, readerGroup),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Name = "ReaderGroup" }),
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(
+                () => configurator.AddReaderGroup(uint.MaxValue, new ReaderGroupDataType { Name = "Missing" }),
+                Throws.TypeOf<ArgumentException>());
+
+            var dataSetReader = new DataSetReaderDataType { Name = "Reader" };
+            Assert.That(configurator.AddDataSetReader(readerGroupId, dataSetReader), Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                () => configurator.AddDataSetReader(readerGroupId, dataSetReader),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                configurator.AddDataSetReader(readerGroupId, new DataSetReaderDataType { Name = "Reader" }),
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(
+                () => configurator.AddDataSetReader(uint.MaxValue, new DataSetReaderDataType { Name = "Missing" }),
+                Throws.TypeOf<ArgumentException>());
+
             Assert.Multiple(() =>
             {
                 Assert.That(configurator.FindObjectById(uint.MaxValue), Is.Null);
@@ -230,10 +255,27 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.That(configurator.FindParentForObject(new object()), Is.Null);
                 Assert.That(configurator.RemoveWriterGroup(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(configurator.RemoveDataSetWriter(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(configurator.RemoveReaderGroup(uint.MaxValue), Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(configurator.RemoveDataSetReader(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(configurator.RemoveConnection(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(configurator.RemovePublishedDataSet(uint.MaxValue), Is.EqualTo(StatusCodes.Good));
                 Assert.That(configurator.RemoveExtensionField(uint.MaxValue, uint.MaxValue),
                     Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+                Assert.That(
+                    configurator.RemoveConnection(new PubSubConnectionDataType { Name = "Detached" }),
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(
+                    configurator.RemoveWriterGroup(new WriterGroupDataType { Name = "Detached" }),
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(
+                    configurator.RemoveDataSetWriter(new DataSetWriterDataType { Name = "Detached" }),
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(
+                    configurator.RemoveReaderGroup(new ReaderGroupDataType { Name = "Detached" }),
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(
+                    configurator.RemoveDataSetReader(new DataSetReaderDataType { Name = "Detached" }),
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             });
         }
 
