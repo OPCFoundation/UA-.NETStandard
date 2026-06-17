@@ -170,6 +170,18 @@ namespace Opc.Ua.Identity
                     continue;
                 }
 
+                if (!IsBoundEphemeralKeyCompatible(policy, context, out string? pinReason))
+                {
+                    rejections.Add((policy, pinReason!));
+                    continue;
+                }
+
+                if (!IsClientInstanceCertificateCompatible(policy, context, out string? instReason))
+                {
+                    rejections.Add((policy, instReason!));
+                    continue;
+                }
+
                 CanSatisfyResult satisfied = await provider
                     .CanSatisfyAsync(policy, context, ct)
                     .ConfigureAwait(false);
@@ -243,6 +255,89 @@ namespace Opc.Ua.Identity
                 System.Globalization.CultureInfo.InvariantCulture,
                 "NotEnabledByClient (client SupportedSecurityPolicies excludes '{0}').",
                 policy.SecurityPolicyUri);
+            return false;
+        }
+
+        private static bool IsBoundEphemeralKeyCompatible(
+            UserTokenPolicy policy,
+            IdentitySelectionContext context,
+            out string? rejectionReason)
+        {
+            string? boundUri = context.CurrentEphemeralKeyPolicyUri;
+            if (string.IsNullOrEmpty(boundUri))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            // The effective URI of an offered policy with empty
+            // SecurityPolicyUri is the channel security policy.
+            string effectiveUri = !string.IsNullOrEmpty(policy?.SecurityPolicyUri)
+                ? policy!.SecurityPolicyUri!
+                : context.EndpointDescription?.SecurityPolicyUri ?? SecurityPolicies.None;
+
+            if (string.Equals(effectiveUri, boundUri, StringComparison.Ordinal))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            rejectionReason = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "EphemeralKeyPolicyMismatch (an ECC ephemeral key is already bound to '{0}'; call Session.UpdateIdentityAsync(overrideUserTokenPolicyUri: '{1}') to renew).",
+                boundUri,
+                effectiveUri);
+            return false;
+        }
+
+        private static bool IsClientInstanceCertificateCompatible(
+            UserTokenPolicy policy,
+            IdentitySelectionContext context,
+            out string? rejectionReason)
+        {
+            CertificateKeyAlgorithm instanceAlg = context.ClientInstanceCertificateAlgorithm;
+            if (instanceAlg == CertificateKeyAlgorithm.None)
+            {
+                // Caller did not supply an instance cert algorithm —
+                // gate disabled for back-compat with legacy callers.
+                rejectionReason = null;
+                return true;
+            }
+
+            string effectiveUri = !string.IsNullOrEmpty(policy?.SecurityPolicyUri)
+                ? policy!.SecurityPolicyUri!
+                : context.EndpointDescription?.SecurityPolicyUri ?? SecurityPolicies.None;
+
+            if (string.Equals(effectiveUri, SecurityPolicies.None, StringComparison.Ordinal))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(effectiveUri);
+            if (info == null || info.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                // RSA user-token encryption uses the SERVER's certificate;
+                // the client instance cert curve is irrelevant.
+                rejectionReason = null;
+                return true;
+            }
+
+            // ECC user-token encryption uses the client's instance
+            // certificate as ECDH sender — its public-key curve must
+            // match the policy's curve.
+            if (info.CertificateKeyAlgorithm == instanceAlg)
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            rejectionReason = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "ClientInstanceCertificateAlgorithmMismatch (client instance certificate is {0}, policy '{1}' requires {2} for ECC user-token encryption).",
+                instanceAlg,
+                effectiveUri,
+                info.CertificateKeyAlgorithm);
             return false;
         }
 

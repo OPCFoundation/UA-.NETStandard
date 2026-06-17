@@ -108,6 +108,40 @@ namespace Opc.Ua.Identity
         /// every offered policy passes the gate.
         /// </summary>
         public ArrayOf<string> EnabledSecurityPolicyUris { get; init; }
+
+        /// <summary>
+        /// Public-key algorithm of the client's application instance
+        /// certificate. Used by selection to reject ECC user-token
+        /// policies that cannot be encrypted with the available
+        /// instance certificate (the instance cert is the ECDH sender
+        /// for ECC user-token encryption — see
+        /// <c>EncryptedSecret.CreateForEcc</c>).
+        /// Default <see cref="CertificateKeyAlgorithm.None"/> disables
+        /// the gate (back-compat for callers that do not populate it).
+        /// </summary>
+        public CertificateKeyAlgorithm ClientInstanceCertificateAlgorithm { get; init; }
+
+        /// <summary>
+        /// Public-key size in bits of the client's application instance
+        /// certificate when
+        /// <see cref="ClientInstanceCertificateAlgorithm"/> is
+        /// <see cref="CertificateKeyAlgorithm.RSA"/>; zero otherwise.
+        /// Reserved for future RSA instance-cert key-length gating;
+        /// currently informational.
+        /// </summary>
+        public int ClientInstanceCertificateKeySize { get; init; }
+
+        /// <summary>
+        /// Security-policy URI of the user-token policy whose ECC
+        /// ephemeral key is currently bound on the channel. When
+        /// non-null and non-empty, selection pins to this URI;
+        /// applications that want to switch must pass
+        /// <c>overrideUserTokenPolicyUri</c> to
+        /// <c>Session.UpdateIdentityAsync</c> so a fresh ephemeral key
+        /// is negotiated. Default <see langword="null"/> disables the
+        /// gate.
+        /// </summary>
+        public string? CurrentEphemeralKeyPolicyUri { get; init; }
     }
 
     /// <summary>

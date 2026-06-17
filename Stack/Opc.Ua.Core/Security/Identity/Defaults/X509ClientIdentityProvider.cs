@@ -30,7 +30,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -93,9 +92,9 @@ namespace Opc.Ua.Identity
                     $"TokenTypeNotSupported (provider handles Certificate, policy is {policy.TokenType}).");
             }
 
-            CertificateKeyAlgorithm? certAlgorithm = await ResolveCertificateAlgorithmAsync(ct)
+            CachedCertInfo? certInfo = await ResolveCertificateInfoAsync(ct)
                 .ConfigureAwait(false);
-            if (certAlgorithm == null)
+            if (certInfo == null)
             {
                 string subject = m_certificateId.SubjectName ?? "<unknown subject>";
                 string thumbprint = m_certificateId.Thumbprint ?? "<unknown thumbprint>";
@@ -126,10 +125,26 @@ namespace Opc.Ua.Identity
                 return CanSatisfyResult.Yes;
             }
 
-            if (policyAlgorithm != certAlgorithm.Value)
+            if (policyAlgorithm != certInfo.Algorithm)
             {
                 return CanSatisfyResult.No(
-                    $"CertificateAlgorithmMismatch (cert algorithm {certAlgorithm.Value}, policy '{effectivePolicyUri}' expects {policyAlgorithm}).");
+                    $"CertificateAlgorithmMismatch (cert algorithm {certInfo.Algorithm}, policy '{effectivePolicyUri}' expects {policyAlgorithm}).");
+            }
+
+            // RSA key-length gate: a user cert must fall within the
+            // [MinAsymmetricKeyLength..MaxAsymmetricKeyLength] window
+            // declared by the policy, otherwise the server will reject
+            // the token at ActivateSession time.
+            if (policyAlgorithm == CertificateKeyAlgorithm.RSA &&
+                info.MinAsymmetricKeyLength > 0)
+            {
+                int bits = certInfo.RsaKeySize;
+                if (bits < info.MinAsymmetricKeyLength ||
+                    (info.MaxAsymmetricKeyLength > 0 && bits > info.MaxAsymmetricKeyLength))
+                {
+                    return CanSatisfyResult.No(
+                        $"CertificateKeyLengthMismatch (user cert is {bits}-bit RSA, policy '{effectivePolicyUri}' requires [{info.MinAsymmetricKeyLength}..{info.MaxAsymmetricKeyLength}]).");
+                }
             }
 
             return CanSatisfyResult.Yes;
@@ -160,20 +175,20 @@ namespace Opc.Ua.Identity
 
         /// <summary>
         /// Resolves and caches the
-        /// <see cref="CertificateKeyAlgorithm"/> of the user
-        /// certificate. Returns <see langword="null"/> if the
-        /// certificate cannot be loaded; load failures are NOT
-        /// cached, so transient errors (store offline, cert not yet
+        /// <see cref="CertificateKeyAlgorithm"/> and RSA key length of
+        /// the user certificate. Returns <see langword="null"/> if the
+        /// certificate cannot be loaded; load failures are NOT cached,
+        /// so transient errors (store offline, cert not yet
         /// provisioned, rotated identifier) are retried on the next
         /// call.
         /// </summary>
-        private async ValueTask<CertificateKeyAlgorithm?> ResolveCertificateAlgorithmAsync(
+        private async ValueTask<CachedCertInfo?> ResolveCertificateInfoAsync(
             CancellationToken ct)
         {
-            CachedAlgorithm? cached = Volatile.Read(ref m_cached);
+            CachedCertInfo? cached = Volatile.Read(ref m_cached);
             if (cached != null)
             {
-                return cached.Algorithm;
+                return cached;
             }
 
             Certificate? certificate = await m_certificateProvider
@@ -186,12 +201,13 @@ namespace Opc.Ua.Identity
 
             try
             {
-                CertificateKeyAlgorithm algorithm = ResolveAlgorithm(certificate);
-                Interlocked.CompareExchange(
-                    ref m_cached,
-                    new CachedAlgorithm(algorithm),
-                    null);
-                return algorithm;
+                CertificateKeyAlgorithm algorithm = CryptoUtils.GetCertificateKeyAlgorithm(certificate);
+                int rsaKeySize = algorithm == CertificateKeyAlgorithm.RSA
+                    ? CryptoUtils.GetRsaPublicKeySize(certificate)
+                    : 0;
+                var info = new CachedCertInfo(algorithm, rsaKeySize);
+                Interlocked.CompareExchange(ref m_cached, info, null);
+                return info;
             }
             finally
             {
@@ -199,56 +215,22 @@ namespace Opc.Ua.Identity
             }
         }
 
-        /// <summary>
-        /// Inspects the public key of <paramref name="certificate"/>
-        /// and maps it to a <see cref="CertificateKeyAlgorithm"/>.
-        /// Falls back to <see cref="CertificateKeyAlgorithm.None"/>
-        /// for unrecognized keys (e.g. ed25519/ed448 represented in
-        /// platform-specific encodings).
-        /// </summary>
-        private static CertificateKeyAlgorithm ResolveAlgorithm(Certificate certificate)
-        {
-            string keyAlgorithm = certificate.GetKeyAlgorithm();
-            if (keyAlgorithm == Oids.Rsa)
-            {
-                return CertificateKeyAlgorithm.RSA;
-            }
-
-            if (keyAlgorithm == Oids.ECPublicKey)
-            {
-                PublicKey encodedPublicKey = certificate.PublicKey;
-                if (encodedPublicKey.EncodedParameters?.RawData is byte[] rawData)
-                {
-                    switch (BitConverter.ToString(rawData))
-                    {
-                        case CryptoUtils.NistP256KeyParameters:
-                            return CertificateKeyAlgorithm.NistP256;
-                        case CryptoUtils.NistP384KeyParameters:
-                            return CertificateKeyAlgorithm.NistP384;
-                        case CryptoUtils.BrainpoolP256r1KeyParameters:
-                            return CertificateKeyAlgorithm.BrainpoolP256r1;
-                        case CryptoUtils.BrainpoolP384r1KeyParameters:
-                            return CertificateKeyAlgorithm.BrainpoolP384r1;
-                    }
-                }
-            }
-
-            return CertificateKeyAlgorithm.None;
-        }
-
         private readonly CertificateIdentifier m_certificateId;
         private readonly ICertificatePasswordProvider m_passwordProvider;
         private readonly ICertificateProvider m_certificateProvider;
-        private CachedAlgorithm? m_cached;
+        private CachedCertInfo? m_cached;
 
-        private sealed class CachedAlgorithm
+        private sealed class CachedCertInfo
         {
-            public CachedAlgorithm(CertificateKeyAlgorithm algorithm)
+            public CachedCertInfo(CertificateKeyAlgorithm algorithm, int rsaKeySize)
             {
                 Algorithm = algorithm;
+                RsaKeySize = rsaKeySize;
             }
 
             public CertificateKeyAlgorithm Algorithm { get; }
+
+            public int RsaKeySize { get; }
         }
     }
 }

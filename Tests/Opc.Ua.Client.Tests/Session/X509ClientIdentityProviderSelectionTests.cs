@@ -209,6 +209,140 @@ namespace Opc.Ua.Client.Tests.Identity
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
+        [Test]
+        public void Rsa1024CertWithBasic256Sha256TriggersKeyLengthMismatch()
+        {
+            using Certificate cert = CreateRsaCertificate(keySize: 1024);
+            X509ClientIdentityProvider provider = CreateProvider(cert);
+
+            UserTokenPolicy basic256 = CreatePolicy("basic256", SecurityPolicies.Basic256Sha256);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.Basic256Sha256, basic256);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(ex.Message, Does.Contain("CertificateKeyLengthMismatch"));
+            Assert.That(ex.Message, Does.Contain("1024-bit"));
+        }
+
+        [Test]
+        public void EccUserTokenPolicyWithRsaInstanceCertTriggersInstanceMismatch()
+        {
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy ecc = CreatePolicy("ecc", SecurityPolicies.ECC_nistP256);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, ecc);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.RSA,
+                ClientInstanceCertificateKeySize = 2048
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(context)
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(ex.Message, Does.Contain("ClientInstanceCertificateAlgorithmMismatch"));
+            Assert.That(ex.Message, Does.Contain("RSA"));
+            Assert.That(ex.Message, Does.Contain("NistP256"));
+        }
+
+        [Test]
+        public void EccNistP256InstanceCertRejectsNistP384UserTokenPolicy()
+        {
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP384);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy ecc = CreatePolicy("p384", SecurityPolicies.ECC_nistP384);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP384, ecc);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP256
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(context)
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.Message, Does.Contain("ClientInstanceCertificateAlgorithmMismatch"));
+            Assert.That(ex.Message, Does.Contain("NistP256"));
+            Assert.That(ex.Message, Does.Contain("NistP384"));
+        }
+
+        [Test]
+        public async Task EccNistP256InstanceCertSelectsMatchingUserTokenPolicy()
+        {
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy ecc = CreatePolicy("p256", SecurityPolicies.ECC_nistP256);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, ecc);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP256
+            };
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("p256"));
+        }
+
+        [Test]
+        public void BoundEphemeralKeyPinsSelectionAndNamesRenewApi()
+        {
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy p384 = CreatePolicy("p384", SecurityPolicies.ECC_nistP384);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP384, p384);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP384,
+                CurrentEphemeralKeyPolicyUri = SecurityPolicies.ECC_nistP256
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(context)
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.Message, Does.Contain("EphemeralKeyPolicyMismatch"));
+            Assert.That(ex.Message, Does.Contain(SecurityPolicies.ECC_nistP256));
+            Assert.That(ex.Message, Does.Contain("UpdateIdentityAsync"));
+            Assert.That(ex.Message, Does.Contain("overrideUserTokenPolicyUri"));
+        }
+
+        [Test]
+        public async Task BoundEphemeralKeyAllowsMatchingPolicy()
+        {
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy p256 = CreatePolicy("p256", SecurityPolicies.ECC_nistP256);
+            UserTokenPolicy p384 = CreatePolicy("p384", SecurityPolicies.ECC_nistP384);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, p384, p256);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP256,
+                CurrentEphemeralKeyPolicyUri = SecurityPolicies.ECC_nistP256
+            };
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("p256"));
+        }
+
         private static X509ClientIdentityProvider CreateProvider(Certificate cert)
         {
             var certId = new CertificateIdentifier
@@ -222,12 +356,16 @@ namespace Opc.Ua.Client.Tests.Identity
                 new InMemoryCertificateProvider(cert));
         }
 
-        private static Certificate CreateRsaCertificate()
+        private static Certificate CreateRsaCertificate(ushort keySize = 0)
         {
-            return CertificateBuilder.Create("CN=User")
+            ICertificateBuilder builder = CertificateBuilder.Create("CN=User")
                 .SetNotBefore(DateTime.UtcNow.AddMinutes(-5))
-                .SetLifeTime(TimeSpan.FromDays(1))
-                .CreateForRSA();
+                .SetLifeTime(TimeSpan.FromDays(1));
+            if (keySize != 0)
+            {
+                return builder.SetRSAKeySize(keySize).CreateForRSA();
+            }
+            return builder.CreateForRSA();
         }
 
         private static Certificate CreateEccCertificate(ECCurve curve)

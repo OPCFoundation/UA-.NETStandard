@@ -1576,16 +1576,26 @@ namespace Opc.Ua.Client
         /// current server nonce.
         /// </summary>
         /// <param name="provider">The provider that materializes the new identity.</param>
+        /// <param name="overrideUserTokenPolicyUri">
+        /// When non-null, forces selection to the user-token policy with this
+        /// <see cref="UserTokenPolicy.SecurityPolicyUri"/> and renews any
+        /// existing ECC ephemeral key for the new policy. Use this to switch
+        /// user-token policies mid-session; pass <see langword="null"/> to let
+        /// the selector pin to the policy of the currently-bound ephemeral key.
+        /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException">
         /// <c>BadIdentityTokenRejected</c> when no offered policy can be
-        /// satisfied by the provider, or <c>BadIdentityChangeNotSupported</c>
-        /// when the server refuses user-identity changes on an active
-        /// session.
+        /// satisfied by the provider (including the case where
+        /// <paramref name="overrideUserTokenPolicyUri"/> is not in the
+        /// endpoint's offered <see cref="UserTokenPolicy"/> list), or
+        /// <c>BadIdentityChangeNotSupported</c> when the server refuses
+        /// user-identity changes on an active session.
         /// </exception>
         public async ValueTask UpdateIdentityAsync(
             IClientIdentityProvider provider,
+            string? overrideUserTokenPolicyUri = null,
             CancellationToken ct = default)
         {
             if (provider == null)
@@ -1609,8 +1619,29 @@ namespace Opc.Ua.Client
                             "Not connected to server.");
                     }
 
+                    if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                    {
+                        if (!IsUserTokenPolicyUriOffered(overrideUserTokenPolicyUri!))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenRejected,
+                                "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
+                                overrideUserTokenPolicyUri!);
+                        }
+
+                        // Drop the bound ephemeral key; the next service
+                        // call will request a fresh one for the new URI.
+                        m_eccServerEphemeralKey?.Dispose();
+                        m_eccServerEphemeralKey = null;
+                        m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
+                    }
+
                     ArrayOf<string> enabledPolicies;
-                    if (m_configuration.SecurityConfiguration != null &&
+                    if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                    {
+                        enabledPolicies = new[] { overrideUserTokenPolicyUri! };
+                    }
+                    else if (m_configuration.SecurityConfiguration != null &&
                         !m_configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
                     {
                         enabledPolicies = m_configuration.SecurityConfiguration
@@ -1624,11 +1655,29 @@ namespace Opc.Ua.Client
                         };
                     }
 
+                    CertificateKeyAlgorithm instanceAlg =
+                        CryptoUtils.GetCertificateKeyAlgorithm(m_instanceCertificate);
+                    int instanceKeySize = instanceAlg == CertificateKeyAlgorithm.RSA
+                        ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificate)
+                        : 0;
+
+                    // Pin only when there's actually a bound ephemeral key.
+                    string? boundEphemeralUri =
+                        string.IsNullOrEmpty(overrideUserTokenPolicyUri) &&
+                            m_eccServerEphemeralKey != null
+                            ? m_userTokenSecurityPolicyUri
+                            : null;
+
                     context = new IdentitySelectionContext(
                         m_endpoint.Description,
                         m_endpoint.Description.UserIdentityTokens,
                         MessageContext,
-                        enabledPolicies);
+                        enabledPolicies)
+                    {
+                        ClientInstanceCertificateAlgorithm = instanceAlg,
+                        ClientInstanceCertificateKeySize = instanceKeySize,
+                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri
+                    };
                 }
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
@@ -1666,6 +1715,29 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Release();
                 await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> when the current endpoint
+        /// advertises at least one <see cref="UserTokenPolicy"/> whose
+        /// <see cref="UserTokenPolicy.SecurityPolicyUri"/> matches
+        /// <paramref name="securityPolicyUri"/> (case-sensitive,
+        /// ordinal).
+        /// </summary>
+        private bool IsUserTokenPolicyUriOffered(string securityPolicyUri)
+        {
+            ArrayOf<UserTokenPolicy> offered = m_endpoint.Description.UserIdentityTokens;
+            for (int i = 0; i < offered.Count; i++)
+            {
+                if (string.Equals(
+                        offered[i]?.SecurityPolicyUri,
+                        securityPolicyUri,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <inheritdoc/>
