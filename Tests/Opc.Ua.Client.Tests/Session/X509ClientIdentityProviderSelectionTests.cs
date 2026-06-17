@@ -409,6 +409,147 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
+        public void NoneChannelRejectsEccUserNameTokenPerPart4_7_41()
+        {
+            // Part 4 §7.41: when SecurityMode is None, USERNAME and
+            // ISSUEDTOKEN UserTokenPolicies must not use ECC/RSA-DH
+            // SecurityPolicies.
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
+
+            UserTokenPolicy ecc = CreatePolicy(
+                "ecc",
+                SecurityPolicies.ECC_nistP256,
+                UserTokenType.UserName);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.None, ecc);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(ex.Message, Does.Contain("InsecureChannelEccUserTokenForbidden"));
+            Assert.That(ex.Message, Does.Contain(SecurityPolicies.ECC_nistP256));
+        }
+
+        [Test]
+        public void RsaChannelRejectsEccUserNameTokenWithMismatchedFamily()
+        {
+            // Channel uses RSA (Basic256Sha256), user-token policy uses
+            // ECC — Part 4 §7.41: SHALL use the same PublicKey
+            // algorithm as the SecureChannel.
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
+
+            UserTokenPolicy ecc = CreatePolicy(
+                "ecc",
+                SecurityPolicies.ECC_nistP256,
+                UserTokenType.UserName);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.Basic256Sha256, ecc);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.Message, Does.Contain("PublicKeyAlgorithmMismatch"));
+            Assert.That(ex.Message, Does.Contain(SecurityPolicies.Basic256Sha256));
+            Assert.That(ex.Message, Does.Contain(SecurityPolicies.ECC_nistP256));
+        }
+
+        [Test]
+        public void EccChannelRejectsRsaUserNameTokenWithMismatchedFamily()
+        {
+            // Reverse direction: ECC channel + RSA user-token policy.
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
+
+            UserTokenPolicy rsa = CreatePolicy(
+                "rsa",
+                SecurityPolicies.Basic256Sha256,
+                UserTokenType.UserName);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, rsa);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP256
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .SelectUserTokenPolicyAsync(context)
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.Message, Does.Contain("PublicKeyAlgorithmMismatch"));
+        }
+
+        [Test]
+        public async Task RsaChannelAcceptsEmptyUserNameSecurityPolicyUri()
+        {
+            // §7.41: empty SecurityPolicyUri inherits the channel — OK.
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
+
+            UserTokenPolicy inherit = new()
+            {
+                PolicyId = "inherit",
+                TokenType = UserTokenType.UserName,
+                SecurityPolicyUri = null
+            };
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.Basic256Sha256, inherit);
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("inherit"));
+        }
+
+        [Test]
+        public async Task NoneChannelAcceptsCertificateTokenWithEccPolicyPerSpecExemption()
+        {
+            // §7.41 last paragraph: CERTIFICATE tokens may use any
+            // SecurityPolicy regardless of channel mode.
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy cert = CreatePolicy("ecc-cert", SecurityPolicies.ECC_nistP256);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.None, cert);
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("ecc-cert"));
+        }
+
+        [Test]
+        public async Task RsaChannelAcceptsCertificateTokenWithEccPolicyPerSpecExemption()
+        {
+            // Channel RSA + Certificate user-token policy ECC — exempt
+            // from the same-PublicKey-algorithm rule.
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy cert = CreatePolicy("ecc-cert", SecurityPolicies.ECC_nistP256);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.Basic256Sha256, cert);
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("ecc-cert"));
+        }
+
+        [Test]
         public void DiagnosticTruncatesLongStringsAndCapsRejectedPolicyCount()
         {
             // Build an endpoint with many offered policies and very long

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Identity
 {
@@ -158,15 +159,23 @@ namespace Opc.Ua.Identity
                 context.EndpointDescription?.SecurityPolicyUri ?? SecurityPolicies.None;
             UserTokenPolicy? sameEncryptionAlgorithm = null;
             UserTokenPolicy? unspecifiedSecPolicy = null;
+            UserTokenPolicy? certificateAnyFamily = null;
             var rejections = new List<(UserTokenPolicy Policy, string Reason)>();
 
             ArrayOf<UserTokenPolicy> offered = context.OfferedPolicies;
+            WarnIfPolicyUniquenessViolated(offered, context);
             for (int i = 0; i < offered.Count; i++)
             {
                 UserTokenPolicy policy = offered[i];
                 if (!IsPolicyEnabledByClient(policy, context, out string? notEnabledReason))
                 {
                     rejections.Add((policy, notEnabledReason!));
+                    continue;
+                }
+
+                if (!IsUserTokenPolicyValidForChannelMode(policy, context, out string? specReason))
+                {
+                    rejections.Add((policy, specReason!));
                     continue;
                 }
 
@@ -210,9 +219,21 @@ namespace Opc.Ua.Identity
                 {
                     sameEncryptionAlgorithm ??= policy;
                 }
+                else if (policy.TokenType == UserTokenType.Certificate)
+                {
+                    // Per Part 4 §7.41 last paragraph, CERTIFICATE
+                    // UserTokenPolicies may use any valid SecurityPolicy
+                    // regardless of the channel's PublicKey algorithm.
+                    // Keep them as a low-preference fallback so they're
+                    // selected when no same-family / inherits-channel
+                    // candidate exists.
+                    certificateAnyFamily ??= policy;
+                }
             }
 
-            UserTokenPolicy? selected = sameEncryptionAlgorithm ?? unspecifiedSecPolicy;
+            UserTokenPolicy? selected = sameEncryptionAlgorithm
+                ?? unspecifiedSecPolicy
+                ?? certificateAnyFamily;
             if (selected != null)
             {
                 return selected;
@@ -287,6 +308,181 @@ namespace Opc.Ua.Identity
                 "EphemeralKeyPolicyMismatch (an ECC ephemeral key is already bound to '{0}'; call Session.UpdateIdentityAsync(overrideUserTokenPolicyUri: '{1}') to renew).",
                 boundUri,
                 effectiveUri);
+            return false;
+        }
+
+        /// <summary>
+        /// Enforces the <see cref="UserTokenPolicy"/> rules from
+        /// <c>OPC 10000-4 §7.41</c>: when the channel SecurityPolicy
+        /// is <see cref="SecurityPolicies.None"/>, USERNAME and
+        /// ISSUEDTOKEN UserTokenPolicies must NOT use ECC or RSA-DH
+        /// SecurityPolicies (no ephemeral-key handshake exists);
+        /// otherwise an explicit user-token <see cref="UserTokenPolicy.SecurityPolicyUri"/>
+        /// SHALL use the same PublicKey algorithm as the SecureChannel
+        /// (RSA vs. ECC family). CERTIFICATE and Anonymous policies
+        /// are exempt per the same section.
+        /// </summary>
+        private static bool IsUserTokenPolicyValidForChannelMode(
+            UserTokenPolicy policy,
+            IdentitySelectionContext context,
+            out string? rejectionReason)
+        {
+            // Rules 1–3 in §7.41 only constrain USERNAME and
+            // ISSUEDTOKEN UserTokenPolicies. CERTIFICATE may use any
+            // valid SecurityPolicy; Anonymous carries no secret.
+            if (policy == null ||
+                (policy.TokenType != UserTokenType.UserName &&
+                    policy.TokenType != UserTokenType.IssuedToken))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            // Empty / null SecurityPolicyUri inherits the channel policy
+            // — the spec explicitly allows this and it's the recommended
+            // form for endpoints that want the user-token to follow the
+            // channel security.
+            if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            SecurityPolicyInfo? policyInfo = SecurityPolicies.GetInfo(policy.SecurityPolicyUri);
+            if (policyInfo == null)
+            {
+                // Unknown URI handled later by
+                // UnknownOrUnsupportedSecurityPolicy in the X.509 path
+                // (or the provider-specific CanSatisfyAsync). Don't
+                // double-reject here.
+                rejectionReason = null;
+                return true;
+            }
+
+            string channelUri = context.EndpointDescription?.SecurityPolicyUri ?? SecurityPolicies.None;
+            bool channelIsNone = string.Equals(channelUri, SecurityPolicies.None, StringComparison.Ordinal);
+
+            if (channelIsNone)
+            {
+                if (policyInfo.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                {
+                    rejectionReason = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "InsecureChannelEccUserTokenForbidden (channel SecurityPolicy is None; per Part 4 §7.41 USERNAME/ISSUEDTOKEN UserTokenPolicies must not use ECC or RSA-DH SecurityPolicies — '{0}' requires an ephemeral-key handshake).",
+                        policy.SecurityPolicyUri);
+                    return false;
+                }
+
+                rejectionReason = null;
+                return true;
+            }
+
+            SecurityPolicyInfo? channelInfo = SecurityPolicies.GetInfo(channelUri);
+            if (channelInfo == null)
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            bool channelIsEcc = channelInfo.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
+            bool policyIsEcc = policyInfo.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
+            if (channelIsEcc != policyIsEcc)
+            {
+                rejectionReason = string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "PublicKeyAlgorithmMismatch (channel '{0}' uses {1}, user-token policy '{2}' uses {3}; per Part 4 §7.41 they must match for USERNAME/ISSUEDTOKEN).",
+                    channelUri,
+                    channelIsEcc ? "ECC" : "RSA",
+                    policy.SecurityPolicyUri,
+                    policyIsEcc ? "ECC" : "RSA");
+                return false;
+            }
+
+            rejectionReason = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Per Part 4 §7.41 an EndpointDescription <c>shall</c> have at
+        /// most one USERNAME UserTokenPolicy and at most one ISSUEDTOKEN
+        /// UserTokenPolicy for each unique <c>issuerEndpointUrl</c>.
+        /// Servers that violate this are mis-advertising; the client
+        /// continues with first-match selection but emits a structured
+        /// warning so operators can detect / fix the server.
+        /// </summary>
+        private static void WarnIfPolicyUniquenessViolated(
+            ArrayOf<UserTokenPolicy> offered,
+            IdentitySelectionContext context)
+        {
+            int userNameCount = 0;
+            Dictionary<string, int>? issuedTokenByUrl = null;
+
+            for (int i = 0; i < offered.Count; i++)
+            {
+                UserTokenPolicy policy = offered[i];
+                if (policy == null)
+                {
+                    continue;
+                }
+
+                if (policy.TokenType == UserTokenType.UserName)
+                {
+                    userNameCount++;
+                }
+                else if (policy.TokenType == UserTokenType.IssuedToken)
+                {
+                    string url = policy.IssuerEndpointUrl ?? string.Empty;
+                    issuedTokenByUrl ??= new Dictionary<string, int>(StringComparer.Ordinal);
+                    issuedTokenByUrl[url] = issuedTokenByUrl.TryGetValue(url, out int existing)
+                        ? existing + 1
+                        : 1;
+                }
+            }
+
+            if (userNameCount <= 1 &&
+                (issuedTokenByUrl == null || !HasIssuedTokenDuplicate(issuedTokenByUrl)))
+            {
+                return;
+            }
+
+            ITelemetryContext? telemetry = context.MessageContext?.Telemetry;
+            if (telemetry == null)
+            {
+                return;
+            }
+
+            ILogger logger = telemetry.CreateLogger(typeof(ClientIdentityProviderExtensions));
+            if (userNameCount > 1)
+            {
+                logger.LogWarning(
+                    "EndpointDescription advertises {Count} USERNAME UserTokenPolicies; per Part 4 §7.41 there must be at most one.",
+                    userNameCount);
+            }
+
+            if (issuedTokenByUrl != null)
+            {
+                foreach (KeyValuePair<string, int> entry in issuedTokenByUrl)
+                {
+                    if (entry.Value > 1)
+                    {
+                        logger.LogWarning(
+                            "EndpointDescription advertises {Count} ISSUEDTOKEN UserTokenPolicies for IssuerEndpointUrl='{Url}'; per Part 4 §7.41 there must be at most one per unique IssuerEndpointUrl.",
+                            entry.Value,
+                            string.IsNullOrEmpty(entry.Key) ? "<empty>" : entry.Key);
+                    }
+                }
+            }
+        }
+
+        private static bool HasIssuedTokenDuplicate(Dictionary<string, int> counts)
+        {
+            foreach (KeyValuePair<string, int> entry in counts)
+            {
+                if (entry.Value > 1)
+                {
+                    return true;
+                }
+            }
             return false;
         }
 
