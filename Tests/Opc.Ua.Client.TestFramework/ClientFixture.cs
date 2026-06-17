@@ -567,10 +567,15 @@ namespace Opc.Ua.Client.TestFramework
             var endpointConfiguration = EndpointConfiguration.Create(Config);
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
+            // Use the ApplicationConfiguration overload so the
+            // CertificateManager flows into the discovery channel; the
+            // HTTPS transport needs it to validate the test server's
+            // self-signed certificate (otherwise the channel falls back
+            // to the OS TLS chain check, which rejects untrusted certs).
             using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                Config,
                 url,
                 endpointConfiguration,
-                m_telemetry,
                 ct: ct).ConfigureAwait(false);
             client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             ArrayOf<EndpointDescription> result = await client.GetEndpointsAsync(default, ct)

@@ -62,18 +62,22 @@ namespace Opc.Ua.Bindings.WebApi.Tests
     public class HttpsTransportListenerMutualTlsModeTests
     {
         [Test]
-        public void KestrelMutualTlsAdapterRequiresClientCertificate()
+        public void KestrelMutualTlsAdapterUsesAllowCertificate()
         {
             string source = LocateHttpsTransportListenerSource();
             string content = File.ReadAllText(source);
 
-            Assert.That(content.Contains("ClientCertificateMode.RequireCertificate", StringComparison.Ordinal), Is.True,
-                "HttpsTransportListener must configure RequireCertificate when " +
-                "m_mutualTlsEnabled is true so cert-less clients are rejected at the " +
-                "TLS handshake, not the application layer.");
-            Assert.That(content.Contains("ClientCertificateMode.AllowCertificate", StringComparison.Ordinal), Is.False,
-                "AllowCertificate must not be used — it permits cert-less connections " +
-                "to reach the dispatcher anonymously, defeating the mTLS contract.");
+            Assert.That(content.Contains("ClientCertificateMode.AllowCertificate", StringComparison.Ordinal), Is.True,
+                "HttpsTransportListener must configure AllowCertificate when " +
+                "m_mutualTlsEnabled is true so the TLS handshake REQUESTS a " +
+                "client cert but does not REJECT cert-less peers at the TLS " +
+                "layer (binary UASC + discovery legitimately do not present a " +
+                "client cert at handshake time). mTLS enforcement for REST / " +
+                "WebApi clients is delegated to the authorization layer.");
+            Assert.That(content.Contains("ClientCertificateMode.RequireCertificate", StringComparison.Ordinal), Is.False,
+                "RequireCertificate at the TLS layer breaks discovery and the " +
+                "binary HTTPS path; enforce mTLS in the application's " +
+                "RequireAuthorization policy instead.");
         }
 
         private static string LocateHttpsTransportListenerSource()

@@ -786,12 +786,16 @@ namespace Opc.Ua.Bindings
                 // ValidateClientCertificate, consistent with the raw-TCP UA
                 // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
-                // HttpsMutualTls=true means the client MUST present a TLS client
-                // certificate (per TransportListenerSettings.HttpsMutualTls doc).
-                // AllowCertificate would let cert-less clients reach the dispatcher
-                // anonymously, defeating the mTLS contract.
+                // HttpsMutualTls=true enables mTLS — Kestrel REQUESTS but does
+                // not REQUIRE a client cert at the TLS handshake. Requiring the
+                // cert at TLS time would block the discovery client (which
+                // legitimately has no cert until after discovery) and the binary
+                // UASC HTTPS path (which authenticates at the UA SecureChannel
+                // layer, not at TLS). REST / WebApi clients that opt into
+                // AddWebApiMutualTlsAuth() are enforced at the authorization
+                // layer (RequireAuthorization) instead.
                 ClientCertificateMode = m_mutualTlsEnabled
-                    ? ClientCertificateMode.RequireCertificate
+                    ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
                 ServerCertificate = m_pinnedServerCertX509,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -906,12 +910,16 @@ namespace Opc.Ua.Bindings
                 // ValidateClientCertificate, consistent with the raw-TCP UA
                 // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
-                // HttpsMutualTls=true means the client MUST present a TLS client
-                // certificate (per TransportListenerSettings.HttpsMutualTls doc).
-                // AllowCertificate would let cert-less clients reach the dispatcher
-                // anonymously, defeating the mTLS contract.
+                // HttpsMutualTls=true enables mTLS — Kestrel REQUESTS but does
+                // not REQUIRE a client cert at the TLS handshake. Requiring the
+                // cert at TLS time would block the discovery client (which
+                // legitimately has no cert until after discovery) and the binary
+                // UASC HTTPS path (which authenticates at the UA SecureChannel
+                // layer, not at TLS). REST / WebApi clients that opt into
+                // AddWebApiMutualTlsAuth() are enforced at the authorization
+                // layer (RequireAuthorization) instead.
                 ClientCertificateMode = m_mutualTlsEnabled
-                    ? ClientCertificateMode.RequireCertificate
+                    ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = m_pinnedServerCertX509,
