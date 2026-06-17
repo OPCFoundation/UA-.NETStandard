@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -169,25 +170,25 @@ namespace Opc.Ua.Identity
                 UserTokenPolicy policy = offered[i];
                 if (!IsPolicyEnabledByClient(policy, context, out string? notEnabledReason))
                 {
-                    rejections.Add((policy, notEnabledReason!));
+                    rejections.Add((policy, notEnabledReason));
                     continue;
                 }
 
                 if (!IsUserTokenPolicyValidForChannelMode(policy, context, out string? specReason))
                 {
-                    rejections.Add((policy, specReason!));
+                    rejections.Add((policy, specReason));
                     continue;
                 }
 
                 if (!IsBoundEphemeralKeyCompatible(policy, context, out string? pinReason))
                 {
-                    rejections.Add((policy, pinReason!));
+                    rejections.Add((policy, pinReason));
                     continue;
                 }
 
                 if (!IsClientInstanceCertificateCompatible(policy, context, out string? instReason))
                 {
-                    rejections.Add((policy, instReason!));
+                    rejections.Add((policy, instReason));
                     continue;
                 }
 
@@ -247,7 +248,7 @@ namespace Opc.Ua.Identity
         private static bool IsPolicyEnabledByClient(
             UserTokenPolicy policy,
             IdentitySelectionContext context,
-            out string? rejectionReason)
+            [NotNullWhen(false)] out string? rejectionReason)
         {
             if (string.IsNullOrEmpty(policy?.SecurityPolicyUri))
             {
@@ -282,7 +283,7 @@ namespace Opc.Ua.Identity
         private static bool IsBoundEphemeralKeyCompatible(
             UserTokenPolicy policy,
             IdentitySelectionContext context,
-            out string? rejectionReason)
+            [NotNullWhen(false)] out string? rejectionReason)
         {
             string? boundUri = context.CurrentEphemeralKeyPolicyUri;
             if (string.IsNullOrEmpty(boundUri))
@@ -325,7 +326,7 @@ namespace Opc.Ua.Identity
         private static bool IsUserTokenPolicyValidForChannelMode(
             UserTokenPolicy policy,
             IdentitySelectionContext context,
-            out string? rejectionReason)
+            [NotNullWhen(false)] out string? rejectionReason)
         {
             // Rules 1–3 in §7.41 only constrain USERNAME and
             // ISSUEDTOKEN UserTokenPolicies. CERTIFICATE may use any
@@ -489,7 +490,7 @@ namespace Opc.Ua.Identity
         private static bool IsClientInstanceCertificateCompatible(
             UserTokenPolicy policy,
             IdentitySelectionContext context,
-            out string? rejectionReason)
+            [NotNullWhen(false)] out string? rejectionReason)
         {
             CertificateKeyAlgorithm instanceAlg = context.ClientInstanceCertificateAlgorithm;
             if (instanceAlg == CertificateKeyAlgorithm.None)
