@@ -55,10 +55,11 @@ namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
     /// TLS regression tests for <see cref="WebApiWssTransportChannel"/>.
-    /// Pins the behaviour fixed by alert <c>sec-1-wss-tls-bypass</c>:
-    /// the channel used to install an unconditional
-    /// <c>RemoteCertificateValidationCallback = (_,_,_,_) =&gt; true</c>
-    /// that silently accepted any server certificate — including an
+    /// The channel must delegate server certificate validation to the
+    /// configured <see cref="TransportChannelSettings.CertificateValidator"/>
+    /// (or, when none is configured, fall back to the default TLS
+    /// chain check). Installing an unconditional pass-through callback
+    /// would silently accept any server certificate — including an
     /// attacker MITM — defeating TLS server authentication.
     /// </summary>
     /// <remarks>

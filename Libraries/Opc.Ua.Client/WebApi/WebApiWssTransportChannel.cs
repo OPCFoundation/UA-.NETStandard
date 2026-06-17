@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.WebApi
 
             if (!string.IsNullOrEmpty(m_userOptions.BearerToken))
             {
-                // sec-3: bearer-in-sub-protocol exposes the token to every
+                // Bearer-in-sub-protocol exposes the token to every
                 // TCP intermediary in the 101 handshake (the spec requires
                 // the server to echo the selected sub-protocol). When the
                 // negotiated URL is not wss://, refuse to send the token
@@ -518,11 +518,10 @@ namespace Opc.Ua.Client.WebApi
                 {
                     return buffer.ToArray();
                 }
-                // sec-9: zero-progress continuation-frame guard. A peer
-                // that streams empty continuation frames without ever
-                // terminating the message would spin this loop (CPU
-                // DoS). Mirrors the WebSocketByteTransport guard the
-                // base shipped for opcua+uacp.
+                // Zero-progress continuation-frame guard. A peer that
+                // streams empty continuation frames without ever
+                // terminating the message would spin this loop (CPU DoS).
+                // Mirrors the WebSocketByteTransport guard for opcua+uacp.
                 if (result.Count == 0)
                 {
                     throw ServiceResultException.Create(
@@ -603,8 +602,8 @@ namespace Opc.Ua.Client.WebApi
             }
         }
 
-        // sec-3: WSS-bearer requires TLS so the token cannot be observed
-        // by network intermediaries. The sub-protocol still appears in
+        // WSS-bearer requires TLS so the token cannot be observed by
+        // network intermediaries. The sub-protocol still appears in
         // the server's access log on the wss path; that's why short
         // token TTLs (<= 60s) and log redaction are still recommended.
         private static bool IsSecureScheme(Uri? url)

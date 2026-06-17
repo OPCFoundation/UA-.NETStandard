@@ -43,7 +43,7 @@ namespace Opc.Ua.Fuzzing
         public static readonly string RootFolder = "../../../";
 
         private static readonly string s_areaName =
-            typeof(Program).Assembly.GetName().Name?.Replace(".Fuzz.Tools", string.Empty)
+            typeof(Program).Assembly.GetName().Name?.Replace(".Fuzz.Tools", string.Empty, StringComparison.Ordinal)
             ?? "Unknown";
 
         public static readonly string DefaultTestcasesFolder =

@@ -248,16 +248,15 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
         }
 
         [Test]
-        public void AuthenticatedWithoutBearerHeaderReturnsAnonymousSec4()
+        public void AuthenticatedWithoutBearerHeaderReturnsAnonymous()
         {
-            // sec-4 fix: when no raw bearer token is recoverable, the
-            // provider used to fall back to a UserName projection with
-            // an empty password — same anti-pattern as
-            // DefaultSessionlessIdentityProvider before the fix. It
-            // now returns null (or anonymous per options) so an
-            // upstream-authenticated principal cannot impersonate a
-            // UserName account if the server trusts upstream auth
-            // without re-verifying passwords.
+            // When no raw bearer token is recoverable, the provider
+            // must not fall back to a UserName projection with an empty
+            // password — same anti-pattern as
+            // DefaultSessionlessIdentityProvider. It returns null (or
+            // anonymous per options) so an upstream-authenticated
+            // principal cannot impersonate a UserName account if the
+            // server trusts upstream auth without re-verifying passwords.
             var provider = new JwtClaimSessionlessIdentityProvider();
             DefaultHttpContext context = BuildContext(
                 bearer: null,
@@ -269,7 +268,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
                 "Default options (ReturnAnonymousForUnauthenticated = false) must " +
                 "return null when no bearer is recoverable, NOT a UserName token " +
                 "with an empty password. Upstream subject still available via " +
-                "SecureChannelContext.UpstreamIdentity (sec-6).");
+                "SecureChannelContext.UpstreamIdentity.");
         }
         private static DefaultHttpContext BuildContext(
             string? bearer,

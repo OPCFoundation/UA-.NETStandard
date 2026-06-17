@@ -61,14 +61,14 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
         }
 
         [Test]
-        public void AuthenticatedWithNameClaimReturnsNullSec4()
+        public void AuthenticatedWithNameClaimReturnsNull()
         {
-            // sec-4 fix: never synthesize a UserName token with an
-            // empty / placeholder password. The upstream-authenticated
-            // principal (if any) flows out-of-band via
-            // SecureChannelContext.UpstreamIdentity (sec-6). Custom
-            // providers (e.g. JwtClaimSessionlessIdentityProvider) own
-            // the richer mapping.
+            // Never synthesize a UserName token with an empty /
+            // placeholder password. The upstream-authenticated principal
+            // (if any) flows out-of-band via
+            // SecureChannelContext.UpstreamIdentity. Custom providers
+            // (e.g. JwtClaimSessionlessIdentityProvider) own the richer
+            // mapping.
             var provider = new DefaultSessionlessIdentityProvider();
             ClaimsIdentity claimsIdentity = new(
                 [new Claim(ClaimTypes.Name, "alice")],
@@ -83,11 +83,11 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
             Assert.That(identity, Is.Null,
                 "DefaultSessionlessIdentityProvider must never forge a UserName " +
                 "token with an empty password. Upstream identity flows through " +
-                "SecureChannelContext.UpstreamIdentity (sec-6).");
+                "SecureChannelContext.UpstreamIdentity.");
         }
 
         [Test]
-        public void AuthenticatedWithoutNameClaimReturnsNullSec4()
+        public void AuthenticatedWithoutNameClaimReturnsNull()
         {
             var provider = new DefaultSessionlessIdentityProvider();
             var context = new DefaultHttpContext

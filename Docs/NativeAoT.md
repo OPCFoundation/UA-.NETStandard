@@ -64,16 +64,6 @@ Tests/Opc.Ua.Aot.Tests/
 └── StubWebApiServer.cs        # IWebApiServer stub backing WebApiAotFixture
 ```
 
-The REST binding folded into `Opc.Ua.Bindings.Https` (Part 6 §G.3
-OpenAPI Mapping; net8+) is `<IsAotCompatible>true</IsAotCompatible>`
-on net10: it uses ASP.NET Core Minimal-API endpoints (one
-`MapPost` per OPC UA service) bound to explicit `RequestDelegate`
-thunks, so the trimmer sees every generic instantiation of
-`WebApiEndpointDispatcher.HandleAsync<TRequest, TResponse>` at
-compile time. `WebApiAotTests.cs` round-trips Read / Browse /
-CreateSession / CreateSubscription / Publish plus anonymous and
-Basic-auth requests against the AOT-published binary.
-
 ### Why TUnit Instead of NUnit?
 
 The project uses the [TUnit](https://tunit.dev/) test framework instead of

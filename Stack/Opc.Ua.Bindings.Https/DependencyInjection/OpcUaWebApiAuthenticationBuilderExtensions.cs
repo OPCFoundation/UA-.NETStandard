@@ -264,7 +264,7 @@ namespace Microsoft.Extensions.DependencyInjection
         // regardless of which AddWebApi*Auth() methods (or how many) the
         // caller chains. The policy scheme becomes the default
         // authenticate / challenge / forbid scheme so UseAuthentication()
-        // populates HttpContext.User on every request (sec-5 fix).
+        // populates HttpContext.User on every request.
         private sealed class WebApiPolicySchemeSentinel
         {
         }
@@ -294,7 +294,7 @@ namespace Microsoft.Extensions.DependencyInjection
         // based on the credentials presented. Returning null falls
         // through to anonymous (no scheme processed) — which is correct
         // for unauthenticated requests; RequireAuthorization() on the
-        // endpoint (sec-7) is what actually rejects them.
+        // endpoint is what actually rejects them.
         private static string? SelectWebApiAuthScheme(HttpContext context)
         {
             string? authHeader = context.Request.Headers.Authorization.Count > 0

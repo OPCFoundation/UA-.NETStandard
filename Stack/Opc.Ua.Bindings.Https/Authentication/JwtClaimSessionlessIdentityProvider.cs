@@ -183,16 +183,14 @@ namespace Opc.Ua.Bindings.WebApi
             else
             {
                 // No raw token recoverable — covers principals synthesised
-                // by tests / custom middleware. We previously fell back to
-                // UserIdentity(subject, ReadOnlySpan<byte>.Empty) here,
-                // forging a UserName token with an empty password. That
-                // matches the sec-4 anti-pattern (a server that trusts
-                // the username without re-verifying the password lets
-                // any authenticated principal impersonate any user), so
-                // we now return anonymous (or null per options). The
-                // upstream subject still flows through
-                // SecureChannelContext.UpstreamIdentity via sec-6 so
-                // callers that need it can recover it from there.
+                // by tests / custom middleware. We never forge a UserName
+                // token with an empty password here: a server that trusts
+                // the username without re-verifying the password would
+                // let any authenticated principal impersonate any user.
+                // Return anonymous (or null per options); the upstream
+                // subject still flows through
+                // SecureChannelContext.UpstreamIdentity so callers that
+                // need it can recover it from there.
                 return m_options.ReturnAnonymousForUnauthenticated ? new UserIdentity() : null;
             }
 

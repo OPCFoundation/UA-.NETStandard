@@ -129,20 +129,20 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(context));
             }
 
-            // sec-9: bound the buffered size by MaxMessageSize so an
-            // oversized or chunked / no-Content-Length body cannot
-            // exhaust memory before the in-buffer decode call enforces
-            // the quota. Throws BadRequestTooLarge the moment the quota
-            // is exceeded, before allocating the full payload.
+            // Bound the buffered size by MaxMessageSize so an oversized
+            // or chunked / no-Content-Length body cannot exhaust memory
+            // before the in-buffer decode call enforces the quota.
+            // Throws BadRequestTooLarge the moment the quota is exceeded,
+            // before allocating the full payload.
             byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
                 .ConfigureAwait(false);
 
             return DecodeBody<T>(payload, context, options);
         }
 
-        // Mirrors JsonRequestMapper.ReadAllBoundedAsync (sec-9): caps
-        // the buffered body length at MaxMessageSize. A non-positive
-        // maxLength disables the cap.
+        // Mirrors JsonRequestMapper.ReadAllBoundedAsync: caps the buffered
+        // body length at MaxMessageSize. A non-positive maxLength disables
+        // the cap.
         internal static async ValueTask<byte[]> ReadAllBoundedAsync(
             Stream body,
             int maxLength,
@@ -346,7 +346,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(context));
             }
 
-            // sec-9: bounded read enforces MaxMessageSize before allocation.
+            // Bounded read enforces MaxMessageSize before allocation.
             byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
                 .ConfigureAwait(false);
 

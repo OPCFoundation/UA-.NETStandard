@@ -517,9 +517,9 @@ namespace Opc.Ua.Client.WebApi
                 }
             }
 
-            // sec-10: install a server-cert validation callback so the
-            // OPC UA CertificateValidator (TrustedPeers store,
-            // application-URI rule, rejected list) is consulted. Mirrors
+            // Install a server-cert validation callback so the OPC UA
+            // CertificateValidator (TrustedPeers store, application-URI
+            // rule, rejected list) is consulted. Mirrors
             // HttpsTransportChannel.ServerCertificateCustomValidationCallback.
             // Without this, the WebApi client only ran the default TLS
             // chain checks — OPC UA-specific trust state was bypassed.

@@ -101,11 +101,11 @@ namespace Opc.Ua.Bindings.WebApi
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            // Never synthesize a UserName token with an empty password
-            // (sec-4 fix). The upstream-authenticated principal — if any
-            // — is published on SecureChannelContext.UpstreamIdentity by
-            // WebApiServer.InvokeAsync (sec-6); the dispatcher pipeline
-            // can consult that without the provider forging a credential.
+            // Never synthesize a UserName token with an empty password.
+            // The upstream-authenticated principal — if any — is
+            // published on SecureChannelContext.UpstreamIdentity by
+            // WebApiServer.InvokeAsync; the dispatcher pipeline can
+            // consult that without the provider forging a credential.
             return null;
         }
     }

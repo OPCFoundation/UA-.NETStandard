@@ -786,10 +786,10 @@ namespace Opc.Ua.Bindings
                 // ValidateClientCertificate, consistent with the raw-TCP UA
                 // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
-                // sec-8: HttpsMutualTls=true means the client MUST present a
-                // TLS client certificate (per TransportListenerSettings.HttpsMutualTls
-                // doc). AllowCertificate let cert-less clients reach the
-                // dispatcher anonymously, defeating the mTLS contract.
+                // HttpsMutualTls=true means the client MUST present a TLS client
+                // certificate (per TransportListenerSettings.HttpsMutualTls doc).
+                // AllowCertificate would let cert-less clients reach the dispatcher
+                // anonymously, defeating the mTLS contract.
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.RequireCertificate
                     : ClientCertificateMode.NoCertificate,
@@ -906,10 +906,10 @@ namespace Opc.Ua.Bindings
                 // ValidateClientCertificate, consistent with the raw-TCP UA
                 // transport, to avoid duplicate / inconsistent checks.
                 CheckCertificateRevocation = false,
-                // sec-8: HttpsMutualTls=true means the client MUST present a
-                // TLS client certificate (per TransportListenerSettings.HttpsMutualTls
-                // doc). AllowCertificate let cert-less clients reach the
-                // dispatcher anonymously, defeating the mTLS contract.
+                // HttpsMutualTls=true means the client MUST present a TLS client
+                // certificate (per TransportListenerSettings.HttpsMutualTls doc).
+                // AllowCertificate would let cert-less clients reach the dispatcher
+                // anonymously, defeating the mTLS contract.
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.RequireCertificate
                     : ClientCertificateMode.NoCertificate,
@@ -1337,7 +1337,7 @@ namespace Opc.Ua.Bindings
             }
             if (selected.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal))
             {
-                // sec-3: refuse to accept a bearer access token in the WSS
+                // Refuse to accept a bearer access token in the WSS
                 // sub-protocol name over plain HTTP — the WebSocket spec
                 // requires the server to echo the selected sub-protocol
                 // back in the 101 handshake, which would broadcast the
@@ -1811,9 +1811,10 @@ namespace Opc.Ua.Bindings
         /// <c>null</c> for the plain <c>opcua+openapi</c> variant. Browser
         /// WebSocket APIs cannot send an <c>Authorization</c> header, so
         /// the bearer credential rides in the sub-protocol name (Part 6
-        /// §7.5.2). The token is currently propagated through the
-        /// SecureChannelContext diagnostic channel until the
-        /// <c>ISessionlessIdentityProvider</c> hook lands in Phase 3.</param>
+        /// §7.5.2). The token is validated by the registered WSS bearer
+        /// validator before this method is reached; the validated
+        /// principal is published on <c>HttpContext.User</c> and flows
+        /// through the standard <c>ISessionlessIdentityProvider</c> hook.</param>
         private async Task AcceptWebSocketOpenApiAsync(
             HttpContext context,
             string? accessToken)
@@ -1902,12 +1903,11 @@ namespace Opc.Ua.Bindings
                         completed = result.EndOfMessage;
                         if (!completed && result.Count == 0)
                         {
-                            // sec-9: zero-progress continuation-frame guard.
-                            // A peer that streams empty continuation frames
-                            // without ever terminating the message would spin
-                            // this loop (CPU DoS). Mirrors the
-                            // WebSocketByteTransport guard the base shipped
-                            // for opcua+uacp.
+                            // Zero-progress continuation-frame guard. A peer
+                            // that streams empty continuation frames without
+                            // ever terminating the message would spin this
+                            // loop (CPU DoS). Mirrors the
+                            // WebSocketByteTransport guard for opcua+uacp.
                             await ws.CloseAsync(
                                 WebSocketCloseStatus.MessageTooBig,
                                 "WebSocket continuation frame made no progress.",

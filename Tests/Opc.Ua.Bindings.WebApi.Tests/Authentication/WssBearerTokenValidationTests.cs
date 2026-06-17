@@ -49,11 +49,10 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
     /// <c>opcua+openapi+&lt;accesstoken&gt;</c> bearer-token validation
     /// helper installed by
     /// <see cref="WebApiHttpsStartupContributor.ValidateWssBearerTokenAsync"/>.
-    /// Pins the behaviour fixed by alert <c>sec-2-wss-bearer-validation</c>:
-    /// the server previously extracted the bearer token from the
-    /// sub-protocol name and accepted the WebSocket upgrade without
-    /// validating the token — silently bypassing JWT signature / issuer /
-    /// audience / expiry checks.
+    /// The server must validate the bearer token presented in the
+    /// sub-protocol name (JWT signature / issuer / audience / expiry
+    /// checks) before accepting the WebSocket upgrade. Accepting
+    /// without validation would be a silent auth bypass (CWE-287).
     /// </summary>
     [TestFixture]
     [Category("WebApiAuthentication")]
@@ -179,7 +178,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
                 "issuer/audience must authenticate.");
             Assert.That(context.User.Identity?.IsAuthenticated, Is.True,
                 "On success the resolved ClaimsPrincipal must be published on " +
-                "HttpContext.User so sec-6 identity plumbing can route it.");
+                "HttpContext.User so the upstream-identity plumbing can route it.");
             Claim? subClaim = context.User.FindFirst(JwtRegisteredClaimNames.Sub)
                 ?? context.User.FindFirst(ClaimTypes.NameIdentifier);
             Assert.That(subClaim?.Value, Is.EqualTo("alice"),

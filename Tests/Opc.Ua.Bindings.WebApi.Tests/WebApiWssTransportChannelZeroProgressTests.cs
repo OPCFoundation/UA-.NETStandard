@@ -51,12 +51,12 @@ namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
     /// Regression test for the WebApi WSS zero-progress continuation-
-    /// frame guard (alert <c>sec-9-body-size-enforcement</c>, second
-    /// half). The client's <c>ReceiveMessageAsync</c> used to spin
-    /// forever when the server sent empty (count == 0) WebSocket
-    /// continuation frames with <c>EndOfMessage == false</c>. This
-    /// mirrors the <c>WebSocketByteTransport</c> guard the base shipped
-    /// for the <c>opcua+uacp</c> sub-protocol.
+    /// frame guard. Without it, the client's
+    /// <c>ReceiveMessageAsync</c> would spin forever when the server
+    /// sends empty (count == 0) WebSocket continuation frames with
+    /// <c>EndOfMessage == false</c> (CPU DoS). Mirrors the
+    /// <c>WebSocketByteTransport</c> guard for the <c>opcua+uacp</c>
+    /// sub-protocol.
     /// </summary>
     [TestFixture]
     [Category("WebApiWssTransportChannel")]
@@ -116,9 +116,9 @@ namespace Opc.Ua.Bindings.WebApi.Tests
         {
             // After accepting the request, the server sends a single
             // empty (count == 0) continuation frame with
-            // EndOfMessage == false. Pre-sec-9, the client's
+            // EndOfMessage == false. Without the guard, the client's
             // ReceiveMessageAsync would spin reading more empty frames
-            // forever (CPU DoS). The fix raises BadEncodingLimitsExceeded
+            // forever (CPU DoS). The guard raises BadEncodingLimitsExceeded
             // on the first zero-progress frame.
             var settings = new TransportChannelSettings
             {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             })!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded),
                 "Zero-progress continuation frame must surface as " +
-                "BadEncodingLimitsExceeded (sec-9 fix).");
+                "BadEncodingLimitsExceeded.");
         }
 
         private static async Task HandleZeroProgressWebSocketAsync(HttpContext context)

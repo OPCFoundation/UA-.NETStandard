@@ -51,7 +51,7 @@ namespace Opc.Ua.Sessions.Tests
     /// profile/2339). Verifies that:
     /// <list type="bullet">
     /// <item>the reference server advertises the WSS OpenAPI endpoint on
-    ///   discovery (Phase 1B discovery emission applies to the WSS
+    ///   discovery (the discovery emission applies to the WSS
     ///   factories too);</item>
     /// <item>a <see cref="ManagedSession"/> over the
     ///   <see cref="WebApiWssTransportChannel"/> opens, activates, and
@@ -190,15 +190,15 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task ManagedSessionOverWssOpenApiBearerRejectedWhenNoBearerAuthRegisteredAsync()
         {
-            // sec-2 fix: the server now fail-closed rejects the WSS
+            // The server fail-closed rejects the WSS
             // opcua+openapi+<accesstoken> upgrade when no bearer auth
             // scheme is registered (no AddWebApiBearerAuth() on the
             // reference server, which is the case for this fixture).
-            // Pre-fix, the server silently accepted any token; that
-            // behaviour was a silent auth bypass (CWE-287). The server
-            // now returns HTTP 401 which the WebSocket client surfaces
-            // as a WebSocketException; ManagedSession logs the failure
-            // and reports Connected == false.
+            // Without this guard, the server would silently accept any
+            // token — a silent auth bypass (CWE-287). The server returns
+            // HTTP 401 which the WebSocket client surfaces as a
+            // WebSocketException; ManagedSession logs the failure and
+            // reports Connected == false.
             ApplicationConfiguration appConfig = m_clientFixture.Config;
 
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));

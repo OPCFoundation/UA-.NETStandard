@@ -42,11 +42,10 @@ using NUnit.Framework;
 namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
-    /// Regression tests for the WebApi route metadata fix
-    /// (alert <c>sec-7-require-authorization</c>). Pins the
-    /// per-route authorization metadata semantics — the contributor
-    /// applies <c>RequireAuthorization()</c> on the route group when
-    /// auth schemes are registered, and the discovery routes
+    /// Regression tests for the WebApi route authorization metadata.
+    /// Pins the per-route semantics — the contributor applies
+    /// <c>RequireAuthorization()</c> on the route group when auth
+    /// schemes are registered, and the discovery routes
     /// (<c>/findservers</c>, <c>/getendpoints</c>) carry
     /// <c>AllowAnonymous</c> metadata so they remain reachable
     /// without a credential.

@@ -39,13 +39,13 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
-    /// Regression tests for the WebApi identity-plumbing fix
-    /// (alert <c>sec-6-identity-plumb-to-channel</c>). Previously
-    /// <see cref="WebApiInvocationContext.Identity"/> was computed by
-    /// the dispatcher but never read — <see cref="WebApiServer.InvokeAsync"/>
-    /// constructed the <see cref="SecureChannelContext"/> without any
-    /// identity slot, dropping the upstream-authenticated principal
-    /// before it reached the OPC UA service pipeline (CWE-285).
+    /// Regression tests for the WebApi upstream-identity plumbing.
+    /// <see cref="WebApiInvocationContext.Identity"/> is computed by
+    /// the dispatcher and must be forwarded to
+    /// <see cref="SecureChannelContext.UpstreamIdentity"/> by
+    /// <see cref="WebApiServer.InvokeAsync"/>; dropping it would
+    /// strip the upstream-authenticated principal before it reaches
+    /// the OPC UA service pipeline (CWE-285).
     /// </summary>
     [TestFixture]
     [Category("WebApiIdentityPlumbing")]

@@ -39,12 +39,11 @@ using NUnit.Framework;
 namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
-    /// Regression tests for the WebApi body-size hardening fix
-    /// (alert <c>sec-9-body-size-enforcement</c>). The REST WebApi
-    /// codec used to buffer the full request body into a MemoryStream
-    /// before any size check — an oversized or chunked / no-Content-
-    /// Length body could exhaust memory before the OPC UA
-    /// MaxMessageSize quota kicked in. CWE-770.
+    /// Regression tests for the WebApi body-size hardening. The REST
+    /// codec must enforce <see cref="IServiceMessageContext.MaxMessageSize"/>
+    /// during the body read — buffering the full body before the size
+    /// check lets an oversized or chunked / no-Content-Length body
+    /// exhaust memory before the quota kicks in. CWE-770.
     /// </summary>
     [TestFixture]
     [Category("WebApiSecurity")]
@@ -76,7 +75,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTooLarge),
                 "WebApiBodyCodec.DecodeBodyAsync must short-circuit via the bounded " +
                 "read (BadRequestTooLarge), not allocate the full payload and then " +
-                "fail at decode-time (BadEncodingLimitsExceeded). sec-9 fix.");
+                "fail at decode-time (BadEncodingLimitsExceeded).");
         }
 
         [Test]

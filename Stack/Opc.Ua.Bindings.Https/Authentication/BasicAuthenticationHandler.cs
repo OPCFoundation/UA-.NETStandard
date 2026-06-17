@@ -65,7 +65,7 @@ namespace Opc.Ua.Bindings.WebApi.Authentication
         /// MutualTls scheme based on the request shape. Wired as the
         /// default scheme by the AddWebApi*Auth() extensions so
         /// <c>UseAuthentication()</c> populates <c>HttpContext.User</c>
-        /// for every request (sec-5).
+        /// for every request.
         /// </summary>
         public const string Default = "OpcUaWebApi.Default";
     }

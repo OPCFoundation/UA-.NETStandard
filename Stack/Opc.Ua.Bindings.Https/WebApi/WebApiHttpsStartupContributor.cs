@@ -168,9 +168,9 @@ namespace Opc.Ua.Bindings.WebApi
             {
                 appBuilder.UseAuthentication();
                 // UseAuthorization() enforces metadata produced by
-                // RequireAuthorization() on the route group (sec-7).
-                // Without this middleware the authorization policy is
-                // silently ignored.
+                // RequireAuthorization() on the route group. Without
+                // this middleware the authorization policy is silently
+                // ignored.
                 appBuilder.UseAuthorization();
             }
             appBuilder.UseEndpoints(endpoints =>
@@ -189,7 +189,7 @@ namespace Opc.Ua.Bindings.WebApi
             // Wire WSS bearer-token validation so the
             // opcua+openapi+<accesstoken> sub-protocol no longer
             // accepts arbitrary tokens. The listener fail-closed
-            // rejects when no validator is registered (sec-2 fix).
+            // rejects when no validator is registered.
             listener.WssBearerTokenValidator = ValidateWssBearerTokenAsync;
         }
 
@@ -198,7 +198,7 @@ namespace Opc.Ua.Bindings.WebApi
         // registered JwtBearer authentication scheme. Returns true only
         // when the token authenticates; on success the resolved
         // ClaimsPrincipal is published on HttpContext.User so downstream
-        // code (sec-6 identity plumbing) can route it through the
+        // code (upstream-identity plumbing) can route it through the
         // ISessionlessIdentityProvider hook.
         internal static async Task<bool> ValidateWssBearerTokenAsync(
             HttpContext context,

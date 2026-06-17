@@ -55,14 +55,14 @@ namespace Opc.Ua.Bindings.WebApi.Tests
 {
     /// <summary>
     /// TLS regression tests for <see cref="WebApiTransportChannel"/>.
-    /// Pins the behaviour fixed by alert
-    /// <c>sec-10-webapi-server-cert-validator</c>: the HTTPS client
-    /// channel previously wired the client cert into the mTLS handler
-    /// but never installed a
-    /// <see cref="System.Net.Http.HttpClientHandler.ServerCertificateCustomValidationCallback"/>,
-    /// so <see cref="TransportChannelSettings.CertificateValidator"/>
-    /// (the OPC UA TrustedPeers store / application-URI rule / rejected
-    /// list) was bypassed for the server certificate.
+    /// Pins the server-cert validation contract: the HTTPS client
+    /// channel wires the OPC UA
+    /// <see cref="TransportChannelSettings.CertificateValidator"/>
+    /// (TrustedPeers store / application-URI rule / rejected list)
+    /// into the
+    /// <see cref="System.Net.Http.HttpClientHandler.ServerCertificateCustomValidationCallback"/>
+    /// so the server certificate is validated against the OPC UA trust
+    /// state, not just the default .NET TLS chain.
     /// </summary>
     [TestFixture]
     [Category("WebApiTransportChannel")]
@@ -166,7 +166,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             });
             Assert.That(ex, Is.Not.Null,
                 "WebApiTransportChannel must reject server certificate when the configured " +
-                "OPC UA CertificateValidator returns invalid — sec-10 fix.");
+                "OPC UA CertificateValidator returns invalid.");
             bool isCertRejection = ex is HttpRequestException ||
                 ex is System.Security.Authentication.AuthenticationException ||
                 (ex is ServiceResultException) ||

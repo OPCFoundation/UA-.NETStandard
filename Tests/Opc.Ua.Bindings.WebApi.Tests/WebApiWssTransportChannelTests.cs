@@ -204,12 +204,12 @@ namespace Opc.Ua.Bindings.WebApi.Tests
         [Test]
         public async Task OpenAsyncRejectsBearerTokenOverPlainWebSocketAsync()
         {
-            // sec-3 fix: the bearer-prefix sub-protocol leaks the token
-            // through every TCP intermediary in the 101 handshake. The
-            // client now refuses to send the token over plain ws://.
-            // Over wss:// (real TLS) the credential is at least hidden
-            // from network observers; that path is covered by the
-            // integration tests against the reference server.
+            // The bearer-prefix sub-protocol leaks the token through every
+            // TCP intermediary in the 101 handshake. The client refuses to
+            // send the token over plain ws://. Over wss:// (real TLS) the
+            // credential is at least hidden from network observers; that
+            // path is covered by the integration tests against the
+            // reference server.
             const string token = "abc.def.ghi";
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
@@ -219,7 +219,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             })!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed),
                 "Bearer-prefix sub-protocol over plain ws:// must be rejected with " +
-                "BadSecurityChecksFailed (sec-3 fix).");
+                "BadSecurityChecksFailed.");
         }
 
         [Test]

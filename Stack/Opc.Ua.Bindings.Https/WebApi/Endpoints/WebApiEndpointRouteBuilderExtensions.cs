@@ -99,7 +99,7 @@ namespace Microsoft.AspNetCore.Builder
             // endpoints and user-token policies before establishing a
             // session. Mark them explicitly so they bypass any
             // RequireAuthorization() metadata applied at the group
-            // level by the contributor (sec-7).
+            // level by the contributor.
             group.MapPost("/findservers", FindServersAsync).AllowAnonymous();
             group.MapPost("/getendpoints", GetEndpointsAsync).AllowAnonymous();
 

@@ -39,13 +39,12 @@ namespace Opc.Ua.Bindings.WebApi.Tests
     /// <summary>
     /// Source-level regression test for the Kestrel mTLS adapter
     /// configuration in <see cref="HttpsTransportListener"/>. Pins the
-    /// behaviour fixed by alert <c>sec-8-mtls-require-certificate</c>:
-    /// when mTLS is enabled the listener used to configure
-    /// <see cref="ClientCertificateMode.AllowCertificate"/>, which let
-    /// cert-less clients reach the dispatcher anonymously despite the
-    /// <see cref="ClientCertificateMode.RequireCertificate"/>
-    /// contract documented on
-    /// <see cref="Opc.Ua.TransportListenerSettings.HttpsMutualTls"/>.
+    /// mTLS contract: when mTLS is enabled the listener must configure
+    /// <see cref="ClientCertificateMode.RequireCertificate"/>, not
+    /// <see cref="ClientCertificateMode.AllowCertificate"/>, so cert-less
+    /// clients are rejected at the TLS handshake (the documented
+    /// behaviour of
+    /// <see cref="Opc.Ua.TransportListenerSettings.HttpsMutualTls"/>).
     /// </summary>
     /// <remarks>
     /// Spinning up a real Kestrel host with mTLS to test the runtime
@@ -71,7 +70,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             Assert.That(content.Contains("ClientCertificateMode.RequireCertificate", StringComparison.Ordinal), Is.True,
                 "HttpsTransportListener must configure RequireCertificate when " +
                 "m_mutualTlsEnabled is true so cert-less clients are rejected at the " +
-                "TLS handshake, not the application layer (sec-8 fix).");
+                "TLS handshake, not the application layer.");
             Assert.That(content.Contains("ClientCertificateMode.AllowCertificate", StringComparison.Ordinal), Is.False,
                 "AllowCertificate must not be used — it permits cert-less connections " +
                 "to reach the dispatcher anonymously, defeating the mTLS contract.");

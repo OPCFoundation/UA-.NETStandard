@@ -42,14 +42,11 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
 {
     /// <summary>
     /// Regression tests for the WebApi auth-scheme default + policy
-    /// scheme installed by every AddWebApi*Auth() extension. Pins the
-    /// behaviour fixed by alert <c>sec-5-default-scheme</c>: previously
-    /// the extensions called <c>AddAuthentication()</c> with no default
-    /// scheme, so when more than one scheme was registered
-    /// <c>UseAuthentication()</c> became a no-op (it requires a default
-    /// scheme to know which handler to run) and <c>HttpContext.User</c>
-    /// stayed anonymous for every request — silently bypassing all
-    /// configured auth.
+    /// scheme installed by every AddWebApi*Auth() extension. When more
+    /// than one scheme is registered, <c>AddAuthentication()</c> needs a
+    /// default scheme — without it <c>UseAuthentication()</c> becomes a
+    /// no-op and <c>HttpContext.User</c> stays anonymous for every
+    /// request, silently bypassing all configured auth.
     /// </summary>
     [TestFixture]
     [Category("WebApiAuthentication")]
