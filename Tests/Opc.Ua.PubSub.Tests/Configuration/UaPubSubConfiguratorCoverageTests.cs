@@ -170,6 +170,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             };
             Assert.That(configurator.AddExtensionField(publishedId, extensionField), Is.EqualTo(StatusCodes.Good));
             uint extensionFieldId = configurator.FindIdForObject(extensionField);
+            var secondPublished = new PublishedDataSetDataType { Name = "Second" };
+            Assert.That(configurator.AddPublishedDataSet(secondPublished), Is.EqualTo(StatusCodes.Good));
+            uint secondPublishedId = configurator.FindIdForObject(secondPublished);
             Assert.That(
                 configurator.AddExtensionField(
                     publishedId,
@@ -179,7 +182,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                         Value = "other"
                     }),
                 Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(
+                configurator.RemoveExtensionField(secondPublishedId, extensionFieldId),
+                Is.EqualTo(StatusCodes.BadNodeIdInvalid));
             Assert.That(configurator.RemoveExtensionField(publishedId, extensionFieldId), Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                configurator.RemoveExtensionField(publishedId, extensionFieldId),
+                Is.EqualTo(StatusCodes.BadNodeIdInvalid));
             Assert.That(
                 () => configurator.AddPublishedDataSet(published),
                 Throws.TypeOf<ArgumentException>());

@@ -467,11 +467,26 @@ namespace OpcUaPubSubJsonTests
             limitedContext.MaxByteStringLength = 1;
             using var limitedByteDecoder = new PubSubJsonDecoder("{\"bytes\":\"AQID\"}", limitedContext);
 
+            using var messageEncoder = new PubSubJsonEncoder(context, PubSubJsonEncoding.Reversible);
+            using var switchEncoder = new PubSubJsonEncoder(context, PubSubJsonEncoding.Verbose);
+            switchEncoder.WriteSwitchField(1, out string? switchFieldName);
+            using var skippedArrayEncoder = new PubSubJsonEncoder(context, PubSubJsonEncoding.Reversible);
+            skippedArrayEncoder.PushArray(null);
+            skippedArrayEncoder.PopArray();
+
             Assert.Multiple(() =>
             {
                 Assert.That(omittedJson, Is.EqualTo("{}"));
                 Assert.That(specialJson, Does.Contain("Infinity"));
                 Assert.That(specialJson, Does.Contain("UaType"));
+                Assert.That(switchFieldName, Is.Null);
+                Assert.That(skippedArrayEncoder.CloseAndReturnText(), Is.EqualTo("{}"));
+                Assert.That(
+                    () => messageEncoder.EncodeMessage<MinimalEncodeable>(null!, new NodeId(1u, 0)),
+                    Throws.TypeOf<ArgumentNullException>());
+                Assert.That(
+                    () => messageEncoder.EncodeMessage<MinimalEncodeable>(null!),
+                    Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
                     () => decoder.ReadGuid("badGuid"),
                     Throws.TypeOf<ServiceResultException>());
