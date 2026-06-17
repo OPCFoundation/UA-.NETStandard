@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -203,6 +205,146 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.That(message.DataSetFlags2.HasFlag(DataSetFlags2EncodingMask.Timestamp), Is.True);
                 Assert.That(message.DataSetFlags2.HasFlag(DataSetFlags2EncodingMask.PicoSeconds), Is.True);
             });
+        }
+
+        [Test]
+        public void DataSetNetworkMessageEncodesVariantDataValueAndRawDataPayloads()
+        {
+            byte[] variantBytes = EncodeDataSetNetworkMessage(DataSetFieldContentMask.None, isDeltaFrame: false);
+            byte[] dataValueBytes = EncodeDataSetNetworkMessage(
+                DataSetFieldContentMask.StatusCode | DataSetFieldContentMask.SourceTimestamp,
+                isDeltaFrame: true);
+            byte[] rawDataBytes = EncodeDataSetNetworkMessage(DataSetFieldContentMask.RawData, isDeltaFrame: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(variantBytes, Has.Length.GreaterThan(0));
+                Assert.That(dataValueBytes, Has.Length.GreaterThan(0));
+                Assert.That(rawDataBytes, Has.Length.GreaterThan(0));
+            });
+        }
+
+        [Test]
+        public void DiscoveryMessagesEncodeNonEmptyPayloads()
+        {
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            var metadata = new DataSetMetaDataType
+            {
+                Name = "DataSet",
+                Fields = new ArrayOf<FieldMetaData>(
+                    new[]
+                    {
+                        new FieldMetaData
+                        {
+                            Name = "Value",
+                            BuiltInType = (byte)BuiltInType.Int32,
+                            ValueRank = ValueRanks.Scalar
+                        }
+                    }.AsMemory()),
+                ConfigurationVersion = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 1,
+                    MinorVersion = 0
+                }
+            };
+
+            var metadataResponse = new UadpNetworkMessage(new WriterGroupDataType(), metadata)
+            {
+                PublisherId = new Variant((ushort)1),
+                DataSetWriterId = 1
+            };
+            var request = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.DataSetMetaData)
+            {
+                PublisherId = new Variant((ushort)1),
+                DataSetWriterId = 1
+            };
+            var endpoints = new UadpNetworkMessage(
+                new[]
+                {
+                    new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840" }
+                },
+                StatusCodes.Good)
+            {
+                PublisherId = new Variant((ushort)1)
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(metadataResponse.Encode(context), Has.Length.GreaterThan(0));
+                Assert.That(request.Encode(context), Has.Length.GreaterThan(0));
+                Assert.That(endpoints.Encode(context), Has.Length.GreaterThan(0));
+            });
+        }
+
+        private static byte[] EncodeDataSetNetworkMessage(
+            DataSetFieldContentMask fieldMask,
+            bool isDeltaFrame)
+        {
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            var fieldMetaData = new FieldMetaData
+            {
+                Name = "Value",
+                BuiltInType = (byte)BuiltInType.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            var dataSet = new DataSet("DataSet")
+            {
+                DataSetWriterId = 1,
+                IsDeltaFrame = isDeltaFrame,
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Name = "DataSet",
+                    Fields = new ArrayOf<FieldMetaData>(new[] { fieldMetaData }.AsMemory()),
+                    ConfigurationVersion = new ConfigurationVersionDataType
+                    {
+                        MajorVersion = 1,
+                        MinorVersion = 0
+                    }
+                },
+                Fields =
+                [
+                    new Field
+                    {
+                        Value = new DataValue(new Variant(42)),
+                        TargetNodeId = new NodeId(1u, 0),
+                        TargetAttribute = Attributes.Value,
+                        FieldMetaData = fieldMetaData
+                    }
+                ]
+            };
+            var dataSetMessage = new UadpDataSetMessage(dataSet)
+            {
+                DataSetWriterId = 1,
+                MetaDataVersion = dataSet.DataSetMetaData.ConfigurationVersion
+            };
+            dataSetMessage.SetFieldContentMask(fieldMask);
+            dataSetMessage.SetMessageContentMask(
+                UadpDataSetMessageContentMask.SequenceNumber |
+                UadpDataSetMessageContentMask.Status |
+                UadpDataSetMessageContentMask.MajorVersion |
+                UadpDataSetMessageContentMask.MinorVersion);
+
+            var networkMessage = new UadpNetworkMessage(
+                new WriterGroupDataType { WriterGroupId = 1 },
+                new List<UadpDataSetMessage> { dataSetMessage })
+            {
+                PublisherId = new Variant((ushort)1),
+                WriterGroupId = 1,
+                DataSetClassId = Uuid.Empty,
+                GroupVersion = 1,
+                NetworkMessageNumber = 1,
+                SequenceNumber = 1
+            };
+            networkMessage.SetNetworkMessageContentMask(
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.GroupHeader |
+                UadpNetworkMessageContentMask.WriterGroupId |
+                UadpNetworkMessageContentMask.GroupVersion |
+                UadpNetworkMessageContentMask.NetworkMessageNumber |
+                UadpNetworkMessageContentMask.SequenceNumber |
+                UadpNetworkMessageContentMask.PayloadHeader);
+
+            return networkMessage.Encode(context);
         }
     }
 }
