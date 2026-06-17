@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Text;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub.Encoding;
@@ -267,6 +270,77 @@ namespace OpcUaPubSubJsonTests
             Assert.That(json, Does.Contain("3145728"));
         }
 
+        [Test]
+        public void AlternateConstructorsAndMappingTablesWriteJson()
+        {
+            ServiceMessageContext context = NewContext();
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.GetIndexOrAppend("urn:test");
+            var serverUris = new StringTable();
+            serverUris.GetIndexOrAppend("urn:server");
+
+            using var boolCtor = new PubSubJsonEncoder(context, useReversibleEncoding: true);
+            boolCtor.SetMappingTables(namespaceUris, serverUris);
+            boolCtor.WriteString("f", "bool");
+            string boolJson = boolCtor.CloseAndReturnText();
+
+            using var stream = new MemoryStream();
+            using (var streamCtor = new PubSubJsonEncoder(
+                context,
+                useReversibleEncoding: false,
+                topLevelIsArray: false,
+                stream,
+                leaveOpen: true))
+            {
+                streamCtor.WriteInt32("f", 1);
+                streamCtor.Close();
+            }
+
+            using var writerStream = new MemoryStream();
+            using var streamWriter = new StreamWriter(writerStream, Encoding.UTF8, 1024, leaveOpen: true);
+            using (var writerCtor = new PubSubJsonEncoder(context, useReversibleEncoding: true, streamWriter))
+            {
+                writerCtor.WriteInt32("f", 2);
+                writerCtor.Close();
+            }
+
+            using var reader = new JsonTextReader(new StringReader("{\"f\":3}"));
+            using var decoder = new PubSubJsonDecoder(typeof(MinimalEncodeable), reader, context)
+            {
+                UpdateNamespaceTable = true
+            };
+            decoder.SetMappingTables(namespaceUris, serverUris);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(boolJson, Does.Contain("bool"));
+                Assert.That(stream.ToArray(), Has.Length.GreaterThan(0));
+                Assert.That(writerStream.ToArray(), Has.Length.GreaterThan(0));
+                Assert.That(decoder.ReadInt32("f"), Is.EqualTo(3));
+            });
+        }
+
+        [Test]
+        public void StaticEncodeDecodeMessageRoundTripsEncodeableBody()
+        {
+            ServiceMessageContext context = NewContext();
+            var message = new MinimalEncodeable { Value = 123 };
+            byte[] buffer = new byte[4096];
+
+            ArraySegment<byte> encoded = PubSubJsonEncoder.EncodeMessage(message, buffer, context);
+            MinimalEncodeable decoded = PubSubJsonDecoder.DecodeMessage<MinimalEncodeable>(encoded, context);
+            MinimalEncodeable decodedFromArray = PubSubJsonDecoder.DecodeMessage<MinimalEncodeable>(
+                encoded.ToArray(),
+                context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.ToArray(), Has.Length.GreaterThan(0));
+                Assert.That(decoded.Value, Is.EqualTo(123));
+                Assert.That(decodedFromArray.Value, Is.EqualTo(123));
+            });
+        }
+
         private static ServiceMessageContext NewContext()
             => (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
 
@@ -280,5 +354,36 @@ namespace OpcUaPubSubJsonTests
 
         private static PubSubJsonDecoder MakeDecoder(string json)
             => new(json, NewContext());
+
+        private sealed class MinimalEncodeable : IEncodeable
+        {
+            public int Value { get; set; }
+
+            public ExpandedNodeId TypeId => new NodeId(1u, 0);
+
+            public ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+            public ExpandedNodeId XmlEncodingId => NodeId.Null;
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32(nameof(Value), Value);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Value = decoder.ReadInt32(nameof(Value));
+            }
+
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return encodeable is MinimalEncodeable other && other.Value == Value;
+            }
+
+            public object Clone()
+            {
+                return new MinimalEncodeable { Value = Value };
+            }
+        }
     }
 }
