@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -43,25 +45,26 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     /// <see cref="UdpTransportServiceCollectionExtensions"/>.
     /// </summary>
     [TestFixture]
+    [TestSpec("7.3.2", Summary = "UDP transport DI registration")]
     public class UdpTransportBuilderExtensionsTests
     {
         [Test]
-        public void AddUdpTransport_RegistersFactoryAsSingleton()
+        public void AddUdpTransportRegistersFactoryAsSingleton()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddUdpTransport();
             ServiceProvider sp = services.BuildServiceProvider();
-            IEnumerable<IPubSubTransportFactory> factories =
-                sp.GetServices<IPubSubTransportFactory>();
+            IPubSubTransportFactory[] factories =
+                [.. sp.GetServices<IPubSubTransportFactory>()];
             Assert.That(
                 factories.OfType<UdpPubSubTransportFactory>().Count(),
                 Is.EqualTo(1));
         }
 
         [Test]
-        public void AddUdpTransport_BindsOptions()
+        public void AddUdpTransportBindsOptions()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
@@ -74,12 +77,126 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddUdpTransport_NullBuilder_Throws()
+        public void AddUdpTransportNullBuilderThrows()
         {
             IOpcUaBuilder? builder = null;
             Assert.That(
                 () => builder!.AddUdpTransport(),
                 Throws.ArgumentNullException);
         }
+
+        [Test]
+        public void AddUdpTransportNullBuilderIConfigurationOverloadThrows()
+        {
+            IOpcUaBuilder? builder = null;
+            IConfiguration cfg = new ConfigurationBuilder().Build();
+            Assert.That(
+                () => builder!.AddUdpTransport(cfg),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddUdpTransportNullConfigurationThrows()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            Assert.That(
+                () => builder.AddUdpTransport(configuration: null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddUdpTransportNullSectionThrows()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            Assert.That(
+                () => builder.AddUdpTransport(section: null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddUdpTransportNullBuilderIConfigurationSectionOverloadThrows()
+        {
+            IOpcUaBuilder? builder = null;
+            IConfigurationSection section = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build()
+                .GetSection("X");
+            Assert.That(
+                () => builder!.AddUdpTransport(section),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddUdpTransportFromIConfigurationBindsDefaultSection()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [$"{UdpTransportServiceCollectionExtensions.DefaultConfigurationSection}:Ttl"] = "11",
+                    [$"{UdpTransportServiceCollectionExtensions.DefaultConfigurationSection}:MaxFrameSize"] = "777"
+                })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddUdpTransport(configuration);
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            UdpTransportOptions options =
+                sp.GetRequiredService<IOptions<UdpTransportOptions>>().Value;
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.Ttl, Is.EqualTo(11));
+                Assert.That(options.MaxFrameSize, Is.EqualTo(777));
+            });
+        }
+
+        [Test]
+        public void AddUdpTransportFromSectionBindsValues()
+        {
+            IConfigurationRoot root = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["MyUdp:Ttl"] = "21",
+                    ["MyUdp:MulticastLoopback"] = "true"
+                })
+                .Build();
+            IConfigurationSection section = root.GetSection("MyUdp");
+
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddUdpTransport(section);
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            UdpTransportOptions options =
+                sp.GetRequiredService<IOptions<UdpTransportOptions>>().Value;
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.Ttl, Is.EqualTo(21));
+                Assert.That(options.MulticastLoopback, Is.True);
+            });
+        }
+
+        [Test]
+        public void AddUdpTransportTwiceDoesNotDuplicateFactory()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddUdpTransport();
+            builder.AddUdpTransport();
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            IPubSubTransportFactory[] factories =
+                [.. sp.GetServices<IPubSubTransportFactory>().OfType<UdpPubSubTransportFactory>()];
+            Assert.That(factories, Has.Length.EqualTo(1));
+        }
     }
 }
+

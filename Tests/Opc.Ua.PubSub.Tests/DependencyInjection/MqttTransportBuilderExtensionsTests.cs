@@ -27,9 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Mqtt;
@@ -42,22 +45,21 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     /// <see cref="MqttTransportServiceCollectionExtensions"/>.
     /// </summary>
     [TestFixture]
+    [TestSpec("7.3.4", Summary = "MQTT broker transport DI registration")]
     public class MqttTransportBuilderExtensionsTests
     {
         [Test]
-        public void AddMqttTransport_RegistersBothFactories()
+        public void AddMqttTransportRegistersBothFactories()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddMqttTransport();
             ServiceProvider sp = services.BuildServiceProvider();
-            IEnumerable<IPubSubTransportFactory> factories =
-                sp.GetServices<IPubSubTransportFactory>();
-            IEnumerable<MqttPubSubTransportFactory> mqttFactories =
-                factories.OfType<MqttPubSubTransportFactory>();
+            MqttPubSubTransportFactory[] mqttFactories =
+                [.. sp.GetServices<IPubSubTransportFactory>().OfType<MqttPubSubTransportFactory>()];
             // Both Json and UADP MQTT profiles registered.
-            Assert.That(mqttFactories.Count(), Is.EqualTo(2));
+            Assert.That(mqttFactories, Has.Length.EqualTo(2));
             Assert.That(
                 mqttFactories.Any(f =>
                     f.TransportProfileUri == Profiles.PubSubMqttJsonTransport),
@@ -69,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddMqttTransport_BindsOptions()
+        public void AddMqttTransportBindsOptions()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
@@ -77,18 +79,105 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             builder.AddMqttTransport(o => o.Endpoint = "mqtt://test-broker");
             ServiceProvider sp = services.BuildServiceProvider();
             MqttConnectionOptions options =
-                sp.GetRequiredService<
-                    Microsoft.Extensions.Options.IOptions<MqttConnectionOptions>>().Value;
+                sp.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
             Assert.That(options.Endpoint, Is.EqualTo("mqtt://test-broker"));
         }
 
         [Test]
-        public void AddMqttTransport_NullBuilder_Throws()
+        public void AddMqttTransportNullBuilderThrows()
         {
             IOpcUaBuilder? builder = null;
             Assert.That(
                 () => builder!.AddMqttTransport(),
                 Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddMqttTransportNullBuilderIConfigurationOverloadThrows()
+        {
+            IOpcUaBuilder? builder = null;
+            IConfiguration cfg = new ConfigurationBuilder().Build();
+            Assert.That(
+                () => builder!.AddMqttTransport(cfg),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddMqttTransportNullBuilderIConfigurationSectionOverloadThrows()
+        {
+            IOpcUaBuilder? builder = null;
+            IConfigurationSection section = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build()
+                .GetSection("X");
+            Assert.That(
+                () => builder!.AddMqttTransport(section),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddMqttTransportNullConfigurationThrows()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            Assert.That(
+                () => builder.AddMqttTransport(configuration: null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddMqttTransportNullSectionThrows()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            Assert.That(
+                () => builder.AddMqttTransport(section: null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddMqttTransportFromIConfigurationBindsDefaultSection()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [$"{MqttTransportServiceCollectionExtensions.DefaultConfigurationSection}:Endpoint"] = "mqtt://b"
+                })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddMqttTransport(configuration);
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            MqttConnectionOptions options =
+                sp.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
+            Assert.That(options.Endpoint, Is.EqualTo("mqtt://b"));
+        }
+
+        [Test]
+        public void AddMqttTransportFromSectionBindsValues()
+        {
+            IConfigurationRoot root = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["MyMqtt:Endpoint"] = "mqtts://broker:8883"
+                })
+                .Build();
+            IConfigurationSection section = root.GetSection("MyMqtt");
+
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddMqttTransport(section);
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            MqttConnectionOptions options =
+                sp.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
+            Assert.That(options.Endpoint, Is.EqualTo("mqtts://broker:8883"));
         }
     }
 }
