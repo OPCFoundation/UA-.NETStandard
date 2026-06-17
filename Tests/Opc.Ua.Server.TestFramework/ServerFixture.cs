@@ -439,21 +439,92 @@ namespace Opc.Ua.Server.TestFramework
             m_startupCts?.Dispose();
             m_startupCts = null;
 
+            // Watchdog around server / application teardown. Without it, a
+            // stuck Server.StopAsync() or Application.DisposeAsync() blocks
+            // the per-fixture OneTimeTearDown indefinitely, and the entire
+            // dotnet test host hangs until the --blame-hang-timeout fires
+            // (observed in macOS net10.0 CI runs of Opc.Ua.History.Tests:
+            // all 466 tests pass, then a 10-minute teardown hang followed
+            // by a hang dump and exit code 1). Mirrors the bounded-thread
+            // pattern in LeakDetectionHelpers.TryRunFinalizerSweep so a
+            // process-killing hang becomes an observable per-fixture
+            // warning while subsequent fixtures' teardowns and the dotnet
+            // host shutdown can still complete.
             if (Server != null)
             {
-                await Server.StopAsync().ConfigureAwait(false);
+                await RunWithTeardownWatchdogAsync(
+                    () => Server.StopAsync().AsTask(),
+                    nameof(Server) + "." + nameof(Server.StopAsync)).ConfigureAwait(false);
                 Server.Dispose();
                 Server = null;
             }
             if (Application != null)
             {
-                await Application.DisposeAsync().ConfigureAwait(false);
+                await RunWithTeardownWatchdogAsync(
+                    () => Application.DisposeAsync().AsTask(),
+                    nameof(Application) + "." + nameof(Application.DisposeAsync)).ConfigureAwait(false);
                 Application = null;
             }
             Config = null;
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Runs <paramref name="taskFactory"/> bounded by
+        /// <see cref="s_teardownTimeout"/>. If the task does not complete
+        /// in time, logs a warning and returns; the underlying task is
+        /// abandoned (it is a background continuation in the runtime
+        /// thread pool, so it does not block process exit). Cross-TFM
+        /// compatible: avoids <c>Task.WaitAsync(TimeSpan)</c> which is
+        /// .NET 6+; the test framework targets net48 and netstandard2.0
+        /// among others.
+        /// </summary>
+        private async Task RunWithTeardownWatchdogAsync(
+            Func<Task> taskFactory,
+            string operationName)
+        {
+            Task work;
+            try
+            {
+                work = taskFactory();
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "ServerFixture.StopAsync: {Operation} threw synchronously.",
+                    operationName);
+                return;
+            }
+
+            Task winner = await Task
+                .WhenAny(work, Task.Delay(s_teardownTimeout))
+                .ConfigureAwait(false);
+            if (winner != work)
+            {
+                m_logger.LogWarning(
+                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog. " +
+                    "Continuing with the rest of the fixture teardown; the abandoned task will be reaped by the runtime.",
+                    operationName,
+                    s_teardownTimeout.TotalSeconds);
+                return;
+            }
+
+            try
+            {
+                await work.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "ServerFixture.StopAsync: {Operation} faulted.",
+                    operationName);
+            }
         }
 
         private static void AddPolicyIfSupported(
