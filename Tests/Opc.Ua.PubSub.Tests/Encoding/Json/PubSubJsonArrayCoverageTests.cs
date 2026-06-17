@@ -413,6 +413,82 @@ namespace OpcUaPubSubJsonTests
             });
         }
 
+        [Test]
+        public void JsonScalarDefaultsAndSpecialValuesCoverBranches()
+        {
+            ServiceMessageContext context = NewContext();
+
+            using var omittedDefaults = new PubSubJsonEncoder(context, PubSubJsonEncoding.Reversible)
+            {
+                IncludeDefaultNumberValues = false,
+                IncludeDefaultValues = false
+            };
+            omittedDefaults.WriteBoolean("boolean", false);
+            omittedDefaults.WriteSByte("sbyte", 0);
+            omittedDefaults.WriteByte("byte", 0);
+            omittedDefaults.WriteInt16("int16", 0);
+            omittedDefaults.WriteUInt16("uint16", 0);
+            omittedDefaults.WriteInt32("int32", 0);
+            omittedDefaults.WriteUInt32("uint32", 0);
+            omittedDefaults.WriteInt64("int64", 0);
+            omittedDefaults.WriteUInt64("uint64", 0);
+            omittedDefaults.WriteFloat("float", 0);
+            omittedDefaults.WriteDouble("double", 0);
+            omittedDefaults.WriteString("string", null);
+            omittedDefaults.WriteGuid("guid", Uuid.Empty);
+            omittedDefaults.WriteByteString("bytes", null!, 0, 0);
+            omittedDefaults.WriteXmlElement("xml", default);
+            omittedDefaults.WriteNodeId("node", NodeId.Null);
+            omittedDefaults.WriteQualifiedName("qualified", QualifiedName.Null);
+            omittedDefaults.WriteLocalizedText("localized", LocalizedText.Null);
+            omittedDefaults.WriteVariant("variant", Variant.Null);
+            string omittedJson = omittedDefaults.CloseAndReturnText();
+
+            using var specialValues = new PubSubJsonEncoder(context, PubSubJsonEncoding.Verbose);
+            specialValues.WriteFloat("floatNaN", float.NaN);
+            specialValues.WriteFloat("floatPositiveInfinity", float.PositiveInfinity);
+            specialValues.WriteFloat("floatNegativeInfinity", float.NegativeInfinity);
+            specialValues.WriteDouble("doubleNaN", double.NaN);
+            specialValues.WriteDouble("doublePositiveInfinity", double.PositiveInfinity);
+            specialValues.WriteDouble("doubleNegativeInfinity", double.NegativeInfinity);
+            specialValues.WriteQualifiedName("qualified", new QualifiedName("Name", 1));
+            specialValues.WriteLocalizedText("localized", new LocalizedText("en-US", "Hello"));
+            specialValues.WriteVariant("variant", new Variant(123));
+            string specialJson = specialValues.CloseAndReturnText();
+
+            using var decoder = MakeDecoder(
+                "{\"badGuid\":\"not-a-guid\",\"numberGuid\":1,\"nullBytes\":null," +
+                "\"numberBytes\":1,\"nodeText\":\"invalid node text\"," +
+                "\"expandedText\":\"invalid expanded text\"}");
+
+            var limitedContext = NewContext();
+            limitedContext.MaxStringLength = 1;
+            using var limitedDecoder = new PubSubJsonDecoder("{\"long\":\"abc\"}", limitedContext);
+            limitedContext.MaxByteStringLength = 1;
+            using var limitedByteDecoder = new PubSubJsonDecoder("{\"bytes\":\"AQID\"}", limitedContext);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(omittedJson, Is.EqualTo("{}"));
+                Assert.That(specialJson, Does.Contain("Infinity"));
+                Assert.That(specialJson, Does.Contain("UaType"));
+                Assert.That(
+                    () => decoder.ReadGuid("badGuid"),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(decoder.ReadGuid("numberGuid"), Is.EqualTo(Uuid.Empty));
+                Assert.That(decoder.ReadByteString("nullBytes").IsNull, Is.True);
+                Assert.That(decoder.ReadByteString("numberBytes"), Is.EqualTo(ByteString.Empty));
+                Assert.That(decoder.ReadNodeId("nodeText").NamespaceIndex, Is.Zero);
+                Assert.That(decoder.ReadExpandedNodeId("expandedText").NamespaceIndex, Is.Zero);
+                Assert.That(
+                    () => limitedDecoder.ReadString("long"),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(
+                    () => limitedByteDecoder.ReadByteString("bytes"),
+                    Throws.TypeOf<ServiceResultException>());
+            });
+        }
+
         private static ServiceMessageContext NewContext()
             => (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
 
