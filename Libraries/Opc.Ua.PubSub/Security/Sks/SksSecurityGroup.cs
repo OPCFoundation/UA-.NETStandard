@@ -66,13 +66,18 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="keys">
         /// Ordered key history (oldest first).
         /// </param>
+        /// <param name="authorizedCallerIdentities">
+        /// Caller identities authorized to retrieve keys for this group.
+        /// An empty list fails closed and denies all key requests.
+        /// </param>
         public SksSecurityGroup(
             string securityGroupId,
             string securityPolicyUri,
             TimeSpan keyLifetime,
             int maxFutureKeyCount,
             int maxPastKeyCount,
-            IReadOnlyList<PubSubSecurityKey> keys)
+            IReadOnlyList<PubSubSecurityKey> keys,
+            IReadOnlyList<string>? authorizedCallerIdentities = null)
         {
             if (string.IsNullOrEmpty(securityGroupId))
             {
@@ -108,6 +113,24 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 throw new ArgumentNullException(nameof(keys));
             }
+            List<string> callers = [];
+            if (authorizedCallerIdentities is not null)
+            {
+                for (int i = 0; i < authorizedCallerIdentities.Count; i++)
+                {
+                    string caller = authorizedCallerIdentities[i];
+                    if (string.IsNullOrEmpty(caller))
+                    {
+                        throw new ArgumentException(
+                            "Authorized caller identities must be non-empty.",
+                            nameof(authorizedCallerIdentities));
+                    }
+                    if (!ContainsCaller(callers, caller))
+                    {
+                        callers.Add(caller);
+                    }
+                }
+            }
 
             SecurityGroupId = securityGroupId;
             SecurityPolicyUri = securityPolicyUri;
@@ -115,6 +138,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             MaxFutureKeyCount = maxFutureKeyCount;
             MaxPastKeyCount = maxPastKeyCount;
             Keys = keys;
+            AuthorizedCallerIdentities = callers;
         }
 
         /// <summary>
@@ -148,5 +172,83 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// first non-expired entry.
         /// </summary>
         public IReadOnlyList<PubSubSecurityKey> Keys { get; }
+
+        /// <summary>
+        /// Caller identities authorized to retrieve keys for this group.
+        /// </summary>
+        public IReadOnlyList<string> AuthorizedCallerIdentities { get; private init; }
+
+        /// <summary>
+        /// Returns a copy of this group with the supplied caller authorized.
+        /// </summary>
+        /// <param name="callerIdentity">Authenticated caller identity.</param>
+        /// <returns>Updated group configuration.</returns>
+        public SksSecurityGroup WithAuthorizedCaller(string callerIdentity)
+        {
+            if (string.IsNullOrEmpty(callerIdentity))
+            {
+                throw new ArgumentException(
+                    "Caller identity must be non-empty.",
+                    nameof(callerIdentity));
+            }
+
+            if (IsCallerAuthorized(callerIdentity))
+            {
+                return this;
+            }
+
+            var callers = new List<string>(AuthorizedCallerIdentities.Count + 1);
+            for (int i = 0; i < AuthorizedCallerIdentities.Count; i++)
+            {
+                callers.Add(AuthorizedCallerIdentities[i]);
+            }
+            callers.Add(callerIdentity);
+
+            return this with
+            {
+                AuthorizedCallerIdentities = callers
+            };
+        }
+
+        /// <summary>
+        /// Determines whether a caller may retrieve keys for this group.
+        /// </summary>
+        /// <param name="callerIdentity">Authenticated caller identity.</param>
+        /// <returns>
+        /// <see langword="true"/> when the caller is explicitly authorized.
+        /// </returns>
+        public bool IsCallerAuthorized(string callerIdentity)
+        {
+            if (string.IsNullOrEmpty(callerIdentity))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < AuthorizedCallerIdentities.Count; i++)
+            {
+                if (string.Equals(
+                    AuthorizedCallerIdentities[i],
+                    callerIdentity,
+                    StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsCaller(List<string> callers, string callerIdentity)
+        {
+            for (int i = 0; i < callers.Count; i++)
+            {
+                if (string.Equals(callers[i], callerIdentity, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

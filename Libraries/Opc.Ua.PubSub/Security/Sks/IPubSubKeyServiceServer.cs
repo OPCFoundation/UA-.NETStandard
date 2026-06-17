@@ -61,14 +61,14 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Issues keys for the requested SecurityGroup.
         /// </summary>
         /// <param name="callerIdentity">
-        /// Authenticated caller identity. Phase 8 enforces a simple
-        /// non-empty contract; Phase 10 plugs Part 18 role checks.
+        /// Authenticated caller identity. The implementation must reject
+        /// empty identities and enforce per-SecurityGroup key access.
         /// </param>
         /// <param name="request">SKS pull request arguments.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The packed key material.</returns>
         /// <exception cref="OpcUaSksException">
-        /// Thrown when the request is rejected (unknown group,
+        /// Thrown when the request is rejected (unauthorized caller,
         /// missing identity, exhausted future-key budget...).
         /// </exception>
         ValueTask<SksKeyResponse> GetSecurityKeysAsync(

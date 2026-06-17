@@ -58,7 +58,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         private static async Task<InMemoryPubSubKeyServiceServer> CreateServerWithGroupAsync(
-            string id = "group-1")
+            string id = "group-1",
+            string[]? authorizedCallerIdentities = null)
         {
             var server = new InMemoryPubSubKeyServiceServer();
             await server.AddSecurityGroupAsync(
@@ -68,7 +69,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                     TimeSpan.FromMinutes(5),
                     4,
                     2,
-                    Array.Empty<PubSubSecurityKey>()));
+                    Array.Empty<PubSubSecurityKey>(),
+                    authorizedCallerIdentities ?? ["user1"]));
             return server;
         }
 
@@ -165,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public async Task HandleGetSecurityKeys_SurfacesUnknownGroupAsBadNotFound()
+        public async Task HandleGetSecurityKeys_SurfacesUnknownGroupAsBadUserAccessDenied()
         {
             var server = new InMemoryPubSubKeyServiceServer();
             SksMethodHandler handler = CreateHandler(server);
@@ -183,7 +185,31 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new List<Variant>());
             Assert.That(
                 (uint)result.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadNotFound));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14)]
+        public async Task HandleGetSecurityKeysForwardsCallerIdentityToAuthorization()
+        {
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync(
+                authorizedCallerIdentities: ["authorized-user"]);
+            SksMethodHandler handler = CreateHandler(server);
+            var ctx = BuildContext("unauthorized-user");
+            var inputs = new List<Variant>
+            {
+                Variant.From("group-1"),
+                Variant.From(0U),
+                Variant.From(1U)
+            };
+            ServiceResult result = handler.HandleGetSecurityKeys(
+                ctx,
+                ObjectIds.PublishSubscribe,
+                inputs,
+                new List<Variant>());
+            Assert.That(
+                (uint)result.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]

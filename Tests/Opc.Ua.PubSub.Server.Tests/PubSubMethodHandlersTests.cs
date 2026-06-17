@@ -362,7 +362,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 TimeSpan.FromMinutes(1),
                 3,
                 1,
-                Array.Empty<PubSubSecurityKey>()));
+                Array.Empty<PubSubSecurityKey>(),
+                ["user"]));
 
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnGetSecurityKeys(

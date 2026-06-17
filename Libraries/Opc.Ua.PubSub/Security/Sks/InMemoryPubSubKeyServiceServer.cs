@@ -136,7 +136,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                     group.KeyLifetime,
                     maxFuture,
                     maxPast,
-                    keys);
+                    keys,
+                    group.AuthorizedCallerIdentities);
                 var state = new SecurityGroupState(
                     configured,
                     policy,
@@ -224,8 +225,14 @@ namespace Opc.Ua.PubSub.Security.Sks
                 if (!m_groups.TryGetValue(request.SecurityGroupId, out SecurityGroupState? state))
                 {
                     throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
-                        $"SecurityGroup '{request.SecurityGroupId}' is not registered.");
+                        StatusCodes.BadUserAccessDenied,
+                        "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
+                }
+                if (!state.Group.IsCallerAuthorized(callerIdentity))
+                {
+                    throw new OpcUaSksException(
+                        StatusCodes.BadUserAccessDenied,
+                        "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
                 }
 
                 EnsureFutureKeysLocked(state, request.RequestedKeyCount);
@@ -374,7 +381,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                 state.Group.KeyLifetime,
                 state.Group.MaxFutureKeyCount,
                 state.Group.MaxPastKeyCount,
-                [.. state.Keys]);
+                [.. state.Keys],
+                state.Group.AuthorizedCallerIdentities);
         }
 
         private static uint NextTokenIdAfter(List<PubSubSecurityKey> keys)

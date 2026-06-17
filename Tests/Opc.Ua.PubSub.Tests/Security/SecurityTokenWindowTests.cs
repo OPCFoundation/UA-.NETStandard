@@ -131,8 +131,11 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
-        public void TryAccept_HistoryEvictionAllowsOldEntriesToBeReused()
+        public void TryAccept_RejectsReplayedSequenceAfterWindowAdvancesPastIt()
         {
+            // Monotonic window: a sequence that has fallen below the
+            // lower edge of the window is permanently rejected (no
+            // eviction-replay).
             var window = new SecurityTokenWindow(historySize: 4);
             window.RegisterToken(1U);
             for (ulong seq = 1; seq <= 8; seq++)
@@ -142,9 +145,86 @@ namespace Opc.Ua.PubSub.Tests.Security
                     Is.True,
                     $"seq {seq} should be accepted");
             }
-            // First sequence has been evicted by now — accepting it
-            // again is allowed (the window cannot remember it).
-            Assert.That(window.TryAccept(1U, 1UL, MakeNonce(80)), Is.True);
+            // seq 1 is now far below (highest - historySize) and must
+            // stay rejected even with a fresh, never-seen nonce.
+            Assert.That(window.TryAccept(1U, 1UL, MakeNonce(80)), Is.False);
+        }
+
+        [Test]
+        public void TryAccept_RejectsReplayAfterMoreThanHistorySizeNewerMessages()
+        {
+            const int historySize = 8;
+            var window = new SecurityTokenWindow(historySize);
+            window.RegisterToken(1U);
+
+            byte[] capturedNonce = MakeNonce(3);
+            Assert.That(window.TryAccept(1U, 5UL, capturedNonce), Is.True);
+
+            // Advance the window well past the captured sequence.
+            for (ulong seq = 6; seq <= 5 + (historySize * 4); seq++)
+            {
+                Assert.That(
+                    window.TryAccept(1U, seq, MakeNonce((byte)(seq + 100))),
+                    Is.True);
+            }
+
+            // Replaying the captured frame (same sequence + same nonce)
+            // is rejected.
+            Assert.That(window.TryAccept(1U, 5UL, capturedNonce), Is.False);
+        }
+
+        [Test]
+        public void TryAccept_AcceptsOutOfOrderWithinWindow()
+        {
+            var window = new SecurityTokenWindow(historySize: 16);
+            window.RegisterToken(1U);
+            Assert.Multiple(() =>
+            {
+                Assert.That(window.TryAccept(1U, 10UL, MakeNonce(10)), Is.True);
+                // Older but still inside the window.
+                Assert.That(window.TryAccept(1U, 7UL, MakeNonce(7)), Is.True);
+                Assert.That(window.TryAccept(1U, 9UL, MakeNonce(9)), Is.True);
+                // Duplicate of an already-accepted in-window sequence.
+                Assert.That(window.TryAccept(1U, 9UL, MakeNonce(99)), Is.False);
+                // Newer sequence advances the window.
+                Assert.That(window.TryAccept(1U, 11UL, MakeNonce(11)), Is.True);
+            });
+        }
+
+        [Test]
+        public void TryAccept_HandlesSixteenBitBoundaryWithoutFalseRejection()
+        {
+            // The wire SequenceNumber crosses the 16-bit boundary; the
+            // widened monotonic counter keeps advancing so no spurious
+            // wrap rejection occurs around 0xFFFF.
+            var window = new SecurityTokenWindow(historySize: 64);
+            window.RegisterToken(1U);
+            Assert.Multiple(() =>
+            {
+                Assert.That(window.TryAccept(1U, 0xFFFEUL, MakeNonce(1)), Is.True);
+                Assert.That(window.TryAccept(1U, 0xFFFFUL, MakeNonce(2)), Is.True);
+                Assert.That(window.TryAccept(1U, 0x10000UL, MakeNonce(3)), Is.True);
+                Assert.That(window.TryAccept(1U, 0x10001UL, MakeNonce(4)), Is.True);
+                // Duplicate at the boundary is rejected.
+                Assert.That(window.TryAccept(1U, 0xFFFFUL, MakeNonce(5)), Is.False);
+            });
+        }
+
+        [Test]
+        public void TryAccept_HandlesLargeForwardJump()
+        {
+            var window = new SecurityTokenWindow(historySize: 8);
+            window.RegisterToken(1U);
+            Assert.Multiple(() =>
+            {
+                Assert.That(window.TryAccept(1U, 1UL, MakeNonce(1)), Is.True);
+                // Jump far beyond the window width — clears the bitmap.
+                Assert.That(window.TryAccept(1U, 1_000_000UL, MakeNonce(2)), Is.True);
+                // The old sequence is now ancient and stays rejected.
+                Assert.That(window.TryAccept(1U, 1UL, MakeNonce(3)), Is.False);
+                // A duplicate of the new highest is rejected.
+                Assert.That(window.TryAccept(1U, 1_000_000UL, MakeNonce(4)), Is.False);
+            });
         }
 
         [Test]

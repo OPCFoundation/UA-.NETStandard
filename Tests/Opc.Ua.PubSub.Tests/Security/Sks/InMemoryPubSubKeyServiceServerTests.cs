@@ -50,7 +50,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             string id = "group-1",
             string policyUri = PubSubSecurityPolicyUri.PubSubAes128Ctr,
             int maxFuture = 4,
-            int maxPast = 2)
+            int maxPast = 2,
+            string[]? authorizedCallerIdentities = null)
         {
             return new SksSecurityGroup(
                 id,
@@ -58,7 +59,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 TimeSpan.FromMinutes(5),
                 maxFuture,
                 maxPast,
-                Array.Empty<PubSubSecurityKey>());
+                Array.Empty<PubSubSecurityKey>(),
+                authorizedCallerIdentities ?? [CallerId]);
         }
 
         [Test]
@@ -97,6 +99,47 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
+        [TestSpec("8.3.2", Part = 14)]
+        public async Task AuthorizedCallerForGroupReceivesKeys()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(BuildGroup(authorizedCallerIdentities: [CallerId]));
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0U, 2U));
+            Assert.That(response.Keys, Has.Count.EqualTo(2));
+            Assert.That(response.SecurityPolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.PubSubAes128Ctr));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14)]
+        public async Task AuthenticatedUnauthorizedCallerForAnotherGroupIsDenied()
+        {
+            const string otherCallerId = "client/cn=other";
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(BuildGroup(id: "group-1", authorizedCallerIdentities: [CallerId]));
+            await server.AddSecurityGroupAsync(BuildGroup(id: "group-2", authorizedCallerIdentities: [otherCallerId]));
+            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+                async () => await server.GetSecurityKeysAsync(
+                    CallerId,
+                    new SksKeyRequest("group-2", 0U, 1U)))!;
+            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14)]
+        public async Task SecurityGroupWithNoAuthorizedMembersDeniesAllRequests()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(BuildGroup(authorizedCallerIdentities: []));
+            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+                async () => await server.GetSecurityKeysAsync(
+                    CallerId,
+                    new SksKeyRequest("group-1", 0U, 1U)))!;
+            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
         public async Task GetSecurityKeysAsync_RejectsEmptyCallerIdentity()
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
@@ -116,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 async () => await server.GetSecurityKeysAsync(
                     CallerId,
                     new SksKeyRequest("missing", 0U, 1U)))!;
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadNotFound));
+            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]

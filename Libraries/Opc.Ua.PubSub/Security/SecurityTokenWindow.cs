@@ -28,15 +28,14 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Threading;
 
 namespace Opc.Ua.PubSub.Security
 {
     /// <summary>
-    /// Sliding reception window enforcing replay and nonce-reuse
-    /// rejection over the
+    /// Monotonic sliding reception window enforcing replay and
+    /// nonce-reuse rejection over the
     /// <c>(TokenId, SequenceNumber, Nonce)</c> triple.
     /// </summary>
     /// <remarks>
@@ -50,11 +49,24 @@ namespace Opc.Ua.PubSub.Security
     /// Part 14 §7.2.4.4.3.1 PubSub security policies</see>.
     /// </para>
     /// <para>
-    /// State per registered <c>TokenId</c>: the set of recently
-    /// accepted sequence numbers (capped at
-    /// <see cref="HistorySize"/>) and a fingerprint of recently seen
-    /// nonces. Eviction is FIFO once the per-token cap is reached so
-    /// the data structures stay bounded for long-running subscribers.
+    /// State per registered <c>TokenId</c>: the highest accepted
+    /// sequence number and a sliding bitmap of the most recent
+    /// <see cref="HistorySize"/> sequence numbers (IPsec-style
+    /// anti-replay). A sequence number that falls below the lower
+    /// edge of the window — i.e. more than <see cref="HistorySize"/>
+    /// behind the highest accepted value — is permanently rejected as
+    /// "too old", so a captured message can never be replayed once the
+    /// window has advanced past it (no eviction-replay). Duplicates
+    /// inside the window are rejected via the bitmap.
+    /// </para>
+    /// <para>
+    /// In addition the window retains the <b>full</b> bytes of the
+    /// most recently seen nonces (bounded by <see cref="HistorySize"/>)
+    /// and rejects any exact nonce reuse. Because every legitimate
+    /// message carries a strictly increasing sequence number folded
+    /// into its nonce, an evicted nonce always maps to a sequence
+    /// below the window's lower edge and is therefore still rejected
+    /// by the monotonic check.
     /// </para>
     /// </remarks>
     public sealed class SecurityTokenWindow : ISecurityTokenWindow
@@ -124,7 +136,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 if (!m_states.ContainsKey(tokenId))
                 {
-                    m_states.Add(tokenId, new TokenState());
+                    m_states.Add(tokenId, new TokenState(m_historySize));
                 }
             }
         }
@@ -148,7 +160,10 @@ namespace Opc.Ua.PubSub.Security
             ulong sequenceNumber,
             ReadOnlySpan<byte> nonce)
         {
-            ulong fingerprint = ComputeNonceFingerprint(nonce);
+            // Copy the nonce before taking the lock so the reuse set
+            // can retain the full bytes (no truncation) for an exact
+            // comparison on later frames.
+            byte[]? nonceKey = nonce.Length == 0 ? null : nonce.ToArray();
 
             lock (m_lock)
             {
@@ -157,33 +172,30 @@ namespace Opc.Ua.PubSub.Security
                     return false;
                 }
 
-                if (state.SeenSequences.Contains(sequenceNumber))
+                // Reject exact nonce reuse before mutating any state.
+                if (nonceKey != null && state.SeenNonces.Contains(nonceKey))
                 {
                     return false;
                 }
 
-                if (fingerprint != 0 && state.SeenNonces.Contains(fingerprint))
+                // Reject too-old / duplicate sequence numbers without
+                // mutating the window when the nonce check passed.
+                if (!state.WouldAcceptSequence(sequenceNumber, m_historySize))
                 {
                     return false;
                 }
 
-                if (state.SeenSequences.Count >= m_historySize)
-                {
-                    ulong evictedSeq = state.SequenceOrder.Dequeue();
-                    state.SeenSequences.Remove(evictedSeq);
-                }
-                state.SeenSequences.Add(sequenceNumber);
-                state.SequenceOrder.Enqueue(sequenceNumber);
+                state.CommitSequence(sequenceNumber, m_historySize);
 
-                if (fingerprint != 0)
+                if (nonceKey != null)
                 {
                     if (state.SeenNonces.Count >= m_historySize)
                     {
-                        ulong evictedNonce = state.NonceOrder.Dequeue();
-                        state.SeenNonces.Remove(evictedNonce);
+                        byte[] evicted = state.NonceOrder.Dequeue();
+                        state.SeenNonces.Remove(evicted);
                     }
-                    state.SeenNonces.Add(fingerprint);
-                    state.NonceOrder.Enqueue(fingerprint);
+                    state.SeenNonces.Add(nonceKey);
+                    state.NonceOrder.Enqueue(nonceKey);
                 }
 
                 return true;
@@ -199,34 +211,136 @@ namespace Opc.Ua.PubSub.Security
             }
         }
 
-        private static ulong ComputeNonceFingerprint(ReadOnlySpan<byte> nonce)
-        {
-            // The nonce is normally 12 bytes for the AES-CTR policies;
-            // we hash the first 8 bytes which already include the
-            // MessageRandom prefix (4 bytes) plus part of the publisher
-            // projection. Empty nonce (None policy) returns 0 — which
-            // we treat as "no fingerprint" and skip nonce-reuse checks
-            // for, matching the contract that None policy carries no
-            // confidentiality guarantee.
-            if (nonce.Length == 0)
-            {
-                return 0;
-            }
-            if (nonce.Length >= 8)
-            {
-                return BinaryPrimitives.ReadUInt64LittleEndian(nonce.Slice(0, 8));
-            }
-            Span<byte> padded = stackalloc byte[8];
-            nonce.CopyTo(padded);
-            return BinaryPrimitives.ReadUInt64LittleEndian(padded);
-        }
-
         private sealed class TokenState
         {
-            public HashSet<ulong> SeenSequences { get; } = [];
-            public Queue<ulong> SequenceOrder { get; } = new();
-            public HashSet<ulong> SeenNonces { get; } = [];
-            public Queue<ulong> NonceOrder { get; } = new();
+            private readonly ulong[] m_window;
+            private bool m_hasHighest;
+            private ulong m_highest;
+
+            public TokenState(int historyBits)
+            {
+                m_window = new ulong[(historyBits + 63) / 64];
+            }
+
+            public HashSet<byte[]> SeenNonces { get; } = new(NonceComparer.Instance);
+
+            public Queue<byte[]> NonceOrder { get; } = new();
+
+            /// <summary>
+            /// Returns whether <paramref name="sequenceNumber"/> would
+            /// be accepted without mutating any state.
+            /// </summary>
+            public bool WouldAcceptSequence(ulong sequenceNumber, int historyBits)
+            {
+                if (!m_hasHighest || sequenceNumber > m_highest)
+                {
+                    return true;
+                }
+                ulong offset = m_highest - sequenceNumber;
+                if (offset >= (ulong)historyBits)
+                {
+                    return false;
+                }
+                return !GetBit((int)offset);
+            }
+
+            /// <summary>
+            /// Records an accepted <paramref name="sequenceNumber"/>,
+            /// advancing the window when it is the new highest value.
+            /// </summary>
+            public void CommitSequence(ulong sequenceNumber, int historyBits)
+            {
+                if (!m_hasHighest)
+                {
+                    m_hasHighest = true;
+                    m_highest = sequenceNumber;
+                    Array.Clear(m_window, 0, m_window.Length);
+                    SetBit(0);
+                    return;
+                }
+                if (sequenceNumber > m_highest)
+                {
+                    ShiftUp(sequenceNumber - m_highest, historyBits);
+                    m_highest = sequenceNumber;
+                    SetBit(0);
+                    return;
+                }
+                SetBit((int)(m_highest - sequenceNumber));
+            }
+
+            private bool GetBit(int index)
+            {
+                return (m_window[index >> 6] & (1UL << (index & 63))) != 0;
+            }
+
+            private void SetBit(int index)
+            {
+                m_window[index >> 6] |= 1UL << (index & 63);
+            }
+
+            private void ShiftUp(ulong delta, int historyBits)
+            {
+                if (delta >= (ulong)historyBits)
+                {
+                    Array.Clear(m_window, 0, m_window.Length);
+                    return;
+                }
+                int d = (int)delta;
+                int wordShift = d >> 6;
+                int bitShift = d & 63;
+                for (int i = m_window.Length - 1; i >= 0; i--)
+                {
+                    ulong value = 0;
+                    int src = i - wordShift;
+                    if (src >= 0)
+                    {
+                        value = m_window[src] << bitShift;
+                        if (bitShift != 0 && src - 1 >= 0)
+                        {
+                            value |= m_window[src - 1] >> (64 - bitShift);
+                        }
+                    }
+                    m_window[i] = value;
+                }
+                int topBits = historyBits & 63;
+                if (topBits != 0)
+                {
+                    m_window[^1] &= (1UL << topBits) - 1;
+                }
+            }
+        }
+
+        private sealed class NonceComparer : IEqualityComparer<byte[]>
+        {
+            public static readonly NonceComparer Instance = new();
+
+            public bool Equals(byte[]? x, byte[]? y)
+            {
+                if (ReferenceEquals(x, y))
+                {
+                    return true;
+                }
+                if (x is null || y is null)
+                {
+                    return false;
+                }
+                return x.AsSpan().SequenceEqual(y);
+            }
+
+            public int GetHashCode(byte[] obj)
+            {
+                unchecked
+                {
+                    const ulong offsetBasis = 14695981039346656037UL;
+                    const ulong prime = 1099511628211UL;
+                    ulong hash = offsetBasis;
+                    for (int i = 0; i < obj.Length; i++)
+                    {
+                        hash = (hash ^ obj[i]) * prime;
+                    }
+                    return (int)(hash ^ (hash >> 32));
+                }
+            }
         }
     }
 }

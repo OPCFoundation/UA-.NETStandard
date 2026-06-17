@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
-        public void Build_PlacesPublisherIdLittleEndianAtOffsetFour()
+        public void Build_PlacesSequenceNumberLittleEndianAtOffsetFour()
         {
             byte[] nonce = new byte[12];
             AesCtrNonceLayout.Build(0U, 0xAABBCCDDEEFF0011UL, nonce);
@@ -68,11 +68,11 @@ namespace Opc.Ua.PubSub.Tests.Security
         {
             byte[] nonce = new byte[12];
             AesCtrNonceLayout.Build(0xCAFEBABEU, 0xDEADBEEFCAFEBABEUL, nonce);
-            (uint random, ulong publisherIdLow64) = AesCtrNonceLayout.Parse(nonce);
+            (uint random, ulong messageSequenceNumber) = AesCtrNonceLayout.Parse(nonce);
             Assert.Multiple(() =>
             {
                 Assert.That(random, Is.EqualTo(0xCAFEBABEU));
-                Assert.That(publisherIdLow64, Is.EqualTo(0xDEADBEEFCAFEBABEUL));
+                Assert.That(messageSequenceNumber, Is.EqualTo(0xDEADBEEFCAFEBABEUL));
             });
         }
 

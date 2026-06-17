@@ -43,6 +43,9 @@ namespace Opc.Ua.PubSub.Tests.Security
     [TestSpec("7.2.4.4.3.2", Summary = "PubSub random message-nonce generator")]
     public class RandomNonceProviderTests
     {
+        private const uint KeyId = 1U;
+        private static readonly byte[] s_keyNonce = new byte[] { 0xA1, 0xB2, 0xC3, 0xD4 };
+
         [Test]
         public void GetNext_ProducesUniqueMessageRandomBytes()
         {
@@ -50,30 +53,105 @@ namespace Opc.Ua.PubSub.Tests.Security
                 PublisherId.FromUInt32(0x12345678U));
             byte[] a = new byte[12];
             byte[] b = new byte[12];
-            provider.GetNext(a);
-            provider.GetNext(b);
+            provider.GetNext(KeyId, s_keyNonce, a);
+            provider.GetNext(KeyId, s_keyNonce, b);
             (uint randomA, _) = AesCtrNonceLayout.Parse(a);
             (uint randomB, _) = AesCtrNonceLayout.Parse(b);
             Assert.That(randomA, Is.Not.EqualTo(randomB));
         }
 
         [Test]
-        public void GetNext_PublisherIdProjectionIsStable()
+        public void GetNext_AppendsMonotonicSequenceNumber()
         {
             var publisherId = PublisherId.FromUInt32(0xDEADBEEFU);
             using var provider = new RandomNonceProvider(publisherId);
             byte[] a = new byte[12];
             byte[] b = new byte[12];
-            provider.GetNext(a);
-            provider.GetNext(b);
-            (_, ulong projectionA) = AesCtrNonceLayout.Parse(a);
-            (_, ulong projectionB) = AesCtrNonceLayout.Parse(b);
+            byte[] c = new byte[12];
+            provider.GetNext(KeyId, s_keyNonce, a);
+            provider.GetNext(KeyId, s_keyNonce, b);
+            provider.GetNext(KeyId, s_keyNonce, c);
+            (_, ulong seqA) = AesCtrNonceLayout.Parse(a);
+            (_, ulong seqB) = AesCtrNonceLayout.Parse(b);
+            (_, ulong seqC) = AesCtrNonceLayout.Parse(c);
             Assert.Multiple(() =>
             {
-                Assert.That(projectionA, Is.EqualTo(0xDEADBEEFUL));
-                Assert.That(projectionB, Is.EqualTo(projectionA));
+                Assert.That(seqA, Is.Zero);
+                Assert.That(seqB, Is.EqualTo(1UL));
+                Assert.That(seqC, Is.EqualTo(2UL));
                 Assert.That(provider.PublisherIdLow64, Is.EqualTo(0xDEADBEEFUL));
             });
+        }
+
+        [Test]
+        public void GetNext_ProducesDistinctNoncesUnderSameKey()
+        {
+            using var provider = new RandomNonceProvider(PublisherId.FromUInt32(7U));
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            byte[] buffer = new byte[12];
+            for (int i = 0; i < 1000; i++)
+            {
+                provider.GetNext(KeyId, s_keyNonce, buffer);
+                Assert.That(
+                    seen.Add(AesCtrNonceLayout.ToDiagnosticString(buffer)),
+                    Is.True,
+                    $"nonce repeated at message {i}");
+            }
+        }
+
+        [Test]
+        public void GetNext_ResetsSequenceNumberWhenKeyChanges()
+        {
+            using var provider = new RandomNonceProvider(PublisherId.FromUInt32(7U));
+            byte[] a = new byte[12];
+            byte[] b = new byte[12];
+            provider.GetNext(KeyId, s_keyNonce, a);
+            provider.GetNext(KeyId, s_keyNonce, a);
+            provider.GetNext(2U, s_keyNonce, b);
+            (_, ulong seqAfterRollover) = AesCtrNonceLayout.Parse(b);
+            Assert.That(seqAfterRollover, Is.Zero);
+        }
+
+        [Test]
+        public void GetNext_ThrowsWhenPerKeyCapReached()
+        {
+            using var provider = new RandomNonceProvider(
+                PublisherId.FromUInt32(7U),
+                maxMessagesPerKey: 3UL);
+            byte[] buffer = new byte[12];
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => provider.GetNext(KeyId, s_keyNonce, buffer), Throws.Nothing);
+                Assert.That(() => provider.GetNext(KeyId, s_keyNonce, buffer), Throws.Nothing);
+                Assert.That(() => provider.GetNext(KeyId, s_keyNonce, buffer), Throws.Nothing);
+                Assert.That(
+                    () => provider.GetNext(KeyId, s_keyNonce, buffer),
+                    Throws.TypeOf<InvalidOperationException>());
+            });
+        }
+
+        [Test]
+        public void GetNext_CapIsScopedPerKey()
+        {
+            using var provider = new RandomNonceProvider(
+                PublisherId.FromUInt32(7U),
+                maxMessagesPerKey: 2UL);
+            byte[] buffer = new byte[12];
+            provider.GetNext(KeyId, s_keyNonce, buffer);
+            provider.GetNext(KeyId, s_keyNonce, buffer);
+            // Switching key resets the per-key counter, so the cap does
+            // not carry over.
+            Assert.That(
+                () => provider.GetNext(2U, s_keyNonce, buffer),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void Constructor_RejectsZeroCap()
+        {
+            Assert.That(
+                () => new RandomNonceProvider(PublisherId.FromUInt16(1), maxMessagesPerKey: 0UL),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
@@ -82,7 +160,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             using var provider = new RandomNonceProvider(PublisherId.FromUInt16(1));
             byte[] tooSmall = new byte[10];
             Assert.That(
-                () => provider.GetNext(tooSmall),
+                () => provider.GetNext(KeyId, s_keyNonce, tooSmall),
                 Throws.ArgumentException);
         }
 
@@ -92,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             using var provider = new RandomNonceProvider(PublisherId.FromUInt32(7U));
             const int iterations = 256;
             const int parallelism = 8;
-            var bag = new System.Collections.Concurrent.ConcurrentBag<uint>();
+            var bag = new System.Collections.Concurrent.ConcurrentBag<ulong>();
             Task[] workers = new Task[parallelism];
             for (int t = 0; t < parallelism; t++)
             {
@@ -101,20 +179,18 @@ namespace Opc.Ua.PubSub.Tests.Security
                     byte[] buffer = new byte[12];
                     for (int i = 0; i < iterations; i++)
                     {
-                        provider.GetNext(buffer);
-                        (uint random, _) = AesCtrNonceLayout.Parse(buffer);
-                        bag.Add(random);
+                        provider.GetNext(KeyId, s_keyNonce, buffer);
+                        (_, ulong sequenceNumber) = AesCtrNonceLayout.Parse(buffer);
+                        bag.Add(sequenceNumber);
                     }
                 });
             }
             await Task.WhenAll(workers);
-            // Verify no torn writes — every entry has a corresponding integer.
+            // The monotonic counter is serialised, so every call must
+            // observe a distinct sequence number with no torn writes.
             Assert.That(bag, Has.Count.EqualTo(parallelism * iterations));
-            // Statistical check: the random sequence should produce a
-            // very high number of distinct values; allow a margin to
-            // avoid flakiness on a constrained 4-byte space.
-            var distinct = new HashSet<uint>(bag);
-            Assert.That(distinct, Has.Count.GreaterThan(parallelism * iterations / 2));
+            var distinct = new HashSet<ulong>(bag);
+            Assert.That(distinct, Has.Count.EqualTo(parallelism * iterations));
         }
 
         [Test]
@@ -123,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             var provider = new RandomNonceProvider(PublisherId.FromUInt16(1));
             provider.Dispose();
             Assert.That(
-                () => provider.GetNext(new byte[12]),
+                () => provider.GetNext(KeyId, s_keyNonce, new byte[12]),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 

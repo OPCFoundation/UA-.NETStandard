@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Security
                 : new byte[m_policy.NonceLength];
             if (m_policy.NonceLength != 0)
             {
-                m_nonceProvider.GetNext(nonceBytes);
+                m_nonceProvider.GetNext(key.TokenId, key.KeyNonce.Span, nonceBytes);
             }
 
             UadpSecurityFlagsEncodingMask flagsMask = 0;
@@ -304,22 +304,31 @@ namespace Opc.Ua.PubSub.Security
                     }
                 }
 
+                // The MessageNonce embeds a monotonic per-key
+                // SequenceNumber (Part 14 Table 156: RandomBytes ||
+                // SequenceNumber). The nonce is part of the signed
+                // SecurityHeader, so the sequence number is
+                // authenticated and available before decryption.
+                // Extract it and drive the monotonic replay window with
+                // it, rejecting duplicates, too-old sequences and exact
+                // nonce reuse.
+                ulong sequenceNumber = 0;
+                ReadOnlySpan<byte> nonceSpan = header.MessageNonce.Span;
+                if (nonceSpan.Length == AesCtrNonceLayout.NonceLength)
+                {
+                    (_, sequenceNumber) = AesCtrNonceLayout.Parse(nonceSpan);
+                }
+
                 if (!m_tokenWindow.TryAccept(
                     header.SecurityTokenId,
-                    header.SecurityTokenId,
-                    header.MessageNonce.Span))
+                    sequenceNumber,
+                    nonceSpan))
                 {
-                    // Note: the TryAccept(sequenceNumber=...) parameter
-                    // is set to the tokenId here as a stand-in for the
-                    // per-message sequence number which is only
-                    // available after the (encrypted) GroupHeader is
-                    // decoded. Phase 9 will plumb the real DataSetMessage
-                    // sequence number through; until then we still
-                    // detect nonce reuse, which is the spec-mandated
-                    // replay control here.
                     m_logger.LogWarning(
-                        "UadpSecurityWrapper rejected replay or nonce reuse tokenId={TokenId}",
-                        header.SecurityTokenId);
+                        "UadpSecurityWrapper rejected replay or nonce reuse "
+                        + "tokenId={TokenId} sequenceNumber={SequenceNumber}",
+                        header.SecurityTokenId,
+                        sequenceNumber);
                     return UnwrapResult.Failure(
                         StatusCodes.BadSecurityChecksFailed,
                         "Replay or nonce reuse detected");

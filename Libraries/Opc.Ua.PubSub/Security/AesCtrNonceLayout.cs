@@ -38,16 +38,21 @@ namespace Opc.Ua.PubSub.Security
 {
     /// <summary>
     /// Encodes and decodes the 12-byte AES-CTR <c>MessageNonce</c>
-    /// described by Part 14 Table 156. The first 4 bytes carry a
-    /// publisher-chosen <c>MessageRandom</c> in big-endian order; the
-    /// trailing 8 bytes carry the low 64 bits of the publisher
-    /// identifier in little-endian order so byte-comparison is stable
-    /// across encodings.
+    /// described by Part 14 Table 156, composed as
+    /// <c>RandomBytes || SequenceNumber</c>. The first 4 bytes carry a
+    /// publisher-chosen <c>MessageRandom</c> (CSPRNG) in big-endian
+    /// order; the trailing 8 bytes carry a monotonic per-key
+    /// <c>MessageSequenceNumber</c> in little-endian order. Because the
+    /// sequence number increments for every message produced under a
+    /// given key, no two nonces repeat within a key's lifetime — the
+    /// keystream-reuse hazard of a constant suffix is eliminated.
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3.2">
     /// Part 14 §7.2.4.4.3.2 (Table 156) PubSub nonce composition</see>.
+    /// The receiver extracts the sequence number from the (signed)
+    /// nonce and feeds it to the replay window.
     /// </remarks>
     public static class AesCtrNonceLayout
     {
@@ -62,23 +67,29 @@ namespace Opc.Ua.PubSub.Security
         public const int MessageRandomLength = 4;
 
         /// <summary>
+        /// Length of the monotonic <c>MessageSequenceNumber</c> suffix
+        /// in bytes.
+        /// </summary>
+        public const int SequenceNumberLength = 8;
+
+        /// <summary>
         /// Length of the publisher-id projection in bytes.
         /// </summary>
         public const int PublisherIdLength = 8;
 
         /// <summary>
         /// Writes the 12-byte nonce <c>[messageRandom (4 BE) ||
-        /// publisherIdLow64 (8 LE)]</c> into <paramref name="nonce"/>.
+        /// messageSequenceNumber (8 LE)]</c> into
+        /// <paramref name="nonce"/>.
         /// </summary>
         /// <param name="messageRandom">Per-message random value.</param>
-        /// <param name="publisherIdLow64">
-        /// Low 64-bits of the PublisherId projection from
-        /// <see cref="ToLow64"/>.
+        /// <param name="messageSequenceNumber">
+        /// Monotonic per-key message sequence number.
         /// </param>
         /// <param name="nonce">Destination span (must be 12 bytes).</param>
         public static void Build(
             uint messageRandom,
-            ulong publisherIdLow64,
+            ulong messageSequenceNumber,
             Span<byte> nonce)
         {
             if (nonce.Length != NonceLength)
@@ -91,8 +102,8 @@ namespace Opc.Ua.PubSub.Security
                 nonce.Slice(0, MessageRandomLength),
                 messageRandom);
             BinaryPrimitives.WriteUInt64LittleEndian(
-                nonce.Slice(MessageRandomLength, PublisherIdLength),
-                publisherIdLow64);
+                nonce.Slice(MessageRandomLength, SequenceNumberLength),
+                messageSequenceNumber);
         }
 
         /// <summary>
@@ -101,7 +112,7 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="nonce">Source span (must be 12 bytes).</param>
         /// <returns>The parsed components.</returns>
-        public static (uint MessageRandom, ulong PublisherIdLow64) Parse(
+        public static (uint MessageRandom, ulong MessageSequenceNumber) Parse(
             ReadOnlySpan<byte> nonce)
         {
             if (nonce.Length != NonceLength)
@@ -112,18 +123,19 @@ namespace Opc.Ua.PubSub.Security
             }
             uint messageRandom = BinaryPrimitives.ReadUInt32BigEndian(
                 nonce.Slice(0, MessageRandomLength));
-            ulong publisherIdLow64 = BinaryPrimitives.ReadUInt64LittleEndian(
-                nonce.Slice(MessageRandomLength, PublisherIdLength));
-            return (messageRandom, publisherIdLow64);
+            ulong messageSequenceNumber = BinaryPrimitives.ReadUInt64LittleEndian(
+                nonce.Slice(MessageRandomLength, SequenceNumberLength));
+            return (messageRandom, messageSequenceNumber);
         }
 
         /// <summary>
-        /// Projects a <see cref="PublisherId"/> to the stable 64-bit
-        /// value that occupies the second half of the nonce. Numeric
-        /// PublisherIds are zero-extended; <c>String</c> values use
-        /// the first 8 bytes of their UTF-8 encoding (zero-padded);
-        /// <c>Guid</c> values use the first 8 bytes of the canonical
-        /// guid layout.
+        /// Projects a <see cref="PublisherId"/> to a stable 64-bit
+        /// value. Numeric PublisherIds are zero-extended; <c>String</c>
+        /// values use the first 8 bytes of their UTF-8 encoding
+        /// (zero-padded); <c>Guid</c> values use the first 8 bytes of
+        /// the canonical guid layout. Retained as a diagnostic /
+        /// domain-separation helper — the default nonce suffix is the
+        /// monotonic <c>MessageSequenceNumber</c>, not this projection.
         /// </summary>
         /// <param name="publisherId">PublisherId to project.</param>
         /// <returns>Stable 64-bit projection.</returns>

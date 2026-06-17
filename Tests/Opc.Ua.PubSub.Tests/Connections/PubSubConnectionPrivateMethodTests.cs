@@ -907,7 +907,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class FakeNonceProvider : INonceProvider
         {
-            public void GetNext(Span<byte> buffer)
+            public void GetNext(uint keyId, ReadOnlySpan<byte> keyNonce, Span<byte> buffer)
             {
                 buffer.Clear();
             }
