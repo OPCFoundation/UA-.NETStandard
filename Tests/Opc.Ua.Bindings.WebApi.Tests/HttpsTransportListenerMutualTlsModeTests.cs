@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using System.IO;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using NUnit.Framework;
@@ -67,11 +68,11 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             string source = LocateHttpsTransportListenerSource();
             string content = File.ReadAllText(source);
 
-            Assert.That(content.Contains("ClientCertificateMode.RequireCertificate"), Is.True,
+            Assert.That(content.Contains("ClientCertificateMode.RequireCertificate", StringComparison.Ordinal), Is.True,
                 "HttpsTransportListener must configure RequireCertificate when " +
                 "m_mutualTlsEnabled is true so cert-less clients are rejected at the " +
                 "TLS handshake, not the application layer (sec-8 fix).");
-            Assert.That(content.Contains("ClientCertificateMode.AllowCertificate"), Is.False,
+            Assert.That(content.Contains("ClientCertificateMode.AllowCertificate", StringComparison.Ordinal), Is.False,
                 "AllowCertificate must not be used — it permits cert-less connections " +
                 "to reach the dispatcher anonymously, defeating the mTLS contract.");
         }

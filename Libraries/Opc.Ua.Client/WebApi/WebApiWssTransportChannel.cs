@@ -231,7 +231,14 @@ namespace Opc.Ua.Client.WebApi
             // the TLS chain/hostname result so an attacker MITM can no
             // longer present an arbitrary certificate and be silently
             // trusted.
+            // RemoteCertificateValidationCallback was added in .NET 7;
+            // on legacy TFMs (net472 / net48 / netstandard2.x) the
+            // property does not exist, so the channel falls back to the
+            // OS-level TLS chain check (see also the
+            // HttpsTransportListener doc note about legacy-TFM WSS).
+#if NET7_0_OR_GREATER
             ws.Options.RemoteCertificateValidationCallback = ValidateServerCertificate;
+#endif
 
             try
             {
