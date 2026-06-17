@@ -162,15 +162,65 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var configurator = new UaPubSubConfigurator(NUnitTelemetryContext.Create());
             var published = new PublishedDataSetDataType { Name = "Duplicate" };
             Assert.That(configurator.AddPublishedDataSet(published), Is.EqualTo(StatusCodes.Good));
+            uint publishedId = configurator.FindIdForObject(published);
+            var extensionField = new KeyValuePair
+            {
+                Key = QualifiedName.From("Meta"),
+                Value = "value"
+            };
+            Assert.That(configurator.AddExtensionField(publishedId, extensionField), Is.EqualTo(StatusCodes.Good));
+            uint extensionFieldId = configurator.FindIdForObject(extensionField);
+            Assert.That(
+                configurator.AddExtensionField(
+                    publishedId,
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From("Meta"),
+                        Value = "other"
+                    }),
+                Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(configurator.RemoveExtensionField(publishedId, extensionFieldId), Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                () => configurator.AddPublishedDataSet(published),
+                Throws.TypeOf<ArgumentException>());
             Assert.That(
                 configurator.AddPublishedDataSet(new PublishedDataSetDataType { Name = "Duplicate" }),
                 Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
 
             var connection = new PubSubConnectionDataType { Name = "Connection" };
             Assert.That(configurator.AddConnection(connection), Is.EqualTo(StatusCodes.Good));
+            uint connectionId = configurator.FindIdForObject(connection);
+            Assert.That(
+                () => configurator.AddConnection(connection),
+                Throws.TypeOf<ArgumentException>());
             Assert.That(
                 configurator.AddConnection(new PubSubConnectionDataType { Name = "Connection" }),
                 Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+
+            var writerGroup = new WriterGroupDataType { Name = "WriterGroup" };
+            Assert.That(configurator.AddWriterGroup(connectionId, writerGroup), Is.EqualTo(StatusCodes.Good));
+            uint writerGroupId = configurator.FindIdForObject(writerGroup);
+            Assert.That(
+                () => configurator.AddWriterGroup(connectionId, writerGroup),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Name = "WriterGroup" }),
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(
+                () => configurator.AddWriterGroup(uint.MaxValue, new WriterGroupDataType { Name = "Missing" }),
+                Throws.TypeOf<ArgumentException>());
+
+            var dataSetWriter = new DataSetWriterDataType { Name = "Writer" };
+            Assert.That(configurator.AddDataSetWriter(writerGroupId, dataSetWriter), Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                () => configurator.AddDataSetWriter(writerGroupId, dataSetWriter),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                configurator.AddDataSetWriter(writerGroupId, new DataSetWriterDataType { Name = "Writer" }),
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(
+                () => configurator.AddDataSetWriter(uint.MaxValue, new DataSetWriterDataType { Name = "Missing" }),
+                Throws.TypeOf<ArgumentException>());
 
             Assert.Multiple(() =>
             {
@@ -178,10 +228,75 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.That(configurator.FindIdForObject(new object()), Is.EqualTo(UaPubSubConfigurator.InvalidId));
                 Assert.That(configurator.FindStateForId(uint.MaxValue), Is.EqualTo(PubSubState.Error));
                 Assert.That(configurator.FindParentForObject(new object()), Is.Null);
+                Assert.That(configurator.RemoveWriterGroup(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(configurator.RemoveDataSetWriter(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(configurator.RemoveConnection(uint.MaxValue), Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(configurator.RemovePublishedDataSet(uint.MaxValue), Is.EqualTo(StatusCodes.Good));
                 Assert.That(configurator.RemoveExtensionField(uint.MaxValue, uint.MaxValue),
                     Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            });
+        }
+
+        [Test]
+        public void LoadConfigurationReplacesExistingObjectsAndAssignsDefaultNames()
+        {
+            var configurator = new UaPubSubConfigurator(NUnitTelemetryContext.Create());
+            Assert.That(
+                configurator.AddPublishedDataSet(new PublishedDataSetDataType { Name = "Old" }),
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                configurator.AddConnection(new PubSubConnectionDataType { Name = "OldConnection" }),
+                Is.EqualTo(StatusCodes.Good));
+
+            var loaded = new PubSubConfigurationDataType
+            {
+                PublishedDataSets =
+                [
+                    new PublishedDataSetDataType { Name = "Loaded" }
+                ],
+                Connections =
+                [
+                    new PubSubConnectionDataType
+                    {
+                        Name = string.Empty,
+                        WriterGroups =
+                        [
+                            new WriterGroupDataType
+                            {
+                                Name = string.Empty,
+                                DataSetWriters =
+                                [
+                                    new DataSetWriterDataType { Name = string.Empty }
+                                ]
+                            }
+                        ],
+                        ReaderGroups =
+                        [
+                            new ReaderGroupDataType
+                            {
+                                Name = string.Empty,
+                                DataSetReaders =
+                                [
+                                    new DataSetReaderDataType { Name = string.Empty }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            configurator.LoadConfiguration(loaded);
+
+            PubSubConnectionDataType connection = configurator.PubSubConfiguration.Connections[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(configurator.FindPublishedDataSetByName("Old"), Is.Null);
+                Assert.That(configurator.FindPublishedDataSetByName("Loaded"), Is.Not.Null);
+                Assert.That(connection.Name, Does.StartWith("Connection_"));
+                Assert.That(connection.WriterGroups[0].Name, Does.StartWith("WriterGroup_"));
+                Assert.That(connection.WriterGroups[0].DataSetWriters[0].Name, Does.StartWith("DataSetWriter_"));
+                Assert.That(connection.ReaderGroups[0].Name, Does.StartWith("ReaderGroup_"));
+                Assert.That(connection.ReaderGroups[0].DataSetReaders[0].Name, Does.StartWith("DataSetReader_"));
             });
         }
     }
