@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
     public sealed class IdentityProviderConfigurationTests
     {
         [Test]
-        public void AnonymousOnlyBuildsAnonymousProvider()
+        public async Task AnonymousOnlyBuildsAnonymousProvider()
         {
             IConfiguration configuration = BuildConfiguration(new Dictionary<string, string>
             {
@@ -65,10 +65,22 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             IClientIdentityProvider provider = sp.GetRequiredService<IClientIdentityProvider>();
 
             Assert.That(provider.SupportedTokenTypes, Is.EqualTo([UserTokenType.Anonymous]));
-            Assert.That(provider.CanSatisfy(CreatePolicy(UserTokenType.Anonymous), CreateContext()), Is.True);
-            Assert.That(provider.CanSatisfy(CreatePolicy(UserTokenType.UserName), CreateContext()), Is.False);
-            Assert.That(provider.CanSatisfy(CreatePolicy(UserTokenType.Certificate), CreateContext()), Is.False);
-            Assert.That(provider.CanSatisfy(CreateIssuedTokenPolicy(), CreateContext()), Is.False);
+            CanSatisfyResult anon = await provider
+                .CanSatisfyAsync(CreatePolicy(UserTokenType.Anonymous), CreateContext())
+                .ConfigureAwait(false);
+            CanSatisfyResult user = await provider
+                .CanSatisfyAsync(CreatePolicy(UserTokenType.UserName), CreateContext())
+                .ConfigureAwait(false);
+            CanSatisfyResult cert = await provider
+                .CanSatisfyAsync(CreatePolicy(UserTokenType.Certificate), CreateContext())
+                .ConfigureAwait(false);
+            CanSatisfyResult issued = await provider
+                .CanSatisfyAsync(CreateIssuedTokenPolicy(), CreateContext())
+                .ConfigureAwait(false);
+            Assert.That(anon.CanSatisfy, Is.True);
+            Assert.That(user.CanSatisfy, Is.False);
+            Assert.That(cert.CanSatisfy, Is.False);
+            Assert.That(issued.CanSatisfy, Is.False);
         }
 
         [Test]

@@ -66,11 +66,23 @@ namespace Opc.Ua.Identity
         public DateTime ExpiresAt => DateTime.MaxValue;
 
         /// <inheritdoc/>
-        public bool CanSatisfy(
+        public ValueTask<CanSatisfyResult> CanSatisfyAsync(
             UserTokenPolicy policy,
-            IdentitySelectionContext context)
+            IdentitySelectionContext context,
+            CancellationToken ct = default)
         {
-            return policy != null && policy.TokenType == UserTokenType.UserName;
+            if (policy == null)
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No("Policy is null."));
+            }
+            if (policy.TokenType != UserTokenType.UserName)
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No(
+                        $"TokenTypeNotSupported (provider handles UserName, policy is {policy.TokenType})."));
+            }
+            return new ValueTask<CanSatisfyResult>(CanSatisfyResult.Yes);
         }
 
         /// <inheritdoc/>
@@ -79,11 +91,14 @@ namespace Opc.Ua.Identity
             IdentitySelectionContext context,
             CancellationToken ct = default)
         {
-            if (!CanSatisfy(policy, context))
+            CanSatisfyResult satisfied = await CanSatisfyAsync(policy, context, ct)
+                .ConfigureAwait(false);
+            if (!satisfied.CanSatisfy)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
-                    "Username/password identity provider can only satisfy username user token policies.");
+                    "Username/password identity provider cannot satisfy the supplied user token policy: {0}",
+                    satisfied.RejectionReason ?? string.Empty);
             }
 
             ISecret? secret = await m_registry

@@ -1609,11 +1609,25 @@ namespace Opc.Ua.Client
                             "Not connected to server.");
                     }
 
+                    IReadOnlyList<string> enabledPolicies;
+                    if (m_configuration.SecurityConfiguration != null &&
+                        !m_configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
+                    {
+                        enabledPolicies = m_configuration.SecurityConfiguration
+                            .SupportedSecurityPolicies.ToArray()!;
+                    }
+                    else
+                    {
+                        enabledPolicies =
+                            [m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None];
+                    }
+
                     context = new IdentitySelectionContext(
                         m_endpoint.Description,
                         m_endpoint.Description.UserIdentityTokens.ToArray() ??
                         [],
-                        MessageContext);
+                        MessageContext,
+                        enabledPolicies);
                 }
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
