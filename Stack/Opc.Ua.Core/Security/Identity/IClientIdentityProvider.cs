@@ -51,13 +51,13 @@ namespace Opc.Ua.Identity
         /// </summary>
         public IdentitySelectionContext(
             EndpointDescription endpointDescription,
-            IReadOnlyList<UserTokenPolicy> offeredPolicies,
+            ArrayOf<UserTokenPolicy> offeredPolicies,
             IServiceMessageContext messageContext)
             : this(
                 endpointDescription,
                 offeredPolicies,
                 messageContext,
-                Array.Empty<string>())
+                ArrayOf<string>.Null)
         {
         }
 
@@ -67,14 +67,14 @@ namespace Opc.Ua.Identity
         /// </summary>
         public IdentitySelectionContext(
             EndpointDescription endpointDescription,
-            IReadOnlyList<UserTokenPolicy> offeredPolicies,
+            ArrayOf<UserTokenPolicy> offeredPolicies,
             IServiceMessageContext messageContext,
-            IReadOnlyList<string> enabledSecurityPolicyUris)
+            ArrayOf<string> enabledSecurityPolicyUris)
         {
             EndpointDescription = endpointDescription;
             OfferedPolicies = offeredPolicies;
             MessageContext = messageContext;
-            EnabledSecurityPolicyUris = enabledSecurityPolicyUris ?? [];
+            EnabledSecurityPolicyUris = enabledSecurityPolicyUris;
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Opc.Ua.Identity
         /// The list of <see cref="UserTokenPolicy"/> values the server
         /// advertised on the endpoint, ordered by server preference.
         /// </summary>
-        public IReadOnlyList<UserTokenPolicy> OfferedPolicies { get; init; }
+        public ArrayOf<UserTokenPolicy> OfferedPolicies { get; init; }
 
         /// <summary>
         /// The service message context (encoder factories, telemetry).
@@ -103,9 +103,11 @@ namespace Opc.Ua.Identity
         /// <see cref="UserTokenPolicy"/> whose non-empty
         /// <see cref="UserTokenPolicy.SecurityPolicyUri"/> is not in
         /// this list, so deprecated or locally-disabled security
-        /// policies cannot be used by accident.
+        /// policies cannot be used by accident. When
+        /// <see cref="ArrayOf{T}.IsNull"/> the filter is disabled and
+        /// every offered policy passes the gate.
         /// </summary>
-        public IReadOnlyList<string> EnabledSecurityPolicyUris { get; init; }
+        public ArrayOf<string> EnabledSecurityPolicyUris { get; init; }
     }
 
     /// <summary>
@@ -141,8 +143,11 @@ namespace Opc.Ua.Identity
 
         /// <summary>
         /// The provider rejects the policy with the supplied reason.
+        /// When <paramref name="reason"/> is <see langword="null"/> or
+        /// empty, a generic placeholder is used so the diagnostic
+        /// always carries a non-null message.
         /// </summary>
-        public static CanSatisfyResult No(string reason)
+        public static CanSatisfyResult No(string? reason = null)
         {
             return new CanSatisfyResult(
                 false,

@@ -119,9 +119,9 @@ namespace Opc.Ua.Client.Tests.Identity
                 basic128);
             var context = new IdentitySelectionContext(
                 endpoint,
-                endpoint.UserIdentityTokens.ToArray() ?? [],
+                endpoint.UserIdentityTokens,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
-                [SecurityPolicies.Basic256Sha256]);
+                new[] { SecurityPolicies.Basic256Sha256 });
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
@@ -148,9 +148,9 @@ namespace Opc.Ua.Client.Tests.Identity
                 basic256);
             var context = new IdentitySelectionContext(
                 endpoint,
-                endpoint.UserIdentityTokens.ToArray() ?? [],
+                endpoint.UserIdentityTokens,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
-                [SecurityPolicies.Basic256Sha256]);
+                new[] { SecurityPolicies.Basic256Sha256 });
 
             UserTokenPolicy selected = await provider
                 .SelectUserTokenPolicyAsync(context)
@@ -279,11 +279,13 @@ namespace Opc.Ua.Client.Tests.Identity
                 }
             }
 
+            string[] enabledUris = new string[enabled.Count];
+            enabled.CopyTo(enabledUris);
             return new IdentitySelectionContext(
                 endpoint,
-                endpoint.UserIdentityTokens.ToArray() ?? [],
+                endpoint.UserIdentityTokens,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
-                [.. enabled]);
+                enabledUris);
         }
 
         private sealed class FakeCertificatePasswordProvider : ICertificatePasswordProvider

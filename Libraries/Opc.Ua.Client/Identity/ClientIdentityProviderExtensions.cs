@@ -58,7 +58,7 @@ namespace Opc.Ua.Identity
                 provider,
                 endpointDescription,
                 messageContext,
-                enabledSecurityPolicyUris: null,
+                ArrayOf<string>.Null,
                 ct);
         }
 
@@ -72,7 +72,7 @@ namespace Opc.Ua.Identity
             this IClientIdentityProvider provider,
             EndpointDescription endpointDescription,
             IServiceMessageContext messageContext,
-            IReadOnlyList<string>? enabledSecurityPolicyUris,
+            ArrayOf<string> enabledSecurityPolicyUris,
             CancellationToken ct = default)
         {
             if (endpointDescription == null)
@@ -84,15 +84,11 @@ namespace Opc.Ua.Identity
                 throw new ArgumentNullException(nameof(messageContext));
             }
 
-            IReadOnlyList<UserTokenPolicy> offered =
-                endpointDescription.UserIdentityTokens.ToArray() ?? [];
-            IReadOnlyList<string> enabled = enabledSecurityPolicyUris ?? Array.Empty<string>();
-
             var context = new IdentitySelectionContext(
                 endpointDescription,
-                offered,
+                endpointDescription.UserIdentityTokens,
                 messageContext,
-                enabled);
+                enabledSecurityPolicyUris);
             return provider.AcquireIdentityAsync(context, ct);
         }
 
@@ -164,8 +160,10 @@ namespace Opc.Ua.Identity
             UserTokenPolicy? unspecifiedSecPolicy = null;
             var rejections = new List<(UserTokenPolicy Policy, string Reason)>();
 
-            foreach (UserTokenPolicy policy in context.OfferedPolicies)
+            ArrayOf<UserTokenPolicy> offered = context.OfferedPolicies;
+            for (int i = 0; i < offered.Count; i++)
             {
+                UserTokenPolicy policy = offered[i];
                 if (!IsPolicyEnabledByClient(policy, context, out string? notEnabledReason))
                 {
                     rejections.Add((policy, notEnabledReason!));
@@ -224,16 +222,17 @@ namespace Opc.Ua.Identity
                 return true;
             }
 
-            IReadOnlyList<string> enabled = context.EnabledSecurityPolicyUris;
-            if (enabled == null || enabled.Count == 0)
+            ArrayOf<string> enabled = context.EnabledSecurityPolicyUris;
+            if (enabled.IsNull || enabled.Count == 0)
             {
                 rejectionReason = null;
                 return true;
             }
 
-            for (int i = 0; i < enabled.Count; i++)
+            ReadOnlySpan<string> span = enabled.Span;
+            for (int i = 0; i < span.Length; i++)
             {
-                if (string.Equals(enabled[i], policy.SecurityPolicyUri, StringComparison.Ordinal))
+                if (string.Equals(span[i], policy.SecurityPolicyUri, StringComparison.Ordinal))
                 {
                     rejectionReason = null;
                     return true;
@@ -277,11 +276,21 @@ namespace Opc.Ua.Identity
                 sb.Append(": ").Append(reason);
             }
 
-            IReadOnlyList<string> enabled = context.EnabledSecurityPolicyUris;
-            if (enabled is { Count: > 0 })
+            ArrayOf<string> enabled = context.EnabledSecurityPolicyUris;
+            if (!enabled.IsNull && enabled.Count > 0)
             {
                 sb.AppendLine();
-                sb.Append("  Client-enabled SecurityPolicyUris: ").Append(string.Join(", ", enabled));
+                sb.Append("  Client-enabled SecurityPolicyUris: ");
+                bool first = true;
+                foreach (string uri in enabled)
+                {
+                    if (!first)
+                    {
+                        sb.Append(", ");
+                    }
+                    sb.Append(uri);
+                    first = false;
+                }
             }
 
             return sb.ToString();

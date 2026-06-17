@@ -1609,23 +1609,24 @@ namespace Opc.Ua.Client
                             "Not connected to server.");
                     }
 
-                    IReadOnlyList<string> enabledPolicies;
+                    ArrayOf<string> enabledPolicies;
                     if (m_configuration.SecurityConfiguration != null &&
                         !m_configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
                     {
                         enabledPolicies = m_configuration.SecurityConfiguration
-                            .SupportedSecurityPolicies.ToArray()!;
+                            .SupportedSecurityPolicies;
                     }
                     else
                     {
-                        enabledPolicies =
-                            [m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None];
+                        enabledPolicies = new[]
+                        {
+                            m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
+                        };
                     }
 
                     context = new IdentitySelectionContext(
                         m_endpoint.Description,
-                        m_endpoint.Description.UserIdentityTokens.ToArray() ??
-                        [],
+                        m_endpoint.Description.UserIdentityTokens,
                         MessageContext,
                         enabledPolicies);
                 }

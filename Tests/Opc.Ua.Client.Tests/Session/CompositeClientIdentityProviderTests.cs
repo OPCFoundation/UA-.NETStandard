@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests.Identity
             };
             return new IdentitySelectionContext(
                 endpoint,
-                [policy],
+                new[] { policy },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
