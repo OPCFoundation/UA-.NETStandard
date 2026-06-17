@@ -165,10 +165,14 @@ namespace Opc.Ua.PubSub.Tests.Security
         public void PastKeyLimit_EvictsOldestPastKey()
         {
             var ring = new PubSubSecurityKeyRing("g", pastKeyLimit: 2);
-            ring.SetCurrent(TestSecurityKeyFactory.Create(1U));
-            ring.SetCurrent(TestSecurityKeyFactory.Create(2U));
-            ring.SetCurrent(TestSecurityKeyFactory.Create(3U));
-            ring.SetCurrent(TestSecurityKeyFactory.Create(4U));
+            PubSubSecurityKey first = TestSecurityKeyFactory.Create(1U);
+            PubSubSecurityKey second = TestSecurityKeyFactory.Create(2U);
+            PubSubSecurityKey third = TestSecurityKeyFactory.Create(3U);
+            PubSubSecurityKey fourth = TestSecurityKeyFactory.Create(4U);
+            ring.SetCurrent(first);
+            ring.SetCurrent(second);
+            ring.SetCurrent(third);
+            ring.SetCurrent(fourth);
             // After: past = {2,3}, current = 4; token 1 is evicted.
             Assert.Multiple(() =>
             {
@@ -176,6 +180,60 @@ namespace Opc.Ua.PubSub.Tests.Security
                 Assert.That(ring.TryGetByTokenId(2U), Is.Not.Null);
                 Assert.That(ring.TryGetByTokenId(3U), Is.Not.Null);
                 Assert.That(ring.TryGetByTokenId(4U), Is.Not.Null);
+                AssertZeroized(first);
+                AssertNotZeroized(second);
+                AssertNotZeroized(third);
+                AssertNotZeroized(fourth);
+            });
+        }
+
+        [Test]
+        public void DisposeZeroizesKeyMaterial()
+        {
+            PubSubSecurityKey key = TestSecurityKeyFactory.Create(1U);
+            AssertNotZeroized(key);
+            key.Dispose();
+            AssertZeroized(key);
+        }
+
+        [Test]
+        public void DisposeZeroizesAllRetainedKeys()
+        {
+            var ring = new PubSubSecurityKeyRing("g");
+            PubSubSecurityKey past = TestSecurityKeyFactory.Create(1U);
+            PubSubSecurityKey current = TestSecurityKeyFactory.Create(2U);
+            PubSubSecurityKey future = TestSecurityKeyFactory.Create(3U);
+            ring.SetCurrent(past);
+            ring.SetCurrent(current);
+            ring.AddFuture(future);
+
+            ring.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                AssertZeroized(past);
+                AssertZeroized(current);
+                AssertZeroized(future);
+            });
+        }
+
+        [Test]
+        public void EvictionKeepsActiveKeyUsable()
+        {
+            var ring = new PubSubSecurityKeyRing("g", pastKeyLimit: 1);
+            PubSubSecurityKey evicted = TestSecurityKeyFactory.Create(1U);
+            PubSubSecurityKey retainedPast = TestSecurityKeyFactory.Create(2U);
+            PubSubSecurityKey active = TestSecurityKeyFactory.Create(3U);
+            ring.SetCurrent(evicted);
+            ring.SetCurrent(retainedPast);
+            ring.SetCurrent(active);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ring.Current, Is.SameAs(active));
+                AssertZeroized(evicted);
+                AssertNotZeroized(retainedPast);
+                AssertNotZeroized(active);
             });
         }
 
@@ -191,6 +249,39 @@ namespace Opc.Ua.PubSub.Tests.Security
         {
             var ring = new PubSubSecurityKeyRing("g");
             Assert.That(() => ring.AddFuture(null!), Throws.ArgumentNullException);
+        }
+
+        private static void AssertZeroized(PubSubSecurityKey key)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsZeroized(key.SigningKey.Span), Is.True);
+                Assert.That(IsZeroized(key.EncryptingKey.Span), Is.True);
+                Assert.That(IsZeroized(key.KeyNonce.Span), Is.True);
+            });
+        }
+
+        private static void AssertNotZeroized(PubSubSecurityKey key)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsZeroized(key.SigningKey.Span), Is.False);
+                Assert.That(IsZeroized(key.EncryptingKey.Span), Is.False);
+                Assert.That(IsZeroized(key.KeyNonce.Span), Is.False);
+            });
+        }
+
+        private static bool IsZeroized(ReadOnlySpan<byte> bytes)
+        {
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                if (bytes[i] != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

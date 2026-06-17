@@ -34,8 +34,15 @@
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Net.NetworkInformation" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <!--
+      System.Net.NetworkInformation is an in-box assembly on modern TFMs
+      (netstandard2.1, net8.0+); only the .NET Framework targets need an
+      explicit reference to the framework assembly.
+    -->
+    <Reference Include="System.Net.NetworkInformation" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

@@ -69,6 +69,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             };
         }
 
+        private static PubSubConnectionDataType NewMqttConnection(string url = "mqtt://broker:1883")
+        {
+            return new PubSubConnectionDataType
+            {
+                Name = "Conn",
+                TransportProfileUri = Profiles.PubSubMqttJsonTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = url })
+            };
+        }
+
         private static WriterGroupDataType NewWriterGroup(
             ushort id = 1,
             double publishingInterval = 1000.0)
@@ -564,6 +574,114 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
+        [TestSpec("6.2.5", Part = 14, Summary = "SecurityMode None emits warning")]
+        public void ValidateSecurityModeNoneEmitsWarning()
+        {
+            PubSubConfigurationValidationResult result = NewValidator().Validate(NewMinimalValidConfig());
+
+            PubSubConfigurationIssue? issue = result.Issues.FirstOrDefault(
+                static i => i.Code == "PSC0054");
+            Assert.That(issue, Is.Not.Null);
+            Assert.That(issue!.Severity, Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        [Test]
+        [TestSpec("6.2.5", Part = 14, Summary = "SecurityMode None warning can be suppressed")]
+        public void ValidateSecurityModeNoneWarningCanBeSuppressed()
+        {
+            var validator = new PubSubConfigurationValidator(s_allProfiles)
+            {
+                SuppressInsecureSecurityModeWarnings = true
+            };
+
+            PubSubConfigurationValidationResult result = validator.Validate(NewMinimalValidConfig());
+
+            Assert.That(
+                result.Issues,
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0054"));
+        }
+
+        [Test]
+        [TestSpec("6.2.5", Part = 14, Summary = "SecurityMode Invalid (unset) emits warning")]
+        public void ValidateSecurityModeInvalidEmitsWarning()
+        {
+            var config = NewMinimalValidConfig();
+            config.Connections[0].WriterGroups[0].SecurityMode = MessageSecurityMode.Invalid;
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            PubSubConfigurationIssue? issue = result.Issues.FirstOrDefault(
+                static i => i.Code == "PSC0055");
+            Assert.That(issue, Is.Not.Null);
+            Assert.That(issue!.Severity, Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        [Test]
+        [TestSpec("6.2.5", Part = 14, Summary = "Plaintext MQTT without message security emits warning")]
+        public void ValidatePlaintextMqttWithoutMessageSecurityEmitsWarning()
+        {
+            PubSubConnectionDataType connection = NewMqttConnection();
+            connection.WriterGroups = new ArrayOf<WriterGroupDataType>(
+                new[] { NewWriterGroup() });
+            var config = new PubSubConfigurationDataType
+            {
+                Connections = new ArrayOf<PubSubConnectionDataType>(new[] { connection })
+            };
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            PubSubConfigurationIssue? issue = result.Issues.FirstOrDefault(
+                static i => i.Code == "PSC0056");
+            Assert.That(issue, Is.Not.Null);
+            Assert.That(issue!.Severity, Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        [Test]
+        [TestSpec("6.2.5", Part = 14, Summary = "MQTTS without message security avoids plaintext warning")]
+        public void ValidateMqttsWithoutMessageSecurityDoesNotEmitPlaintextWarning()
+        {
+            PubSubConnectionDataType connection = NewMqttConnection("mqtts://broker:8883");
+            connection.WriterGroups = new ArrayOf<WriterGroupDataType>(
+                new[] { NewWriterGroup() });
+            var config = new PubSubConfigurationDataType
+            {
+                Connections = new ArrayOf<PubSubConnectionDataType>(new[] { connection })
+            };
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            Assert.That(
+                result.Issues,
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0056"));
+        }
+
+        [Test]
+        [TestSpec("6.2.5", Part = 14, Summary = "Plaintext MQTT with message security avoids warning")]
+        public void ValidatePlaintextMqttWithMessageSecurityDoesNotEmitPlaintextWarning()
+        {
+            PubSubConnectionDataType connection = NewMqttConnection();
+            WriterGroupDataType writerGroup = NewWriterGroup();
+            writerGroup.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            writerGroup.SecurityGroupId = "Group1";
+            writerGroup.SecurityKeyServices = new ArrayOf<EndpointDescription>(
+                new[] { new EndpointDescription { EndpointUrl = "opc.tcp://sks" } });
+            connection.WriterGroups = new ArrayOf<WriterGroupDataType>(new[] { writerGroup });
+            var config = new PubSubConfigurationDataType
+            {
+                Connections = new ArrayOf<PubSubConnectionDataType>(new[] { connection })
+            };
+
+            PubSubConfigurationValidationResult result = NewValidator().Validate(config);
+
+            Assert.That(
+                result.Issues,
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0056"));
+        }
+
+        [Test]
         [TestSpec("6.2.5.4", Summary = "Sign with both SecurityGroupId and SKS is valid")]
         public void Validate_SignWithGroupAndSks_NoSecurityIssue()
         {
@@ -813,4 +931,3 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
     }
 }
-

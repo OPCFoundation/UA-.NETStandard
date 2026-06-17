@@ -164,14 +164,15 @@ namespace Opc.Ua.PubSub.Security.Internal
             aes.Mode = CipherMode.ECB;
 #pragma warning restore CA5358
             aes.Padding = PaddingMode.None;
-            aes.Key = key.ToArray();
-
-            using ICryptoTransform encryptor = aes.CreateEncryptor();
-
+            byte[] aesKey = key.ToArray();
             byte[] counterBuffer = ArrayPool<byte>.Shared.Rent(BlockSize);
             byte[] keystreamBuffer = ArrayPool<byte>.Shared.Rent(BlockSize);
             try
             {
+                aes.Key = aesKey;
+
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+
                 int processed = 0;
                 while (processed < input.Length)
                 {
@@ -204,6 +205,7 @@ namespace Opc.Ua.PubSub.Security.Internal
             }
             finally
             {
+                ClearSensitiveBuffer(aesKey);
                 Array.Clear(counterBuffer, 0, BlockSize);
                 Array.Clear(keystreamBuffer, 0, BlockSize);
                 ArrayPool<byte>.Shared.Return(counterBuffer);
@@ -237,6 +239,15 @@ namespace Opc.Ua.PubSub.Security.Internal
                     return;
                 }
             }
+        }
+
+        private static void ClearSensitiveBuffer(byte[] buffer)
+        {
+#if NET6_0_OR_GREATER
+            CryptographicOperations.ZeroMemory(buffer);
+#else
+            Array.Clear(buffer, 0, buffer.Length);
+#endif
         }
 
         /// <summary>

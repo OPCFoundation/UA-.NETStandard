@@ -106,6 +106,27 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             };
         }
 
+        private static EndpointDescription BuildSksEndpoint(MessageSecurityMode securityMode)
+        {
+            return new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://sks:4840",
+                SecurityMode = securityMode,
+                SecurityPolicyUri = securityMode == MessageSecurityMode.None
+                    ? SecurityPolicies.None
+                    : SecurityPolicies.Basic256Sha256,
+                UserIdentityTokens = new ArrayOf<UserTokenPolicy>(
+                    new[]
+                    {
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "username",
+                            TokenType = UserTokenType.UserName
+                        }
+                    })
+            };
+        }
+
         [Test]
         public async Task GetSecurityKeysAsync_InvokesCorrectNodeIdsAndArguments()
         {
@@ -275,6 +296,47 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                     NUnitTelemetryContext.Create(),
                     new FakeTimeProvider()),
                 Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "SKS client requires encrypted OPC UA channel")]
+        public void ConstructorRejectsNoneSksEndpoint()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => new OpcUaSecurityKeyServiceClient(
+                    BuildSksEndpoint(MessageSecurityMode.None),
+                    new ApplicationConfiguration(NUnitTelemetryContext.Create()),
+                    NUnitTelemetryContext.Create(),
+                    new FakeTimeProvider()))!;
+
+            Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "SKS client requires encrypted OPC UA channel")]
+        public void ConstructorRejectsSignOnlySksEndpoint()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => new OpcUaSecurityKeyServiceClient(
+                    BuildSksEndpoint(MessageSecurityMode.Sign),
+                    new ApplicationConfiguration(NUnitTelemetryContext.Create()),
+                    NUnitTelemetryContext.Create(),
+                    new FakeTimeProvider()))!;
+
+            Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "SKS client allows encrypted OPC UA channel")]
+        public async Task ConstructorAcceptsSignAndEncryptSksEndpoint()
+        {
+            await using var client = new OpcUaSecurityKeyServiceClient(
+                BuildSksEndpoint(MessageSecurityMode.SignAndEncrypt),
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()),
+                NUnitTelemetryContext.Create(),
+                new FakeTimeProvider());
+
+            Assert.That(client, Is.Not.Null);
         }
 
         [Test]

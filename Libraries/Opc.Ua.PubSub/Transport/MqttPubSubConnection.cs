@@ -917,6 +917,13 @@ namespace Opc.Ua.PubSub.Transport
                 // Set user credentials.
                 if (transportProtocolConfiguration.UseCredentials)
                 {
+                    if (!AllowsCredentialsOverPlaintext(transportProtocolConfiguration))
+                    {
+                        throw new InvalidOperationException(
+                            "MQTT credentials require TLS. Use mqtts:// or set " +
+                            "AllowCredentialsOverPlaintext=true only for explicitly accepted plaintext deployments.");
+                    }
+
                     // Following Password usage in both cases is correct since it is the Password position
                     // to be taken into account for the UserName to be read properly
                     mqttClientOptionsBuilder.WithCredentials(
@@ -932,6 +939,18 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             return mqttOptions;
+        }
+
+        private static bool AllowsCredentialsOverPlaintext(
+            MqttClientProtocolConfiguration transportProtocolConfiguration)
+        {
+            const string allowCredentialsOverPlaintext = "AllowCredentialsOverPlaintext";
+
+            return transportProtocolConfiguration.ConnectionProperties
+                .Find(kvp => kvp.Key.Name?.Equals(
+                    allowCredentialsOverPlaintext,
+                    StringComparison.Ordinal) == true)
+                ?.Value.ConvertToBoolean().GetBoolean() ?? false;
         }
 
         /// <summary>

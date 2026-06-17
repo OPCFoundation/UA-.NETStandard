@@ -75,6 +75,11 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
+        /// Suppresses warnings for groups that intentionally disable message-layer security.
+        /// </summary>
+        public bool SuppressInsecureSecurityModeWarnings { get; init; }
+
+        /// <summary>
         /// Runs all validation rules against
         /// <paramref name="configuration"/> and returns the aggregated
         /// result. Never throws; missing or malformed sub-trees produce
@@ -287,7 +292,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
         }
 
-        private static void ValidateWriterGroups(
+        private void ValidateWriterGroups(
             PubSubConnectionDataType connection,
             string connectionPath,
             Dictionary<string, DataSetMetaDataType?> publishedDataSets,
@@ -344,6 +349,11 @@ namespace Opc.Ua.PubSub.Configuration
                     writerGroup.SecurityMode,
                     writerGroup.SecurityGroupId,
                     writerGroup.SecurityKeyServices,
+                    path,
+                    issues);
+                ValidatePlaintextMqttWithoutMessageSecurity(
+                    connection,
+                    writerGroup.SecurityMode,
                     path,
                     issues);
                 ValidateDataSetWriters(writerGroup, path, publishedDataSets, issues);
@@ -476,7 +486,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
         }
 
-        private static void ValidateReaderGroups(
+        private void ValidateReaderGroups(
             PubSubConnectionDataType connection,
             string connectionPath,
             List<PubSubConfigurationIssue> issues)
@@ -515,12 +525,18 @@ namespace Opc.Ua.PubSub.Configuration
                     readerGroup.SecurityKeyServices,
                     path,
                     issues);
-                ValidateDataSetReaders(readerGroup, path, issues);
+                ValidatePlaintextMqttWithoutMessageSecurity(
+                    connection,
+                    readerGroup.SecurityMode,
+                    path,
+                    issues);
+                ValidateDataSetReaders(connection, readerGroup, path, issues);
                 rgIndex++;
             }
         }
 
-        private static void ValidateDataSetReaders(
+        private void ValidateDataSetReaders(
+            PubSubConnectionDataType connection,
             ReaderGroupDataType readerGroup,
             string readerGroupPath,
             List<PubSubConfigurationIssue> issues)
@@ -566,11 +582,16 @@ namespace Opc.Ua.PubSub.Configuration
                     reader.SecurityKeyServices,
                     path,
                     issues);
+                ValidatePlaintextMqttWithoutMessageSecurity(
+                    connection,
+                    reader.SecurityMode,
+                    path,
+                    issues);
                 drIndex++;
             }
         }
 
-        private static void ValidateGroupSecurity(
+        private void ValidateGroupSecurity(
             MessageSecurityMode securityMode,
             string? securityGroupId,
             ArrayOf<EndpointDescription> securityKeyServices,
@@ -603,13 +624,21 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     break;
                 case MessageSecurityMode.None:
-                case MessageSecurityMode.Invalid:
+                    if (!SuppressInsecureSecurityModeWarnings)
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Warning,
+                            IssueCodes.SecurityModeNone,
+                            "SecurityMode None disables PubSub message-layer security.",
+                            path,
+                            SpecClauses.PubSubSecurity));
+                    }
                     if (hasGroup)
                     {
                         issues.Add(new PubSubConfigurationIssue(
                             PubSubConfigurationIssueSeverity.Error,
                             IssueCodes.SecurityGroupIdUnexpected,
-                            "SecurityGroupId must be empty when SecurityMode is None.",
+                            "SecurityGroupId must be empty when SecurityMode is None or Invalid.",
                             path,
                             SpecClauses.SecurityKeyServices));
                     }
@@ -618,12 +647,80 @@ namespace Opc.Ua.PubSub.Configuration
                         issues.Add(new PubSubConfigurationIssue(
                             PubSubConfigurationIssueSeverity.Error,
                             IssueCodes.SecurityKeyServicesUnexpected,
-                            "SecurityKeyServices must be empty when SecurityMode is None.",
+                            "SecurityKeyServices must be empty when SecurityMode is None or Invalid.",
+                            path,
+                            SpecClauses.SecurityKeyServices));
+                    }
+                    break;
+                case MessageSecurityMode.Invalid:
+                    if (!SuppressInsecureSecurityModeWarnings)
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Warning,
+                            IssueCodes.SecurityModeInvalid,
+                            "SecurityMode is unset (Invalid) and is treated as None; "
+                                + "configure an explicit SecurityMode to silence this warning.",
+                            path,
+                            SpecClauses.PubSubSecurity));
+                    }
+                    if (hasGroup)
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.SecurityGroupIdUnexpected,
+                            "SecurityGroupId must be empty when SecurityMode is None or Invalid.",
+                            path,
+                            SpecClauses.SecurityKeyServices));
+                    }
+                    if (hasServices)
+                    {
+                        issues.Add(new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.SecurityKeyServicesUnexpected,
+                            "SecurityKeyServices must be empty when SecurityMode is None or Invalid.",
                             path,
                             SpecClauses.SecurityKeyServices));
                     }
                     break;
             }
+        }
+
+        private static void ValidatePlaintextMqttWithoutMessageSecurity(
+            PubSubConnectionDataType connection,
+            MessageSecurityMode securityMode,
+            string groupPath,
+            List<PubSubConfigurationIssue> issues)
+        {
+            if (!IsPlaintextMqttConnection(connection) ||
+                (securityMode != MessageSecurityMode.None && securityMode != MessageSecurityMode.Invalid))
+            {
+                return;
+            }
+
+            issues.Add(new PubSubConfigurationIssue(
+                PubSubConfigurationIssueSeverity.Warning,
+                IssueCodes.PlaintextMqttWithoutMessageSecurity,
+                "Plaintext mqtt:// transport is used without PubSub message-layer security.",
+                groupPath,
+                SpecClauses.PubSubSecurity));
+        }
+
+        private static bool IsPlaintextMqttConnection(PubSubConnectionDataType connection)
+        {
+            if (!string.Equals(
+                connection.TransportProfileUri,
+                Profiles.PubSubMqttUadpTransport,
+                StringComparison.Ordinal) &&
+                !string.Equals(
+                    connection.TransportProfileUri,
+                    Profiles.PubSubMqttJsonTransport,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress) &&
+                networkAddress.Url?.StartsWith(PubSubMqttScheme, StringComparison.OrdinalIgnoreCase) == true;
         }
 
         private static (string Scheme, string Description)[] SchemesForProfile(string profile)
@@ -679,6 +776,9 @@ namespace Opc.Ua.PubSub.Configuration
             public const string SecurityKeyServicesMissing = "PSC0051";
             public const string SecurityGroupIdUnexpected = "PSC0052";
             public const string SecurityKeyServicesUnexpected = "PSC0053";
+            public const string SecurityModeNone = "PSC0054";
+            public const string SecurityModeInvalid = "PSC0055";
+            public const string PlaintextMqttWithoutMessageSecurity = "PSC0056";
             public const string MissingPublishedDataSetName = "PSC0060";
             public const string DuplicatePublishedDataSetName = "PSC0061";
         }
@@ -691,6 +791,7 @@ namespace Opc.Ua.PubSub.Configuration
             public const string DataSetWriter = "9.1.7";
             public const string ReaderGroup = "9.1.8";
             public const string DataSetReader = "9.1.9";
+            public const string PubSubSecurity = "6.2.5";
             public const string SecurityKeyServices = "6.2.5.4";
             public const string DatagramTransport = "9.1.5.2";
             public const string RawDataFieldEncoding = "7.2.4.5.11";

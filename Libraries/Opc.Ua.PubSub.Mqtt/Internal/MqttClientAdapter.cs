@@ -119,13 +119,14 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             {
                 builder = builder.WithClientId(options.ClientId);
             }
+            bool useTls = options.Tls?.UseTls ?? endpoint.UseTls;
+            ValidateCredentialTransport(options.UserName, useTls, options.AllowCredentialsOverPlaintext);
             if (!string.IsNullOrEmpty(options.UserName))
             {
                 byte[] passwordBytes = options.PasswordBytes ?? Array.Empty<byte>();
                 builder = builder.WithCredentials(options.UserName, passwordBytes);
             }
 
-            bool useTls = options.Tls?.UseTls ?? endpoint.UseTls;
             if (useTls)
             {
                 builder = ConfigureTls(builder, options.Tls);
@@ -139,6 +140,21 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 useTls,
                 options.ProtocolVersion);
             await m_client.ConnectAsync(mqttOptions, ct).ConfigureAwait(false);
+        }
+
+        internal static void ValidateCredentialTransport(
+            string? userName,
+            bool useTls,
+            bool allowCredentialsOverPlaintext)
+        {
+            if (!string.IsNullOrEmpty(userName) &&
+                !useTls &&
+                !allowCredentialsOverPlaintext)
+            {
+                throw new InvalidOperationException(
+                    "MQTT credentials require TLS. Use mqtts:// or enable " +
+                    "AllowCredentialsOverPlaintext only for explicitly accepted plaintext deployments.");
+            }
         }
 
         /// <inheritdoc/>

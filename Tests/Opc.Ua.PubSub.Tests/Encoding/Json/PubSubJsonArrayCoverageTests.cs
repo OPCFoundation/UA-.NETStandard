@@ -304,8 +304,7 @@ namespace OpcUaPubSubJsonTests
                 writerCtor.Close();
             }
 
-            using var reader = new JsonTextReader(new StringReader("{\"f\":3}"));
-            using var decoder = new PubSubJsonDecoder(typeof(MinimalEncodeable), reader, context)
+            using var decoder = new PubSubJsonDecoder("{\"f\":3}", context)
             {
                 UpdateNamespaceTable = true
             };

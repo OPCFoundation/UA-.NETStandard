@@ -71,17 +71,29 @@ namespace Opc.Ua.PubSub.Security.Sks
             int encryptingLength = policy.EncryptingKeyLength;
             int nonceLength = policy.NonceLength;
 
-            byte[] signing = NewRandom(signingLength);
-            byte[] encrypting = NewRandom(encryptingLength);
-            byte[] nonce = NewRandom(nonceLength);
+            byte[]? signing = null;
+            byte[]? encrypting = null;
+            byte[]? nonce = null;
+            try
+            {
+                signing = NewRandom(signingLength);
+                encrypting = NewRandom(encryptingLength);
+                nonce = NewRandom(nonceLength);
 
-            return new PubSubSecurityKey(
-                tokenId,
-                ByteString.Create(signing),
-                ByteString.Create(encrypting),
-                ByteString.Create(nonce),
-                issuedAt,
-                lifetime);
+                return new PubSubSecurityKey(
+                    tokenId,
+                    ByteString.Create(signing),
+                    ByteString.Create(encrypting),
+                    ByteString.Create(nonce),
+                    issuedAt,
+                    lifetime);
+            }
+            finally
+            {
+                ClearSensitiveBuffer(signing);
+                ClearSensitiveBuffer(encrypting);
+                ClearSensitiveBuffer(nonce);
+            }
         }
 
         /// <summary>
@@ -101,10 +113,31 @@ namespace Opc.Ua.PubSub.Security.Sks
             ReadOnlySpan<byte> encrypting = key.EncryptingKey.Span;
             ReadOnlySpan<byte> nonce = key.KeyNonce.Span;
             byte[] packed = new byte[signing.Length + encrypting.Length + nonce.Length];
-            signing.CopyTo(packed.AsSpan(0, signing.Length));
-            encrypting.CopyTo(packed.AsSpan(signing.Length, encrypting.Length));
-            nonce.CopyTo(packed.AsSpan(signing.Length + encrypting.Length, nonce.Length));
-            return packed;
+            try
+            {
+                signing.CopyTo(packed.AsSpan(0, signing.Length));
+                encrypting.CopyTo(packed.AsSpan(signing.Length, encrypting.Length));
+                nonce.CopyTo(packed.AsSpan(signing.Length + encrypting.Length, nonce.Length));
+                return packed;
+            }
+            catch
+            {
+                ClearSensitiveBuffer(packed);
+                throw;
+            }
+        }
+
+        private static void ClearSensitiveBuffer(byte[]? buffer)
+        {
+            if (buffer is null)
+            {
+                return;
+            }
+#if NET6_0_OR_GREATER
+            CryptographicOperations.ZeroMemory(buffer);
+#else
+            Array.Clear(buffer, 0, buffer.Length);
+#endif
         }
 
         private static byte[] NewRandom(int length)

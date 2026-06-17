@@ -114,6 +114,38 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        public void ValidateCredentialTransportRejectsPlaintextCredentialsByDefault()
+        {
+            Assert.That(
+                () => MqttClientAdapter.ValidateCredentialTransport(
+                    "user",
+                    useTls: false,
+                    allowCredentialsOverPlaintext: false),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.Contains("MQTT credentials require TLS"));
+        }
+
+        [Test]
+        public void ValidateCredentialTransportAllowsTlsOrExplicitPlaintextOptOut()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => MqttClientAdapter.ValidateCredentialTransport(
+                        "user",
+                        useTls: true,
+                        allowCredentialsOverPlaintext: false),
+                    Throws.Nothing);
+                Assert.That(
+                    () => MqttClientAdapter.ValidateCredentialTransport(
+                        "user",
+                        useTls: false,
+                        allowCredentialsOverPlaintext: true),
+                    Throws.Nothing);
+            });
+        }
+
+        [Test]
         public async Task SubscribeAsync_AfterDispose_ThrowsObjectDisposedException(
             CancellationToken cancellationToken)
         {

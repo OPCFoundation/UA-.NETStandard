@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace Opc.Ua.PubSub.Security
 {
@@ -44,7 +46,7 @@ namespace Opc.Ua.PubSub.Security
     /// <c>TokenId</c>; new tokens are produced by an
     /// <see cref="IPubSubSecurityKeyProvider"/> on rotation.
     /// </remarks>
-    public sealed class PubSubSecurityKey
+    public sealed class PubSubSecurityKey : IDisposable
     {
         /// <summary>
         /// Initializes a new <see cref="PubSubSecurityKey"/>.
@@ -135,5 +137,40 @@ namespace Opc.Ua.PubSub.Security
             DateTimeUtc now = DateTimeUtc.From(clock.GetUtcNow().UtcDateTime);
             return (now - IssuedAt) >= Lifetime;
         }
+
+        /// <summary>
+        /// Zeroizes the key material held by this instance.
+        /// </summary>
+        public void Dispose()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+
+            ClearSensitiveMemory(SigningKey.Memory);
+            ClearSensitiveMemory(EncryptingKey.Memory);
+            ClearSensitiveMemory(KeyNonce.Memory);
+            m_disposed = true;
+        }
+
+        private static void ClearSensitiveMemory(ReadOnlyMemory<byte> memory)
+        {
+            if (!MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> segment) ||
+                segment.Array is null ||
+                segment.Count == 0)
+            {
+                return;
+            }
+
+            Span<byte> span = segment.Array.AsSpan(segment.Offset, segment.Count);
+#if NET6_0_OR_GREATER
+            CryptographicOperations.ZeroMemory(span);
+#else
+            span.Clear();
+#endif
+        }
+
+        private bool m_disposed;
     }
 }

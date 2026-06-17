@@ -110,6 +110,12 @@ namespace Opc.Ua.PubSub.Mqtt
         public MqttTlsOptions? Tls { get; set; }
 
         /// <summary>
+        /// Allows MQTT user credentials to be sent over plaintext
+        /// <c>mqtt://</c> connections. Defaults to <see langword="false"/>.
+        /// </summary>
+        public bool AllowCredentialsOverPlaintext { get; set; }
+
+        /// <summary>
         /// Topic-level options (prefix, retain flags, default QoS).
         /// </summary>
         public MqttTopicOptions Topics { get; set; } = new MqttTopicOptions();

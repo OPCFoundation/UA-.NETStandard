@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Security
     /// stateful object inside <see cref="StaticSecurityKeyProvider"/>
     /// and any SKS-backed provider added in Phase 8.
     /// </remarks>
-    public sealed class PubSubSecurityKeyRing
+    public sealed class PubSubSecurityKeyRing : IDisposable
     {
         /// <summary>
         /// Default upper bound on retained past keys.
@@ -108,6 +108,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 lock (m_lock)
                 {
+                    ThrowIfDisposed();
                     return m_current;
                 }
             }
@@ -123,6 +124,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 lock (m_lock)
                 {
+                    ThrowIfDisposed();
                     return [.. m_byToken.Keys];
                 }
             }
@@ -148,6 +150,7 @@ namespace Opc.Ua.PubSub.Security
             uint? previousTokenId;
             lock (m_lock)
             {
+                ThrowIfDisposed();
                 previousTokenId = m_current?.TokenId;
                 if (m_current != null)
                 {
@@ -172,6 +175,7 @@ namespace Opc.Ua.PubSub.Security
             }
             lock (m_lock)
             {
+                ThrowIfDisposed();
                 m_future.Enqueue(key);
                 m_byToken[key.TokenId] = key;
             }
@@ -190,6 +194,7 @@ namespace Opc.Ua.PubSub.Security
             uint newTokenId;
             lock (m_lock)
             {
+                ThrowIfDisposed();
                 if (m_future.Count == 0)
                 {
                     return false;
@@ -217,7 +222,34 @@ namespace Opc.Ua.PubSub.Security
         {
             lock (m_lock)
             {
+                ThrowIfDisposed();
                 return m_byToken.TryGetValue(tokenId, out PubSubSecurityKey? key) ? key : null;
+            }
+        }
+
+        /// <summary>
+        /// Zeroizes all retained key material and clears the ring.
+        /// </summary>
+        public void Dispose()
+        {
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+
+                foreach (PubSubSecurityKey key in m_byToken.Values)
+                {
+                    key.Dispose();
+                }
+
+                m_current?.Dispose();
+                m_current = null;
+                m_past.Clear();
+                m_future.Clear();
+                m_byToken.Clear();
+                m_disposed = true;
             }
         }
 
@@ -233,7 +265,26 @@ namespace Opc.Ua.PubSub.Security
                 }
                 m_past.RemoveFirst();
                 m_byToken.Remove(oldest.Value.TokenId);
+                DisposeIfUnretainedLocked(oldest.Value);
             }
+        }
+
+        private void DisposeIfUnretainedLocked(PubSubSecurityKey key)
+        {
+            if (ReferenceEquals(m_current, key) || m_past.Contains(key))
+            {
+                return;
+            }
+
+            foreach (PubSubSecurityKey future in m_future)
+            {
+                if (ReferenceEquals(future, key))
+                {
+                    return;
+                }
+            }
+
+            key.Dispose();
         }
 
         private void RaiseRotated(uint newTokenId, uint? previousTokenId)
@@ -246,5 +297,15 @@ namespace Opc.Ua.PubSub.Security
             DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             handler.Invoke(this, new PubSubKeyRotatedEventArgs(newTokenId, previousTokenId, now));
         }
+
+        private void ThrowIfDisposed()
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(PubSubSecurityKeyRing));
+            }
+        }
+
+        private bool m_disposed;
     }
 }

@@ -60,6 +60,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             new(StringComparer.Ordinal);
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
+        private readonly IPubSubSecurityEventSink? m_securityEventSink;
 
         /// <summary>
         /// Initializes a new
@@ -67,14 +68,17 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </summary>
         /// <param name="timeProvider">Time source.</param>
         /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="securityEventSink">Optional structured security-event sink.</param>
         public InMemoryPubSubKeyServiceServer(
             TimeProvider? timeProvider = null,
-            ITelemetryContext? telemetry = null)
+            ITelemetryContext? telemetry = null,
+            IPubSubSecurityEventSink? securityEventSink = null)
         {
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = telemetry is null
                 ? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance
                 : telemetry.CreateLogger<InMemoryPubSubKeyServiceServer>();
+            m_securityEventSink = securityEventSink;
         }
 
         /// <inheritdoc/>
@@ -224,12 +228,24 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 if (!m_groups.TryGetValue(request.SecurityGroupId, out SecurityGroupState? state))
                 {
+                    EmitSecurityEvent(new PubSubSecurityEvent(
+                        PubSubSecurityEventKind.SksKeyRequestDenied,
+                        DateTimeOffset.UtcNow,
+                        PubSubSecurityEventOutcome.Rejected,
+                        securityGroupId: request.SecurityGroupId,
+                        callerIdentity: callerIdentity));
                     throw new OpcUaSksException(
                         StatusCodes.BadUserAccessDenied,
                         "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
                 }
                 if (!state.Group.IsCallerAuthorized(callerIdentity))
                 {
+                    EmitSecurityEvent(new PubSubSecurityEvent(
+                        PubSubSecurityEventKind.SksKeyRequestDenied,
+                        DateTimeOffset.UtcNow,
+                        PubSubSecurityEventOutcome.Rejected,
+                        securityGroupId: request.SecurityGroupId,
+                        callerIdentity: callerIdentity));
                     throw new OpcUaSksException(
                         StatusCodes.BadUserAccessDenied,
                         "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
@@ -301,6 +317,13 @@ namespace Opc.Ua.PubSub.Security.Sks
                     request.SecurityGroupId,
                     actualFirst,
                     callerIdentity);
+                EmitSecurityEvent(new PubSubSecurityEvent(
+                    PubSubSecurityEventKind.SksKeysIssued,
+                    DateTimeOffset.UtcNow,
+                    PubSubSecurityEventOutcome.Success,
+                    tokenId: actualFirst,
+                    securityGroupId: request.SecurityGroupId,
+                    callerIdentity: callerIdentity));
                 return new ValueTask<SksKeyResponse>(response);
             }
         }
@@ -329,6 +352,23 @@ namespace Opc.Ua.PubSub.Security.Sks
                 keys.Add(SksKeyGenerator.Generate(policy, (uint)(i + 1), now, lifetime));
             }
             return keys;
+        }
+
+        private void EmitSecurityEvent(PubSubSecurityEvent securityEvent)
+        {
+            if (m_securityEventSink is null)
+            {
+                return;
+            }
+
+            try
+            {
+                m_securityEventSink.OnSecurityEvent(securityEvent);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "PubSub security event sink raised an exception.");
+            }
         }
 
         private void EnsureFutureKeysLocked(SecurityGroupState state, uint requestedKeyCount)

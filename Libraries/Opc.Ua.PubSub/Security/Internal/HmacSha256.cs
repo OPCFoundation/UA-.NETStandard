@@ -71,10 +71,25 @@ namespace Opc.Ua.PubSub.Security.Internal
                     "Unexpected HMAC-SHA-256 output length.");
             }
 #else
-            using var hmac = new HMACSHA256(key.ToArray());
-            byte[] computed = hmac.ComputeHash(data.ToArray());
-            computed.AsSpan(0, OutputLength).CopyTo(destination);
+            byte[] hmacKey = key.ToArray();
+            try
+            {
+                using var hmac = new HMACSHA256(hmacKey);
+                byte[] computed = hmac.ComputeHash(data.ToArray());
+                computed.AsSpan(0, OutputLength).CopyTo(destination);
+            }
+            finally
+            {
+                ClearSensitiveBuffer(hmacKey);
+            }
 #endif
         }
+
+#if !NET6_0_OR_GREATER
+        private static void ClearSensitiveBuffer(byte[] buffer)
+        {
+            Array.Clear(buffer, 0, buffer.Length);
+        }
+#endif
     }
 }

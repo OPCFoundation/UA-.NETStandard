@@ -60,6 +60,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             Assert.That(options.UserName, Is.Null);
             Assert.That(options.PasswordSecretId, Is.Null);
             Assert.That(options.Tls, Is.Null);
+            Assert.That(options.AllowCredentialsOverPlaintext, Is.False);
             Assert.That(options.Topics, Is.Not.Null);
             Assert.That(options.ConnectTimeout, Is.EqualTo(TimeSpan.FromSeconds(10)));
             Assert.That(options.MaxConcurrentSubscriptions, Is.EqualTo(64));
@@ -88,6 +89,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     ["KeepAlivePeriod"] = "00:00:45",
                     ["UserName"] = "alice",
                     ["PasswordSecretId"] = "Default:mqtt-password",
+                    ["AllowCredentialsOverPlaintext"] = "true",
                     ["ConnectTimeout"] = "00:00:05",
                     ["MaxConcurrentSubscriptions"] = "16",
                     ["Topics:Prefix"] = "custom/pubsub",
@@ -106,6 +108,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             Assert.That(options.KeepAlivePeriod, Is.EqualTo(TimeSpan.FromSeconds(45)));
             Assert.That(options.UserName, Is.EqualTo("alice"));
             Assert.That(options.PasswordSecretId, Is.EqualTo("Default:mqtt-password"));
+            Assert.That(options.AllowCredentialsOverPlaintext, Is.True);
             Assert.That(options.ConnectTimeout, Is.EqualTo(TimeSpan.FromSeconds(5)));
             Assert.That(options.MaxConcurrentSubscriptions, Is.EqualTo(16));
             Assert.That(options.Topics.Prefix, Is.EqualTo("custom/pubsub"));

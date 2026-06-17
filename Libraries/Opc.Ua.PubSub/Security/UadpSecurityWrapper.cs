@@ -73,6 +73,7 @@ namespace Opc.Ua.PubSub.Security
         private readonly INonceProvider m_nonceProvider;
         private readonly ISecurityTokenWindow m_tokenWindow;
         private readonly ILogger m_logger;
+        private readonly IPubSubSecurityEventSink? m_securityEventSink;
 
         /// <summary>
         /// Initializes a new <see cref="UadpSecurityWrapper"/>.
@@ -82,12 +83,14 @@ namespace Opc.Ua.PubSub.Security
         /// <param name="nonceProvider">Per-message nonce generator.</param>
         /// <param name="tokenWindow">Receive-side replay window.</param>
         /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="securityEventSink">Optional structured security-event sink.</param>
         public UadpSecurityWrapper(
             IPubSubSecurityPolicy policy,
             IPubSubSecurityKeyProvider keyProvider,
             INonceProvider nonceProvider,
             ISecurityTokenWindow tokenWindow,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IPubSubSecurityEventSink? securityEventSink = null)
         {
             if (policy is null)
             {
@@ -114,6 +117,7 @@ namespace Opc.Ua.PubSub.Security
             m_nonceProvider = nonceProvider;
             m_tokenWindow = tokenWindow;
             m_logger = telemetry.CreateLogger<UadpSecurityWrapper>();
+            m_securityEventSink = securityEventSink;
         }
 
         /// <summary>
@@ -269,6 +273,11 @@ namespace Opc.Ua.PubSub.Security
                 m_logger.LogWarning(
                     "UadpSecurityWrapper rejected unknown tokenId={TokenId}",
                     header.SecurityTokenId);
+                EmitSecurityEvent(new PubSubSecurityEvent(
+                    PubSubSecurityEventKind.UnknownTokenRejected,
+                    DateTimeOffset.UtcNow,
+                    PubSubSecurityEventOutcome.Rejected,
+                    tokenId: header.SecurityTokenId));
                 return UnwrapResult.Failure(
                     StatusCodes.BadSecurityChecksFailed,
                     $"Unknown SecurityTokenId {header.SecurityTokenId}");
@@ -298,6 +307,11 @@ namespace Opc.Ua.PubSub.Security
                         m_logger.LogWarning(
                             "UadpSecurityWrapper signature verification failed tokenId={TokenId}",
                             header.SecurityTokenId);
+                        EmitSecurityEvent(new PubSubSecurityEvent(
+                            PubSubSecurityEventKind.SignatureVerificationFailed,
+                            DateTimeOffset.UtcNow,
+                            PubSubSecurityEventOutcome.Failed,
+                            tokenId: header.SecurityTokenId));
                         return UnwrapResult.Failure(
                             StatusCodes.BadSecurityChecksFailed,
                             "Signature verification failed");
@@ -329,6 +343,11 @@ namespace Opc.Ua.PubSub.Security
                         + "tokenId={TokenId} sequenceNumber={SequenceNumber}",
                         header.SecurityTokenId,
                         sequenceNumber);
+                    EmitSecurityEvent(new PubSubSecurityEvent(
+                        PubSubSecurityEventKind.ReplayRejected,
+                        DateTimeOffset.UtcNow,
+                        PubSubSecurityEventOutcome.Rejected,
+                        tokenId: header.SecurityTokenId));
                     return UnwrapResult.Failure(
                         StatusCodes.BadSecurityChecksFailed,
                         "Replay or nonce reuse detected");
@@ -357,6 +376,23 @@ namespace Opc.Ua.PubSub.Security
             {
                 Array.Clear(signedBuffer, 0, signedLength);
                 ArrayPool<byte>.Shared.Return(signedBuffer);
+            }
+        }
+
+        private void EmitSecurityEvent(PubSubSecurityEvent securityEvent)
+        {
+            if (m_securityEventSink is null)
+            {
+                return;
+            }
+
+            try
+            {
+                m_securityEventSink.OnSecurityEvent(securityEvent);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "PubSub security event sink raised an exception.");
             }
         }
 

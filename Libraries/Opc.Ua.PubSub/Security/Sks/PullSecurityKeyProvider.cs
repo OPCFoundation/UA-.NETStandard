@@ -248,6 +248,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
             }
             m_ring.Rotated -= OnRingRotated;
+            m_ring.Dispose();
             m_disposeCts.Dispose();
             m_refreshSemaphore.Dispose();
         }

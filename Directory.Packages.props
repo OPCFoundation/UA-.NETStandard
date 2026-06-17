@@ -92,7 +92,6 @@
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Formats.Asn1" Version="10.0.8" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
-    <PackageVersion Include="System.Net.NetworkInformation" Version="4.3.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57

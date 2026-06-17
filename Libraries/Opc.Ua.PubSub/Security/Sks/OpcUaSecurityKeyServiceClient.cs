@@ -79,13 +79,17 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="timeProvider">Time source.</param>
+        /// <param name="allowInsecureChannel">
+        /// Allows non-encrypted SKS channels. This is unsafe for symmetric keys and is disabled by default.
+        /// </param>
         public OpcUaSecurityKeyServiceClient(
             EndpointDescription endpoint,
             ApplicationConfiguration applicationConfiguration,
             ITelemetryContext telemetry,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            bool allowInsecureChannel = false)
             : this(
-                CreateDefaultFactory(endpoint, applicationConfiguration, telemetry),
+                CreateDefaultFactory(endpoint, applicationConfiguration, telemetry, allowInsecureChannel),
                 telemetry,
                 timeProvider)
         {
@@ -364,10 +368,31 @@ namespace Opc.Ua.PubSub.Security.Sks
         private static Func<CancellationToken, ValueTask<ISession>> CreateDefaultFactory(
             EndpointDescription endpoint,
             ApplicationConfiguration applicationConfiguration,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            bool allowInsecureChannel)
         {
+            if (endpoint is null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+            if (applicationConfiguration is null)
+            {
+                throw new ArgumentNullException(nameof(applicationConfiguration));
+            }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+            if (!allowInsecureChannel)
+            {
+                ValidateSksEndpointSecurity(endpoint);
+            }
             return async ct =>
             {
+                if (!allowInsecureChannel)
+                {
+                    ValidateSksEndpointSecurity(endpoint);
+                }
                 var configuredEndpoint = new ConfiguredEndpoint(
                     null,
                     endpoint,
@@ -381,6 +406,57 @@ namespace Opc.Ua.PubSub.Security.Sks
                     .ConfigureAwait(false);
                 return session;
             };
+        }
+
+        private static void ValidateSksEndpointSecurity(EndpointDescription endpoint)
+        {
+            if (endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    "SKS endpoints must use SignAndEncrypt because GetSecurityKeys returns long-lived symmetric keys.");
+            }
+
+            string securityPolicyUri = endpoint.SecurityPolicyUri ?? SecurityPolicies.None;
+            if (!IsApprovedSksSecurityPolicy(securityPolicyUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    $"SKS endpoint security policy '{securityPolicyUri}' is not approved for GetSecurityKeys.");
+            }
+
+            if (!HasNonAnonymousUserToken(endpoint))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    "SKS endpoints must advertise at least one non-anonymous user token policy.");
+            }
+        }
+
+        private static bool IsApprovedSksSecurityPolicy(string securityPolicyUri)
+        {
+            return SecurityPolicies.GetInfo(securityPolicyUri) is not null &&
+                !string.Equals(securityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) &&
+                !string.Equals(securityPolicyUri, SecurityPolicies.Basic128Rsa15, StringComparison.Ordinal) &&
+                !string.Equals(securityPolicyUri, SecurityPolicies.Basic256, StringComparison.Ordinal);
+        }
+
+        private static bool HasNonAnonymousUserToken(EndpointDescription endpoint)
+        {
+            if (endpoint.UserIdentityTokens.IsNull)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < endpoint.UserIdentityTokens.Count; i++)
+            {
+                if (endpoint.UserIdentityTokens[i].TokenType != UserTokenType.Anonymous)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void ThrowIfDisposed()

@@ -33,9 +33,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Xml;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 #pragma warning disable CS0618 // Type or member is obsolete
 
 namespace Opc.Ua.PubSub.Encoding
@@ -55,7 +56,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public bool UpdateNamespaceTable { get; set; }
 
-        private JsonTextReader m_reader;
+        private JsonDocument? m_document;
         private readonly ILogger m_logger;
         private readonly Dictionary<string, object> m_root;
         private readonly Stack<object> m_stack;
@@ -67,6 +68,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// JSON encoded value of: “9999-12-31T23:59:59Z”
         /// </summary>
         private readonly DateTime m_dateTimeMaxJsonValue = new(3155378975990000000);
+
+        private static readonly char[] s_fractionChars = ['.', 'e', 'E'];
+
+        private static readonly JsonWriterOptions s_writerOptions = new()
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
 
         private enum JTokenNullObject
         {
@@ -80,30 +88,15 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="json">The JSON encoded string.</param>
         /// <param name="context">The service message context to use.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public PubSubJsonDecoder(string json, IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<PubSubJsonDecoder>();
             m_nestingLevel = 0;
-            m_reader = new JsonTextReader(new StringReader(json));
-            m_root = ReadObject();
-            m_stack = new Stack<object>();
-            m_stack.Push(m_root);
-        }
-
-        /// <summary>
-        /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
-        /// </summary>
-        /// <param name="systemType">The system type of the encoded JSON stream.</param>
-        /// <param name="reader">The text reader.</param>
-        /// <param name="context">The service message context to use.</param>
-        public PubSubJsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
-        {
-            Context = context;
-            m_logger = context.Telemetry.CreateLogger<PubSubJsonDecoder>();
-            m_nestingLevel = 0;
-            m_reader = reader;
-            m_root = ReadObject();
+            m_root = Parse(json);
             m_stack = new Stack<object>();
             m_stack.Push(m_root);
         }
@@ -234,7 +227,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public void Close()
         {
-            m_reader.Close();
+            m_document?.Dispose();
+            m_document = null;
         }
 
         /// <summary>
@@ -242,14 +236,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public void Close(bool checkEof)
         {
-            if (checkEof && m_reader.TokenType != JsonToken.EndObject)
-            {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                {
-                }
-            }
-
-            m_reader.Close();
+            Close();
         }
 
         /// <inheritdoc/>
@@ -266,8 +253,8 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if (disposing)
             {
-                (m_reader as IDisposable)?.Dispose();
-                m_reader = null!;
+                m_document?.Dispose();
+                m_document = null;
             }
         }
 
@@ -1517,12 +1504,11 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 using var ostrm = new MemoryStream();
-                using (var stream = new StreamWriter(ostrm))
-                using (var writer = new JsonTextWriter(stream))
+                using (var writer = new Utf8JsonWriter(ostrm, s_writerOptions))
                 {
                     EncodeAsJson(writer, token);
                 }
-                // Close the writer before retrieving the data
+                // Flush the writer before retrieving the data
                 return new ExtensionObject(typeId, ByteString.From(ostrm.ToArray()));
             }
             finally
@@ -3369,52 +3355,49 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Reads the content of an Array from json stream
+        /// Parses the JSON string into the in-memory field tree.
         /// </summary>
-        private List<object> ReadArray()
+        /// <param name="json">The JSON encoded string.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        private Dictionary<string, object> Parse(string json)
+        {
+            try
+            {
+                m_document = JsonDocument.Parse(json, ParseOptions(Context.MaxEncodingNestingLevels));
+                return ReadObject(m_document.RootElement);
+            }
+            catch (JsonException jre) when (jre.Message.Contains(
+                "maximum configured depth",
+                StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Error reading JSON object: {0}",
+                    jre.Message);
+            }
+            catch (JsonException jre)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Error reading JSON object: {0}",
+                    jre.Message);
+            }
+        }
+
+        /// <summary>
+        /// Reads the content of an Array from a JSON element.
+        /// </summary>
+        private List<object> ReadArray(JsonElement element)
         {
             CheckAndIncrementNestingLevel();
 
             try
             {
-                var elements = new List<object>();
+                var elements = new List<object>(element.GetArrayLength());
 
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
+                foreach (JsonElement item in element.EnumerateArray())
                 {
-                    switch (m_reader.TokenType)
-                    {
-                        case JsonToken.Comment:
-                            break;
-                        case JsonToken.Null:
-                            elements.Add(JTokenNullObject.Array);
-                            break;
-                        case JsonToken.Date:
-                        case JsonToken.Boolean:
-                        case JsonToken.Integer:
-                        case JsonToken.Float:
-                        case JsonToken.String:
-                            elements.Add(m_reader.Value!);
-                            break;
-                        case JsonToken.StartArray:
-                            elements.Add(ReadArray());
-                            break;
-                        case JsonToken.StartObject:
-                            elements.Add(ReadObject());
-                            break;
-                        case JsonToken.None:
-                        case JsonToken.StartConstructor:
-                        case JsonToken.PropertyName:
-                        case JsonToken.Raw:
-                        case JsonToken.Undefined:
-                        case JsonToken.EndObject:
-                        case JsonToken.EndArray:
-                        case JsonToken.EndConstructor:
-                        case JsonToken.Bytes:
-                            break;
-                        default:
-                            Debug.Fail($"Unexpected token type in array: {m_reader.TokenType}");
-                            break;
-                    }
+                    elements.Add(ReadValue(item, JTokenNullObject.Array));
                 }
 
                 return elements;
@@ -3426,73 +3409,93 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Reads an object from the json stream
+        /// Reads an object from a JSON element.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private Dictionary<string, object> ReadObject()
+        private Dictionary<string, object> ReadObject(JsonElement element)
         {
             var fields = new Dictionary<string, object>();
 
-            try
+            if (element.ValueKind == JsonValueKind.Array)
             {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                {
-                    if (m_reader.TokenType == JsonToken.StartArray)
-                    {
-                        fields[RootArrayName] = ReadArray();
-                    }
-                    else if (m_reader.TokenType == JsonToken.PropertyName)
-                    {
-                        string name = (string)m_reader.Value!;
+                fields[RootArrayName] = ReadArray(element);
+                return fields;
+            }
 
-                        if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                        {
-                            switch (m_reader.TokenType)
-                            {
-                                case JsonToken.Comment:
-                                    break;
-                                case JsonToken.Null:
-                                    fields[name!] = JTokenNullObject.Object;
-                                    break;
-                                case JsonToken.Date:
-                                case JsonToken.Bytes:
-                                case JsonToken.Boolean:
-                                case JsonToken.Integer:
-                                case JsonToken.Float:
-                                case JsonToken.String:
-                                    fields[name!] = m_reader.Value!;
-                                    break;
-                                case JsonToken.StartArray:
-                                    fields[name!] = ReadArray();
-                                    break;
-                                case JsonToken.StartObject:
-                                    fields[name!] = ReadObject();
-                                    break;
-                                case JsonToken.None:
-                                case JsonToken.StartConstructor:
-                                case JsonToken.PropertyName:
-                                case JsonToken.Raw:
-                                case JsonToken.Undefined:
-                                case JsonToken.EndObject:
-                                case JsonToken.EndArray:
-                                case JsonToken.EndConstructor:
-                                    break;
-                                default:
-                                    Debug.Fail($"Unexpected token type in array: {m_reader.TokenType}");
-                                    break;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (JsonReaderException jre)
+            if (element.ValueKind != JsonValueKind.Object)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Error reading JSON object: {0}",
-                    jre.Message);
+                return fields;
             }
+
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                fields[property.Name] = ReadValue(property.Value, JTokenNullObject.Object);
+            }
+
             return fields;
+        }
+
+        /// <summary>
+        /// Converts a JSON element into the boxed value model used by the decoder.
+        /// </summary>
+        private object ReadValue(JsonElement element, JTokenNullObject nullKind)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    return ReadObject(element);
+                case JsonValueKind.Array:
+                    return ReadArray(element);
+                case JsonValueKind.String:
+                    return element.GetString()!;
+                case JsonValueKind.Number:
+                    return ReadNumber(element);
+                case JsonValueKind.True:
+                    return true;
+                case JsonValueKind.False:
+                    return false;
+                case JsonValueKind.Null:
+                case JsonValueKind.Undefined:
+                    return nullKind;
+                default:
+                    Debug.Fail($"Unexpected value kind: {element.ValueKind}");
+                    return nullKind;
+            }
+        }
+
+        /// <summary>
+        /// Converts a JSON number element into the boxed numeric value model.
+        /// Integral values are boxed as <see cref="long"/> and fractional values
+        /// as <see cref="double"/>, matching the previous decoder behaviour.
+        /// </summary>
+        private static object ReadNumber(JsonElement element)
+        {
+            string raw = element.GetRawText();
+
+            if (raw.IndexOfAny(s_fractionChars) < 0 &&
+                element.TryGetInt64(out long integer))
+            {
+                return integer;
+            }
+
+            if (element.TryGetDouble(out double number))
+            {
+                return number;
+            }
+
+            return 0L;
+        }
+
+        /// <summary>
+        /// Creates the JSON document parse options for the given nesting depth.
+        /// </summary>
+        private static JsonDocumentOptions ParseOptions(int maxDepth)
+        {
+            return new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+                MaxDepth = maxDepth > 0 ? maxDepth : 0
+            };
         }
 
         /// <summary>
@@ -3594,41 +3597,31 @@ namespace Opc.Ua.PubSub.Encoding
             }
         }
 
-        private void EncodeAsJson(JsonTextWriter writer, object value)
+        private void EncodeAsJson(Utf8JsonWriter writer, object value)
         {
-            try
+            if (value is Dictionary<string, object> map)
             {
-                if (value is Dictionary<string, object> map)
+                EncodeAsJson(writer, map);
+                return;
+            }
+
+            if (value is List<object> list)
+            {
+                writer.WriteStartArray();
+
+                foreach (object element in list)
                 {
-                    EncodeAsJson(writer, map);
-                    return;
+                    EncodeAsJson(writer, element);
                 }
 
-                if (value is List<object> list)
-                {
-                    writer.WriteStartArray();
-
-                    foreach (object element in list)
-                    {
-                        EncodeAsJson(writer, element);
-                    }
-
-                    writer.WriteEndArray();
-                    return;
-                }
-
-                writer.WriteValue(value);
+                writer.WriteEndArray();
+                return;
             }
-            catch (JsonWriterException jwe)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Unable to encode ExtensionObject Body as Json: {0}",
-                    jwe.Message);
-            }
+
+            WriteScalarValue(writer, value);
         }
 
-        private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)
+        private void EncodeAsJson(Utf8JsonWriter writer, Dictionary<string, object> value)
         {
             writer.WriteStartObject();
 
@@ -3639,6 +3632,31 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Writes a boxed scalar value of the in-memory token model.
+        /// </summary>
+        private static void WriteScalarValue(Utf8JsonWriter writer, object value)
+        {
+            switch (value)
+            {
+                case string text:
+                    writer.WriteStringValue(text);
+                    break;
+                case bool boolean:
+                    writer.WriteBooleanValue(boolean);
+                    break;
+                case long integer:
+                    writer.WriteNumberValue(integer);
+                    break;
+                case double number:
+                    writer.WriteNumberValue(number);
+                    break;
+                default:
+                    writer.WriteNullValue();
+                    break;
+            }
         }
 
         private bool ReadArrayField(string? fieldName, out List<object> array)

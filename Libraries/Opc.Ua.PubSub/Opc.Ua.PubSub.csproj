@@ -42,7 +42,6 @@
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
@@ -61,8 +60,13 @@
       </ItemGroup>
     </Otherwise>
   </Choose>
-  <ItemGroup>
-    <PackageReference Include="System.Net.NetworkInformation" />
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <!--
+      System.Net.NetworkInformation is an in-box assembly on modern TFMs
+      (netstandard2.1, net8.0+); only the .NET Framework targets need an
+      explicit reference to the framework assembly.
+    -->
+    <Reference Include="System.Net.NetworkInformation" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>
