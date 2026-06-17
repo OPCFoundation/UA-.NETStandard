@@ -645,8 +645,8 @@ namespace Opc.Ua.Identity
             }
 
             return string.Concat(
-                value.AsSpan(0, MaxDiagnosticFieldLength),
-                "…(truncated)".AsSpan());
+                value.Substring(0, MaxDiagnosticFieldLength),
+                "…(truncated)");
         }
 
         private static bool HasSameEncryptionAlgorithm(
