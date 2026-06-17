@@ -1619,21 +1619,13 @@ namespace Opc.Ua.Client
                             "Not connected to server.");
                     }
 
-                    if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                    if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri) &&
+                        !IsUserTokenPolicyUriOffered(overrideUserTokenPolicyUri!))
                     {
-                        if (!IsUserTokenPolicyUriOffered(overrideUserTokenPolicyUri!))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadIdentityTokenRejected,
-                                "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
-                                overrideUserTokenPolicyUri!);
-                        }
-
-                        // Drop the bound ephemeral key; the next service
-                        // call will request a fresh one for the new URI.
-                        m_eccServerEphemeralKey?.Dispose();
-                        m_eccServerEphemeralKey = null;
-                        m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenRejected,
+                            "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
+                            overrideUserTokenPolicyUri!);
                     }
 
                     ArrayOf<string> enabledPolicies;
@@ -1661,7 +1653,11 @@ namespace Opc.Ua.Client
                         ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificate)
                         : 0;
 
-                    // Pin only when there's actually a bound ephemeral key.
+                    // Pin only when there's actually a bound ephemeral
+                    // key; an override request bypasses pinning (the
+                    // caller is explicitly asking for a new policy and
+                    // the ephemeral key will be renewed on the next
+                    // service call AFTER UpdateSessionAsync succeeds).
                     string? boundEphemeralUri =
                         string.IsNullOrEmpty(overrideUserTokenPolicyUri) &&
                             m_eccServerEphemeralKey != null
@@ -1682,6 +1678,21 @@ namespace Opc.Ua.Client
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
                     .ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                {
+                    // Commit override state ONLY after the new identity
+                    // has been materialised — if AcquireIdentityAsync
+                    // threw (cert load failure, policy mismatch, etc.)
+                    // the previous ephemeral key + URI must remain
+                    // intact so the existing identity stays usable.
+                    lock (m_lock)
+                    {
+                        m_eccServerEphemeralKey?.Dispose();
+                        m_eccServerEphemeralKey = null;
+                        m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
+                    }
+                }
 
                 await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
             }

@@ -229,12 +229,19 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void EccUserTokenPolicyWithRsaInstanceCertTriggersInstanceMismatch()
+        public void EccUserNamePolicyWithRsaInstanceCertTriggersInstanceMismatch()
         {
-            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
-            X509ClientIdentityProvider provider = CreateProvider(userCert);
+            // The instance-cert gate fires for UserName/IssuedToken
+            // (EccEncryptedSecret encryption) — not X509 / Anonymous.
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
 
-            UserTokenPolicy ecc = CreatePolicy("ecc", SecurityPolicies.ECC_nistP256);
+            UserTokenPolicy ecc = CreatePolicy(
+                "ecc",
+                SecurityPolicies.ECC_nistP256,
+                UserTokenType.UserName);
             EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, ecc);
             IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
             {
@@ -254,12 +261,17 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void EccNistP256InstanceCertRejectsNistP384UserTokenPolicy()
+        public void EccNistP256InstanceCertRejectsNistP384UserNamePolicy()
         {
-            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP384);
-            X509ClientIdentityProvider provider = CreateProvider(userCert);
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
 
-            UserTokenPolicy ecc = CreatePolicy("p384", SecurityPolicies.ECC_nistP384);
+            UserTokenPolicy ecc = CreatePolicy(
+                "p384",
+                SecurityPolicies.ECC_nistP384,
+                UserTokenType.UserName);
             EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP384, ecc);
             IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
             {
@@ -277,12 +289,17 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public async Task EccNistP256InstanceCertSelectsMatchingUserTokenPolicy()
+        public async Task EccNistP256InstanceCertSelectsMatchingUserNamePolicy()
         {
-            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
-            X509ClientIdentityProvider provider = CreateProvider(userCert);
+            var provider = new UserNamePasswordIdentityProvider(
+                "user1",
+                new FakeSecretRegistry(),
+                new SecretIdentifier("password", "fake"));
 
-            UserTokenPolicy ecc = CreatePolicy("p256", SecurityPolicies.ECC_nistP256);
+            UserTokenPolicy ecc = CreatePolicy(
+                "p256",
+                SecurityPolicies.ECC_nistP256,
+                UserTokenType.UserName);
             EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, ecc);
             IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
             {
@@ -294,6 +311,54 @@ namespace Opc.Ua.Client.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(selected.PolicyId, Is.EqualTo("p256"));
+        }
+
+        [Test]
+        public async Task X509UserTokenIsExemptFromInstanceCertCurveGate()
+        {
+            // X509IdentityTokenHandler.EncryptAsync is a no-op (the
+            // token carries a DER cert + signature using the user
+            // cert's private key); the instance-cert curve is
+            // irrelevant, so the gate must NOT block this flow.
+            using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(userCert);
+
+            UserTokenPolicy ecc = CreatePolicy("ecc", SecurityPolicies.ECC_nistP256);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, ecc);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.RSA,
+                ClientInstanceCertificateKeySize = 2048
+            };
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("ecc"));
+        }
+
+        [Test]
+        public async Task AnonymousTokenIsExemptFromInstanceCertCurveGate()
+        {
+            var provider = new AnonymousIdentityProvider();
+
+            UserTokenPolicy anon = CreatePolicy(
+                "anon",
+                SecurityPolicies.ECC_nistP256,
+                UserTokenType.Anonymous);
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.ECC_nistP256, anon);
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.RSA,
+                ClientInstanceCertificateKeySize = 2048
+            };
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("anon"));
         }
 
         [Test]

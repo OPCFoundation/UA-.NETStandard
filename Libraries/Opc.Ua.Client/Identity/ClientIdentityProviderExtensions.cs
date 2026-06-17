@@ -304,8 +304,25 @@ namespace Opc.Ua.Identity
                 return true;
             }
 
-            string effectiveUri = !string.IsNullOrEmpty(policy?.SecurityPolicyUri)
-                ? policy!.SecurityPolicyUri!
+            // The instance cert is only used as the ECDH sender for
+            // EccEncryptedSecret-encrypted token payloads. That covers
+            // UserName (encrypted password) and IssuedToken (encrypted
+            // token data). X.509 user-token activation carries a DER
+            // cert + RSA/ECDSA signature using the *user* cert; the
+            // Anonymous token has no secret to encrypt. For those two
+            // the instance cert is irrelevant — see
+            // X509IdentityTokenHandler.EncryptAsync and
+            // AnonymousIdentityTokenHandler.EncryptAsync (no-ops).
+            if (policy == null ||
+                (policy.TokenType != UserTokenType.UserName &&
+                    policy.TokenType != UserTokenType.IssuedToken))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            string effectiveUri = !string.IsNullOrEmpty(policy.SecurityPolicyUri)
+                ? policy.SecurityPolicyUri!
                 : context.EndpointDescription?.SecurityPolicyUri ?? SecurityPolicies.None;
 
             if (string.Equals(effectiveUri, SecurityPolicies.None, StringComparison.Ordinal))
