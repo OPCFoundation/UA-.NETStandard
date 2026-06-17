@@ -136,11 +136,30 @@ namespace Quickstarts.ConsoleReferencePublisher
                     });
             }
 
+            // UADP message security (SignAndEncrypt) is wired for the UADP
+            // profiles via the shared StaticSecurityKeyProvider. The
+            // JSON profile has no UADP security wrapper, so it stays
+            // explicitly unsecured.
+            bool secured = profile != PublisherProfile.MqttJson;
+
             var writerGroup = new WriterGroupDataType
             {
                 Name = "WriterGroup 1",
                 WriterGroupId = writerGroupId,
                 Enabled = true,
+                SecurityMode = secured
+                    ? MessageSecurityMode.SignAndEncrypt
+                    : MessageSecurityMode.None,
+                SecurityGroupId = secured ? SampleSecurity.SecurityGroupId : string.Empty,
+                SecurityKeyServices = secured
+                    ? new ArrayOf<EndpointDescription>(new[]
+                    {
+                        new EndpointDescription
+                        {
+                            EndpointUrl = SampleSecurity.SecurityKeyServiceUrl
+                        }
+                    })
+                    : default,
                 PublishingInterval = intervalMs,
                 KeepAliveTime = intervalMs * 5.0,
                 MaxNetworkMessageSize = 1500,

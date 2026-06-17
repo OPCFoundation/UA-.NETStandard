@@ -509,6 +509,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 "TryUnwrapInboundAsync",
                 wrapped,
                 prefix.Length,
+                MessageSecurityMode.None,
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Is.Null);

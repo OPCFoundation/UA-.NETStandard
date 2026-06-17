@@ -291,6 +291,48 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
+        [TestSpec("7.2.4.5")]
+        public void PaddedStringArrayHugeCountShortBufferThrowsBoundsException()
+        {
+            byte[] buffer = [0];
+            var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            uint[] dimensions = [(uint)int.MaxValue];
+            var arrayDimensions = new ArrayOf<uint>(dimensions);
+
+            Assert.That(
+                () => reader.ReadRawScalar(
+                    BuiltInType.String,
+                    ValueRanks.OneDimension,
+                    maxStringLength: 1,
+                    arrayDimensions,
+                    context),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Message.Contains("Padded RawData payload is truncated"));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5")]
+        public void PaddedByteStringArrayHugeCountShortBufferThrowsBoundsException()
+        {
+            byte[] buffer = [0];
+            var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            uint[] dimensions = [(uint)int.MaxValue];
+            var arrayDimensions = new ArrayOf<uint>(dimensions);
+
+            Assert.That(
+                () => reader.ReadRawScalar(
+                    BuiltInType.ByteString,
+                    ValueRanks.OneDimension,
+                    maxStringLength: 1,
+                    arrayDimensions,
+                    context),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Message.Contains("Padded RawData payload is truncated"));
+        }
+
+        [Test]
         [TestSpec("7.2.4.5.11", Summary = "Direct repro of issue #3566")]
         public async Task Issue3566_DirectRepro()
         {

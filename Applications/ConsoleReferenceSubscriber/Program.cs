@@ -171,6 +171,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
                     .WithApplicationId("urn:opcfoundation:ConsoleReferenceSubscriber")
                     .UseAllStandardEncoders()
+                    .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
                     .AddSubscribedDataSetSink(
                         SubscriberConfigurationBuilder.ReaderName, sink);
                 foreach (IPubSubTransportFactory factory

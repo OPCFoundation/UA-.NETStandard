@@ -74,6 +74,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly List<INetworkMessageDecoder> m_decoders = [];
         private readonly List<IPubSubSecurityPolicy> m_policies = [];
         private readonly List<EndpointDescription> m_sksEndpoints = [];
+        private readonly List<IPubSubSecurityKeyProvider> m_keyProviders = [];
         private readonly Dictionary<string, IPublishedDataSetSource> m_dataSetSources
             = new(StringComparer.Ordinal);
         private readonly Dictionary<string, ISubscribedDataSetSink> m_dataSetSinks
@@ -84,6 +85,9 @@ namespace Opc.Ua.PubSub.Application
         private InMemoryPubSubKeyServiceServer? m_sksServer;
         private PubSubConfigurationDataType? m_configuration;
         private string? m_configurationFilePath;
+        private IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+        private Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>?
+            m_securityPolicySelector;
 
         /// <summary>
         /// Initializes a new <see cref="PubSubApplicationBuilder"/>.
@@ -284,6 +288,62 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <summary>
+        /// Registers an <see cref="IPubSubSecurityKeyProvider"/> that
+        /// supplies key material for its
+        /// <see cref="IPubSubSecurityKeyProvider.SecurityGroupId"/>. The
+        /// builder feeds every registered provider into the default
+        /// <see cref="PubSubSecurityWrapperResolver"/> unless an explicit
+        /// resolver is supplied via
+        /// <see cref="WithSecurityWrapperResolver"/>.
+        /// </summary>
+        /// <param name="keyProvider">Key provider instance.</param>
+        public PubSubApplicationBuilder AddSecurityKeyProvider(
+            IPubSubSecurityKeyProvider keyProvider)
+        {
+            if (keyProvider is null)
+            {
+                throw new ArgumentNullException(nameof(keyProvider));
+            }
+            m_keyProviders.Add(keyProvider);
+            return this;
+        }
+
+        /// <summary>
+        /// Overrides the policy selection used by the default
+        /// <see cref="PubSubSecurityWrapperResolver"/>. The callback maps
+        /// a connection plus SecurityGroupId to the
+        /// <see cref="IPubSubSecurityPolicy"/> to apply.
+        /// </summary>
+        /// <param name="selector">Policy selection callback.</param>
+        public PubSubApplicationBuilder WithSecurityPolicySelector(
+            Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?> selector)
+        {
+            if (selector is null)
+            {
+                throw new ArgumentNullException(nameof(selector));
+            }
+            m_securityPolicySelector = selector;
+            return this;
+        }
+
+        /// <summary>
+        /// Supplies an explicit
+        /// <see cref="IPubSubSecurityWrapperResolver"/>, bypassing the
+        /// default resolver built from the registered key providers.
+        /// </summary>
+        /// <param name="resolver">Resolver instance.</param>
+        public PubSubApplicationBuilder WithSecurityWrapperResolver(
+            IPubSubSecurityWrapperResolver resolver)
+        {
+            if (resolver is null)
+            {
+                throw new ArgumentNullException(nameof(resolver));
+            }
+            m_securityWrapperResolver = resolver;
+            return this;
+        }
+
+        /// <summary>
         /// Wires an <see cref="IPublishedDataSetSource"/> for the
         /// PublishedDataSet named <paramref name="publishedDataSetName"/>.
         /// </summary>
@@ -357,6 +417,7 @@ namespace Opc.Ua.PubSub.Application
                 var diagnostics = new PubSubDiagnostics(m_options.DiagnosticsLevel, m_timeProvider);
                 var metaDataRegistry = new DataSetMetaDataRegistry();
                 var scheduler = new PubSubScheduler(m_telemetry, m_timeProvider);
+                IPubSubSecurityWrapperResolver? resolver = ResolveSecurityWrapperResolver();
 
                 return new PubSubApplication(
                     snapshot,
@@ -370,10 +431,16 @@ namespace Opc.Ua.PubSub.Application
                     m_telemetry,
                     m_timeProvider,
                     sources,
-                    m_dataSetSinks);
+                    m_dataSetSinks,
+                    resolver);
             }
             catch (PubSubApplicationBuildException)
             {
+                throw;
+            }
+            catch (Opc.Ua.PubSub.Configuration.PubSubConfigurationException)
+            {
+                // Surface fail-closed security/configuration errors verbatim.
                 throw;
             }
             catch (Exception ex)
@@ -440,6 +507,24 @@ namespace Opc.Ua.PubSub.Application
                 sources[name] = new DataStoreBackedPublishedDataSetSource(m_dataStore, pds);
             }
             return sources;
+        }
+
+        private IPubSubSecurityWrapperResolver? ResolveSecurityWrapperResolver()
+        {
+            if (m_securityWrapperResolver is not null)
+            {
+                return m_securityWrapperResolver;
+            }
+            if (m_keyProviders.Count == 0)
+            {
+                return null;
+            }
+            return new PubSubSecurityWrapperResolver(
+                m_keyProviders,
+                m_telemetry,
+                m_timeProvider,
+                nonceProvider: null,
+                m_securityPolicySelector);
         }
 
         internal IReadOnlyList<EndpointDescription> SecurityKeyServiceEndpoints => m_sksEndpoints;

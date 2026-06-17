@@ -740,6 +740,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private Variant ReadPaddedStringArray(int expectedCount, uint maxStringLength)
         {
+            EnsureRemaining(expectedCount);
             var arr = new string[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
@@ -750,6 +751,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private Variant ReadPaddedByteStringArray(int expectedCount, uint maxLength)
         {
+            EnsureRemaining(expectedCount);
             var arr = new ByteString[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {

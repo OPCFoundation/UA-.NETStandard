@@ -360,6 +360,25 @@ namespace Opc.Ua.PubSub.Application
 
             PubSubSecurityContext? securityContext =
                 m_securityWrapperResolver?.Resolve(connectionConfig);
+            bool requiresSecurity = PubSubSecurityWrapperResolver.TryResolveConnectionSecurity(
+                connectionConfig,
+                out MessageSecurityMode requiredSecurityMode,
+                out _);
+            if (requiresSecurity && securityContext is null)
+            {
+                throw new PubSubConfigurationException(
+                [
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        "PSC1401",
+                        $"Connection '{connectionConfig.Name}' is configured for "
+                        + $"SecurityMode {requiredSecurityMode} but no security wrapper "
+                        + "could be resolved (missing key provider, policy or resolver). "
+                        + "Refusing to start in the clear.",
+                        $"Connections[{connectionConfig.Name}]",
+                        "8.3")
+                ]);
+            }
             int maxMessageSize =
                 m_maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
             return new PubSubConnection(
@@ -375,7 +394,8 @@ namespace Opc.Ua.PubSub.Application
                 m_timeProvider,
                 securityContext?.Wrapper,
                 securityContext?.WrapOptions ?? UadpSecurityWrapOptions.SignAndEncrypt,
-                maxMessageSize);
+                maxMessageSize,
+                requiredSecurityMode);
         }
 
         /// <inheritdoc/>

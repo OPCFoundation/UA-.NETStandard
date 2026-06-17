@@ -206,6 +206,15 @@ namespace Microsoft.Extensions.DependencyInjection
                 services.AddSingleton(policy);
             }
 
+            // Fail-closed security wrapper resolver. Sources key providers
+            // registered in DI (none by default → secured connections fail
+            // to resolve and the application refuses to start in the clear).
+            services.TryAddSingleton<IPubSubSecurityWrapperResolver>(sp =>
+                new PubSubSecurityWrapperResolver(
+                    sp.GetServices<IPubSubSecurityKeyProvider>(),
+                    sp.GetRequiredService<ITelemetryContext>(),
+                    sp.GetService<TimeProvider>()));
+
             // Configuration store: file-based if a path is supplied, otherwise inline.
             services.TryAddSingleton<IPubSubConfigurationStore>(sp =>
             {
@@ -245,7 +254,11 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<IDataSetMetaDataRegistry>(),
                     sp.GetRequiredService<IPubSubDiagnostics>(),
                     telemetry,
-                    clock);
+                    clock,
+                    publishedDataSetSources: null,
+                    subscribedDataSetSinks: null,
+                    securityWrapperResolver:
+                        sp.GetRequiredService<IPubSubSecurityWrapperResolver>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

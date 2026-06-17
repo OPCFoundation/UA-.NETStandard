@@ -181,6 +181,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
                     .WithApplicationId("urn:opcfoundation:ConsoleReferencePublisher")
                     .UseAllStandardEncoders()
+                    .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
                     .AddDataSetSource(
                         PublisherConfigurationBuilder.DataSetName,
                         sp.GetRequiredService<SampleDataSetSource>());

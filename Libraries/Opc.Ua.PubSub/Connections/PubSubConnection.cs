@@ -66,6 +66,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly UadpSecurityWrapper? m_securityWrapper;
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
+        private readonly MessageSecurityMode m_requiredSecurityMode;
         private readonly int m_maxNetworkMessageSize;
         private readonly UadpReassembler m_reassembler;
         private int m_chunkSequenceNumber;
@@ -105,7 +106,8 @@ namespace Opc.Ua.PubSub.Connections
                   telemetry, timeProvider,
                   securityWrapper: null,
                   securityWrapOptions: UadpSecurityWrapOptions.SignAndEncrypt,
-                  maxNetworkMessageSize: 0)
+                  maxNetworkMessageSize: 0,
+                  requiredSecurityMode: MessageSecurityMode.None)
         {
         }
 
@@ -138,6 +140,14 @@ namespace Opc.Ua.PubSub.Connections
         /// Maximum size in bytes of a single outbound UADP NetworkMessage
         /// before chunking. <c>0</c> disables chunking.
         /// </param>
+        /// <param name="requiredSecurityMode">
+        /// Strictest <see cref="MessageSecurityMode"/> requested by any
+        /// reader group on this connection. When
+        /// <see cref="MessageSecurityMode.Sign"/> or
+        /// <see cref="MessageSecurityMode.SignAndEncrypt"/> the receive
+        /// path rejects any inbound frame that is not secured to at
+        /// least that level (fail-closed).
+        /// </param>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -151,7 +161,8 @@ namespace Opc.Ua.PubSub.Connections
             TimeProvider timeProvider,
             UadpSecurityWrapper? securityWrapper,
             UadpSecurityWrapOptions securityWrapOptions,
-            int maxNetworkMessageSize = 0)
+            int maxNetworkMessageSize = 0,
+            MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None)
         {
             if (configuration is null)
             {
@@ -201,6 +212,7 @@ namespace Opc.Ua.PubSub.Connections
             m_timeProvider = timeProvider;
             m_securityWrapper = securityWrapper;
             m_securityWrapOptions = securityWrapOptions;
+            m_requiredSecurityMode = requiredSecurityMode;
             m_maxNetworkMessageSize = maxNetworkMessageSize;
             m_reassembler = new UadpReassembler(timeProvider);
             Name = configuration.Name ?? string.Empty;
@@ -249,6 +261,10 @@ namespace Opc.Ua.PubSub.Connections
 
         /// <inheritdoc/>
         public PubSubStateMachine State { get; }
+
+        private bool RequiresInboundSecurity =>
+            m_requiredSecurityMode is MessageSecurityMode.Sign
+                or MessageSecurityMode.SignAndEncrypt;
 
         /// <summary>
         /// Currently bound transport, or <see langword="null"/> when
@@ -436,19 +452,62 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         if (chunkMessage)
                         {
-                            ReadOnlyMemory<byte>? reassembled = TryReassembleChunk(
-                                framePayload, prefixLength,
-                                framePublisherId, frameWriterGroupId);
+                            ReadOnlyMemory<byte>? reassembled;
+                            try
+                            {
+                                reassembled = TryReassembleChunk(
+                                    framePayload, prefixLength,
+                                    framePublisherId, frameWriterGroupId);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Fail-soft: a malformed or hostile chunk
+                                // must not terminate the receive loop.
+                                m_diagnostics.Increment(
+                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                                m_logger.LogWarning(ex,
+                                    "Inbound UADP chunk reassembly threw; dropping frame.");
+                                continue;
+                            }
                             if (reassembled is null)
                             {
                                 continue;
                             }
                             framePayload = reassembled.Value;
                         }
+                        else if (RequiresInboundSecurity)
+                        {
+                            // Fail-closed: a secured reader never accepts
+                            // an unsecured frame and never trusts the
+                            // wire's securityEnabled bit to opt out.
+                            if (m_securityWrapper is null || !securityEnabled)
+                            {
+                                RecordSecurityFailure(
+                                    StatusCodes.BadSecurityModeRejected,
+                                    "Inbound frame is not secured to the reader's "
+                                    + "configured SecurityMode.");
+                                m_logger.LogWarning(
+                                    "Dropping unsecured inbound frame on connection "
+                                    + "'{Connection}' requiring {Mode}.",
+                                    Name,
+                                    m_requiredSecurityMode);
+                                continue;
+                            }
+                            ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
+                                framePayload, prefixLength,
+                                m_requiredSecurityMode, cancellationToken)
+                                .ConfigureAwait(false);
+                            if (unwrapped is null)
+                            {
+                                continue;
+                            }
+                            framePayload = unwrapped.Value;
+                        }
                         else if (m_securityWrapper is not null && securityEnabled)
                         {
                             ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
-                                framePayload, prefixLength, cancellationToken)
+                                framePayload, prefixLength,
+                                MessageSecurityMode.None, cancellationToken)
                                 .ConfigureAwait(false);
                             if (unwrapped is null)
                             {
@@ -651,6 +710,25 @@ namespace Opc.Ua.PubSub.Connections
                 payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
                     .ConfigureAwait(false);
             }
+            else if (RequiresInboundSecurity || m_securityWrapper is not null
+                && m_requiredSecurityMode is MessageSecurityMode.Sign
+                    or MessageSecurityMode.SignAndEncrypt)
+            {
+                // Fail-closed: never emit plaintext for a secured group.
+                // This path is only reachable for non-UADP messages, which
+                // the UADP security wrapper cannot protect.
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadSecurityModeRejected,
+                    "Refusing to publish an unsecured NetworkMessage on a connection "
+                    + "configured for message security.");
+                m_logger.LogError(
+                    "Dropping outbound message on connection '{Connection}': "
+                    + "configured SecurityMode {Mode} cannot be applied to this message.",
+                    Name,
+                    m_requiredSecurityMode);
+                return;
+            }
             else
             {
                 payload = await encoder.EncodeAsync(
@@ -826,6 +904,7 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
             ReadOnlyMemory<byte> frame,
             int prefixLength,
+            MessageSecurityMode requiredMode,
             CancellationToken cancellationToken)
         {
             try
@@ -839,6 +918,20 @@ namespace Opc.Ua.PubSub.Connections
                 if (!result.IsSuccess || result.InnerPayload is null)
                 {
                     RecordSecurityFailure(result.Status, result.Reason ?? "Unwrap failed");
+                    return null;
+                }
+
+                if (!SatisfiesRequiredSecurity(requiredMode, result.Header))
+                {
+                    RecordSecurityFailure(
+                        StatusCodes.BadSecurityModeRejected,
+                        "Inbound frame security level is lower than the reader's "
+                        + "configured SecurityMode.");
+                    m_logger.LogWarning(
+                        "Dropping inbound frame on connection '{Connection}': "
+                        + "security level below required {Mode}.",
+                        Name,
+                        requiredMode);
                     return null;
                 }
 
@@ -859,6 +952,30 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.LogError(ex, "UADP unwrap threw on inbound frame.");
                 return null;
             }
+        }
+
+        private static bool SatisfiesRequiredSecurity(
+            MessageSecurityMode requiredMode,
+            UadpSecurityHeader? header)
+        {
+            if (requiredMode is not (MessageSecurityMode.Sign
+                or MessageSecurityMode.SignAndEncrypt))
+            {
+                return true;
+            }
+            if (header is null)
+            {
+                return false;
+            }
+            var flags = (UadpSecurityFlagsEncodingMask)header.Value.SecurityFlags;
+            bool signed = (flags & UadpSecurityFlagsEncodingMask.NetworkMessageSigned) != 0;
+            bool encrypted =
+                (flags & UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) != 0;
+            if (requiredMode == MessageSecurityMode.SignAndEncrypt)
+            {
+                return signed && encrypted;
+            }
+            return signed;
         }
 
         private void RecordSecurityFailure(StatusCode status, string message)

@@ -238,6 +238,87 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
+        [TestSpec("7.2.4.4.4")]
+        public void ReassembleTotalSizeExceedingMaximumIsRejected()
+        {
+            var reassembler = new UadpReassembler(new UadpReassemblerOptions
+            {
+                MaxReassembledMessageSize = 8
+            });
+            byte[] frame = BuildChunk(
+                sequenceNumber: 1,
+                chunkOffset: 0,
+                totalSize: 1024,
+                payloadLength: 1);
+
+            bool ok = reassembler.TryAddChunk(
+                PublisherId.FromByte(1), 0, frame, out ReadOnlyMemory<byte>? result);
+
+            Assert.That(ok, Is.False);
+            Assert.That(result, Is.Null);
+            Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.4.4")]
+        public void ReassembleTotalSizeInNegativeCastRangeIsRejected()
+        {
+            var reassembler = new UadpReassembler();
+            byte[] frame = BuildChunk(
+                sequenceNumber: 1,
+                chunkOffset: 0,
+                totalSize: uint.MaxValue,
+                payloadLength: 1);
+
+            bool ok = reassembler.TryAddChunk(
+                PublisherId.FromByte(1), 0, frame, out ReadOnlyMemory<byte>? result);
+
+            Assert.That(ok, Is.False);
+            Assert.That(result, Is.Null);
+            Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.4.4")]
+        public void ReassembleConcurrentPendingContextsStayBounded()
+        {
+            var reassembler = new UadpReassembler(new UadpReassemblerOptions
+            {
+                MaxConcurrentReassemblies = 2,
+                MaxAggregatePendingBytes = 1024
+            });
+            var publisherId = PublisherId.FromByte(1);
+
+            Assert.That(reassembler.TryAddChunk(
+                publisherId, 0, BuildChunk(1, 0, 100, 1), out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(
+                publisherId, 0, BuildChunk(2, 0, 100, 1), out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(
+                publisherId, 0, BuildChunk(3, 0, 100, 1), out _), Is.False);
+
+            Assert.That(reassembler.PendingCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.4.4")]
+        public void ReassembleAggregatePendingBytesStayBounded()
+        {
+            var reassembler = new UadpReassembler(new UadpReassemblerOptions
+            {
+                MaxConcurrentReassemblies = 10,
+                MaxAggregatePendingBytes = 150
+            });
+            var publisherId = PublisherId.FromByte(1);
+
+            Assert.That(reassembler.TryAddChunk(
+                publisherId, 0, BuildChunk(1, 0, 100, 1), out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(
+                publisherId, 0, BuildChunk(2, 0, 100, 1), out _), Is.False);
+
+            Assert.That(reassembler.PendingCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Reassemble_OffsetBeyondTotalRejected()
         {
             // Build a synthetic chunk with offset > total.
@@ -263,6 +344,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(reassembler.PendingCount, Is.GreaterThan(0));
             reassembler.Dispose();
             Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
+        private static byte[] BuildChunk(
+            ushort sequenceNumber,
+            uint chunkOffset,
+            uint totalSize,
+            int payloadLength)
+        {
+            byte[] frame = new byte[UadpChunker.ChunkHeaderSize + payloadLength];
+            frame[0] = (byte)(sequenceNumber & 0xFF);
+            frame[1] = (byte)(sequenceNumber >> 8);
+            frame[2] = (byte)(chunkOffset & 0xFF);
+            frame[3] = (byte)((chunkOffset >> 8) & 0xFF);
+            frame[4] = (byte)((chunkOffset >> 16) & 0xFF);
+            frame[5] = (byte)((chunkOffset >> 24) & 0xFF);
+            frame[6] = (byte)(totalSize & 0xFF);
+            frame[7] = (byte)((totalSize >> 8) & 0xFF);
+            frame[8] = (byte)((totalSize >> 16) & 0xFF);
+            frame[9] = (byte)((totalSize >> 24) & 0xFF);
+
+            for (int i = 0; i < payloadLength; i++)
+            {
+                frame[UadpChunker.ChunkHeaderSize + i] = (byte)(i + 1);
+            }
+
+            return frame;
         }
     }
 }

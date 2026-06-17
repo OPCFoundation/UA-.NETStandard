@@ -33,6 +33,60 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     using System;
     using System.Collections.Generic;
     using System.Threading;
+    using Microsoft.Extensions.Options;
+
+    /// <summary>
+    /// Resource limits for <see cref="UadpReassembler"/>.
+    /// </summary>
+    public sealed class UadpReassemblerOptions
+    {
+        /// <summary>
+        /// Default maximum reassembled UADP NetworkMessage size, in bytes.
+        /// </summary>
+        public const int DefaultMaxReassembledMessageSize = 8 * 1024 * 1024;
+
+        /// <summary>
+        /// Default maximum number of concurrent pending reassemblies.
+        /// </summary>
+        public const int DefaultMaxConcurrentReassemblies = 1024;
+
+        /// <summary>
+        /// Default maximum aggregate bytes reserved by pending reassemblies.
+        /// </summary>
+        public const long DefaultMaxAggregatePendingBytes = 64L * 1024 * 1024;
+
+        /// <summary>
+        /// Default maximum time a pending entry can wait for missing chunks.
+        /// </summary>
+        public static readonly TimeSpan DefaultChunkTimeout = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Maximum reassembled UADP NetworkMessage size, in bytes.
+        /// Defaults to 8 MiB, which is well above typical UDP PubSub MTU-sized
+        /// traffic while bounding unauthenticated allocation.
+        /// </summary>
+        public int MaxReassembledMessageSize { get; set; } =
+            DefaultMaxReassembledMessageSize;
+
+        /// <summary>
+        /// Maximum number of concurrent incomplete reassembly contexts.
+        /// </summary>
+        public int MaxConcurrentReassemblies { get; set; } =
+            DefaultMaxConcurrentReassemblies;
+
+        /// <summary>
+        /// Maximum aggregate bytes reserved by incomplete reassemblies.
+        /// Defaults to 64 MiB.
+        /// </summary>
+        public long MaxAggregatePendingBytes { get; set; } =
+            DefaultMaxAggregatePendingBytes;
+
+        /// <summary>
+        /// Maximum time a pending entry can wait for missing chunks before
+        /// being garbage-collected. Defaults to 5 seconds.
+        /// </summary>
+        public TimeSpan ChunkTimeout { get; set; } = DefaultChunkTimeout;
+    }
 
     /// <summary>
     /// Time-to-live bounded reassembler for UADP ChunkMessages. Tracks
@@ -53,8 +107,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     {
         private readonly TimeProvider m_timeProvider;
         private readonly TimeSpan m_chunkTimeout;
+        private readonly int m_maxReassembledMessageSize;
+        private readonly int m_maxConcurrentReassemblies;
+        private readonly long m_maxAggregatePendingBytes;
         private readonly Lock m_lock = new();
         private readonly Dictionary<ReassemblyKey, ReassemblyEntry> m_pending = [];
+        private long m_pendingBytes;
 
         /// <summary>
         /// Creates a new reassembler.
@@ -68,9 +126,49 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public UadpReassembler(
             TimeProvider? timeProvider = null,
             TimeSpan? chunkTimeout = null)
+            : this(CreateOptions(chunkTimeout), timeProvider)
         {
+        }
+
+        /// <summary>
+        /// Creates a new reassembler.
+        /// </summary>
+        /// <param name="options">Resource limits. Defaults are used when
+        /// <c>null</c>.</param>
+        /// <param name="timeProvider">Provider for timestamps used in the TTL
+        /// check. Defaults to <see cref="TimeProvider.System"/> when
+        /// <c>null</c>.</param>
+        public UadpReassembler(
+            UadpReassemblerOptions? options,
+            TimeProvider? timeProvider = null)
+        {
+            options ??= new UadpReassemblerOptions();
             m_timeProvider = timeProvider ?? TimeProvider.System;
-            m_chunkTimeout = chunkTimeout ?? TimeSpan.FromSeconds(5);
+            m_chunkTimeout = options.ChunkTimeout;
+            m_maxReassembledMessageSize = NormalizePositive(
+                options.MaxReassembledMessageSize,
+                UadpReassemblerOptions.DefaultMaxReassembledMessageSize);
+            m_maxConcurrentReassemblies = NormalizePositive(
+                options.MaxConcurrentReassemblies,
+                UadpReassemblerOptions.DefaultMaxConcurrentReassemblies);
+            m_maxAggregatePendingBytes = NormalizePositive(
+                options.MaxAggregatePendingBytes,
+                UadpReassemblerOptions.DefaultMaxAggregatePendingBytes);
+        }
+
+        /// <summary>
+        /// Creates a new reassembler.
+        /// </summary>
+        /// <param name="options">DI-provided resource limits. Defaults are used
+        /// when <c>null</c>.</param>
+        /// <param name="timeProvider">Provider for timestamps used in the TTL
+        /// check. Defaults to <see cref="TimeProvider.System"/> when
+        /// <c>null</c>.</param>
+        public UadpReassembler(
+            IOptions<UadpReassemblerOptions>? options,
+            TimeProvider? timeProvider = null)
+            : this(options?.Value ?? new UadpReassemblerOptions(), timeProvider)
+        {
         }
 
         /// <summary>
@@ -122,12 +220,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return false;
             }
+            if (!TryGetBoundedTotalSize(totalSize, payload.Length, out int totalSizeInt))
+            {
+                return false;
+            }
             if (chunkOffset > totalSize ||
-                chunkOffset + (uint)payload.Length > totalSize)
+                (ulong)chunkOffset + (uint)payload.Length > totalSize)
             {
                 return false;
             }
 
+            int chunkOffsetInt = (int)chunkOffset;
             var key = new ReassemblyKey(publisherId, writerGroupId, sequenceNumber);
             long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
 
@@ -137,26 +240,33 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
                 if (!m_pending.TryGetValue(key, out ReassemblyEntry? entry))
                 {
-                    entry = new ReassemblyEntry((int)totalSize, nowTicks);
+                    if (m_pending.Count >= m_maxConcurrentReassemblies ||
+                        m_pendingBytes + totalSizeInt > m_maxAggregatePendingBytes)
+                    {
+                        return false;
+                    }
+
+                    entry = new ReassemblyEntry(totalSizeInt, nowTicks);
                     m_pending[key] = entry;
+                    m_pendingBytes += totalSizeInt;
                 }
-                else if (entry.Buffer.Length != (int)totalSize)
+                else if (entry.Buffer.Length != totalSizeInt)
                 {
-                    m_pending.Remove(key);
+                    RemovePending(key, entry);
                     return false;
                 }
 
-                if (entry.HasOverlap((int)chunkOffset, payload.Length))
+                if (entry.HasOverlap(chunkOffsetInt, payload.Length))
                 {
                     return false;
                 }
 
-                payload.Span.CopyTo(entry.Buffer.AsSpan((int)chunkOffset));
-                entry.MarkReceived((int)chunkOffset, payload.Length);
+                payload.Span.CopyTo(entry.Buffer.AsSpan(chunkOffsetInt));
+                entry.MarkReceived(chunkOffsetInt, payload.Length);
 
                 if (entry.IsComplete)
                 {
-                    m_pending.Remove(key);
+                    RemovePending(key, entry);
                     reassembled = entry.Buffer;
                     return true;
                 }
@@ -183,6 +293,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             lock (m_lock)
             {
                 m_pending.Clear();
+                m_pendingBytes = 0;
             }
         }
 
@@ -209,9 +320,59 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
             foreach (ReassemblyKey key in expired)
             {
-                m_pending.Remove(key);
+                if (m_pending.TryGetValue(key, out ReassemblyEntry? entry))
+                {
+                    RemovePending(key, entry);
+                }
             }
             return expired.Count;
+        }
+
+        private bool TryGetBoundedTotalSize(
+            uint totalSize,
+            int payloadLength,
+            out int totalSizeInt)
+        {
+            totalSizeInt = 0;
+            if (totalSize > int.MaxValue ||
+                totalSize > (uint)m_maxReassembledMessageSize ||
+                totalSize < (uint)payloadLength)
+            {
+                return false;
+            }
+
+            totalSizeInt = (int)totalSize;
+            return true;
+        }
+
+        private void RemovePending(ReassemblyKey key, ReassemblyEntry entry)
+        {
+            if (m_pending.Remove(key))
+            {
+                m_pendingBytes -= entry.Buffer.Length;
+                if (m_pendingBytes < 0)
+                {
+                    m_pendingBytes = 0;
+                }
+            }
+        }
+
+        private static UadpReassemblerOptions CreateOptions(TimeSpan? chunkTimeout)
+        {
+            return new UadpReassemblerOptions
+            {
+                ChunkTimeout = chunkTimeout ?? UadpReassemblerOptions.DefaultChunkTimeout
+            };
+        }
+
+        private static int NormalizePositive(int value, int defaultValue)
+        {
+            return value > 0 ? value : defaultValue;
+        }
+
+        private static long NormalizePositive(long value, long defaultValue)
+        {
+            return value > 0 ? value : defaultValue;
         }
 
         private readonly struct ReassemblyKey : IEquatable<ReassemblyKey>
