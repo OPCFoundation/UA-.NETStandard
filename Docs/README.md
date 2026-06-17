@@ -46,7 +46,17 @@ Starting with version 1.5.375.XX the Windows Forms reference client & reference 
 
 ## For the PubSub support library
 
-* The [PubSub](PubSub.md) library with samples.
+* The [PubSub](PubSub.md) library reference — architecture, fluent
+  builder, transports (UDP / MQTT 3.1.1 + 5.0), encodings (UADP / JSON),
+  security, server-side address space, Native AOT, spec coverage table.
+* The [PubSub migration sub-doc](migrate/2.0.x/pubsub.md) — 1.5.378
+  → 2.0 breaking changes, AMQP removal, fluent / DI / AOT migration,
+  compatibility matrix.
+* The [Dependency Injection](DependencyInjection.md) extensions —
+  `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`,
+  `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
+* The [Profiles](Profiles.md#pubsub-transports) doc — Datagram-v2,
+  SKS pull / push, AES-128/256-CTR security facets.
 * The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation.
 * The [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/README.md) documentation.
 

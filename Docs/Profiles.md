@@ -201,11 +201,38 @@ The stack implements the following transport profiles:
 
 The [PubSub library](PubSub.md) supports the following PubSub transport
 facets (URIs surfaced by `Profiles.PubSub*Transport` constants in
-`Stack/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`):
+`Stack/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`). Facet
+machinery and conformance unit semantics are defined by
+[Part 7 §4.3](https://reference.opcfoundation.org/specs/OPC-10000-7/v1.05.06/4.3).
 
 - **[PubSub UDP UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp)** — UDP transport with UADP message encoding.
 - **[PubSub MQTT UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp)** — MQTT transport with UADP message encoding.
 - **[PubSub MQTT JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json)** — MQTT transport with JSON message encoding.
+
+#### v1.05.06 additions
+
+- **Datagram-v2 connection profile** —
+  [`DatagramConnectionTransport2DataType`](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1.4)
+  (Part 14 §6.4.1.4) is honoured for UDP transports. The
+  `DiscoveryAnnounceRate`, `DiscoveryMaxMessageSize`, and `QosCategory`
+  fields drive discovery cadence and the IP DSCP TOS byte.
+- **PubSub SKS pull / push** —
+  [Part 14 §8.5.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.5.1)
+  / §8.5.2: the
+  `AddPubSubSecurityKeyServiceClient` extension implements the pull
+  client (calls `GetSecurityKeys` on a remote SKS), and
+  `AddPubSubSecurityKeyServiceServer` hosts the in-memory SKS with
+  `Get/SetSecurityKeys` and `AddSecurityGroup` methods bound on the
+  address space.
+- **AES-128-CTR / AES-256-CTR with HMAC-SHA-256** —
+  [Part 14 §8.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4.3)
+  message security. Profiles registered as
+  `PubSubAes128CtrPolicy` / `PubSubAes256CtrPolicy`; conformance to NIST
+  SP 800-38A F.5.1 / F.5.5 is asserted by the test suite.
+- **Anonymous certificate-based MQTT auth** — the MQTT transport
+  exposes the `MqttClientAuthenticationOptions` with the
+  certificate-based variant from
+  [Part 14 §6.4.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2.2.4).
 
 PubSub additionally supports certificate-based MQTT authentication and
 considers `WriterGroup`s in MQTT keep-alive calculations.

@@ -18,8 +18,10 @@ The dependency injection surface is consistent across:
 - The LDS server (`Libraries/Opc.Ua.Lds.Server`)
 - The WoT Connectivity server (`Libraries/Opc.Ua.WotCon.Server`)
 - The WoT Connectivity client (`Libraries/Opc.Ua.WotCon.Client`)
-
-PubSub is **not** part of the dependency injection surface.
+- The PubSub stack (`Libraries/Opc.Ua.PubSub`,
+  `Libraries/Opc.Ua.PubSub.Udp`, `Libraries/Opc.Ua.PubSub.Mqtt`,
+  `Libraries/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
+  for the full library reference.
 
 The non-dependency-injection public constructors and factories of every library
 (`new ApplicationInstance(telemetry)`, `new StandardServer(telemetry)`,
@@ -43,6 +45,14 @@ you need finer control.
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
 | `Opc.Ua.WotCon.Server`         | `builder.AddWotConServer(opt => …)`      | `IWotConServerBuilder`   | yes (via `AddServer`) | `OpcUa:WotCon:Server` |
 | `Opc.Ua.WotCon.Client`         | `builder.AddWotConClient(opt => …)`      | `IOpcUaBuilder`          | —       | `OpcUa:WotCon:Client`    |
+| `Opc.Ua.PubSub`                | `builder.AddPubSub(opt => …)`            | `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
+| `Opc.Ua.PubSub` (publish-only) | `builder.AddPubSubPublisher(opt => …)`   | `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
+| `Opc.Ua.PubSub` (subscribe-only) | `builder.AddPubSubSubscriber(opt => …)`| `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
+| `Opc.Ua.PubSub` (SKS client)   | `builder.AddPubSubSecurityKeyServiceClient(...)` | `IPubSubBuilder` | —       | `OpcUa:PubSub:Sks:Client`|
+| `Opc.Ua.PubSub` (SKS server)   | `builder.AddPubSubSecurityKeyServiceServer(...)` | `IPubSubBuilder` | yes     | `OpcUa:PubSub:Sks:Server`|
+| `Opc.Ua.PubSub.Udp`            | `pubSub.AddUdpTransport()`               | `IPubSubBuilder`         | —       | —                        |
+| `Opc.Ua.PubSub.Mqtt`           | `pubSub.AddMqttTransport()`              | `IPubSubBuilder`         | —       | —                        |
+| `Opc.Ua.PubSub.Server`         | `serverBuilder.AddPubSubAddressSpace(...)` | `IPubSubServerBuilder` | yes     | `OpcUa:PubSub:AddressSpace` |
 
 Identity-provider extensions hang off `IOpcUaServerBuilder`,
 `IOpcUaClientBuilder`, and `IGdsServerBuilder`:

@@ -4,7 +4,7 @@
     <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.PubSub.Bench</RootNamespace>
     <Nullable>enable</Nullable>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA1014</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA1014;CA2000</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
