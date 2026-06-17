@@ -1,6 +1,7 @@
 name: Preview Publish (NuGet → GitHub Packages)
 
-# Mirrors .azurepipelines/preview.yml (build UA Core Library.slnx, strong-name
+# Mirrors .azurepipelines/preview.yml (build the on-demand
+# preview-pack.slnx generated from UA.slnx, strong-name
 # + Authenticode-sign assemblies, pack nupkg + snupkg + legacy nuspec, sign
 # packages) but publishes to https://nuget.pkg.github.com/OPCFoundation/index.json
 # instead of the Azure DevOps internal feed. Both workflows coexist.
@@ -96,6 +97,10 @@ jobs:
         shell: pwsh
         run: ./.azurepipelines/set-version.ps1
 
+      - name: Generate preview pack solution
+        shell: pwsh
+        run: ./.azurepipelines/generate-slnx.ps1
+
       - name: Determine pack mode (tag → Public, else Preview)
         shell: pwsh
         run: |
@@ -113,7 +118,7 @@ jobs:
       - name: Restore
         shell: pwsh
         run: |
-          dotnet restore 'UA Core Library.slnx' `
+          dotnet restore 'preview-pack.slnx' `
             --configuration Release `
             --disable-parallel
 
@@ -121,7 +126,7 @@ jobs:
         shell: pwsh
         run: |
           $args = @(
-              'build', 'UA Core Library.slnx',
+              'build', 'preview-pack.slnx',
               '--no-incremental',
               '--configuration', 'Release',
               "/p:Version=$env:NBGV_Version",
@@ -176,7 +181,7 @@ jobs:
       - name: Pack NuGet (modern)
         shell: pwsh
         run: |
-          dotnet pack 'UA Core Library.slnx' `
+          dotnet pack 'preview-pack.slnx' `
             --no-build `
             --configuration Release `
             --output "$env:ARTIFACTS_DIR"

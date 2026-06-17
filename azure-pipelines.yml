@@ -59,11 +59,10 @@ stages:
       poolImage: ${{ variables.windowsImage }}
       poolName: ${{ variables.poolName }}
       jobnamesuffix: win2025
-      # PR builds discover every *.slnx (except UA Core Library.slnx, which is
-      # a strict subset of UA.slnx) and restrict to a small TFM set so each
+      # PR builds discover every *.slnx and restrict to a small TFM set so each
       # matrix job's bin tree fits on the managed-pool agent's small temp
       # disk; master/scheduled/manual/fork-PR builds also discover every
-      # *.slnx (same exclude) but fan out across all supported TFMs.
+      # *.slnx but fan out across all supported TFMs.
       solutions: ''
       ${{ if eq(variables.FullBuild, 'False') }}:
         tfms: 'net10.0,net48'

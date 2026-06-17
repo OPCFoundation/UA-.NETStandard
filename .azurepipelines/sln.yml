@@ -43,7 +43,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName '*.slnx' -ExcludeFileName 'UA Core Library.slnx' -Configurations 'Debug,Release' -Files "${{ parameters.solutions }}" -Tfms "${{ parameters.tfms }}"
+      arguments: -FileName '*.slnx' -Configurations 'Debug,Release' -Files "${{ parameters.solutions }}" -Tfms "${{ parameters.tfms }}"
 
 - job: buildallsln${{ parameters.jobnamesuffix }}
   displayName: Build Solution

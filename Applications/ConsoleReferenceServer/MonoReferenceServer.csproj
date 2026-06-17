@@ -3,6 +3,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>MonoReferenceServer</AssemblyName>
     <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
     <PackageId>MonoReferenceServer</PackageId>
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>

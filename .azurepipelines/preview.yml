@@ -78,18 +78,24 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
+  - task: PowerShell@2
+    displayName: Generate preview pack solution
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/generate-slnx.ps1
+      pwsh: true
   - task: DotNetCoreCLI@2
     displayName: Restore ${{parameters.config}}
     inputs:
       command: restore
-      projects: 'UA Core Library.slnx'
+      projects: 'preview-pack.slnx'
       arguments: '--configuration ${{parameters.config}}'
       restoreArguments: '--disable-parallel'
   - task: DotNetCoreCLI@2
     displayName: Build ${{parameters.config}}
     inputs:
       command: build
-      projects: 'UA Core Library.slnx'
+      projects: 'preview-pack.slnx'
       arguments: '--no-incremental --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: CmdLine@2
     displayName: 'List of assemblies to sign'
@@ -111,7 +117,7 @@ jobs:
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
       command: pack
-      packagesToPack: 'UA Core Library.slnx'
+      packagesToPack: 'preview-pack.slnx'
       configuration: ${{parameters.config}}
       configurationToPack: ${{parameters.config}}
       nobuild: true
