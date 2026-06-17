@@ -590,9 +590,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 if (persistOnSuccess)
 
                 {
-
                     PersistTdToDisk(entry.Name, td);
-
                 }
             }
             finally

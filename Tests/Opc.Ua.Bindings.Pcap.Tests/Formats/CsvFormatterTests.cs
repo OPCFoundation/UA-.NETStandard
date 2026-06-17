@@ -78,15 +78,15 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
                 tokenId: 0x50607080);
 
             var timestamp = new DateTimeOffset(2026, 3, 4, 5, 6, 7, 89, TimeSpan.Zero);
-            CaptureFrame[] frames = new[]
-            {
+            CaptureFrame[] frames =
+            [
                 new CaptureFrame(
                     timestamp,
                     CaptureFrameDirection.ServerToClient,
                     "127.0.0.1:12345",
                     "127.0.0.1:4840",
                     chunk)
-            };
+            ];
             await using var source = new InMemoryCaptureSource(frames);
             var formatter = new CsvFormatter();
 

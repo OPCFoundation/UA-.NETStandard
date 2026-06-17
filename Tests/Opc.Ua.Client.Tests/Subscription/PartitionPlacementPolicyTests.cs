@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void DecideOnEmptyPartitionListNeedsNewPartition()
         {
             var policy = new PartitionPlacementPolicy(10);
-            var decision = policy.Decide(new V2Options(), Array.Empty<IManagedSubscription>());
+            PlacementDecision decision = policy.Decide(new V2Options(), []);
 
             Assert.That(decision.RequiresNewPartition, Is.True);
             Assert.That(decision.UseExistingPartition, Is.False);
@@ -79,8 +79,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void DecidePicksFirstPartitionWithCapacity()
         {
             var policy = new PartitionPlacementPolicy(2);
-            var first = NewFake(id: 1);
-            var second = NewFake(id: 2);
+            FakeManagedSubscription first = NewFake(id: 1);
+            FakeManagedSubscription second = NewFake(id: 2);
             policy.OnPartitionAdded(first);
             policy.OnPartitionAdded(second);
 
@@ -88,8 +88,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             policy.OnItemAdded(new V2Options(), first);
             policy.OnItemAdded(new V2Options(), first);
 
-            var decision = policy.Decide(new V2Options(),
-                new IManagedSubscription[] { first, second });
+            PlacementDecision decision = policy.Decide(new V2Options(),
+                [first, second]);
 
             Assert.That(decision.UseExistingPartition, Is.True);
             Assert.That(decision.Partition, Is.SameAs(second));
@@ -99,12 +99,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void DecideAffinityFreeItemFitsInPartitionWithRoom()
         {
             var policy = new PartitionPlacementPolicy(3);
-            var part = NewFake(id: 1);
+            FakeManagedSubscription part = NewFake(id: 1);
             policy.OnPartitionAdded(part);
             policy.OnItemAdded(new V2Options(), part);
 
-            var decision = policy.Decide(new V2Options(),
-                new IManagedSubscription[] { part });
+            PlacementDecision decision = policy.Decide(new V2Options(),
+                [part]);
 
             Assert.That(decision.UseExistingPartition, Is.True);
             Assert.That(decision.Partition, Is.SameAs(part));
@@ -114,14 +114,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void DecidePinsAffinityGroupToFirstChosenPartition()
         {
             var policy = new PartitionPlacementPolicy(10);
-            var part = NewFake(id: 1);
+            FakeManagedSubscription part = NewFake(id: 1);
             policy.OnPartitionAdded(part);
 
             var withAffinity = new V2Options { Affinity = "ALPHA" };
 
             // First add — picks `part`, pins ALPHA → part.
-            var first = policy.Decide(withAffinity,
-                new IManagedSubscription[] { part });
+            PlacementDecision first = policy.Decide(withAffinity,
+                [part]);
             Assert.That(first.UseExistingPartition, Is.True);
             Assert.That(first.Partition, Is.SameAs(part));
 
@@ -131,11 +131,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Now add a second partition with capacity — the policy
             // must still send ALPHA to `part` because affinity is
             // strictly pinned.
-            var part2 = NewFake(id: 2);
+            FakeManagedSubscription part2 = NewFake(id: 2);
             policy.OnPartitionAdded(part2);
 
-            var second = policy.Decide(withAffinity,
-                new IManagedSubscription[] { part, part2 });
+            PlacementDecision second = policy.Decide(withAffinity,
+                [part, part2]);
             Assert.That(second.UseExistingPartition, Is.True);
             Assert.That(second.Partition, Is.SameAs(part),
                 "affinity-tagged items must stay pinned to the first partition that received them");
@@ -145,8 +145,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void DecideRejectsAffinityGroupWhenPinnedPartitionFull()
         {
             var policy = new PartitionPlacementPolicy(2);
-            var part = NewFake(id: 1);
-            var part2 = NewFake(id: 2);
+            FakeManagedSubscription part = NewFake(id: 1);
+            FakeManagedSubscription part2 = NewFake(id: 2);
             policy.OnPartitionAdded(part);
             policy.OnPartitionAdded(part2);
 
@@ -155,8 +155,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             policy.OnItemAdded(withAffinity, part);
             // Pinned partition is now full (count == cap).
 
-            var decision = policy.Decide(withAffinity,
-                new IManagedSubscription[] { part, part2 });
+            PlacementDecision decision = policy.Decide(withAffinity,
+                [part, part2]);
 
             Assert.That(decision.RejectStrictAffinityFull, Is.True,
                 "strict-affinity contract must reject rather than split the group");
@@ -170,12 +170,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void DecideNoExistingPartitionFitsRequestsNewPartition()
         {
             var policy = new PartitionPlacementPolicy(1);
-            var part = NewFake(id: 1);
+            FakeManagedSubscription part = NewFake(id: 1);
             policy.OnPartitionAdded(part);
             policy.OnItemAdded(new V2Options(), part);
 
-            var decision = policy.Decide(new V2Options(),
-                new IManagedSubscription[] { part });
+            PlacementDecision decision = policy.Decide(new V2Options(),
+                [part]);
 
             Assert.That(decision.RequiresNewPartition, Is.True);
         }
@@ -184,8 +184,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void OnPartitionCapReachedSkipsPartitionInFuturePlacement()
         {
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
-            var part = NewFake(id: 1);
-            var part2 = NewFake(id: 2);
+            FakeManagedSubscription part = NewFake(id: 1);
+            FakeManagedSubscription part2 = NewFake(id: 2);
             policy.OnPartitionAdded(part);
             policy.OnPartitionAdded(part2);
 
@@ -194,8 +194,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // subsequent placements skip it.
             policy.OnPartitionCapReached(part);
 
-            var decision = policy.Decide(new V2Options(),
-                new IManagedSubscription[] { part, part2 });
+            PlacementDecision decision = policy.Decide(new V2Options(),
+                [part, part2]);
             Assert.That(decision.UseExistingPartition, Is.True);
             Assert.That(decision.Partition, Is.SameAs(part2));
             Assert.That(policy.IsNoGrow(part), Is.True);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void OnItemRemovedDecreasesCountAndRestoresCapacity()
         {
             var policy = new PartitionPlacementPolicy(2);
-            var part = NewFake(id: 1);
+            FakeManagedSubscription part = NewFake(id: 1);
             policy.OnPartitionAdded(part);
             policy.OnItemAdded(new V2Options(), part);
             policy.OnItemAdded(new V2Options(), part);
@@ -217,8 +217,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(policy.GetCount(part), Is.EqualTo(1u));
 
             // Removal must restore capacity for new items.
-            var decision = policy.Decide(new V2Options(),
-                new IManagedSubscription[] { part });
+            PlacementDecision decision = policy.Decide(new V2Options(),
+                [part]);
             Assert.That(decision.UseExistingPartition, Is.True);
         }
 
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void AffinityIndexSurvivesItemRemovalButClearsOnPartitionRemoval()
         {
             var policy = new PartitionPlacementPolicy(5);
-            var part = NewFake(id: 1);
+            FakeManagedSubscription part = NewFake(id: 1);
             policy.OnPartitionAdded(part);
             var opts = new V2Options { Affinity = "GAMMA" };
             policy.OnItemAdded(opts, part);
@@ -248,7 +248,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             var policy = new PartitionPlacementPolicy(10);
 
-            Assert.That(() => policy.Decide(null!, Array.Empty<IManagedSubscription>()),
+            Assert.That(() => policy.Decide(null!, []),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(() => policy.Decide(new V2Options(), null!),
                 Throws.TypeOf<ArgumentNullException>());
@@ -287,8 +287,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // client memory + server handle growth.
             var policy = new PartitionPlacementPolicy(
                 maxItemsPerPartition: 1, maxPartitionCount: 2);
-            var p1 = NewFake(id: 1);
-            var p2 = NewFake(id: 2);
+            FakeManagedSubscription p1 = NewFake(id: 1);
+            FakeManagedSubscription p2 = NewFake(id: 2);
             policy.OnPartitionAdded(p1);
             policy.OnPartitionAdded(p2);
             policy.OnItemAdded(new V2Options(), p1);
@@ -298,7 +298,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // minting a new partition past the cap.
             PlacementDecision decision = policy.Decide(
                 new V2Options(),
-                new[] { (IManagedSubscription)p1, p2 });
+                [(IManagedSubscription)p1, p2]);
 
             Assert.That(decision.RejectMaxPartitionCountReached, Is.True);
             Assert.That(decision.RequiresNewPartition, Is.False);
@@ -315,14 +315,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // not apply.
             var policy = new PartitionPlacementPolicy(
                 maxItemsPerPartition: 5, maxPartitionCount: 2);
-            var p1 = NewFake(id: 1);
-            var p2 = NewFake(id: 2);
+            FakeManagedSubscription p1 = NewFake(id: 1);
+            FakeManagedSubscription p2 = NewFake(id: 2);
             policy.OnPartitionAdded(p1);
             policy.OnPartitionAdded(p2);
             // p1 has room (count=0, cap=5)
             PlacementDecision decision = policy.Decide(
                 new V2Options(),
-                new[] { (IManagedSubscription)p1, p2 });
+                [(IManagedSubscription)p1, p2]);
 
             Assert.That(decision.UseExistingPartition, Is.True);
             Assert.That(decision.Partition, Is.SameAs(p1));
@@ -335,17 +335,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // mint N is blocked.
             var policy = new PartitionPlacementPolicy(
                 maxItemsPerPartition: 1, maxPartitionCount: 3);
-            var p1 = NewFake(id: 1);
+            FakeManagedSubscription p1 = NewFake(id: 1);
             policy.OnPartitionAdded(p1);
             policy.OnItemAdded(new V2Options(), p1);
 
             // 1 existing partition, full. Mint 2nd → allowed.
             PlacementDecision d2 = policy.Decide(
                 new V2Options(),
-                new[] { (IManagedSubscription)p1 });
+                [(IManagedSubscription)p1]);
             Assert.That(d2.RequiresNewPartition, Is.True);
 
-            var p2 = NewFake(id: 2);
+            FakeManagedSubscription p2 = NewFake(id: 2);
             policy.OnPartitionAdded(p2);
             policy.OnItemAdded(new V2Options(), p2);
 
@@ -353,10 +353,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // (count==2 < cap==3).
             PlacementDecision d3 = policy.Decide(
                 new V2Options(),
-                new[] { (IManagedSubscription)p1, p2 });
+                [(IManagedSubscription)p1, p2]);
             Assert.That(d3.RequiresNewPartition, Is.True);
 
-            var p3 = NewFake(id: 3);
+            FakeManagedSubscription p3 = NewFake(id: 3);
             policy.OnPartitionAdded(p3);
             policy.OnItemAdded(new V2Options(), p3);
 
@@ -364,7 +364,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // exceed cap → reject.
             PlacementDecision d4 = policy.Decide(
                 new V2Options(),
-                new[] { (IManagedSubscription)p1, p2, p3 });
+                [(IManagedSubscription)p1, p2, p3]);
             Assert.That(d4.RejectMaxPartitionCountReached, Is.True);
         }
 

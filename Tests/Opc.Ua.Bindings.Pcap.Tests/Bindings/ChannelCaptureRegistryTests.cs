@@ -28,11 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
@@ -149,7 +147,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
             // Stress check: many threads racing SetObserver(x) must always
             // land on one of the supplied observers, never a stale/null value.
             var registry = new ChannelCaptureRegistry();
-            IFrameCaptureSink[] observers = new IFrameCaptureSink[8];
+            var observers = new IFrameCaptureSink[8];
             for (int i = 0; i < observers.Length; i++)
             {
                 observers[i] = Mock.Of<IFrameCaptureSink>();

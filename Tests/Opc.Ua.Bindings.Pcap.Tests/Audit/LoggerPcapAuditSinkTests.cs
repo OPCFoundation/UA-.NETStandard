@@ -102,14 +102,11 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Audit
             var logger = new RecordingLogger<LoggerPcapAuditSink>();
             var sink = new LoggerPcapAuditSink(logger);
 
-            Task[] tasks = [.. Enumerable.Range(0, 10).Select(ii => Task.Run(async () =>
-            {
-                await sink.OnEventAsync(
+            Task[] tasks = [.. Enumerable.Range(0, 10).Select(ii => Task.Run(async () => await sink.OnEventAsync(
                     CreateEvent(
                         PcapAuditEventKind.DumpKeys,
                         sessionId: "parallel-session-" + ii.ToString(CultureInfo.InvariantCulture)),
-                    CancellationToken.None).ConfigureAwait(false);
-            }))];
+                    CancellationToken.None).ConfigureAwait(false)))];
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
 

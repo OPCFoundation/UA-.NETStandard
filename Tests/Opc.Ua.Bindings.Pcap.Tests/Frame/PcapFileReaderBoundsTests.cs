@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,7 +53,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
         public void ReadRejectsRecordWithCapturedLengthExceedingMaxPacketBytes()
         {
             string path = CreateTempPath("too-large.pcap");
-            WritePcapFile(path, (uint)PcapFileReader.MaxPacketBytes + 1U, payloadLength: 0);
+            WritePcapFile(path, PcapFileReader.MaxPacketBytes + 1U, payloadLength: 0);
 
             PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
                 await PcapTestHelpers.ToListAsync(PcapFileReader.ReadAllAsync(path, CancellationToken.None))
@@ -92,7 +93,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Frame
             string path = CreateTempPath("normal.pcap");
             WritePcapFile(path, 1024, payloadLength: 1024);
 
-            var records = await PcapTestHelpers.ToListAsync(
+            List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
                 PcapFileReader.ReadAllAsync(path, CancellationToken.None),
                 maxCount: 1).ConfigureAwait(false);
 

@@ -94,7 +94,7 @@ namespace Opc.Ua.Bindings
             {
                 System.Diagnostics.StackFrame? frame = stackTrace.GetFrame(ii);
                 string? assemblyName = GetStackFrameAssemblyName(frame);
-                if (assemblyName == null || assemblyName == coreAssemblyName)
+                if (assemblyName is null or coreAssemblyName)
                 {
                     continue;
                 }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Bindings
             }
 
 #if NET10_0_OR_GREATER
-            System.Diagnostics.DiagnosticMethodInfo? methodInfo =
+            var methodInfo =
                 System.Diagnostics.DiagnosticMethodInfo.Create(frame);
             string? assemblyName = methodInfo?.DeclaringAssemblyName;
             int separatorIndex = assemblyName?.IndexOf(',', StringComparison.Ordinal) ?? -1;
@@ -668,7 +668,8 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken != null &&
+            else if (RenewedToken != null &&
+                CurrentToken != null &&
                 CurrentToken.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);

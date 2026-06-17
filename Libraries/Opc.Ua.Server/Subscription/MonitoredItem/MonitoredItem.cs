@@ -1726,6 +1726,7 @@ namespace Opc.Ua.Server
         /// Applies the filter to value to determine if the new value should be kept.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static bool ValueChanged(
             in DataValue value,
             ServiceResult error,

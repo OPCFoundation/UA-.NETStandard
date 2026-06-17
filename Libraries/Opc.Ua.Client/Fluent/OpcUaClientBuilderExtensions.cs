@@ -160,6 +160,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers a client identity provider implementation.
         /// </summary>
         /// <typeparam name="TProvider">The concrete identity-provider type to register.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddIdentityProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
             this IOpcUaClientBuilder builder)
@@ -180,6 +181,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers a composite client identity provider built from the
         /// supplied shortcut configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddIdentityProvider(
             this IOpcUaClientBuilder builder,
             Action<CompositeClientIdentityProviderBuilder> configure)
@@ -203,6 +205,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers client identity providers bound from configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddIdentityProvider(
             this IOpcUaClientBuilder builder,
             IConfiguration section)
@@ -227,6 +230,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers an access-token provider implementation.
         /// </summary>
         /// <typeparam name="TProvider">The concrete access-token-provider type to register.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddAccessTokenProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
             this IOpcUaClientBuilder builder)
@@ -246,6 +250,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers an access-token provider instance.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddAccessTokenProvider(
             this IOpcUaClientBuilder builder,
             IAccessTokenProvider instance)
@@ -266,6 +271,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers an access-token provider factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddAccessTokenProvider(
             this IOpcUaClientBuilder builder,
             Func<IServiceProvider, IAccessTokenProvider> factory)
@@ -279,8 +285,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(factory));
             }
 
-            builder.Services.AddSingleton(sp => factory(sp) ?? throw new InvalidOperationException(
-                        "Access-token provider factory returned null."));
+            builder.Services.AddSingleton(sp => factory(sp) ??
+                throw new InvalidOperationException(
+                    "Access-token provider factory returned null."));
             return builder;
         }
 
@@ -647,7 +654,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     return manager;
                 }
 
-                ApplicationConfiguration? configuration = options.Configuration ?? throw new InvalidOperationException(
+                ApplicationConfiguration? configuration = options.Configuration ??
+                    throw new InvalidOperationException(
                         "OpcUaClientOptions.Configuration must be set before " +
                         "resolving ReverseConnectManager.");
 

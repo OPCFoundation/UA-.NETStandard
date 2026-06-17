@@ -434,9 +434,9 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
         private readonly AesGcm m_aesGcm;
         private readonly Stream m_inner;
         private readonly bool m_leaveOpen;
-        private byte[] m_readBuffer = Array.Empty<byte>();
+        private byte[] m_readBuffer = [];
         private int m_readBufferOffset;
-        private byte[] m_writeBuffer = Array.Empty<byte>();
+        private byte[] m_writeBuffer = [];
         private int m_writeCount;
     }
 }

@@ -727,10 +727,13 @@ When a fix lands, print:
   NOT findings. Never copy these to Assets/ or treat them as crashes.
 - **afl-fuzz `findings/<fuzzer>/README.txt`**: skip this file in the Phase 4
   glob; it's metadata, not an input.
-- **`FuzzCrashAssets` does not currently `Assert`** (it only logs caught
-  exceptions). The harness will not turn red just because a fix is missing.
-  That's why per-fix validation in Phase 6d is the strict gate, not just
-  `dotnet test`.
+- **`FuzzCrashAssets` now `Assert`s on failure** (since #3546 follow-up). Any
+  surviving exception thrown by a fuzz target while replaying an
+  `Assets/crash-*` input fails the test with the asset path + exception
+  details. The historical log-and-swallow behaviour was the reason that
+  regressions could slip past `dotnet test`; that gap is closed. Per-fix
+  validation in Phase 6d is still the strict per-asset gate, but the
+  harness now turns red whenever a residual asset reproduces.
 - **Duplicate findings across targets**: libFuzzer can hit the same root
   bug via different targets. Once a fix lands, multiple in-flight
   instances may converge on the same asset SHA in quick succession; the

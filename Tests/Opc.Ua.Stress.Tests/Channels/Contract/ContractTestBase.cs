@@ -37,8 +37,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Tests;
 
 // CA2000: contract-test disposables are transferred to the environment or released by cleanup paths.

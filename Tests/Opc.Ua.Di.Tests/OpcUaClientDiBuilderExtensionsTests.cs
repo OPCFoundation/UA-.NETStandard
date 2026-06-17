@@ -64,7 +64,7 @@ namespace Opc.Ua.Di.Tests
         public void AddOpcUaDiRegistersDiDiscoveryService()
         {
             ServiceProvider provider = BuildClientProvider();
-            var service = provider.GetService<IDiDiscoveryService>();
+            IDiDiscoveryService? service = provider.GetService<IDiDiscoveryService>();
 
             Assert.That(service, Is.Not.Null);
         }
@@ -73,7 +73,7 @@ namespace Opc.Ua.Di.Tests
         public void AddOpcUaDiRegistersDiDeviceClientFactory()
         {
             ServiceProvider provider = BuildClientProvider();
-            var factory = provider.GetService<
+            Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>? factory = provider.GetService<
                 Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>>();
 
             Assert.That(factory, Is.Not.Null);
@@ -83,7 +83,7 @@ namespace Opc.Ua.Di.Tests
         public void AddOpcUaDiRegistersDiLockClientFactory()
         {
             ServiceProvider provider = BuildClientProvider();
-            var factory = provider.GetService<
+            Func<NodeId, CancellationToken, ValueTask<DiLockClient>>? factory = provider.GetService<
                 Func<NodeId, CancellationToken, ValueTask<DiLockClient>>>();
 
             Assert.That(factory, Is.Not.Null);
@@ -93,7 +93,7 @@ namespace Opc.Ua.Di.Tests
         public void AddOpcUaDiRegistersDiTopologyClientFactory()
         {
             ServiceProvider provider = BuildClientProvider();
-            var factory = provider.GetService<
+            Func<CancellationToken, ValueTask<DiTopologyClient>>? factory = provider.GetService<
                 Func<CancellationToken, ValueTask<DiTopologyClient>>>();
 
             Assert.That(factory, Is.Not.Null);
@@ -103,7 +103,7 @@ namespace Opc.Ua.Di.Tests
         public void AddOpcUaDiRegistersSoftwareUpdateClientFactory()
         {
             ServiceProvider provider = BuildClientProvider();
-            var factory = provider.GetService<
+            Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>? factory = provider.GetService<
                 Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>>();
 
             Assert.That(factory, Is.Not.Null);

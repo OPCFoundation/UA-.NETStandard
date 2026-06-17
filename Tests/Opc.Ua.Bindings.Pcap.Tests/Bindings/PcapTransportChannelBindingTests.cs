@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Bindings

@@ -78,9 +78,7 @@ namespace Opc.Ua.Schema.Model
             if (dataType.IsOptionSet)
 
             {
-
                 return BasicDataType.Enumeration;
-
             }
             // check if it is a built in data type.
             if (dataType.IsBasicDataType(out BasicDataType basicDataType))
@@ -162,9 +160,7 @@ namespace Opc.Ua.Schema.Model
             if (instance is not VariableDesign variable)
 
             {
-
                 return GetNodeStateNameSimple(instance.TypeDefinitionNode);
-
             }
             var variableType = instance.TypeDefinitionNode as VariableTypeDesign;
 
@@ -312,9 +308,7 @@ namespace Opc.Ua.Schema.Model
             if (dtd.BasicDataType == BasicDataType.Structure)
 
             {
-
                 return "global::Opc.Ua.IEncodeable";
-
             }
             return dtd.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
         }
@@ -493,9 +487,7 @@ namespace Opc.Ua.Schema.Model
                     if (target.Identifier == field.Identifier)
 
                     {
-
                         return check;
-
                     }
                     names.Add(check);
                 }
@@ -550,9 +542,7 @@ namespace Opc.Ua.Schema.Model
             if (node is DataTypeDesign)
 
             {
-
                 return node.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
-
             }
             if (node is ObjectTypeDesign objectType &&
                 objectType.ClassName == "ObjectSource")
@@ -586,51 +576,37 @@ namespace Opc.Ua.Schema.Model
             if (node is VariableTypeDesign)
 
             {
-
                 return "VariableType";
-
             }
             if (node is ObjectDesign)
 
             {
-
                 return "Object";
-
             }
             if (node is ObjectTypeDesign)
 
             {
-
                 return "ObjectType";
-
             }
             if (node is ReferenceTypeDesign)
 
             {
-
                 return "ReferenceType";
-
             }
             if (node is DataTypeDesign)
 
             {
-
                 return "DataType";
-
             }
             if (node is MethodDesign)
 
             {
-
                 return "Method";
-
             }
             if (node is ViewDesign)
 
             {
-
                 return "View";
-
             }
             return "Node";
         }
@@ -1326,9 +1302,7 @@ namespace Opc.Ua.Schema.Model
             if (typeName is "global::Opc.Ua.IEncodeable" or "global::Opc.Ua.IEncodeable?")
 
             {
-
                 typeName = "global::Opc.Ua.ExtensionObject";
-
             }
             if (typeName is "object" or "object?")
             {
@@ -1586,9 +1560,7 @@ namespace Opc.Ua.Schema.Model
                     if (index != -1)
 
                     {
-
                         relativePath = relativePath[(index + 1)..];
-
                     }
                     if (parent.Hierarchy.Nodes.TryGetValue(relativePath,
                         out HierarchyNode hierarchyNode) &&
@@ -1623,9 +1595,7 @@ namespace Opc.Ua.Schema.Model
             if (namespaceUris is null)
 
             {
-
                 throw new ArgumentNullException(nameof(namespaceUris));
-
             }
             int index = namespaceUris.IndexOf(qname.Namespace);
 
@@ -2037,9 +2007,7 @@ namespace Opc.Ua.Schema.Model
             if (node is not MethodDesign)
 
             {
-
                 return false;
-
             }
             string symbol = node.SymbolicId.Name;
 
@@ -2048,9 +2016,7 @@ namespace Opc.Ua.Schema.Model
             if (index > 0)
 
             {
-
                 symbol = symbol[..index];
-
             }
             return symbol.EndsWith("MethodType", StringComparison.Ordinal);
         }
@@ -2180,9 +2146,7 @@ namespace Opc.Ua.Schema.Model
             if (tokens.Count == 0)
 
             {
-
                 return null;
-
             }
             return CoreUtils.Format(
                 "new uint[] {{ {0} }}",

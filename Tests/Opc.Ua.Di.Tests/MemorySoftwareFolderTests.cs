@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.SoftwareUpdate;
@@ -48,7 +47,7 @@ namespace Opc.Ua.Di.Tests
     [Category("SoftwareUpdate")]
     public sealed class MemorySoftwareFolderTests
     {
-        private static NodeId ElementId => new NodeId("Device", 2);
+        private static NodeId ElementId => new("Device", 2);
 
         private static SoftwarePackage MakePackage(string version, string description = "")
         {

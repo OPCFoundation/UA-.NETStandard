@@ -604,7 +604,7 @@ queueSize: 1, discardOldest: true))
                 items.ToArray().ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            var results = createResp.Results!;
+            ArrayOf<MonitoredItemCreateResult> results = createResp.Results!;
             Assert.That(results.Count, Is.EqualTo(50));
             int goodCount = results.ToArray()!
                 .Count(r => StatusCode.IsGood(r.StatusCode));
@@ -865,7 +865,7 @@ queueSize: 1, discardOldest: true))
                 items.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            var results = createResp.Results!;
+            ArrayOf<MonitoredItemCreateResult> results = createResp.Results!;
             uint triggerId = results[0].MonitoredItemId;
             uint[] linkedIds = [.. results.ToArray()!
                 .Skip(1).Select(r => r.MonitoredItemId)];
@@ -1044,7 +1044,7 @@ queueSize: 1, discardOldest: true))
                 items.ToArray().ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            var results = createResp.Results!;
+            ArrayOf<MonitoredItemCreateResult> results = createResp.Results!;
             uint[] monIds = [.. results.ToArray()!
                 .Where(r => StatusCode.IsGood(r.StatusCode))
                 .Select(r => r.MonitoredItemId)];
@@ -1114,7 +1114,7 @@ queueSize: 1, discardOldest: true))
                 items.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            var results = createResp.Results!;
+            ArrayOf<MonitoredItemCreateResult> results = createResp.Results!;
             uint[] monIds = [.. results.ToArray()!.Select(r => r.MonitoredItemId)];
 
             // Disable all

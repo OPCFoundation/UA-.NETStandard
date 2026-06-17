@@ -52,7 +52,7 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
 
 #pragma warning disable CS0618 // CertificateIdentifier.Certificate is an intentional shim call.
             NotSupportedException ex = Assert.Throws<NotSupportedException>(
-                () => { _ = id.Certificate; })!;
+                () => _ = id.Certificate)!;
 #pragma warning restore CS0618
 
             Assert.That(ex.Message, Does.Contain("CertificateIdentifierResolver.ResolveAsync"));

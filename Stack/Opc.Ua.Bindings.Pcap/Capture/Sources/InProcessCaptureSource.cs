@@ -35,7 +35,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.Pcap.Bindings;
 using Opc.Ua.Bindings.Pcap.Frame;
 using Opc.Ua.Bindings.Pcap.KeyLog;
@@ -99,11 +98,11 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
     /// <remarks>
     /// <para>
     /// Captured frames and key-material snapshots are forwarded through a
-    /// bounded <see cref="System.Threading.Channels.Channel{T}"/> to a
+    /// bounded <see cref="Channel{T}"/> to a
     /// single background writer task so the
     /// <see cref="IFrameCaptureSink"/> hot path (which runs inside the
     /// channel's send / receive callback) never blocks on I/O. Overflow
-    /// uses <see cref="System.Threading.Channels.BoundedChannelFullMode.DropOldest"/>
+    /// uses <see cref="BoundedChannelFullMode.DropOldest"/>
     /// so the source degrades gracefully under sustained load.
     /// </para>
     /// </remarks>

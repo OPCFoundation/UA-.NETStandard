@@ -317,6 +317,7 @@ namespace Opc.Ua.Server
         /// <param name="enable">
         /// <c>true</c> to opt in (default); <c>false</c> to opt out.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         protected void AllowMultipleEventConsumers(NodeId nodeId, bool enable = true)
         {
             if (nodeId.IsNull)
@@ -947,7 +948,6 @@ namespace Opc.Ua.Server
                     }
                     return variable;
                 }
-
                 case NodeClass.Object:
                 {
                     var instance = new BaseObjectState(null)
@@ -966,7 +966,6 @@ namespace Opc.Ua.Server
                     }
                     return instance;
                 }
-
                 default:
                     throw new ServiceResultException(StatusCodes.BadNodeClassInvalid);
             }

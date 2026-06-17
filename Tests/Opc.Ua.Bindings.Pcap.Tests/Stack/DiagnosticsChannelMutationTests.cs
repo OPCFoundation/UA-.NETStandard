@@ -30,7 +30,6 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Pcap.Tests.Stack
 {
@@ -70,8 +69,8 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Stack
                     nameof(IDiagnosticsChannelMutation.LoadTokensForOfflineDecode)) ??
                     throw new AssertionException("Could not find diagnostics mutation method.");
 
-                var exception = Assert.Throws<TargetInvocationException>(
-                    () => loadMethod.Invoke(channel, new object?[] { current, previous }));
+                TargetInvocationException? exception = Assert.Throws<TargetInvocationException>(
+                    () => loadMethod.Invoke(channel, [current, previous]));
 
                 Assert.That(exception, Is.Not.Null);
                 Assert.That(exception!.InnerException, Is.TypeOf<InvalidOperationException>());

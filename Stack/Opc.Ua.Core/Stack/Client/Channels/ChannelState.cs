@@ -58,7 +58,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// The underlying transport is connected; attached participants
-        /// (e.g. <see cref="Opc.Ua.IReconnectParticipant"/> sessions) are
+        /// (e.g. <see cref="IReconnectParticipant"/> sessions) are
         /// running their reactivation work. Service calls from outside
         /// the participant reactivation context block on the gate; the
         /// manager bypasses the gate internally so that participants can

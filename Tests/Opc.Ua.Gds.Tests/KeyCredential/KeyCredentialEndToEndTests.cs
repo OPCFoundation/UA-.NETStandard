@@ -84,7 +84,7 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
                             ["sub"] = "urn:test:client",
                             ["roles"] = s_roles
                         },
-                        new[] { securityPolicyUri }),
+                        [securityPolicyUri]),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 

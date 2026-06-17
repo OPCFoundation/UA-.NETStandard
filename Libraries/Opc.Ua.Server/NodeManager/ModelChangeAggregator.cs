@@ -55,6 +55,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <summary>
         /// Adds a model change to the pending batch.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="change"/> is <c>null</c>.</exception>
         public void Add(ModelChangeStructureDataType change)
         {
             if (change == null)
@@ -70,6 +71,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <summary>
         /// Records the addition of a node.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RecordNodeAdded(NodeId affected, NodeId? typeDefinition)
         {
             if (affected.IsNull)
@@ -87,6 +89,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <summary>
         /// Records the deletion of a node.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RecordNodeDeleted(NodeId affected, NodeId? typeDefinition)
         {
             if (affected.IsNull)
@@ -104,6 +107,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <summary>
         /// Records the addition of a reference.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RecordReferenceAdded(NodeId affected, NodeId? typeDefinition = null)
         {
             if (affected.IsNull)
@@ -121,6 +125,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <summary>
         /// Records the deletion of a reference.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RecordReferenceDeleted(NodeId affected, NodeId? typeDefinition = null)
         {
             if (affected.IsNull)
@@ -138,6 +143,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <summary>
         /// Records a DataType change on a variable.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RecordDataTypeChanged(NodeId affected, NodeId? typeDefinition = null)
         {
             if (affected.IsNull)
@@ -198,25 +204,30 @@ namespace Opc.Ua.Server.NodeManager
         /// No change.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// A new node was added.
         /// </summary>
         NodeAdded = 1,
+
         /// <summary>
         /// An existing node was deleted.
         /// </summary>
         NodeDeleted = 2,
+
         /// <summary>
         /// A reference was added.
         /// </summary>
         ReferenceAdded = 4,
+
         /// <summary>
         /// A reference was deleted.
         /// </summary>
         ReferenceDeleted = 8,
+
         /// <summary>
         /// The DataType attribute changed.
         /// </summary>
-        DataTypeChanged = 16,
+        DataTypeChanged = 16
     }
 }

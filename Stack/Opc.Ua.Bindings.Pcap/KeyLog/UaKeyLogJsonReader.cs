@@ -155,11 +155,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
 
                     KeyLogRecord? record = JsonSerializer.Deserialize(
                         line,
-                        UaKeyLogJsonContext.Default.KeyLogRecord);
-                    if (record is null)
-                    {
-                        throw new PcapDiagnosticsException("Invalid OPC UA JSON key-log record.");
-                    }
+                        UaKeyLogJsonContext.Default.KeyLogRecord) ?? throw new PcapDiagnosticsException("Invalid OPC UA JSON key-log record.");
                     yield return record.ToMaterial();
                 }
             }

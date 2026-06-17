@@ -2611,7 +2611,7 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             await Task.Delay(initialDelayMs).ConfigureAwait(false);
             var collected = new HashSet<uint>();
-            var deadline = Environment.TickCount + timeoutMs;
+            int deadline = Environment.TickCount + timeoutMs;
             while (Environment.TickCount < deadline)
             {
                 PublishResponse pub;

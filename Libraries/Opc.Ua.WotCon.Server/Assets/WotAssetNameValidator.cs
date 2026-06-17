@@ -245,10 +245,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             return false;
 
-            static bool Equals(string value, string reserved)
-            {
-                return string.Equals(value, reserved, StringComparison.OrdinalIgnoreCase);
-            }
+            static bool Equals(string value, string reserved) => string.Equals(value, reserved, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

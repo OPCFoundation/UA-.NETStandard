@@ -145,9 +145,9 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
     services.AddOpcUaBindingsPcapReplay();
 }
 
-static Opc.Ua.Mcp.McpServerOptions CreateMcpServerOptions()
+static McpServerOptions CreateMcpServerOptions()
 {
-    return new Opc.Ua.Mcp.McpServerOptions
+    return new McpServerOptions
     {
         NodeSetExportRoot = Environment.GetEnvironmentVariable("OPCUA_MCP_NODESET_EXPORT_ROOT"),
         PcapBaseFolder = Environment.GetEnvironmentVariable("OPCUA_MCP_PCAP_BASE_FOLDER")

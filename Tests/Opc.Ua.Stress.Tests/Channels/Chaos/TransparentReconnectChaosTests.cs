@@ -40,10 +40,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Stress.Tests.Channels.Integration;
-using Opc.Ua.Client;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Stress.Tests.Channels.Chaos
@@ -250,7 +250,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                     targetOpsPerSecond: 200);
 
                 await using ConfiguredAsyncDisposable runnerAsyncDisposable = runner.ConfigureAwait(false);
-                using CancellationTokenSource snapshotCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                using var snapshotCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 Task snapshotTask = TrackRefcountAsync(
                     manager,
                     key,

@@ -30,7 +30,6 @@
 using System;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Locking;
 
 namespace Opc.Ua.Di.Tests
@@ -104,13 +103,13 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesInitLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.InitLock(ctx, s_elementId, "tag")).Returns(42);
 
             var lockState = new LockingServicesState(parent: null)
             {
-                InitLock = new InitLockMethodState(parent: null),
+                InitLock = new InitLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -127,13 +126,13 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesRenewLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.RenewLock(ctx, s_elementId)).Returns(7);
 
             var lockState = new LockingServicesState(parent: null)
             {
-                RenewLock = new RenewLockMethodState(parent: null),
+                RenewLock = new RenewLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -150,13 +149,13 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesExitLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.ExitLock(ctx, s_elementId)).Returns(13);
 
             var lockState = new LockingServicesState(parent: null)
             {
-                ExitLock = new ExitLockMethodState(parent: null),
+                ExitLock = new ExitLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -173,13 +172,13 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesBreakLockToService()
         {
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.BreakLock(ctx, s_elementId)).Returns(99);
 
             var lockState = new LockingServicesState(parent: null)
             {
-                BreakLock = new BreakLockMethodState(parent: null),
+                BreakLock = new BreakLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);
@@ -199,7 +198,7 @@ namespace Opc.Ua.Di.Tests
             // Mixed scenario: only InitLock + ExitLock are attached.
             // The other two must remain null after binding (i.e. no
             // method-state is fabricated by BindToLockService).
-            var ctx = Mock.Of<ISystemContext>();
+            ISystemContext ctx = Mock.Of<ISystemContext>();
             var service = new Mock<ILockService>();
             service.Setup(s => s.InitLock(It.IsAny<ISystemContext>(),
                 It.IsAny<NodeId>(), It.IsAny<string>())).Returns(1);
@@ -209,7 +208,7 @@ namespace Opc.Ua.Di.Tests
             var lockState = new LockingServicesState(parent: null)
             {
                 InitLock = new InitLockMethodState(parent: null),
-                ExitLock = new ExitLockMethodState(parent: null),
+                ExitLock = new ExitLockMethodState(parent: null)
             };
 
             lockState.BindToLockService(s_elementId, service.Object);

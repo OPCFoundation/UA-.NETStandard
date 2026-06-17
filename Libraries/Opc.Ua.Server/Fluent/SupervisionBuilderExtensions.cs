@@ -62,6 +62,7 @@ namespace Opc.Ua.Server.Fluent
         /// transitions from <see langword="false"/> to
         /// <see langword="true"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IVariableBuilder<bool> OnRisingEdge(
             this IVariableBuilder<bool> builder,
             Action<ISystemContext> handler)
@@ -84,6 +85,7 @@ namespace Opc.Ua.Server.Fluent
         /// transitions from <see langword="true"/> to
         /// <see langword="false"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IVariableBuilder<bool> OnFallingEdge(
             this IVariableBuilder<bool> builder,
             Action<ISystemContext> handler)
@@ -116,6 +118,8 @@ namespace Opc.Ua.Server.Fluent
         /// An alarm previously created via the G2 builders
         /// (<see cref="AlarmBuilderExtensions"/>) or hand-rolled.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static IVariableBuilder<bool> ActivatesAlarm<TAlarm>(
             this IVariableBuilder<bool> builder,
             IAlarmBuilder<TAlarm> alarm)
@@ -225,9 +229,7 @@ namespace Opc.Ua.Server.Fluent
                 if (current && !previous)
 
                 {
-
                     RisingEdge?.Invoke(context);
-
                 }
                 else if (!current && previous)
                 {

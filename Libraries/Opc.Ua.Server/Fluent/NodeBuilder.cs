@@ -330,7 +330,8 @@ namespace Opc.Ua.Server.Fluent
             for (int i = 0; i < siblings.Count; i++)
             {
                 BaseInstanceState sibling = siblings[i];
-                if (sibling.BrowseName.IsNull || !string.Equals(
+                if (sibling.BrowseName.IsNull ||
+                    !string.Equals(
                         sibling.BrowseName.Name, browseName.Name,
                         StringComparison.Ordinal))
                 {

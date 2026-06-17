@@ -237,7 +237,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public void ChannelStateChangedForwardsManagedChannelTransitions()
         {
-            SessionMock innerSession = SessionMock.Create();
+            var innerSession = SessionMock.Create();
             innerSession.SetConnected();
             Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
                 out Action<ChannelStateChange> raiseStateChanged);
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public void ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
         {
-            SessionMock innerSession = SessionMock.Create();
+            var innerSession = SessionMock.Create();
             innerSession.SetConnected();
             Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
                 out Action<ChannelStateChange> raiseStateChanged);

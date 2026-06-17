@@ -480,7 +480,7 @@ namespace Opc.Ua.SourceGeneration
             bool isShadow = (m_inheritedObjectChildNames != null &&
                 m_inheritedObjectChildNames.Contains(emittedName)) ||
                 (m_inheritedMethodNames != null &&
-                m_inheritedMethodNames.Contains(emittedName));
+                    m_inheritedMethodNames.Contains(emittedName));
 
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
@@ -505,7 +505,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return s;
             }
-            return char.ToLowerInvariant(s[0]) + s.Substring(1);
+            return char.ToLowerInvariant(s[0]) + s[1..];
         }
 
         /// <summary>

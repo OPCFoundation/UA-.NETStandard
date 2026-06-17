@@ -281,9 +281,7 @@ namespace Opc.Ua.SourceGeneration
             if (match == null)
 
             {
-
                 return effective;
-
             }
             // Detect ambiguity: multiple designs but binding has no selector.
             if (totalDesigns > 1 &&
@@ -358,7 +356,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> referencedDependencies = null)
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -638,8 +636,8 @@ namespace Opc.Ua.SourceGeneration
             // GenerateNodeManager=true we ALWAYS emit (any consumer
             // that wires a node manager already references
             // Opc.Ua.Server, so suppression is unnecessary).
-            bool emitTypedAccessors = designOptions?.GenerateNodeManager == true
-                || context.Options?.OmitFluentApi != true;
+            bool emitTypedAccessors = designOptions?.GenerateNodeManager == true ||
+                context.Options?.OmitFluentApi != true;
             if (emitTypedAccessors)
             {
                 new FluentBuilderGenerator(context)

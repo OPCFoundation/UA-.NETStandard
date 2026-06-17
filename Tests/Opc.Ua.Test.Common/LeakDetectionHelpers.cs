@@ -79,6 +79,7 @@ namespace Opc.Ua.Tests
         /// <returns><c>true</c> if all cycles completed within the
         /// budget; <c>false</c> if at least one finalizer blocked long
         /// enough to exceed it.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static bool TryRunFinalizerSweep(
             TimeSpan? timeout = null,
             int cycles = 5)

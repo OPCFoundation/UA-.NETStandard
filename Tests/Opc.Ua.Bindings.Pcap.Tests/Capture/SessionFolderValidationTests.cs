@@ -103,7 +103,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
             string expectedFolder = Path.Combine(Path.GetFullPath(TempDirectory), "my-session-folder");
             Assert.That(session.SessionFolder, Is.EqualTo(expectedFolder));
             Assert.That(session.Request.SessionFolder, Is.EqualTo(expectedFolder));
-            Assert.That(factory.SessionFolders, Is.EqualTo(new[] { expectedFolder }));
+            Assert.That(factory.SessionFolders, Is.EqualTo([expectedFolder]));
             Assert.That(Directory.Exists(expectedFolder), Is.True);
         }
 
@@ -125,7 +125,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
             string expectedFolder = Path.GetFullPath(requestedFolder);
             Assert.That(session.SessionFolder, Is.EqualTo(expectedFolder));
             Assert.That(session.Request.SessionFolder, Is.EqualTo(expectedFolder));
-            Assert.That(factory.SessionFolders, Is.EqualTo(new[] { expectedFolder }));
+            Assert.That(factory.SessionFolders, Is.EqualTo([expectedFolder]));
             Assert.That(Directory.Exists(expectedFolder), Is.True);
         }
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
             string expectedEmptyFolder = Path.Combine(fullBaseFolder, emptySessionFolder.Id);
             Assert.That(nullSessionFolder.SessionFolder, Is.EqualTo(expectedNullFolder));
             Assert.That(emptySessionFolder.SessionFolder, Is.EqualTo(expectedEmptyFolder));
-            Assert.That(factory.SessionFolders, Is.EqualTo(new[] { expectedNullFolder, expectedEmptyFolder }));
+            Assert.That(factory.SessionFolders, Is.EqualTo([expectedNullFolder, expectedEmptyFolder]));
         }
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Capture
 
         private sealed class RecordingSourceFactory : ICaptureSourceFactory
         {
-            public List<string> SessionFolders { get; } = new();
+            public List<string> SessionFolders { get; } = [];
 
             public ICaptureSource Create(
                 CaptureSourceKind kind,

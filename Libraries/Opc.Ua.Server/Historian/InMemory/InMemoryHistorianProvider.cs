@@ -115,6 +115,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// reports <c>true</c> from <see cref="IsHistorizingAsync"/> for
         /// the node before any value is inserted.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public void Register(NodeId nodeId, HistorianNodeCapabilities? capabilities = null)
         {
             if (nodeId.IsNull)
@@ -133,6 +134,8 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// Overrides the capability set advertised for a node. Subsequent
         /// reads of <see cref="GetCapabilitiesAsync"/> return this set.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="capabilities"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void SetCapabilities(NodeId nodeId, HistorianNodeCapabilities capabilities)
         {
             if (capabilities == null)

@@ -56,7 +56,7 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Formats
         public async Task FormatAsyncReturnsRawPcapBytesFromSourceFile()
         {
             string pcapPath = CreateTempPath("source.pcap");
-            byte[] payload = { 0xDE, 0xAD, 0xBE, 0xEF };
+            byte[] payload = [0xDE, 0xAD, 0xBE, 0xEF];
             var writer = new PcapFileWriter(pcapPath, PcapFileWriter.LinkTypeNull);
             try
             {

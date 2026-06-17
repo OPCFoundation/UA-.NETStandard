@@ -69,9 +69,9 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool Equals(EventPermissionCacheKey other)
         {
-            return MonitoredItemId == other.MonitoredItemId
-                && EventTypeId.Equals(other.EventTypeId)
-                && SourceNodeId.Equals(other.SourceNodeId);
+            return MonitoredItemId == other.MonitoredItemId &&
+                EventTypeId.Equals(other.EventTypeId) &&
+                SourceNodeId.Equals(other.SourceNodeId);
         }
 
         /// <inheritdoc/>

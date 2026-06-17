@@ -103,6 +103,8 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="NodeState.BrowseName"/> equals <paramref name="browseName"/>
         /// (qualified by namespace index).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder,
             QualifiedName browseName,
@@ -327,16 +329,12 @@ namespace Opc.Ua.Server.Fluent
             if (variable != null)
 
             {
-
                 return variable;
-
             }
             if (mismatchKind != null)
 
             {
-
                 throw NotVariable(browseName, parent.BrowseName, mismatchKind);
-
             }
             throw NotFound(browseName, parent.BrowseName);
         }
@@ -362,4 +360,3 @@ namespace Opc.Ua.Server.Fluent
         }
     }
 }
-

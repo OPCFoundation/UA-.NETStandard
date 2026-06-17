@@ -57,6 +57,7 @@ namespace Opc.Ua.PubSub
         private readonly List<IUaPubSubConnection> m_uaPubSubConnections;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
         /// </summary>

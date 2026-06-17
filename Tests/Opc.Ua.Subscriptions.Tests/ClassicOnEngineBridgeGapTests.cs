@@ -31,15 +31,11 @@
 
 #pragma warning disable CA2016
 
-
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
@@ -133,8 +129,12 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 session.Dispose();
             }
         }
@@ -218,8 +218,12 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 session.Dispose();
             }
         }

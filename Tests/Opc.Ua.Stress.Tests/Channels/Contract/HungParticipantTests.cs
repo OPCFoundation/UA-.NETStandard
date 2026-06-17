@@ -62,7 +62,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         public async Task HungParticipantTimesOutAndOtherParticipantsRecoverAsync(
             CancellationToken ct)
         {
-            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
+            var participantTimeout = TimeSpan.FromMilliseconds(200);
             using Certificate applicationCertificate = CreateCertificate("hung-participant-timeout");
             ContractTestEnvironment environment = CreateEnvironment(
                 applicationCertificate,
@@ -87,7 +87,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 .ConfigureAwait(false);
             Assert.That(ch2.Key, Is.EqualTo(ch1.Key));
 
-            Stopwatch sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             await environment.Manager.ReconnectAsync(ch1, ct).ConfigureAwait(false);
             sw.Stop();
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         [Description("A single hung participant transitions out of reactivation after the bounded timeout.")]
         public async Task HungParticipantTimesOutAfterBoundedWaitAsync(CancellationToken ct)
         {
-            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
+            var participantTimeout = TimeSpan.FromMilliseconds(200);
             using Certificate applicationCertificate = CreateCertificate("hung-participant-bounded-wait");
             ContractTestEnvironment environment = CreateEnvironment(
                 applicationCertificate,
@@ -132,7 +132,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             IManagedTransportChannel channel = await environment.Manager.GetAsync(participant, ct)
                 .ConfigureAwait(false);
 
-            Stopwatch sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             Task reconnectTask = environment.Manager.ReconnectAsync(channel, ct).AsTask();
             await participantEntered.Task.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
             await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         [Description("Participant timeout does not produce false positives for callbacks that complete in time.")]
         public async Task BoundedParticipantTimeoutHonorsTimeoutAsync(CancellationToken ct)
         {
-            TimeSpan participantTimeout = TimeSpan.FromSeconds(5);
+            var participantTimeout = TimeSpan.FromSeconds(5);
             using Certificate applicationCertificate = CreateCertificate("participant-timeout-positive");
             ContractTestEnvironment environment = CreateEnvironment(
                 applicationCertificate,
@@ -170,7 +170,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             IManagedTransportChannel channel = await environment.Manager.GetAsync(participant, ct)
                 .ConfigureAwait(false);
 
-            Stopwatch sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             await environment.Manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
             sw.Stop();
 
@@ -208,7 +208,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             await WaitForHungReconnectAsync(environment.Manager, chA.Key, hungParticipant, ct)
                 .ConfigureAwait(false);
 
-            Stopwatch sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             await environment.Manager.ReconnectAsync(chB, ct).ConfigureAwait(false);
             sw.Stop();
 

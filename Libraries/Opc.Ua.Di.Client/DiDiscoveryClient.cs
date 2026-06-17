@@ -55,6 +55,7 @@ namespace Opc.Ua.Di.Client
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>An asynchronous stream of discovered device entries.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IAsyncEnumerable<DeviceEntry> EnumerateDevicesAsync(
             ISession session,
             ITelemetryContext telemetry,

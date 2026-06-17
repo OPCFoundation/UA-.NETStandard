@@ -365,20 +365,6 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                 throw new InvalidOperationException("ManagedSession.InnerSession did not return a Session.");
         }
 
-        private static bool HasConnectionState(
-            ManagedSessionType session,
-            ConnectionState expected)
-        {
-            return expected switch
-            {
-                ConnectionState.Connected => session.Connected && !session.Reconnecting,
-                ConnectionState.Reconnecting => session.Reconnecting,
-                ConnectionState.Failover => session.Reconnecting,
-                ConnectionState.Closed => !session.Connected && !session.Reconnecting,
-                _ => false
-            };
-        }
-
         private static async Task<bool> WaitForCompletionAsync(
             Task task,
             TimeSpan timeout,
