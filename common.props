@@ -55,8 +55,9 @@
       command-line tool package). Per-package READMEs are wired in each
       csproj via <PackageReadmeFile> + a matching <None Include=...
       Pack="true">. A generic shared README at this `common.props`
-      level was deliberately removed in #3880 because it was misleading
-      on nuget.org (every package described itself identically).
+      level was deliberately removed in favor of per-package READMEs
+      because it was misleading on nuget.org (every package described
+      itself identically).
     -->
     <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
   </PropertyGroup>

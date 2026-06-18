@@ -5,7 +5,7 @@ server library. It contains `StandardServer`, the
 `MasterNodeManager`, the core `NodeManager` / `INodeManager` surface,
 the session manager, the subscription manager (including durable
 subscriptions), the audit infrastructure, the request queue, and the
-fluent `services.AddOpcUaServer()` DI surface.
+fluent `builder.AddServer(...)` DI surface.
 
 ## Overview
 
@@ -33,10 +33,11 @@ public sealed class MyServer : StandardServer
 ```
 
 Then start the server via `ApplicationInstance.StartAsync` (in the
-`OPCFoundation.NetStandard.Opc.Ua.Configuration` package) and pin the
-transport bindings via the DI extensions on
-`OPCFoundation.NetStandard.Opc.Ua.Core` (`AddOpcTcpTransport()`,
-`AddHttpsTransport()`, `AddWssTransport()`, …).
+`OPCFoundation.NetStandard.Opc.Ua.Configuration` package), or host it
+through the fluent `services.AddOpcUa().AddServer(...)` DI surface. The
+raw-socket `opc.tcp://` binding is built in; reference the
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package to additionally
+expose an `https://` endpoint.
 
 ## Target frameworks
 

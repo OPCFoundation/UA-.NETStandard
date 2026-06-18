@@ -49,5 +49,7 @@ await application.StartAsync(new MyServer(telemetry)).ConfigureAwait(false);
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Configuration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Configuration.md)
-for the full builder surface and configuration file schema.
+and the [Dependency Injection guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/DependencyInjection.md)
+for the application builder surface, and the
+[Docs folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Docs)
+for the configuration file schema and certificate management.
