@@ -805,7 +805,7 @@ namespace Opc.Ua.Server.Tests
             string grantedRoleCriteria = ObjectIds.WellKnownRole_AuthenticatedUser.ToString();
             var identity = new ClaimsTestIdentity(
                 tokenType: UserTokenType.UserName,
-                roles: new[] { "Operator" });
+                roles: ["Operator"]);
 
             using var manager = new RoleManager();
             Assert.That(ServiceResult.IsGood(

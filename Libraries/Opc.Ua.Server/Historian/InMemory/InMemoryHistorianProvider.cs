@@ -80,19 +80,25 @@ namespace Opc.Ua.Server.Historian.InMemory
         IHistorianEventProvider,
         IDisposable
     {
-        /// <summary>Creates a provider with default options.</summary>
+        /// <summary>
+        /// Creates a provider with default options.
+        /// </summary>
         public InMemoryHistorianProvider()
             : this(new InMemoryHistorianOptions())
         {
         }
 
-        /// <summary>Creates a provider with the supplied options.</summary>
+        /// <summary>
+        /// Creates a provider with the supplied options.
+        /// </summary>
         public InMemoryHistorianProvider(InMemoryHistorianOptions options)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        /// <summary>Disposes the provider, clearing all archived data.</summary>
+        /// <summary>
+        /// Disposes the provider, clearing all archived data.
+        /// </summary>
         public void Dispose()
         {
             lock (m_lock)
@@ -109,6 +115,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// reports <c>true</c> from <see cref="IsHistorizingAsync"/> for
         /// the node before any value is inserted.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public void Register(NodeId nodeId, HistorianNodeCapabilities? capabilities = null)
         {
             if (nodeId.IsNull)
@@ -127,6 +134,8 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// Overrides the capability set advertised for a node. Subsequent
         /// reads of <see cref="GetCapabilitiesAsync"/> return this set.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="capabilities"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void SetCapabilities(NodeId nodeId, HistorianNodeCapabilities capabilities)
         {
             if (capabilities == null)
@@ -368,8 +377,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
                 else
                 {
-                    List<DateTime> toRemove = [.. archive.Raw.Keys.Where(k => k >= start && k < end)];
-                    foreach (DateTime key in toRemove)
+                    foreach (DateTime key in (List<DateTime>)[.. archive.Raw.Keys.Where(k => k >= start && k < end)])
                     {
                         DataValue prior = archive.Raw[key];
                         archive.Raw.Remove(key);

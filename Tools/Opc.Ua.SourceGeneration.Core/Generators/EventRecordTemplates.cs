@@ -151,9 +151,11 @@ namespace Opc.Ua.SourceGeneration
                     /// is used.</param>
                     public static global::Opc.Ua.EventFilter Build(
                         global::Opc.Ua.EventRecordDecoderRegistry? registry = null)
-                        => global::Opc.Ua.EventFilterFactory.Create(
+                        {
+                        return global::Opc.Ua.EventFilterFactory.Create(
                             global::Opc.Ua.ObjectTypeIds.{{Tokens.SymbolicName}},
                             registry);
+                        }
                 }
             }
 
@@ -165,7 +167,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString FieldProperty = TemplateString.Parse(
             $$"""
 
-            /// <summary>{{Tokens.Description}}</summary>
+            /// <summary>
+            /// {{Tokens.Description}}
+            /// </summary>
             public {{Tokens.DataType}} {{Tokens.PropertyName}} { get; init; }
             """);
 

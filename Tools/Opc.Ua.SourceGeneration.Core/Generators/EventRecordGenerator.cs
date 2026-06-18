@@ -75,7 +75,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string outputNamespace = GetOutputNamespace();
             // Use the namespace Name (identifier-safe) rather than
             // Prefix (which may contain dots like "Opc.Ua") for the
@@ -108,15 +107,14 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(
                 Tokens.ListOfActivatorRegistrations,
                 EventRecordTemplates.RegistrationExtension,
-                new[]
-                {
+                [
                     new RegistrationContext
                     {
                         Types = types,
                         ClassName = registrationClassName,
                         MethodName = registrationMethodName
                     }
-                },
+                ],
                 WriteTemplate_RegistrationExtension);
 
             template.Render();
@@ -182,7 +180,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             string typeName = objectType.SymbolicName.Name;
             string className = CoreUtils.Format("{0}Record", typeName);
             string baseClassName = ResolveBaseRecordName(objectType);
@@ -310,7 +307,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.PropertyName, field.PropertyName);
             context.Template.AddReplacement(Tokens.DataType, field.DotNetType);
             context.Template.AddReplacement(
@@ -358,7 +354,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            var seen = new HashSet<string>(System.StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
             var fields = new List<FieldEntry>();
             foreach (ObjectTypeDesign level in chain)
             {
@@ -387,7 +383,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return fields;
             }
-
             foreach (InstanceDesign child in children)
             {
                 if (m_context.ModelDesign.IsExcluded(child))
@@ -396,10 +391,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (child is MethodDesign)
+
                 {
                     continue;
                 }
-
                 string browseName = child.SymbolicName?.Name;
                 if (string.IsNullOrEmpty(browseName))
                 {
@@ -517,7 +512,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return "global::Opc.Ua.Variant";
             }
-
             string baseType = MapScalarDataType(dataType);
             if (rank == ValueRank.Array)
             {
@@ -530,42 +524,65 @@ namespace Opc.Ua.SourceGeneration
         {
             if (typeName != null && typeName.EndsWith('?'))
             {
-                return typeName.Substring(0, typeName.Length - 1);
+                return typeName[..^1];
             }
             return typeName;
         }
 
         private static string MapScalarDataType(DataTypeDesign dataType)
         {
-            string id = dataType.SymbolicId?.Name;
-            switch (id)
+            switch (dataType.SymbolicId?.Name)
             {
-                case "Boolean": return "bool?";
-                case "SByte": return "sbyte?";
-                case "Byte": return "byte?";
-                case "Int16": return "short?";
-                case "UInt16": return "ushort?";
-                case "Int32": return "int?";
-                case "UInt32": return "uint?";
-                case "Int64": return "long?";
-                case "UInt64": return "ulong?";
-                case "Float": return "float?";
-                case "Double": return "double?";
-                case "String": return "string?";
-                case "DateTime": return "global::System.DateTime?";
-                case "UtcTime": return "global::System.DateTime?";
-                case "Guid": return "global::System.Guid?";
-                case "Duration": return "double?";
+                case "Boolean":
+                    return "bool?";
+                case "SByte":
+                    return "sbyte?";
+                case "Byte":
+                    return "byte?";
+                case "Int16":
+                    return "short?";
+                case "UInt16":
+                    return "ushort?";
+                case "Int32":
+                    return "int?";
+                case "UInt32":
+                    return "uint?";
+                case "Int64":
+                    return "long?";
+                case "UInt64":
+                    return "ulong?";
+                case "Float":
+                    return "float?";
+                case "Double":
+                    return "double?";
+                case "String":
+                    return "string?";
+                case "DateTime":
+                    return "global::System.DateTime?";
+                case "UtcTime":
+                    return "global::System.DateTime?";
+                case "Guid":
+                    return "global::System.Guid?";
+                case "Duration":
+                    return "double?";
                 // BuiltIn types that implement INullable — use the
                 // type's own .IsNull instead of wrapping in Nullable<T>.
-                case "ByteString": return "global::Opc.Ua.ByteString";
-                case "XmlElement": return "global::System.Xml.XmlElement";
-                case "NodeId": return "global::Opc.Ua.NodeId";
-                case "ExpandedNodeId": return "global::Opc.Ua.ExpandedNodeId";
-                case "QualifiedName": return "global::Opc.Ua.QualifiedName";
-                case "LocalizedText": return "global::Opc.Ua.LocalizedText";
-                case "StatusCode": return "global::Opc.Ua.StatusCode";
-                default: return "global::Opc.Ua.Variant";
+                case "ByteString":
+                    return "global::Opc.Ua.ByteString";
+                case "XmlElement":
+                    return "global::System.Xml.XmlElement";
+                case "NodeId":
+                    return "global::Opc.Ua.NodeId";
+                case "ExpandedNodeId":
+                    return "global::Opc.Ua.ExpandedNodeId";
+                case "QualifiedName":
+                    return "global::Opc.Ua.QualifiedName";
+                case "LocalizedText":
+                    return "global::Opc.Ua.LocalizedText";
+                case "StatusCode":
+                    return "global::Opc.Ua.StatusCode";
+                default:
+                    return "global::Opc.Ua.Variant";
             }
         }
 
@@ -582,17 +599,28 @@ namespace Opc.Ua.SourceGeneration
         {
             switch (dotnetType)
             {
-                case "bool?": return "GetNullableBool";
-                case "double?": return "GetNullableDouble";
-                case "global::System.DateTime?": return "GetNullableDateTime";
-                case "string?": return "GetString";
-                case "ushort?": return "GetUInt16";
-                case "global::Opc.Ua.ByteString": return "GetByteString";
-                case "global::Opc.Ua.NodeId": return "GetNodeId";
-                case "global::Opc.Ua.LocalizedText": return "GetLocalizedText";
-                case "global::Opc.Ua.StatusCode": return "GetStatusCode";
-                case "global::Opc.Ua.LocalizedText[]?": return "GetLocalizedTextArray";
-                default: return null;
+                case "bool?":
+                    return "GetNullableBool";
+                case "double?":
+                    return "GetNullableDouble";
+                case "global::System.DateTime?":
+                    return "GetNullableDateTime";
+                case "string?":
+                    return "GetString";
+                case "ushort?":
+                    return "GetUInt16";
+                case "global::Opc.Ua.ByteString":
+                    return "GetByteString";
+                case "global::Opc.Ua.NodeId":
+                    return "GetNodeId";
+                case "global::Opc.Ua.LocalizedText":
+                    return "GetLocalizedText";
+                case "global::Opc.Ua.StatusCode":
+                    return "GetStatusCode";
+                case "global::Opc.Ua.LocalizedText[]?":
+                    return "GetLocalizedTextArray";
+                default:
+                    return null;
             }
         }
 
@@ -635,12 +663,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseRecord;
             }
-
             if (objectType.BaseTypeNode is not ObjectTypeDesign parent)
+
             {
                 return kRootBaseRecord;
             }
-
             string parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
@@ -735,7 +762,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static readonly XmlQualifiedName kBaseEventTypeId =
-            new XmlQualifiedName("BaseEventType", Namespaces.OpcUa);
+            new("BaseEventType", Namespaces.OpcUa);
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaRecordNamespace = "Opc.Ua";

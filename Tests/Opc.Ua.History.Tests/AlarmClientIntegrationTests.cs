@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.TestFramework;

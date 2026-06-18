@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.WotCon.Server.Assets;
 
 namespace Opc.Ua.WotCon.Server
 {
@@ -61,7 +62,37 @@ namespace Opc.Ua.WotCon.Server
         /// Maximum size in bytes of a Thing Description file written via
         /// the OPC UA file primitives. Defaults to 1 MiB.
         /// </summary>
+        /// <remarks>
+        /// Enforced on both the write side (file primitives) and the read
+        /// side (<c>EnumeratePersistedAsync</c>): persisted files larger
+        /// than this limit are skipped with a warning at startup so an
+        /// adversarial persistence directory cannot wedge server startup
+        /// through memory exhaustion.
+        /// </remarks>
         public int MaxThingDescriptionSize { get; set; } = 1024 * 1024;
+
+        /// <summary>
+        /// Maximum number of persisted Thing Description files processed
+        /// from <see cref="ThingDescriptionStorageFolder"/> at startup
+        /// (defence-in-depth bound to keep startup time linear in a
+        /// known limit even when the folder grows unbounded). Defaults
+        /// to 10 000 — enough headroom for production deployments while
+        /// preventing a malicious or corrupted persistence directory
+        /// from wedging startup through CPU exhaustion. Files beyond the
+        /// limit are skipped with a single warning.
+        /// </summary>
+        public int MaxPersistedThingDescriptionFiles { get; set; } = 10_000;
+
+        /// <summary>
+        /// Maximum allowed JSON nesting depth for a persisted Thing
+        /// Description. Files exceeding this depth are skipped with a
+        /// warning rather than deserialized; this prevents
+        /// stack-overflow attacks via pathologically deep JSON.
+        /// Defaults to 64, which comfortably accommodates standard W3C
+        /// Thing Descriptions while staying well below the default .NET
+        /// recursion budget.
+        /// </summary>
+        public int MaxThingDescriptionJsonDepth { get; set; } = 64;
 
         /// <summary>
         /// Maximum number of concurrent open file handles per asset.
@@ -84,6 +115,18 @@ namespace Opc.Ua.WotCon.Server
         public IWotAssetDiscoveryProvider? Discovery { get; set; }
 
         /// <summary>
+        /// Allow-list / deny-list policy applied to every endpoint URI
+        /// that flows from a remote OPC UA client through
+        /// <c>CreateAssetForEndpoint</c> or <c>ConnectionTest</c>.
+        /// Defaults are safe: only <c>http</c>, <c>https</c>,
+        /// <c>opc.tcp</c> schemes; loopback and private-range hosts
+        /// blocked; 30 s per-operation timeout. See
+        /// <see cref="AssetEndpointPolicy"/> for the full default set.
+        /// </summary>
+        public AssetEndpointPolicy AssetEndpointPolicy { get; set; }
+            = new AssetEndpointPolicy();
+
+        /// <summary>
         /// Vendor-specific configuration parameters exposed under the
         /// optional <c>Configuration</c> object
         /// (OPC 10100-1 §6.3.7). When empty the Configuration object is
@@ -97,6 +140,18 @@ namespace Opc.Ua.WotCon.Server
         /// of the <c>Configuration</c> object.
         /// </summary>
         public string? License { get; set; }
+
+        /// <summary>
+        /// Access policy applied to the standard
+        /// <c>WoTAssetConnectionManagement</c> methods (CreateAsset,
+        /// DeleteAsset, DiscoverAssets, CreateAssetForEndpoint,
+        /// ConnectionTest). Defaults to a restrictive policy that
+        /// requires <see cref="MessageSecurityMode.SignAndEncrypt"/>,
+        /// a non-anonymous identity, and the
+        /// <c>WellKnownRole_SecurityAdmin</c> role.
+        /// </summary>
+        public WotManagementAccessPolicy ManagementAccess { get; set; }
+            = new WotManagementAccessPolicy();
     }
 
     /// <summary>
@@ -111,10 +166,14 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>The initial value (must be assignable to a <c>Variant</c>).</summary>
         public Variant? InitialValue { get; init; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         public string? Description { get; init; }
 
-        /// <summary>Whether the parameter is writable.</summary>
+        /// <summary>
+        /// Whether the parameter is writable.
+        /// </summary>
         public bool Writable { get; init; } = true;
     }
 }

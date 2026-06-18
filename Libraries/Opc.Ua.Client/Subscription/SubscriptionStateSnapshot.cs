@@ -135,6 +135,36 @@ namespace Opc.Ua.Client.Subscriptions
         public partial bool SendInitialValuesOnTransfer { get; init; }
 
         /// <summary>
+        /// <para>
+        /// Identifier shared by every partition snapshot that backs
+        /// the same logical subscription. <c>null</c> on snapshots
+        /// produced by callers that did not opt into the V2
+        /// unbounded-item mode and on snapshots produced before this
+        /// field existed; load consumers treat <c>null</c> as
+        /// "standalone subscription, no grouping".
+        /// </para>
+        /// <para>
+        /// Wire-format compatibility: the field is encoded as a
+        /// nullable string and serialised after all pre-existing
+        /// fields, so a V1 reader skips it transparently and a V2
+        /// reader pointed at a V1 snapshot sees <c>null</c>.
+        /// </para>
+        /// </summary>
+        [DataTypeField(Order = 30)]
+        public partial string? LogicalGroupId { get; init; }
+
+        /// <summary>
+        /// Zero-based partition index inside the
+        /// <see cref="LogicalGroupId"/> group. <c>0</c> identifies the
+        /// primary partition; consecutive indexes identify secondary
+        /// partitions in the order the engine minted them.
+        /// <c>0</c> on snapshots without grouping context (the
+        /// default).
+        /// </summary>
+        [DataTypeField(Order = 31)]
+        public partial int PartitionIndex { get; init; }
+
+        /// <summary>
         /// Per-item state at snapshot time. Encoded inline (not via
         /// <see cref="ExtensionObject"/>) because
         /// <see cref="MonitoredItemStateSnapshot"/> is <c>sealed</c>
@@ -177,6 +207,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="availableSequenceNumbers">Server's
         /// retransmission-queue sequence numbers.</param>
         /// <param name="monitoredItems">Per-item snapshots.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static SubscriptionStateSnapshot AsOptions(
             SubscriptionOptions options,
             uint serverId,

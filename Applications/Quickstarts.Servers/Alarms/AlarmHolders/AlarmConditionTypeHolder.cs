@@ -39,7 +39,7 @@ namespace Alarms
         protected AlarmConditionTypeHolder(
             ILogger logger,
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             string name,
             SupportedAlarmConditionType alarmConditionType,
@@ -94,17 +94,17 @@ namespace Alarms
                         QualifiedName.From(BrowseNames.ShelvingState),
                         LocalizedText.From(BrowseNames.ShelvingState),
                         false);
-                    alarm.ShelvingState.LastTransition ??=
-                        alarm.ShelvingState.AddLastTransition(SystemContext);
+                    alarm.ShelvingState.AddLastTransition(SystemContext);
                 }
                 // Off normal does not create MaxTimeShelved.
                 alarm.MaxTimeShelved ??= PropertyState<double>.With<VariantBuilder>(alarm);
-                alarm.LatchedState ??= alarm.AddLatchedState(SystemContext);
+                alarm.AddLatchedState(SystemContext);
             }
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name);
 
+            EnsureTransitionTime(alarm.ActiveState!);
             alarm.SetActiveState(SystemContext, active: false);
             alarm.InputNode!.Value = m_trigger.NodeId;
 

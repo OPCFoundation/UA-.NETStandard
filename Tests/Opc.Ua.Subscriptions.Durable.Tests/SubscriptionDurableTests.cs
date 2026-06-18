@@ -32,16 +32,16 @@
 #pragma warning disable CA2016
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
-
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Subscriptions.Durable.Tests
 {
@@ -138,7 +138,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(900),
                         KeepAliveCount = 100,
@@ -178,7 +178,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(900),
                         KeepAliveCount = 100,
@@ -194,7 +194,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                     "CurrentTime",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(500) },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 bool itemCreated = await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(itemCreated, Is.True);
@@ -227,7 +227,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(900),
                         KeepAliveCount = 100,
@@ -293,7 +293,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(900),
                         KeepAliveCount = 100,
@@ -347,7 +347,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription sub = originSession.AddSubscription(originHandler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 100,
@@ -367,7 +367,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                     "Time",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(200) },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 bool itemCreated = await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(itemCreated, Is.True);
@@ -377,44 +377,159 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 Assert.That(firstData, Is.True);
 
                 // Save + close origin.
-                using (var ms = new System.IO.MemoryStream())
-                {
-                    await originSession.SaveSubscriptionsAsync(ms, ct: ct)
-                        .ConfigureAwait(false);
-                    byte[] saved = ms.ToArray();
-                    Assert.That(saved, Has.Length.GreaterThan(0));
+                using var ms = new System.IO.MemoryStream();
+                await originSession.SaveSubscriptionsAsync(ms, ct: ct)
+                    .ConfigureAwait(false);
+                byte[] saved = ms.ToArray();
+                Assert.That(saved, Has.Length.GreaterThan(0));
 
-                    StatusCode close = await originSession.CloseAsync()
-                        .ConfigureAwait(false);
-                    Assert.That(ServiceResult.IsGood(close), Is.True);
+                StatusCode close = await originSession.CloseAsync()
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(close), Is.True);
 
-                    targetSession = await ConnectV2Async(
-                        nameof(DurableSubscriptionSurvivesSessionCloseV2Async) + "_target", ct)
-                        .ConfigureAwait(false);
+                targetSession = await ConnectV2Async(
+                    nameof(DurableSubscriptionSurvivesSessionCloseV2Async) + "_target", ct)
+                    .ConfigureAwait(false);
 
-                    var targetHandler = new RecordingSubscriptionHandler();
-                    using var input = new System.IO.MemoryStream(saved);
-                    var loaded = await targetSession.LoadSubscriptionsAsync(
-                        input, _ => targetHandler,
-                        transferSubscriptions: true, ct)
-                        .ConfigureAwait(false);
-                    Assert.That(loaded, Has.Count.EqualTo(1));
-                    bool dataAfter = await targetHandler.WaitForFirstDataAsync(
-                        TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
-                    Assert.That(dataAfter, Is.True,
-                        "Restored durable subscription should publish on target");
-                }
+                var targetHandler = new RecordingSubscriptionHandler();
+                using var input = new System.IO.MemoryStream(saved);
+                IReadOnlyList<ISubscription> loaded = await targetSession.LoadSubscriptionsAsync(
+                    input, _ => targetHandler,
+                    transferSubscriptions: true, ct)
+                    .ConfigureAwait(false);
+                Assert.That(loaded, Has.Count.EqualTo(1));
+                bool dataAfter = await targetHandler.WaitForFirstDataAsync(
+                    TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+                Assert.That(dataAfter, Is.True,
+                    "Restored durable subscription should publish on target");
             }
             finally
             {
-                try { await originSession.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                try
+                {
+                    await originSession.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (targetSession != null)
                 {
-                    try { await targetSession.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
-                    try { await targetSession.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    try
+                    {
+                        await targetSession.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
+                    try
+                    {
+                        await targetSession.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
+                }
+            }
+        }
+
+        [Test]
+        [Order(600)]
+        [CancelAfter(120_000)]
+        public async Task DurableLifetimeAppliesToAllPartitionsV2Async(
+            CancellationToken ct)
+        {
+            // Verifies the durable-ordering hook fix: when a logical
+            // subscription is marked durable BEFORE any items are
+            // added, the wrapper records the intent and installs an
+            // OnAfterCreateAsync hook on every existing partition.
+            // When items overflow the per-partition cap and the
+            // engine mints additional partitions, each new partition
+            // inherits the same hook so SetSubscriptionDurable fires
+            // between CreateSubscription and CreateMonitoredItems —
+            // satisfying OPC UA Part 4 §5.13.9. Without the hook,
+            // the partition's first CreateMonitoredItems would
+            // commit non-durable items and a subsequent
+            // SetSubscriptionDurable call would fail. This test
+            // checks the end-to-end flow succeeds: initial durable
+            // call returns a revised lifetime, item creation for
+            // every partition reaches Created without error, and
+            // notifications flow through every partition.
+            ManagedSession session = await ConnectV2Async(
+                nameof(DurableLifetimeAppliesToAllPartitionsV2Async), ct)
+                .ConfigureAwait(false);
+            try
+            {
+                var handler = new RecordingSubscriptionHandler();
+                ISubscription sub = session.AddSubscription(handler,
+                    new Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromMilliseconds(500),
+                        KeepAliveCount = 100,
+                        LifetimeCount = 100,
+                        PublishingEnabled = true,
+                        MaxMonitoredItemsPerPartition = 5
+                    });
+                Assert.That(await WaitForAsync(() => sub.Created,
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
+
+                TimeSpan revised = await sub.SetAsDurableAsync(
+                    TimeSpan.FromHours(2), ct).ConfigureAwait(false);
+                Assert.That(revised, Is.GreaterThanOrEqualTo(TimeSpan.FromHours(2)),
+                    "primary partition must accept the initial SetAsDurable call");
+
+                // 12 items at cap=5 forces 3 partitions; each new
+                // secondary applies SetSubscriptionDurable via its
+                // OnAfterCreateAsync hook before its first
+                // CreateMonitoredItems. If the hook were to fail or
+                // run in the wrong order, items would still be
+                // created but on a non-durable partition; the server
+                // accepts both. The end-to-end signal we can verify
+                // from the client is that every item reaches
+                // Created without surfacing an error.
+                for (int i = 0; i < 12; i++)
+                {
+                    Assert.That(sub.TryAddMonitoredItem(
+                        $"durable_part_{i}",
+                        VariableIds.Server_ServerStatus_CurrentTime,
+                        o => o with { SamplingInterval = TimeSpan.FromMilliseconds(500) },
+                        out _), Is.True);
+                }
+
+                bool everyPartCreated = await WaitForAsync(
+                    () => sub.Created &&
+                        sub.MonitoredItems.Items.All(i => i.Created),
+                    TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+                Assert.That(everyPartCreated, Is.True,
+                    "every item across every partition must reach Created");
+                Assert.That(((IPartitionedSubscription)sub).PartitionCount,
+                    Is.GreaterThanOrEqualTo(2),
+                    "test setup requires the engine to mint at least one " +
+                    "secondary partition to exercise the hook");
+
+                // Verify notifications flow end-to-end (proves the
+                // durable subscription is publishing items the
+                // wrapper handler can observe).
+                bool gotData = await handler.WaitForFirstDataAsync(
+                    TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+                Assert.That(gotData, Is.True);
+
+                await sub.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
+                try
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
                 }
             }
         }

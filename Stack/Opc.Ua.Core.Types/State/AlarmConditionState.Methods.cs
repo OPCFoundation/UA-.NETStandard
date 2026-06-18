@@ -32,8 +32,10 @@ using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-    // Part 9 alarm method handlers: Silence, Suppress/Unsuppress, OutOfService,
-    // PlaceInService/RemoveFromService, Reset, GetGroupMemberships
+    /// <summary>
+    /// Part 9 alarm method handlers: Silence, Suppress/Unsuppress, OutOfService,
+    /// PlaceInService/RemoveFromService, Reset, GetGroupMemberships
+    /// </summary>
     public partial class AlarmConditionState
     {
         /// <summary>
@@ -114,7 +116,7 @@ namespace Opc.Ua
                 // Only clear SuppressedOrShelved if not suppressed and not shelved
                 if ((SuppressedState == null || !SuppressedState.Id!.Value) &&
                     (ShelvingState == null ||
-                     ShelvingState.CurrentState!.Id!.Value == ObjectIds.ShelvedStateMachineType_Unshelved))
+                        ShelvingState.CurrentState!.Id!.Value == ObjectIds.ShelvedStateMachineType_Unshelved))
                 {
                     SuppressedOrShelved!.Value = false;
                 }
@@ -576,7 +578,7 @@ namespace Opc.Ua
                 if (reference.ReferenceTypeId == ReferenceTypeIds.AlarmGroupMember &&
                     reference.IsInverse)
                 {
-                    NodeId targetId = ExpandedNodeId.ToNodeId(
+                    var targetId = ExpandedNodeId.ToNodeId(
                         reference.TargetId, context.NamespaceUris);
                     if (!targetId.IsNull)
                     {
@@ -769,8 +771,7 @@ namespace Opc.Ua
 
             ClearChangeMasks(context, includeChildren: true);
         }
-
-}
+    }
 
     /// <summary>
     /// Delegate for simple alarm condition events (Silence, Reset).

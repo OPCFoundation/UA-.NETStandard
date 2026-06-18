@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.TestFramework
         {
             lock (m_recordedChangesLock)
             {
-                return m_recordedChanges.ToArray();
+                return [.. m_recordedChanges];
             }
         }
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <inheritdoc/>
         public ValueTask OnSubscriptionStateChangedAsync(
             ISubscription subscription,
-            Opc.Ua.Client.Subscriptions.SubscriptionState state,
+            Subscriptions.SubscriptionState state,
             PublishState publishStateMask,
             CancellationToken ct = default)
         {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.TestFramework
         {
             lock (m_stateChangesLock)
             {
-                return m_stateChanges.ToArray();
+                return [.. m_stateChanges];
             }
         }
 
@@ -320,14 +320,19 @@ namespace Opc.Ua.Client.TestFramework
         private int m_eventCount;
         private int m_keepAliveCount;
         private int m_stateChangedCount;
+
         private TaskCompletionSource<bool> m_firstData =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private TaskCompletionSource<bool> m_firstKeepAlive =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private TaskCompletionSource<bool> m_firstEvent =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private TaskCompletionSource<bool> m_firstTransferred =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly ConcurrentDictionary<ISubscription, uint> m_lastSequenceNumber = new();
         private readonly List<RecordedDataValueChange> m_recordedChanges = [];
         private readonly Lock m_recordedChangesLock = new();
@@ -341,7 +346,7 @@ namespace Opc.Ua.Client.TestFramework
     /// V2 dispatch return.
     /// </summary>
     public sealed record RecordedDataValueChange(
-        Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? MonitoredItem,
+        Subscriptions.MonitoredItems.IMonitoredItem? MonitoredItem,
         DataValue Value,
         uint SequenceNumber,
         DateTime PublishTime);
@@ -351,7 +356,7 @@ namespace Opc.Ua.Client.TestFramework
     /// </summary>
     public sealed record RecordedStateChange(
         ISubscription Subscription,
-        Opc.Ua.Client.Subscriptions.SubscriptionState State,
+        Subscriptions.SubscriptionState State,
         PublishState PublishStateMask,
         DateTime ObservedAt);
 }

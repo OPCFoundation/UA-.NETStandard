@@ -67,34 +67,54 @@ namespace Opc.Ua.Server.Historian
             ServerTimestampSupported = true
         };
 
-        /// <summary>True if the node supports raw history reads (always true for historizing nodes).</summary>
+        /// <summary>
+        /// True if the node supports raw history reads (always true for historizing nodes).
+        /// </summary>
         public bool ReadRawData { get; init; } = true;
 
-        /// <summary>True if the node supports modified history reads.</summary>
+        /// <summary>
+        /// True if the node supports modified history reads.
+        /// </summary>
         public bool ReadModifiedData { get; init; } = true;
 
-        /// <summary>True if the node supports read-at-time history reads (may be derived by framework from raw).</summary>
+        /// <summary>
+        /// True if the node supports read-at-time history reads (may be derived by framework from raw).
+        /// </summary>
         public bool ReadAtTime { get; init; } = true;
 
-        /// <summary>True if the node supports processed (aggregate) history reads.</summary>
+        /// <summary>
+        /// True if the node supports processed (aggregate) history reads.
+        /// </summary>
         public bool ReadProcessedData { get; init; } = true;
 
-        /// <summary>True if the node supports inserting new history values (HistoryUpdate / Insert).</summary>
+        /// <summary>
+        /// True if the node supports inserting new history values (HistoryUpdate / Insert).
+        /// </summary>
         public bool InsertData { get; init; }
 
-        /// <summary>True if the node supports replacing existing history values (HistoryUpdate / Replace).</summary>
+        /// <summary>
+        /// True if the node supports replacing existing history values (HistoryUpdate / Replace).
+        /// </summary>
         public bool ReplaceData { get; init; }
 
-        /// <summary>True if the node supports upsert semantics (HistoryUpdate / Update).</summary>
+        /// <summary>
+        /// True if the node supports upsert semantics (HistoryUpdate / Update).
+        /// </summary>
         public bool UpdateData { get; init; }
 
-        /// <summary>True if the node supports range deletion of raw values (DeleteRawModified).</summary>
+        /// <summary>
+        /// True if the node supports range deletion of raw values (DeleteRawModified).
+        /// </summary>
         public bool DeleteRaw { get; init; }
 
-        /// <summary>True if the node supports point deletion (DeleteAtTime).</summary>
+        /// <summary>
+        /// True if the node supports point deletion (DeleteAtTime).
+        /// </summary>
         public bool DeleteAtTime { get; init; }
 
-        /// <summary>True if the node supports inserting annotations on the historizing variable.</summary>
+        /// <summary>
+        /// True if the node supports inserting annotations on the historizing variable.
+        /// </summary>
         public bool InsertAnnotation { get; init; }
 
         /// <summary>True if the storage backend persists <see cref="DataValue.ServerTimestamp"/>.</summary>

@@ -89,6 +89,16 @@ namespace Opc.Ua.SourceGeneration
                         // by the Stack pass (Opc.Ua.Core) instead.
                         OmitObjectTypeProxies =
                             generationType == StackGenerationType.Models,
+                        // Neither pass references Opc.Ua.Server.Fluent. The
+                        // typed-accessor extensions emitted by
+                        // FluentBuilderGenerator delegate into the Server-side
+                        // INodeBuilder<T> surface, so they must be omitted
+                        // here. Server-side consumers that ship per-namespace
+                        // accessors emit them from their own model packages
+                        // (the default opt-out is honoured by setting
+                        // ModelSourceGeneratorOmitFluentApi=true on the
+                        // assembly's csproj when needed).
+                        OmitFluentApi = true,
                         UseTypeDefinitionModellingRules = true
                     });
                 // Collect all generated cs files and produce them into the compilation

@@ -51,6 +51,15 @@ namespace Opc.Ua.Bindings
     public class HttpsTransportChannelFactory : ITransportChannelFactory
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="HttpsTransportChannelFactory"/> class.
+        /// </summary>
+        /// <param name="httpClientFactory">Optional HTTP client factory.</param>
+        public HttpsTransportChannelFactory(IOpcUaHttpClientFactory? httpClientFactory = null)
+        {
+            m_httpClientFactory = httpClientFactory ?? DefaultOpcUaHttpClientFactory.Shared;
+        }
+
+        /// <summary>
         /// The protocol supported by the channel.
         /// </summary>
         public string UriScheme => Utils.UriSchemeHttps;
@@ -61,8 +70,10 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport channel</returns>
         public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportChannel(UriScheme, telemetry);
+            return new HttpsTransportChannel(UriScheme, telemetry, httpClientFactory: m_httpClientFactory);
         }
+
+        private readonly IOpcUaHttpClientFactory? m_httpClientFactory;
     }
 
     /// <summary>
@@ -71,6 +82,15 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class OpcHttpsTransportChannelFactory : ITransportChannelFactory
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="OpcHttpsTransportChannelFactory"/> class.
+        /// </summary>
+        /// <param name="httpClientFactory">Optional HTTP client factory.</param>
+        public OpcHttpsTransportChannelFactory(IOpcUaHttpClientFactory? httpClientFactory = null)
+        {
+            m_httpClientFactory = httpClientFactory ?? DefaultOpcUaHttpClientFactory.Shared;
+        }
+
         /// <summary>
         /// The protocol supported by the channel.
         /// </summary>
@@ -82,8 +102,10 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport channel</returns>
         public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportChannel(UriScheme, telemetry);
+            return new HttpsTransportChannel(UriScheme, telemetry, httpClientFactory: m_httpClientFactory);
         }
+
+        private readonly IOpcUaHttpClientFactory? m_httpClientFactory;
     }
 
     /// <summary>
@@ -104,15 +126,18 @@ namespace Opc.Ua.Bindings
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
         /// used for timeout scheduling. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        /// <param name="httpClientFactory">Optional HTTP client factory.</param>
         public HttpsTransportChannel(
             string uriScheme,
             ITelemetryContext telemetry,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            IOpcUaHttpClientFactory? httpClientFactory = null)
         {
             UriScheme = uriScheme;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<HttpsTransportChannel>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_httpClientFactory = httpClientFactory ?? DefaultOpcUaHttpClientFactory.Shared;
         }
 
         /// <inheritdoc/>
@@ -198,8 +223,12 @@ namespace Opc.Ua.Bindings
                 nameof(HttpsTransportChannel),
                 m_url);
 
-            m_client?.Dispose();
+            if (m_disposeClient)
+            {
+                m_client?.Dispose();
+            }
             m_client = null;
+            m_disposeClient = false;
 
             return default;
         }
@@ -232,7 +261,7 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
             using Activity? activity = m_telemetry.StartActivity();
-            using var cts = m_timeProvider.CreateCancellationTokenSource(
+            using CancellationTokenSource cts = m_timeProvider.CreateCancellationTokenSource(
                 TimeSpan.FromMilliseconds(OperationTimeout));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
@@ -334,8 +363,12 @@ namespace Opc.Ua.Bindings
             if (disposing && !m_disposed)
             {
                 m_disposed = true;
-                m_client?.Dispose();
+                if (m_disposeClient)
+                {
+                    m_client?.Dispose();
+                }
                 m_client = null;
+                m_disposeClient = false;
                 m_pinnedClientCertX509?.Dispose();
                 m_pinnedClientCertX509 = null;
                 m_pinnedClientCert?.Dispose();
@@ -389,7 +422,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Open the channel by creating the http client
+        /// Creates the HTTP client used by the channel.
         /// </summary>
         private void CreateHttpClient()
         {
@@ -399,159 +432,222 @@ namespace Opc.Ua.Bindings
             {
                 m_logger.LogInformation("{ChannelType} Open {Url}.", nameof(HttpsTransportChannel), m_url);
 
-                // auto validate server cert, if supported
-                // if unsupported, the TLS server cert must be trusted by a root CA
-                HttpClientHandler? handler = null;
-                try
+                if (CanUseHttpClientFactory())
                 {
-                    handler = new HttpClientHandler
-                    {
-                        ClientCertificateOptions = ClientCertificateOption.Manual,
-                        AllowAutoRedirect = false,
-                        // limit the number of concurrent connections, if supported
-                        MaxConnectionsPerServer = kMaxConnectionsPerServer,
-                        MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
-                    };
-
-                    // send client certificate for servers that require TLS client authentication
-                    if (m_settings!.ClientCertificate != null)
-                    {
-                        // prepare the client TLS certificate. AddRef so the
-                        // channel owns the cert independent of the source
-                        // (m_settings.ClientCertificate is a borrowed reference
-                        // owned by the application configuration).
-                        Certificate clientCertificate = m_settings.ClientCertificate.AddRef();
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                        try
-                        {
-                            // Create a copy of the certificate with the private key on platforms
-                            // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
-                            // If the key fails to copy, its probably a non exportable key from the X509Store.
-                            // Then we can use the original certificate, the private key is already in the key store.
-                            using Certificate copy = X509Utils.CreateCopyWithPrivateKey(clientCertificate, false);
-                            if (!ReferenceEquals(copy, clientCertificate))
-                            {
-                                clientCertificate.Dispose();
-                                clientCertificate = copy;
-                                clientCertificate.AddRef();
-                            }
-                        }
-                        catch (CryptographicException ce)
-                        {
-                            m_logger.LogError(ce, "Copy of the private key for https was denied");
-                        }
-#endif
-                        // pin the cert for the lifetime of the channel so the
-                        // OS-level private key handle backing the X509Certificate2
-                        // we hand to HttpClientHandler cannot be invalidated by a
-                        // concurrent cert reload elsewhere in the process.
-                        m_pinnedClientCert?.Dispose();
-                        m_pinnedClientCert = clientCertificate;
-                        m_pinnedClientCertX509?.Dispose();
-                        m_pinnedClientCertX509 = clientCertificate.AsX509Certificate2();
-
-                        handler.ClientCertificates.Add(m_pinnedClientCertX509);
-                        ClientChannelCertificate = clientCertificate.RawData;
-                    }
-
-                    Func<
-                        HttpRequestMessage,
-                        X509Certificate2,
-                        X509Chain,
-                        SslPolicyErrors,
-                        bool
-                    >? serverCertificateCustomValidationCallback;
-
-                    try
-                    {
-                        serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
-                        {
-                            try
-                            {
-                                var validationChain = new X509Certificate2Collection();
-                                if (chain != null && chain.ChainElements != null)
-                                {
-                                    int i = 0;
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate server chain:",
-                                        nameof(HttpsTransportChannel));
-                                    foreach (X509ChainElement element in chain.ChainElements)
-                                    {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "{Index}: {Certificate}",
-                                            i,
-                                            element.Certificate.Subject);
-                                        validationChain.Add(element.Certificate);
-                                        i++;
-                                    }
-                                }
-                                else
-                                {
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate Server Certificate: {Certificate}",
-                                        cert.Subject,
-                                        nameof(HttpsTransportChannel));
-                                    validationChain.Add(cert);
-                                }
-
-                                using var validationCollection = CertificateCollection.From(validationChain);
-                                if (m_quotas.CertificateValidator != null)
-                                {
-                                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
-                                    // using scope extends past the await.
-#pragma warning disable CA2025
-                                    CertificateValidationResult validationResult = m_quotas.CertificateValidator
-                                        .ValidateAsync(validationCollection, ct: default)
-                                        .GetAwaiter()
-                                        .GetResult();
-#pragma warning restore CA2025
-                                    if (!validationResult.IsValid)
-                                    {
-                                        throw new ServiceResultException(validationResult.StatusCode);
-                                    }
-                                }
-                                ServerChannelCertificate = cert.RawData;
-                                return true;
-                            }
-                            catch (Exception ex)
-                            {
-                                m_logger.LogError(
-                                    ex,
-                                    "{ChannelType} Failed to validate certificate.",
-                                    nameof(HttpsTransportChannel));
-                            }
-                            return false;
-                        };
-
-                        handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
-
-                        m_logger.LogInformation(
-                            "{ChannelType} ServerCertificate callback enabled.",
-                            nameof(HttpsTransportChannel));
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // client may throw if not supported (e.g. UWP)
-                        serverCertificateCustomValidationCallback = null;
-                    }
-
-#pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-                    m_client = new HttpClient(handler);
-#pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-                    handler = null; // ownership transferred to HttpClient
+                    string clientName = ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared)
+                        ? m_url!.AbsoluteUri
+                        : OpcUaHttpClientDefaults.ClientName;
+                    m_client = m_httpClientFactory!.CreateClient(clientName);
+                    m_disposeClient = false;
+                    return;
                 }
-                finally
+
+                if (m_httpClientFactory != null &&
+                    !ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared) &&
+                    m_quotas?.CertificateValidator != null)
                 {
-                    handler?.Dispose();
+                    // Tell operators that the DI-registered HttpClient pipeline
+                    // (e.g. AddStandardResilienceHandler) is intentionally NOT
+                    // applied to this channel — see CanUseHttpClientFactory.
+                    m_logger.LogWarning(
+                        "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
+                        "CertificateValidator is configured for this channel; using a direct " +
+                        "HttpClient with OPC UA TLS server-cert validation and the OPC UA " +
+                        "client instance certificate for mTLS. The named HttpClient pipeline " +
+                        "is NOT applied to this OPC UA HTTPS channel.",
+                        nameof(HttpsTransportChannel));
                 }
+
+                m_client = CreateDirectHttpClient();
+                m_disposeClient = true;
             }
             catch (Exception ex)
             {
                 m_logger.LogError(ex, "Exception creating HTTPS Client.");
                 throw;
+            }
+        }
+
+        private bool CanUseHttpClientFactory()
+        {
+            // SECURITY: The factory path returns a named HttpClient configured
+            // purely with standard HTTP middleware (e.g. Polly resilience). Its
+            // underlying HttpClientHandler is NOT exposed for us to attach the
+            // OPC UA ServerCertificateCustomValidationCallback or the OPC UA
+            // client application instance certificate to. Consequently a
+            // channel that needs OPC UA-specific server-certificate validation
+            // (validation against the OPC UA trust list / ICertificateValidatorEx)
+            // and OPC UA mutual TLS MUST go through CreateDirectHttpClient.
+            // Bypassing the factory in that case is REQUIRED for security:
+            // otherwise the channel would silently fall back to the OS trust
+            // chain only — dropping the OPC UA trust list — and would never
+            // send the OPC UA client cert for mTLS.
+            //
+            // The DefaultOpcUaHttpClientFactory.Shared instance is the
+            // well-known sentinel used by direct (non-DI) consumers. It
+            // ALWAYS triggers the CreateDirectHttpClient path so the OPC UA
+            // security wiring runs.
+            if (ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared))
+            {
+                return false;
+            }
+            if (m_quotas?.CertificateValidator != null)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private HttpClient CreateDirectHttpClient()
+        {
+            // auto validate server cert, if supported
+            // if unsupported, the TLS server cert must be trusted by a root CA
+            HttpClientHandler? handler = null;
+            try
+            {
+                handler = new HttpClientHandler
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    AllowAutoRedirect = false,
+                    // limit the number of concurrent connections, if supported
+                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
+                    MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
+                };
+
+                // send client certificate for servers that require TLS client authentication
+                if (m_settings!.ClientCertificate != null)
+                {
+                    // prepare the client TLS certificate. AddRef so the
+                    // channel owns the cert independent of the source
+                    // (m_settings.ClientCertificate is a borrowed reference
+                    // owned by the application configuration).
+                    Certificate clientCertificate = m_settings.ClientCertificate.AddRef();
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+                    try
+                    {
+                        // Create a copy of the certificate with the private key on platforms
+                        // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                        // If the key fails to copy, its probably a non exportable key from the X509Store.
+                        // Then we can use the original certificate, the private key is already in the key store.
+                        using Certificate copy = X509Utils.CreateCopyWithPrivateKey(clientCertificate, false);
+                        if (!ReferenceEquals(copy, clientCertificate))
+                        {
+                            clientCertificate.Dispose();
+                            clientCertificate = copy;
+                            clientCertificate.AddRef();
+                        }
+                    }
+                    catch (CryptographicException ce)
+                    {
+                        m_logger.LogError(ce, "Copy of the private key for https was denied");
+                    }
+#endif
+                    // pin the cert for the lifetime of the channel so the
+                    // OS-level private key handle backing the X509Certificate2
+                    // we hand to HttpClientHandler cannot be invalidated by a
+                    // concurrent cert reload elsewhere in the process.
+                    m_pinnedClientCert?.Dispose();
+                    m_pinnedClientCert = clientCertificate;
+                    m_pinnedClientCertX509?.Dispose();
+                    m_pinnedClientCertX509 = clientCertificate.AsX509Certificate2();
+
+                    handler.ClientCertificates.Add(m_pinnedClientCertX509);
+                    ClientChannelCertificate = clientCertificate.RawData;
+                }
+
+                Func<
+                    HttpRequestMessage,
+                    X509Certificate2,
+                    X509Chain,
+                    SslPolicyErrors,
+                    bool
+                >? serverCertificateCustomValidationCallback;
+
+                try
+                {
+                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    {
+                        try
+                        {
+                            var validationChain = new X509Certificate2Collection();
+                            if (chain != null && chain.ChainElements != null)
+                            {
+                                int i = 0;
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "{ChannelType} Validate server chain:",
+                                    nameof(HttpsTransportChannel));
+                                foreach (X509ChainElement element in chain.ChainElements)
+                                {
+                                    m_logger.LogInformation(
+                                        Utils.TraceMasks.Security,
+                                        "{Index}: {Certificate}",
+                                        i,
+                                        element.Certificate.Subject);
+                                    validationChain.Add(element.Certificate);
+                                    i++;
+                                }
+                            }
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "{ChannelType} Validate Server Certificate: {Certificate}",
+                                    cert.Subject,
+                                    nameof(HttpsTransportChannel));
+                                validationChain.Add(cert);
+                            }
+
+                            using var validationCollection = CertificateCollection.From(validationChain);
+                            if (m_quotas.CertificateValidator != null)
+                            {
+                                // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                                // using scope extends past the await.
+#pragma warning disable CA2025
+                                CertificateValidationResult validationResult = m_quotas.CertificateValidator
+                                    .ValidateAsync(validationCollection, ct: default)
+                                    .GetAwaiter()
+                                    .GetResult();
+#pragma warning restore CA2025
+                                if (!validationResult.IsValid)
+                                {
+                                    throw new ServiceResultException(validationResult.StatusCode);
+                                }
+                            }
+                            ServerChannelCertificate = cert.RawData;
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                ex,
+                                "{ChannelType} Failed to validate certificate.",
+                                nameof(HttpsTransportChannel));
+                        }
+                        return false;
+                    };
+
+                    handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
+
+                    m_logger.LogInformation(
+                        "{ChannelType} ServerCertificate callback enabled.",
+                        nameof(HttpsTransportChannel));
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    // client may throw if not supported (e.g. UWP)
+                    serverCertificateCustomValidationCallback = null;
+                }
+
+#pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
+                var client = new HttpClient(handler);
+#pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
+                handler = null; // ownership transferred to HttpClient
+                return client;
+            }
+            finally
+            {
+                handler?.Dispose();
             }
         }
 
@@ -569,10 +665,12 @@ namespace Opc.Ua.Bindings
         private HttpClient? m_client;
         private Certificate? m_pinnedClientCert;
         private X509Certificate2? m_pinnedClientCertX509;
+        private bool m_disposeClient;
         private bool m_disposed;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+        private readonly IOpcUaHttpClientFactory? m_httpClientFactory;
 
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new(
             "application/octet-stream");

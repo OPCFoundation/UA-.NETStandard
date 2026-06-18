@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "u" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Is.True);
             }
             finally
             {
@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "maxlen_" + new string('a', 50) + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Is.True);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("Pass123!")), Is.True);
             }
             finally
@@ -83,7 +83,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "unic\u00F6de_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Is.True);
             }
             finally
             {
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Security.Tests
         public void AddUserWithNullNameThrows()
         {
             EnsureUserDatabase();
-            Assert.That(() => UserDb.CreateUser(null, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser }), Throws.Exception);
+            Assert.That(() => UserDb.CreateUser(null, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Throws.Exception);
         }
 
         [Test]
@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "   ws_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Is.True);
             }
             finally
             {
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "verify_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("ValidPass!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("ValidPass!"), [Role.AuthenticatedUser]);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("ValidPass!")), Is.True);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("WrongPass")), Is.False);
             }
@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             EnsureUserDatabase();
             string u = "del2x_" + Guid.NewGuid().ToString("N")[..8];
-            UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser });
+            UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser]);
             Assert.That(UserDb.DeleteUser(u), Is.True);
             Assert.That(UserDb.DeleteUser(u), Is.False);
         }
@@ -155,7 +155,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 bool created = UserDb.CreateUser(u, ToUtf8("OldPass!"),
-                    new[] { Role.AuthenticatedUser });
+                    [Role.AuthenticatedUser]);
                 if (!created)
                 {
                     Assert.Ignore("Failed to create test user.");
@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "roles_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser, Role.Observer });
+                UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser, Role.Observer]);
                 ICollection<Role> roles = UserDb.GetUserRoles(u);
                 Assert.That(roles, Is.Not.Null);
                 Assert.That(roles, Does.Contain(Role.AuthenticatedUser));
@@ -226,7 +226,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "badrole_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Is.True);
             }
             finally
             {
@@ -241,8 +241,8 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "dupow_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("First!"), new[] { Role.AuthenticatedUser });
-                UserDb.CreateUser(u, ToUtf8("Second!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("First!"), [Role.AuthenticatedUser]);
+                UserDb.CreateUser(u, ToUtf8("Second!"), [Role.AuthenticatedUser]);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("Second!")), Is.True);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("First!")), Is.False);
             }
@@ -259,7 +259,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "minpw_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("A"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("A"), [Role.AuthenticatedUser]), Is.True);
             }
             finally
             {
@@ -275,7 +275,7 @@ namespace Opc.Ua.Core.Security.Tests
             string pwd = new string('P', 256) + "!";
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8(pwd), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8(pwd), [Role.AuthenticatedUser]), Is.True);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8(pwd)), Is.True);
             }
             finally
@@ -291,7 +291,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "unipw_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8("\u00E4\u00F6\u00FC\u00DF!"), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8("\u00E4\u00F6\u00FC\u00DF!"), [Role.AuthenticatedUser]), Is.True);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("\u00E4\u00F6\u00FC\u00DF!")), Is.True);
             }
             finally
@@ -307,9 +307,9 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "seqpw_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("Pass1!"), new[] { Role.AuthenticatedUser });
-                UserDb.CreateUser(u, ToUtf8("Pass2!"), new[] { Role.AuthenticatedUser });
-                UserDb.CreateUser(u, ToUtf8("Pass3!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("Pass1!"), [Role.AuthenticatedUser]);
+                UserDb.CreateUser(u, ToUtf8("Pass2!"), [Role.AuthenticatedUser]);
+                UserDb.CreateUser(u, ToUtf8("Pass3!"), [Role.AuthenticatedUser]);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("Pass3!")), Is.True);
             }
             finally
@@ -325,8 +325,8 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "oldpw_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("Original!"), new[] { Role.AuthenticatedUser });
-                UserDb.CreateUser(u, ToUtf8("Changed!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("Original!"), [Role.AuthenticatedUser]);
+                UserDb.CreateUser(u, ToUtf8("Changed!"), [Role.AuthenticatedUser]);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8("Original!")), Is.False);
             }
             finally
@@ -345,7 +345,7 @@ namespace Opc.Ua.Core.Security.Tests
                 for (int i = 0; i < 10; i++)
                 {
                     string n = "seq10_" + Guid.NewGuid().ToString("N")[..8];
-                    Assert.That(UserDb.CreateUser(n, ToUtf8("Pass" + i), new[] { Role.AuthenticatedUser }), Is.True);
+                    Assert.That(UserDb.CreateUser(n, ToUtf8("Pass" + i), [Role.AuthenticatedUser]), Is.True);
                     users.Add(n);
                 }
                 Assert.That(users, Has.Count.EqualTo(10));
@@ -368,7 +368,7 @@ namespace Opc.Ua.Core.Security.Tests
             for (int i = 0; i < 10; i++)
             {
                 string n = "rem10_" + Guid.NewGuid().ToString("N")[..8];
-                UserDb.CreateUser(n, ToUtf8("Pass" + i), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(n, ToUtf8("Pass" + i), [Role.AuthenticatedUser]);
                 users.Add(n);
             }
 
@@ -385,7 +385,7 @@ namespace Opc.Ua.Core.Security.Tests
             for (int i = 0; i < 5; i++)
             {
                 string n = "rapid_" + Guid.NewGuid().ToString("N")[..8];
-                UserDb.CreateUser(n, ToUtf8("Tmp!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(n, ToUtf8("Tmp!"), [Role.AuthenticatedUser]);
                 Assert.That(UserDb.DeleteUser(n), Is.True);
             }
         }
@@ -437,7 +437,7 @@ namespace Opc.Ua.Core.Security.Tests
             ISession us = null;
             try
             {
-                UserDb.CreateUser(u, ToUtf8("SesPass!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("SesPass!"), [Role.AuthenticatedUser]);
                 us = await TryConnectAsUserAsync(u, "SesPass!").ConfigureAwait(false);
                 if (us == null)
                 {
@@ -465,7 +465,7 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "reconn_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("RePass!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("RePass!"), [Role.AuthenticatedUser]);
                 UserDb.DeleteUser(u);
                 ISession s = await TryConnectAsUserAsync(u, "RePass!").ConfigureAwait(false);
                 Assert.That(s, Is.Null, "Deleted user should not reconnect.");
@@ -484,13 +484,13 @@ namespace Opc.Ua.Core.Security.Tests
             ISession us = null;
             try
             {
-                UserDb.CreateUser(u, ToUtf8("OldPw!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("OldPw!"), [Role.AuthenticatedUser]);
                 us = await TryConnectAsUserAsync(u, "OldPw!").ConfigureAwait(false);
                 if (us == null)
                 {
                     Assert.Fail("Could not connect as test user.");
                 }
-                UserDb.CreateUser(u, ToUtf8("NewPw!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("NewPw!"), [Role.AuthenticatedUser]);
                 Assert.That(us.Connected, Is.True, "Active session should survive password change.");
             }
             finally
@@ -511,8 +511,8 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "nspw_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("First!"), new[] { Role.AuthenticatedUser });
-                UserDb.CreateUser(u, ToUtf8("Second!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(u, ToUtf8("First!"), [Role.AuthenticatedUser]);
+                UserDb.CreateUser(u, ToUtf8("Second!"), [Role.AuthenticatedUser]);
                 ISession old = await TryConnectAsUserAsync(u, "First!").ConfigureAwait(false);
                 Assert.That(old, Is.Null, "Old password should not work.");
                 ISession ns = await TryConnectAsUserAsync(u, "Second!").ConfigureAwait(false);
@@ -537,7 +537,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 Assert.That(UserDb.CreateUser(u, ToUtf8("AllRoles!"),
-                    new[] { Role.AuthenticatedUser, Role.Observer, Role.SecurityAdmin, Role.ConfigureAdmin }), Is.True);
+                    [Role.AuthenticatedUser, Role.Observer, Role.SecurityAdmin, Role.ConfigureAdmin]), Is.True);
                 ICollection<Role> roles = UserDb.GetUserRoles(u);
                 Assert.That(roles, Is.Not.Null);
                 Assert.That(roles, Has.Count.GreaterThanOrEqualTo(2));
@@ -556,7 +556,7 @@ namespace Opc.Ua.Core.Security.Tests
             string upper = lower.ToUpperInvariant();
             try
             {
-                UserDb.CreateUser(lower, ToUtf8("Lower!"), new[] { Role.AuthenticatedUser });
+                UserDb.CreateUser(lower, ToUtf8("Lower!"), [Role.AuthenticatedUser]);
                 Assert.That(UserDb.CheckCredentials(lower, ToUtf8("Lower!")), Is.True);
             }
             finally
@@ -576,7 +576,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     Assert.That(UserDb.CreateUser(u, ToUtf8(string.Empty),
-                        new[] { Role.AuthenticatedUser }), Is.True);
+                        [Role.AuthenticatedUser]), Is.True);
                 }
                 catch (ArgumentException)
                 {
@@ -597,7 +597,7 @@ namespace Opc.Ua.Core.Security.Tests
             const string pwd = "!@#$%^&*()_+-=[]{}|;':\",./?";
             try
             {
-                Assert.That(UserDb.CreateUser(u, ToUtf8(pwd), new[] { Role.AuthenticatedUser }), Is.True);
+                Assert.That(UserDb.CreateUser(u, ToUtf8(pwd), [Role.AuthenticatedUser]), Is.True);
                 Assert.That(UserDb.CheckCredentials(u, ToUtf8(pwd)), Is.True);
             }
             finally

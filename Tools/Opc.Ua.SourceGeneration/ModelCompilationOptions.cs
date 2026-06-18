@@ -96,10 +96,60 @@ namespace Opc.Ua.SourceGeneration
         public bool UseTypeDefinitionModellingRules { get; set; }
 
         /// <summary>
+        /// Override for whether the generator emits the
+        /// <c>[assembly: ModelDependencyAttribute]</c> + corresponding
+        /// <c>[assembly: ModelSnapshotAttribute]</c> metadata for the
+        /// model(s) being generated.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <c>Auto</c> (default): emit only when the consuming
+        /// compilation produces a library
+        /// (<see cref="OutputKind.DynamicallyLinkedLibrary"/> /
+        /// <see cref="OutputKind.NetModule"/>). Applications never
+        /// expose their model metadata to downstream consumers — they
+        /// are leaf consumers themselves — so the attribute payload is
+        /// silently skipped to save assembly bloat.
+        /// </para>
+        /// <para>
+        /// <c>Always</c>: emit regardless of OutputKind. Useful for
+        /// integration-test applications that simulate library
+        /// behaviour.
+        /// </para>
+        /// <para>
+        /// <c>Never</c>: do not emit, even from libraries. Useful when
+        /// the consumer assembly is sealed and downstream usage is
+        /// known impossible.
+        /// </para>
+        /// <para>
+        /// Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorEmitDependencyMetadata</c> property.
+        /// </para>
+        /// </remarks>
+        public EmitDependencyMetadataMode EmitDependencyMetadata { get; set; }
+            = EmitDependencyMetadataMode.Auto;
+
+        /// <summary>
+        /// When set to <c>true</c>, suppresses emission of the
+        /// per-ObjectType typed accessor extension classes
+        /// (<c>{TypeName}StateComponents</c> +
+        /// <c>{TypeName}StateProperties</c>) by the model generator.
+        /// Defaults to <c>false</c> — accessors are emitted unless
+        /// explicitly suppressed. Model-only libraries that don't
+        /// reference <c>Opc.Ua.Server</c> must set this to <c>true</c>
+        /// via the
+        /// <c>ModelSourceGeneratorOmitFluentApi</c> MSBuild property,
+        /// because the emitted accessor method bodies call into
+        /// server-side fluent builders even though the
+        /// <c>Opc.Ua.IComponentAccessor&lt;TState&gt;</c> /
+        /// <c>Opc.Ua.IPropertyAccessor&lt;TState&gt;</c> marker
+        /// interfaces themselves live in <c>Opc.Ua.Types</c>.
+        /// </summary>
+        public bool OmitFluentApi { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
-        /// <param name="provider"></param>
-        /// <returns></returns>
         public static ModelCompilationOptions From(AnalyzerConfigOptionsProvider provider)
         {
             return new ModelCompilationOptions
@@ -127,8 +177,49 @@ namespace Opc.Ua.SourceGeneration
                 ObjectTypeProxyNamespace = provider.GlobalOptions.GetString(
                     nameof(ObjectTypeProxyNamespace)),
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
-                    nameof(UseTypeDefinitionModellingRules))
+                    nameof(UseTypeDefinitionModellingRules)),
+                EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
+                    nameof(EmitDependencyMetadata))),
+                OmitFluentApi = provider.GlobalOptions.GetBool(
+                    nameof(OmitFluentApi))
             };
         }
+
+        private static EmitDependencyMetadataMode ParseEmitMode(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return EmitDependencyMetadataMode.Auto;
+            }
+            return raw.Trim().ToLowerInvariant() switch
+            {
+                "always" or "true" => EmitDependencyMetadataMode.Always,
+                "never" or "false" => EmitDependencyMetadataMode.Never,
+                _ => EmitDependencyMetadataMode.Auto
+            };
+        }
+    }
+
+    /// <summary>
+    /// Whether the generator emits cross-assembly model-dependency
+    /// metadata attributes (<c>ModelDependencyAttribute</c> +
+    /// <c>ModelSnapshotAttribute</c>).
+    /// </summary>
+    internal enum EmitDependencyMetadataMode
+    {
+        /// <summary>
+        /// Emit only when building a library.
+        /// </summary>
+        Auto,
+
+        /// <summary>
+        /// Always emit (override).
+        /// </summary>
+        Always,
+
+        /// <summary>
+        /// Never emit (override).
+        /// </summary>
+        Never
     }
 }

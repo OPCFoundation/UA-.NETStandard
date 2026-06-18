@@ -175,7 +175,7 @@ namespace Opc.Ua
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
-                    SetComment(context, comment, GetCurrentUserId(context) ?? string.Empty);
+                    SetComment(context, NormalizeMethodComment(comment), GetCurrentUserId(context) ?? string.Empty);
                 }
 
                 UpdateRetainState();
@@ -338,7 +338,7 @@ namespace Opc.Ua
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
-                    SetComment(context, comment, GetCurrentUserId(context) ?? string.Empty);
+                    SetComment(context, NormalizeMethodComment(comment), GetCurrentUserId(context) ?? string.Empty);
                 }
 
                 UpdateRetainState();
@@ -484,22 +484,12 @@ namespace Opc.Ua
         /// </remarks>
         private static bool CanSetComment(LocalizedText comment)
         {
-            bool canSetComment = false;
+            return true;
+        }
 
-            if (!comment.IsNullOrEmpty)
-            {
-                canSetComment = true;
-
-                bool emptyComment = string.IsNullOrEmpty(comment.Text);
-                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
-
-                if (emptyComment && emptyLocale)
-                {
-                    canSetComment = false;
-                }
-            }
-
-            return canSetComment;
+        private static LocalizedText NormalizeMethodComment(LocalizedText comment)
+        {
+            return new LocalizedText(comment.Locale ?? string.Empty, comment.Text ?? string.Empty);
         }
 
         /// <summary>

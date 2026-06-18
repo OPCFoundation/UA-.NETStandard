@@ -227,7 +227,10 @@ namespace Opc.Ua.SourceGeneration
                 model.XmlEncodingId, model.NamespaceUri);
 
             context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
-            context.Template.AddReplacement(Tokens.BrowseName, model.ClassName);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                model.ClassName);
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
@@ -652,7 +655,10 @@ namespace Opc.Ua.SourceGeneration
                 model.NamespaceUri);
 
             context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
-            context.Template.AddReplacement(Tokens.BrowseName, model.ClassName);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                model.ClassName);
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);

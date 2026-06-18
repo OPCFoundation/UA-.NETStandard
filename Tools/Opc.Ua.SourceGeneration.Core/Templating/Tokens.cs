@@ -39,6 +39,7 @@ namespace Opc.Ua.SourceGeneration
         public static string BaseTypeNamespaceUri => nameof(BaseTypeNamespaceUri);
         public static string BinaryEncodingId => nameof(BinaryEncodingId);
         public static string BrowseName => nameof(BrowseName);
+        public static string BrowseNameLiteral => nameof(BrowseNameLiteral);
         public static string BrowseNameNamespacePrefix => nameof(BrowseNameNamespacePrefix);
         public static string BrowseNameNamespaceUri => nameof(BrowseNameNamespaceUri);
         public static string BrowseNameSymbol => nameof(BrowseNameSymbol);
@@ -48,6 +49,8 @@ namespace Opc.Ua.SourceGeneration
         public static string ValueWrite => nameof(ValueWrite);
         public static string ValueComparison => nameof(ValueComparison);
         public static string ChildName => nameof(ChildName);
+        public static string ChildBrowseName => nameof(ChildBrowseName);
+        public static string ChildBrowseNameLiteral => nameof(ChildBrowseNameLiteral);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
         public static string ClassFactory => nameof(ClassFactory);
@@ -140,6 +143,7 @@ namespace Opc.Ua.SourceGeneration
         public static string OnCallImplementation => nameof(OnCallImplementation);
         public static string Prefix => nameof(Prefix);
         public static string PropertyName => nameof(PropertyName);
+        public static string OwnerClassName => nameof(OwnerClassName);
         public static string RequestParameters => nameof(RequestParameters);
         public static string ResponseParameters => nameof(ResponseParameters);
         public static string ServerApi => nameof(ServerApi);
@@ -185,6 +189,8 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfModelDependencies => nameof(ListOfModelDependencies);
         public static string ModelVersion => nameof(ModelVersion);
         public static string ModelPublicationDate => nameof(ModelPublicationDate);
+        public static string ModelName => nameof(ModelName);
+        public static string ModelPayload => nameof(ModelPayload);
         public static string AccessModifier => nameof(AccessModifier);
         public static string IdentifierReflection => nameof(IdentifierReflection);
         public static string ListOfNodeStateInitializers => nameof(ListOfNodeStateInitializers);

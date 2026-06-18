@@ -136,6 +136,7 @@ namespace TestData
         /// <summary>
         /// Creates an archive for the variable and seeds initial samples.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         public void EnableHistoryArchiving(ServerSystemContext systemContext, BaseVariableState variable)
         {
             if (systemContext == null)

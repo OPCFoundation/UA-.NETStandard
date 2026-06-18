@@ -100,7 +100,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             ECDsa verifier = certificate.GetECDsaPublicKey();
             using var resolver = new StaticIssuerKeyResolver(
                 Issuer,
-                new[] { new IssuerVerificationKey(certificate.Thumbprint, verifier, "ES256") });
+                [new IssuerVerificationKey(certificate.Thumbprint, verifier, "ES256")]);
             AuthenticationResult result = await new JwtAuthenticator(resolver, Audience, TimeSpan.Zero)
                 .AuthenticateAsync(CreateContext(tokenResult.AccessToken))
                 .ConfigureAwait(false);

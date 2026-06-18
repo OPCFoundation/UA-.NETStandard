@@ -347,5 +347,53 @@ namespace Opc.Ua.Server.Tests
             double variance = (double)varianceResult.WrappedValue.ConvertToDouble();
             Assert.That(stdDev, Is.EqualTo(Math.Sqrt(variance)).Within(0.001));
         }
+
+        [Test]
+        public void StdDevWithBadStatusValueExistingMarksSubNormal()
+        {
+            // Verifies the nonGoodDataExists branch in ComputeStdDev → Uncertain_DataSubNormal status.
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(10000);
+            DateTimeUtc t0 = startTime.AddMilliseconds(500);
+
+            var values = new List<DataValue>
+            {
+                new(new Variant(10.0), StatusCodes.Good, t0, t0),
+                new(new Variant(0.0), StatusCodes.Bad, t0.AddMilliseconds(2000), t0.AddMilliseconds(2000)),
+                new(new Variant(20.0), StatusCodes.Good, t0.AddMilliseconds(4000), t0.AddMilliseconds(4000)),
+                new(new Variant(30.0), StatusCodes.Good, t0.AddMilliseconds(6000), t0.AddMilliseconds(6000)),
+                new(new Variant(40.0), StatusCodes.Good, t0.AddMilliseconds(8000), t0.AddMilliseconds(8000))
+            };
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_StandardDeviationPopulation,
+                values, startTime, endTime, 10000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+        }
+
+        [Test]
+        public void StdDevAllBadValuesReturnsNoData()
+        {
+            // Verifies the "xData.Count == 0" branch in ComputeStdDev → GetNoDataValue.
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(6000);
+            DateTimeUtc t0 = startTime.AddMilliseconds(500);
+
+            var values = new List<DataValue>
+            {
+                new(new Variant(1.0), StatusCodes.Bad, t0, t0),
+                new(new Variant(2.0), StatusCodes.Bad, t0.AddMilliseconds(2000), t0.AddMilliseconds(2000)),
+                new(new Variant(3.0), StatusCodes.Bad, t0.AddMilliseconds(4000), t0.AddMilliseconds(4000))
+            };
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_VariancePopulation,
+                values, startTime, endTime, 6000);
+
+            Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
+        }
     }
 }

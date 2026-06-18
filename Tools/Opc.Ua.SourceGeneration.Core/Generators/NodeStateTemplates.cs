@@ -313,7 +313,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return base.Call(_context, _objectId, _inputArguments, _outputArguments);
                     }
-
                     global::Opc.Ua.ServiceResult? _result = null;
                     {{Tokens.ListOfInputArguments}}
                     {{Tokens.ListOfOutputDeclarations}}
@@ -931,15 +930,165 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString OptionalMethod = TemplateString.Parse(
             $$"""
             /// <summary>
-            /// Add an optional {{Tokens.ChildName}} child
+            /// Adds the optional {{Tokens.ChildName}} child and returns this
+            /// instance so calls can be chained, e.g.
+            /// <c>parent.Add{{Tokens.ChildName}}(context).Add{{Tokens.ChildName}}Other(context)...</c>.
+            /// Idempotent: if {{Tokens.ChildName}} already exists the existing
+            /// child is kept and only its NodeId is overwritten (when a
+            /// non-null <paramref name="nodeId"/> is supplied).
             /// </summary>
-            {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} Add{{Tokens.ChildName}}(
-                global::Opc.Ua.ISystemContext context)
+            /// <param name="context">The system context.</param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child. When
+            /// <see cref="global::Opc.Ua.NodeId.Null"/> (the default), the
+            /// child keeps the type-level NodeId assigned by the generated
+            /// factory unless <paramref name="context"/>'s
+            /// <see cref="global::Opc.Ua.ISystemContext.NodeIdFactory"/> is
+            /// non-null, in which case a fresh NodeId is minted via the
+            /// factory.
+            /// </param>
+            {{Tokens.AccessorSymbol}} {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                global::Opc.Ua.NodeId nodeId = default)
             {
-                {{Tokens.ClassName}} state =
-                    context.Create{{Tokens.SymbolicId}}(this, true);
-                {{Tokens.ChildName}} = state;
-                return state;
+                if ({{Tokens.ChildName}} == null)
+                {
+                    {{Tokens.ClassName}} state = context.Create{{Tokens.SymbolicId}}(this, true);
+                    if (!nodeId.IsNull)
+                    {
+                        state.NodeId = nodeId;
+                    }
+                    else if (context.NodeIdFactory != null)
+                    {
+                        state.NodeId = context.NodeIdFactory.New(context, state);
+                    }
+                    {{Tokens.ChildName}} = state;
+                }
+                else if (!nodeId.IsNull)
+                {
+                    {{Tokens.ChildName}}.NodeId = nodeId;
+                }
+                return this;
+            }
+
+            /// <summary>
+            /// Adds the optional {{Tokens.ChildName}} child and invokes
+            /// <paramref name="configure"/> on the (just-added or pre-existing)
+            /// typed child. Returns this instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="configure">
+            /// Mutates the typed child in-place. Invoked after the child slot
+            /// is materialised so the callback can rely on the typed child
+            /// being non-null.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child. See the
+            /// <see cref="Add{{Tokens.ChildName}}(global::Opc.Ua.ISystemContext, global::Opc.Ua.NodeId)"/>
+            /// overload for the default behaviour.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                global::System.Action<{{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId nodeId = default)
+            {
+                Add{{Tokens.ChildName}}(context, nodeId);
+                configure({{Tokens.ChildName}}!);
+                return this;
+            }
+
+            /// <summary>
+            /// Conditionally adds the optional {{Tokens.ChildName}} child
+            /// and invokes <paramref name="configure"/> on the typed child.
+            /// When <paramref name="condition"/> is <c>false</c> the child
+            /// is not materialised and the callback is not invoked.
+            /// Returns this instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="condition">
+            /// Whether to add and configure the child. When <c>false</c>,
+            /// the call is a no-op.
+            /// </param>
+            /// <param name="configure">
+            /// Mutates the typed child in-place. Only invoked when
+            /// <paramref name="condition"/> is <c>true</c>.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                bool condition,
+                global::System.Action<{{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId nodeId = default)
+            {
+                if (!condition)
+                {
+                    return this;
+                }
+                Add{{Tokens.ChildName}}(context, nodeId);
+                configure({{Tokens.ChildName}}!);
+                return this;
+            }
+
+            /// <summary>
+            /// Adds the optional {{Tokens.ChildName}} child and invokes the
+            /// transform <paramref name="configure"/> on the typed child; the
+            /// callback's return value replaces the typed slot (so the
+            /// caller can wrap or substitute the child). Returns this
+            /// instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="configure">
+            /// Transforms the typed child. The returned instance is stored
+            /// in the typed slot; pass back the same instance to keep it
+            /// unchanged or a new instance to replace it.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                global::System.Func<{{Tokens.ClassName}}, {{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId nodeId = default)
+            {
+                Add{{Tokens.ChildName}}(context, nodeId);
+                {{Tokens.ChildName}} = configure({{Tokens.ChildName}}!);
+                return this;
+            }
+
+            /// <summary>
+            /// Conditionally adds the optional {{Tokens.ChildName}} child and
+            /// invokes the transform <paramref name="configure"/> on the
+            /// typed child. When <paramref name="condition"/> is <c>false</c>
+            /// the child is not materialised and the callback is not invoked.
+            /// Returns this instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="condition">
+            /// Whether to add and configure the child. When <c>false</c>,
+            /// the call is a no-op.
+            /// </param>
+            /// <param name="configure">
+            /// Transforms the typed child. Only invoked when
+            /// <paramref name="condition"/> is <c>true</c>.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                bool condition,
+                global::System.Func<{{Tokens.ClassName}}, {{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId nodeId = default)
+            {
+                if (!condition)
+                {
+                    return this;
+                }
+                Add{{Tokens.ChildName}}(context, nodeId);
+                {{Tokens.ChildName}} = configure({{Tokens.ChildName}}!);
+                return this;
             }
 
             """);
@@ -992,7 +1141,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-
                 global::Opc.Ua.BaseInstanceState? instance = null;
 
                 switch (browseName.Name)
@@ -1001,10 +1149,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-                {
-                    return instance;
-                }
 
+                {
+
+                    return instance;
+
+                }
                 return base.FindChild(context, browseName, createOrReplace, replacement);
             }
 
@@ -1019,11 +1169,19 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Find child case template
+        /// Find child case template. Uses a literal string with the
+        /// runtime browse name (which may differ from the symbolic
+        /// name when the design overrides <c>&lt;opc:BrowseName&gt;</c>,
+        /// as in <c>Boiler.InputPipe</c> → <c>"PipeX001"</c>).
+        /// Avoids depending on <c>{Namespace}.BrowseNames.{ChildName}</c>
+        /// constants so cross-namespace inherited children compile
+        /// even when the foreign namespace's generated
+        /// <c>BrowseNames</c> class doesn't carry a constant for that
+        /// name.
         /// </summary>
         public static readonly TemplateString FindChildCase = TemplateString.Parse(
             $$"""
-            case {{Tokens.BrowseNameNamespacePrefix}}.BrowseNames.{{Tokens.ChildName}}:
+            case "{{Tokens.ChildBrowseNameLiteral}}":
             {
                 instance = !createOrReplace ?
                     {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);

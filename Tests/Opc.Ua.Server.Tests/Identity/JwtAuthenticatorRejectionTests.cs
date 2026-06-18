@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
-            string header = Base64UrlEncode(Encoding.UTF8.GetBytes("{\"typ\":\"JWT\"}"));
+            string header = Base64UrlEncode(Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"typ\":\"JWT\"}"));
             string payload = Base64UrlEncode(Encoding.UTF8.GetBytes("{}"));
             string signature = Base64UrlEncode([1, 2, 3]);
             AuthenticationResult result = await Authenticate(header + "." + payload + "." + signature, key)
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
-            const string header = "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
+            const string header = /*lang=json,strict*/ "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
             string headerEncoded = Base64UrlEncode(Encoding.UTF8.GetBytes(header));
             string payloadEncoded = Base64UrlEncode(Encoding.UTF8.GetBytes("not-json"));
             string signingInput = headerEncoded + "." + payloadEncoded;
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests.Identity
             var resolver = new ThrowingResolver(Issuer, new InvalidOperationException("kaboom"));
             var authenticator = new JwtAuthenticator(resolver, Audience, TimeSpan.Zero);
             byte[] tokenData = Encoding.UTF8.GetBytes(
-                Base64UrlEncode(Encoding.UTF8.GetBytes("{\"alg\":\"RS256\",\"kid\":\"x\"}")) +
+                Base64UrlEncode(Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"alg\":\"RS256\",\"kid\":\"x\"}")) +
                 "." +
                 Base64UrlEncode(Encoding.UTF8.GetBytes("{}")) +
                 "." +

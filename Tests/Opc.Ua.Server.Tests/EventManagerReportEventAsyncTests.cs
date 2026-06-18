@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -73,7 +72,7 @@ namespace Opc.Ua.Server.Tests
             IList<IEventMonitoredItem> receivers = [item1.Object, item2.Object];
             var ev = new BaseEventState(null);
 
-            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers);
+            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers).ConfigureAwait(false);
 
             item1.Verify(m => m.QueueEvent(ev), Times.Once);
             item2.Verify(m => m.QueueEvent(ev), Times.Once);
@@ -100,7 +99,7 @@ namespace Opc.Ua.Server.Tests
             IList<IEventMonitoredItem> receivers = [item.Object];
             var ev = new BaseEventState(null);
 
-            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers);
+            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers).ConfigureAwait(false);
 
             item.Verify(m => m.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
         }
@@ -134,7 +133,7 @@ namespace Opc.Ua.Server.Tests
             IList<IEventMonitoredItem> receivers = [permittedItem.Object, deniedItem.Object];
             var ev = new BaseEventState(null);
 
-            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers);
+            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers).ConfigureAwait(false);
 
             permittedItem.Verify(m => m.QueueEvent(ev), Times.Once);
             deniedItem.Verify(m => m.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);

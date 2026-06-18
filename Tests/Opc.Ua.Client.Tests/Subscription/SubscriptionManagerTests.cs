@@ -560,6 +560,84 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Regression coverage for the ack-pruning helper added by
+        /// #3540. <see cref="IMessageAckQueue.DropPendingForSubscription"/>
+        /// must remove every queued acknowledgement targeting the
+        /// given subscription id while leaving acks for other
+        /// subscriptions intact. The recovery path relies on this
+        /// before recreating a subscription so stale acks for the
+        /// dead id do not leak <c>BadSubscriptionIdInvalid</c> to
+        /// the server when the server re-uses the id.
+        /// </summary>
+        [Test]
+        public async Task DropPendingForSubscriptionRemovesOnlyMatchingAcksAsync()
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                // Variable typed as the interface on purpose to test the
+                // public contract; the analyzer's perf hint does not
+                // apply to a coverage test.
+#pragma warning disable CA1859
+                IMessageAckQueue queue = sut;
+                await queue.QueueAsync(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = 1u,
+                    SequenceNumber = 10u
+                }).ConfigureAwait(false);
+                await queue.QueueAsync(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = 2u,
+                    SequenceNumber = 11u
+                }).ConfigureAwait(false);
+                await queue.QueueAsync(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = 1u,
+                    SequenceNumber = 12u
+                }).ConfigureAwait(false);
+
+                int dropped = queue.DropPendingForSubscription(1u);
+
+                Assert.That(dropped, Is.EqualTo(2),
+                    "All queued acks for the dead subscription id must be dropped.");
+
+                int droppedAgain = queue.DropPendingForSubscription(1u);
+                Assert.That(droppedAgain, Is.Zero,
+                    "Second call must drop nothing (idempotent).");
+
+                int droppedOther = queue.DropPendingForSubscription(2u);
+                Assert.That(droppedOther, Is.EqualTo(1),
+                    "Ack for the surviving subscription id must still be queued " +
+                    "and drainable on a subsequent call.");
+#pragma warning restore CA1859
+            }
+        }
+
+        /// <summary>
+        /// Calling <see cref="IMessageAckQueue.DropPendingForSubscription"/>
+        /// on an empty queue is a no-op and must not throw.
+        /// </summary>
+        [Test]
+        public async Task DropPendingForSubscriptionOnEmptyQueueReturnsZeroAsync()
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+#pragma warning disable CA1859
+                IMessageAckQueue queue = sut;
+                int dropped = queue.DropPendingForSubscription(7u);
+                Assert.That(dropped, Is.Zero);
+#pragma warning restore CA1859
+            }
+        }
+
+        /// <summary>
         /// Polls <see cref="SubscriptionManager.PublishWorkerCount"/> until it
         /// matches the expected value or the timeout elapses. Replaces fixed
         /// <c>Task.Delay</c>-based waits, which are flaky on slow CI runners.
@@ -570,7 +648,7 @@ namespace Opc.Ua.Client.Subscriptions
             TimeSpan? timeout = null)
         {
             timeout ??= TimeSpan.FromSeconds(5);
-            Stopwatch sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             while (sw.Elapsed < timeout.Value && sut.PublishWorkerCount != expected)
             {
                 await Task.Delay(25).ConfigureAwait(false);

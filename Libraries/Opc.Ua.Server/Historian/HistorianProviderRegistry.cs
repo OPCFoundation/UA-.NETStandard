@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 
 namespace Opc.Ua.Server.Historian
@@ -42,7 +41,9 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     public sealed class HistorianProviderRegistry : IHistorianProviderRegistry, IDisposable
     {
-        /// <summary>Creates an empty registry.</summary>
+        /// <summary>
+        /// Creates an empty registry.
+        /// </summary>
         public HistorianProviderRegistry(NamespaceTable namespaceTable)
         {
             m_namespaceTable = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
@@ -190,7 +191,7 @@ namespace Opc.Ua.Server.Historian
             {
                 lock (m_lock)
                 {
-                    return m_providers.ToArray();
+                    return [.. m_providers];
                 }
             }
         }

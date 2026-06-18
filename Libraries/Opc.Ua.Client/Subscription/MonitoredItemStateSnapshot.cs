@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -39,7 +40,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// <remarks>
     /// <para>
     /// Produced by <see cref="MonitoredItem.Snapshot"/> and consumed by
-    /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.LoadAsync"/>.
+    /// <see cref="ISubscriptionManager.LoadAsync"/>.
     /// Per-item runtime values (filter result, last sample,
     /// current sampling interval) are intentionally not captured — the
     /// transfer path re-binds them from the server via
@@ -88,11 +89,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public partial uint ServerId { get; init; }
 
         /// <summary>
-        /// Client handle of the monitored item that triggers this item,
-        /// or <c>0</c> if not triggered.
+        /// Stable names of monitored items that trigger this item
+        /// (OPC UA Part 4 §5.13.5 SetTriggering). Captured from the
+        /// owning item's runtime <c>DesiredTriggeredByNames</c> at
+        /// snapshot time. Each entry resolves at load time via the
+        /// owning subscription's
+        /// <see cref="IMonitoredItemCollection.TryGetMonitoredItemByName"/>.
+        /// Empty when the item has no triggering relationships.
         /// </summary>
         [DataTypeField(Order = 4)]
-        public partial uint TriggeringItemClientHandle { get; init; }
+        public partial ArrayOf<string> TriggeredByNames { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.Order"/> surrogate.
@@ -174,8 +180,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public partial bool AutoSetQueueSize { get; init; }
 
         /// <summary>
+        /// <see cref="MonitoredItemOptions.Affinity"/> surrogate.
+        /// Round-trips the strict-affinity tag so a restored
+        /// subscription regroups items into the same logical
+        /// partition the source had.
+        /// </summary>
+        [DataTypeField(Order = 22)]
+        public partial string? Affinity { get; init; }
+
+        /// <summary>
         /// Project the encoded surrogate fields back into a live
-        /// <see cref="MonitoredItemOptions"/>. Not serialized.
+        /// <see cref="MonitoredItemOptions"/>. Not serialized. The
+        /// <see cref="TriggeredByNames"/> wire field is exposed via the
+        /// returned options' <see cref="MonitoredItemOptions.TriggeredByNames"/>
+        /// (so the round-trip is lossless).
         /// </summary>
         public MonitoredItemOptions ToOptions()
         {
@@ -183,30 +201,43 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 Order = Order,
                 StartNodeId = StartNodeId.IsNull ? NodeId.Null : StartNodeId,
-                TimestampsToReturn = (Opc.Ua.TimestampsToReturn)TimestampsToReturn,
+                TimestampsToReturn = (TimestampsToReturn)TimestampsToReturn,
                 AttributeId = AttributeId,
                 IndexRange = IndexRange,
                 Encoding = Encoding.IsNull ? null : Encoding,
-                MonitoringMode = (Opc.Ua.MonitoringMode)MonitoringMode,
+                MonitoringMode = (MonitoringMode)MonitoringMode,
                 SamplingInterval = TimeSpan.FromMilliseconds(SamplingIntervalMs),
                 Filter = Filter,
                 QueueSize = QueueSize,
                 DiscardOldest = DiscardOldest,
-                AutoSetQueueSize = AutoSetQueueSize
+                AutoSetQueueSize = AutoSetQueueSize,
+                Affinity = Affinity,
+                TriggeredByNames = TriggeredByNames.IsNull
+                    ? []
+                    : TriggeredByNames.ToArray() ?? []
             };
         }
 
         /// <summary>
         /// Construct a <see cref="MonitoredItemStateSnapshot"/> from a
         /// live <see cref="MonitoredItemOptions"/> + the captured
-        /// server-side state.
+        /// server-side state and runtime desired triggering set.
         /// </summary>
+        /// <param name="name">Manager-unique monitored-item name.</param>
+        /// <param name="options">Live options at snapshot time.</param>
+        /// <param name="clientHandle">Client-assigned handle.</param>
+        /// <param name="serverId">Server-assigned monitored item id, or 0.</param>
+        /// <param name="triggeredByNames">
+        /// Runtime desired triggering set captured at snapshot time.
+        /// Stored on the wire as <see cref="TriggeredByNames"/>.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static MonitoredItemStateSnapshot AsOptions(
             string name,
             MonitoredItemOptions options,
             uint clientHandle,
             uint serverId,
-            uint triggeringItemClientHandle)
+            IReadOnlyList<string>? triggeredByNames)
         {
             if (options == null)
             {
@@ -217,7 +248,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Name = name ?? string.Empty,
                 ClientHandle = clientHandle,
                 ServerId = serverId,
-                TriggeringItemClientHandle = triggeringItemClientHandle,
+                TriggeredByNames = triggeredByNames is { Count: > 0 }
+                    ? new ArrayOf<string>(triggeredByNames is string[] arr
+                        ? arr
+                        : [.. triggeredByNames])
+                    : new ArrayOf<string>(Array.Empty<string>()),
                 Order = options.Order,
                 StartNodeId = options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId,
                 TimestampsToReturn = (uint)options.TimestampsToReturn,
@@ -233,7 +268,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Filter = options.Filter,
                 QueueSize = options.QueueSize,
                 DiscardOldest = options.DiscardOldest,
-                AutoSetQueueSize = options.AutoSetQueueSize
+                AutoSetQueueSize = options.AutoSetQueueSize,
+                Affinity = options.Affinity
             };
         }
     }

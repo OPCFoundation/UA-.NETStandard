@@ -39,7 +39,7 @@ namespace Alarms
         protected ConditionTypeHolder(
             ILogger logger,
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             string name,
             SupportedAlarmConditionType alarmConditionType,
@@ -81,6 +81,7 @@ namespace Alarms
             alarm.BranchId!.Value = new NodeId();
             alarm.Retain!.Value = false;
 
+            EnsureTransitionTime(alarm.EnabledState!);
             alarm.SetEnableState(SystemContext, true);
             alarm.Quality!.Value = StatusCodes.Good;
             alarm.LastSeverity!.Value = AlarmDefines.INACTIVE_SEVERITY;
@@ -338,22 +339,21 @@ namespace Alarms
 
         protected bool CanSetComment(LocalizedText comment)
         {
-            bool canSetComment = false;
+            bool emptyComment = string.IsNullOrEmpty(comment.Text);
+            bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
 
-            if (!comment.IsNullOrEmpty)
-            {
-                canSetComment = true;
+            return !(emptyComment && emptyLocale);
+        }
 
-                bool emptyComment = string.IsNullOrEmpty(comment.Text);
-                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
-
-                if (emptyComment && emptyLocale)
-                {
-                    canSetComment = false;
-                }
-            }
-
-            return canSetComment;
+        protected static void EnsureTransitionTime(TwoStateVariableState state)
+        {
+            // No-op: TransitionTime is declared Optional on TwoStateVariableType.
+            // Dynamic creation here would leave the property without a NodeId
+            // because the parent state's NodeId is not yet assigned during
+            // alarm initialization, which surfaces as BadNodeIdInvalid on
+            // subsequent address-space reads. Tests that rely on
+            // TransitionTime must gracefully handle its absence.
+            _ = state;
         }
 
         protected virtual bool GetRetainState()

@@ -15835,7 +15835,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -15879,7 +15879,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -15923,7 +15923,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -15967,7 +15967,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16011,7 +16011,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data="ns=7;s=Alarms"/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16055,7 +16055,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16187,7 +16187,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16275,7 +16275,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.AnalogSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16407,7 +16407,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16451,7 +16451,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data="ns=7;s=Alarms"/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.BooleanSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -16495,7 +16495,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data=""/>
+              <Value type="10" typename="QString" data="ns=7;s=Alarms.BooleanSource"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>

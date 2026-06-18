@@ -67,6 +67,33 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the
+        /// <see cref="StateMachineIdsGenerator"/> is suppressed and no
+        /// <c>{TypeName}Ids</c> classes (nested <c>StateIds</c> /
+        /// <c>StateNumbers</c> / <c>TransitionIds</c> /
+        /// <c>TransitionNumbers</c>) are emitted. Off by default — IDs
+        /// are emitted for every concrete <c>FiniteStateMachineType</c>
+        /// subtype declared in the model.
+        /// </summary>
+        public bool OmitStateMachineIds { get; set; }
+
+        /// <summary>
+        /// When set to <c>true</c>, suppresses emission of the
+        /// per-ObjectType <c>IComponentAccessor&lt;TState&gt;</c> /
+        /// <c>IPropertyAccessor&lt;TState&gt;</c> typed-accessor
+        /// extension classes by <see cref="FluentBuilderGenerator"/>.
+        /// Defaults to <c>false</c> — accessors are emitted unless
+        /// explicitly suppressed. Model-only assemblies that don't
+        /// reference <c>Opc.Ua.Server</c> must set this to <c>true</c>
+        /// because the emitted method bodies call into server-side
+        /// fluent builders even though the
+        /// <see cref="IComponentAccessor{TState}"/> /
+        /// <see cref="IPropertyAccessor{TState}"/> marker interfaces
+        /// themselves now live in <c>Opc.Ua.Types</c>.
+        /// </summary>
+        public bool OmitFluentApi { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.
@@ -78,7 +105,9 @@ namespace Opc.Ua.SourceGeneration
         /// uses the modelling rules from the referenced type definition
         /// unconditionally, rather than the overridden rules on instance
         /// definitions, for all structural code generation decisions
-        /// (child inclusion, optional vs mandatory classification) and
+        /// (child inclusion, optional vs mandatory classification),
+        /// for factory-method child emission (mandatory list versus
+        /// on-demand <c>CreateOrReplace*</c> initialisation) and for
         /// the emitted runtime <c>ModellingRuleId</c>.
         /// <para>
         /// Off by default.  When off, the generator still enforces OPC UA
@@ -133,5 +162,17 @@ namespace Opc.Ua.SourceGeneration
         /// </remarks>
         public IDictionary<string, string> EventRecordExternalNamespaces { get; }
             = new Dictionary<string, string>();
+
+        /// <summary>
+        /// When <c>false</c>, suppress the emission of the
+        /// <c>{prefix}.ModelDependencies.g.cs</c> and
+        /// <c>{prefix}.ModelSnapshot.g.cs</c> files. The consuming
+        /// generator decides whether emission is appropriate
+        /// (typically only for assemblies that will be referenced as
+        /// libraries). Default <c>true</c> preserves existing
+        /// behaviour for direct invokers of the Core API (tests, the
+        /// model-compiler CLI).
+        /// </summary>
+        public bool EmitDependencyMetadata { get; set; } = true;
     }
 }

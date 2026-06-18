@@ -75,12 +75,11 @@ namespace Opc.Ua.Schema.Model
             {
                 return BasicDataType.BaseDataType;
             }
-
             if (dataType.IsOptionSet)
+
             {
                 return BasicDataType.Enumeration;
             }
-
             // check if it is a built in data type.
             if (dataType.IsBasicDataType(out BasicDataType basicDataType))
             {
@@ -96,7 +95,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return BasicDataType.UserDefined;
             }
-
             return basicType;
         }
 
@@ -160,10 +158,10 @@ namespace Opc.Ua.Schema.Model
             }
 
             if (instance is not VariableDesign variable)
+
             {
                 return GetNodeStateNameSimple(instance.TypeDefinitionNode);
             }
-
             var variableType = instance.TypeDefinitionNode as VariableTypeDesign;
 
             // check if the variable type restricted the datatype to eliminate the
@@ -199,6 +197,28 @@ namespace Opc.Ua.Schema.Model
                 }
                 return CoreUtils.Format(
                     "{0}State<global::Opc.Ua.ArrayOf<{1}>>",
+                    GetClassName(variableType, namespaces),
+                    scalarName);
+            }
+
+            if (variable.ValueRank == ValueRank.OneOrMoreDimensions &&
+                variable.DataTypeNode.SupportsMatrixOf() &&
+                variable.DataTypeNode.BasicDataType
+                    is not BasicDataType.BaseDataType
+                    and not BasicDataType.Number
+                    and not BasicDataType.UInteger
+                    and not BasicDataType.Integer)
+            {
+                if (asFactory)
+                {
+                    return CoreUtils.Format(
+                        "{0}State<global::Opc.Ua.MatrixOf<{1}>>.With<{2}>",
+                        GetClassName(variableType, namespaces),
+                        scalarName,
+                        GetVariantBuilder(variable.DataTypeNode, scalarName));
+                }
+                return CoreUtils.Format(
+                    "{0}State<global::Opc.Ua.MatrixOf<{1}>>",
                     GetClassName(variableType, namespaces),
                     scalarName);
             }
@@ -279,7 +299,6 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(type));
             }
-
             if (type is not DataTypeDesign dataType ||
                 dataType.BaseTypeNode is not DataTypeDesign dtd)
             {
@@ -287,10 +306,10 @@ namespace Opc.Ua.Schema.Model
             }
 
             if (dtd.BasicDataType == BasicDataType.Structure)
+
             {
                 return "global::Opc.Ua.IEncodeable";
             }
-
             return dtd.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
         }
 
@@ -392,7 +411,6 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-
             if (!instance.IsOverridden())
             {
                 return false;
@@ -416,9 +434,25 @@ namespace Opc.Ua.Schema.Model
             {
                 if (variable.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
                 {
+                    // Matrix-rank with a concrete data type that supports
+                    // `MatrixOf<T>` is determinate - the generator emits a
+                    // typed `State<MatrixOf<T>>` for it. Everything else
+                    // (ScalarOrArray, ScalarOrOneDimension, Any, or matrix
+                    // over an abstract numeric base) stays on the Variant
+                    // fallback.
+                    if (variable.ValueRank == ValueRank.OneOrMoreDimensions &&
+                        variable.DataTypeNode != null &&
+                        variable.DataTypeNode.SupportsMatrixOf() &&
+                        variable.DataTypeNode.BasicDataType
+                            is not BasicDataType.BaseDataType
+                            and not BasicDataType.Number
+                            and not BasicDataType.UInteger
+                            and not BasicDataType.Integer)
+                    {
+                        return false;
+                    }
                     return true;
                 }
-
                 if (variable.DataType ==
                     new XmlQualifiedName(BrowseNames.Enumeration, Namespaces.OpcUa))
                 {
@@ -451,10 +485,10 @@ namespace Opc.Ua.Schema.Model
                     }
 
                     if (target.Identifier == field.Identifier)
+
                     {
                         return check;
                     }
-
                     names.Add(check);
                 }
             }
@@ -505,12 +539,11 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(node));
             }
-
             if (node is DataTypeDesign)
+
             {
                 return node.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
             }
-
             if (node is ObjectTypeDesign objectType &&
                 objectType.ClassName == "ObjectSource")
             {
@@ -540,42 +573,41 @@ namespace Opc.Ua.Schema.Model
             {
                 return "Variable";
             }
-
             if (node is VariableTypeDesign)
+
             {
                 return "VariableType";
             }
-
             if (node is ObjectDesign)
+
             {
                 return "Object";
             }
-
             if (node is ObjectTypeDesign)
+
             {
                 return "ObjectType";
             }
-
             if (node is ReferenceTypeDesign)
+
             {
                 return "ReferenceType";
             }
-
             if (node is DataTypeDesign)
+
             {
                 return "DataType";
             }
-
             if (node is MethodDesign)
+
             {
                 return "Method";
             }
-
             if (node is ViewDesign)
+
             {
                 return "View";
             }
-
             return "Node";
         }
 
@@ -698,7 +730,8 @@ namespace Opc.Ua.Schema.Model
             }
             if (valueRank != ValueRank.Scalar)
             {
-                return true; // ArrayOf/MatrixOf/Variant
+                return true;
+                // ArrayOf/MatrixOf/Variant;
             }
             switch (dataType.BasicDataType)
             {
@@ -756,6 +789,25 @@ namespace Opc.Ua.Schema.Model
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Whether the data type can be expressed as a typed
+        /// <see cref="MatrixOf{T}"/> in generated code, i.e. whether
+        /// <c>Variant.From(MatrixOf&lt;T&gt;)</c> /
+        /// <c>Variant.GetXxxMatrix()</c> round-trip APIs exist.
+        /// All BasicDataType values except <see cref="BasicDataType.DiagnosticInfo"/>
+        /// (which is not a valid structure field per OPC UA Part 5) are
+        /// supported.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool SupportsMatrixOf(this DataTypeDesign dataType)
+        {
+            if (dataType is null)
+            {
+                throw new ArgumentNullException(nameof(dataType));
+            }
+            return dataType.BasicDataType != BasicDataType.DiagnosticInfo;
         }
 
         /// <summary>
@@ -839,7 +891,6 @@ namespace Opc.Ua.Schema.Model
                     {
                         boolValue = false;
                     }
-
                     return MakeReturnType(boolValue ? "true" : "false");
                 case BasicDataType.SByte:
                     if (decodedValue is not sbyte sbyteValue)
@@ -1012,8 +1063,14 @@ namespace Opc.Ua.Schema.Model
                     if (dataType.BaseTypeNode?.SymbolicId ==
                         new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                     {
-                        return MakeReturnType(CoreUtils.Format("new {0}()",
-                            dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces)));
+                        // OptionSet subtypes inherit from Opc.Ua.OptionSet (a
+                        // class implementing IEncodeable), so Variant.From<T>
+                        // (where T : struct, Enum) does not apply. Route them
+                        // through Variant.FromStructure<T> (where T : IEncodeable).
+                        return MakeReturnType(
+                            CoreUtils.Format("new {0}()",
+                                dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces)),
+                            "Structure");
                     }
                     if (!dataType.IsOptionSet && dataType.Fields?.Length > 0)
                     {
@@ -1243,6 +1300,7 @@ namespace Opc.Ua.Schema.Model
                 false);
 
             if (typeName is "global::Opc.Ua.IEncodeable" or "global::Opc.Ua.IEncodeable?")
+
             {
                 typeName = "global::Opc.Ua.ExtensionObject";
             }
@@ -1451,6 +1509,21 @@ namespace Opc.Ua.Schema.Model
             {
                 return true;
             }
+            // Matrix-rank with a concrete data type that supports
+            // `MatrixOf<T>` is fully determinate (the generator produces
+            // `State<MatrixOf<T>>` rather than `State<T>`/`State<Variant>`),
+            // so the template parameter is in fact required to specialize
+            // the inherited State class.
+            if (valueRank == ValueRank.OneOrMoreDimensions &&
+                dataType.SupportsMatrixOf() &&
+                dataType.BasicDataType
+                    is not BasicDataType.BaseDataType
+                    and not BasicDataType.Number
+                    and not BasicDataType.UInteger
+                    and not BasicDataType.Integer)
+            {
+                return true;
+            }
             return false;
         }
 
@@ -1485,10 +1558,10 @@ namespace Opc.Ua.Schema.Model
                     int index = relativePath.IndexOf('_', StringComparison.Ordinal);
 
                     if (index != -1)
+
                     {
                         relativePath = relativePath[(index + 1)..];
                     }
-
                     if (parent.Hierarchy.Nodes.TryGetValue(relativePath,
                         out HierarchyNode hierarchyNode) &&
                         hierarchyNode.Instance is InstanceDesign instanceDesign)
@@ -1520,6 +1593,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             if (namespaceUris is null)
+
             {
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
@@ -1905,7 +1979,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return null;
             }
-
             if (namespaces != null)
             {
                 for (int ii = 0; ii < namespaces.Length; ii++)
@@ -1931,21 +2004,20 @@ namespace Opc.Ua.Schema.Model
             {
                 return false;
             }
-
             if (node is not MethodDesign)
+
             {
                 return false;
             }
-
             string symbol = node.SymbolicId.Name;
 
             int index = symbol.IndexOf('_', StringComparison.Ordinal);
 
             if (index > 0)
+
             {
                 symbol = symbol[..index];
             }
-
             return symbol.EndsWith("MethodType", StringComparison.Ordinal);
         }
 
@@ -2055,7 +2127,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return null;
             }
-
             if (string.IsNullOrEmpty(arrayDimensions))
             {
                 if (valueRank == ValueRank.Array)
@@ -2073,10 +2144,10 @@ namespace Opc.Ua.Schema.Model
                 .ToList();
 
             if (tokens.Count == 0)
+
             {
                 return null;
             }
-
             return CoreUtils.Format(
                 "new uint[] {{ {0} }}",
                 string.Join(", ", tokens.Select(t =>
@@ -2138,7 +2209,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return "global::Opc.Ua.PermissionType.None";
             }
-
             var parts = new HashSet<string>();
             foreach (Permissions p in permissions)
             {
@@ -2341,7 +2411,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return "global::Opc.Ua.NodeId.Null";
             }
-
             NodeDesign node = design.FindNode(
                 symbolidId,
                 symbolidId.Name,
@@ -2350,7 +2419,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return "global::Opc.Ua.NodeId.Null";
             }
-
             return node.GetNodeIdAsCode(design.Namespaces, namespaceTableVariable);
         }
 

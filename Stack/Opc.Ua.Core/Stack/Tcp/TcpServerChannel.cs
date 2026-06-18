@@ -1429,10 +1429,15 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (response is ActivateSessionResponse activateSessionResponse)
+                if (response is ActivateSessionResponse activateSessionResponse &&
+                    StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult))
                 {
-                    UsedBySession = StatusCode.IsGood(
-                        activateSessionResponse.ResponseHeader.ServiceResult);
+                    AddSession();
+                }
+                else if (response is CloseSessionResponse closeSessionResponse &&
+                    StatusCode.IsGood(closeSessionResponse.ResponseHeader.ServiceResult))
+                {
+                    RemoveSession();
                 }
             }
         }

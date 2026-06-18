@@ -31,14 +31,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -188,8 +186,8 @@ namespace Opc.Ua.Client.Tests.Alarms
             // order). Populate just the cells the test asserts on.
             var builder = new RegistryFieldBuilder();
             builder.Set(BrowseNames.EventId, Variant.From(new ByteString(new byte[] { 1 })));
-            builder.Set(BrowseNames.EventType, Variant.From((NodeId)ObjectTypeIds.ConditionType));
-            builder.Set(BrowseNames.SourceNode, Variant.From((NodeId)new NodeId(1u, 0)));
+            builder.Set(BrowseNames.EventType, Variant.From(ObjectTypeIds.ConditionType));
+            builder.Set(BrowseNames.SourceNode, Variant.From(new NodeId(1u, 0)));
             builder.Set(BrowseNames.SourceName, Variant.From("Src"));
             builder.Set(BrowseNames.Time, Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             builder.Set(BrowseNames.ReceiveTime, Variant.From(new DateTime(2024, 1, 1, 0, 0, 1, DateTimeKind.Utc)));
@@ -206,8 +204,8 @@ namespace Opc.Ua.Client.Tests.Alarms
             // Dialog records require a populated DialogState.Id.
             var builder = new RegistryFieldBuilder();
             builder.Set(BrowseNames.EventId, Variant.From(new ByteString(new byte[] { 1 })));
-            builder.Set(BrowseNames.EventType, Variant.From((NodeId)ObjectTypeIds.DialogConditionType));
-            builder.Set(BrowseNames.SourceNode, Variant.From((NodeId)new NodeId(2u, 0)));
+            builder.Set(BrowseNames.EventType, Variant.From(ObjectTypeIds.DialogConditionType));
+            builder.Set(BrowseNames.SourceNode, Variant.From(new NodeId(2u, 0)));
             builder.Set(BrowseNames.SourceName, Variant.From("Src"));
             builder.Set(BrowseNames.Time, Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             builder.Set(BrowseNames.ReceiveTime, Variant.From(new DateTime(2024, 1, 1, 0, 0, 1, DateTimeKind.Utc)));
@@ -234,16 +232,23 @@ namespace Opc.Ua.Client.Tests.Alarms
             }
 
             public void Set(string browseName, Variant value)
-                => SetAt(FindIndex(new[] { QualifiedName.From(browseName) }), value);
+            {
+                SetAt(FindIndex([QualifiedName.From(browseName)]), value);
+            }
 
             public void SetNested(string outer, string inner, Variant value)
-                => SetAt(FindIndex(new[]
-                {
-                    QualifiedName.From(outer),
+            {
+                SetAt(FindIndex(
+                            [
+                                QualifiedName.From(outer),
                     QualifiedName.From(inner)
-                }), value);
+                            ]), value);
+            }
 
-            public Variant[] Build() => m_fields;
+            public Variant[] Build()
+            {
+                return m_fields;
+            }
 
             private void SetAt(int index, Variant value)
             {
@@ -345,7 +350,10 @@ namespace Opc.Ua.Client.Tests.Alarms
                 yield break;
             }
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

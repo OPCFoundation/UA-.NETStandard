@@ -228,7 +228,8 @@ namespace Opc.Ua.SourceGeneration
                         field.ValueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.Nullable);
+                        nullable: NullableAnnotation.Nullable,
+                        useMatrixTypeInsteadOfVariant: datatype.SupportsMatrixOf());
 
                     types.Add(typeName);
                     names.Add(field.Name.ToLowerCamelCase());

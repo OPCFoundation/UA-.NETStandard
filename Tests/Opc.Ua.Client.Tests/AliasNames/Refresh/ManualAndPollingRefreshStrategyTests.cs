@@ -135,7 +135,12 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 TimeSpan.FromMilliseconds(100));
             await strategy.StartAsync(client, () => invalidations++,
                 CancellationToken.None).ConfigureAwait(false);
-            await Task.Delay(200).ConfigureAwait(false);
+            // Wait for at least one tick to actually fire before disposing -
+            // a fixed `Task.Delay(200)` raced with cold-start scheduling on
+            // slow CI agents (observed on Microsoft-hosted macOS-15), letting
+            // the first tick land in the post-Dispose window and triggering a
+            // false-positive "DisposeAsync didn't stop the timer".
+            await WaitForAsync(() => invalidations >= 1).ConfigureAwait(false);
             await strategy.DisposeAsync().ConfigureAwait(false);
             int snapshot = invalidations;
             await Task.Delay(300).ConfigureAwait(false);

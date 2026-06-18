@@ -685,9 +685,9 @@ namespace Opc.Ua.Server
 
             UserTokenPolicy policy = userTokenPolicy ??
                 new UserTokenPolicy
-                    {
-                        TokenType = newIdentity.TokenType
-                    };
+                {
+                    TokenType = newIdentity.TokenType
+                };
 
             Certificate? channelCert = null;
             try

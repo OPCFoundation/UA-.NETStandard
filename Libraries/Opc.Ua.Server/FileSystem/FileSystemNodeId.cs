@@ -53,13 +53,19 @@ namespace Opc.Ua.Server.FileSystem
     /// </remarks>
     internal readonly struct FileSystemNodeId
     {
-        /// <summary>Root identifier (mount point).</summary>
+        /// <summary>
+        /// Root identifier (mount point).
+        /// </summary>
         public const int Root = 0;
 
-        /// <summary>Directory identifier.</summary>
+        /// <summary>
+        /// Directory identifier.
+        /// </summary>
         public const int Directory = 1;
 
-        /// <summary>File identifier.</summary>
+        /// <summary>
+        /// File identifier.
+        /// </summary>
         public const int File = 2;
 
         public FileSystemNodeId(
@@ -74,16 +80,24 @@ namespace Opc.Ua.Server.FileSystem
             ComponentPath = componentPath;
         }
 
-        /// <summary>0 = root, 1 = directory, 2 = file.</summary>
+        /// <summary>
+        /// 0 = root, 1 = directory, 2 = file.
+        /// </summary>
         public int RootType { get; }
 
-        /// <summary>Provider-relative path (empty for the root).</summary>
+        /// <summary>
+        /// Provider-relative path (empty for the root).
+        /// </summary>
         public string ProviderPath { get; }
 
-        /// <summary>Optional component-name chain.</summary>
+        /// <summary>
+        /// Optional component-name chain.
+        /// </summary>
         public string? ComponentPath { get; }
 
-        /// <summary>Namespace index of the encoded NodeId.</summary>
+        /// <summary>
+        /// Namespace index of the encoded NodeId.
+        /// </summary>
         public ushort NamespaceIndex { get; }
 
         public static NodeId BuildRoot(ushort namespaceIndex)

@@ -3630,10 +3630,11 @@ namespace Opc.Ua
         {
             Variant valueToRead = value.WrappedValue;
 
-            ServiceResult result = ServiceResult.Good;
+            _ = ServiceResult.Good;
             DateTimeUtc sourceTimestamp = value.SourceTimestamp;
             ushort sourcePicoseconds = value.SourcePicoseconds;
 
+            ServiceResult result;
             // read value attribute.
             if (attributeId == Attributes.Value)
             {

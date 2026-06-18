@@ -41,7 +41,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
@@ -203,8 +202,8 @@ namespace Opc.Ua.Sessions.Tests
             int? faultInjectionIntervalSeconds)
         {
             int testDurationSeconds = testDurationMinutes * 60;
-            int writerIntervalMs = 250;
-            int publishingIntervalMs = 500;
+            const int writerIntervalMs = 250;
+            const int publishingIntervalMs = 500;
 
             TestContext.Out.WriteLine(
                 $"V2 ManagedSession stability test: duration={testDurationMinutes}min, " +
@@ -214,7 +213,7 @@ namespace Opc.Ua.Sessions.Tests
             // Pick a single writable scalar from the reference server's
             // mass test set. Scalar_Static_Mass_UInt32_UInt32_00 is exposed
             // by the reference node manager and accepts client writes.
-            NodeId counterNode = ExpandedNodeId.ToNodeId(
+            var counterNode = ExpandedNodeId.ToNodeId(
                 new ExpandedNodeId(
                     "Scalar_Static_Mass_UInt32_UInt32_00",
                     Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -275,7 +274,7 @@ namespace Opc.Ua.Sessions.Tests
                 var monotonicityHandler = new MonotonicCounterHandler();
                 ISubscription subscription = subscriber.AddSubscription(
                     monotonicityHandler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(publishingIntervalMs),
                         KeepAliveCount = 10,
@@ -298,7 +297,7 @@ namespace Opc.Ua.Sessions.Tests
                         DiscardOldest = false,
                         MonitoringMode = MonitoringMode.Reporting
                     },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(item, Is.Not.Null);
 
                 bool itemCreated = await WaitForAsync(() => item!.Created,
@@ -316,7 +315,7 @@ namespace Opc.Ua.Sessions.Tests
                 long writeCount = 0;
                 using var writerCts = CancellationTokenSource
                     .CreateLinkedTokenSource(ct);
-                Task writerTask = Task.Run(async () =>
+                var writerTask = Task.Run(async () =>
                 {
                     while (!writerCts.IsCancellationRequested)
                     {
@@ -333,8 +332,8 @@ namespace Opc.Ua.Sessions.Tests
                         }
                         catch (ServiceResultException sre)
                             when (sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                                  sre.StatusCode == StatusCodes.BadNotConnected ||
-                                  sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                                sre.StatusCode == StatusCodes.BadNotConnected ||
+                                sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                         {
                             // Expected when fault injection breaks the
                             // channel mid-write; the next iteration will
@@ -390,7 +389,10 @@ namespace Opc.Ua.Sessions.Tests
                             Interlocked.Increment(ref faultCount);
                             TestContext.Out.WriteLine(
                                 $"FAULT INJECTION #{faultCount}: closing subscriber transport channel");
-                            try { channel.Dispose(); }
+                            try
+                            {
+                                channel.Dispose();
+                            }
                             catch (Exception ex)
                             {
                                 TestContext.Out.WriteLine(
@@ -403,7 +405,7 @@ namespace Opc.Ua.Sessions.Tests
                 // Status reporting
                 using var statusCts = CancellationTokenSource
                     .CreateLinkedTokenSource(ct);
-                Task statusTask = Task.Run(async () =>
+                var statusTask = Task.Run(async () =>
                 {
                     int reportNum = 0;
                     while (!statusCts.IsCancellationRequested)
@@ -437,18 +439,38 @@ namespace Opc.Ua.Sessions.Tests
                         TimeSpan.FromSeconds(testDurationSeconds), ct)
                         .ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) { /* timeout fired */ }
+                catch (OperationCanceledException)
+                { /* timeout fired */
+                }
 
                 // Stop background tasks.
                 await writerCts.CancelAsync().ConfigureAwait(false);
                 await faultCts.CancelAsync().ConfigureAwait(false);
                 await statusCts.CancelAsync().ConfigureAwait(false);
-                try { await writerTask.ConfigureAwait(false); } catch { /* ok */ }
+                try
+                {
+                    await writerTask.ConfigureAwait(false);
+                }
+                catch
+                { /* ok */
+                }
                 if (faultTask != null)
                 {
-                    try { await faultTask.ConfigureAwait(false); } catch { /* ok */ }
+                    try
+                    {
+                        await faultTask.ConfigureAwait(false);
+                    }
+                    catch
+                    { /* ok */
+                    }
                 }
-                try { await statusTask.ConfigureAwait(false); } catch { /* ok */ }
+                try
+                {
+                    await statusTask.ConfigureAwait(false);
+                }
+                catch
+                { /* ok */
+                }
 
                 // Drain the last few publishes.
                 await Task.Delay(publishingIntervalMs * 4).ConfigureAwait(false);
@@ -503,16 +525,36 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                try { await subscriber.CloseAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
-                try { await subscriber.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                try
+                {
+                    await subscriber.CloseAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
+                try
+                {
+                    await subscriber.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 if (writer != null)
                 {
-                    try { await writer.CloseAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
-                    try { await writer.DisposeAsync().ConfigureAwait(false); }
-                    catch { /* best effort */ }
+                    try
+                    {
+                        await writer.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
+                    try
+                    {
+                        await writer.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    { /* best effort */
+                    }
                 }
             }
         }
@@ -547,7 +589,8 @@ namespace Opc.Ua.Sessions.Tests
                 return defaultValue;
             }
             return int.TryParse(raw, NumberStyles.Integer,
-                CultureInfo.InvariantCulture, out int parsed) && parsed > 0
+                CultureInfo.InvariantCulture, out int parsed) &&
+                parsed > 0
                 ? parsed
                 : defaultValue;
         }
@@ -580,9 +623,12 @@ namespace Opc.Ua.Sessions.Tests
         {
             private long m_receivedCount;
             private long m_errorCount;
-            // Stored as long so Interlocked.Exchange / Volatile.Read have
-            // overloads on net4x (the typed uint overload is .NET 5+).
-            // Value range stays within uint at runtime.
+
+            /// <summary>
+            /// Stored as long so Interlocked.Exchange / Volatile.Read have
+            /// overloads on net4x (the typed uint overload is .NET 5+).
+            /// Value range stays within uint at runtime.
+            /// </summary>
             private long m_lastValue;
             private readonly ConcurrentQueue<string> m_monotonicityErrors = new();
             private readonly ConcurrentQueue<string> m_errors = new();
@@ -591,8 +637,8 @@ namespace Opc.Ua.Sessions.Tests
             public long ErrorCount => Volatile.Read(ref m_errorCount);
             public uint LastValue => (uint)Volatile.Read(ref m_lastValue);
             public IReadOnlyList<string> MonotonicityErrors
-                => m_monotonicityErrors.ToArray();
-            public IReadOnlyList<string> Errors => m_errors.ToArray();
+                => [.. m_monotonicityErrors];
+            public IReadOnlyList<string> Errors => [.. m_errors];
 
             public void RecordError(string error)
             {
@@ -673,7 +719,7 @@ namespace Opc.Ua.Sessions.Tests
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
             {

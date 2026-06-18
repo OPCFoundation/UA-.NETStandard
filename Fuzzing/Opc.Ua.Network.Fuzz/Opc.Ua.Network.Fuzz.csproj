@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Fuzz follows the same CustomTestTarget rule as the Pcap binding it
+         references. When CI pins a single modern TFM, both projects collapse
+         to that single TFM; otherwise we multi-target the supported set.
+         For legacy CI runs (net472/net48/netstandard2.x) the Pcap project is
+         stripped to an empty no-op shell via Directory.Build.targets'
+         $(RestrictForLegacyTfm), so this fuzz project follows suit. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>Opc.Ua.Network.Fuzz</AssemblyName>
+    <RootNamespace>Network.Fuzz</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(LibFuzzer)' == 'true'">
+    <DefineConstants>$(DefineConstants);LIBFUZZER</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\Program.cs" Link="Program.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Pcap\Opc.Ua.Bindings.Pcap.csproj" />
+  </ItemGroup>
+</Project>

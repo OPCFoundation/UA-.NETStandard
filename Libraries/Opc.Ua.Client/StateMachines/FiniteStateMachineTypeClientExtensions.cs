@@ -34,7 +34,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -59,6 +58,7 @@ namespace Opc.Ua.Client.StateMachines
         /// machine, including the typed state and last transition
         /// NodeIds.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static async ValueTask<FiniteStateSnapshot> GetCurrentFiniteStateAsync(
             this FiniteStateMachineTypeClient client,
             CancellationToken ct = default)
@@ -98,11 +98,11 @@ namespace Opc.Ua.Client.StateMachines
                     StatusCodes.BadNotFound);
             }
 
-            ArrayOf<ReadValueId> nodesToRead = ArrayOf.Wrapped(nodes.ToArray());
+            var nodesToRead = ArrayOf.Wrapped(nodes.ToArray());
             ReadResponse response = await client.Session.ReadAsync(
                 null, 0, TimestampsToReturn.Both, nodesToRead, ct)
                 .ConfigureAwait(false);
-            ClientBase.ValidateResponse<ReadValueId, DataValue>(
+            ClientBase.ValidateResponse(
                 response.Results, nodesToRead);
 
             LocalizedText currentState = LocalizedText.Null;
@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.StateMachines
                 {
                     worst = dv.StatusCode;
                 }
-                DateTime ts = (DateTime)dv.SourceTimestamp;
+                var ts = (DateTime)dv.SourceTimestamp;
                 if (ts != DateTime.MinValue)
                 {
                     timestamp = ts;
@@ -173,6 +173,7 @@ namespace Opc.Ua.Client.StateMachines
         /// and <c>LastTransition.Id</c> so the consumer sees consistent
         /// typed state + transition data per transition.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<FiniteStateSnapshot> ObserveFiniteTransitionsAsync(
             this FiniteStateMachineTypeClient client,
             IStreamingSubscription streaming,
@@ -228,6 +229,9 @@ namespace Opc.Ua.Client.StateMachines
         /// scheduler; defaults to <see cref="TimeProvider.System"/>.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="OperationCanceledException"></exception>
         public static async ValueTask<FiniteStateSnapshot> WaitForStateAsync(
             this FiniteStateMachineTypeClient client,
             IStreamingSubscription streaming,
@@ -285,6 +289,7 @@ namespace Opc.Ua.Client.StateMachines
         /// instance. Useful for introspecting the machine's available
         /// states at runtime.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<FiniteStateInfo>> GetAvailableStatesAsync(
             this FiniteStateMachineTypeClient client,
             CancellationToken ct = default)
@@ -293,7 +298,7 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            return BrowseChildrenAsync<FiniteStateInfo>(
+            return BrowseChildrenAsync(
                 client,
                 ObjectTypeIds.StateType,
                 BrowseNames.StateNumber,
@@ -305,6 +310,7 @@ namespace Opc.Ua.Client.StateMachines
         /// Returns every <c>TransitionType</c> child of the state
         /// machine instance.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<FiniteTransitionInfo>> GetAvailableTransitionsAsync(
             this FiniteStateMachineTypeClient client,
             CancellationToken ct = default)
@@ -313,7 +319,7 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            return BrowseChildrenAsync<FiniteTransitionInfo>(
+            return BrowseChildrenAsync(
                 client,
                 ObjectTypeIds.TransitionType,
                 BrowseNames.TransitionNumber,
@@ -334,7 +340,7 @@ namespace Opc.Ua.Client.StateMachines
                 MakePath(client.ObjectId, BrowseNames.CurrentState),
                 MakeNestedPath(client.ObjectId, BrowseNames.CurrentState, BrowseNames.Id),
                 MakePath(client.ObjectId, BrowseNames.LastTransition),
-                MakeNestedPath(client.ObjectId, BrowseNames.LastTransition, BrowseNames.Id),
+                MakeNestedPath(client.ObjectId, BrowseNames.LastTransition, BrowseNames.Id)
             ];
 
             TranslateBrowsePathsToNodeIdsResponse response =
@@ -412,8 +418,8 @@ namespace Opc.Ua.Client.StateMachines
             Func<NodeId, QualifiedName, uint, T> factory,
             CancellationToken ct)
         {
-            ArrayOf<BrowseDescription> nodesToBrowse = ArrayOf.Wrapped(new[]
-            {
+            var nodesToBrowse = ArrayOf.Wrapped(
+            [
                 new BrowseDescription
                 {
                     NodeId = client.ObjectId,
@@ -423,11 +429,11 @@ namespace Opc.Ua.Client.StateMachines
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            });
+            ]);
 
             BrowseResponse browse = await client.Session.BrowseAsync(
                 null, null, 0, nodesToBrowse, ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse<BrowseDescription, BrowseResult>(
+            ClientBase.ValidateResponse(
                 browse.Results, nodesToBrowse);
 
             ArrayOf<ReferenceDescription> refs = browse.Results[0].References;
@@ -441,7 +447,7 @@ namespace Opc.Ua.Client.StateMachines
                 {
                     continue;
                 }
-                NodeId typeDefNodeId = ExpandedNodeId.ToNodeId(
+                var typeDefNodeId = ExpandedNodeId.ToNodeId(
                     r.TypeDefinition, client.Session.MessageContext.NamespaceUris);
                 if (typeDefNodeId != typeDefinitionId)
                 {
@@ -480,7 +486,7 @@ namespace Opc.Ua.Client.StateMachines
                     }
                 };
             }
-            ArrayOf<BrowsePath> pathRequests = ArrayOf.Wrapped(pathRequestsArray);
+            var pathRequests = ArrayOf.Wrapped(pathRequestsArray);
             TranslateBrowsePathsToNodeIdsResponse pathResp = await client.Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, pathRequests, ct)
                 .ConfigureAwait(false);
@@ -503,10 +509,10 @@ namespace Opc.Ua.Client.StateMachines
                 }
             }
 
-            var numbers = new uint[childIds.Count];
+            uint[] numbers = new uint[childIds.Count];
             if (numberReads.Count > 0)
             {
-                ArrayOf<ReadValueId> wrapped = ArrayOf.Wrapped(numberReads.ToArray());
+                var wrapped = ArrayOf.Wrapped(numberReads.ToArray());
                 ReadResponse readResp = await client.Session.ReadAsync(
                     null, 0, TimestampsToReturn.Neither, wrapped, ct)
                     .ConfigureAwait(false);
@@ -542,6 +548,8 @@ namespace Opc.Ua.Client.StateMachines
         /// <param name="telemetry">Telemetry context for the returned
         /// sub-SM client.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static async ValueTask<FiniteStateMachineTypeClient?>
             GetSubStateMachineAsync(
                 this FiniteStateMachineTypeClient parent,
@@ -564,8 +572,8 @@ namespace Opc.Ua.Client.StateMachines
                     nameof(parentStateNodeId));
             }
 
-            ArrayOf<BrowseDescription> nodesToBrowse = ArrayOf.Wrapped(new[]
-            {
+            var nodesToBrowse = ArrayOf.Wrapped(
+            [
                 new BrowseDescription
                 {
                     NodeId = parentStateNodeId,
@@ -575,11 +583,11 @@ namespace Opc.Ua.Client.StateMachines
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            });
+            ]);
 
             BrowseResponse response = await parent.Session.BrowseAsync(
                 null, null, 0, nodesToBrowse, ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse<BrowseDescription, BrowseResult>(
+            ClientBase.ValidateResponse(
                 response.Results, nodesToBrowse);
 
             if (response.Results.Count == 0 ||
@@ -589,7 +597,7 @@ namespace Opc.Ua.Client.StateMachines
             }
 
             ReferenceDescription r = response.Results[0].References[0];
-            NodeId childId = ExpandedNodeId.ToNodeId(
+            var childId = ExpandedNodeId.ToNodeId(
                 r.NodeId, parent.Session.MessageContext.NamespaceUris);
             return new FiniteStateMachineTypeClient(
                 parent.Session, childId, telemetry);
@@ -611,6 +619,7 @@ namespace Opc.Ua.Client.StateMachines
         /// parent is NOT in the state that owns that sub-SM are
         /// discarded.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<FiniteStateSnapshot>
             ObserveEffectiveStateAsync(
                 this FiniteStateMachineTypeClient parent,
@@ -701,9 +710,8 @@ namespace Opc.Ua.Client.StateMachines
                     {
                         // Filter out cancellation noise; surface any
                         // other pump fault.
-                        Exception? real = t.Exception.Flatten().InnerExceptions
+                        fault = t.Exception.Flatten().InnerExceptions
                             .FirstOrDefault(e => e is not OperationCanceledException);
-                        fault = real;
                     }
                     channel.Writer.TryComplete(fault);
                 },
@@ -745,7 +753,7 @@ namespace Opc.Ua.Client.StateMachines
                             // sub-SM is the one currently active in
                             // the parent.
                             latestSubByState[tagged.ParentAttachedTo] = tagged.Snapshot;
-                            if (NodeId.Equals(currentParentStateId, tagged.ParentAttachedTo) &&
+                            if (Equals(currentParentStateId, tagged.ParentAttachedTo) &&
                                 latestParent != null)
                             {
                                 yield return latestParent with { SubMachine = tagged.Snapshot };

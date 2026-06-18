@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
-            return SubscribeDataChangesImpl(new[] { nodeId }, options, ct);
+            return SubscribeDataChangesImpl([nodeId], options, ct);
         }
 
         /// <inheritdoc/>
@@ -123,14 +123,16 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 foreach (NodeId nodeId in nodeIds)
                 {
                     MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
-                        with { StartNodeId = nodeId };
+                        with
+                    { StartNodeId = nodeId };
 
                     string name = $"stream_data_{handle}_{nodeId}";
 
                     if (m_subscription!.MonitoredItems.TryAdd(
                             name,
                             new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
-                            out IMonitoredItem? item) && item != null)
+                            out IMonitoredItem? item) &&
+                        item != null)
                     {
                         monitoredItems.Add(item);
                         subscriber.AddClientHandle(item.ClientHandle);
@@ -189,12 +191,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
             MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
                 with
-                {
-                    StartNodeId = notifierId,
-                    AttributeId = Attributes.EventNotifier,
-                    Filter = filter,
-                    QueueSize = options?.QueueSize > 0 ? options.QueueSize : 10
-                };
+            {
+                StartNodeId = notifierId,
+                AttributeId = Attributes.EventNotifier,
+                Filter = filter,
+                QueueSize = options?.QueueSize > 0 ? options.QueueSize : 10
+            };
 
             var channel = Channel.CreateUnbounded<EventNotification>(new UnboundedChannelOptions
             {
@@ -215,7 +217,8 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 if (m_subscription!.MonitoredItems.TryAdd(
                         name,
                         new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
-                        out item) && item != null)
+                        out item) &&
+                    item != null)
                 {
                     subscriber.AddClientHandle(item.ClientHandle);
                 }
@@ -397,7 +400,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 ISubscription subscription,
                 SubscriptionState state,
                 PublishState publishStateMask,
-                System.Threading.CancellationToken ct = default)
+                CancellationToken ct = default)
             {
                 // Streaming subscription only cares about data/event
                 // notification streams; lifecycle transitions are
@@ -483,11 +486,15 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
             public T CurrentValue { get; }
 
-            public T Get(string? name) => CurrentValue;
+            public T Get(string? name)
+            {
+                return CurrentValue;
+            }
 
-            public IDisposable? OnChange(Action<T, string?> listener) => null;
+            public IDisposable? OnChange(Action<T, string?> listener)
+            {
+                return null;
+            }
         }
-
+    }
 }
-}
-

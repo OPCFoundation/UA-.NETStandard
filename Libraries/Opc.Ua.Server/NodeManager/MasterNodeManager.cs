@@ -768,6 +768,556 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public virtual async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            AddNodesAsync(
+                OperationContext context,
+                ArrayOf<AddNodesItem> nodesToAdd,
+                CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            var results = new AddNodesResult[nodesToAdd.Count];
+            var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
+            bool anyDiagnostics = false;
+
+            for (int ii = 0; ii < nodesToAdd.Count; ii++)
+            {
+                AddNodesItem item = nodesToAdd[ii];
+                (ServiceResult result, NodeId addedNodeId) = await DispatchAddNodeAsync(
+                    context,
+                    item,
+                    cancellationToken).ConfigureAwait(false);
+
+                results[ii] = new AddNodesResult
+                {
+                    StatusCode = result.StatusCode,
+                    AddedNodeId = addedNodeId
+                };
+
+                if (ServiceResult.IsBad(result))
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[ii] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
+            }
+
+            return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+        }
+
+        /// <inheritdoc/>
+        public virtual async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            DeleteNodesAsync(
+                OperationContext context,
+                ArrayOf<DeleteNodesItem> nodesToDelete,
+                CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            var results = new StatusCode[nodesToDelete.Count];
+            var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
+            bool anyDiagnostics = false;
+
+            for (int ii = 0; ii < nodesToDelete.Count; ii++)
+            {
+                DeleteNodesItem item = nodesToDelete[ii];
+                ServiceResult result = await DispatchDeleteNodeAsync(
+                    context,
+                    item,
+                    cancellationToken).ConfigureAwait(false);
+
+                results[ii] = result.StatusCode;
+
+                if (ServiceResult.IsBad(result))
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[ii] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
+            }
+
+            return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+        }
+
+        /// <inheritdoc/>
+        public virtual async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            AddReferencesAsync(
+                OperationContext context,
+                ArrayOf<AddReferencesItem> referencesToAdd,
+                CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            var results = new StatusCode[referencesToAdd.Count];
+            var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
+            bool anyDiagnostics = false;
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
+            {
+                AddReferencesItem item = referencesToAdd[ii];
+                ServiceResult result = await DispatchAddReferenceAsync(
+                    context,
+                    item,
+                    cancellationToken).ConfigureAwait(false);
+
+                results[ii] = result.StatusCode;
+
+                if (ServiceResult.IsBad(result))
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[ii] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
+            }
+
+            return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+        }
+
+        /// <inheritdoc/>
+        public virtual async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            DeleteReferencesAsync(
+                OperationContext context,
+                ArrayOf<DeleteReferencesItem> referencesToDelete,
+                CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            var results = new StatusCode[referencesToDelete.Count];
+            var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
+            bool anyDiagnostics = false;
+
+            for (int ii = 0; ii < referencesToDelete.Count; ii++)
+            {
+                DeleteReferencesItem item = referencesToDelete[ii];
+                ServiceResult result = await DispatchDeleteReferenceAsync(
+                    context,
+                    item,
+                    cancellationToken).ConfigureAwait(false);
+
+                results[ii] = result.StatusCode;
+
+                if (ServiceResult.IsBad(result))
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[ii] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
+            }
+
+            return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+        }
+
+        private async ValueTask<(ServiceResult result, NodeId addedNodeId)> DispatchAddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken)
+        {
+            if (item == null)
+            {
+                return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
+            }
+
+            if (item.BrowseName.IsNull)
+            {
+                return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
+            }
+
+            if (item.ParentNodeId.IsNull)
+            {
+                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+            }
+
+            if (item.ReferenceTypeId.IsNull ||
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+            {
+                return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
+            }
+
+            if (!Server.TypeTree.IsTypeOf(
+                    item.ReferenceTypeId,
+                    ReferenceTypeIds.HierarchicalReferences))
+            {
+                return (new ServiceResult(StatusCodes.BadReferenceNotAllowed), NodeId.Null);
+            }
+
+            var parentNodeId = ExpandedNodeId.ToNodeId(item.ParentNodeId, Server.NamespaceUris);
+            if (parentNodeId.IsNull)
+            {
+                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+            }
+
+            // Routing per spec:
+            //   - When RequestedNewNodeId is provided, dispatch to that namespace's
+            //     owner (the namespace dictates the responsible NodeManager).
+            //   - Otherwise, prefer the parent's owner. If the parent's owner has
+            //     not opted in to NodeManagement, fall back to the first
+            //     opted-in NodeManager so cross-NodeManager AddNodes under a
+            //     read-only parent (e.g. ObjectsFolder) is still serviceable.
+            INodeManagementAsyncNodeManager? nodeManagement;
+            if (!item.RequestedNewNodeId.IsNull)
+            {
+                var requestedNodeId = ExpandedNodeId.ToNodeId(
+                    item.RequestedNewNodeId, Server.NamespaceUris);
+                if (requestedNodeId.IsNull)
+                {
+                    return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+                }
+
+                nodeManagement = FindNodeManagementOwner(requestedNodeId.NamespaceIndex);
+                if (nodeManagement == null || !nodeManagement.AllowNodeManagement)
+                {
+                    return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
+                }
+            }
+            else
+            {
+                (object? parentHandle, IAsyncNodeManager? parentOwner) =
+                    await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+                if (parentHandle == null || parentOwner == null)
+                {
+                    return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+                }
+
+                if (parentOwner.AllowNodeManagement)
+                {
+                    nodeManagement = parentOwner;
+                }
+                else
+                {
+                    nodeManagement = FindFirstOptedInNodeManager();
+                    if (nodeManagement == null)
+                    {
+                        return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
+                    }
+                }
+            }
+
+            try
+            {
+                return await nodeManagement.AddNodeAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return (new ServiceResult(ex), NodeId.Null);
+            }
+        }
+
+        private async ValueTask<ServiceResult> DispatchDeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken)
+        {
+            if (item == null)
+            {
+                return new ServiceResult(StatusCodes.BadNothingToDo);
+            }
+
+            if (item.NodeId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdInvalid);
+            }
+
+            (object? handle, IAsyncNodeManager? owner) =
+                await GetManagerHandleAsync(item.NodeId, cancellationToken).ConfigureAwait(false);
+            if (handle == null || owner == null)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+
+            if (!owner.AllowNodeManagement)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+
+            try
+            {
+                return await owner.DeleteNodeAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
+        }
+
+        private async ValueTask<ServiceResult> DispatchAddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken)
+        {
+            if (item == null)
+            {
+                return new ServiceResult(StatusCodes.BadNothingToDo);
+            }
+
+            if (item.SourceNodeId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
+            }
+
+            if (item.TargetNodeId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
+            }
+
+            if (item.ReferenceTypeId.IsNull ||
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
+            (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
+                await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
+            if (sourceHandle == null || sourceOwner == null)
+            {
+                return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
+            }
+
+            if (!sourceOwner.AllowNodeManagement)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+
+            ServiceResult sourceResult;
+            try
+            {
+                sourceResult = await sourceOwner.AddReferenceAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
+
+            if (ServiceResult.IsBad(sourceResult))
+            {
+                return sourceResult;
+            }
+
+            // Best-effort: write the complementary edge into the target's owning manager
+            // when the target is local. Failures here are logged but do not change the
+            // source-side success so the source half stays consistent.
+            var targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
+            if (!targetNodeId.IsNull)
+            {
+                (object? targetHandle, IAsyncNodeManager? targetOwner) = await GetManagerHandleAsync(
+                    targetNodeId, cancellationToken).ConfigureAwait(false);
+
+                if (targetHandle != null &&
+                    targetOwner != null &&
+                    !ReferenceEquals(targetOwner, sourceOwner) &&
+                    targetOwner.AllowNodeManagement)
+                {
+                    var inverseItem = new AddReferencesItem
+                    {
+                        SourceNodeId = targetNodeId,
+                        ReferenceTypeId = item.ReferenceTypeId,
+                        IsForward = !item.IsForward,
+                        TargetServerUri = item.TargetServerUri,
+                        TargetNodeId = item.SourceNodeId,
+                        TargetNodeClass = item.TargetNodeClass
+                    };
+
+                    try
+                    {
+                        ServiceResult inverseResult = await targetOwner.AddReferenceAsync(
+                            context, inverseItem, cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(inverseResult))
+                        {
+                            m_logger.LogWarning(
+                                "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on owning NodeManager: {Status}",
+                                item.ReferenceTypeId,
+                                item.SourceNodeId,
+                                item.TargetNodeId,
+                                inverseResult.StatusCode);
+                        }
+                    }
+                    catch (ServiceResultException ex)
+                    {
+                        m_logger.LogWarning(
+                            ex,
+                            "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on owning NodeManager.",
+                            item.ReferenceTypeId,
+                            item.SourceNodeId,
+                            item.TargetNodeId);
+                    }
+                }
+            }
+
+            return sourceResult;
+        }
+
+        private async ValueTask<ServiceResult> DispatchDeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken)
+        {
+            if (item == null)
+            {
+                return new ServiceResult(StatusCodes.BadNothingToDo);
+            }
+
+            if (item.SourceNodeId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
+            }
+
+            if (item.ReferenceTypeId.IsNull ||
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
+            (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
+                await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
+            if (sourceHandle == null || sourceOwner == null)
+            {
+                return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
+            }
+
+            if (!sourceOwner.AllowNodeManagement)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+
+            ServiceResult sourceResult;
+            try
+            {
+                sourceResult = await sourceOwner.DeleteReferenceAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
+
+            if (ServiceResult.IsBad(sourceResult))
+            {
+                return sourceResult;
+            }
+
+            if (!item.DeleteBidirectional)
+            {
+                return sourceResult;
+            }
+
+            // Cross-manager: remove the complementary edge on the target's owner.
+            var targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
+            if (targetNodeId.IsNull)
+            {
+                return sourceResult;
+            }
+
+            (object? targetHandle2, IAsyncNodeManager? targetOwner2) = await GetManagerHandleAsync(
+                targetNodeId, cancellationToken).ConfigureAwait(false);
+
+            if (targetHandle2 != null &&
+                targetOwner2 != null &&
+                !ReferenceEquals(targetOwner2, sourceOwner) &&
+                targetOwner2.AllowNodeManagement)
+            {
+                var inverseItem = new DeleteReferencesItem
+                {
+                    SourceNodeId = targetNodeId,
+                    ReferenceTypeId = item.ReferenceTypeId,
+                    IsForward = !item.IsForward,
+                    TargetNodeId = item.SourceNodeId,
+                    DeleteBidirectional = false
+                };
+
+                try
+                {
+                    ServiceResult inverseResult = await targetOwner2.DeleteReferenceAsync(
+                        context, inverseItem, cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(inverseResult))
+                    {
+                        m_logger.LogWarning(
+                            "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} on owning NodeManager: {Status}",
+                            item.ReferenceTypeId,
+                            item.SourceNodeId,
+                            item.TargetNodeId,
+                            inverseResult.StatusCode);
+                    }
+                }
+                catch (ServiceResultException ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} on owning NodeManager.",
+                        item.ReferenceTypeId,
+                        item.SourceNodeId,
+                        item.TargetNodeId);
+                }
+            }
+
+            return sourceResult;
+        }
+
+        /// <summary>
+        /// Returns the first NodeManager registered against the given namespace
+        /// index, or <c>null</c> when no NodeManager owns the namespace. Since
+        /// <see cref="INodeManagementAsyncNodeManager"/> is aggregated into
+        /// <see cref="IAsyncNodeManager"/> every owner exposes the surface;
+        /// callers should still check <see cref="INodeManagementAsyncNodeManager.AllowNodeManagement"/>.
+        /// </summary>
+        private INodeManagementAsyncNodeManager? FindNodeManagementOwner(ushort namespaceIndex)
+        {
+            if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            {
+                return null;
+            }
+
+            return nodeManagers.Count > 0 ? nodeManagers[0] : null;
+        }
+
+        /// <summary>
+        /// Returns the first registered NodeManager that has opted in to
+        /// NodeManagement, or <c>null</c> if no NodeManager has done so. Used
+        /// as the cross-NodeManager AddNodes fallback when the parent's
+        /// owning NodeManager does not allow NodeManagement.
+        /// </summary>
+        private INodeManagementAsyncNodeManager? FindFirstOptedInNodeManager()
+        {
+            for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+            {
+                if (m_nodeManagers[ii].AllowNodeManagement)
+                {
+                    return m_nodeManagers[ii];
+                }
+            }
+            return null;
+        }
+
+        /// <inheritdoc/>
         public virtual void RegisterNodes(
             OperationContext context,
             ArrayOf<NodeId> nodesToRegister,
@@ -1958,7 +2508,7 @@ namespace Opc.Ua.Server
 
                 if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
                 {
-                    value = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
+                    _ = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
                 }
             }
 

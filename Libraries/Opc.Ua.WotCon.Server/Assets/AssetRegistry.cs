@@ -67,7 +67,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_logger = logger;
         }
 
-        /// <summary>Snapshot of currently registered asset names (test helper).</summary>
+        /// <summary>
+        /// Snapshot of currently registered asset names (test helper).
+        /// </summary>
         public IReadOnlyCollection<string> AssetNames
         {
             get
@@ -199,7 +201,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        /// <summary>Deletes the asset and removes all of its nodes.</summary>
+        /// <summary>
+        /// Deletes the asset and removes all of its nodes.
+        /// </summary>
         public async ValueTask<ServiceResult> DeleteAssetAsync(
             NodeId assetId,
             CancellationToken ct)
@@ -264,6 +268,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return (StatusCodes.BadNotSupported, NodeId.Null);
             }
+            ServiceResult policyCheck = AssetEndpointValidator.Validate(
+                assetEndpoint, m_options.AssetEndpointPolicy, out Uri? normalizedEndpoint);
+            if (ServiceResult.IsBad(policyCheck))
+            {
+                m_logger.LogWarning(
+                    "CreateAssetForEndpoint rejected by AssetEndpointPolicy: {Status}",
+                    policyCheck.StatusCode);
+                return (policyCheck, NodeId.Null);
+            }
             (ServiceResult createResult, NodeId assetId) = await CreateAssetAsync(assetName, ct)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(createResult))
@@ -272,9 +285,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             try
             {
-                ThingDescription td = await m_options.Discovery
-                    .CreateThingDescriptionAsync(assetName, assetEndpoint, ct)
-                    .ConfigureAwait(false);
+                ThingDescription td = await RunWithPolicyTimeoutAsync(
+                    inner => m_options.Discovery.CreateThingDescriptionAsync(
+                        assetName, normalizedEndpoint!.AbsoluteUri, inner),
+                    ct).ConfigureAwait(false);
                 AssetEntry entry = FindByNodeId(assetId)
                     ?? throw new InvalidOperationException("Asset disappeared after creation.");
 
@@ -290,13 +304,27 @@ namespace Opc.Ua.WotCon.Server.Assets
             catch (NotSupportedException ex)
             {
                 await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
-                return (ServiceResult.Create(ex, StatusCodes.BadNotSupported, ex.Message), NodeId.Null);
+                m_logger.LogError(ex,
+                    "CreateAssetForEndpoint failed for asset {AssetName}: provider rejected the endpoint",
+                    assetName);
+                return (ToClientStatus(ex, StatusCodes.BadNotSupported, "CreateAssetForEndpoint"), NodeId.Null);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                // Policy timeout fired; caller's token is still alive.
+                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                m_logger.LogWarning(ex,
+                    "CreateAssetForEndpoint timed out after {Timeout} for {AssetName}",
+                    m_options.AssetEndpointPolicy.MaxOperationTimeout, assetName);
+                return (ServiceResult.Create(StatusCodes.BadTimeout,
+                    "Discovery provider exceeded AssetEndpointPolicy.MaxOperationTimeout."),
+                    NodeId.Null);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
-                m_logger.LogError(ex, "CreateAssetForEndpoint failed for {AssetName}", assetName);
-                return (ServiceResult.Create(ex, StatusCodes.BadConfigurationError, ex.Message), NodeId.Null);
+                m_logger.LogError(ex, "CreateAssetForEndpoint failed for asset {AssetName}", assetName);
+                return (ToClientStatus(ex, MapToStatusCode(ex), "CreateAssetForEndpoint"), NodeId.Null);
             }
         }
 
@@ -322,7 +350,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             catch (NotSupportedException ex)
             {
-                return (ServiceResult.Create(ex, StatusCodes.BadNotSupported, ex.Message),
+                m_logger.LogWarning(ex, "DiscoverAssets not supported by configured provider");
+                return (ToClientStatus(ex, StatusCodes.BadNotSupported, "DiscoverAssets"),
+                    Array.Empty<string>());
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.LogError(ex, "DiscoverAssets failed");
+                return (ToClientStatus(ex, MapToStatusCode(ex), "DiscoverAssets"),
                     Array.Empty<string>());
             }
         }
@@ -343,22 +378,88 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return (StatusCodes.BadNotSupported, false, string.Empty);
             }
+            ServiceResult policyCheck = AssetEndpointValidator.Validate(
+                assetEndpoint, m_options.AssetEndpointPolicy, out Uri? normalizedEndpoint);
+            if (ServiceResult.IsBad(policyCheck))
+            {
+                m_logger.LogWarning(
+                    "ConnectionTest rejected by AssetEndpointPolicy: {Status}",
+                    policyCheck.StatusCode);
+                return (policyCheck, false, string.Empty);
+            }
             try
             {
-                (bool success, string status) = await m_options.Discovery
-                    .TestAsync(assetEndpoint, ct).ConfigureAwait(false);
+                (bool success, string status) = await RunWithPolicyTimeoutAsync(
+                    inner => m_options.Discovery.TestAsync(
+                        normalizedEndpoint!.AbsoluteUri, inner),
+                    ct).ConfigureAwait(false);
                 return (ServiceResult.Good, success, status ?? string.Empty);
             }
             catch (NotSupportedException ex)
             {
-                return (ServiceResult.Create(ex, StatusCodes.BadNotSupported, ex.Message), false, string.Empty);
+                m_logger.LogWarning(ex, "ConnectionTest not supported by configured provider");
+                return (ToClientStatus(ex, StatusCodes.BadNotSupported, "ConnectionTest"),
+                    false, string.Empty);
             }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.LogError(ex,
+                    "ConnectionTest failed for endpoint provided by client");
+                return (ToClientStatus(ex, MapToStatusCode(ex), "ConnectionTest"),
+                    false, string.Empty);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                m_logger.LogWarning(ex,
+                    "ConnectionTest timed out after {Timeout}",
+                    m_options.AssetEndpointPolicy.MaxOperationTimeout);
+                return (ServiceResult.Create(StatusCodes.BadTimeout,
+                    "Discovery provider exceeded AssetEndpointPolicy.MaxOperationTimeout."),
+                    false, string.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Runs <paramref name="work"/> under a linked cancellation
+        /// source that fires after
+        /// <see cref="AssetEndpointPolicy.MaxOperationTimeout"/> on top
+        /// of the caller's <paramref name="ct"/>. A
+        /// <see cref="TimeSpan.Zero"/> timeout disables the
+        /// per-operation bound. When the timeout fires the inner
+        /// task's <see cref="OperationCanceledException"/> is rethrown
+        /// — the caller's catch filter
+        /// (<c>when (!ct.IsCancellationRequested)</c>) distinguishes
+        /// policy-timeout from caller-cancellation.
+        /// </summary>
+        /// <typeparam name="T">Return type of the inner work.</typeparam>
+        private async ValueTask<T> RunWithPolicyTimeoutAsync<T>(
+            Func<CancellationToken, ValueTask<T>> work,
+            CancellationToken ct)
+        {
+            TimeSpan timeout = m_options.AssetEndpointPolicy.MaxOperationTimeout;
+            if (timeout <= TimeSpan.Zero)
+            {
+                return await work(ct).ConfigureAwait(false);
+            }
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linked.CancelAfter(timeout);
+            return await work(linked.Token).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Rebuilds the variable + method children of an asset from a TD,
         /// reconnecting (or replacing) its provider as appropriate.
         /// </summary>
+        /// <remarks>
+        /// TD property / action keys flow through
+        /// <see cref="WotChildNameValidator.Validate"/> before they
+        /// become <see cref="NodeId"/> path segments or
+        /// <see cref="QualifiedName"/> browse names. Names that fail
+        /// validation (or duplicate an earlier valid name) are skipped
+        /// with a per-child warning; the remaining valid children
+        /// still materialise so a single bad TD entry does not poison
+        /// the whole asset.
+        /// </remarks>
         /// <param name="entry">The asset entry to rebuild.</param>
         /// <param name="td">The thing description to materialise.</param>
         /// <param name="persistOnSuccess">
@@ -386,7 +487,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 throw new ArgumentNullException(nameof(td));
             }
-
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
             {
@@ -412,7 +512,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 m_logger.LogError(ex,
                     "Binding factory {Factory} failed to connect asset {AssetName}",
                     factory.GetType().Name, entry.Name);
-                return ServiceResult.Create(ex, StatusCodes.BadConfigurationError, ex.Message);
+                return ToClientStatus(ex, MapToStatusCode(ex), "Asset rebuild");
             }
 
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
@@ -436,28 +536,59 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 if (td.Properties != null)
                 {
-                    foreach (KeyValuePair<string, WotProperty> kv in td.Properties)
+                    var seen = new System.Collections.Generic.HashSet<string>(
+                        System.StringComparer.Ordinal);
+                    foreach (System.Collections.Generic.KeyValuePair<string, WotProperty> kv
+                        in td.Properties)
                     {
+                        if (!TryValidateChildName(entry.Name, "property", kv.Key))
+                        {
+                            continue;
+                        }
+                        if (!seen.Add(kv.Key))
+                        {
+                            m_logger.LogWarning(
+                                "Skipping duplicate TD property '{ChildName}' for asset {AssetName}.",
+                                WotChildNameValidator.SanitiseForLog(kv.Key),
+                                entry.Name);
+                            continue;
+                        }
                         BuildPropertyNode(entry, kv.Key, kv.Value);
                     }
                 }
                 if (td.Actions != null)
                 {
-                    foreach (KeyValuePair<string, WotAction> kv in td.Actions)
+                    var seen = new System.Collections.Generic.HashSet<string>(
+                        System.StringComparer.Ordinal);
+                    foreach (System.Collections.Generic.KeyValuePair<string, WotAction> kv
+                        in td.Actions)
                     {
+                        if (!TryValidateChildName(entry.Name, "action", kv.Key))
+                        {
+                            continue;
+                        }
+                        if (!seen.Add(kv.Key))
+                        {
+                            m_logger.LogWarning(
+                                "Skipping duplicate TD action '{ChildName}' for asset {AssetName}.",
+                                WotChildNameValidator.SanitiseForLog(kv.Key),
+                                entry.Name);
+                            continue;
+                        }
                         BuildActionNode(entry, kv.Key, kv.Value);
                     }
                 }
 
                 if (!string.IsNullOrEmpty(td.Base))
                 {
-                    entry.Asset.AssetEndpoint ??= entry.Asset.AddAssetEndpoint(m_manager.SystemContext);
-                    entry.Asset.AssetEndpoint.Value = td.Base!;
+                    entry.Asset.AddAssetEndpoint(m_manager.SystemContext);
+                    entry.Asset.AssetEndpoint!.Value = td.Base!;
                 }
 
                 entry.Asset.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
 
                 if (persistOnSuccess)
+
                 {
                     PersistTdToDisk(entry.Name, td);
                 }
@@ -482,6 +613,31 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.RemoveChild(kv.Value.Method);
             }
             entry.Actions.Clear();
+        }
+
+        /// <summary>
+        /// Runs the TD child name through <see cref="WotChildNameValidator"/>
+        /// before it is used to mint a NodeId / QualifiedName. On
+        /// rejection a single warning is logged (with the name
+        /// sanitised via <see cref="WotChildNameValidator.SanitiseForLog"/>
+        /// so a hostile name can't reshape the log line) and the
+        /// caller skips the child.
+        /// </summary>
+        private bool TryValidateChildName(string assetName, string kind, string? childName)
+        {
+            ServiceResult result = WotChildNameValidator.Validate(childName);
+            if (ServiceResult.IsGood(result))
+            {
+                return true;
+            }
+            LocalizedText reason = result.LocalizedText;
+            m_logger.LogWarning(
+                "Skipping TD {Kind} '{ChildName}' on asset {AssetName}: {Reason}",
+                kind,
+                WotChildNameValidator.SanitiseForLog(childName),
+                assetName,
+                reason.IsNull ? "name validation failed" : reason.Text);
+            return false;
         }
 
         private void BuildPropertyNode(AssetEntry entry, string name, WotProperty property)
@@ -639,12 +795,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 (ServiceResult status, Variant value) = await provider.ReadAsync(tag, ct).ConfigureAwait(false);
                 return new AttributeSimpleReadResult(status, value);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 m_logger.LogWarning(ex,
                     "Read failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
                 return new AttributeSimpleReadResult(
-                    ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message),
+                    ToClientStatus(ex, StatusCodes.BadCommunicationError, "Asset property read"),
                     Variant.Null);
             }
         }
@@ -665,12 +821,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 ServiceResult result = await provider.WriteAsync(tag, value, ct).ConfigureAwait(false);
                 return new AttributeWriteResult(result);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 m_logger.LogWarning(ex,
                     "Write failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
                 return new AttributeWriteResult(
-                    ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message));
+                    ToClientStatus(ex, StatusCodes.BadCommunicationError, "Asset property write"));
             }
         }
 
@@ -686,7 +842,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return StatusCodes.BadNotConnected;
             }
-
             var inputCopy = new Variant[inputArguments.Count];
             for (int i = 0; i < inputArguments.Count; i++)
             {
@@ -706,11 +861,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 return status;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 m_logger.LogWarning(ex,
                     "Action {Action} on asset {AssetName} threw", tag.Name, entry.Name);
-                return ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message);
+                return ToClientStatus(ex, StatusCodes.BadCommunicationError, "Asset action invocation");
             }
         }
 
@@ -786,9 +941,38 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 yield break;
             }
+
+            int fileLimit = Math.Max(0, m_options.MaxPersistedThingDescriptionFiles);
+            int sizeLimit = m_options.MaxThingDescriptionSize;
+            ThingDescriptionJsonContext jsonContext = GetBoundedJsonContext();
+
+            // A non-positive file limit acts as an explicit kill switch:
+            // operators can drop the directory-load behaviour without
+            // removing the folder by setting the option to 0.
+            if (fileLimit == 0 && m_options.MaxPersistedThingDescriptionFiles <= 0)
+            {
+                m_logger.LogInformation(
+                    "MaxPersistedThingDescriptionFiles is {Limit}; " +
+                    "no persisted TDs will be loaded from {Folder}.",
+                    m_options.MaxPersistedThingDescriptionFiles, folder);
+                yield break;
+            }
+
+            int processed = 0;
             foreach (string file in Directory.EnumerateFiles(folder, "*.jsonld"))
             {
                 ct.ThrowIfCancellationRequested();
+
+                if (processed >= fileLimit)
+                {
+                    m_logger.LogWarning(
+                        "Reached MaxPersistedThingDescriptionFiles ({Limit}); " +
+                        "skipping the remaining persisted TDs in {Folder}.",
+                        fileLimit, folder);
+                    yield break;
+                }
+                processed++;
+
                 string name = Path.GetFileNameWithoutExtension(file);
                 if (ServiceResult.IsBad(WotAssetNameValidator.Validate(name)))
                 {
@@ -797,18 +981,55 @@ namespace Opc.Ua.WotCon.Server.Assets
                         file);
                     continue;
                 }
+
+                long size;
+                try
+                {
+                    size = new FileInfo(file).Length;
+                }
+                catch (IOException ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Skipping persisted TD {File}: file metadata could not be read.",
+                        file);
+                    continue;
+                }
+                if (sizeLimit > 0 && size > sizeLimit)
+                {
+                    m_logger.LogWarning(
+                        "Skipping persisted TD {File}: size {Bytes} exceeds " +
+                        "MaxThingDescriptionSize ({Limit}).",
+                        file, size, sizeLimit);
+                    continue;
+                }
+
                 ThingDescription? td;
                 try
                 {
                     using FileStream stream = File.OpenRead(file);
                     td = await JsonSerializer.DeserializeAsync(
                         stream,
-                        ThingDescriptionJsonContext.Default.ThingDescription,
+                        jsonContext.ThingDescription,
                         ct).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException)
                 {
-                    m_logger.LogWarning(ex, "Failed to load persisted TD {File}", file);
+                    throw;
+                }
+                catch (JsonException ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Skipping persisted TD {File}: JSON deserialization failed " +
+                        "(likely exceeds MaxThingDescriptionJsonDepth={Depth} or " +
+                        "is otherwise malformed).",
+                        file, m_options.MaxThingDescriptionJsonDepth);
+                    continue;
+                }
+                catch (IOException ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Skipping persisted TD {File}: I/O failure while reading.",
+                        file);
                     continue;
                 }
                 if (td != null)
@@ -816,6 +1037,30 @@ namespace Opc.Ua.WotCon.Server.Assets
                     yield return (name, td);
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns a <see cref="ThingDescriptionJsonContext"/> wired to a
+        /// <see cref="JsonSerializerOptions"/> instance that enforces
+        /// <see cref="WotConnectivityServerOptions.MaxThingDescriptionJsonDepth"/>.
+        /// Falls back to the cached singleton context when the configured
+        /// depth equals the global default so the hot-path startup case
+        /// (no override) does not allocate a fresh context per call.
+        /// </summary>
+        private ThingDescriptionJsonContext GetBoundedJsonContext()
+        {
+            int depth = m_options.MaxThingDescriptionJsonDepth;
+            if (depth <= 0 ||
+                depth == ThingDescriptionJsonContext.Default.Options.MaxDepth)
+            {
+                return ThingDescriptionJsonContext.Default;
+            }
+            var options = new JsonSerializerOptions(
+                ThingDescriptionJsonContext.Default.Options)
+            {
+                MaxDepth = depth
+            };
+            return new ThingDescriptionJsonContext(options);
         }
 
         /// <summary>
@@ -847,6 +1092,50 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.FileManager?.Dispose();
             }
             m_writeLock.Dispose();
+        }
+
+        /// <summary>
+        /// Maps an exception thrown by a discovery / provider call to
+        /// a client-facing <see cref="ServiceResult"/> that contains
+        /// only the supplied generic operation name. Deliberately
+        /// drops <c>ex.Message</c>, <c>ex.StackTrace</c>, and
+        /// <c>ex.GetType().Name</c> so internal endpoint URIs,
+        /// file-system paths, provider implementation details, and
+        /// stack-trace fragments cannot leak to remote callers. The
+        /// caller is responsible for logging the raw exception via
+        /// <see cref="m_logger"/> at the corresponding site.
+        /// </summary>
+        /// <param name="ex">The thrown exception (unused; accepted so
+        /// callers retain a single-line conversion).</param>
+        /// <param name="status">The mapped <see cref="StatusCode"/>.</param>
+        /// <param name="operation">A generic operation name surfaced
+        /// to the client.</param>
+        private static ServiceResult ToClientStatus(
+            Exception ex, StatusCode status, string operation)
+        {
+            _ = ex;
+            return ServiceResult.Create(status, "{0} failed.", operation);
+        }
+
+        /// <summary>
+        /// Returns the conventional WoT status code for the supplied
+        /// exception. Mapping:
+        ///   <see cref="NotSupportedException"/>       => Bad_NotSupported
+        ///   <see cref="ArgumentException"/>            => Bad_InvalidArgument
+        ///   <see cref="IOException"/>                  => Bad_ResourceUnavailable
+        ///   anything else                              => Bad_InternalError
+        /// <see cref="OperationCanceledException"/> is **never** mapped:
+        /// callers must put it in a <c>when</c>-filter so it propagates.
+        /// </summary>
+        private static StatusCode MapToStatusCode(Exception ex)
+        {
+            return ex switch
+            {
+                NotSupportedException => StatusCodes.BadNotSupported,
+                ArgumentException     => StatusCodes.BadInvalidArgument,
+                IOException           => StatusCodes.BadResourceUnavailable,
+                _                     => StatusCodes.BadInternalError
+            };
         }
 
         private readonly WotConnectivityNodeManager m_manager;

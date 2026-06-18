@@ -70,6 +70,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// Useful for waiting on a specific state transition.
         /// </summary>
         /// <typeparam name="T">The type of items in the source sequence.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<T> TakeUntilAsync<T>(
             this IAsyncEnumerable<T> source,
             Func<T, bool> predicate,
@@ -114,6 +115,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// scheduler; defaults to <see cref="TimeProvider.System"/>.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<T> WithTimeoutAsync<T>(
             this IAsyncEnumerable<T> source,
             TimeSpan timeout,
@@ -172,6 +174,8 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// Yields exactly <paramref name="count"/> items then completes.
         /// </summary>
         /// <typeparam name="T">The type of items in the source sequence.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static IAsyncEnumerable<T> TakeAsync<T>(
             this IAsyncEnumerable<T> source,
             int count,
@@ -210,7 +214,9 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// list and returns it.
         /// </summary>
         /// <typeparam name="T">The type of items in the source sequence.</typeparam>
-        public static async System.Threading.Tasks.ValueTask<IReadOnlyList<T>> BufferedAsync<T>(
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static async ValueTask<IReadOnlyList<T>> BufferedAsync<T>(
             this IAsyncEnumerable<T> source,
             int count,
             CancellationToken ct = default)

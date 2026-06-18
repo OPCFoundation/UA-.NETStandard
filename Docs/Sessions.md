@@ -15,7 +15,9 @@ choose between them.
 | `SessionReconnectHandler` | nothing (drives an existing session) | yes, against a `Session` (only) | inherited from the wrapped `Session` | legacy callers that already own a `Session` |
 | `ManagedSession` | itself (via `CreateAsync`) | yes — built-in `ConnectionStateMachine` + `ReconnectPolicy` | `DefaultSubscriptionEngine` (V2) by default | new code; long-lived clients that need reconnect / failover |
 | `ManagedSessionFactory` | `ManagedSession` | inherited from `ManagedSession` | inherited from `ManagedSession` | drop-in `ISessionFactory` that yields managed sessions |
+| `ChannelManagerSessionFactory` | raw `Session` | channel-level reconnect through `IClientChannelManager` | classic engine | raw sessions that share channels and coordinate transport reconnect centrally |
 | `ManagedSessionBuilder` | `ManagedSession` | inherited from `ManagedSession` | configurable via `UseSubscriptionEngine` | fluent / DI scenarios |
+| `IClientChannelManager` | `IManagedTransportChannel` leases (shared) | channel-level reconnect, coalesced and notified to participants | n/a (channel-only) | central transport-channel sharing & reconnect for sessions / discovery clients |
 
 Everything below explains how these pieces fit together.
 
@@ -130,9 +132,11 @@ ISession managed = await new ManagedSessionFactory(telemetry).CreateAsync(...);
 handler.BeginReconnect(managed, 1000, callback);
 ```
 
-`SessionReconnectHandler` is **not** marked `[Obsolete]` — it is a
-supported entry point for callers that already own raw `Session`
-instances. New code should still prefer `ManagedSession`.
+`SessionReconnectHandler` is retained as a supported entry point for callers that
+own raw `Session` instances. New code should prefer `ManagedSession` or — for raw
+`Session` usage — wire an `IClientChannelManager` (see
+[section 4](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
+below) so that reconnect is handled transparently by the channel manager.
 
 ## 3. `ManagedSession` — the connection-state-machine facade
 
@@ -144,7 +148,8 @@ an `ISession` facade that wraps a raw `Session` and adds:
   `Reconnecting`, `Closing`, `Closed`.
 - A **reconnect policy** (`ReconnectPolicy` / `ReconnectPolicyOptions`)
   with pluggable backoff strategies (`Exponential`, `Linear`,
-  `Constant`), jitter, max-retry caps, and bounded delays.
+  `Constant`), jitter, max-retry caps, bounded delays, and a shared
+  `MaxTotalReconnectTime` budget.
 - A **server-redundancy handler** (`IServerRedundancyHandler`,
   default: `DefaultServerRedundancyHandler`) that reads the server's
   `ServerRedundancy` object and can fail over to a backup endpoint.
@@ -167,7 +172,8 @@ ManagedSession session = await ManagedSession.CreateAsync(
         InitialDelay = TimeSpan.FromSeconds(1),
         MaxDelay = TimeSpan.FromSeconds(30),
         MaxRetries = 0, // unlimited
-        JitterFactor = 0.1
+        JitterFactor = 0.1,
+        MaxTotalReconnectTime = TimeSpan.FromMinutes(5)
     }),
     redundancyHandler: new DefaultServerRedundancyHandler(),
     telemetry: telemetry);
@@ -230,8 +236,9 @@ connection state machine transitions `Connected → Reconnecting` and:
 1. Pauses the service gate so all in-flight and incoming service calls
    wait.
 2. Drives the configured `ReconnectPolicy` to compute the next delay
-   (with jitter), bounded by `MinDelay` / `MaxDelay` and capped by
-   `MaxRetries` (where `0` means unlimited).
+   (with jitter), bounded by `InitialDelay` / `MaxDelay`, capped by
+   `MaxRetries` (where `0` means unlimited), and constrained by the
+   shared `MaxTotalReconnectTime` retry budget.
 3. Calls `Session.ReconnectAsync` (channel reuse path) and on failure
    `ISessionFactory.RecreateAsync` (channel rebuild path), updating the
    inner session reference atomically.
@@ -244,11 +251,487 @@ connection state machine transitions `Connected → Reconnecting` and:
 6. On exhaustion (`MaxRetries` reached), transitions to `Closed` and
    surfaces a `ServiceResultException` to outstanding callers.
 
+When a `ManagedSession` is backed by `IClientChannelManager`, participant reactivation uses the
+manager's `IChannelReconnectPolicy`. The default `ExponentialBackoffChannelReconnectPolicy`
+bounds each participant callback with a `ParticipantTimeout` of 30 seconds.
+
 Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
 
-## 4. Subscription engines
+## 4. `IClientChannelManager` — centralised channel sharing and reconnect
+
+`IClientChannelManager`
+(`Stack/Opc.Ua.Core/Stack/Client/IClientChannelManager.cs`) is the new
+central registry of client-side transport channels introduced by issue
+[#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288). It
+sits *below* `Session` / `ManagedSession` and is concerned with the
+underlying `ITransportChannel`, not with sessions or subscriptions. It
+adds three behaviours that the previous one-channel-per-client model
+could not support:
+
+1. **Channel sharing** — multiple sessions (or discovery / registration
+   clients) whose `ConfiguredEndpoint` and (optional) reverse-connect
+   handle match share *one* underlying secure channel. The shared
+   channel stays open until the last lease is released.
+2. **Coalesced reconnect** — concurrent reconnect triggers (e.g. from
+   multiple sessions on the same channel observing a keep-alive
+   failure) collapse into a single reconnect cycle. Each attached
+   participant is notified once via `IReconnectParticipant.OnReconnectAsync`
+   in parallel.
+3. **Transparent gating** — service calls through an
+   `IManagedTransportChannel` block until the channel is `Ready` (gate
+   released after both transport open AND participant reactivation
+   complete). Internal reactivation traffic (e.g. `ActivateSession`
+   issued by a participant inside `OnReconnectAsync`) bypasses the
+   gate via an `AsyncLocal` scope managed by the manager.
+
+### Session factory choices
+
+Code that accepts an `ISessionFactory` can choose the session and
+reconnect model without changing the consuming client:
+
+- **`DefaultSessionFactory`** creates a raw `Session`. It does not run a
+  reconnect state machine; the caller owns reconnect / recreate.
+- **`ManagedSessionFactory`** creates `ManagedSession`, which wraps the
+  raw session in the built-in reconnect state machine.
+- **`ChannelManagerSessionFactory`** creates a raw `Session` whose
+  transport channel comes from an `IClientChannelManager`. Multiple
+  compatible sessions share channels and channel-level reconnect is
+  coordinated centrally by the manager.
+
+```csharp
+IClientChannelManager channelManager = new ClientChannelManager(config, telemetry);
+ISessionFactory factory = new ChannelManagerSessionFactory(
+    channelManager,
+    telemetry,
+    DiagnosticsMasks.SymbolicId);
+
+ISession session = await factory.CreateAsync(
+    config,
+    endpoint,
+    updateBeforeConnect: true,
+    sessionName: "SharedChannelSession",
+    sessionTimeout: 60_000,
+    identity: null,
+    preferredLocales: default,
+    ct);
+```
+
+Use `ChannelManagerSessionFactory` when the desired surface is still a
+raw `Session`, but the transport should be shared with other sessions or
+channel-only clients such as discovery and registration clients.
+
+### Channel identity (`ManagedChannelKey`)
+
+Two participants share a channel only when their `ManagedChannelKey`
+values are equal. The key is composed of:
+
+- Endpoint URL.
+- Security policy URI and message security mode.
+- Server-certificate SHA-1 thumbprint (matches X.509 thumbprint
+  conventions; used only as a stable hash, not for security).
+- A stable hash of the `EndpointConfiguration` value properties
+  (timeouts, encoding, message-size limits).
+- Client instance-certificate thumbprint.
+- Reverse-connect identity (the `ITransportWaitingConnection` instance
+  used to acquire the channel; `null` for forward connections).
+
+Forward and reverse channels to the same server are **never** shared:
+forward keys carry `null` for the reverse identity while reverse keys
+carry the waiting-connection instance.
+
+### State model
+
+`IManagedTransportChannel.State` follows a three-stage gate model:
+
+| State | Service calls allowed | Meaning |
+|---|---|---|
+| `Disconnected` | no (`BadSecureChannelClosed`) | Initial, or after graceful close. |
+| `TransportConnecting` / `TransportReconnecting` | no (queue with cancellation) | Underlying transport is being opened. |
+| `TransportConnectedSessionReactivating` | only via the internal reactivation bypass | Transport up; participants running `OnReconnectAsync`. |
+| `Ready` | yes | Fully usable. |
+| `Faulted` | no | Manager's retry policy exhausted. |
+| `Closed` | no | Manager teardown. |
+
+Only `Ready` releases the public service-call gate. Discovery and
+session-service requests are **not** generally exempted; only the
+internal reactivation bypass crosses the gate during
+`TransportConnectedSessionReactivating`.
+
+### Participant model — `IReconnectParticipant`
+
+Clients that want to react to channel reconnect implement
+`IReconnectParticipant`. `Session` implements it: when a channel
+manager is wired into a session, the manager invokes
+`Session.OnReconnectAsync` after each successful transport reconnect.
+The session runs the `ActivateSession` slice and returns one of:
+
+| Result | Meaning |
+|---|---|
+| `Reactivated` | Session is alive on the reconnected channel. |
+| `RequiresSessionRecreate` | Channel is OK; this participant's server-side session was lost (e.g. `BadSessionIdInvalid`) — the manager dispatches participant recreation out of band. |
+| `TransientFailure` | Transient channel-level failure; manager retries per policy. |
+| `FatalForParticipant` | Authentication / cert problem specific to this participant — detach only this participant. |
+| `FatalForChannel` | Fatal channel error; transition to `Faulted`. |
+
+When a participant returns `RequiresSessionRecreate`, the manager invokes
+`IReconnectParticipant.RecreateAsync(ct)` fire-and-forget and does not block the channel's
+transition to `Ready` on that work. `Session` implements the callback by recreating its
+server-side session in place. On target frameworks without default interface method support,
+participants opt in with `IRecreateAwareReconnectParticipant`.
+
+### Retry policy — `IChannelReconnectPolicy`
+
+The default `ExponentialBackoffChannelReconnectPolicy` mirrors the
+historical `SessionReconnectHandler` backoff defaults:
+`500 ms → 30 s` with unlimited attempts. It also sets `ParticipantTimeout`
+to 30 seconds, bounding each participant's `OnReconnectAsync` callback. A
+participant timeout is treated as `TransientFailure`; retry exhaustion still
+transitions the channel to `Faulted`. The `IChannelReconnectPolicy` default
+interface member remains `Timeout.InfiniteTimeSpan` for custom-policy
+backward compatibility, and older TFMs can opt in with `IParticipantTimeoutPolicy`.
+The policy is configurable on the `ClientChannelManager` constructor.
+
+### HTTPS resilience vs channel-mgr reconnect
+
+On .NET 8 and later, HTTPS endpoints have two independent resilience layers:
+
+- **HTTP resilience pipeline** — the named `HttpClient` created through
+  [`IOpcUaHttpClientFactory`](../Stack/Opc.Ua.Core/Stack/Https/OpcUaHttpClientFactory.cs)
+  uses `AddStandardResilienceHandler` from the
+  `Microsoft.Extensions.Http.Resilience` package. The standard handler
+  applies request-level rate limiting, a total request timeout, retries,
+  circuit breaking, and per-attempt timeouts. Current package defaults are:
+  3 retries with exponential backoff and jitter, a 30 s total request
+  timeout, a 10 s attempt timeout, a circuit breaker that opens after a
+  10% transient-failure ratio over a 30 s sample with at least 100
+  requests, and a 1,000-request concurrency limit with no queue.
+- **Channel manager reconnect** — `IChannelReconnectPolicy` runs per
+  managed channel after the request has escaped the HTTP layer. Its
+  default `ExponentialBackoffChannelReconnectPolicy` is
+  `500 ms → 30 s` with unlimited attempts.
+
+Use the HTTP pipeline for transient failures of one HTTPS call: the call
+is retried or timed out, then the channel remains usable. Use the
+channel manager for failures that require the full OPC UA channel to be
+torn down and opened again, such as a server reboot, a closed TLS
+connection, or a TLS rehandshake requirement.
+
+With the DI defaults, an HTTPS request fails through the HTTP pipeline
+first. If all HTTP retries are exhausted (or the timeout / circuit
+breaker rejects the call), the resulting `HttpRequestException`, timeout,
+or equivalent transport exception bubbles up to the OPC UA channel. The
+channel manager then treats that as a channel-level failure and starts
+its reconnect policy.
+
+Avoid making both layers aggressive. The channel-manager `MaxAttempts`
+should be sized assuming the HTTP layer already retried the individual
+request. For HTTPS deployments, prefer a bounded channel policy such as
+`MaxAttempts <= 5`, or use a shared `IRetryBudget` when the HTTP layer
+participates in one so a single end-to-end retry budget caps both layers.
+
+DI registration wires the standard handler automatically:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(opt =>
+    {
+        opt.Configuration = config;
+        opt.Session.Endpoint = endpoint;
+    });
+```
+
+To replace the DI default with custom HTTP resilience, configure the
+same named client and remove the default handler before adding your own:
+
+```csharp
+services.AddHttpClient("Opc.Ua.Client")
+    .RemoveAllResilienceHandlers()
+    .AddStandardResilienceHandler(opts =>
+    {
+        opts.Retry.MaxRetryAttempts = 5;
+        opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+    });
+```
+
+For direct builder usage on .NET 8 and later, call
+[`ManagedSessionBuilder.WithHttpsResilience(...)`](../Libraries/Opc.Ua.Client/Fluent/ManagedSessionBuilder.cs):
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
+    .UseEndpoint(endpoint)
+    .WithHttpsResilience(opts =>
+    {
+        opts.Retry.MaxRetryAttempts = 5;
+        opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .ConnectAsync(ct);
+```
+
+### HTTPS factory + OPC UA cert validation: secure-by-default fallback
+
+`HttpsTransportChannel.CreateHttpClient` chooses between two `HttpClient`
+construction paths:
+
+- **Direct path** (`CreateDirectHttpClient`) — builds an
+  `HttpClientHandler` configured with:
+  - `ServerCertificateCustomValidationCallback` wired to the OPC UA
+    `ICertificateValidatorEx` / `CertificateValidator` (validates against
+    the OPC UA trust list / issuer chain).
+  - The OPC UA application instance certificate attached as a client
+    certificate (mutual TLS using the OPC UA application identity).
+  - `AllowAutoRedirect = false` so an attacker-controlled redirect cannot
+    silently move the OPC UA call to a different host.
+  - `MaxConnectionsPerServer` and `MaxRequestContentBufferSize` quotas
+    enforced at the HTTP layer.
+- **Factory path** — calls `IOpcUaHttpClientFactory.CreateClient(...)`
+  and uses the returned named `HttpClient` (its primary handler is owned
+  by `IHttpClientFactory` and CANNOT be reconfigured by
+  `HttpsTransportChannel` after the fact).
+
+When an OPC UA `CertificateValidator` is configured for a channel — the
+normal case for any non-`SecurityPolicies.None` HTTPS profile —
+`HttpsTransportChannel.CanUseHttpClientFactory()` returns `false` and
+the direct path is always taken. This is the secure default: it
+guarantees that the OPC UA trust list, OPC UA mTLS, and the redirect
+lock are in effect on every OPC UA HTTPS connection. If a non-`Shared`
+factory was supplied but bypassed for security reasons,
+`CreateHttpClient` emits a one-time `LogWarning` so operators see that
+the named HttpClient pipeline (Polly resilience handler, etc.) is NOT
+applied to this OPC UA HTTPS channel.
+
+To keep BOTH Polly resilience AND OPC UA cert validation on the same
+channel, register the named `Opc.Ua.Client` HttpClient with a
+configured primary handler that wires OPC UA validation in yourself.
+The handler must be re-buildable per channel from the configuration
+because the OPC UA validator and client certificate are channel-bound,
+not process-bound:
+
+```csharp
+services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+    {
+        // Resolve the per-application validator and client cert from
+        // your DI container, then build a handler the same way
+        // CreateDirectHttpClient does.
+        ApplicationConfiguration config = sp.GetRequiredService<ApplicationConfiguration>();
+        ICertificateValidatorEx validator = config.CertificateValidator;
+        return new HttpClientHandler
+        {
+            ClientCertificateOptions = ClientCertificateOption.Manual,
+            AllowAutoRedirect = false,
+            ServerCertificateCustomValidationCallback = (_, cert, chain, _) =>
+            {
+                // … delegate to `validator.ValidateAsync(...)` synchronously.
+            },
+            // … and attach the OPC UA client instance certificate.
+        };
+    })
+    .AddStandardResilienceHandler();
+```
+
+Without that explicit primary-handler configuration, OPC UA HTTPS
+channels deliberately ignore the named-client pipeline and use the
+direct path — preserving OPC UA security at the cost of Polly resilience
+on those channels.
+
+### Shared retry budget with `ManagedSession`
+
+When `ManagedSession` is constructed with `WithChannelManager(...)`,
+the manager owns *channel-level* retry while
+`ManagedSession.ConnectionStateMachine` + `IReconnectPolicy` owns
+*session-level* retry on top. The two are sequenced, not concurrent, and
+share a single `IRetryBudget` for each outer reconnect cycle:
+
+1. **Channel-level retry runs first.** A keep-alive failure on the
+   inner `Session` triggers `IClientChannelManager.ReconnectAsync(channel, ct)`.
+   The manager coalesces concurrent triggers from multiple sessions on
+   the same channel, retries the transport open according to its
+   `IChannelReconnectPolicy`, then notifies attached sessions via
+   `OnReconnectAsync`.
+2. **Outer state stays `Connected` while the manager handles it.**
+   `ManagedSession` subscribes to `IManagedTransportChannel.StateChanged`;
+   while the manager is in `TransportReconnecting` /
+   `TransportConnectedSessionReactivating`, `ManagedSession` suppresses
+   the keep-alive-driven outer state-machine churn.
+3. **Outer retry shares its deadline with channel retry.** When the
+   channel transitions to `Faulted`, `ManagedSession.StateChanged`
+   raises `ConnectionState.Reconnecting`. The outer `IReconnectPolicy`
+   schedules `Session.ReconnectAsync(ct)` and passes the same retry
+   budget into `IClientChannelManager.ReconnectAsync(channel, budget, ct)`.
+   Both layers cap their delays to the remaining time and stop scheduling
+   retries when the budget is exhausted.
+
+`ReconnectPolicyOptions.MaxTotalReconnectTime` defaults to five
+minutes. Set it to the end-to-end reconnect window your application
+expects; channel-manager delays are automatically shrunk to fit inside
+that window instead of receiving a fresh budget on every outer attempt.
+
+For example, with `MaxTotalReconnectTime = TimeSpan.FromSeconds(30)`,
+a channel-manager reconnect that spends 27 seconds reopening transport
+and reactivating participants leaves about three seconds for any outer
+`ManagedSession` retry / failover decision. The channel manager clamps
+its next scheduled delay to the remaining time and transitions to
+`Faulted` once the shared budget is exhausted; the outer state machine
+then fails over or closes instead of starting another 30-second channel
+retry window. The result is one roughly 30-second reconnect cycle (plus
+any already in-flight attempt), not 30 seconds per layer or per outer
+attempt.
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithChannelManager(channelManager)
+    .WithReconnectPolicy(p => p with
+    {
+        MaxTotalReconnectTime = TimeSpan.FromSeconds(30)
+    })
+    .ConnectAsync(ct);
+```
+
+For migration notes on the budget-aware APIs, see
+[the migration guide](MigrationGuide.md#shared-reconnect-budget-for-managedsession-and-the-channel-manager).
+
+### Diagnostics surface contract — what tags and EventSource fields carry
+
+The channel manager emits diagnostics through three independent
+channels: `System.Diagnostics.Activity` tags (distributed tracing),
+the `Opc.Ua.ChannelManager` `EventSource` (ETW / `dotnet-trace`), and
+`System.Diagnostics.Metrics` instruments. Tag and field values surfaced
+through any of these are restricted to **OPC UA-protocol-level fields
+only**:
+
+- `StatusCode` (numeric / symbolic), e.g. `BadSecureChannelClosed`
+- `ServiceResult.SymbolicId`
+- `ServiceResult.LocalizedText.Text` — the operator-facing message
+
+Notably, the following are **never** sent to Activity tags or to
+`EventSource` events:
+
+- The full `ServiceResult.ToString()` serialization
+- `ServiceResult.AdditionalInfo` — typically carries inner-exception
+  messages, file paths, internal IDs
+- `Exception.StackTrace`, `Exception.Message`, or any other inner .NET
+  exception detail
+- `Inner` recursion into `ServiceResult.InnerResult`
+
+This keeps internal client/server diagnostics out of distributed
+tracing backends where operators with telemetry-read access (but no
+production-debug access) should not be able to read internal failure
+detail. Full failure context — including stack traces and
+`AdditionalInfo` — flows only through the local `ILogger.LogDebug`
+path on the manager, where it stays under the host's log-access
+controls.
+
+The metric tag set is also bounded for routine operation:
+
+| Instrument | Tag keys |
+|---|---|
+| `opcua.channel.open` / `opcua.channel.close` | `endpoint`, `reverse` (+ `reason` on close) |
+| `opcua.channel.active` / `opcua.channel.refcount` / `opcua.channel.participants` | `endpoint` |
+| `opcua.channel.reconnect.attempts` / `opcua.channel.reconnect.duration` | `endpoint`, `outcome` |
+| `opcua.channel.gate.wait` | `endpoint` |
+| `opcua.channel.participant.timeout.count` / `opcua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
+
+`outcome` is one of `success`, `transient-failure`, `policy-exhausted`,
+`fatal-channel`. `reason` is one of `lease-released`,
+`manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the
+number of distinct OPC UA endpoint URLs the application connects to.
+
+> The `participant` tag carries the **kind prefix** of the
+> participant identifier (e.g. `"Session"`, `"Client"`), not the
+> per-instance suffix. This keeps cardinality bounded by the small set
+> of participant kinds rather than growing with every session /
+> reconnect-storm participant ever created. The full per-instance
+> `IReconnectParticipant.Id` is preserved on Activity tags and
+> EventSource events so individual sessions remain correlatable in
+> distributed traces. Custom participants that don't use the
+> "kind-`-`-instance" naming convention contribute their full id to
+> the tag, so prefer the prefix-then-suffix shape for new participant
+> types.
+
+### DI registration
+
+`builder.AddClient(...)` registers `IClientChannelManager` as a
+singleton resolved from `OpcUaClientOptions.Configuration`. The
+`ManagedSessionBuilder` produced by `AddClient` automatically wires
+the DI-resolved channel manager into every new `ManagedSession`. To
+override, call `WithChannelManager(...)` on the builder explicitly.
+
+```csharp
+services.AddOpcUa()
+    .AddClient(opt =>
+    {
+        opt.Configuration = config;
+        opt.Session = new ManagedSessionOptions
+        {
+            Endpoint = endpoint,
+            SessionName = "MyApp",
+        };
+    });
+
+// Single channel manager + multiple sessions sharing channels per endpoint:
+var sp = services.BuildServiceProvider();
+var managedFactory = sp.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+ManagedSession s1 = await managedFactory(ct);
+ManagedSession s2 = await managedFactory(ct); // shares s1's underlying channel
+```
+
+### Migrating from `AttachChannel` / `DetachChannel`
+
+`IClientBase.AttachChannel(ITransportChannel)` and `DetachChannel()`
+are marked `[Obsolete]` but remain functional. Migration path:
+
+```csharp
+// Old: manually managed channel
+ITransportChannel ch = await UaChannelBase.CreateUaBinaryChannelAsync(...);
+var session = new Session(ch, config, endpoint);
+await session.OpenAsync(...);
+
+// New: channel manager owns the channel; sessions share it
+var manager = new ClientChannelManager(config, telemetry);
+Session session = await Session.CreateAsync(manager, config, endpoint, ...);
+```
+
+For reverse-connect:
+
+```csharp
+ITransportWaitingConnection conn = await reverseConnectManager
+    .WaitForConnectionAsync(serverUrl, serverUri, ct);
+IManagedTransportChannel ch = await manager.GetAsync(participant, conn, ct);
+```
+
+### Testing the channel manager
+
+The channel manager is covered by a layered stress and chaos test suite in
+[`Tests/Opc.Ua.Stress.Tests/`](../Tests/Opc.Ua.Stress.Tests/):
+
+- **L1 Contract** — fast deterministic fake-based tests for coalescing, participant result aggregation, retry
+  budgets, hung participants, recreate dispatch, lease lifecycle, gate + bypass, key equivalence, certificate
+  rotation, and leak accuracy. These run in every PR.
+- **L2 Integration** — live in-process server tests for server outage recovery, live certificate rotation,
+  participant timeout, session recreate dispatch, and failover lease swap. These run in every PR.
+- **L3 ChaosTCP** — TCP proxy chaos tests for transparent reconnect under load, subscription survival,
+  accept-but-stall, and mixed drop / block-accept failures. These run nightly.
+- **L4 Soak** — long-running randomized soak, combinatorial matrix, and memory-stability runs. These are manual or
+  nightly only.
+
+```bash
+# Contract + Integration (default PR CI):
+dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
+
+# ChaosTCP (nightly):
+dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
+
+# Soak (manual):
+dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
+```
+
+Every chaos test prints its seed at the start of the run. Failed chaos runs can be reproduced by passing the same
+seed back to the test host with `--TestRunParameters.Parameter(Seed=<n>)`.
+
+## 5. Subscription engines
 
 The `ISubscriptionEngine` abstraction
 (`Libraries/Opc.Ua.Client/Session/ISubscriptionEngine.cs`) decouples the
@@ -320,6 +803,19 @@ subscription.TryAddMonitoredItem(
     },
     out IMonitoredItem _);
 ```
+
+### Unbounded monitored items (default)
+
+The V2 `ISubscription` returned from `Add(...)` transparently splits
+monitored items across multiple server-side partition subscriptions
+when the server's per-subscription cap would be exceeded. Single-
+partition workloads pay zero overhead because the composite
+collection short-circuits to the primary partition. Pin items into
+the same partition with `MonitoredItemOptions.Affinity` so per-
+subscription features like `SetTriggering` keep working across the
+group; opt out of partitioning entirely with
+`SubscriptionOptions.DisableUnboundedItemMode = true`. Full
+developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
 ### V2 notification pooling (opt-in)
 
@@ -447,7 +943,7 @@ The two engines can co-exist on a `ManagedSession`:
 active. Internally, classic subscriptions are bridged onto the V2
 publish pipeline.
 
-## 5. The `INodeCache` surface
+## 6. The `INodeCache` surface
 
 `Session.NodeCache` (and `ManagedSession.NodeCache`) returns
 `INodeCache`, the unified client-side cache contract. As of 2.0 it is
@@ -471,9 +967,9 @@ semantics differ. All async methods return `ValueTask` /
 mutation).
 
 For migration details see
-[Migration Guide — `INodeCache` consolidation](MigrationGuide.md#inodecache-consolidation).
+[2.0 migration guide — Node States and INodeCache](migrate/2.0.x/node-states.md#inodecache-changes).
 
-## 6. Putting it all together
+## 7. Putting it all together
 
 Pick the entry point that best matches your call site:
 
@@ -497,8 +993,9 @@ Pick the entry point that best matches your call site:
 
 ## See also
 
-- [Migration Guide — ManagedSession and Automatic Reconnection](MigrationGuide.md#managedsession-and-automatic-reconnection)
-- [Migration Guide — Fluent Builder, V2 Subscriptions, and DI](MigrationGuide.md#fluent-builder-v2-subscriptions-and-dependency-injection)
+- [2.0 migration guide — ManagedSession and Automatic Reconnection](migrate/2.0.x/sessions-subscriptions.md#managedsession-and-automatic-reconnection)
+- [2.0 migration guide — Sessions, GDS Client, and Subscriptions](migrate/2.0.x/sessions-subscriptions.md) — V2 subscription engine, fluent builder, and DI integration are covered alongside ManagedSession.
 - [TransferSubscription](TransferSubscription.md) — server-driven session-handoff support.
 - [Observability](Observability.md) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
 - [Reverse Connect](ReverseConnect.md) — works with both `Session` and `ManagedSession`.
+- [Packet Capture, Dissection, and Replay](PacketCapture.md) — `Opc.Ua.Bindings.Pcap` composes with `IClientChannelManager` via the global `TransportBindings.Channels` registry; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.

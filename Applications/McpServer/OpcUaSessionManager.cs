@@ -30,16 +30,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
@@ -56,14 +53,24 @@ namespace Opc.Ua.Mcp
         private const string kConfigFileName = "Opc.Ua.Mcp.Config.xml";
 
         private readonly ILogger<OpcUaSessionManager> m_logger;
+        private readonly IServiceProvider m_serviceProvider;
+        private readonly OpcUaClientOptions m_clientOptions;
+        private readonly ITelemetryContext m_telemetry;
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ConcurrentDictionary<string, SessionInfo> m_sessions = new(StringComparer.OrdinalIgnoreCase);
         private ApplicationConfiguration? m_configuration;
         private bool m_disposed;
 
-        public OpcUaSessionManager(ILogger<OpcUaSessionManager> logger)
+        public OpcUaSessionManager(
+            ILogger<OpcUaSessionManager> logger,
+            IServiceProvider serviceProvider,
+            OpcUaClientOptions clientOptions,
+            ITelemetryContext telemetry)
         {
-            m_logger = logger;
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            m_clientOptions = clientOptions ?? throw new ArgumentNullException(nameof(clientOptions));
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
         /// <summary>
@@ -75,7 +82,6 @@ namespace Opc.Ua.Mcp
             public required ISession Session { get; init; }
             public required EndpointDescription Endpoint { get; init; }
             public required string AuthType { get; init; }
-            public SessionReconnectHandler? ReconnectHandler { get; set; }
             public DateTime ConnectedAt { get; init; } = DateTime.UtcNow;
             public bool IsConnected => Session.Connected;
         }
@@ -88,12 +94,23 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets the telemetry context used by this session manager.
         /// </summary>
-        public ITelemetryContext Telemetry { get; } = new NullTelemetry();
+        public ITelemetryContext Telemetry => m_telemetry;
 
         /// <summary>
         /// Gets the loaded application configuration, or null if not yet loaded.
         /// </summary>
         public ApplicationConfiguration? Configuration => m_configuration;
+
+        /// <summary>
+        /// Gets the active transport channels for connected sessions.
+        /// </summary>
+        public IReadOnlyList<ITransportChannel> GetActiveTransportChannels()
+        {
+            return [.. m_sessions.Values
+                .Where(static info => info.IsConnected)
+                .Select(static info => info.Session.TransportChannel)
+                .OfType<ITransportChannel>()];
+        }
 
         /// <summary>
         /// Ensures the application configuration is loaded, loading it if necessary.
@@ -254,59 +271,52 @@ namespace Opc.Ua.Mcp
 
                 UserIdentity identity = BuildUserIdentity(authType, username, password);
 
-                var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
+                ApplicationConfiguration configuration = m_configuration!;
+                var endpointConfiguration = EndpointConfiguration.Create(configuration);
                 var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+                IClientChannelManager channelManager = m_serviceProvider.GetRequiredService<IClientChannelManager>();
 
-                var sessionFactory = new DefaultSessionFactory(Telemetry);
-                ISession session = await sessionFactory.CreateAsync(
-                    m_configuration!,
-                    endpoint,
-                    true,
-                    false,
-                    m_configuration!.ApplicationName!,
-                    60_000,
-                    identity,
-                    default,
-                    ct).ConfigureAwait(false);
+                ManagedSession session = await new ManagedSessionBuilder(configuration, Telemetry)
+                    .UseEndpoint(endpoint)
+                    .WithChannelManager(channelManager)
+                    .WithSessionName(configuration.ApplicationName ?? kApplicationName)
+                    .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000))
+                    .WithUserIdentity(identity)
+                    .ConnectAsync(ct)
+                    .ConfigureAwait(false);
 
-                if (session?.Connected == true)
+                session.KeepAliveInterval = 5000;
+                session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
+                session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
+
+                var sessionInfo = new SessionInfo
                 {
-                    var reconnectHandler = new SessionReconnectHandler(Telemetry, true, 15_000);
-                    var sessionInfo = new SessionInfo
-                    {
-                        Name = name,
-                        Session = session,
-                        Endpoint = selectedEndpoint,
-                        AuthType = authType,
-                        ReconnectHandler = reconnectHandler,
-                        ConnectedAt = DateTime.UtcNow
-                    };
+                    Name = name,
+                    Session = session,
+                    Endpoint = selectedEndpoint,
+                    AuthType = authType,
+                    ConnectedAt = DateTime.UtcNow
+                };
 
-                    m_sessions[name] = sessionInfo;
+                m_sessions[name] = sessionInfo;
 
-                    session.KeepAliveInterval = 5000;
-                    session.KeepAlive += (s, e) => SessionKeepAlive(sessionInfo, s, e);
+                m_logger.LogInformation(
+                    "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}",
+                    name,
+                    session.SessionName,
+                    session.SessionId);
 
-                    m_logger.LogInformation(
-                        "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}",
-                        name,
-                        session.SessionName,
-                        session.SessionId);
-
-                    return string.Format(
-                        CultureInfo.InvariantCulture,
-                        "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
-                        "SessionName={5}, SessionId={6}",
-                        endpointUrl,
-                        name,
-                        selectedEndpoint.SecurityMode,
-                        selectedEndpoint.SecurityPolicyUri,
-                        authType,
-                        session.SessionName,
-                        session.SessionId);
-                }
-
-                throw new ServiceResultException(StatusCodes.BadConnectionClosed, "Session creation failed.");
+                return string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
+                    "SessionName={5}, SessionId={6}",
+                    endpointUrl,
+                    name,
+                    selectedEndpoint.SecurityMode,
+                    selectedEndpoint.SecurityPolicyUri,
+                    authType,
+                    session.SessionName,
+                    session.SessionId);
             }
             finally
             {
@@ -396,7 +406,6 @@ namespace Opc.Ua.Mcp
             m_disposed = true;
             foreach (SessionInfo info in m_sessions.Values)
             {
-                info.ReconnectHandler?.Dispose();
                 info.Session.Dispose();
             }
 
@@ -406,9 +415,6 @@ namespace Opc.Ua.Mcp
 
         private static async Task DisconnectInternalAsync(SessionInfo info, CancellationToken ct)
         {
-            info.ReconnectHandler?.Dispose();
-            info.ReconnectHandler = null;
-
             await info.Session.CloseAsync(ct).ConfigureAwait(false);
             info.Session.Dispose();
         }
@@ -454,6 +460,7 @@ namespace Opc.Ua.Mcp
                 config.CertificateManager.AcceptError = AutoAcceptError;
             }
 
+            m_clientOptions.Configuration = config;
             m_configuration = config;
         }
 
@@ -594,50 +601,52 @@ namespace Opc.Ua.Mcp
             }
         }
 
-        private void SessionKeepAlive(SessionInfo info, ISession session, KeepAliveEventArgs e)
+        private void SessionConnectionStateChanged(string name, ConnectionStateChangedEventArgs e)
         {
-            if (e.Status != null && ServiceResult.IsNotGood(e.Status))
+            if (e.Error != null && ServiceResult.IsNotGood(e.Error))
             {
                 m_logger.LogWarning(
-                    "KeepAlive status for '{Name}': {Status}. Reconnecting...",
-                    info.Name,
-                    e.Status);
-
-                if (info.ReconnectHandler != null && session is Session s)
-                {
-                    info.ReconnectHandler.BeginReconnect(
-                        s,
-                        1000,
-                        (sender, _) => SessionReconnectComplete(info, sender));
-                }
-            }
-        }
-
-        private void SessionReconnectComplete(SessionInfo info, object? sender)
-        {
-            if (sender is not SessionReconnectHandler handler)
-            {
+                    "Session '{Name}' state changed from {PreviousState} to {NewState}. " +
+                    "ReconnectAttempt={ReconnectAttempt}, Status={Status}",
+                    name,
+                    e.PreviousState,
+                    e.NewState,
+                    e.ReconnectAttempt,
+                    e.Error);
                 return;
             }
 
-            ISession? session = handler.Session;
-            if (session != null)
+            m_logger.LogInformation(
+                "Session '{Name}' state changed from {PreviousState} to {NewState}. " +
+                "ReconnectAttempt={ReconnectAttempt}",
+                name,
+                e.PreviousState,
+                e.NewState,
+                e.ReconnectAttempt);
+        }
+
+        private void SessionChannelStateChanged(string name, ChannelStateChange e)
+        {
+            if (e.Error != null && ServiceResult.IsNotGood(e.Error))
             {
-                // Update the session in the dictionary with a new SessionInfo
-                m_sessions[info.Name] = new SessionInfo
-                {
-                    Name = info.Name,
-                    Session = session,
-                    Endpoint = info.Endpoint,
-                    AuthType = info.AuthType,
-                    ReconnectHandler = info.ReconnectHandler,
-                    ConnectedAt = info.ConnectedAt
-                };
-                m_logger.LogInformation(
-                    "Session '{Name}' reconnected. SessionId={SessionId}",
-                    info.Name,
-                    session.SessionId);
+                m_logger.LogWarning(
+                    "Session '{Name}' channel state changed from {PreviousState} to {NewState}. " +
+                    "ReconnectAttempt={ReconnectAttempt}, Status={Status}",
+                    name,
+                    e.PreviousState,
+                    e.NewState,
+                    e.ReconnectAttempt,
+                    e.Error);
+                return;
             }
+
+            m_logger.LogInformation(
+                "Session '{Name}' channel state changed from {PreviousState} to {NewState}. " +
+                "ReconnectAttempt={ReconnectAttempt}",
+                name,
+                e.PreviousState,
+                e.NewState,
+                e.ReconnectAttempt);
         }
 
         private static string FormatSessionStatus(SessionInfo info)
@@ -668,16 +677,5 @@ namespace Opc.Ua.Mcp
             return true;
         }
 
-        private sealed class NullTelemetry : ITelemetryContext
-        {
-            public ILoggerFactory LoggerFactory { get; } = NullLoggerFactory.Instance;
-
-            public Meter CreateMeter()
-            {
-                return new("Opc.Ua.Mcp");
-            }
-
-            public ActivitySource ActivitySource { get; } = new("Opc.Ua.Mcp");
-        }
     }
 }

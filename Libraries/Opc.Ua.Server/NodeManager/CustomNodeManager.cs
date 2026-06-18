@@ -957,14 +957,30 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
+        /// <remarks>
+        /// Iterates the predefined nodes and invokes <see cref="NodeState.Delete"/> on each
+        /// root node so the <see cref="NodeState.OnBeforeDelete"/> and
+        /// <see cref="NodeState.OnAfterDelete"/> callbacks fire and
+        /// <see cref="NodeStateChangeMasks.Deleted"/> is reported to subscribers. Nodes that
+        /// are children of another predefined node are skipped because they are deleted
+        /// recursively by their parent (avoiding duplicate callbacks).
+        /// </remarks>
         public virtual void DeleteAddressSpace()
         {
-            // NodeState[] nodes = [.. PredefinedNodes.Values];
+            NodeState[] nodes = [.. PredefinedNodes.Values];
+            ISystemContext context = SystemContext;
+            foreach (NodeState node in nodes)
+            {
+                if (node is BaseInstanceState instance &&
+                    instance.Parent != null &&
+                    !instance.Parent.NodeId.IsNull &&
+                    PredefinedNodes.ContainsKey(instance.Parent.NodeId))
+                {
+                    continue;
+                }
+                node.Delete(context);
+            }
             PredefinedNodes.Clear();
-            // foreach (var node in nodes)
-            // {
-            //     node.Delete(null);
-            // }
         }
 
         /// <summary>
@@ -2405,8 +2421,8 @@ namespace Opc.Ua.Server
         /// the address space outside the standard hooks, then call
         /// <see cref="EmitModelChange"/> to publish.
         /// </summary>
-        protected Opc.Ua.Server.NodeManager.ModelChangeAggregator ModelChangeAggregator { get; }
-            = new Opc.Ua.Server.NodeManager.ModelChangeAggregator();
+        protected ModelChangeAggregator ModelChangeAggregator { get; }
+            = new ModelChangeAggregator();
 
         /// <summary>
         /// Gets or sets whether the framework automatically emits

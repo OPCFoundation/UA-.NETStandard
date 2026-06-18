@@ -123,6 +123,7 @@ namespace Opc.Ua.Server.Fluent
         public void Seal()
         {
             m_sealed = true;
+            Simulations?.Start();
         }
 
         /// <inheritdoc/>
@@ -336,6 +337,39 @@ namespace Opc.Ua.Server.Fluent
             EventSources = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
+        /// <summary>
+        /// Simulation-loop registry owned by the
+        /// <see cref="FluentNodeManagerBase"/>; populated via
+        /// <see cref="AttachSimulations"/> immediately after the
+        /// builder is constructed and before <c>Configure</c> runs.
+        /// </summary>
+        /// <remarks>
+        /// Hand-written managers that derive from
+        /// <see cref="CustomNodeManager2"/> rather than
+        /// <see cref="FluentNodeManagerBase"/> leave this property
+        /// <c>null</c>; the <c>Simulation</c> extension surfaces a
+        /// targeted error in that case.
+        /// </remarks>
+        internal SimulationRegistry? Simulations { get; private set; }
+
+        /// <summary>
+        /// Wires the supplied registry into this builder so the
+        /// <see cref="SimulationBuilderExtensions.Simulation(INodeManagerBuilder, TimeSpan)"/>
+        /// extension can route loop registrations to the owning manager.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        internal void AttachSimulations(SimulationRegistry registry)
+        {
+            if (Simulations != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "A SimulationRegistry is already attached to this builder.");
+            }
+            Simulations = registry ?? throw new ArgumentNullException(nameof(registry));
+        }
+
         private static string FormatNodeId(NodeId nodeId)
         {
             // NodeId is a readonly struct so the caller may pass `default`;
@@ -467,6 +501,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (enable)
+
             {
                 acnm.MultiConsumerNodeIds[node.NodeId] = true;
             }

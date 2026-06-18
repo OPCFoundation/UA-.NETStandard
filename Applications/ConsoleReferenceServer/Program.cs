@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -195,6 +196,12 @@ namespace Quickstarts.ReferenceServer
 
                     // Create and add the node managers
                     server.Create(Servers.Utils.NodeManagerFactories);
+
+                    // Add async node managers
+                    foreach (IAsyncNodeManagerFactory asyncFactory in Servers.Utils.AsyncNodeManagerFactories)
+                    {
+                        server.Server!.AddNodeManager(asyncFactory);
+                    }
 
                     // Add GDS node manager if configured
                     GlobalDiscoveryServerConfiguration? gdsConfig = server.Configuration

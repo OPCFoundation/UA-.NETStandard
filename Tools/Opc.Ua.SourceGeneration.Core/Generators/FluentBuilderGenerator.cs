@@ -82,6 +82,34 @@ namespace Opc.Ua.SourceGeneration
         public string OverrideManagerNamespace { get; init; }
 
         /// <summary>
+        /// When <see langword="true"/>, emit the typed
+        /// <c>I{Manager}Builder</c> interface, its typed-builder
+        /// implementation, and one wrapper class per top-level
+        /// predefined instance. When <see langword="false"/> only the
+        /// per-ObjectType IComponentAccessor / IPropertyAccessor
+        /// extension classes are emitted (the manager-wrapper output is
+        /// scoped to models that ship a generated <c>NodeManager</c> —
+        /// NodeSet2-only consumers that just want type-level typed
+        /// accessors leave this off). Defaults to <see langword="true"/>
+        /// for backward compatibility with existing ModelDesign callers.
+        /// </summary>
+        public bool GenerateManagerWrappers { get; init; } = true;
+
+        /// <summary>
+        /// When <see langword="true"/> (the default), emit the
+        /// per-ObjectType <c>IComponentAccessor&lt;TState&gt;</c> /
+        /// <c>IPropertyAccessor&lt;TState&gt;</c> extension classes.
+        /// Set to <see langword="false"/> when the consumer assembly
+        /// does not reference <c>Opc.Ua.Server</c> (the emitted
+        /// emitted by <see cref="FluentBuilderGenerator"/> is allowed.
+        /// The marker interfaces themselves live in
+        /// <c>Opc.Ua.Types</c> (Core); the emitted method bodies
+        /// reference <c>Opc.Ua.Server.Fluent.INodeBuilder&lt;T&gt;</c>
+        /// and would fail to compile there).
+        /// </summary>
+        public bool EmitFluentAccessors { get; init; } = true;
+
+        /// <summary>
         /// Initializes a new <see cref="FluentBuilderGenerator"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
@@ -155,25 +183,42 @@ namespace Opc.Ua.SourceGeneration
                 bodyTargets,
                 onLoad: ctx =>
                 {
-                    EmitManagerInterface(ctx.Out, interfaceName, roots);
-                    EmitTypedManagerImpl(
-                        ctx.Out,
-                        interfaceName,
-                        typedBuilderClassName,
-                        managerClassName,
-                        roots);
-
-                    // Walk top-level instance wrappers depth-first so each
-                    // child object/method wrapper is emitted as a nested
-                    // type inside its parent. Top-level wrappers (those
-                    // whose parent path is empty) live at namespace scope.
-                    foreach (InstanceWrapper top in m_wrappers.Values
-                        .Where(w => w.ParentKey == null)
-                        .OrderBy(w => w.LeafName, StringComparer.Ordinal))
+                    if (GenerateManagerWrappers)
                     {
-                        EmitInstanceWrapper(ctx.Out, top, indent: string.Empty);
+                        EmitManagerInterface(ctx.Out, interfaceName, roots);
+                        EmitTypedManagerImpl(
+                            ctx.Out,
+                            interfaceName,
+                            typedBuilderClassName,
+                            managerClassName,
+                            roots);
+
+                        // Walk top-level instance wrappers depth-first so each
+                        // child object/method wrapper is emitted as a nested
+                        // type inside its parent. Top-level wrappers (those
+                        // whose parent path is empty) live at namespace scope.
+                        foreach (InstanceWrapper top in m_wrappers.Values
+                            .Where(w => w.ParentKey == null)
+                            .OrderBy(w => w.LeafName, StringComparer.Ordinal))
+                        {
+                            EmitInstanceWrapper(ctx.Out, top, indent: string.Empty);
+                        }
                     }
 
+                    // Emit per-ObjectType IComponentAccessor /
+                    // IPropertyAccessor extension classes so consumers
+                    // can walk a typed INodeBuilder<TState> tree
+                    // without spelling out browse paths or
+                    // QualifiedNames. Always runs (independent of
+                    // GenerateManagerWrappers) so NodeSet2-only
+                    // consumers still get the typed accessors.
+                    // Suppressed when the consumer assembly does not
+                    // reference Opc.Ua.Server (controlled by the
+                    // EmitFluentAccessors flag).
+                    if (EmitFluentAccessors)
+                    {
+                        EmitObjectTypeAccessors(ctx.Out);
+                    }
                     return null;
                 });
 
@@ -181,10 +226,7 @@ namespace Opc.Ua.SourceGeneration
             return [fileName.AsTextFileResource()];
         }
 
-        // ============================================================
         // Discovery
-        // ============================================================
-
         /// <summary>
         /// Returns the model's top-level instance designs — those whose
         /// <see cref="NodeDesign.Parent"/> is null and which sit in the
@@ -238,7 +280,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
-
             // Build a parent-path → list of direct children mapping. The
             // hierarchy keys are constructed by joining segments with
             // <see cref="NodeDesign.PathChar"/>; segment names themselves
@@ -439,10 +480,7 @@ namespace Opc.Ua.SourceGeneration
             };
         }
 
-        // ============================================================
         // Validation
-        // ============================================================
-
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
@@ -509,10 +547,7 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        // ============================================================
         // Emission
-        // ============================================================
-
         /// <summary>
         /// Emits the typed manager interface declaration with one accessor
         /// per top-level predefined instance.
@@ -777,10 +812,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (wrapper.SupportsPublish)
+
             {
                 EmitPublishOverloads(writer, wrapper, memberIndent);
             }
-
             // Emit the nested method wrappers, then the nested object
             // wrappers. Sibling order is leaf-name ordinal (set up by
             // LinkChildWrappers) so generation is deterministic.
@@ -802,11 +837,305 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine("{0}}}", indent);
         }
 
+        // Per-ObjectType IComponentAccessor / IPropertyAccessor
         /// <summary>
-        /// Emits one accessor property on the parent wrapper at the
-        /// supplied <paramref name="indent"/> (the parent's member
-        /// indent).
+        /// Emits one pair of static partial extension classes per
+        /// concrete (non-abstract) ObjectType in the model. The
+        /// extensions hang off
+        /// <c>Opc.Ua.IComponentAccessor&lt;TState&gt;</c>
+        /// and <c>Opc.Ua.IPropertyAccessor&lt;TState&gt;</c>
+        /// (Core-side markers, available to model-only assemblies)
+        /// so authors can walk a typed <c>INodeStateBuilder&lt;TState&gt;</c>
+        /// tree via chained <c>.Components()</c> / <c>.Properties()</c>
+        /// pivots without spelling out browse-paths or QualifiedNames.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Children are classified by their design-schema type:
+        /// </para>
+        /// <list type="bullet">
+        ///   <item><description><see cref="PropertyDesign"/> →
+        ///     <c>IPropertyAccessor&lt;TState&gt;</c> extension returning
+        ///     <c>IVariableBuilder&lt;TValue&gt;</c>.</description></item>
+        ///   <item><description><see cref="ObjectDesign"/>,
+        ///     <see cref="MethodDesign"/>, and non-property
+        ///     <see cref="VariableDesign"/> →
+        ///     <c>IComponentAccessor&lt;TState&gt;</c> extension returning
+        ///     typed <c>INodeBuilder&lt;TChildState&gt;</c>.</description></item>
+        /// </list>
+        /// <para>
+        /// Each accessor method uses an unqualified
+        /// <c>QualifiedName(name)</c> at the call site; the runtime
+        /// <c>NodeBuilder</c> cross-namespace fallback resolves the
+        /// child even when it carries a different namespace than the
+        /// parent (e.g. PumpType inheriting Operational from
+        /// MachineComponentType).
+        /// </para>
+        /// </remarks>
+        private void EmitObjectTypeAccessors(ITemplateWriter writer)
+        {
+            foreach (NodeDesign node in m_context.ModelDesign.GetNodeDesigns())
+            {
+                if (node is not ObjectTypeDesign objectType ||
+                    m_context.ModelDesign.IsExcluded(objectType))
+                {
+                    continue;
+                }
+                if (objectType.IsAbstract)
+                {
+                    continue;
+                }
+                // Only emit accessors for types defined in this model —
+                // accessors for types declared in referenced models are
+                // emitted by those models' own generated source.
+                if (!string.Equals(objectType.SymbolicName?.Namespace,
+                        m_context.ModelDesign.TargetNamespace?.Value,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                InstanceDesign[] children = objectType.Children?.Items;
+                if (children == null || children.Length == 0)
+                {
+                    continue;
+                }
+                string parentClr = ResolveObjectTypeStateClr(objectType);
+                if (string.IsNullOrEmpty(parentClr))
+                {
+                    continue;
+                }
+                string typeStem = objectType.SymbolicName?.Name
+                    ?? string.Empty;
+                if (typeStem.EndsWith("Type", StringComparison.Ordinal))
+                {
+                    typeStem = typeStem[..^"Type".Length];
+                }
+
+                var components = new List<InstanceDesign>();
+                var properties = new List<InstanceDesign>();
+                foreach (InstanceDesign child in children)
+                {
+                    if (child == null || m_context.ModelDesign.IsExcluded(child))
+                    {
+                        continue;
+                    }
+                    if (child is PropertyDesign)
+                    {
+                        properties.Add(child);
+                    }
+                    else
+                    {
+                        components.Add(child);
+                    }
+                }
+
+                if (components.Count > 0)
+                {
+                    EmitTypeAccessorClass(
+                        writer,
+                        accessorKind: "Component",
+                        accessorIface: "global::Opc.Ua.IComponentAccessor",
+                        className: typeStem + "StateComponents",
+                        parentClr: parentClr,
+                        children: components);
+                }
+                if (properties.Count > 0)
+                {
+                    EmitTypeAccessorClass(
+                        writer,
+                        accessorKind: "Property",
+                        accessorIface: "global::Opc.Ua.IPropertyAccessor",
+                        className: typeStem + "StateProperties",
+                        parentClr: parentClr,
+                        children: properties);
+                }
+            }
+        }
+
+        private void EmitTypeAccessorClass(
+            ITemplateWriter writer,
+            string accessorKind,
+            string accessorIface,
+            string className,
+            string parentClr,
+            List<InstanceDesign> children)
+        {
+            writer.WriteLine();
+            writer.WriteLine(
+                "/// <summary>Generator-emitted {0} accessor extensions for <c>{1}</c>.</summary>",
+                accessorKind, parentClr);
+            writer.WriteLine(
+                "[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{0}\", \"{1}\")]",
+                ToolName, ToolVersion);
+            writer.WriteLine(
+                "[global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]");
+            writer.WriteLine("public static partial class {0}", className);
+            writer.WriteLine("{");
+            const string memberIndent = Indent;
+            foreach (InstanceDesign child in children
+                .OrderBy(c => c.SymbolicName?.Name, StringComparer.Ordinal))
+            {
+                EmitTypeAccessorMethod(
+                    writer,
+                    memberIndent,
+                    accessorIface,
+                    parentClr,
+                    child);
+            }
+            writer.WriteLine("}");
+        }
+
+        private void EmitTypeAccessorMethod(
+            ITemplateWriter writer,
+            string indent,
+            string accessorIface,
+            string parentClr,
+            InstanceDesign child)
+        {
+            string browseName = GetBrowseName(child);
+            string accessorName = GetAccessorName(child);
+            if (child is PropertyDesign property)
+            {
+                string valueType = GetVariableValueClrType(property);
+                writer.WriteLine();
+                writer.WriteLine(
+                    "{0}/// <summary>Walks the <c>{1}</c> HasProperty child.</summary>",
+                    indent, browseName);
+                writer.WriteLine(
+                    "{0}public static global::Opc.Ua.Server.Fluent.IVariableBuilder<{1}> {2}(",
+                    indent, valueType, accessorName);
+                writer.WriteLine(
+                    "{0}    this {1}<{2}> accessor)",
+                    indent, accessorIface, parentClr);
+                writer.WriteLine(
+                    "{0}    => ((global::Opc.Ua.Server.Fluent.INodeBuilder<{1}>)accessor.Builder).Variable<{2}>(",
+                    indent, parentClr, valueType);
+                writer.WriteLine(
+                    "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
+                    indent, EscapeStringLiteral(browseName));
+                return;
+            }
+            if (child is VariableDesign variable)
+            {
+                string valueType = GetVariableValueClrType(variable);
+                writer.WriteLine();
+                writer.WriteLine(
+                    "{0}/// <summary>Walks the <c>{1}</c> HasComponent variable child.</summary>",
+                    indent, browseName);
+                writer.WriteLine(
+                    "{0}public static global::Opc.Ua.Server.Fluent.IVariableBuilder<{1}> {2}(",
+                    indent, valueType, accessorName);
+                writer.WriteLine(
+                    "{0}    this {1}<{2}> accessor)",
+                    indent, accessorIface, parentClr);
+                writer.WriteLine(
+                    "{0}    => ((global::Opc.Ua.Server.Fluent.INodeBuilder<{1}>)accessor.Builder).Variable<{2}>(",
+                    indent, parentClr, valueType);
+                writer.WriteLine(
+                    "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
+                    indent, EscapeStringLiteral(browseName));
+                return;
+            }
+            // ObjectDesign / MethodDesign — both are HasComponent.
+            string childStateClr = ResolveChildStateClr(child);
+            writer.WriteLine();
+            writer.WriteLine(
+                "{0}/// <summary>Walks the <c>{1}</c> HasComponent child.</summary>",
+                indent, browseName);
+            writer.WriteLine(
+                "{0}public static global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> {2}(",
+                indent, childStateClr, accessorName);
+            writer.WriteLine(
+                "{0}    this {1}<{2}> accessor)",
+                indent, accessorIface, parentClr);
+            writer.WriteLine(
+                "{0}    => ((global::Opc.Ua.Server.Fluent.INodeBuilder<{1}>)accessor.Builder).Child<{2}>(",
+                indent, parentClr, childStateClr);
+            writer.WriteLine(
+                "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
+                indent, EscapeStringLiteral(browseName));
+        }
+
+        /// <summary>
+        /// Resolves the C# state class for an ObjectType design. Uses
+        /// the model's namespace prefix table to find the C# namespace
+        /// the type lives in; strips the conventional <c>Type</c>
+        /// suffix and appends <c>State</c>.
+        /// </summary>
+        private string ResolveObjectTypeStateClr(ObjectTypeDesign type)
+        {
+            string typeName = type?.SymbolicName?.Name;
+            if (string.IsNullOrEmpty(typeName))
+            {
+                return null;
+            }
+            string stateName = typeName.EndsWith("Type", StringComparison.Ordinal)
+                ? typeName[..^"Type".Length] + "State"
+                : typeName + "State";
+            string nsUri = type.SymbolicName?.Namespace;
+            string prefix = ResolveCSharpNamespaceForUri(nsUri);
+            return string.IsNullOrEmpty(prefix)
+                ? "global::Opc.Ua." + stateName
+                : "global::" + prefix + "." + stateName;
+        }
+
+        /// <summary>
+        /// Resolves the C# state class for a HasComponent child by
+        /// looking at its TypeDefinition (the spec-declared type, not
+        /// the runtime state class). Falls back to the lowest-common-
+        /// denominator state when no TypeDefinition is declared.
+        /// </summary>
+        private string ResolveChildStateClr(InstanceDesign child)
+        {
+            if (child is MethodDesign)
+            {
+                return "global::Opc.Ua.MethodState";
+            }
+            System.Xml.XmlQualifiedName typeDef = child?.TypeDefinition;
+            if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
+            {
+                return ResolveStateClrType(child);
+            }
+            string stateName = typeDef.Name.EndsWith("Type", StringComparison.Ordinal)
+                ? typeDef.Name[..^"Type".Length] + "State"
+                : typeDef.Name + "State";
+            string prefix = ResolveCSharpNamespaceForUri(typeDef.Namespace);
+            return string.IsNullOrEmpty(prefix)
+                ? "global::Opc.Ua." + stateName
+                : "global::" + prefix + "." + stateName;
+        }
+
+        /// <summary>
+        /// Maps a model namespace URI (e.g. <c>http://opcfoundation.org/UA/Pumps/</c>)
+        /// to the C# namespace prefix declared in the model's
+        /// Namespaces table (e.g. <c>Opc.Ua.Pumps</c>). Returns an
+        /// empty string when the URI is the standard OPC UA namespace
+        /// (whose C# prefix is the empty <c>Opc.Ua</c> root) or when
+        /// no mapping is found.
+        /// </summary>
+        private string ResolveCSharpNamespaceForUri(string nsUri)
+        {
+            if (string.IsNullOrEmpty(nsUri))
+            {
+                return string.Empty;
+            }
+            Namespace[] namespaces = m_context.ModelDesign.Namespaces;
+            if (namespaces != null)
+            {
+                for (int i = 0; i < namespaces.Length; i++)
+                {
+                    Namespace ns = namespaces[i];
+                    if (ns != null &&
+                        string.Equals(ns.Value, nsUri,
+                            StringComparison.Ordinal))
+                    {
+                        return ns.Prefix ?? string.Empty;
+                    }
+                }
+            }
+            return string.Empty;
+        }
+
         private void EmitChildAccessor(
             ITemplateWriter writer,
             ChildAccessor child,
@@ -1313,10 +1642,7 @@ namespace Opc.Ua.SourceGeneration
             return sb.ToString();
         }
 
-        // ============================================================
         // Helpers
-        // ============================================================
-
         /// <summary>
         /// Returns the wrapper-key string used to deduplicate wrappers and
         /// to compose CLR class names. Combines the root's symbolic id
@@ -1448,13 +1774,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return true;
             }
-
             Reference[] references = node?.References;
             if (references == null || references.Length == 0)
             {
                 return false;
             }
-
             foreach (Reference reference in references)
             {
                 if (reference == null || reference.IsInverse)
@@ -1540,10 +1864,9 @@ namespace Opc.Ua.SourceGeneration
                 .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
-        // ============================================================
-        // State
-        // ============================================================
-
+        /// <summary>
+        /// State
+        /// </summary>
         private readonly IGeneratorContext m_context;
         private Dictionary<string, InstanceWrapper> m_wrappers = [];
         private Dictionary<string, MethodWrapper> m_methodWrappers = [];
@@ -1589,16 +1912,22 @@ namespace Opc.Ua.SourceGeneration
             public string BrowseNamespaceUri;
             public ChildKind Kind;
 
-            /// <summary>CLR type name of the variable's value.</summary>
+            /// <summary>
+            /// CLR type name of the variable's value.
+            /// </summary>
             public string ValueClrType;
 
-            /// <summary>Generated wrapper class name for a method or object child.</summary>
+            /// <summary>
+            /// Generated wrapper class name for a method or object child.
+            /// </summary>
             public string WrapperClassName;
 
             /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
             public string ChildKey;
 
-            /// <summary>Node state type for object children.</summary>
+            /// <summary>
+            /// Node state type for object children.
+            /// </summary>
             public string ChildStateType;
         }
 

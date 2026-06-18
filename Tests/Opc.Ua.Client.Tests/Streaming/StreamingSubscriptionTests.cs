@@ -29,8 +29,6 @@
 
 #nullable enable
 
-using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -85,7 +83,7 @@ namespace Opc.Ua.Client.Tests.Streaming
             await using var sub = new StreamingSubscription(NewStubManager());
 
             Assert.That(
-                () => sub.SubscribeDataChangesAsync((IReadOnlyList<NodeId>)null!),
+                () => sub.SubscribeDataChangesAsync(null!),
                 Throws.ArgumentNullException);
         }
 

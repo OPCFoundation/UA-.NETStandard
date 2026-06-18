@@ -148,7 +148,10 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 lock (m_subscriptionLock)
                 {
-                    return m_subscriptions.ToList();
+                    // Expose logical wrappers — callers see one
+                    // ISubscription per logical subscription regardless
+                    // of how many partitions back it.
+                    return [.. m_logicals];
                 }
             }
         }
@@ -160,7 +163,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 lock (m_subscriptionLock)
                 {
-                    return m_subscriptions.Count;
+                    return m_logicals.Count;
                 }
             }
         }
@@ -252,17 +255,43 @@ namespace Opc.Ua.Client.Subscriptions
                 m_publishControl.Set();
                 await m_publishController.ConfigureAwait(false);
 
-                List<IManagedSubscription>? subscriptions = null;
+                List<LogicalSubscription>? logicals;
+                List<IManagedSubscription>? orphans;
                 lock (m_subscriptionLock)
                 {
-                    subscriptions = [.. m_subscriptions];
+                    logicals = [.. m_logicals];
+                    m_logicals.Clear();
+                    // Drop the dispatch registry entries owned by the
+                    // wrappers we are about to dispose so any partition
+                    // not currently bound to a wrapper (transient
+                    // pre-registration window) can still be cleaned up
+                    // below.
+                    var ownedByLogicals = new HashSet<IManagedSubscription>();
+                    foreach (LogicalSubscription wrapper in logicals)
+                    {
+                        foreach (IManagedSubscription partition in wrapper.Partitions)
+                        {
+                            ownedByLogicals.Add(partition);
+                        }
+                    }
+                    orphans = [];
+                    foreach (IManagedSubscription partition in m_subscriptions)
+                    {
+                        if (!ownedByLogicals.Contains(partition))
+                        {
+                            orphans.Add(partition);
+                        }
+                    }
                     m_subscriptions.Clear();
                 }
-                foreach (IManagedSubscription subscription in subscriptions)
+                foreach (LogicalSubscription wrapper in logicals)
                 {
-                    await subscription.DisposeAsync().ConfigureAwait(false);
+                    await wrapper.DisposeAsync().ConfigureAwait(false);
                 }
-                subscriptions.Clear();
+                foreach (IManagedSubscription partition in orphans)
+                {
+                    await partition.DisposeAsync().ConfigureAwait(false);
+                }
                 m_subscriptionHistory.Clear();
             }
             catch (Exception ex)
@@ -293,12 +322,48 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public int DropPendingForSubscription(uint subscriptionId)
+        {
+            // Drain the prioritised channel into a local buffer,
+            // keeping only the acks that do not target the dead
+            // subscription id, then re-publish the kept items.
+            // Concurrent workers may interleave reads or writes
+            // during this loop; that is intentional — a worker
+            // racing in is acceptable because (a) any ack it reads
+            // would have been sent to the server anyway, (b) any
+            // ack it writes is queued back into the channel. The
+            // contract is "no targeted acks remain when this
+            // method returns" — callers must invoke it BEFORE
+            // recreate assigns a fresh subscription id so a new
+            // generation cannot enter the queue.
+            var keep = new List<SubscriptionAcknowledgement>();
+            int dropped = 0;
+            while (m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack))
+            {
+                if (ack.SubscriptionId == subscriptionId)
+                {
+                    dropped++;
+                }
+                else
+                {
+                    keep.Add(ack);
+                }
+            }
+            foreach (SubscriptionAcknowledgement ack in keep)
+            {
+                m_acks.Writer.TryWrite(ack);
+            }
+            return dropped;
+        }
+
+        /// <inheritdoc/>
         public ValueTask CompleteAsync(uint subscriptionId, CancellationToken ct)
         {
             IManagedSubscription? subscription;
+            LogicalSubscription? logical = null;
             lock (m_subscriptionLock)
             {
-                // find the subscription.
+                // Drop the partition from the dispatch registry.
                 subscription = m_subscriptions
                     .FirstOrDefault(s => s.Id == subscriptionId);
                 if (subscription == null ||
@@ -307,6 +372,28 @@ namespace Opc.Ua.Client.Subscriptions
                     return default;
                 }
                 m_subscriptionHistory.Enqueue(subscriptionId);
+
+                // If the removed partition was the primary of any
+                // logical wrapper, the wrapper has no usable
+                // partitions left — drop it from the public registry
+                // so ISubscriptionManager.Items / Count reflect the
+                // deletion. Secondary partitions (added on demand by
+                // the composite collection) do not remove the
+                // wrapper; the wrapper keeps living as long as the
+                // primary is registered.
+                foreach (LogicalSubscription wrapper in m_logicals)
+                {
+                    IReadOnlyList<IManagedSubscription> parts = wrapper.Partitions;
+                    if (parts.Count > 0 && ReferenceEquals(parts[0], subscription))
+                    {
+                        logical = wrapper;
+                        break;
+                    }
+                }
+                if (logical != null)
+                {
+                    m_logicals.Remove(logical);
+                }
             }
             while (m_subscriptionHistory.Count > kMaxSubscriptionHistory)
             {
@@ -321,18 +408,231 @@ namespace Opc.Ua.Client.Subscriptions
         public ISubscription Add(ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options)
         {
-            IManagedSubscription subscription = m_session.CreateSubscription(handler, options, this);
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            SubscriptionOptions snapshot = options.CurrentValue ?? new SubscriptionOptions();
+
+            // In multi-partition mode every partition fires its
+            // notification callbacks on the same logical wrapper —
+            // wrap the user handler in a forwarding shim that (a)
+            // serialises calls across partitions and (b) re-targets
+            // the subscription parameter to the wrapper instead of
+            // the partition.
+            ISubscriptionNotificationHandler effectiveHandler = handler;
+            PartitionForwardingHandler? forwardingHandler = null;
+            if (!snapshot.DisableUnboundedItemMode)
+            {
+#pragma warning disable CA2000 // ownership transfers to wrapper.AttachForwardingHandler
+                forwardingHandler = new PartitionForwardingHandler(handler);
+#pragma warning restore CA2000
+                effectiveHandler = forwardingHandler;
+            }
+
+            IManagedSubscription primary = m_session.CreateSubscription(
+                effectiveHandler, options, this);
+
+            // Build the placement policy + on-demand partition factory
+            // unless the caller opted out via DisableUnboundedItemMode.
+            // The factory is invoked by the composite collection inside
+            // its lock when no existing partition has capacity; the
+            // factory mints a sibling partition with the same handler
+            // and options, registers it in the dispatch registry, and
+            // wakes the publish controller so a worker can serve it.
+            PartitionPlacementPolicy? policy = null;
+            Func<IManagedSubscription>? partitionFactory = null;
+            LogicalSubscription wrapper;
+            if (snapshot.DisableUnboundedItemMode)
+            {
+                wrapper = new LogicalSubscription(primary, null, null);
+            }
+            else
+            {
+                policy = new PartitionPlacementPolicy(
+                    snapshot.MaxMonitoredItemsPerPartition ?? 0,
+                    snapshot.MaxPartitionCount);
+                // Capture the wrapper into the factory closure so newly
+                // minted secondary partitions can route their reactive-
+                // fallback callbacks back to the same logical.
+                LogicalSubscription? created = null;
+                partitionFactory = () =>
+                {
+                    IManagedSubscription part = MintPartition(effectiveHandler, options);
+                    AttachReactiveFallback(part, created);
+                    created?.TryApplyDurableToNewPartition(part);
+                    return part;
+                };
+                wrapper = new LogicalSubscription(primary, policy, partitionFactory,
+                    m_timeProvider,
+                    NormalizeIdleTimeout(snapshot.SecondaryPartitionIdleTimeout),
+                    RemoveSecondaryPartitionAsync);
+                created = wrapper;
+                AttachReactiveFallback(primary, wrapper);
+                forwardingHandler!.BindLogical(wrapper);
+                wrapper.AttachForwardingHandler(forwardingHandler);
+            }
+
             lock (m_subscriptionLock)
             {
-                if (!m_subscriptions.Add(subscription))
+                if (!m_subscriptions.Add(primary))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
-                        "Failed to add subscription.");
+                        "Failed to register primary partition.");
                 }
-                m_logger.LogInformation("{Subscription} ADDED.", subscription);
+                if (!m_logicals.Add(wrapper))
+                {
+                    // Roll the primary back out so we do not leak
+                    // a partition with no logical wrapper.
+                    m_subscriptions.Remove(primary);
+                    throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
+                        "Failed to register logical subscription.");
+                }
+                m_logger.LogInformation("{Subscription} ADDED.", primary);
             }
             m_publishControl.Set();
-            return subscription;
+            return wrapper;
+        }
+
+        /// <summary>
+        /// Wire a partition's
+        /// <see cref="Subscription.OnPartitionCapReached"/> hook
+        /// back to the owning logical wrapper so a server
+        /// <c>Bad_TooManyMonitoredItems</c> response marks the
+        /// partition no-grow in the wrapper's placement policy. No-op
+        /// when the partition is not a <see cref="Subscription"/>
+        /// (e.g. a test fake) or when the wrapper has not yet been
+        /// captured by the factory closure.
+        /// </summary>
+        private static void AttachReactiveFallback(
+            IManagedSubscription partition,
+            LogicalSubscription? wrapper)
+        {
+            if (wrapper == null)
+            {
+                return;
+            }
+            if (partition is Subscription concrete)
+            {
+                concrete.OnPartitionCapReached = _ => wrapper.OnPartitionCapReached(partition);
+            }
+        }
+
+        /// <summary>
+        /// Normalize a caller-supplied
+        /// <see cref="SubscriptionOptions.SecondaryPartitionIdleTimeout"/>
+        /// for the wrapper. Per the option docs,
+        /// <see cref="TimeSpan.Zero"/> means immediate idle-delete
+        /// and <see cref="Timeout.InfiniteTimeSpan"/>
+        /// (the only valid negative value) disables idle-delete. Any
+        /// other negative value is treated as "disabled" defensively
+        /// because <see cref="ITimer"/> rejects them.
+        /// </summary>
+        private static TimeSpan NormalizeIdleTimeout(TimeSpan idleTimeout)
+        {
+            return idleTimeout < TimeSpan.Zero
+                ? Timeout.InfiniteTimeSpan
+                : idleTimeout;
+        }
+
+        /// <summary>
+        /// Secondary-partition disposer handed to the wrapper's
+        /// idle-delete timer. Drops the partition from this
+        /// manager's dispatch registry, drains any pending
+        /// acknowledgements addressed at it, and disposes the
+        /// partition (which sends <c>DeleteSubscriptions</c> to the
+        /// server). Logical wrapper book-keeping is performed by the
+        /// composite collection under its own lock before this
+        /// callback runs, so we only need to clean up manager-side
+        /// state here.
+        /// </summary>
+        private async ValueTask RemoveSecondaryPartitionAsync(IManagedSubscription partition)
+        {
+            uint partitionId = partition.Id;
+            lock (m_subscriptionLock)
+            {
+                m_subscriptions.Remove(partition);
+            }
+            if (partitionId != 0)
+            {
+                DropPendingForSubscription(partitionId);
+            }
+            try
+            {
+                await partition.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(ex,
+                    "Idle-delete of secondary partition {Partition} threw on dispose.",
+                    partition);
+            }
+            m_publishControl.Set();
+        }
+
+        /// <summary>
+        /// Synchronous partition factory handed to the composite
+        /// collection. Constructs a sibling partition with the same
+        /// handler + options as the logical subscription's primary,
+        /// registers it in the dispatch registry, and wakes the
+        /// publish controller so a worker is scheduled for it.
+        /// </summary>
+        private IManagedSubscription MintPartition(
+            ISubscriptionNotificationHandler handler,
+            IOptionsMonitor<SubscriptionOptions> options)
+        {
+            return MintPartitionCore(handler, options, loadState: null);
+        }
+
+        /// <summary>
+        /// Variant of <see cref="MintPartition"/> that accepts a
+        /// pre-existing <see cref="SubscriptionLoadState"/> so the
+        /// minted partition is construction-time bound to a
+        /// previously-saved server-side identifier and items list.
+        /// Used by <see cref="RestoreGroupAsync"/> to attach
+        /// secondary partitions during multi-partition snapshot
+        /// restore.
+        /// </summary>
+        private IManagedSubscription MintPreloadedPartition(
+            ISubscriptionNotificationHandler handler,
+            IOptionsMonitor<SubscriptionOptions> options,
+            SubscriptionLoadState loadState)
+        {
+            return MintPartitionCore(handler, options, loadState);
+        }
+
+        private IManagedSubscription MintPartitionCore(
+            ISubscriptionNotificationHandler handler,
+            IOptionsMonitor<SubscriptionOptions> options,
+            SubscriptionLoadState? loadState)
+        {
+            IManagedSubscription partition = m_session.CreateSubscription(
+                handler, options, this, loadState);
+            lock (m_subscriptionLock)
+            {
+                if (!m_subscriptions.Add(partition))
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
+                        "Failed to register partition.");
+                }
+                if (loadState == null)
+                {
+                    m_logger.LogInformation(
+                        "{Subscription} ADDED (secondary partition).", partition);
+                }
+                else
+                {
+                    m_logger.LogInformation(
+                        "{Subscription} ADDED (preloaded secondary partition).", partition);
+                }
+            }
+            m_publishControl.Set();
+            return partition;
         }
 
         /// <summary>
@@ -364,6 +664,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// fluent helpers and the serializer cast to the concrete
         /// <see cref="SubscriptionManager"/> to reach this method.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="handler"/> is <c>null</c>.</exception>
         internal ValueTask<ISubscription> RestoreAsync(
             ISubscriptionNotificationHandler handler,
             SubscriptionStateSnapshot state,
@@ -417,28 +718,89 @@ namespace Opc.Ua.Client.Subscriptions
                 state.MonitoredItems.Count);
             foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
             {
+                IReadOnlyList<string> triggeredBy = item.TriggeredByNames.IsNull
+                    ? []
+                    : item.TriggeredByNames.ToArray() ?? [];
                 itemLoadStates.Add(new MonitoredItemLoadState(
                     item.Name,
                     new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     item.ClientHandle,
                     item.ServerId,
-                    item.TriggeringItemClientHandle));
+                    triggeredBy));
             }
             var loadState = new SubscriptionLoadState(
                 state.ServerId, itemLoadStates);
 
             SubscriptionOptions options = state.ToOptions();
+            var optionsMonitor = new OptionsMonitor<SubscriptionOptions>(options);
+
+            // Match the Add() path: wrap the user handler in a
+            // forwarding shim when running in multi-partition mode so
+            // post-restore growth keeps the serialised-dispatch +
+            // logical-subscription-parameter contract.
+            ISubscriptionNotificationHandler effectiveHandler = handler;
+            PartitionForwardingHandler? forwardingHandler = null;
+            if (!options.DisableUnboundedItemMode)
+            {
+#pragma warning disable CA2000 // ownership transfers to wrapper.AttachForwardingHandler
+                forwardingHandler = new PartitionForwardingHandler(handler);
+#pragma warning restore CA2000
+                effectiveHandler = forwardingHandler;
+            }
+
             IManagedSubscription subscription = m_session.CreateSubscription(
-                handler,
-                new OptionsMonitor<SubscriptionOptions>(options),
+                effectiveHandler,
+                optionsMonitor,
                 this,
                 loadState);
+
+            // Wrap in a logical subscription so callers receive the
+            // same surface as a freshly added subscription. Pick the
+            // same placement policy + factory the standard Add path
+            // would use so post-restore growth obeys the configured
+            // limits.
+            PartitionPlacementPolicy? policy = null;
+            Func<IManagedSubscription>? partitionFactory = null;
+            LogicalSubscription wrapper;
+            if (options.DisableUnboundedItemMode)
+            {
+                wrapper = new LogicalSubscription(subscription, null, null);
+            }
+            else
+            {
+                policy = new PartitionPlacementPolicy(
+                    options.MaxMonitoredItemsPerPartition ?? 0,
+                    options.MaxPartitionCount);
+                LogicalSubscription? created = null;
+                partitionFactory = () =>
+                {
+                    IManagedSubscription part = MintPartition(effectiveHandler, optionsMonitor);
+                    AttachReactiveFallback(part, created);
+                    created?.TryApplyDurableToNewPartition(part);
+                    return part;
+                };
+                wrapper = new LogicalSubscription(subscription, policy, partitionFactory,
+                    m_timeProvider,
+                    NormalizeIdleTimeout(options.SecondaryPartitionIdleTimeout),
+                    RemoveSecondaryPartitionAsync);
+                created = wrapper;
+                AttachReactiveFallback(subscription, wrapper);
+                forwardingHandler!.BindLogical(wrapper);
+                wrapper.AttachForwardingHandler(forwardingHandler);
+            }
+
             lock (m_subscriptionLock)
             {
                 if (!m_subscriptions.Add(subscription))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to add restored subscription.");
+                }
+                if (!m_logicals.Add(wrapper))
+                {
+                    m_subscriptions.Remove(subscription);
+                    throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
+                        "Failed to register restored logical subscription.");
                 }
                 m_logger.LogInformation(
                     "{Subscription} ADDED (transfer-pending, ServerId={ServerId}).",
@@ -452,7 +814,7 @@ namespace Opc.Ua.Client.Subscriptions
             // emitted values, so requesting initial values is only
             // useful when the caller wants the server to re-emit them
             // to a fresh notification handler.
-            var ids = new uint[] { state.ServerId };
+            uint[] ids = [state.ServerId];
             TransferSubscriptionsResponse response = await m_session
                 .TransferSubscriptionsAsync(
                     null,
@@ -527,7 +889,162 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             m_publishControl.Set();
-            return subscription;
+            return wrapper;
+        }
+
+        /// <summary>
+        /// Restore a logical subscription whose partitions span more
+        /// than one snapshot record (multi-partition snapshot
+        /// produced by <see cref="LogicalSubscription.SnapshotAllPartitions"/>).
+        /// The primary snapshot (<c>PartitionIndex == 0</c>) is
+        /// restored via the existing single-snapshot path; each
+        /// secondary snapshot is then attached to the same wrapper
+        /// as an additional partition with its server-side
+        /// identifier preserved (transfer) or recreated (recreate).
+        /// </summary>
+        /// <remarks>
+        /// The caller is expected to pre-sort
+        /// <paramref name="snapshots"/> by <c>PartitionIndex</c> and
+        /// to have validated the grouping (contiguous indexes,
+        /// exactly one primary, shared <c>LogicalGroupId</c>) — see
+        /// <see cref="SubscriptionManagerSerializer.LoadAsync"/>
+        /// which performs the validation before dispatching here.
+        /// </remarks>
+        internal async ValueTask<ISubscription> RestoreGroupAsync(
+            ISubscriptionNotificationHandler handler,
+            IReadOnlyList<SubscriptionStateSnapshot> snapshots,
+            bool transferSubscriptions,
+            CancellationToken ct)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            if (snapshots == null || snapshots.Count == 0)
+            {
+                throw new ArgumentException(
+                    "Group must contain at least the primary snapshot.",
+                    nameof(snapshots));
+            }
+
+            // Primary first — single-partition restore returns the
+            // wrapper that owns all subsequent secondaries.
+            ISubscription primaryWrapper = await RestoreAsync(
+                handler, snapshots[0], transferSubscriptions, ct)
+                .ConfigureAwait(false);
+            if (snapshots.Count == 1)
+            {
+                return primaryWrapper;
+            }
+
+            if (primaryWrapper is not LogicalSubscription wrapper)
+            {
+                throw new InvalidOperationException(
+                    "Restore returned a subscription that does not " +
+                    "support multi-partition grouping.");
+            }
+
+            // Reconstruct the options the secondaries share with
+            // the primary. The primary's wrapper was built from
+            // snapshots[0] so any field accessible via ToOptions()
+            // is valid for every partition in the group.
+            SubscriptionOptions options = snapshots[0].ToOptions();
+            var optionsMonitor = new OptionsMonitor<SubscriptionOptions>(options);
+
+            for (int i = 1; i < snapshots.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                await AttachSecondaryPartitionAsync(
+                    wrapper, handler, optionsMonitor,
+                    snapshots[i], transferSubscriptions, ct)
+                    .ConfigureAwait(false);
+            }
+            return wrapper;
+        }
+
+        private async ValueTask AttachSecondaryPartitionAsync(
+            LogicalSubscription wrapper,
+            ISubscriptionNotificationHandler handler,
+            OptionsMonitor<SubscriptionOptions> optionsMonitor,
+            SubscriptionStateSnapshot snap,
+            bool transferSubscriptions,
+            CancellationToken ct)
+        {
+            // Build the per-partition load state from the snapshot.
+            var itemLoadStates = new List<MonitoredItemLoadState>(
+                snap.MonitoredItems.Count);
+            foreach (MonitoredItemStateSnapshot item in snap.MonitoredItems)
+            {
+                itemLoadStates.Add(new MonitoredItemLoadState(
+                    item.Name,
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
+                    item.ClientHandle,
+                    item.ServerId,
+                    item.TriggeredByNames.IsNull
+                        ? []
+                        : item.TriggeredByNames.ToArray() ?? []));
+            }
+            var loadState = new SubscriptionLoadState(snap.ServerId, itemLoadStates);
+
+            // Mint the partition via the preloaded-variant factory so
+            // it is wired into the dispatch registry from the moment
+            // it is constructed. Route the partition's notification
+            // callbacks through the wrapper's forwarding handler so
+            // restored secondaries observe the same serialization and
+            // logical-subscription identity contract that fresh-Add
+            // secondaries get; without this the raw user handler is
+            // invoked concurrently from multiple partitions on the
+            // restore path, breaking the single-threaded dispatch
+            // guarantee callers rely on.
+            ISubscriptionNotificationHandler effective =
+                wrapper.ForwardingHandler ?? handler;
+            IManagedSubscription partition = MintPreloadedPartition(
+                effective, optionsMonitor, loadState);
+            AttachReactiveFallback(partition, wrapper);
+
+            // Append to the wrapper's partition list so the composite
+            // collection's policy + index account for it.
+            wrapper.AppendPreloadedPartition(partition);
+
+            // Best-effort transfer: when the saved ServerId is
+            // non-zero AND the caller asked for transfer, issue
+            // TransferSubscriptions; on failure fall back to recreate
+            // via the partition's own state machine.
+            if (transferSubscriptions && snap.ServerId != 0 &&
+                partition is Subscription concrete)
+            {
+                bool transferred = false;
+                try
+                {
+                    TransferSubscriptionsResponse response =
+                        await m_session.TransferSubscriptionsAsync(
+                            null,
+                            new uint[] { snap.ServerId }.ToArrayOf(),
+                            sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
+                            ct).ConfigureAwait(false);
+                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult)
+                        && response.Results.Count > 0
+                        && StatusCode.IsGood(response.Results[0].StatusCode))
+                    {
+                        transferred = await concrete.TryCompleteTransferAsync(
+                            response.Results[0].AvailableSequenceNumbers.IsNull
+                                ? []
+                                : [.. response.Results[0].AvailableSequenceNumbers],
+                            ct).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "{Subscription}: TransferSubscriptions threw on " +
+                        "secondary partition restore; falling back to recreate.",
+                        partition);
+                }
+                if (!transferred)
+                {
+                    await concrete.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -1303,7 +1820,15 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();
+        // Dispatch registry: every partition subscription this manager
+        // owns, including the primaries of logical wrappers. Publish
+        // dispatch (GetById), acknowledgement routing, recreate, and
+        // transfer iterate this set so they remain partition-aware.
         private readonly HashSet<IManagedSubscription> m_subscriptions = [];
+        // Public registry: logical wrappers returned to callers from
+        // ISubscriptionManager.Items / Add. One wrapper per logical
+        // subscription regardless of how many partitions back it.
+        private readonly HashSet<LogicalSubscription> m_logicals = [];
         private readonly CancellationTokenSource m_cts = new();
         private readonly ISubscriptionManagerContext m_session;
         private readonly ILoggerFactory m_loggerFactory;

@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             CallMethodRequest captured = await CaptureCallAsync(
                 _ => m_client.AddCommentAsync(
                     m_conditionId,
-                    new ByteString(new byte[] { 9 }),
+                    new ByteString("\t"u8.ToArray()),
                     new LocalizedText("en", "note"))).ConfigureAwait(false);
 
             Assert.That(captured.ObjectId, Is.EqualTo(m_conditionId));
@@ -291,7 +291,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             CallMethodRequest captured = await CaptureCallAsync(
                 _ => m_client.ConditionRefreshAsync(11u)).ConfigureAwait(false);
 
-            Assert.That(captured.ObjectId, Is.EqualTo((NodeId)ObjectTypeIds.ConditionType));
+            Assert.That(captured.ObjectId, Is.EqualTo(ObjectTypeIds.ConditionType));
             Assert.That(captured.MethodId,
                 Is.EqualTo(MethodIds.ConditionType_ConditionRefresh));
             Assert.That(captured.InputArguments.Count, Is.EqualTo(1));

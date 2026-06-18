@@ -128,14 +128,16 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public SubscriptionStateSnapshot Snapshot()
         {
-            return OnSnapshot?.Invoke() ?? SubscriptionStateSnapshot.AsOptions(
-                new SubscriptionOptions(),
-                Id,
-                Array.Empty<uint>().ToArrayOf(),
-                Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf());
+            return OnSnapshot?.Invoke() ??
+                SubscriptionStateSnapshot.AsOptions(
+                    new SubscriptionOptions(),
+                    Id,
+                    Array.Empty<uint>().ToArrayOf(),
+                    Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf());
         }
 
         public List<SetAsDurableCall> SetAsDurableCalls { get; } = [];
+
         public Func<TimeSpan, CancellationToken, ValueTask<TimeSpan>>? OnSetAsDurableAsync
         { get; set; }
 
@@ -149,22 +151,30 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         public List<SetTriggeringCall> SetTriggeringCalls { get; } = [];
-        public Func<uint, IReadOnlyList<uint>, IReadOnlyList<uint>,
-            CancellationToken, ValueTask<SetTriggeringResponse>>? OnSetTriggeringAsync
+
+        public Func<IMonitoredItem, IReadOnlyCollection<IMonitoredItem>?,
+            IReadOnlyCollection<IMonitoredItem>?, CancellationToken,
+            ValueTask<SetTriggeringResult>>? OnSetTriggeringAsync
         { get; set; }
 
-        public ValueTask<SetTriggeringResponse> SetTriggeringAsync(
-            uint triggeringItemClientHandle,
-            IReadOnlyList<uint> linksToAdd,
-            IReadOnlyList<uint> linksToRemove,
+        public ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            IMonitoredItem triggeringItem,
+            IReadOnlyCollection<IMonitoredItem>? linksToAdd = null,
+            IReadOnlyCollection<IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
             SetTriggeringCalls.Add(new SetTriggeringCall(
-                triggeringItemClientHandle, linksToAdd, linksToRemove));
-            return OnSetTriggeringAsync?.Invoke(triggeringItemClientHandle,
-                linksToAdd, linksToRemove, ct)
-                ?? new ValueTask<SetTriggeringResponse>(
-                    new SetTriggeringResponse());
+                triggeringItem, linksToAdd, linksToRemove));
+            if (OnSetTriggeringAsync != null)
+            {
+                return OnSetTriggeringAsync(triggeringItem,
+                    linksToAdd, linksToRemove, ct);
+            }
+            return new ValueTask<SetTriggeringResult>(new SetTriggeringResult(
+                triggeringItem,
+                [],
+                [],
+                StatusCodes.Good));
         }
 
         public ValueTask DisposeAsync()
@@ -182,9 +192,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyList<uint> AvailableSequenceNumbers);
 
         internal readonly record struct SetTriggeringCall(
-            uint TriggeringItemClientHandle,
-            IReadOnlyList<uint> LinksToAdd,
-            IReadOnlyList<uint> LinksToRemove);
+            IMonitoredItem TriggeringItem,
+            IReadOnlyCollection<IMonitoredItem>? LinksToAdd,
+            IReadOnlyCollection<IMonitoredItem>? LinksToRemove);
 
         internal readonly record struct SetAsDurableCall(
             TimeSpan Lifetime);

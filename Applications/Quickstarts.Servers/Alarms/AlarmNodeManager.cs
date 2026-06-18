@@ -271,7 +271,7 @@ namespace Alarms
 
                 AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -281,9 +281,21 @@ namespace Alarms
 
                 m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
 
+                AlarmHolder acknowledgeableCondition = new AcknowledgeableConditionHolder(
+                    this,
+                    analogTrigger,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval);
+                m_alarms.Add(
+                    acknowledgeableCondition.AlarmNodeName,
+                    acknowledgeableCondition);
+
                 AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -296,7 +308,7 @@ namespace Alarms
 
                 AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -307,7 +319,7 @@ namespace Alarms
 
                 AlarmHolder alarmCondition = new AlarmConditionHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -318,7 +330,7 @@ namespace Alarms
 
                 AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -330,7 +342,7 @@ namespace Alarms
 
                 AlarmHolder limitAlarm = new LimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -341,7 +353,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -352,7 +364,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -364,7 +376,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -375,7 +387,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -386,7 +398,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -398,7 +410,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -411,7 +423,7 @@ namespace Alarms
 
                 AlarmHolder discreteAlarm = new DiscreteAlarmHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -422,7 +434,7 @@ namespace Alarms
 
                 AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -457,9 +469,9 @@ namespace Alarms
                 m_suppressionEngine = new AlarmSuppressionEngine();
                 m_suppressionEngine.RegisterSuppressionGroup(
                     m_analogGroup.State,
-                    () => m_maintenanceMode != null
-                          && m_maintenanceMode.Value.TryGetValue(out bool b)
-                          && b,
+                    () => m_maintenanceMode != null &&
+                        m_maintenanceMode.Value.TryGetValue(out bool b) &&
+                        b,
                     [.. GetAlarmStates()]);
 
                 await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
@@ -775,9 +787,20 @@ namespace Alarms
 
             lock (m_alarms)
             {
-                sourceController.Source.Value = value;
-                Type valueType = value.GetType();
-                sourceController.Controller.ManualWrite(value);
+                if (value.TryGetValue(out int intValue))
+                {
+                    sourceController.Source.Value = intValue;
+                    sourceController.Controller.ManualWrite(intValue);
+                }
+                else if (value.TryGetValue(out bool boolValue))
+                {
+                    sourceController.Source.Value = boolValue;
+                    sourceController.Controller.ManualWrite(boolValue);
+                }
+                else
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
                 IList<IReference> references = [];
                 sourceController.Source.GetReferences(
                     SystemContext,
@@ -803,7 +826,8 @@ namespace Alarms
 
             if (node.TryGetValue(out string unmodifiedName))
             {
-                // This is bad, but I'm not sure why the NodeName is being attached with an underscore, it messes with this lookup.
+                // This is bad, but I'm not sure why the NodeName is being attached with an underscore.
+                // It messes with this lookup.
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 string name = unmodifiedName.Replace(
                     "Alarms_",

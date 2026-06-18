@@ -63,6 +63,7 @@ namespace Opc.Ua.Server
         IServerInternal,
         AliasNames.IAliasNameStoreRegistryProvider,
         Historian.IHistorianRegistryProvider,
+        ITransportListenerRegistryProvider,
         ITimeProviderProvider
     {
         /// <summary>
@@ -94,7 +95,7 @@ namespace Opc.Ua.Server
             IServiceMessageContext messageContext,
             TimeProvider? timeProvider)
         {
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
@@ -169,6 +170,37 @@ namespace Opc.Ua.Server
             = new AliasNames.AliasNameStoreRegistry();
 
         /// <summary>
+        /// A snapshot of the transport listeners currently bound to the
+        /// server. Populated by <see cref="StandardServer"/> once
+        /// listeners are opened so consumers such as
+        /// <see cref="ConfigurationNodeManager"/> can fan-out post-
+        /// response channel cuts per OPC UA Part 12 §7.10.9.
+        /// </summary>
+        /// <remarks>
+        /// Returns an empty list before listeners are bound or after the
+        /// server has shut them down. Surfaced through the optional
+        /// <see cref="ITransportListenerRegistryProvider"/> interface so
+        /// external/mocked <see cref="IServerInternal"/> implementations
+        /// remain unaffected.
+        /// </remarks>
+        public IReadOnlyList<ITransportListener> TransportListeners
+            => m_transportListeners ?? [];
+
+        /// <summary>
+        /// Called by <see cref="StandardServer"/> after listeners are
+        /// bound (or torn down) to make them visible to downstream
+        /// consumers via <see cref="ITransportListenerRegistryProvider"/>.
+        /// </summary>
+        /// <param name="listeners">
+        /// The current listener registry. Passing <c>null</c> resets to
+        /// an empty snapshot.
+        /// </param>
+        public void SetTransportListenerRegistry(IReadOnlyList<ITransportListener>? listeners)
+        {
+            m_transportListeners = listeners;
+        }
+
+        /// <summary>
         /// The server-wide registry of Part 11 historian providers.
         /// Surfaces through the optional
         /// <see cref="Historian.IHistorianRegistryProvider"/> interface so
@@ -184,7 +216,7 @@ namespace Opc.Ua.Server
         /// discover it without any change to <see cref="IServerInternal"/>;
         /// never <c>null</c>.
         /// </summary>
-        public TimeProvider TimeProvider => m_timeProvider;
+        public TimeProvider TimeProvider { get; }
 
         /// <summary>
         /// The session manager to use with the server.
@@ -734,6 +766,11 @@ namespace Opc.Ua.Server
             [
                 .. m_configuration.ServerConfiguration!.ServerProfileArray
             ];
+
+            BaseVariableState conformanceUnits = DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits);
+            conformanceUnits?.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
+
             serverCapabilities.MinSupportedSampleRate!.Value = 0;
             serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
@@ -752,77 +789,59 @@ namespace Opc.Ua.Server
             serverCapabilities.MaxSubscriptions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
-            // Expose MaxSubscriptionsPerSession (optional property
-            // on ServerCapabilitiesType per Part 5 §6.3) so clients that
-            // enumerate per-session limits get a defined value instead of a
-            // missing-attribute response. Use the configured global
-            // MaxSubscriptionCount as the per-session ceiling — the SDK
-            // doesn't track per-session limits separately at this layer.
-            if (serverCapabilities.MaxSubscriptionsPerSession == null)
-            {
-                serverCapabilities.AddMaxSubscriptionsPerSession(DefaultSystemContext);
-            }
+            // Expose MaxSubscriptionsPerSession (Optional property on
+            // ServerCapabilitiesType per Part 5 §6.3) using the configured
+            // global MaxSubscriptionCount as the per-session ceiling — the
+            // SDK doesn't track per-session limits separately at this
+            // layer. The node itself is lazy-added by
+            // DiagnosticsNodeManager.LoadPredefinedNodesAsync.
             serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
                 m_configuration.ServerConfiguration.MaxSubscriptionCount);
 
-            // Any operational limits Property that is provided shall have a non zero value.
+            // Operational-limit Properties: per Part 5 §6.3.4, any exposed
+            // operational-limit Property shall have a non-zero value.
+            // DiagnosticsNodeManager.LoadPredefinedNodesAsync lazy-adds the
+            // typed slots for every Property; here we either set the value
+            // when the configured value is non-zero, or null out the typed
+            // slot so the Property is not exposed in the address space.
             OperationLimitsState? operationLimits = serverCapabilities.OperationLimits;
             OperationLimits configOperationLimits = m_configuration.ServerConfiguration
                 .OperationLimits;
-            if (configOperationLimits != null)
+            if (operationLimits != null && configOperationLimits != null)
             {
-                operationLimits!.MaxNodesPerRead = SetPropertyValue(
-                    operationLimits.MaxNodesPerRead!,
-                    configOperationLimits.MaxNodesPerRead);
-                operationLimits.MaxNodesPerHistoryReadData = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryReadData!,
+                operationLimits.MaxNodesPerRead = ApplyOrHide(
+                    operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
+                operationLimits.MaxNodesPerHistoryReadData = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryReadData,
                     configOperationLimits.MaxNodesPerHistoryReadData);
-                operationLimits.MaxNodesPerHistoryReadEvents = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryReadEvents!,
+                operationLimits.MaxNodesPerHistoryReadEvents = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryReadEvents,
                     configOperationLimits.MaxNodesPerHistoryReadEvents);
-                operationLimits.MaxNodesPerWrite = SetPropertyValue(
-                    operationLimits.MaxNodesPerWrite!,
-                    configOperationLimits.MaxNodesPerWrite);
-                operationLimits.MaxNodesPerHistoryUpdateData = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryUpdateData!,
+                operationLimits.MaxNodesPerWrite = ApplyOrHide(
+                    operationLimits.MaxNodesPerWrite, configOperationLimits.MaxNodesPerWrite);
+                operationLimits.MaxNodesPerHistoryUpdateData = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryUpdateData,
                     configOperationLimits.MaxNodesPerHistoryUpdateData);
-                operationLimits.MaxNodesPerHistoryUpdateEvents = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryUpdateEvents!,
+                operationLimits.MaxNodesPerHistoryUpdateEvents = ApplyOrHide(
+                    operationLimits.MaxNodesPerHistoryUpdateEvents,
                     configOperationLimits.MaxNodesPerHistoryUpdateEvents);
-                operationLimits.MaxNodesPerMethodCall = SetPropertyValue(
-                    operationLimits.MaxNodesPerMethodCall!,
+                operationLimits.MaxNodesPerMethodCall = ApplyOrHide(
+                    operationLimits.MaxNodesPerMethodCall,
                     configOperationLimits.MaxNodesPerMethodCall);
-                operationLimits.MaxNodesPerBrowse = SetPropertyValue(
-                    operationLimits.MaxNodesPerBrowse!,
-                    configOperationLimits.MaxNodesPerBrowse);
-                operationLimits.MaxNodesPerRegisterNodes = SetPropertyValue(
-                    operationLimits.MaxNodesPerRegisterNodes!,
+                operationLimits.MaxNodesPerBrowse = ApplyOrHide(
+                    operationLimits.MaxNodesPerBrowse, configOperationLimits.MaxNodesPerBrowse);
+                operationLimits.MaxNodesPerRegisterNodes = ApplyOrHide(
+                    operationLimits.MaxNodesPerRegisterNodes,
                     configOperationLimits.MaxNodesPerRegisterNodes);
-                operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = SetPropertyValue(
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds!,
+                operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ApplyOrHide(
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
                     configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                operationLimits.MaxNodesPerNodeManagement = SetPropertyValue(
-                    operationLimits.MaxNodesPerNodeManagement!,
+                operationLimits.MaxNodesPerNodeManagement = ApplyOrHide(
+                    operationLimits.MaxNodesPerNodeManagement,
                     configOperationLimits.MaxNodesPerNodeManagement);
-                operationLimits.MaxMonitoredItemsPerCall = SetPropertyValue(
-                    operationLimits.MaxMonitoredItemsPerCall!,
+                operationLimits.MaxMonitoredItemsPerCall = ApplyOrHide(
+                    operationLimits.MaxMonitoredItemsPerCall,
                     configOperationLimits.MaxMonitoredItemsPerCall);
-            }
-            else
-            {
-                operationLimits!.MaxNodesPerRead =
-                    operationLimits.MaxNodesPerHistoryReadData =
-                    operationLimits.MaxNodesPerHistoryReadEvents =
-                    operationLimits.MaxNodesPerWrite =
-                    operationLimits.MaxNodesPerHistoryUpdateData =
-                    operationLimits.MaxNodesPerHistoryUpdateEvents =
-                    operationLimits.MaxNodesPerMethodCall =
-                    operationLimits.MaxNodesPerBrowse =
-                    operationLimits.MaxNodesPerRegisterNodes =
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds =
-                    operationLimits.MaxNodesPerNodeManagement =
-                    operationLimits.MaxMonitoredItemsPerCall =
-                        null;
             }
 
             // setup PublishSubscribe Status State value
@@ -857,7 +876,7 @@ namespace Opc.Ua.Server
             serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
             // initialize status.
-            DateTime nowUtc = m_timeProvider.GetUtcNow().UtcDateTime;
+            DateTime nowUtc = TimeProvider.GetUtcNow().UtcDateTime;
             var serverStatus = new ServerStatusDataType
             {
                 StartTime = nowUtc,
@@ -955,6 +974,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Per Part 5 §6.3.4, any exposed operational-limit Property shall
+        /// have a non-zero value. Returns the slot unchanged with its
+        /// <see cref="PropertyState{T}.Value"/> set when
+        /// <paramref name="value"/> is non-zero, or <c>null</c> when the
+        /// value is zero so the Property is hidden from the address space.
+        /// </summary>
+        private static PropertyState<uint>? ApplyOrHide(
+            PropertyState<uint>? slot, uint value)
+        {
+            if (slot == null)
+            {
+                return null;
+            }
+            if (value == 0)
+            {
+                return null;
+            }
+            slot.Value = value;
+            return slot;
+        }
+
+        /// <summary>
         /// Updates the server status before a read.
         /// </summary>
         private void OnReadServerStatus(
@@ -964,7 +1005,7 @@ namespace Opc.Ua.Server
         {
             lock (NonThreadSafeStatus.Lock)
             {
-                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;
                 NonThreadSafeStatus.Value.CurrentTime = now;
 
@@ -1070,29 +1111,10 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Set the property to null if the value is zero,
-        /// to the value otherwise.
-        /// </summary>
-        private static PropertyState<uint> SetPropertyValue(
-            PropertyState<uint> property,
-            uint value)
-        {
-            if (value != 0)
-            {
-                property.Value = value;
-            }
-            else
-            {
-                property = null!;
-            }
-            return property;
-        }
-
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
-        private readonly TimeProvider m_timeProvider;
         private RoleStateBinding? m_roleStateBinding;
+        private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
     }
 }

@@ -121,13 +121,19 @@ namespace Opc.Ua.Client.FileSystem
                 options);
         }
 
-        /// <summary>The session used for all service calls.</summary>
+        /// <summary>
+        /// The session used for all service calls.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>The (cloned, immutable) configuration.</summary>
+        /// <summary>
+        /// The (cloned, immutable) configuration.
+        /// </summary>
         public FileSystemClientOptions Options { get; }
 
-        /// <summary>The root directory.</summary>
+        /// <summary>
+        /// The root directory.
+        /// </summary>
         public UaDirectoryInfo Root { get; }
 
         // ----------------------------------------------------------------

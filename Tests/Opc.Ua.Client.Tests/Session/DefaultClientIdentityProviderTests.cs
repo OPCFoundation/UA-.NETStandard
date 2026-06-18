@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var provider = new IssuedTokenIdentityProvider(accessTokens);
             UserTokenPolicy policy = CreatePolicy(UserTokenType.IssuedToken);
             policy.IssuedTokenType = Profiles.JwtUserToken;
-            policy.IssuerEndpointUrl = "{\"authorityUri\":\"https://issuer.example\"}";
+            policy.IssuerEndpointUrl = /*lang=json,strict*/ "{\"authorityUri\":\"https://issuer.example\"}";
 
             IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false);
 
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.Tests.Identity
             };
             return new IdentitySelectionContext(
                 endpoint,
-                new[] { policy },
+                [policy],
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 

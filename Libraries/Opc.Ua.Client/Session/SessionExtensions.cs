@@ -126,7 +126,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reconnects to the server on a waiting connection
+        /// Reconnects to the server on a waiting connection.
         /// </summary>
         public static Task ReconnectAsync(
             this ISession session,

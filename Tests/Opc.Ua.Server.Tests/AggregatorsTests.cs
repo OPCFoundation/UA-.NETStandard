@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -53,6 +54,21 @@ namespace Opc.Ua.Server.Tests
                 PercentDataGood = 100,
                 UseSlopedExtrapolation = false
             };
+        }
+
+        [Test]
+        public void GetDefaultConfigurationTreatsUncertainAsBadByDefault()
+        {
+            var server = new Mock<IServerInternal>();
+            using var manager = new AggregateManager(server.Object);
+
+            AggregateConfiguration config = manager.GetDefaultConfiguration(default);
+
+            // Part 13 v1.05.07 §4.2.1.2: the TreatUncertainAsBad default is True.
+            Assert.That(config.TreatUncertainAsBad, Is.True);
+            Assert.That(config.PercentDataBad, Is.EqualTo(100));
+            Assert.That(config.PercentDataGood, Is.EqualTo(100));
+            Assert.That(config.UseSlopedExtrapolation, Is.False);
         }
 
         [Test]

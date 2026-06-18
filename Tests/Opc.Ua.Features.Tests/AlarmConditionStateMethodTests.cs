@@ -29,7 +29,6 @@
 
 #pragma warning disable CA2000
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -344,40 +343,64 @@ namespace Opc.Ua.Features.Tests
             }
 
             public ServiceResult CallSilence(ISystemContext c)
-                => OnSilenceCalled(c, null!, default, new List<Variant>());
+            {
+                return OnSilenceCalled(c, null!, default, []);
+            }
 
             public ServiceResult CallSuppress(ISystemContext c)
-                => OnSuppressCalled(c, null!, default, new List<Variant>());
+            {
+                return OnSuppressCalled(c, null!, default, []);
+            }
 
             public ServiceResult CallSuppress2(ISystemContext c, LocalizedText comment)
-                => OnSuppress2Called(c, null!, NodeId.Null, comment);
+            {
+                return OnSuppress2Called(c, null!, NodeId.Null, comment);
+            }
 
             public ServiceResult CallUnsuppress(ISystemContext c)
-                => OnUnsuppressCalled(c, null!, default, new List<Variant>());
+            {
+                return OnUnsuppressCalled(c, null!, default, []);
+            }
 
             public ServiceResult CallUnsuppress2(ISystemContext c, LocalizedText comment)
-                => OnUnsuppress2Called(c, null!, NodeId.Null, comment);
+            {
+                return OnUnsuppress2Called(c, null!, NodeId.Null, comment);
+            }
 
             public ServiceResult CallRemoveFromService(ISystemContext c)
-                => OnRemoveFromServiceCalled(c, null!, default, new List<Variant>());
+            {
+                return OnRemoveFromServiceCalled(c, null!, default, []);
+            }
 
             public ServiceResult CallRemoveFromService2(ISystemContext c, LocalizedText comment)
-                => OnRemoveFromService2Called(c, null!, NodeId.Null, comment);
+            {
+                return OnRemoveFromService2Called(c, null!, NodeId.Null, comment);
+            }
 
             public ServiceResult CallPlaceInService(ISystemContext c)
-                => OnPlaceInServiceCalled(c, null!, default, new List<Variant>());
+            {
+                return OnPlaceInServiceCalled(c, null!, default, []);
+            }
 
             public ServiceResult CallPlaceInService2(ISystemContext c, LocalizedText comment)
-                => OnPlaceInService2Called(c, null!, NodeId.Null, comment);
+            {
+                return OnPlaceInService2Called(c, null!, NodeId.Null, comment);
+            }
 
             public ServiceResult CallReset(ISystemContext c)
-                => OnResetCalled(c, null!, default, new List<Variant>());
+            {
+                return OnResetCalled(c, null!, default, []);
+            }
 
             public ServiceResult CallReset2(ISystemContext c, LocalizedText comment)
-                => OnReset2Called(c, null!, NodeId.Null, comment);
+            {
+                return OnReset2Called(c, null!, NodeId.Null, comment);
+            }
 
             public ServiceResult CallGetGroupMemberships(ISystemContext c, ref ArrayOf<NodeId> groups)
-                => OnGetGroupMembershipsCalled(c, null!, NodeId.Null, ref groups);
+            {
+                return OnGetGroupMembershipsCalled(c, null!, NodeId.Null, ref groups);
+            }
         }
 
         private TestableAlarm CreateTestableAlarm()
@@ -947,5 +970,5 @@ namespace Opc.Ua.Features.Tests
             Assert.That(groups.Count, Is.EqualTo(1));
             Assert.That(groups[0], Is.EqualTo(groupNodeId));
         }
-}
+    }
 }

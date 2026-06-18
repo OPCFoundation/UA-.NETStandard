@@ -100,11 +100,17 @@ namespace Opc.Ua
         /// Attach the channel to an already created client.
         /// </summary>
         /// <param name="channel">Channel to be used by the client</param>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         void AttachChannel(ITransportChannel channel);
 
         /// <summary>
         /// Detach the channel.
         /// </summary>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         void DetachChannel();
 
         /// <summary>

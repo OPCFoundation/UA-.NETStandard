@@ -38,51 +38,51 @@ namespace Opc.Ua.Server.Alarms
     /// </summary>
     public sealed class AlarmGroup
     {
-        private readonly AlarmGroupState m_state;
-
         /// <summary>
         /// The wrapped <see cref="AlarmGroupState"/> node.
         /// </summary>
-        public AlarmGroupState State => m_state;
+        public AlarmGroupState State { get; }
 
         /// <summary>
         /// The NodeId of the group.
         /// </summary>
-        public NodeId NodeId => m_state.NodeId;
+        public NodeId NodeId => State.NodeId;
 
         /// <summary>
         /// Initializes a new alarm group helper wrapping the given state.
         /// </summary>
         public AlarmGroup(AlarmGroupState state)
         {
-            m_state = state ?? throw new System.ArgumentNullException(nameof(state));
+            State = state ?? throw new ArgumentNullException(nameof(state));
         }
 
         /// <summary>
         /// Adds an alarm condition to this group using the
         /// <c>AlarmGroupMember</c> reference type.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="alarm"/> is <c>null</c>.</exception>
         public void AddMember(AlarmConditionState alarm)
         {
             if (alarm == null)
             {
                 throw new ArgumentNullException(nameof(alarm));
             }
-            m_state.AddReference(ReferenceTypeIds.AlarmGroupMember, false, alarm.NodeId);
-            alarm.AddReference(ReferenceTypeIds.AlarmGroupMember, true, m_state.NodeId);
+            State.AddReference(ReferenceTypeIds.AlarmGroupMember, false, alarm.NodeId);
+            alarm.AddReference(ReferenceTypeIds.AlarmGroupMember, true, State.NodeId);
         }
 
         /// <summary>
         /// Removes an alarm condition from this group.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="alarm"/> is <c>null</c>.</exception>
         public void RemoveMember(AlarmConditionState alarm)
         {
             if (alarm == null)
             {
                 throw new ArgumentNullException(nameof(alarm));
             }
-            m_state.RemoveReference(ReferenceTypeIds.AlarmGroupMember, false, alarm.NodeId);
-            alarm.RemoveReference(ReferenceTypeIds.AlarmGroupMember, true, m_state.NodeId);
+            State.RemoveReference(ReferenceTypeIds.AlarmGroupMember, false, alarm.NodeId);
+            alarm.RemoveReference(ReferenceTypeIds.AlarmGroupMember, true, State.NodeId);
         }
 
         /// <summary>
@@ -91,12 +91,12 @@ namespace Opc.Ua.Server.Alarms
         public IEnumerable<NodeId> GetMemberIds(ISystemContext context)
         {
             var references = new List<IReference>();
-            m_state.GetReferences(context, references,
+            State.GetReferences(context, references,
                 ReferenceTypeIds.AlarmGroupMember, false);
 
             foreach (IReference reference in references)
             {
-                NodeId targetId = ExpandedNodeId.ToNodeId(
+                var targetId = ExpandedNodeId.ToNodeId(
                     reference.TargetId, context.NamespaceUris);
                 if (!targetId.IsNull)
                 {

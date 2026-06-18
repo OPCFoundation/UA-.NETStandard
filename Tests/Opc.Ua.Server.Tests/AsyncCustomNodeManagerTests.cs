@@ -39,7 +39,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -365,7 +364,7 @@ namespace Opc.Ua.Server.Tests
             int beforeReportCount = m_mockServer.Invocations.Count(i => i.Method.Name == "ReportEvent");
 
             // Simulate an external write
-            Variant newValue = new Variant("42");
+            var newValue = new Variant("42");
             StatusCode statusCode = StatusCodes.Good;
             DateTimeUtc timestamp = DateTime.UtcNow;
             ServiceResult result = nodeVersion.OnWriteValue!(
@@ -383,9 +382,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(afterReportCount - beforeReportCount, Is.EqualTo(1));
 
             int baseOnlyCount = m_mockServer.Invocations.Count(i =>
-                i.Method.Name == "ReportEvent"
-                && i.Arguments.Count > 0
-                && i.Arguments[i.Arguments.Count - 1]?.GetType() == typeof(BaseModelChangeEventState));
+                i.Method.Name == "ReportEvent" &&
+                i.Arguments.Count > 0 &&
+                i.Arguments[i.Arguments.Count - 1]?.GetType() == typeof(BaseModelChangeEventState));
             Assert.That(baseOnlyCount, Is.EqualTo(1));
         }
 
@@ -405,6 +404,86 @@ namespace Opc.Ua.Server.Tests
 
             await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
 
+            Assert.That(manager.PredefinedNodes, Is.Empty);
+        }
+
+        [Test]
+        public async Task DeleteAddressSpaceAsync_InvokesNodeStateDeleteCallbacksAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            bool deletedMaskRaised = false;
+
+            var node = new BaseObjectState(null);
+            node.CreateAsPredefinedNode(context);
+            node.NodeId = new NodeId("DeletableRoot", nsIdx);
+            node.BrowseName = new QualifiedName("DeletableRoot", nsIdx);
+            node.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    deletedMaskRaised = true;
+                }
+            };
+
+            await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
+            Assert.That(manager.PredefinedNodes.ContainsKey(node.NodeId), Is.True);
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(deletedMaskRaised, Is.True,
+                "NodeStateChangeMasks.Deleted must be raised on shutdown so subscribers can react (#3762).");
+            Assert.That(manager.PredefinedNodes, Is.Empty);
+        }
+
+        [Test]
+        public async Task DeleteAddressSpaceAsync_DoesNotDoubleFireOnChildrenAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            int parentDeleted = 0;
+            int childDeleted = 0;
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("Parent", nsIdx);
+            parent.BrowseName = new QualifiedName("Parent", nsIdx);
+            parent.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    parentDeleted++;
+                }
+            };
+
+            var child = new BaseObjectState(parent);
+            child.CreateAsPredefinedNode(context);
+            child.NodeId = new NodeId("Child", nsIdx);
+            child.BrowseName = new QualifiedName("Child", nsIdx);
+            child.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    childDeleted++;
+                }
+            };
+            parent.AddChild(child);
+
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, child).ConfigureAwait(false);
+
+            Assume.That(manager.PredefinedNodes.ContainsKey(parent.NodeId), Is.True);
+            Assume.That(manager.PredefinedNodes.ContainsKey(child.NodeId), Is.True);
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(parentDeleted, Is.EqualTo(1));
+            Assert.That(childDeleted, Is.EqualTo(1),
+                "Children must be deleted exactly once even if also present in PredefinedNodes (#3762).");
             Assert.That(manager.PredefinedNodes, Is.Empty);
         }
 
@@ -4469,6 +4548,7 @@ namespace Opc.Ua.Server.Tests
         NodeState Find(NodeId nodeId);
         NodeId New(ISystemContext context, NodeState node);
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
+
         ValueTask<NodeId> CreateNodeAsync(
             ServerSystemContext context,
             NodeId parentId,
@@ -4476,35 +4556,54 @@ namespace Opc.Ua.Server.Tests
             QualifiedName browseName,
             BaseInstanceState instance,
             CancellationToken ct = default);
+
         ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken ct = default);
         ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
         T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
 
-        /// <summary>Marks a node as eligible to trigger ModelChangeEvents (Part 5 §9.32.2).</summary>
+        /// <summary>
+        /// Marks a node as eligible to trigger ModelChangeEvents (Part 5 §9.32.2).
+        /// </summary>
         PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null);
 
-        /// <summary>Strict NodeVersion-required gate on ModelChangeEvent emission.</summary>
+        /// <summary>
+        /// Strict NodeVersion-required gate on ModelChangeEvent emission.
+        /// </summary>
         bool RequireNodeVersionForModelChange { get; set; }
 
-        /// <summary>Optional: set nodes to be loaded by CreateAddressSpaceAsync.</summary>
+        /// <summary>
+        /// Optional: set nodes to be loaded by CreateAddressSpaceAsync.
+        /// </summary>
         NodeStateCollection? NodesToLoad { get; set; }
 
-        /// <summary>Tests whether a NodeId belongs to a managed namespace.</summary>
+        /// <summary>
+        /// Tests whether a NodeId belongs to a managed namespace.
+        /// </summary>
         bool IsNodeIdInNamespacePublic(NodeId nodeId);
 
-        /// <summary>Validates if a manager handle belongs to this node manager's namespace.</summary>
+        /// <summary>
+        /// Validates if a manager handle belongs to this node manager's namespace.
+        /// </summary>
         NodeHandle? IsHandleInNamespacePublic(object? managerHandle);
 
-        /// <summary>Adds a node to the component cache.</summary>
+        /// <summary>
+        /// Adds a node to the component cache.
+        /// </summary>
         NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node);
 
-        /// <summary>Removes a node from the component cache.</summary>
+        /// <summary>
+        /// Removes a node from the component cache.
+        /// </summary>
         void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle);
 
-        /// <summary>Looks up a node in the component cache.</summary>
+        /// <summary>
+        /// Looks up a node in the component cache.
+        /// </summary>
         NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle);
 
-        /// <summary>Validates monitoring filter.</summary>
+        /// <summary>
+        /// Validates monitoring filter.
+        /// </summary>
         ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -4514,30 +4613,46 @@ namespace Opc.Ua.Server.Tests
             ExtensionObject filter,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Gets the root notifiers dictionary.</summary>
+        /// <summary>
+        /// Gets the root notifiers dictionary.
+        /// </summary>
         NodeIdDictionary<NodeState> RootNotifiers { get; }
 
-        /// <summary>Adds a root notifier.</summary>
+        /// <summary>
+        /// Adds a root notifier.
+        /// </summary>
         ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
 
-        /// <summary>Removes a root notifier.</summary>
+        /// <summary>
+        /// Removes a root notifier.
+        /// </summary>
         ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
 
-        /// <summary>Invokes the OnReportEvent handler.</summary>
+        /// <summary>
+        /// Invokes the OnReportEvent handler.
+        /// </summary>
         void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget);
 
-        /// <summary>Adds reverse references from predefined nodes to external targets.</summary>
+        /// <summary>
+        /// Adds reverse references from predefined nodes to external targets.
+        /// </summary>
         ValueTask AddReverseReferencesPublicAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Sets namespace URIs.</summary>
+        /// <summary>
+        /// Sets namespace URIs.
+        /// </summary>
         void SetNamespacesPublic(params string[] namespaceUris);
 
-        /// <summary>Sets namespace indexes.</summary>
+        /// <summary>
+        /// Sets namespace indexes.
+        /// </summary>
         void SetNamespaceIndexesPublic(ushort[] namespaceIndexes);
 
-        /// <summary>Sets namespace URIs via the property setter.</summary>
+        /// <summary>
+        /// Sets namespace URIs via the property setter.
+        /// </summary>
         void SetNamespaceUrisPublic(IEnumerable<string>? uris);
     }
 
@@ -4554,9 +4669,14 @@ namespace Opc.Ua.Server.Tests
         {
         }
 
-        // Provide deterministic auto-assignment so tests can call
-        // CreateNode without pre-setting a NodeId (mirrors the
-        // behaviour of AsyncCustomNodeManager.New).
+        /// <summary>
+        /// Provide deterministic auto-assignment so tests can call
+        /// CreateNode without pre-setting a NodeId (mirrors the
+        /// behaviour of AsyncCustomNodeManager.New).
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public override NodeId New(ISystemContext context, NodeState node)
         {
             if (node.NodeId.IsNull)
@@ -4696,13 +4816,16 @@ namespace Opc.Ua.Server.Tests
             m_adapter = adapter;
         }
 
-        // ITestNodeManager state properties — delegate to m_cnm2
+        /// <summary>
+        /// ITestNodeManager state properties — delegate to m_cnm2
+        /// </summary>
         public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_cnm2.MonitoredNodes;
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_cnm2.MonitoredItems;
         public ServerSystemContext SystemContext => m_cnm2.SystemContext;
         public IReadOnlyList<ushort> NamespaceIndexes => m_cnm2.NamespaceIndexes;
         public ushort NamespaceIndex => m_cnm2.NamespaceIndex;
+
         public NodeState Find(NodeId nodeId)
         {
             return m_cnm2.Find(nodeId)!;
@@ -4789,7 +4912,9 @@ namespace Opc.Ua.Server.Tests
         }
 
         public PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null)
-            => m_cnm2.EnableModelChangeTrackingFor(node, namespaceIndex);
+        {
+            return m_cnm2.EnableModelChangeTrackingFor(node, namespaceIndex);
+        }
 
         public bool RequireNodeVersionForModelChange
         {
@@ -4814,7 +4939,9 @@ namespace Opc.Ua.Server.Tests
             return default;
         }
 
-        // IAsyncNodeManager — delegate to m_adapter
+        /// <summary>
+        /// IAsyncNodeManager — delegate to m_adapter
+        /// </summary>
         public IEnumerable<string> NamespaceUris => m_adapter.NamespaceUris;
         public INodeManager SyncNodeManager => m_adapter.SyncNodeManager;
 
@@ -5150,6 +5277,43 @@ namespace Opc.Ua.Server.Tests
         public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
         {
             m_cnm2.SetNamespaceUrisPublic(uris);
+        }
+
+        /// <summary>
+        /// INodeManagementAsyncNodeManager — delegate to m_adapter (which delegates to the wrapped CNM2 if it implements the facet)
+        /// </summary>
+        public bool AllowNodeManagement => m_adapter.AllowNodeManagement;
+
+        public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.AddNodeAsync(context, item, cancellationToken);
+        }
+
+        public ValueTask<ServiceResult> DeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.DeleteNodeAsync(context, item, cancellationToken);
+        }
+
+        public ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.AddReferenceAsync(context, item, cancellationToken);
+        }
+
+        public ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.DeleteReferenceAsync(context, item, cancellationToken);
         }
 
         public void Dispose()

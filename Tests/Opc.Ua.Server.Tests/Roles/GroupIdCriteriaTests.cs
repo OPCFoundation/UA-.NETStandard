@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
@@ -84,7 +83,7 @@ namespace Opc.Ua.Server.Tests
         {
             AssertMessageContextCanBeCreated();
             using RoleManager manager = CreateManagerWithGroupRule("engineering-leads");
-            var identity = new ClaimsTestIdentity(groups: Array.Empty<string>());
+            var identity = new ClaimsTestIdentity(groups: []);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
 

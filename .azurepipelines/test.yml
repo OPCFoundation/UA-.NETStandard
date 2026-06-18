@@ -2,26 +2,57 @@
 # Test all .Net Core projects on all platforms
 #
 parameters:
-  configuration: 'Release'
-  framework: net8.0
-  agents: '@{}'
-  jobnamesuffix: ''
-  customtestarget: ''
-  # Set hosted=true to force all jobs in this template invocation onto
-  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
-  # Use this for stages that target macOS, which the managed pool does not
-  # provide.
-  hosted: false
-  # See ci.yml: passing pool config via parameters because root-pipeline
-  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
-  # included templates at compile-time.
-  poolName: ''
-  windowsImage: 'windows-2025-vs2026'
+- name: configuration
+  type: string
+  default: 'Release'
+- name: framework
+  type: string
+  default: net8.0
+- name: agents
+  type: string
+  default: '@{}'
+- name: jobnamesuffix
+  type: string
+  default: ''
+- name: customtestarget
+  type: string
+  default: ''
+# Set hosted=true to force all jobs in this template invocation onto
+# Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+# Use this for stages that target macOS, which the managed pool does not
+# provide.
+- name: hosted
+  type: boolean
+  default: false
+# See ci.yml: passing pool config via parameters because root-pipeline
+# variables defined in ${{ if ... }}: blocks aren't reliably visible to
+# included templates at compile-time.
+- name: poolName
+  type: string
+  default: ''
+- name: windowsImage
+  type: string
+  default: 'windows-2025-vs2026'
+# Optional job-level condition forwarded to both the testprep… and testall… jobs.
+# When unset (the overwhelming majority of callers) no `condition:` line is
+# emitted - preserves today's "always run" behaviour exactly.  When set, both
+# jobs receive the same condition so the entire test invocation is gated
+# together (used by the root pipeline to skip macOS test invocations on draft
+# GitHub PRs).  The forwarded condition is always wrapped in succeeded() so a
+# build cancellation still propagates to these jobs - without the wrapper an
+# Azure Pipelines `condition:` re-evaluates to true during cancel and the job
+# keeps running (see "Job will continue running after cancellation was
+# requested because its condition re-evaluated to true" warnings).
+- name: condition
+  type: string
+  default: ''
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
+  ${{ if ne(parameters.condition, '') }}:
+    condition: and(succeeded(), ${{ parameters.condition }})
   pool:
-    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+    ${{ if ne(parameters.poolName, '') }}:
       name: ${{ parameters.poolName }}
       demands:
         - ImageOverride -equals ${{ parameters.windowsImage }}
@@ -41,6 +72,8 @@ jobs:
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
+  ${{ if ne(parameters.condition, '') }}:
+    condition: and(succeeded(), ${{ parameters.condition }})
   timeoutInMinutes: 180
   strategy:
     matrix: $[dependencies.testprep${{ parameters.jobnamesuffix }}.outputs['testmatrix.jobMatrix'] ]
@@ -88,14 +121,21 @@ jobs:
   - task: DownloadSecureFile@1
     name: fuzzingartifacts
     displayName: 'Download Fuzzing artifacts'
+    # Only the Opc.Ua.Encoders.Fuzz.Tests matrix entry consumes these crash-seed
+    # assets; gating the download saves a secure-file fetch + ~28k 'inflating:
+    # crash-*' log lines on every other matrix entry (observed pre-fix on mac
+    # build 14598 log 652).  testcc.yml still pulls the artifacts unconditionally
+    # because that single combined coverage job runs every *.Tests.csproj
+    # including Fuzz.Tests in one go.
+    condition: contains(variables['file'], 'Fuzz.Tests')
     inputs:
       secureFile: 'FuzzingArtifacts.zip'
   - task: ExtractFiles@1
     displayName: 'Extract Fuzzing artifacts'
-    condition: ne(variables['fuzzingartifacts.secureFilePath'], '')
+    condition: and(contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
-      destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests
+      destinationFolder: ./Fuzzing/Opc.Ua.Encoders.Fuzz.Tests
       cleanDestinationFolder: false
       overwriteExistingFiles: true
     continueOnError: true
@@ -111,9 +151,37 @@ jobs:
     inputs:
       command: test
       projects: $(file)
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress"'
+      # --blame-hang-timeout/--blame-hang-dump-type: kill (and name) any single test
+      # that exceeds 10 min so silent hangs surface as "Test <Name> exceeded the
+      # configured timeout" instead of burning the full 90-min step timeout with no
+      # diagnostic info (observed on mac PR build 14598 log 933: 28 min of silence
+      # after the previous test before the step timeout fired). LongRunning/Stress
+      # tests are already filtered out, so 10 min is well above any legitimate run.
+      # --logger trx + --results-directory: emit trx ourselves because we set
+      # publishTestResults: false below to decouple "ran tests" from "published
+      # results to AzDO" - the inline publish step inside DotNetCoreCLI@2 fails
+      # the whole task on transient DNS / network blips when reaching back to
+      # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
+      # all 707 tests passed, then post-test publish errored with
+      # "nodename nor servname provided, or not known" and failed the job).
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type none --logger trx --results-directory $(Agent.TempDirectory)'
+      publishTestResults: false
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
+    # succeededOrFailed() so test results land in AzDO even when tests failed;
+    # continueOnError so a transient publish failure (e.g. macOS hosted agent DNS
+    # hiccup against opcfoundation.visualstudio.com) does not flip the job to
+    # failed when the actual tests already passed.
+    condition: succeededOrFailed()
+    continueOnError: true
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '$(Agent.TempDirectory)/*.trx'
+      mergeTestResults: true
+      failTaskOnFailedTests: false
+      testRunTitle: '${{ parameters.framework }} ${{ parameters.configuration }} - $(Agent.JobName)'
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
-    condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
+    condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'

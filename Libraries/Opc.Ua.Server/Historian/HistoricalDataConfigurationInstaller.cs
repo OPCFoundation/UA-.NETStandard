@@ -62,6 +62,7 @@ namespace Opc.Ua.Server.Historian
         /// utility refreshes the value-bearing properties but does not
         /// add new children.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public static async ValueTask<HistoricalDataConfigurationState> EnsureInstalledAsync(
             ISystemContext context,
             BaseVariableState variable,
@@ -105,53 +106,35 @@ namespace Opc.Ua.Server.Historian
             HistorianNodeCapabilities capabilities)
         {
             config.Stepped?.Value = capabilities.Stepped;
-
-            if (!string.IsNullOrEmpty(capabilities.Definition))
-            {
-                config.Definition ??= config.AddDefinition(context);
-                config.Definition!.Value = capabilities.Definition!;
-            }
-
-            if (capabilities.MaxTimeInterval > 0)
-            {
-                config.MaxTimeInterval ??= config.AddMaxTimeInterval(context);
-                config.MaxTimeInterval!.Value = capabilities.MaxTimeInterval;
-            }
-
-            if (capabilities.MinTimeInterval > 0)
-            {
-                config.MinTimeInterval ??= config.AddMinTimeInterval(context);
-                config.MinTimeInterval!.Value = capabilities.MinTimeInterval;
-            }
-
-            if (capabilities.MaxTimeStoredValues > 0)
-            {
-                config.MaxTimeStoredValues ??= config.AddMaxTimeStoredValues(context);
-                config.MaxTimeStoredValues!.Value = capabilities.MaxTimeStoredValues;
-            }
-
-            if (capabilities.MaxCountStoredValues > 0)
-            {
-                config.MaxCountStoredValues ??= config.AddMaxCountStoredValues(context);
-                config.MaxCountStoredValues!.Value = capabilities.MaxCountStoredValues;
-            }
-
-            if (capabilities.StartOfArchive != DateTimeUtc.MinValue)
-            {
-                config.StartOfArchive ??= config.AddStartOfArchive(context);
-                config.StartOfArchive!.Value = capabilities.StartOfArchive;
-            }
-
-            if (capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue)
-            {
-                config.StartOfOnlineArchive ??= config.AddStartOfOnlineArchive(context);
-                config.StartOfOnlineArchive!.Value = capabilities.StartOfOnlineArchive;
-            }
-
-            if (config.ServerTimestampSupported == null && capabilities.ServerTimestampSupported)
-            {
-                _ = config.AddServerTimestampSupported(context);
-            }
+            config
+                .AddDefinition(context,
+                    !string.IsNullOrEmpty(capabilities.Definition),
+                    c => c.Value = capabilities.Definition!)
+                .AddMaxTimeInterval(context,
+                    capabilities.MaxTimeInterval > 0,
+                    c => c.Value = capabilities.MaxTimeInterval)
+                .AddMinTimeInterval(context,
+                    capabilities.MinTimeInterval > 0,
+                    c => c.Value = capabilities.MinTimeInterval)
+                .AddMaxTimeStoredValues(context,
+                    capabilities.MaxTimeStoredValues > 0,
+                    c => c.Value = capabilities.MaxTimeStoredValues)
+                .AddMaxCountStoredValues(context,
+                    capabilities.MaxCountStoredValues > 0,
+                    c => c.Value = capabilities.MaxCountStoredValues)
+                .AddStartOfArchive(context,
+                    capabilities.StartOfArchive != DateTimeUtc.MinValue,
+                    c => c.Value = capabilities.StartOfArchive)
+                .AddStartOfOnlineArchive(context,
+                    capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue,
+                    c => c.Value = capabilities.StartOfOnlineArchive)
+                // ServerTimestampSupported: only materialise the slot when the
+                // capability is true; sync the value to a pre-existing slot
+                // afterwards so disabled capabilities also propagate (matches
+                // the v1 semantics).
+                .AddServerTimestampSupported(context,
+                    capabilities.ServerTimestampSupported,
+                    _ => { });
             config.ServerTimestampSupported?.Value = capabilities.ServerTimestampSupported;
         }
 

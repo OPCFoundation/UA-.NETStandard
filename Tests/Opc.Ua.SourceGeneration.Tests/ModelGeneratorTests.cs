@@ -73,7 +73,13 @@ namespace Opc.Ua.SourceGeneration
                 {
                     ["build_property.ModelSourceGeneratorVersion"] = "v105",
                     ["build_property.ModelSourceGeneratorExclude"] = "Draft",
-                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true"
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    // The test compilation includes Core stubs via
+                    // WithOpcUaGeneratedStack() but no Server reference.
+                    // Suppress fluent-builder emission so the generated
+                    // code compiles standalone (matches model-only
+                    // production csprojs).
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -102,7 +108,11 @@ namespace Opc.Ua.SourceGeneration
             var options = new AnalyzerOptionsProvider(
                 new Dictionary<string, string>
                 {
-                    ["build_property.ModelSourceGeneratorStartId"] = "1000"
+                    ["build_property.ModelSourceGeneratorStartId"] = "1000",
+                    // The test compilation includes Core stubs but no
+                    // Server reference. Suppress fluent-builder
+                    // emission so the generated code compiles standalone.
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -117,7 +127,13 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options)
                 ;
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(18));
+            // 19 generated files: 9 per model (Constants, DataTypes,
+            // Identifiers, ModelDependencies, NodeStates, NodeStates.ex,
+            // NodeStates.i, TypeProxies, XmlSchemas) for DemoModel + 9
+            // for DI, plus 1 DI.StateMachineIds.g.cs (DI declares Part
+            // 16 FSM subtypes for the software-update facet; DemoModel
+            // declares none, so it gets no StateMachineIds output).
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(19));
         }
 
         [Theory]
@@ -135,7 +151,11 @@ namespace Opc.Ua.SourceGeneration
                 {
                     ["build_property.ModelSourceGeneratorVersion"] = "v105",
                     ["build_property.ModelSourceGeneratorExclude"] = "Draft",
-                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true"
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    // The test compilation includes Core stubs but no
+                    // Server reference. Suppress fluent-builder
+                    // emission so the generated code compiles standalone.
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
                 });
 
             // Create the driver that executes the generator
@@ -153,7 +173,12 @@ namespace Opc.Ua.SourceGeneration
 
             // There will be 120 errors due to missing Opc.Ua dll reference
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(8));
+            // Adding the HeaterStatus enum (used by HeaterStatusMatrix in
+            // MatrixValueDataType to exercise the typed-enum matrix codegen
+            // path) caused the generator to emit one additional output file
+            // for TestDataDesign, bringing the total from 8 to 9 (the same
+            // per-model count that DemoModel produces above).
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(9));
 
             string testDataXmlSchema = ValidateXmlSchema(languageVersion, generatorResult);
             Assert.That(testDataXmlSchema,

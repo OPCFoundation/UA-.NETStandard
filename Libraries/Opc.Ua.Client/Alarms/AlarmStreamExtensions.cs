@@ -33,7 +33,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -54,6 +53,7 @@ namespace Opc.Ua.Client.Alarms
         /// <see cref="AcknowledgeableConditionTypeRecord"/>, and the
         /// alarm subtypes generated for the standard NodeSet).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeAlarmsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.Alarms
                 streaming.SubscribeEventsAsync(notifierId, filter, options, ct);
             await foreach (EventNotification notification in source.ConfigureAwait(false))
             {
-                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
+                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? [];
                 if (registry.Decode(fields) is ConditionTypeRecord record)
                 {
                     yield return record;
@@ -95,6 +95,7 @@ namespace Opc.Ua.Client.Alarms
         /// Subscribes to condition events (any condition type) from
         /// the supplied notifier and yields decoded records.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeConditionsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
@@ -116,6 +117,7 @@ namespace Opc.Ua.Client.Alarms
         /// Subscribes to dialog events from the supplied notifier and
         /// yields decoded <see cref="DialogConditionTypeRecord"/>s.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/> is <c>null</c>.</exception>
         public static IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
@@ -145,7 +147,7 @@ namespace Opc.Ua.Client.Alarms
                 .SubscribeEventsAsync(notifierId, filter, options, ct)
                 .ConfigureAwait(false))
             {
-                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
+                IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? [];
                 if (registry.Decode(fields) is DialogConditionTypeRecord dialog)
                 {
                     yield return dialog;
@@ -154,4 +156,3 @@ namespace Opc.Ua.Client.Alarms
         }
     }
 }
-

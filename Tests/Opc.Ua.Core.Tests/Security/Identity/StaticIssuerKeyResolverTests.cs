@@ -46,7 +46,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             using var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                new[] { CreateKey("kid-1"), CreateKey("kid-2") });
+                [CreateKey("kid-1"), CreateKey("kid-2")]);
 
             System.Collections.Generic.IReadOnlyList<IssuerVerificationKey> keys = await resolver
                 .GetKeysAsync("kid-1")
@@ -61,7 +61,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             using var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                new[] { CreateKey("kid-1") });
+                [CreateKey("kid-1")]);
 
             System.Collections.Generic.IReadOnlyList<IssuerVerificationKey> keys = await resolver
                 .GetKeysAsync("KID-1")
@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             using var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                new[] { CreateKey("kid-1"), CreateKey("kid-2") });
+                [CreateKey("kid-1"), CreateKey("kid-2")]);
 
             System.Collections.Generic.IReadOnlyList<IssuerVerificationKey> keys = await resolver
                 .GetKeysAsync(null)
@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             IssuerVerificationKey key = CreateKey("kid-1");
             var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                new[] { key });
+                [key]);
 
             resolver.Dispose();
 

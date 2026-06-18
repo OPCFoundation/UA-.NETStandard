@@ -83,8 +83,8 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-
             if (configure is null)
+
             {
                 builder.Services.AddOptions<WotConClientOptions>();
             }
@@ -148,7 +148,6 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(section));
             }
-
             builder.Services.AddOptions<WotConClientOptions>().Bind(section);
             RegisterCoreServices(builder.Services);
 

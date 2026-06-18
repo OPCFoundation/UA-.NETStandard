@@ -67,7 +67,9 @@ namespace Opc.Ua.Gds.Client
                 session.MessageContext.Telemetry);
         }
 
-        /// <summary>Returns the service description.</summary>
+        /// <summary>
+        /// Returns the service description.
+        /// </summary>
         public ValueTask<(
             string serviceUri,
             ByteString serviceCertificate,
@@ -77,7 +79,9 @@ namespace Opc.Ua.Gds.Client
             return m_proxy.GetServiceDescriptionAsync(ct);
         }
 
-        /// <summary>Requests an access token using the legacy single-call flow.</summary>
+        /// <summary>
+        /// Requests an access token using the legacy single-call flow.
+        /// </summary>
         [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
         public ValueTask<string> RequestAccessTokenAsync(
             UserIdentityToken identityToken,
@@ -87,7 +91,9 @@ namespace Opc.Ua.Gds.Client
             return m_proxy.RequestAccessTokenAsync(identityToken, resourceId, ct);
         }
 
-        /// <summary>Starts the Part 12 v1.05 two-phase token request flow.</summary>
+        /// <summary>
+        /// Starts the Part 12 v1.05 two-phase token request flow.
+        /// </summary>
         public async ValueTask<(ByteString serviceData, Guid requestId)> StartRequestTokenAsync(
             string resourceId,
             string policyId,
@@ -104,7 +110,9 @@ namespace Opc.Ua.Gds.Client
             return (GetByteStringOutput(outputArguments, 0), GetGuidOutput(outputArguments, 1));
         }
 
-        /// <summary>Completes the Part 12 v1.05 two-phase token request flow.</summary>
+        /// <summary>
+        /// Completes the Part 12 v1.05 two-phase token request flow.
+        /// </summary>
         public async ValueTask<(
             string accessToken,
             DateTime accessTokenExpiryTime,
@@ -132,7 +140,9 @@ namespace Opc.Ua.Gds.Client
                 GetDateTimeOutput(outputArguments, 3));
         }
 
-        /// <summary>Refreshes the access token using a previously-issued refresh token (RC).</summary>
+        /// <summary>
+        /// Refreshes the access token using a previously-issued refresh token (RC).
+        /// </summary>
         public async ValueTask<(
             string accessToken,
             DateTime accessTokenExpiryTime,

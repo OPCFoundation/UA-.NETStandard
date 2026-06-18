@@ -234,6 +234,65 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Verify loading a private key does not change the configured certificate type.
+        /// </summary>
+        [Test]
+        [Order(21)]
+        public async Task LoadPrivateKeyKeepsConfiguredAbstractApplicationCertificateTypeAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Certificate appCertificate = GetTestCert();
+            Assert.That(appCertificate, Is.Not.Null);
+            Assert.That(appCertificate.HasPrivateKey, Is.True);
+
+            char[] password = Uuid.NewUuid().ToString().ToCharArray();
+
+            string pkiRoot = Path.GetTempPath() +
+                Path.GetRandomFileName() +
+                Path.DirectorySeparatorChar;
+            string storePath = pkiRoot + "own";
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
+            const string storeType = CertificateStoreType.Directory;
+            await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
+                .ConfigureAwait(false);
+
+            using var publicKey = Certificate.FromRawData(
+                appCertificate.RawData);
+            Assert.That(publicKey, Is.Not.Null);
+            Assert.That(publicKey.HasPrivateKey, Is.False);
+
+            var id = new CertificateIdentifier
+            {
+                Thumbprint = publicKey.Thumbprint,
+                StorePath = storePath,
+                StoreType = storeType,
+                // Start with the abstract type to verify loading the real certificate
+                // does not mutate the configured identifier.
+                CertificateType = ObjectTypeIds.ApplicationCertificateType
+            };
+
+            using Certificate privateKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                id,
+                new CertificatePasswordProvider(password),
+                applicationUri: null,
+                telemetry: telemetry)
+                .ConfigureAwait(false);
+
+            Assert.That(privateKey, Is.Not.Null);
+            Assert.That(privateKey.HasPrivateKey, Is.True);
+            Assert.That(
+                id.CertificateType,
+                Is.EqualTo(ObjectTypeIds.ApplicationCertificateType),
+                "Loading the real certificate should not change the configured identifier.");
+
+            X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
+
+            using ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, telemetry);
+            store.Open(storePath, false);
+            await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Verify PEM Certs are stored in Directory Store
         /// </summary>
         [Test]

@@ -193,6 +193,31 @@ namespace Opc.Ua.SourceGeneration
             ITelemetryContext telemetry,
             bool useAllowSubtypes = true)
         {
+            return OpenModelDesign(
+                fileSystem,
+                designFiles,
+                exclusions,
+                telemetry,
+                useAllowSubtypes,
+                referencedDependencies: null);
+        }
+
+        /// <summary>
+        /// Validates the model design files, optionally importing
+        /// per-namespace model dependency payloads from referenced
+        /// assemblies before validation. The payloads pre-populate the
+        /// validator's node table so downstream models can resolve
+        /// upstream types without an explicit <c>AdditionalFiles</c>
+        /// entry for them.
+        /// </summary>
+        public static IModelDesign OpenModelDesign(
+            this IFileSystem fileSystem,
+            DesignFileCollection designFiles,
+            IReadOnlyList<string> exclusions,
+            ITelemetryContext telemetry,
+            bool useAllowSubtypes,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies)
+        {
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
                 fileSystem,
@@ -206,6 +231,18 @@ namespace Opc.Ua.SourceGeneration
                 ModelVersion = options.ModelVersion,
                 ModelPublicationDate = options.ModelPublicationDate
             };
+
+            if (referencedDependencies != null)
+            {
+                foreach (KeyValuePair<string, Dependency.ModelDependencyV1> entry in referencedDependencies)
+                {
+                    if (entry.Value == null)
+                    {
+                        continue;
+                    }
+                    validator.ImportDependency(entry.Value, prefix: null, name: null);
+                }
+            }
 
             string identifierFilePath = designFiles.IdentifierFilePath;
             validator.Validate(

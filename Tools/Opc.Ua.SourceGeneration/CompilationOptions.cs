@@ -35,26 +35,24 @@ namespace Opc.Ua.SourceGeneration
     /// <summary>
     /// Captures compilation options.
     /// </summary>
-    /// <param name="LanguageVersion"></param>
-    /// <param name="AssemblyName"></param>
     internal record struct CompilationOptions(
         LanguageVersion LanguageVersion,
         string AssemblyName,
         OptimizationLevel OptimizationLevel,
-        Platform Platform)
+        Platform Platform,
+        OutputKind OutputKind)
     {
         /// <summary>
         /// Create options from a compilation.
         /// </summary>
-        /// <param name="c"></param>
-        /// <returns></returns>
         internal static CompilationOptions From(Compilation c)
         {
             return new CompilationOptions(
                 c is CSharpCompilation cs ? cs.LanguageVersion : LanguageVersion.CSharp1,
                 c.AssemblyName,
                 c.Options.OptimizationLevel,
-                c.Options.Platform);
+                c.Options.Platform,
+                c.Options.OutputKind);
         }
     }
 }

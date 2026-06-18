@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -90,4 +89,3 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             CancellationToken ct = default);
     }
 }
-

@@ -2468,7 +2468,7 @@ namespace Opc.Ua.Client
         /// Designed to be the production wiring used by
         /// <c>ManagedSession.HandleFailoverAsync</c> so that the inner
         /// <see cref="Session"/> reference stays stable across a
-        /// failover. Differs from <see cref="ReconnectAsync"/> by
+        /// failover. Differs from <c>ReconnectAsync</c> by
         /// performing a full <c>CreateSession</c> against the server
         /// (new server-side session id) instead of just re-activating
         /// the existing one. Differs from
@@ -2489,16 +2489,95 @@ namespace Opc.Ua.Client
         /// <see cref="ConfiguredEndpoint"/>.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected internal async Task RecreateInPlaceAsync(
+        protected internal Task RecreateInPlaceAsync(
             ConfiguredEndpoint? endpoint = null,
             ITransportWaitingConnection? connection = null,
             ITransportChannel? channel = null,
             CancellationToken ct = default)
         {
+            return RecreateInPlaceCoreAsync(
+                endpoint,
+                connection,
+                channel,
+                budget: null,
+                ct);
+        }
+
+        /// <summary>
+        /// Recreate the server-side session in place while sharing an
+        /// outer reconnect retry budget with the channel manager.
+        /// </summary>
+        internal Task RecreateInPlaceAsync(
+            ConfiguredEndpoint? endpoint,
+            IRetryBudget budget,
+            CancellationToken ct = default)
+        {
+            if (budget == null)
+            {
+                throw new ArgumentNullException(nameof(budget));
+            }
+
+            return RecreateInPlaceCoreAsync(
+                endpoint,
+                connection: null,
+                channel: null,
+                budget,
+                ct);
+        }
+
+        private async Task RecreateInPlaceCoreAsync(
+            ConfiguredEndpoint? endpoint,
+            ITransportWaitingConnection? connection,
+            ITransportChannel? channel,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
 
             NodeId previousSessionId = SessionId;
+            IClientChannelManager? manager = m_channelManager;
+            IManagedTransportChannel? oldManagedLease = m_managedChannel;
+            IManagedTransportChannel? newManagedLease = null;
+            bool managedLeaseActivated = false;
+            ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
+
+            if (manager != null && channel == null)
+            {
+                await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
+                if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
+                    m_instanceCertificate != null)
+                {
+                    manager.UpdateClientCertificate(
+                        m_instanceCertificate.AddRef(),
+                        m_instanceCertificateChain?.AddRef());
+                }
+            }
+
+            if (manager != null && channel == null && oldManagedLease != null)
+            {
+                var targetKey = ManagedChannelKey.FromEndpoint(
+                    targetEndpoint,
+                    m_instanceCertificate,
+                    connection);
+                if (oldManagedLease.Key.Equals(targetKey) &&
+                    oldManagedLease.State is not (ChannelState.Closed or ChannelState.Faulted))
+                {
+                    if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
+                    {
+                        m_endpoint = endpoint;
+                        m_effectiveEndpoint = endpoint;
+                    }
+
+                    await ReconnectManagedChannelAsync(
+                            manager,
+                            oldManagedLease,
+                            budget,
+                            ct)
+                        .ConfigureAwait(false);
+                    return;
+                }
+            }
 
             // Quiesce the V2 engine outside the reconnect lock so
             // workers can complete their current cycle without
@@ -2551,13 +2630,25 @@ namespace Opc.Ua.Client
                 }
 
                 // Build / install the new transport channel.
-                ITransportChannel newChannel;
                 if (channel != null)
                 {
-                    newChannel = channel;
+                    TransportChannel = channel;
+                }
+                else if (manager != null)
+                {
+                    newManagedLease = await manager.GetAsync(
+                        m_endpoint,
+                        _ => this,
+                        connection,
+                        ct).ConfigureAwait(false);
+
+                    m_managedChannel = newManagedLease;
+                    // Keep the old lease alive until the new session is fully reactivated.
+                    InitializeChannel(newManagedLease);
                 }
                 else
                 {
+                    ITransportChannel newChannel;
                     ServiceMessageContext messageContext = m_configuration
                         .CreateMessageContext(Factory);
 
@@ -2594,9 +2685,9 @@ namespace Opc.Ua.Client
                                 ct)
                             .ConfigureAwait(false);
                     }
-                }
 
-                TransportChannel = newChannel;
+                    TransportChannel = newChannel;
+                }
 
                 // Clear server-assigned identity so OpenAsync below
                 // performs a full CreateSession rather than a re-
@@ -2644,6 +2735,14 @@ namespace Opc.Ua.Client
                         ct)
                     .ConfigureAwait(false);
 
+                managedLeaseActivated = true;
+                if (newManagedLease != null &&
+                    oldManagedLease != null &&
+                    !ReferenceEquals(oldManagedLease, newManagedLease))
+                {
+                    oldManagedLease.Dispose();
+                }
+
                 m_logger.LogInformation(
                     "Session RECREATE-IN-PLACE completed: " +
                     "{OldSessionId} -> {NewSessionId}",
@@ -2652,6 +2751,23 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
+                if (newManagedLease != null && !managedLeaseActivated)
+                {
+                    if (oldManagedLease != null &&
+                        !ReferenceEquals(oldManagedLease, newManagedLease))
+                    {
+                        m_managedChannel = oldManagedLease;
+                        InitializeChannel(oldManagedLease);
+                    }
+                    else if (ReferenceEquals(m_managedChannel, newManagedLease))
+                    {
+                        m_managedChannel = oldManagedLease;
+                        DisposeChannel();
+                    }
+
+                    newManagedLease.Dispose();
+                }
+
                 m_logger.LogError(
                     ex,
                     "Session RECREATE-IN-PLACE {SessionId} failed.",
@@ -2815,12 +2931,67 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task ReconnectAsync(
+        public Task ReconnectAsync(
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
             CancellationToken ct)
         {
+            return ReconnectCoreAsync(
+                connection,
+                channel,
+                budget: null,
+                ct);
+        }
+
+        /// <summary>
+        /// Reconnect the session while sharing an outer reconnect retry
+        /// budget with the channel manager.
+        /// </summary>
+        internal Task ReconnectAsync(
+            IRetryBudget budget,
+            CancellationToken ct)
+        {
+            if (budget == null)
+            {
+                throw new ArgumentNullException(nameof(budget));
+            }
+
+            return ReconnectCoreAsync(
+                connection: null,
+                channel: null,
+                budget,
+                ct);
+        }
+
+        private async Task ReconnectCoreAsync(
+            ITransportWaitingConnection? connection,
+            ITransportChannel? channel,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
             ThrowIfDisposed();
+
+            // When a channel manager is wired AND the caller did not
+            // explicitly supply a channel/connection, delegate the
+            // reconnect to the central manager so that the underlying
+            // channel is reconnected once and ALL participant sessions
+            // sharing it are notified in parallel via OnReconnectAsync.
+            // Explicit channel/connection callers go through the
+            // legacy in-Session path for back-compat.
+            IClientChannelManager? mgr = m_channelManager;
+            IManagedTransportChannel? managed = m_managedChannel;
+            if (connection == null && channel == null
+                && mgr != null && managed != null)
+            {
+                await ReconnectManagedChannelAsync(
+                        mgr,
+                        managed,
+                        budget,
+                        ct)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             using Activity? activity = m_telemetry.StartActivity();
             bool resetReconnect = false;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
@@ -3630,7 +3801,7 @@ namespace Opc.Ua.Client
                 if (state != null)
                 {
                     // mark any old requests as defunct (i.e. the should have returned before this request).
-                    TimeSpan maxAge = TimeSpan.FromMilliseconds(1000);
+                    var maxAge = TimeSpan.FromMilliseconds(1000);
 
                     for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;
@@ -4455,61 +4626,67 @@ namespace Opc.Ua.Client
         /// Asynchronously load instance certificate
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task LoadInstanceCertificateAsync(
+        private Task LoadInstanceCertificateAsync(
             bool throwIfConfigurationChangedFromLastLoad,
             CancellationToken ct = default)
         {
-            m_endpoint.Description.SecurityPolicyUri ??= SecurityPolicies.None;
-            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+            return LoadInstanceCertificateAsync(
+                m_endpoint,
+                ct,
+                throwIfConfigurationChangedFromLastLoad);
+        }
+
+        /// <summary>
+        /// Asynchronously load the instance certificate for the supplied endpoint.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async Task LoadInstanceCertificateAsync(
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct,
+            bool throwIfConfigurationChangedFromLastLoad = false)
+        {
+            endpoint.Description.SecurityPolicyUri ??= SecurityPolicies.None;
+            if (endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
-                // No need to load instance certificates
                 return;
             }
 
             if (m_instanceCertificate != null &&
                 m_instanceCertificate.HasPrivateKey &&
-                !m_endpoint.Equals(m_effectiveEndpoint))
+                !endpoint.Equals(m_effectiveEndpoint))
             {
                 if (throwIfConfigurationChangedFromLastLoad)
                 {
-                    // Updating a live session must be prevented unless the session was
-                    // closed. Therefore we need to throw here to catch this case during any
-                    // reconnect or other activation operation
                     throw ServiceResultException.ConfigurationError(
                         "Configuration was changed for an active session.");
                 }
-                // If the configured endpoint was updated while we are closed we reload.
                 m_instanceCertificate.Dispose();
                 m_instanceCertificate = null;
             }
 
             if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
             {
-                // Dispose any previously loaded certificate that lacked a
-                // private key before overwriting it with the newly loaded one.
                 m_instanceCertificate?.Dispose();
                 m_instanceCertificate = await LoadInstanceCertificateAsync(
                     m_configuration,
-                    m_endpoint.Description.SecurityPolicyUri,
+                    endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false) ??
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                m_effectiveEndpoint = m_endpoint;
+                m_effectiveEndpoint = endpoint;
                 m_instanceCertificateChain?.Dispose();
-                m_instanceCertificateChain = null; // Reload the chain too
+                m_instanceCertificateChain = null;
             }
 
-            // check for private key.
             if (!m_instanceCertificate.HasPrivateKey)
             {
                 throw ServiceResultException.ConfigurationError(
                     "Client certificate configured for security policy {0} is missing a private key.",
-                    m_endpoint.Description.SecurityPolicyUri);
+                    endpoint.Description.SecurityPolicyUri);
             }
 
-            // load certificate chain.
             m_instanceCertificateChain ??= await LoadCertificateChainAsync(
                 m_configuration,
                 m_instanceCertificate,

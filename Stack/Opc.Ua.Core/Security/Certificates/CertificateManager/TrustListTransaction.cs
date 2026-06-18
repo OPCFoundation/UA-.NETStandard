@@ -44,6 +44,7 @@ namespace Opc.Ua
     internal sealed class TrustListTransaction : ITrustListTransaction
     {
         private readonly ICertificateTrustListManager m_manager;
+        private readonly CertificateManager? m_changeNotifier;
         private readonly List<Certificate> m_addTrusted = [];
         private readonly List<string> m_removeTrusted = [];
         private readonly List<Certificate> m_addIssuer = [];
@@ -63,9 +64,36 @@ namespace Opc.Ua
         internal TrustListTransaction(
             ICertificateTrustListManager manager,
             TrustListIdentifier trustList)
+            : this(manager, trustList, changeNotifier: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TrustListTransaction"/>
+        /// class with an optional change notifier. The notifier is
+        /// invoked from <see cref="CommitAsync"/> after a successful
+        /// apply so observers of
+        /// <see cref="ICertificateLifecycle.CertificateChanges"/> see
+        /// <see cref="CertificateChangeKind.TrustListUpdated"/> and/or
+        /// <see cref="CertificateChangeKind.CrlUpdated"/> events.
+        /// </summary>
+        /// <param name="manager">
+        /// The trust-list manager used to open stores on commit.
+        /// </param>
+        /// <param name="trustList">The trust list being modified.</param>
+        /// <param name="changeNotifier">
+        /// The <see cref="CertificateManager"/> that owns the change
+        /// subject. May be <c>null</c> for tests that exercise the
+        /// transaction in isolation.
+        /// </param>
+        internal TrustListTransaction(
+            ICertificateTrustListManager manager,
+            TrustListIdentifier trustList,
+            CertificateManager? changeNotifier)
         {
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             TrustList = trustList ?? throw new ArgumentNullException(nameof(trustList));
+            m_changeNotifier = changeNotifier;
         }
 
         /// <inheritdoc/>
@@ -162,28 +190,35 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
 
+            bool trustChanged = false;
+            bool crlChanged = false;
+
             // Apply trusted-store operations.
             using (ICertificateStore trustedStore = m_manager.OpenTrustedStore(TrustList))
             {
                 foreach (Certificate cert in m_addTrusted)
                 {
                     await trustedStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
+                    trustChanged = true;
                 }
 
                 foreach (string thumbprint in m_removeTrusted)
                 {
                     await trustedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                    trustChanged = true;
                 }
 
                 // CRLs are stored alongside trusted certificates.
                 foreach (X509CRL crl in m_addCrls)
                 {
                     await trustedStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
+                    crlChanged = true;
                 }
 
                 foreach (X509CRL crl in m_removeCrls)
                 {
                     await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
+                    crlChanged = true;
                 }
             }
 
@@ -196,16 +231,22 @@ namespace Opc.Ua
                     foreach (Certificate cert in m_addIssuer)
                     {
                         await issuerStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
+                        trustChanged = true;
                     }
 
                     foreach (string thumbprint in m_removeIssuer)
                     {
                         await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                        trustChanged = true;
                     }
                 }
             }
 
             m_committed = true;
+
+            // Notify observers AFTER the atomic apply, so the
+            // CertificateChanges stream reflects the final state.
+            m_changeNotifier?.NotifyTrustListChanged(TrustList, trustChanged, crlChanged);
         }
 
         /// <inheritdoc/>

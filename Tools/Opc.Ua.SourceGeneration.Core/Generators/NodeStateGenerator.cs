@@ -197,7 +197,11 @@ namespace Opc.Ua.SourceGeneration
             }
             string nodeClass = node.Design.GetNodeClassAsString();
             context.Template.AddReplacement(Tokens.NodeClass, nodeClass);
-            context.Template.AddReplacement(Tokens.BrowseName, node.Design.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                node.Design.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.SymbolicId, node.Design.SymbolicId.Name);
             if (node.Design is TypeDesign type)
             {
@@ -221,7 +225,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             if (ExcludeNodeStateClassGeneration(node))
             {
                 return null;
@@ -245,12 +248,15 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             NodeDesign root = node.Design;
             context.Template.AddReplacement(Tokens.NodeClass, root.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.TypeName, root.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.SymbolicId, root.SymbolicId.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, root.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                root.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.Description,
                 root.Description != null ? root.Description.Value : string.Empty);
@@ -344,10 +350,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.IsNotExplicitlyDefined)
+
             {
                 return null;
             }
-
             if (instance.IsOverriddenWithSameClass(
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces))
@@ -410,7 +416,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             if (variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
                 return null;
@@ -425,11 +430,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.NodeClass, type.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.TypeName, type.SymbolicName.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, type.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                type.SymbolicName.Name,
+                m_logger);
 
             return context.Template.Render();
         }
@@ -440,15 +448,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             Dictionary<string, Parameter> fields = [];
             CollectMatchingFields(variableType, fields);
 
             if (fields.Count == 0)
+
             {
                 return null;
             }
-
             return context.TemplateString;
         }
 
@@ -458,15 +465,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             Dictionary<string, Parameter> fields = [];
             CollectMatchingFields(type, fields);
 
             if (fields.Count == 0)
+
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.DataType, type.DataTypeNode.GetDotNetTypeName(
                 ValueRank.Scalar,
@@ -499,7 +505,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string name = field.Key;
             string path = field.Key;
 
@@ -605,10 +610,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (effectiveRule == ModellingRule.None)
+
             {
                 return null;
             }
-
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Optional)
@@ -637,7 +642,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..];
             string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
                 field.ValueRank,
@@ -678,7 +682,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..];
             string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
                 field.ValueRank,
@@ -719,7 +722,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..];
             switch (field.DataTypeNode.BasicDataType)
             {
@@ -751,7 +753,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
@@ -799,7 +800,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
@@ -834,7 +834,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
             switch (field.DataTypeNode.BasicDataType)
             {
@@ -866,7 +865,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
             context.Out.WriteLine(
                "public {1} {0} {{ get; set; }}",
@@ -886,7 +884,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("_result = OnCall(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
@@ -921,7 +918,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("_result = await OnCallAsync(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
@@ -950,10 +946,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.IsNotExplicitlyDefined)
+
             {
                 return null;
             }
-
             if (GetEffectiveModellingRule(node, instance) != ModellingRule.Optional)
             {
                 return null;
@@ -1003,10 +999,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.IsNotExplicitlyDefined)
+
             {
                 return null;
             }
-
             ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
 
             if (effectiveRule
@@ -1018,10 +1014,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (effectiveRule == ModellingRule.None)
+
             {
                 return null;
             }
-
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Optional)
@@ -1087,7 +1083,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             int count = 0;
             foreach (NodeToGenerate child in node.Children.Values)
             {
@@ -1095,12 +1090,11 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 if (child.IsNotExplicitlyDefined)
+
                 {
                     continue;
                 }
-
                 ModellingRule childEffectiveRule =
                     GetEffectiveModellingRule(child, instance);
 
@@ -1113,10 +1107,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (childEffectiveRule is ModellingRule.None)
+
                 {
                     continue;
                 }
-
                 if (childEffectiveRule is
                     ModellingRule.OptionalPlaceholder or
                     ModellingRule.MandatoryPlaceholder)
@@ -1135,10 +1129,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (count == 0)
+
             {
                 return null;
             }
-
             return context.TemplateString;
         }
 
@@ -1187,7 +1181,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
@@ -1203,9 +1196,25 @@ namespace Opc.Ua.SourceGeneration
                 asFactory: true));
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
+            // The runtime BrowseName.Name may differ from the symbolic name
+            // (the design's <opc:BrowseName> attribute can override it, e.g.
+            // Boiler's "InputPipe" InstanceDesign with BrowseName "PipeX001").
+            // FindChild switches on the runtime browse name, so the case
+            // label must use that string verbatim.
+            context.Template.AddBrowseNameReplacement(
+                Tokens.ChildBrowseName,
+                Tokens.ChildBrowseNameLiteral,
+                !string.IsNullOrEmpty(instance.BrowseName)
+                    ? instance.BrowseName
+                    : instance.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.FieldName, instance.GetChildFieldName());
             context.Template.AddReplacement(Tokens.NodeClass, instance.GetNodeClassAsString());
-            context.Template.AddReplacement(Tokens.BrowseName, instance.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                instance.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespacePrefix,
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
@@ -1245,7 +1254,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.SymbolicId, node.Design.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.SymbolicName, node.Design.SymbolicName.Name);
             return context.Template.Render();
@@ -1257,7 +1265,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             if (context.Token == Tokens.ListOfNodeStateInstanceFactories)
             {
                 if (node.Parent != null)
@@ -1279,7 +1286,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-
                 if (GetEffectiveModellingRule(node, instance) is
                     not ModellingRule.MandatoryPlaceholder and
                     not ModellingRule.OptionalPlaceholder)
@@ -1320,7 +1326,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             NodeDesign root = node.Design;
 
             // Common replacements for all node types
@@ -1330,7 +1335,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.SymbolicName,
                 root.SymbolicName.Name);
-            context.Template.AddReplacement(Tokens.BrowseName, root.SymbolicName.Name);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                root.SymbolicName.Name,
+                m_logger);
             context.Template.AddReplacement(Tokens.NumericIdValue, root.FindNumericIdentifier() ?? 0);
             context.Template.AddReplacement(
                 Tokens.TypeName,
@@ -1440,7 +1449,8 @@ namespace Opc.Ua.SourceGeneration
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
-                    root.AccessRestrictionsSpecified) ?? root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
+                    root.AccessRestrictionsSpecified) ??
+                root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
                     root.DefaultAccessRestrictionsSpecified);
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
@@ -1486,31 +1496,103 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            // Factory methods use the instance's own modelling rule for the
-            // mandatory/optional list classification so that children the
-            // instance explicitly marks Mandatory are always created.  The
-            // effective (type-definition) rule is used elsewhere for the
-            // type-class structure (fields, properties, optional init).
+            // Determine which modelling rule drives factory-method emission.
+            //
+            // For SINGLETON instance overrides (a top-level <opc:Object> in
+            // StandardTypes.xml whose parent has no type def), an override of
+            // a type-def Optional child to Mandatory must NOT force emission
+            // of the child when UseTypeDefinitionModellingRules is on - the
+            // SDK is responsible for adding only those children it actually
+            // implements (fixes issue #3768).
+            //
+            // The gate applies TRANSITIVELY to every Variable/Method descendant
+            // of a top-level singleton instance (e.g. Server,
+            // ServerConfiguration, HistoryServerCapabilities). Optional
+            // Object instances are intentionally exempt: they are still
+            // emitted by the singleton-specific factory with their correct
+            // instance-level NodeIds, because their subtrees use well-known
+            // descendant NodeIds (e.g.
+            // ServerConfiguration.CertificateGroups.DefaultHttpsGroup.
+            // TrustList.Open at NodeId 14095) and the SDK binds against
+            // them directly (e.g. ConfigurationNodeManager pairs
+            // CertificateGroupState by NodeId in
+            // <see cref="Opc.Ua.Server.ConfigurationNodeManager"/>,
+            // RoleStateBinding looks up
+            // <see cref="Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet"/>).
+            // Patching every descendant NodeId from the SDK after a
+            // type-level factory call would require hard-coded mapping of
+            // dozens of well-known NodeIds per Object root and is brittle.
+            // Optional Object descendants' own Variable/Method children are
+            // still gated transitively (e.g. OperationLimits.MaxNodesPerRead
+            // is suppressed and the SDK programmatically adds it back via
+            // <see cref="Opc.Ua.Server.Diagnostics.DiagnosticsNodeManager.
+            // AddOperationLimitsSdkOptionalChildren"/>).
+            //
+            // For TYPE-LEVEL promotions (e.g. AnalogItemType promoting EURange
+            // from Optional on BaseAnalogType to Mandatory), the type-def
+            // tree itself is being captured and the promotion is part of the
+            // declared type definition, so the instance's Mandatory rule
+            // must be honoured even when the option is on. The synthetic
+            // type-instance NodeToGenerate (root.InstanceOf != null) and the
+            // type-def NodeToGenerate (root.RootIsTypeDefinition) are both
+            // excluded because IsUnderSingletonInstance is propagated only
+            // through the singleton-instance subtree.
+            bool isSingletonInstanceContext =
+                m_context.Options.UseTypeDefinitionModellingRules &&
+                node.IsUnderSingletonInstance &&
+                node.Parent != null &&
+                instance is VariableDesign or MethodDesign;
+
+            ModellingRule effectiveRule = isSingletonInstanceContext
+                ? GetEffectiveModellingRule(node, instance)
+                : instance.ModellingRule;
+
+            // The "top-level non-typed parent" exception below forces children
+            // of an explicitly-declared singleton instance (e.g.
+            // <opc:Object SymbolicName="ServerConfiguration" ...> in
+            // StandardTypes.xml) into the always-emitted mandatory list so
+            // declared overrides materialize on the actual node. This
+            // exception must be suppressed for SINGLETON-INSTANCE roots when
+            // <see cref="GeneratorOptions.UseTypeDefinitionModellingRules"/>
+            // is on; otherwise singleton instance overrides could re-introduce
+            // the very Optional/unimplemented children we are trying to
+            // exclude from the actual instance.
+            //
+            // TYPE-DEFINITION roots (ObjectTypeDesign, VariableTypeDesign,
+            // MethodTypeDesign) must still emit their Optional children
+            // unconditionally — the type-def factory is called from many
+            // places (instance.Create, ConfigurationNodeManager.
+            // CreateNamespaceMetadataStateAsync, etc.) with
+            // forInstance=true, and removing them breaks deep code paths
+            // that rely on the type-def factory shape. Only suppress when
+            // the parent is itself an InstanceDesign singleton.
+            bool topLevelInstanceException =
+                node.Parent != null &&
+                node.Parent.Parent == null &&
+                node.Parent.InstanceOf == null &&
+                (node.Parent.Design is not InstanceDesign ||
+                    !m_context.Options.UseTypeDefinitionModellingRules);
+
             if (context.Token == Tokens.ListOfOptionalChildNodeStates)
             {
-                if (instance.ModellingRule == ModellingRule.Mandatory)
+                if (effectiveRule == ModellingRule.Mandatory)
                 {
                     return null;
                 }
                 // Real instance children of a top-level (non-typed) parent belong in
                 // the always-emitted list so they materialize for the actual instance,
                 // not only when the node is treated as a type template.
-                if (node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null)
+                if (topLevelInstanceException)
                 {
                     return null;
                 }
             }
 
             // Otherwise only add mandatory children - all others are created on demand
-            else if (instance.ModellingRule != ModellingRule.Mandatory)
+            else if (effectiveRule != ModellingRule.Mandatory)
             {
                 // Exception: real instance children of a top-level (non-typed) parent.
-                if (!(node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null))
+                if (!topLevelInstanceException)
                 {
                     return null;
                 }
@@ -1533,25 +1615,37 @@ namespace Opc.Ua.SourceGeneration
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
-                            switch (instance.ModellingRule)
+                            // Children whose SymbolicName ends in "_Placeholder"
+                            // come from OptionalPlaceholder/MandatoryPlaceholder
+                            // slots on the type, which emit Add*_Placeholder
+                            // methods (cardinality 0..N) instead of
+                            // CreateOrReplace*_Placeholder methods (which only
+                            // exist for fixed Mandatory/Optional slots).
+                            // Fall through to AddChild for these.
+                            bool isPlaceholderSlot = instance.SymbolicName.Name
+                                .EndsWith("_Placeholder", StringComparison.Ordinal);
+                            if (!isPlaceholderSlot)
                             {
-                                case ModellingRule.Mandatory:
-                                case ModellingRule.Optional:
-                                    context.Out.WriteLine(
-                                        "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
-                                        instance.SymbolicName.Name,
-                                        instance.SymbolicId.Name,
-                                        forInstanceVariableValue);
-                                    return null;
-                                case ModellingRule.OptionalPlaceholder:
-                                case ModellingRule.MandatoryPlaceholder:
-                                    // TODO
-                                    break;
-                                case ModellingRule.ExposesItsArray:
-                                case ModellingRule.None:
-                                case ModellingRule.CardinalityRestriction:
-                                case ModellingRule.MandatoryShared:
-                                    break;
+                                switch (effectiveRule)
+                                {
+                                    case ModellingRule.Mandatory:
+                                    case ModellingRule.Optional:
+                                        context.Out.WriteLine(
+                                            "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                                            instance.SymbolicName.Name,
+                                            instance.SymbolicId.Name,
+                                            forInstanceVariableValue);
+                                        return null;
+                                    case ModellingRule.OptionalPlaceholder:
+                                    case ModellingRule.MandatoryPlaceholder:
+                                        // TODO
+                                        break;
+                                    case ModellingRule.ExposesItsArray:
+                                    case ModellingRule.None:
+                                    case ModellingRule.CardinalityRestriction:
+                                    case ModellingRule.MandatoryShared:
+                                        break;
+                                }
                             }
                         }
                         break;
@@ -1655,7 +1749,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             return NodeStateTemplates.RolePermission;
         }
 
@@ -1665,7 +1758,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             if (!m_context.ModelDesign.TryFindNode(
                 rolePermission.Role,
                 rolePermission.Role.Name,
@@ -1697,10 +1789,10 @@ namespace Opc.Ua.SourceGeneration
             BasicDataType basicType = variableType.DataTypeNode.BasicDataType;
 
             if (variableType.SymbolicName.Name == "TwoStateDiscreteType")
+
             {
                 variableType.ValueRank = ValueRank.Scalar;
             }
-
             if (!variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
                 // Overrides a variable type that does not require a template parameter so we
@@ -1849,6 +1941,11 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.TargetNamespace.Value,
                     []));
             context.Template.AddReplacement(
+                Tokens.OwnerClassName,
+                method.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    []));
+            context.Template.AddReplacement(
                 Tokens.ListOfInputArguments,
                 method.InputArguments,
                 LoadTemplate_ListOfInputArguments);
@@ -1891,6 +1988,19 @@ namespace Opc.Ua.SourceGeneration
             TypeDesign type)
         {
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
+            // OwnerClassName mirrors ClassName at the type scope so per-child
+            // sub-templates (e.g. NodeStateTemplates.OptionalMethod) can refer
+            // to the parent (owner) class when generating Add{Child} methods
+            // that return `this` for chaining. The per-child WriteTemplate
+            // overrides Tokens.ClassName but leaves OwnerClassName untouched,
+            // and the template engine cascades to this outer template when
+            // OwnerClassName is not found locally. The class declaration
+            // template appends "State" to ClassName (see
+            // NodeStateClassObjectType / NodeStateClassVariableType), so do
+            // the same here so the return type matches the declared class.
+            context.Template.AddReplacement(
+                Tokens.OwnerClassName,
+                type.ClassName + "State");
             context.Template.AddReplacement(
                 Tokens.BaseClassName,
                 type.BaseTypeNode.GetClassName(m_context.ModelDesign.Namespaces));
@@ -2236,7 +2346,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             foreach (ReferenceToGenerate reference in references)
             {
                 if (!reference.IsInverse &&
@@ -2270,7 +2379,8 @@ namespace Opc.Ua.SourceGeneration
                         Design: node,
                         IsNotExplicitlyDefined: false,
                         RootIsTypeDefinition: true,
-                        InstanceOf: null);
+                        InstanceOf: null,
+                        IsUnderSingletonInstance: false);
                 }
                 else
                 {
@@ -2281,7 +2391,8 @@ namespace Opc.Ua.SourceGeneration
                         Design: node.Hierarchy.NodeList[0].Instance,
                         IsNotExplicitlyDefined: false,
                         RootIsTypeDefinition: false,
-                        InstanceOf: null);
+                        InstanceOf: null,
+                        IsUnderSingletonInstance: true);
                 }
                 if (!m_nodes.TryAdd(entry.Design.SymbolicId, entry))
                 {
@@ -2331,7 +2442,8 @@ namespace Opc.Ua.SourceGeneration
                     Design: hierarchyNode.Instance,
                     IsNotExplicitlyDefined: false,
                     RootIsTypeDefinition: false,
-                    InstanceOf: entry); // Mark as instance of a type design
+                    InstanceOf: entry, // Mark as instance of a type design
+                    IsUnderSingletonInstance: false);
                 entry.Instance = instanceToGenerate;
                 if (!m_instances.TryAdd(instanceToGenerate.Design.SymbolicId, instanceToGenerate))
                 {
@@ -2358,7 +2470,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 if (encoding.TypeDefinition == null ||
                     encoding.TypeDefinition.Name != "DataTypeEncodingType")
                 {
@@ -2366,10 +2477,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (encoding.NotInAddressSpace)
+
                 {
                     continue;
                 }
-
                 if (m_context.ModelDesign.IsExcluded(encoding))
                 {
                     continue;
@@ -2391,7 +2502,6 @@ namespace Opc.Ua.SourceGeneration
                         {
                             continue;
                         }
-
                         hierarchy.References.Add(new HierarchyReference
                         {
                             SourcePath = string.Empty,
@@ -2558,10 +2668,10 @@ namespace Opc.Ua.SourceGeneration
                 ModellingRule typeDefRule = node.TypeDefinitionModellingRule.Value;
 
                 if (m_context.Options.UseTypeDefinitionModellingRules)
+
                 {
                     return typeDefRule;
                 }
-
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
                 if (!IsValidPromotion(typeDefRule, instance.ModellingRule))
@@ -2590,10 +2700,10 @@ namespace Opc.Ua.SourceGeneration
                     hierarchyNode.TypeDefinitionModellingRule.Value;
 
                 if (m_context.Options.UseTypeDefinitionModellingRules)
+
                 {
                     return typeDefRule;
                 }
-
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
                 if (!IsValidPromotion(typeDefRule, child.ModellingRule))
@@ -2625,7 +2735,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return true;
             }
-
             return typeDefRule switch
             {
                 ModellingRule.Optional =>
@@ -2677,10 +2786,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.Hierarchy == null)
+
             {
                 return;
             }
-
             foreach (HierarchyNode current in node.Hierarchy.NodeList)
             {
                 string childPath = current.RelativePath;
@@ -2696,7 +2805,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 // relative should always end in the name of the current instance.
                 if (!childPath.EndsWith(
                     current.Instance.SymbolicName.Name,
@@ -2719,6 +2827,7 @@ namespace Opc.Ua.SourceGeneration
                     string parentPath = current.RelativePath[..idx];
 
                     if (parentPath != node.Path)
+
                     {
                         continue;
                     }
@@ -2735,10 +2844,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (current.Instance is not InstanceDesign child)
+
                 {
                     continue;
                 }
-
                 ModellingRule effectiveRule = GetEffectiveModellingRule(
                     current, child, node.RootIsTypeDefinition);
 
@@ -2846,7 +2955,8 @@ namespace Opc.Ua.SourceGeneration
                         RootIsTypeDefinition: node.RootIsTypeDefinition,
                         InstanceOf: null,
                         TypeDefinitionModellingRule:
-                            current.TypeDefinitionModellingRule);
+                            current.TypeDefinitionModellingRule,
+                        IsUnderSingletonInstance: node.IsUnderSingletonInstance);
                     if (!children.TryAdd(symbolicId, childNodeToGenerate))
                     {
                         m_logger.LogInformation(
@@ -2865,7 +2975,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             Hierarchy hierarchy = node.Hierarchy;
             NodeDesign root = node.Design;
             HashSet<ReferenceToGenerate> references = [];
@@ -2926,6 +3035,7 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     if (!target.ExplicitlyDefined && node.RootIsTypeDefinition)
+
                     {
                         continue;
                     }
@@ -3035,6 +3145,7 @@ namespace Opc.Ua.SourceGeneration
                         "RoleType");
 
                     if (roleNode != null)
+
                     {
                         rolePermissions.Add(rp);
                     }
@@ -3135,12 +3246,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return string.Empty;
             }
-
             if (type.BaseTypeNode == null)
+
             {
                 return "<T>";
             }
-
             if (GetTemplateParameter(type.BaseTypeNode, out variantBuilder) != "<T>")
             {
                 return string.Empty;
@@ -3179,9 +3289,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 return $"<global::Opc.Ua.ArrayOf<{scalarName}>>";
             }
-            if (variableType.ValueRank == ValueRank.OneOrMoreDimensions)
+            if (variableType.ValueRank == ValueRank.OneOrMoreDimensions &&
+                variableType.DataTypeNode.SupportsMatrixOf())
             {
-                // TODO: matrixOf
+                return $"<global::Opc.Ua.MatrixOf<{scalarName}>>";
             }
             variantBuilder = "global::Opc.Ua.VariantBuilder";
             return "<global::Opc.Ua.Variant>";
@@ -3311,12 +3422,17 @@ namespace Opc.Ua.SourceGeneration
             bool IsNotExplicitlyDefined = false,
             bool RootIsTypeDefinition = false,
             NodeToGenerate InstanceOf = null,
-            ModellingRule? TypeDefinitionModellingRule = null)
+            ModellingRule? TypeDefinitionModellingRule = null,
+            bool IsUnderSingletonInstance = false)
         {
-            /// <summary> Full inherited list of children </summary>
+            /// <summary>
+            /// Full inherited list of children
+            /// </summary>
             public List<NodeToGenerate> AllChildren { get; } = [];
 
-            /// <summary> Direclty defined </summary>
+            /// <summary>
+            /// Direclty defined
+            /// </summary>
             public Dictionary<string, NodeToGenerate> Children { get; } = [];
 
             public NodeToGenerate Instance { get; set; }

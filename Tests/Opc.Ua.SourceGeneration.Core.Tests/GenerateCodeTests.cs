@@ -194,6 +194,122 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             Assert.That(generatedText, Is.Not.Empty);
         }
 
+        /// <summary>
+        /// Verifies that DataType structure fields with
+        /// <c>ValueRank="OneOrMoreDimensions"</c> are generated as typed
+        /// <c>MatrixOf&lt;T&gt;</c> properties and that the encode/decode
+        /// pipeline uses the appropriate typed call: dedicated
+        /// <c>WriteEncodeableMatrix</c> / <c>ReadEncodeableMatrix</c> for
+        /// concrete encodeable matrices and <c>WriteVariant</c> wrapped via
+        /// <c>Variant.From</c> together with the matching
+        /// <c>Variant.GetXxxMatrix</c> getters for everything else.
+        /// </summary>
+        [Test]
+        public void GenerateMatrixValueDataType_EmitsMatrixOfPropertiesAndCalls()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> generatedText = GenerateCodeFromModel(
+                "TestDataDesign.xml",
+                LanguageVersion.CSharp11,
+                telemetry,
+                out _);
+
+            // Concatenate every generated source file so the snippet match
+            // is resilient to whichever file the generator chooses to put
+            // the type in (each pipeline groups types differently).
+            string code = string.Join("\n", generatedText.Values);
+
+            Assert.That(code, Does.Contain("class MatrixValueDataType"),
+                "Expected MatrixValueDataType to be generated.");
+
+            // Property type assertions - each matrix field must render as a
+            // typed MatrixOf<T> in the public surface.
+            Assert.Multiple(() =>
+            {
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<bool> BooleanMatrix"));
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<int> Int32Matrix"));
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<string> StringMatrix"));
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::Opc.Ua.NodeId> NodeIdMatrix"));
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::Opc.Ua.Variant> VariantMatrix"));
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject> ExtensionObjectMatrix"));
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::TestData.Vector> VectorMatrix"));
+                // AllowSubTypes structure fields collapse to ExtensionObject
+                // during DataTypeNode resolution, so the property emits the
+                // matrix-of-extension-object surface even though the design
+                // declared the element type as Vector.
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject> AbstractVectorMatrix"));
+                // Typed enum matrix surface — fully qualified to the
+                // TestData namespace where HeaterStatus is generated.
+                Assert.That(code, Does.Contain(
+                    "global::Opc.Ua.MatrixOf<global::TestData.HeaterStatus> HeaterStatusMatrix"));
+            });
+
+            // Encode assertions.
+            Assert.Multiple(() =>
+            {
+                // Concrete encodeable matrix uses the typed
+                // WriteEncodeableMatrix overload.
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteEncodeableMatrix("VectorMatrix", VectorMatrix);"""));
+                // Primitive matrices use Variant.From.
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("BooleanMatrix", global::Opc.Ua.Variant.From(BooleanMatrix));"""));
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("Int32Matrix", global::Opc.Ua.Variant.From(Int32Matrix));"""));
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("StringMatrix", global::Opc.Ua.Variant.From(StringMatrix));"""));
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("NodeIdMatrix", global::Opc.Ua.Variant.From(NodeIdMatrix));"""));
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("VariantMatrix", global::Opc.Ua.Variant.From(VariantMatrix));"""));
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("ExtensionObjectMatrix", global::Opc.Ua.Variant.From(ExtensionObjectMatrix));"""));
+                // AllowSubTypes -> field resolves to ExtensionObject, so it
+                // takes the same Variant.From(MatrixOf<ExtensionObject>) path
+                // as the explicit Structure field above.
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("AbstractVectorMatrix", global::Opc.Ua.Variant.From(AbstractVectorMatrix));"""));
+                // Typed enum matrix uses Variant.From, same shape as other
+                // primitive matrices (the enum is a value type with a
+                // generated EnumerationBuilder).
+                Assert.That(code, Does.Contain(
+                    """encoder.WriteVariant("HeaterStatusMatrix", global::Opc.Ua.Variant.From(HeaterStatusMatrix));"""));
+            });
+
+            // Decode assertions.
+            Assert.Multiple(() =>
+            {
+                Assert.That(code, Does.Contain(
+                    """VectorMatrix = decoder.ReadEncodeableMatrix<global::TestData.Vector>("VectorMatrix");"""));
+                Assert.That(code, Does.Contain(
+                    """BooleanMatrix = decoder.ReadVariant("BooleanMatrix").GetBooleanMatrix();"""));
+                Assert.That(code, Does.Contain(
+                    """Int32Matrix = decoder.ReadVariant("Int32Matrix").GetInt32Matrix();"""));
+                Assert.That(code, Does.Contain(
+                    """StringMatrix = decoder.ReadVariant("StringMatrix").GetStringMatrix();"""));
+                Assert.That(code, Does.Contain(
+                    """NodeIdMatrix = decoder.ReadVariant("NodeIdMatrix").GetNodeIdMatrix();"""));
+                Assert.That(code, Does.Contain(
+                    """VariantMatrix = decoder.ReadVariant("VariantMatrix").GetVariantMatrix();"""));
+                Assert.That(code, Does.Contain(
+                    """ExtensionObjectMatrix = decoder.ReadVariant("ExtensionObjectMatrix").GetExtensionObjectMatrix();"""));
+                Assert.That(code, Does.Contain(
+                    """AbstractVectorMatrix = decoder.ReadVariant("AbstractVectorMatrix").GetExtensionObjectMatrix();"""));
+                // Typed enum matrix decodes through GetEnumerationMatrix<T>
+                // (the EnumerationBuilder<T>-backed Variant getter).
+                Assert.That(code, Does.Contain(
+                    """HeaterStatusMatrix = decoder.ReadVariant("HeaterStatusMatrix").GetEnumerationMatrix<global::TestData.HeaterStatus>();"""));
+            });
+        }
+
         private static Dictionary<string, string> GenerateCodeFromModel(
             string modelDesignFile,
             LanguageVersion languageVersion,
@@ -216,7 +332,15 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 Options = new DesignFileOptions()
             }, fileSystem, string.Empty, telemetry, new GeneratorOptions
             {
-                UseUtf8StringLiterals = languageVersion >= LanguageVersion.CSharp11
+                UseUtf8StringLiterals = languageVersion >= LanguageVersion.CSharp11,
+                // The test compilation provides Core stubs via
+                // WithOpcUaCoreStubs() but no Opc.Ua.Server reference.
+                // Suppress fluent-builder emission to keep the generated
+                // code self-contained (mirrors model-only csproj
+                // configuration in production: Opc.Ua.Di,
+                // Opc.Ua.Gds.Common, Opc.Ua.WotCon all opt out via
+                // ModelSourceGeneratorOmitFluentApi=true).
+                OmitFluentApi = true
             });
 
             var generatedText = fileSystem.CreatedFiles

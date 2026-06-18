@@ -60,7 +60,7 @@ namespace Opc.Ua.Identity
 
         /// <inheritdoc/>
         public IReadOnlyList<string> SupportedIssuedTokenProfileUris { get; }
-            = Array.Empty<string>();
+            = [];
 
         /// <inheritdoc/>
         public DateTime ExpiresAt => DateTime.MaxValue;
@@ -88,7 +88,8 @@ namespace Opc.Ua.Identity
 
             ISecret? secret = await m_registry
                 .GetAsync(m_passwordId, ct)
-                .ConfigureAwait(false) ?? throw ServiceResultException.Create(
+                .ConfigureAwait(false) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
                     "Password secret could not be resolved for the selected username policy.");
 

@@ -68,7 +68,7 @@ Console.WriteLine($"Last transition: {snap.LastTransition} ({snap.LastTransition
 ### Stream transitions
 
 Pair the proxy with the session's
-[streaming subscription](StreamingSubscription.md):
+[streaming subscription](Subscriptions.md#streaming-subscriptions):
 
 ```csharp
 ManagedSession session = ...;
@@ -131,6 +131,32 @@ await foreach (FiniteStateSnapshot s in alarms
 
 Both methods delegate to `ShelvedStateMachineTypeClient` internally —
 same proxy-delegation pattern used by the rest of `AlarmClient`.
+
+### Device Integration (DI) software-update alignment
+
+`SoftwareUpdateClient` (in `Opc.Ua.Di.Client`) wraps the same generic
+API for each of the four child state machines of OPC 10000-100 §10.3
+(`PrepareForUpdate`, `Installation`, `Confirmation`, `PowerCycle`):
+
+```csharp
+var su = new SoftwareUpdateClient(session, suNodeId, telemetry);
+
+FiniteStateSnapshot? state = await su.GetInstallationStateAsync(ct);
+
+await foreach (FiniteStateSnapshot snap in su
+    .ObserveInstallationTransitionsAsync(streaming, options: null, ct))
+{
+    // …
+}
+
+await su.InstallSoftwarePackageAsync("urn:acme", "2.0.0",
+    ArrayOf.Empty<string>(), default, ct);
+```
+
+See [`SoftwareUpdate.md`](SoftwareUpdate.md) for the full SU
+facet — including the server-side `OnInstallationStateChanged` /
+`OnPrepareStateChanged` / `OnConfirmStateChanged` instrumentation
+hooks that the DI server attaches to its built-in FSM lifecycle.
 
 ### Vendor extensibility
 
@@ -522,9 +548,13 @@ with the spec; this is tracked but deliberately deferred.
 
 ## See also
 
-- [Streaming subscription](StreamingSubscription.md) — the
+- [Subscriptions and Monitored Items](Subscriptions.md#streaming-subscriptions) — the
   `IStreamingSubscription` surface the observation methods consume.
 - [Alarms and conditions](AlarmsAndConditions.md) — Part 9 alarm
   client that exposes the shelving-state-machine helpers.
+- [Device Integration (DI) software-update facet](SoftwareUpdate.md)
+  — the four DI SU state machines, the typed
+  `SoftwareUpdateClient.StateMachine` partial, and the server-side
+  `On*StateChanged` instrumentation hooks.
 - [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) —
   how vendor NodeSets get their `*TypeClient` proxies emitted.

@@ -42,16 +42,24 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public sealed class ManagedApplicationInfo
     {
-        /// <summary>The ApplicationUri of the managed application.</summary>
+        /// <summary>
+        /// The ApplicationUri of the managed application.
+        /// </summary>
         public string ApplicationUri { get; set; } = string.Empty;
 
-        /// <summary>The ProductUri of the managed application.</summary>
+        /// <summary>
+        /// The ProductUri of the managed application.
+        /// </summary>
         public string? ProductUri { get; set; }
 
-        /// <summary>The OPC UA application type.</summary>
+        /// <summary>
+        /// The OPC UA application type.
+        /// </summary>
         public ApplicationType ApplicationType { get; set; }
 
-        /// <summary>Whether the managed application is enabled.</summary>
+        /// <summary>
+        /// Whether the managed application is enabled.
+        /// </summary>
         public bool Enabled { get; set; } = true;
 
         /// <summary>
@@ -162,6 +170,8 @@ namespace Opc.Ua.Gds.Server
         /// Registers a managed application. Call this before starting
         /// the GDS to seed the <c>ManagedApplications</c> folder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="info"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void AddApplication(ManagedApplicationInfo info)
         {
             if (info == null)

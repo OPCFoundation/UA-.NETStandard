@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
-// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
-// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
-#pragma warning disable CA2016
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -46,6 +41,11 @@ using IServerRedundancyHandler = Opc.Ua.Client.IServerRedundancyHandler;
 using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
+
+// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
+// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
+// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
+#pragma warning disable CA2016
 
 namespace Opc.Ua.Sessions.Tests
 {
@@ -455,6 +455,7 @@ namespace Opc.Ua.Sessions.Tests
             // machine exhausts its retries and falls through to the
             // Failover state. Without this, the channel is restored on
             // the same alive server and reconnect succeeds on attempt 0.
+            session.StateMachine.ReconnectWithBudgetAsync = null;
             session.StateMachine.ReconnectAsync = _ =>
                 Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -564,6 +565,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // Force reconnect attempts to fail so the state machine
             // proceeds to Failover.
+            session.StateMachine.ReconnectWithBudgetAsync = null;
             session.StateMachine.ReconnectAsync = _ =>
                 Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -659,9 +661,9 @@ namespace Opc.Ua.Sessions.Tests
             var handler = new SubscriptionRecordingHandler();
             try
             {
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -792,9 +794,9 @@ namespace Opc.Ua.Sessions.Tests
             var recordingHandler = new SubscriptionRecordingHandler();
             try
             {
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     recordingHandler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -839,6 +841,7 @@ namespace Opc.Ua.Sessions.Tests
                 // proceeds to Failover, which now drives
                 // Session.RecreateInPlaceAsync against the failover
                 // endpoint and rotates the server-side session id.
+                session.StateMachine.ReconnectWithBudgetAsync = null;
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -972,9 +975,9 @@ namespace Opc.Ua.Sessions.Tests
             var handler = new SubscriptionRecordingHandler();
             try
             {
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -1056,7 +1059,7 @@ namespace Opc.Ua.Sessions.Tests
                 // SubscriptionManager type is internal but accessible
                 // to this test project via InternalsVisibleTo.
                 var concreteManager =
-                    (Opc.Ua.Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
+                    (Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
                 concreteManager.TransferSubscriptionsOnRecreate = true;
 
                 int snapshotCountBeforeTransfer = handler.DataChangeCount;
@@ -1131,15 +1134,15 @@ namespace Opc.Ua.Sessions.Tests
                 // After connect the V2 manager must already report the
                 // opt-in flag set.
                 var manager =
-                    (Opc.Ua.Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
+                    (Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
                 Assert.That(
                     manager.TransferSubscriptionsOnRecreate, Is.True,
                     "Builder.WithTransferSubscriptionsOnRecreate must " +
                     "set V2 SubscriptionManager.TransferSubscriptionsOnRecreate.");
 
-                Opc.Ua.Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                Client.Subscriptions.ISubscription subscription = session.AddSubscription(
                     handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingEnabled = true,
                         PublishingInterval = TimeSpan.FromMilliseconds(250),
@@ -1176,6 +1179,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 // Force a failover via the same fake-reconnect technique
                 // as SubscriptionRecoversAfterFailover.
+                session.StateMachine.ReconnectWithBudgetAsync = null;
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(
                         new ServiceResult(StatusCodes.BadNotConnected));
@@ -1235,12 +1239,12 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
-        /// Test double for <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler"/>
+        /// Test double for <see cref="Client.Subscriptions.ISubscriptionNotificationHandler"/>
         /// that records data-change/keep-alive/event counts and exposes a
         /// resettable signal for "data has arrived since reset".
         /// </summary>
         private sealed class SubscriptionRecordingHandler
-            : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+            : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             private TaskCompletionSource<bool> m_dataSignal
                 = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1271,11 +1275,11 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnDataChangeNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 Interlocked.Add(ref DataChangeCount, notification.Length);
@@ -1284,11 +1288,11 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnEventDataNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 Interlocked.Add(ref EventCount, notification.Length);
@@ -1296,19 +1300,19 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnKeepAliveNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+                Client.Subscriptions.PublishState publishStateMask)
             {
                 Interlocked.Increment(ref KeepAliveCount);
                 return default;
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;

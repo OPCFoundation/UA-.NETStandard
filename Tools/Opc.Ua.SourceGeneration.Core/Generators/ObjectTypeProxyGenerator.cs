@@ -65,6 +65,7 @@ namespace Opc.Ua.SourceGeneration
         public ObjectTypeProxyGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<ObjectTypeProxyGenerator>();
         }
 
         /// <inheritdoc/>
@@ -75,7 +76,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string outputNamespace = GetOutputNamespace();
 
             string fileName = Path.Combine(
@@ -191,7 +191,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseClass;
             }
-
             string parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
@@ -322,7 +321,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             string typeName = objectType.SymbolicName.Name;
             string className = CoreUtils.Format("{0}Client", typeName);
             string baseClassName = ResolveBaseClassName(objectType);
@@ -482,9 +480,13 @@ namespace Opc.Ua.SourceGeneration
             bool isShadow = (m_inheritedObjectChildNames != null &&
                 m_inheritedObjectChildNames.Contains(emittedName)) ||
                 (m_inheritedMethodNames != null &&
-                m_inheritedMethodNames.Contains(emittedName));
+                    m_inheritedMethodNames.Contains(emittedName));
 
-            context.Template.AddReplacement(Tokens.BrowseName, childBrowseName);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                childBrowseName,
+                m_logger);
             context.Template.AddReplacement(Tokens.TypeName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, clientType);
             context.Template.AddReplacement(Tokens.AccessModifier, isShadow ? "new " : string.Empty);
@@ -503,7 +505,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return s;
             }
-            return char.ToLowerInvariant(s[0]) + s.Substring(1);
+            return char.ToLowerInvariant(s[0]) + s[1..];
         }
 
         /// <summary>
@@ -517,7 +519,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
 
@@ -537,9 +538,7 @@ namespace Opc.Ua.SourceGeneration
             bool isShadow = m_inheritedMethodNames != null &&
                 m_inheritedMethodNames.Contains(methodName + "Async");
 
-            // ----------------------------------------------------------------
             // XML doc and signature
-            // ----------------------------------------------------------------
             context.Out.WriteLine();
             context.Out.WriteLine("/// <summary>");
             context.Out.WriteLine(
@@ -579,13 +578,11 @@ namespace Opc.Ua.SourceGeneration
                 "    global::System.Threading.CancellationToken ct = default)");
             context.Out.WriteLine("{");
 
-            // ----------------------------------------------------------------
             // Argument null checks for non-nullable reference inputs.
             // String inputs are intentionally NOT null-checked here so
             // that callers can pass a null subjectName / privateKeyFormat
             // through to the server (preserving the OPC UA wire
             // semantics for optional string inputs).
-            // ----------------------------------------------------------------
             foreach (Parameter input in inputs)
             {
                 if (RequiresNullCheck(input))
@@ -596,9 +593,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            // ----------------------------------------------------------------
             // Invoke the inherited CallMethodAsync helper with boxed inputs.
-            // ----------------------------------------------------------------
             if (outputs.Length > 0)
             {
                 context.Out.WriteLine(
@@ -622,9 +617,7 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Out.WriteLine(").ConfigureAwait(false);");
 
-            // ----------------------------------------------------------------
             // Unpack the output arguments and produce the typed return value.
-            // ----------------------------------------------------------------
             EmitOutputUnpacking(
                 context,
                 outputs,
@@ -698,7 +691,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
-
             context.Out.WriteLine(
                 "    if (_outputArguments.Count < {0})",
                 outputs.Length);
@@ -914,6 +906,7 @@ namespace Opc.Ua.SourceGeneration
         private const string kRootBaseClass = "global::Opc.Ua.ObjectTypeClient";
 
         private readonly IGeneratorContext m_context;
+        private readonly Microsoft.Extensions.Logging.ILogger m_logger;
         private HashSet<string> m_inheritedMethodNames;
         private HashSet<string> m_inheritedAccessorNames;
         private HashSet<string> m_inheritedObjectChildNames;

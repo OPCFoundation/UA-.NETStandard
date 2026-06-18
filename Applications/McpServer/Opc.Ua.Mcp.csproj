@@ -9,6 +9,10 @@
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Opt into the root Directory.Build.targets no-op shape on
+         per-TFM CI matrix entries that pin CustomTestTarget to a
+         legacy TFM this app cannot target. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <!-- NuGet dotnet tool packaging -->
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
@@ -29,6 +33,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Pcap\Opc.Ua.Bindings.Pcap.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>

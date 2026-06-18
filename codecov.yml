@@ -1,0 +1,44 @@
+# Codecov configuration
+#
+# Validate with:
+#   curl --data-binary @codecov.yml https://codecov.io/validate
+#
+# Tunes the two PR check gates so that small, expected coverage shifts do
+# not block CI while still catching meaningful regressions:
+#
+# - codecov/project: compares the PR's total coverage against the base
+#   commit. Allow up to a 1pp drop so refactors that move covered lines
+#   around (or short-term coverage noise) don't fail CI.
+#
+# - codecov/patch: requires the changed lines themselves to be covered.
+#   Aligned with the repo rule "all projects should have at least 80%
+#   coverage" but with a 5pp tolerance for genuinely tricky patches.
+coverage:
+  precision: 2
+  round: down
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        if_ci_failed: error
+        only_pulls: true
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+        if_ci_failed: error
+        only_pulls: true
+
+# Exclude code that should not count against coverage targets.
+ignore:
+  - "Tests/**"
+  - "Applications/**"
+  - "**/obj/**"
+  - "**/bin/**"
+  - "**/*.g.cs"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false

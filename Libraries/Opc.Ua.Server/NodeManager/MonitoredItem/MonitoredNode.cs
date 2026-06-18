@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
 
             if (m_useMultipleConsumers)
             {
-                m_additionalConsumers = new List<ConsumerEntry>();
+                m_additionalConsumers = [];
             }
         }
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server
                     m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
-                (ServiceResult readError, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
+                (_, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
                     context,
                     attributeId,
                     default,
@@ -473,7 +473,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static (NodeId EventTypeId, NodeId SourceNodeId) ExtractEventIdentity(IFilterTarget filterTarget)
         {
-            BaseEventState? baseEventState = filterTarget as BaseEventState;
+            var baseEventState = filterTarget as BaseEventState;
             if (baseEventState == null && filterTarget is InstanceStateSnapshot snapshot)
             {
                 baseEventState = snapshot.Handle as BaseEventState;
@@ -858,7 +858,7 @@ namespace Opc.Ua.Server
                     ConsumerEntry[] entries;
                     lock (m_additionalConsumersLock)
                     {
-                        entries = m_additionalConsumers.ToArray();
+                        entries = [.. m_additionalConsumers];
                         m_additionalConsumers.Clear();
                     }
 
@@ -883,7 +883,9 @@ namespace Opc.Ua.Server
                             {
                                 Task.WaitAll(tasks);
                             }
-                            catch { }
+                            catch
+                            {
+                            }
                         }
                     }
                     catch (Exception ex)
