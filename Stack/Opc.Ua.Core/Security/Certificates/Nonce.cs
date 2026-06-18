@@ -113,7 +113,7 @@ namespace Opc.Ua
                     ikm[ii] ^= previousSecret[ii];
                 }
             }
-            
+
             #if OPCUA_CryptoTrace
             CryptoTrace.WriteLine($"IKM-XOR={CryptoTrace.KeyToString(ikm)}");
             CryptoTrace.Finish("GenerateSecret");
@@ -202,7 +202,7 @@ namespace Opc.Ua
                     output[pos++] = hash[ii];
                 }
             }
-            
+
             #if OPCUA_CryptoTrace
             CryptoTrace.WriteLine($"KeyData={CryptoTrace.KeyToString(output)}");
             CryptoTrace.Finish("DeriveKeyData");

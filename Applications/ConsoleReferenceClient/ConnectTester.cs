@@ -129,7 +129,7 @@ namespace Quickstarts
                     s_settings.ServerUrl,
                     ct).ConfigureAwait(false);
 
-                if (!String.IsNullOrEmpty(s_settings.SecurityPolicyFilter))
+                if (!string.IsNullOrEmpty(s_settings.SecurityPolicyFilter))
                 {
                     endpoints = endpoints
                         .Filter(x => x != null &&
@@ -169,7 +169,7 @@ namespace Quickstarts
                     {
                         string userCertificateFile = GetUserCertificateFile(securityPolicyUri, ii.UserIdentityTokens);
 
-                        if (!String.IsNullOrEmpty(userCertificateFile))
+                        if (!string.IsNullOrEmpty(userCertificateFile))
                         {
                             X509Certificate2 x509 = X509CertificateLoader.LoadPkcs12FromFile(
                                 Path.Combine(s_settings.UserCertificatePath, userCertificateFile),
@@ -545,7 +545,7 @@ namespace Quickstarts
 
             if (securityPolicy == null)
             {
-                return "";
+                return string.Empty;
             }
 
             var policies = new List<UserTokenPolicy>(userTokenPolicies.ToArray()!);
@@ -556,13 +556,12 @@ namespace Quickstarts
                 {
                     var tokenSecurityPolicy = SecurityPolicies.GetInfo(policy.SecurityPolicyUri!);
 
-                    if (tokenSecurityPolicy != null && tokenSecurityPolicy.CertificateKeyFamily == securityPolicy.CertificateKeyFamily)
+                    if (tokenSecurityPolicy != null &&
+                        tokenSecurityPolicy.CertificateKeyFamily == securityPolicy.CertificateKeyFamily &&
+                        tokenSecurityPolicy.SecureChannelEnhancements == securityPolicy.SecureChannelEnhancements)
                     {
-                        if (tokenSecurityPolicy.SecureChannelEnhancements == securityPolicy.SecureChannelEnhancements)
-                        {
-                            securityPolicy = tokenSecurityPolicy;
-                            break;
-                        }
+                        securityPolicy = tokenSecurityPolicy;
+                        break;
                     }
                 }
             }

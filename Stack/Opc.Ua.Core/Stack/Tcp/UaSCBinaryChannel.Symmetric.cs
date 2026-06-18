@@ -174,7 +174,11 @@ namespace Opc.Ua.Bindings
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
-            m_logger.LogInformation(
+            CryptoTrace.Start(ConsoleColor.Green, "CreateToken");
+            CryptoTrace.WriteLine($"#{token.TokenId}:{token.TokenId}={token.Lifetime}ms");
+            CryptoTrace.Finish("CreateToken");
+
+            m_logger.LogWarning(
                 "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.CreatedAt,
@@ -199,7 +203,7 @@ namespace Opc.Ua.Bindings
 
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 
-            m_logger.LogInformation(
+            m_logger.LogWarning(
                 "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
@@ -317,7 +321,7 @@ namespace Opc.Ua.Bindings
             int length)
         {
             #if OPCUA_CryptoTrace
-            CryptoTrace.WriteLine($"DeriveKeys for {((isServer) ? "SERVER" : "CLIENT")}");
+            CryptoTrace.WriteLine($"DeriveKeys for {(isServer ? "SERVER" : "CLIENT")}");
             #endif
 
             SecurityPolicyInfo tokenPolicy = token.SecurityPolicy!;

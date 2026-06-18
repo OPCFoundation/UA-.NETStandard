@@ -92,7 +92,7 @@
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
     <ChannelLifetime>30000</ChannelLifetime>
-    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
+    <SecurityTokenLifetime>30000</SecurityTokenLifetime>
   </TransportQuotas>
   <ClientConfiguration>
     <DefaultSessionTimeout>60000</DefaultSessionTimeout>

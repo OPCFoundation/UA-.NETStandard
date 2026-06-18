@@ -242,7 +242,7 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     clientNonce);
             }
-            
+
             #if OPCUA_CryptoTrace
             CryptoTrace.Start(ConsoleColor.Yellow, "UserTokenSignatureData");
             CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
@@ -357,7 +357,7 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     clientNonce);
             }
-            
+
             #if OPCUA_CryptoTrace
             CryptoTrace.Start(ConsoleColor.Yellow, "ClientSignatureData");
             CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");

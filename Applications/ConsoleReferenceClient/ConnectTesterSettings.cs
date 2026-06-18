@@ -62,7 +62,7 @@ namespace Quickstarts
 
         public string Password { get; set; } = "demo";
 
-        public string SecurityPolicyFilter { get; set; } = "";
+        public string SecurityPolicyFilter { get; set; } = string.Empty;
 
         public bool SupportsX509 { get; set; } = true;
 

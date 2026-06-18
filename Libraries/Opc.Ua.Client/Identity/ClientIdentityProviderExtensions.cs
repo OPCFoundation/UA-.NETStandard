@@ -132,7 +132,7 @@ namespace Opc.Ua.Identity
                 }
                 else if (tokenSecurityPolicyUri == SecurityPolicies.None &&
                          policy.SecurityPolicyUri != SecurityPolicies.None &&
-                         !String.IsNullOrEmpty(policy.SecurityPolicyUri))
+                         !string.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
                     sameEncryptionAlgorithm ??= policy;
                 }

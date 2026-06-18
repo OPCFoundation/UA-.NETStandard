@@ -173,7 +173,7 @@ namespace Opc.Ua
             out byte[] iv)
         {
             #if OPCUA_CryptoTrace
-            CryptoTrace.Start(ConsoleColor.Blue, $"EncryptedSecret {((forDecryption) ? "DECRYPT" : "ENCRYPT")}");
+            CryptoTrace.Start(ConsoleColor.Blue, $"EncryptedSecret {(forDecryption ? "DECRYPT" : "ENCRYPT")}");
             CryptoTrace.WriteLine($"SecurityPolicy={securityPolicy.Name}");
             CryptoTrace.WriteLine($"LocalNonce={CryptoTrace.KeyToString(localNonce.Data ?? [])}");
             CryptoTrace.WriteLine($"RemoteNonce={CryptoTrace.KeyToString(remoteNonce.Data ?? [])}");
@@ -896,6 +896,11 @@ namespace Opc.Ua
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
+            if (length > dataToDecrypt.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
             SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null)!) ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
 
             if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
@@ -1044,6 +1049,11 @@ namespace Opc.Ua
             }
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
+
+            if (length > dataToDecrypt.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
 
             SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null)!) ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
 

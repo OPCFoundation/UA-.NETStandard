@@ -610,7 +610,7 @@ namespace Opc.Ua.Bindings
 
                 // don't keep signature if secure channel enhancements are not used.
                 m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
-                
+
                 #if OPCUA_CryptoTrace
                 CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelRequest ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
                 CryptoTrace.WriteLine($"ClientCertificate={clientCertificate?.Thumbprint}");

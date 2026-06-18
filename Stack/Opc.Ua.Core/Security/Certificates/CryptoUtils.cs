@@ -849,7 +849,7 @@ namespace Opc.Ua
                 tag,
                 signOnly ? [] : plaintext,
                 extraData);
-                
+
 #if OPCUA_CryptoTrace
             CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithChaCha20Poly1305");
             CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kChaChaPolyTagLength}");
@@ -1208,10 +1208,10 @@ namespace Opc.Ua
             }
             else
             {
-                return String.Empty;
+                return string.Empty;
             }
 #else
-            return String.Empty;
+            return string.Empty;
 #endif
         }
 
@@ -1249,10 +1249,10 @@ namespace Opc.Ua
             }
             else
             {
-                return String.Empty;
+                return string.Empty;
             }
 #else
-            return String.Empty;
+            return string.Empty;
 #endif
         }
     }

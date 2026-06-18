@@ -135,8 +135,11 @@ namespace Quickstarts.ReferenceServer
 
                 using var telemetry = new ConsoleTelemetry();
                 ILogger logger = LoggerUtils.Null.Logger;
+
                 try
                 {
+                    Opc.Ua.CryptoTrace.Enabled = false;
+
                     // log console output to logger
                     if (logConsole && appLog)
                     {
