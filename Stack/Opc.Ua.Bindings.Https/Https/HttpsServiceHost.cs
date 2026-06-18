@@ -288,6 +288,35 @@ namespace Opc.Ua.Bindings
                         };
                         endpoints.Add(openApiTwin);
                     }
+
+                    // Discovery-only emission for the JSON sub-profile
+                    // (HttpsJsonTransport / UaWssJsonTransport, Part 6 §7.4.5
+                    // and §7.5.2). The JSON sub-protocol shares the
+                    // listener URL with its binary counterpart and is
+                    // selected at request time via Content-Type (HTTPS) or
+                    // Sec-WebSocket-Protocol (WSS). Like the OpenAPI twin
+                    // above, we surface the profile in GetEndpoints so
+                    // discovery clients can see it, but we do NOT register
+                    // a callable separate endpoint — the existing binary
+                    // listener handles the JSON content negotiation. JSON
+                    // is SecurityMode=None by spec (transport security via
+                    // TLS) so we only twin off the SM=None binary endpoint.
+                    if (description.SecurityMode == MessageSecurityMode.None &&
+                        JsonTransportProfileUri is { Length: > 0 } jsonUri)
+                    {
+                        var jsonTwin = new EndpointDescription
+                        {
+                            EndpointUrl = description.EndpointUrl,
+                            Server = description.Server,
+                            ServerCertificate = description.ServerCertificate,
+                            SecurityMode = MessageSecurityMode.None,
+                            SecurityPolicyUri = SecurityPolicies.None,
+                            SecurityLevel = description.SecurityLevel,
+                            UserIdentityTokens = description.UserIdentityTokens,
+                            TransportProfileUri = jsonUri
+                        };
+                        endpoints.Add(jsonTwin);
+                    }
                 }
                 else
                 {

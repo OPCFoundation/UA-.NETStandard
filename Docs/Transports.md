@@ -189,11 +189,14 @@ and WSS+uacp the description includes the correct `TransportProfileUri`
 respectively). The JSON sub-protocols are reachable on the same URL as
 their binary counterparts and clients select them explicitly via the
 `Content-Type` header (HTTPS) or the `Sec-WebSocket-Protocol` header
-(WSS). Explicit discovery emission for the JSON profiles is tracked as
-a follow-up; for now clients that want JSON construct the
-`EndpointDescription` themselves with
-`TransportProfileUri = Profiles.HttpsJsonTransport` /
-`Profiles.UaWssJsonTransport`.
+(WSS). The HTTPS / WSS service hosts also emit a discovery-only
+**JSON-twin** `EndpointDescription` (`TransportProfileUri =
+Profiles.HttpsJsonTransport` / `Profiles.UaWssJsonTransport`,
+`SecurityMode = None`) for every `SecurityMode = None` binary endpoint,
+so JSON-aware clients see the profile in `GetEndpoints` without needing
+to construct the description themselves. The twin is discovery-only
+(no separate listener) — the existing binary listener handles content
+negotiation.
 
 ## Opt-in: Kestrel-hosted `opc.tcp`
 

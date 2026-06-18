@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.WebApi
         public WebApiEncoding Encoding => m_options.Encoding;
 
         /// <inheritdoc/>
-        public async Task<TResponse> InvokeAsync<TRequest, TResponse>(
+        public async ValueTask<TResponse> InvokeAsync<TRequest, TResponse>(
             TRequest request,
             CancellationToken ct = default)
             where TRequest : IServiceRequest, new()
@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.WebApi
             "Routes to WebApiBodyCodec.DecodeBodyAsync(Type, ...) which constructs an " +
             "instance of route.ResponseType via Activator.CreateInstance. Callers that need " +
             "AOT should use the generic InvokeAsync<TRequest, TResponse> overload instead.")]
-        public Task<IServiceResponse> InvokeRouteAsync(
+        public ValueTask<IServiceResponse> InvokeRouteAsync(
             WebApiServiceRoute route,
             IServiceRequest request,
             CancellationToken ct = default)
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client.WebApi
             "IL2026:RequiresUnreferencedCode",
             Justification = "Generic InvokeAsync<,> roots TResponse statically; non-generic " +
                 "InvokeRouteAsync propagates the RequiresUnreferencedCode attribute to its callers.")]
-        private async Task<IServiceResponse> InvokeRouteUnsafeAsync(
+        private async ValueTask<IServiceResponse> InvokeRouteUnsafeAsync(
             WebApiServiceRoute route,
             IServiceRequest request,
             CancellationToken ct)
@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.WebApi
         // Strongly-typed delegates =====================================
 
         /// <inheritdoc/>
-        public Task<ReadResponse> ReadAsync(
+        public ValueTask<ReadResponse> ReadAsync(
             ReadRequest request,
             CancellationToken ct = default)
         {
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<WriteResponse> WriteAsync(
+        public ValueTask<WriteResponse> WriteAsync(
             WriteRequest request,
             CancellationToken ct = default)
         {
@@ -289,7 +289,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<HistoryReadResponse> HistoryReadAsync(
+        public ValueTask<HistoryReadResponse> HistoryReadAsync(
             HistoryReadRequest request,
             CancellationToken ct = default)
         {
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<HistoryUpdateResponse> HistoryUpdateAsync(
+        public ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             HistoryUpdateRequest request,
             CancellationToken ct = default)
         {
@@ -305,7 +305,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<CallResponse> CallAsync(
+        public ValueTask<CallResponse> CallAsync(
             CallRequest request,
             CancellationToken ct = default)
         {
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<BrowseResponse> BrowseAsync(
+        public ValueTask<BrowseResponse> BrowseAsync(
             BrowseRequest request,
             CancellationToken ct = default)
         {
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<BrowseNextResponse> BrowseNextAsync(
+        public ValueTask<BrowseNextResponse> BrowseNextAsync(
             BrowseNextRequest request,
             CancellationToken ct = default)
         {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+        public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             TranslateBrowsePathsToNodeIdsRequest request,
             CancellationToken ct = default)
         {
@@ -337,7 +337,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<RegisterNodesResponse> RegisterNodesAsync(
+        public ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             RegisterNodesRequest request,
             CancellationToken ct = default)
         {
@@ -345,7 +345,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<UnregisterNodesResponse> UnregisterNodesAsync(
+        public ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             UnregisterNodesRequest request,
             CancellationToken ct = default)
         {
@@ -353,7 +353,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<FindServersResponse> FindServersAsync(
+        public ValueTask<FindServersResponse> FindServersAsync(
             FindServersRequest request,
             CancellationToken ct = default)
         {
@@ -361,7 +361,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<GetEndpointsResponse> GetEndpointsAsync(
+        public ValueTask<GetEndpointsResponse> GetEndpointsAsync(
             GetEndpointsRequest request,
             CancellationToken ct = default)
         {
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<CreateSessionResponse> CreateSessionAsync(
+        public ValueTask<CreateSessionResponse> CreateSessionAsync(
             CreateSessionRequest request,
             CancellationToken ct = default)
         {
@@ -377,7 +377,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<ActivateSessionResponse> ActivateSessionAsync(
+        public ValueTask<ActivateSessionResponse> ActivateSessionAsync(
             ActivateSessionRequest request,
             CancellationToken ct = default)
         {
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<CloseSessionResponse> CloseSessionAsync(
+        public ValueTask<CloseSessionResponse> CloseSessionAsync(
             CloseSessionRequest request,
             CancellationToken ct = default)
         {
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<CancelResponse> CancelAsync(
+        public ValueTask<CancelResponse> CancelAsync(
             CancelRequest request,
             CancellationToken ct = default)
         {
@@ -401,7 +401,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             CreateMonitoredItemsRequest request,
             CancellationToken ct = default)
         {
@@ -409,7 +409,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             ModifyMonitoredItemsRequest request,
             CancellationToken ct = default)
         {
@@ -417,7 +417,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+        public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             SetMonitoringModeRequest request,
             CancellationToken ct = default)
         {
@@ -425,7 +425,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<SetTriggeringResponse> SetTriggeringAsync(
+        public ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             SetTriggeringRequest request,
             CancellationToken ct = default)
         {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             DeleteMonitoredItemsRequest request,
             CancellationToken ct = default)
         {
@@ -441,7 +441,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        public ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             CreateSubscriptionRequest request,
             CancellationToken ct = default)
         {
@@ -449,7 +449,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             ModifySubscriptionRequest request,
             CancellationToken ct = default)
         {
@@ -457,7 +457,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<SetPublishingModeResponse> SetPublishingModeAsync(
+        public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             SetPublishingModeRequest request,
             CancellationToken ct = default)
         {
@@ -465,7 +465,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<PublishResponse> PublishAsync(
+        public ValueTask<PublishResponse> PublishAsync(
             PublishRequest request,
             CancellationToken ct = default)
         {
@@ -473,7 +473,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<RepublishResponse> RepublishAsync(
+        public ValueTask<RepublishResponse> RepublishAsync(
             RepublishRequest request,
             CancellationToken ct = default)
         {
@@ -481,7 +481,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+        public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             TransferSubscriptionsRequest request,
             CancellationToken ct = default)
         {
@@ -489,7 +489,7 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+        public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             DeleteSubscriptionsRequest request,
             CancellationToken ct = default)
         {

@@ -58,6 +58,29 @@ namespace Opc.Ua.Client.WebApi
     /// <c>UseSession</c> wrapper handles the orchestration and
     /// injects the activation token into subsequent requests.
     /// </para>
+    /// <para>
+    /// <b>Relationship to <c>ISessionClientMethods</c>.</b> The per-service
+    /// async methods on this interface mirror the source-generated
+    /// <c>ISessionClientMethods</c> contract one-for-one in name and
+    /// shape — every method takes a <c>&lt;Service&gt;Request</c> envelope
+    /// and a <c>CancellationToken</c>, and returns a
+    /// <c>ValueTask&lt;&lt;Service&gt;Response&gt;</c>. The two interfaces are
+    /// kept distinct (rather than having <see cref="IWebApiClient"/>
+    /// inherit <c>ISessionClientMethods</c>) for two reasons:
+    /// (1) the WebApi binding is sessionless at the transport layer —
+    /// session lifecycle (CreateSession / ActivateSession / token
+    /// stitching) is layered on top of <c>HttpClient</c> and is not
+    /// modelled by <c>ISessionClient</c>, which assumes a long-lived
+    /// secure-channel session; and
+    /// (2) the WebApi adds a route-driven <see cref="InvokeRouteAsync"/>
+    /// + generic <c>InvokeAsync&lt;TRequest, TResponse&gt;</c> escape
+    /// hatch (for non-AOT and AOT consumers respectively) that has no
+    /// counterpart in the secure-channel client. Aligning the return
+    /// types to <c>ValueTask&lt;T&gt;</c> matches the rest of the modern
+    /// client stack (see <c>SessionClientBatched</c>,
+    /// <c>ManagedSession.Services</c>) so callers can route through
+    /// either contract identically.
+    /// </para>
     /// </remarks>
     public interface IWebApiClient
     {
@@ -85,7 +108,7 @@ namespace Opc.Ua.Client.WebApi
         /// <param name="request">The request body.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The decoded response.</returns>
-        Task<TResponse> InvokeAsync<TRequest, TResponse>(
+        ValueTask<TResponse> InvokeAsync<TRequest, TResponse>(
             TRequest request,
             CancellationToken ct = default)
             where TRequest : IServiceRequest, new()
@@ -105,148 +128,148 @@ namespace Opc.Ua.Client.WebApi
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
             "Constructs route.ResponseType via Activator.CreateInstance. AOT consumers " +
             "should use the generic InvokeAsync<TRequest, TResponse> overload instead.")]
-        Task<IServiceResponse> InvokeRouteAsync(
+        ValueTask<IServiceResponse> InvokeRouteAsync(
             WebApiServiceRoute route,
             IServiceRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Read request.</summary>
-        Task<ReadResponse> ReadAsync(
+        ValueTask<ReadResponse> ReadAsync(
             ReadRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Write request.</summary>
-        Task<WriteResponse> WriteAsync(
+        ValueTask<WriteResponse> WriteAsync(
             WriteRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a HistoryRead request.</summary>
-        Task<HistoryReadResponse> HistoryReadAsync(
+        ValueTask<HistoryReadResponse> HistoryReadAsync(
             HistoryReadRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a HistoryUpdate request.</summary>
-        Task<HistoryUpdateResponse> HistoryUpdateAsync(
+        ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             HistoryUpdateRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Call request.</summary>
-        Task<CallResponse> CallAsync(
+        ValueTask<CallResponse> CallAsync(
             CallRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Browse request.</summary>
-        Task<BrowseResponse> BrowseAsync(
+        ValueTask<BrowseResponse> BrowseAsync(
             BrowseRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a BrowseNext request.</summary>
-        Task<BrowseNextResponse> BrowseNextAsync(
+        ValueTask<BrowseNextResponse> BrowseNextAsync(
             BrowseNextRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a TranslateBrowsePathsToNodeIds request.</summary>
-        Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+        ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             TranslateBrowsePathsToNodeIdsRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a RegisterNodes request.</summary>
-        Task<RegisterNodesResponse> RegisterNodesAsync(
+        ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             RegisterNodesRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends an UnregisterNodes request.</summary>
-        Task<UnregisterNodesResponse> UnregisterNodesAsync(
+        ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             UnregisterNodesRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a FindServers request.</summary>
-        Task<FindServersResponse> FindServersAsync(
+        ValueTask<FindServersResponse> FindServersAsync(
             FindServersRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a GetEndpoints request.</summary>
-        Task<GetEndpointsResponse> GetEndpointsAsync(
+        ValueTask<GetEndpointsResponse> GetEndpointsAsync(
             GetEndpointsRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a CreateSession request.</summary>
-        Task<CreateSessionResponse> CreateSessionAsync(
+        ValueTask<CreateSessionResponse> CreateSessionAsync(
             CreateSessionRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends an ActivateSession request.</summary>
-        Task<ActivateSessionResponse> ActivateSessionAsync(
+        ValueTask<ActivateSessionResponse> ActivateSessionAsync(
             ActivateSessionRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a CloseSession request.</summary>
-        Task<CloseSessionResponse> CloseSessionAsync(
+        ValueTask<CloseSessionResponse> CloseSessionAsync(
             CloseSessionRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Cancel request.</summary>
-        Task<CancelResponse> CancelAsync(
+        ValueTask<CancelResponse> CancelAsync(
             CancelRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a CreateMonitoredItems request.</summary>
-        Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             CreateMonitoredItemsRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a ModifyMonitoredItems request.</summary>
-        Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             ModifyMonitoredItemsRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a SetMonitoringMode request.</summary>
-        Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+        ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             SetMonitoringModeRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a SetTriggering request.</summary>
-        Task<SetTriggeringResponse> SetTriggeringAsync(
+        ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             SetTriggeringRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a DeleteMonitoredItems request.</summary>
-        Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             DeleteMonitoredItemsRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a CreateSubscription request.</summary>
-        Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             CreateSubscriptionRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a ModifySubscription request.</summary>
-        Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             ModifySubscriptionRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a SetPublishingMode request.</summary>
-        Task<SetPublishingModeResponse> SetPublishingModeAsync(
+        ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             SetPublishingModeRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Publish request (server-side long-poll).</summary>
-        Task<PublishResponse> PublishAsync(
+        ValueTask<PublishResponse> PublishAsync(
             PublishRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a Republish request.</summary>
-        Task<RepublishResponse> RepublishAsync(
+        ValueTask<RepublishResponse> RepublishAsync(
             RepublishRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a TransferSubscriptions request.</summary>
-        Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+        ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             TransferSubscriptionsRequest request,
             CancellationToken ct = default);
 
         /// <summary>Sends a DeleteSubscriptions request.</summary>
-        Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+        ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             DeleteSubscriptionsRequest request,
             CancellationToken ct = default);
     }
