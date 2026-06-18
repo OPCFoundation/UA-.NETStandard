@@ -231,8 +231,22 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
         /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct)
         {
-            if (Interlocked.CompareExchange(ref m_state, StateStopped, StateRunning) !=
-                StateRunning)
+            // The state may already be StateStopped if EnqueueFrame's
+            // byte/frame/duration cap self-stop path transitioned it;
+            // we MUST still drain the worker and dispose the writers
+            // in that case so any frames queued before the cap was hit
+            // are flushed to disk. Without this, a race where the cap
+            // is exceeded before the explicit StopAsync call leaves
+            // the pcap file empty (observed in macOS net10.0 CI:
+            // MaxBytesCapStopsAcceptingFramesAfterLimit fails with
+            // 0 records when the worker hasn't yet dequeued the
+            // pre-cap frame). Use m_workerTask itself as the
+            // single-shot drain guard: Interlocked.Exchange ensures
+            // exactly one StopAsync call performs the teardown.
+            Interlocked.Exchange(ref m_state, StateStopped);
+
+            Task? workerTask = Interlocked.Exchange(ref m_workerTask, null);
+            if (workerTask is null)
             {
                 return;
             }
@@ -242,33 +256,29 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
 
             // Drain the worker.
             m_queue?.Writer.TryComplete();
-            if (m_workerTask is not null)
+            try
             {
-                try
-                {
-                    await m_workerTask.ConfigureAwait(false);
-                }
-                catch
-                {
-                    // best effort drain
-                }
-                m_workerTask = null;
+                await workerTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // best effort drain
             }
 
-            if (m_pcapWriter is not null)
+            PcapFileWriter? pcapWriter = Interlocked.Exchange(ref m_pcapWriter, null);
+            if (pcapWriter is not null)
             {
-                await m_pcapWriter.DisposeAsync().ConfigureAwait(false);
-                m_pcapWriter = null;
+                await pcapWriter.DisposeAsync().ConfigureAwait(false);
             }
-            if (m_jsonKeyWriter is not null)
+            UaKeyLogJsonWriter? jsonKeyWriter = Interlocked.Exchange(ref m_jsonKeyWriter, null);
+            if (jsonKeyWriter is not null)
             {
-                await m_jsonKeyWriter.DisposeAsync().ConfigureAwait(false);
-                m_jsonKeyWriter = null;
+                await jsonKeyWriter.DisposeAsync().ConfigureAwait(false);
             }
-            if (m_textKeyWriter is not null)
+            UaKeyLogTextWriter? textKeyWriter = Interlocked.Exchange(ref m_textKeyWriter, null);
+            if (textKeyWriter is not null)
             {
-                await m_textKeyWriter.DisposeAsync().ConfigureAwait(false);
-                m_textKeyWriter = null;
+                await textKeyWriter.DisposeAsync().ConfigureAwait(false);
             }
 
             ct.ThrowIfCancellationRequested();
