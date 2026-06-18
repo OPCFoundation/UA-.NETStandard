@@ -78,17 +78,35 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             byte[] encryptingKey = BuildKey(0x20, 32);
             byte[] keyNonce = BuildKey(0x30, 12);
 
-            var key = new PubSubSecurityKey(
-                TokenId,
-                ByteString.Create(signingKey),
-                ByteString.Create(encryptingKey),
-                ByteString.Create(keyNonce),
-                DateTimeUtc.From(DateTime.UtcNow),
-                TimeSpan.FromHours(24));
+            PubSubSecurityKey? key = null;
+            PubSubSecurityKeyRing? ring = null;
+            try
+            {
+                key = new PubSubSecurityKey(
+                    TokenId,
+                    ByteString.Create(signingKey),
+                    ByteString.Create(encryptingKey),
+                    ByteString.Create(keyNonce),
+                    DateTimeUtc.From(DateTime.UtcNow),
+                    TimeSpan.FromHours(24));
 
-            var ring = new PubSubSecurityKeyRing(SecurityGroupId, timeProvider);
-            ring.SetCurrent(key);
-            return new StaticSecurityKeyProvider(SecurityGroupId, ring);
+                ring = new PubSubSecurityKeyRing(SecurityGroupId, timeProvider);
+                ring.SetCurrent(key);
+                // Ownership of the key transfers to the ring; null out the
+                // local so it is not disposed here on the success path.
+                key = null;
+
+                var provider = new StaticSecurityKeyProvider(SecurityGroupId, ring);
+                // Ownership of the ring transfers to the returned provider,
+                // which lives for the application lifetime.
+                ring = null;
+                return provider;
+            }
+            finally
+            {
+                ring?.Dispose();
+                key?.Dispose();
+            }
         }
 
         private static byte[] BuildKey(byte seed, int length)

@@ -137,21 +137,49 @@ namespace Opc.Ua.PubSub.Udp.Tests
             // Start the subscriber receive loop before publishing.
             using var receiveCts = new CancellationTokenSource(
                 TimeSpan.FromSeconds(15));
+            // CA2025 false positive: the try/finally below guarantees the
+            // reassembly task (which observes 'subscriber' and 'reassembler')
+            // has completed before either disposable leaves scope, on both the
+            // success and exception paths. The analyzer cannot prove the
+            // completion through the finally, so suppress at the call site.
+#pragma warning disable CA2025
             Task<byte[]?> reassemblyTask = ReadUntilCompleteAsync(
                 subscriber, reassembler, publisherId, receiveCts.Token);
+#pragma warning restore CA2025
 
-            for (int i = 0; i < chunks.Count; i++)
+            byte[]? reassembled;
+            try
             {
-                await publisher.SendAsync(chunks[i]).ConfigureAwait(false);
-                if ((i % 32) == 31)
+                for (int i = 0; i < chunks.Count; i++)
                 {
-                    // Give the receive loop time to drain to avoid
-                    // the kernel UDP buffer overflowing.
-                    await Task.Delay(5).ConfigureAwait(false);
+                    await publisher.SendAsync(chunks[i]).ConfigureAwait(false);
+                    if ((i % 32) == 31)
+                    {
+                        // Give the receive loop time to drain to avoid
+                        // the kernel UDP buffer overflowing.
+                        await Task.Delay(5).ConfigureAwait(false);
+                    }
+                }
+
+                reassembled = await reassemblyTask.ConfigureAwait(false);
+            }
+            finally
+            {
+                // Stop the receive loop and let the task that observes the
+                // subscriber / reassembler finish before those disposables go
+                // out of scope and are disposed (CA2025).
+                if (!reassemblyTask.IsCompleted)
+                {
+                    receiveCts.Cancel();
+                    try
+                    {
+                        await reassemblyTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
                 }
             }
-
-            byte[]? reassembled = await reassemblyTask.ConfigureAwait(false);
 
             if (reassembled is null)
             {
