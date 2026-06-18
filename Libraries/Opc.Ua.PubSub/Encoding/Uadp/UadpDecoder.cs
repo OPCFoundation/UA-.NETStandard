@@ -28,15 +28,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.MetaData;
+
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Opc.Ua.PubSub.Diagnostics;
-    using Opc.Ua.PubSub.MetaData;
-
     /// <summary>
     /// Decoder for UADP NetworkMessages received over a transport.
     /// </summary>
@@ -491,12 +491,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
             }
 
-            if ((ext1 & ExtendedFlags1EncodingMask.DataSetClassIdEnabled) != 0)
+            if ((ext1 & ExtendedFlags1EncodingMask.DataSetClassIdEnabled) != 0 && !reader.TryReadGuid(out _))
             {
-                if (!reader.TryReadGuid(out _))
-                {
-                    return false;
-                }
+                return false;
             }
 
             // Discovery frames are not in scope for security wrapping

@@ -464,25 +464,19 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             switch (builtInType)
             {
                 case BuiltInType.String:
-                {
                     string s = ReadPaddedUtf8(maxStringLength);
                     value = new Variant(s);
                     return true;
-                }
                 case BuiltInType.ByteString:
-                {
                     ByteString bs = ReadPaddedBytes(maxStringLength);
                     value = new Variant(bs);
                     return true;
-                }
                 case BuiltInType.XmlElement:
-                {
                     string xmlText = ReadPaddedUtf8(maxStringLength);
                     XmlElement xml = XmlElement.From(
                         string.IsNullOrEmpty(xmlText) ? null : xmlText);
                     value = new Variant(xml);
                     return true;
-                }
                 default:
                     value = Variant.Null;
                     return false;

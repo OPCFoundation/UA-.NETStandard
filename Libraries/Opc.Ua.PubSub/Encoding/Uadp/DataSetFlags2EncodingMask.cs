@@ -46,9 +46,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// set in DataSetFlags1.
     /// </remarks>
 #pragma warning disable CA1069 // Enums values should not be duplicated — None and KeyFrame both encode the zero
-                               // nibble; spec mandates KeyFrame as the zero pattern so the duplication is intentional.
+    // nibble; spec mandates KeyFrame as the zero pattern so the duplication is intentional.
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 163 uses both single-bit flags AND a
-                               // bitmask helper (MessageTypeMask = 0x0F); [Flags] reflects the spec semantics.
+    // bitmask helper (MessageTypeMask = 0x0F); [Flags] reflects the spec semantics.
     [Flags]
     public enum DataSetFlags2EncodingMask : byte
     {
@@ -57,12 +57,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// (type value 0) with no per-message timestamp or picoseconds.
         /// </summary>
         None = 0,
-
-        /// <summary>
-        /// Mask isolating the low 4 bits which encode the
-        /// <see cref="PubSubDataSetMessageType"/> wire value.
-        /// </summary>
-        MessageTypeMask = 0x0F,
 
         /// <summary>
         /// Bit pattern <c>0000</c> — KeyFrame DataSetMessage.
@@ -83,6 +77,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Bit pattern <c>0011</c> — KeepAlive DataSetMessage.
         /// </summary>
         KeepAlive = 0x03,
+
+        /// <summary>
+        /// Mask isolating the low 4 bits which encode the
+        /// <see cref="PubSubDataSetMessageType"/> wire value.
+        /// </summary>
+        MessageTypeMask = 0x0F,
 
         /// <summary>
         /// Bit 4 — per-message Timestamp enabled (UA <c>DateTime</c>).

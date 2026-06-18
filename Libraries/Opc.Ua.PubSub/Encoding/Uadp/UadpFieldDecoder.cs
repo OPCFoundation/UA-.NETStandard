@@ -197,28 +197,26 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         };
                     }
                 case PubSubFieldEncoding.DataValue:
+                    DataValue dv;
+                    try
                     {
-                        DataValue dv;
-                        try
-                        {
-                            dv = reader.ReadDataValue(context);
-                        }
-                        catch
-                        {
-                            return null;
-                        }
-                        return new DataSetField
-                        {
-                            Name = name,
-                            Value = dv.WrappedValue,
-                            StatusCode = dv.StatusCode,
-                            SourceTimestamp = dv.SourceTimestamp,
-                            SourcePicoSeconds = dv.SourcePicoseconds,
-                            ServerTimestamp = dv.ServerTimestamp,
-                            ServerPicoSeconds = dv.ServerPicoseconds,
-                            Encoding = PubSubFieldEncoding.DataValue
-                        };
+                        dv = reader.ReadDataValue(context);
                     }
+                    catch
+                    {
+                        return null;
+                    }
+                    return new DataSetField
+                    {
+                        Name = name,
+                        Value = dv.WrappedValue,
+                        StatusCode = dv.StatusCode,
+                        SourceTimestamp = dv.SourceTimestamp,
+                        SourcePicoSeconds = dv.SourcePicoseconds,
+                        ServerTimestamp = dv.ServerTimestamp,
+                        ServerPicoSeconds = dv.ServerPicoseconds,
+                        Encoding = PubSubFieldEncoding.DataValue
+                    };
                 case PubSubFieldEncoding.RawData:
                     {
                         if (fmd is null)

@@ -28,13 +28,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Microsoft.Extensions.Options;
+
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Threading;
-    using Microsoft.Extensions.Options;
-
     /// <summary>
     /// Resource limits for <see cref="UadpReassembler"/>.
     /// </summary>

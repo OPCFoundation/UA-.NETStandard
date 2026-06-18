@@ -515,24 +515,18 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             switch (builtInType)
             {
                 case BuiltInType.String:
-                {
                     value.TryGetValue(out string? s);
                     WritePaddedUtf8(s ?? string.Empty, maxStringLength);
                     return true;
-                }
                 case BuiltInType.ByteString:
-                {
                     value.TryGetValue(out ByteString bs);
                     WritePaddedBytes(bs, maxStringLength);
                     return true;
-                }
                 case BuiltInType.XmlElement:
-                {
                     value.TryGetValue(out XmlElement xml);
                     string text = xml.IsNull ? string.Empty : (xml.OuterXml ?? string.Empty);
                     WritePaddedUtf8(text, maxStringLength);
                     return true;
-                }
                 default:
                     return false;
             }

@@ -777,11 +777,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 case PublisherIdType.Guid:
                     return 16;
                 case PublisherIdType.String:
-                {
                     string? s = publisherId.TryGetString(out string? str) ? str : null;
                     int byteLen = s is null ? 0 : System.Text.Encoding.UTF8.GetByteCount(s);
                     return 4 + byteLen;
-                }
                 default:
                     throw new InvalidOperationException(
                         $"Unsupported PublisherIdType {type}.");

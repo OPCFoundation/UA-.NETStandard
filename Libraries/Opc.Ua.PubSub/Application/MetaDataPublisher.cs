@@ -429,7 +429,7 @@ namespace Opc.Ua.PubSub.Application
             bool hasVersion = meta.ConfigurationVersion is not null
                 && (meta.ConfigurationVersion.MajorVersion != 0
                     || meta.ConfigurationVersion.MinorVersion != 0);
-            return (hasFields || hasVersion) ? meta : null;
+            return hasFields || hasVersion ? meta : null;
         }
 
         private static string TransportProfileFamily(string profile)

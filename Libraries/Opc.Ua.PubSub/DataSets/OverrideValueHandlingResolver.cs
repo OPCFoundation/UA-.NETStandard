@@ -97,7 +97,6 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 case OverrideValueHandling.Disabled:
                     return hasIncoming ? ToDataValue(incoming!) : DataValue.Null;
-
                 case OverrideValueHandling.LastUsableValue:
                     if (hasIncoming && !incomingIsBad)
                     {
@@ -112,14 +111,12 @@ namespace Opc.Ua.PubSub.DataSets
                         return new DataValue(overrideValue);
                     }
                     return DataValue.Null;
-
                 case OverrideValueHandling.OverrideValue:
                     if (hasIncoming && !incomingIsBad)
                     {
                         return ToDataValue(incoming!);
                     }
                     return new DataValue(overrideValue);
-
                 default:
                     return hasIncoming ? ToDataValue(incoming!) : DataValue.Null;
             }

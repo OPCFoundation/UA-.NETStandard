@@ -45,9 +45,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// <see cref="MessageIsValid"/> bit is zero.
     /// </remarks>
 #pragma warning disable CA1069 // Enums values should not be duplicated — None and FieldEncoding00 both encode "no
-                               // bits set"; spec encodes Variant as the zero pattern so the duplication is intentional.
+    // bits set"; spec encodes Variant as the zero pattern so the duplication is intentional.
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 162 uses both single-bit flags AND a
-                               // bitmask helper (FieldEncodingMask = 0x06); [Flags] reflects the spec semantics.
+    // bitmask helper (FieldEncodingMask = 0x06); [Flags] reflects the spec semantics.
     [Flags]
     public enum DataSetFlags1EncodingMask : byte
     {
@@ -58,16 +58,16 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         None = 0,
 
         /// <summary>
-        /// Bit 0 — MessageIsValid. Decoders MUST drop DataSetMessages
-        /// without this bit.
-        /// </summary>
-        MessageIsValid = 0x01,
-
-        /// <summary>
         /// Bits 1-2 = <c>00</c> — fields encoded as UA
         /// <see cref="Variant"/> values.
         /// </summary>
         FieldEncoding00 = 0x00,
+
+        /// <summary>
+        /// Bit 0 — MessageIsValid. Decoders MUST drop DataSetMessages
+        /// without this bit.
+        /// </summary>
+        MessageIsValid = 0x01,
 
         /// <summary>
         /// Bits 1-2 = <c>01</c> — fields encoded as <c>RawData</c>

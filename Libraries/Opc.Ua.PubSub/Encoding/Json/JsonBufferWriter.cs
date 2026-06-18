@@ -28,11 +28,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Buffers;
+
 namespace Opc.Ua.PubSub.Encoding.Json
 {
-    using System;
-    using System.Buffers;
-
     /// <summary>
     /// Pooled <see cref="IBufferWriter{T}"/> implementation that backs
     /// <see cref="System.Text.Json.Utf8JsonWriter"/> across all target

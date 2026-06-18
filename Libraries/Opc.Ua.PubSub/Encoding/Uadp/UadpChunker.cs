@@ -28,11 +28,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
-    using System;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Splits an encoded UADP NetworkMessage into wire-bounded chunks
     /// and re-emits them as self-contained chunk frames.

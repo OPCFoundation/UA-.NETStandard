@@ -942,7 +942,7 @@ namespace OpcUaPubSubJsonTests
             // null/empty field name always returns true (spec behaviour: check current scope)
             using var dec = MakeDecoder("{}");
             Assert.That(dec.HasField(null), Is.True);
-            Assert.That(dec.HasField(""), Is.True);
+            Assert.That(dec.HasField(string.Empty), Is.True);
         }
 
         // ── Encoder properties and Close ───────────────────────────────────────

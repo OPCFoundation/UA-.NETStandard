@@ -105,13 +105,10 @@ namespace Opc.Ua.PubSub.DataSets
             }
             if (!previous.SourceTimestamp.Equals(current.SourceTimestamp)
                 && deadband.DeadbandType != DeadbandType.None
-                && deadband.DeadbandValue > 0)
-            {
-                if (TryGetDouble(previous.Value, out double prev)
+                && deadband.DeadbandValue > 0 && TryGetDouble(previous.Value, out double prev)
                     && TryGetDouble(current.Value, out double now))
-                {
-                    return PassesNumeric(prev, now, deadband);
-                }
+            {
+                return PassesNumeric(prev, now, deadband);
             }
             if (deadband.DeadbandType == DeadbandType.None
                 || deadband.DeadbandValue <= 0)
