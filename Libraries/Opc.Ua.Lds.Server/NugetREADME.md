@@ -22,4 +22,4 @@ is intended as a turn-key replacement for the C++ LDS for
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[Discovery guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Discovery.md).
+[Global Discovery Server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/GDS.md).

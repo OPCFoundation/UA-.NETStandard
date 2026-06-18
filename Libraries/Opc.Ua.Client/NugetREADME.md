@@ -4,7 +4,7 @@
 client library. It contains the `Session` and `ManagedSession`
 implementations, the V2 subscription engine, the central
 `ClientChannelManager` (channel sharing + transparent reconnect), the
-`ReverseConnectManager`, and the fluent `services.AddOpcUaClient()`
+`ReverseConnectManager`, and the fluent `builder.AddClient(...)`
 DI surface.
 
 ## Overview
@@ -27,13 +27,19 @@ using Opc.Ua.Client;
 
 services
     .AddOpcUa()
-    .AddOpcTcpTransport()
-    .AddOpcUaClient();
+    .AddClient(opt =>
+    {
+        opt.Configuration = applicationConfiguration;
+        opt.Session = new ManagedSessionOptions
+        {
+            Endpoint = endpoint,
+        };
+    });
 
-await using IClientChannelManager manager =
-    provider.GetRequiredService<IClientChannelManager>();
-ISession session = await manager.OpenSessionAsync(
-    "opc.tcp://localhost:62541/MyServer");
+// Resolve and connect on first use; the connected ManagedSession is cached:
+var sessionFactory =
+    provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+ManagedSession session = await sessionFactory(ct);
 ```
 
 ## Target frameworks

@@ -23,4 +23,4 @@ just reference `Opc.Ua.Core` and `Opc.Ua.Types`).
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[Source Generation guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/SourceGeneration.md).
+[Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/SourceGeneratedDataTypes.md).

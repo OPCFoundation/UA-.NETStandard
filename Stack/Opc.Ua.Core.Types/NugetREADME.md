@@ -24,7 +24,7 @@ pulling in the channel layer.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Types.md)
+and the [Types migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/types.md)
 for the full built-in type design, value representation rules, and the
 migration notes (especially around the readonly-struct conversion of
 `NodeId`, `Variant`, `DataValue`, etc. in 2.0).

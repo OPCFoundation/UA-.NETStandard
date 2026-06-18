@@ -14,10 +14,10 @@ transitively from `Opc.Ua.Server`, `Opc.Ua.Client`,
 `Opc.Ua.Configuration`, or one of the binding packages. Reference it
 directly when you need:
 
-- Custom transport authors (`IUaSCByteTransport`, `ITransportListener`,
-  `ITransportChannel`, `ITransportBindingRegistry`).
-- Direct UASC channel use (`UaSCBinaryChannel`, `TcpServerChannel`,
-  `TcpClientChannel`).
+- Custom transport authors (`IMessageSocket`, `ITransportListener`,
+  `ITransportChannel`, and the `TransportBindings` registry).
+- Direct UASC channel use (`UaSCUaBinaryChannel`, `TcpServerChannel`,
+  `TcpTransportChannel`).
 - Encoding / decoding without a full server or client
   (`BinaryEncoder`, `BinaryDecoder`, `JsonEncoder`, `XmlDecoder`).
 - The fluent DI surface (`services.AddOpcUa()`).
@@ -29,9 +29,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua;
 
 IServiceCollection services = new ServiceCollection();
-services
-    .AddOpcUa()
-    .AddOpcTcpTransport();   // raw-socket opc.tcp listener + channel
+// The raw-socket opc.tcp:// binding is built in and resolved
+// automatically - no extra transport registration call is required.
+services.AddOpcUa();
 ```
 
 ## Target frameworks
