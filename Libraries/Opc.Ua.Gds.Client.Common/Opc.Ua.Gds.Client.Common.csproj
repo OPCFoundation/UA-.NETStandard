@@ -7,6 +7,7 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>OPC UA GDS Client Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <Nullable>enable</Nullable>
@@ -21,5 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Gds.Common\Opc.Ua.Gds.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

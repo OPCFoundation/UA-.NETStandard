@@ -49,7 +49,16 @@
     <!--<PackageLicenseExpression>MIT</PackageLicenseExpression>-->
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
-    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <!--
+      Every package ships its own package-local README (`NugetREADME.md`
+      next to the csproj, or the established `McpREADME.md` for the
+      command-line tool package). Per-package READMEs are wired in each
+      csproj via <PackageReadmeFile> + a matching <None Include=...
+      Pack="true">. A generic shared README at this `common.props`
+      level was deliberately removed in favor of per-package READMEs
+      because it was misleading on nuget.org (every package described
+      itself identically).
+    -->
     <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
@@ -88,11 +97,16 @@
       Pack="true"
       PackagePath="$(PackageIcon)"
     />
-    <None
-      Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md"
-      Pack="true"
-      PackagePath="$(PackageReadmeFile)"
-    />
+    <!--
+      Each NuGet package owns its own package-local README -
+      `NugetREADME.md` next to the csproj, or the established
+      `McpREADME.md` for the command-line tool package. Each csproj
+      wires its README via <PackageReadmeFile> and packs the file at
+      the package root with
+      <None Include="..." Pack="true" PackagePath="\" />.
+      A generic shared README would be misleading on nuget.org because
+      every package would describe itself identically.
+    -->
   </ItemGroup>
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
