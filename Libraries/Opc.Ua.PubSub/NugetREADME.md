@@ -10,25 +10,32 @@ session model.
 
 The package provides:
 
-- `UaPubSubApplication` and the connection / writer-group / reader-
-  group object model.
+- The `IPubSubApplication` runtime and the connection / writer-group /
+  reader-group object model, built via a fluent / DI API.
 - UADP (binary) and JSON message mappings.
-- UDP-, MQTT-, and broker-less transport profiles.
-- Dataset filter, security-key-service plumbing, and persisted state.
+- UDP-, MQTT-, and broker-less transport profiles (in the companion
+  `Opc.Ua.PubSub.Udp` / `Opc.Ua.PubSub.Mqtt` packages).
+- Dataset filtering, AES-CTR message security with a Security Key
+  Service, diagnostics, and persisted state.
 
 ## Getting started
 
-Build a publisher / subscriber application from a
-`PubSubConfigurationDataType` (XML, JSON, or fluent-built) and start
-it:
+Configure a publisher (or subscriber) through dependency injection:
 
 ```csharp
-using Opc.Ua.PubSub;
+using Microsoft.Extensions.DependencyInjection;
 
-var pubSubConfig = UaPubSubConfigurationHelper.LoadConfiguration("publisher.xml");
-using var pubSubApplication = UaPubSubApplication.Create(pubSubConfig);
-pubSubApplication.Start();
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddUdpTransport()
+        .ConfigureApplication(app => app
+            .WithApplicationId("urn:example:publisher")
+            .UseConfigurationFile("publisher.xml")));
 ```
+
+The legacy 1.04 `UaPubSubApplication.Create(...)` API now lives in the
+`OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` package.
 
 ## Target frameworks
 
