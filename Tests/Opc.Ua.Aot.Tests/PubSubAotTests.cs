@@ -81,6 +81,9 @@ namespace Opc.Ua.Aot.Tests
             IPubSubApplication app = new PubSubApplicationBuilder(telemetry)
                 .WithApplicationId("urn:test:pubsub-aot")
                 .UseAllStandardEncoders()
+                .AddSecurityKeyProvider(
+                    publishersample::Quickstarts.ConsoleReferencePublisher
+                        .SampleSecurity.CreateKeyProvider())
                 .AddTransportFactory(new UdpPubSubTransportFactory(
                     Options.Create(new UdpTransportOptions())))
                 .AddDataSetSource(
@@ -202,6 +205,9 @@ namespace Opc.Ua.Aot.Tests
             IPubSubApplication app = new PubSubApplicationBuilder(telemetry)
                 .WithApplicationId("urn:test:publisher-lifecycle")
                 .UseAllStandardEncoders()
+                .AddSecurityKeyProvider(
+                    publishersample::Quickstarts.ConsoleReferencePublisher
+                        .SampleSecurity.CreateKeyProvider())
                 .AddTransportFactory(new UdpPubSubTransportFactory(
                     Options.Create(new UdpTransportOptions())))
                 .AddDataSetSource(
