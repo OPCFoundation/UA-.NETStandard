@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Regression tests for the WebApi upstream-identity plumbing.

@@ -36,8 +36,9 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi.Authentication;
+using Opc.Ua.Bindings.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
+namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {
     /// <summary>
     /// Unit tests for <see cref="JwtClaimSessionlessIdentityProvider"/>:
@@ -53,6 +54,17 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
     {
         private const string SampleJwt =
             "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.";
+
+        // CA1861: hoisted to static readonly so repeated test invocations do not
+        // re-allocate the same array argument.
+        private static readonly string[] s_expectedScopes =
+            { "read.values", "browse.address-space", "write.values" };
+        private static readonly string[] s_expectedRoles =
+            { "operator", "observer" };
+        private static readonly string[] s_expectedCustomScopes =
+            { "a", "b" };
+        private static readonly string[] s_expectedCustomRoles =
+            { "engineering", "qa" };
 
         [Test]
         public void UnauthenticatedReturnsNullByDefault()
@@ -153,12 +165,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
             IUserIdentity? identity = provider.Resolve(context);
             IReadOnlyList<string> scopes = JwtClaimSessionlessIdentityProvider.GetScopes(identity);
 
-            Assert.That(scopes, Is.EquivalentTo(new[]
-            {
-                "read.values",
-                "browse.address-space",
-                "write.values"
-            }));
+            Assert.That(scopes, Is.EquivalentTo(s_expectedScopes));
         }
 
         [Test]
@@ -177,7 +184,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
             IUserIdentity? identity = provider.Resolve(context);
             IReadOnlyList<string> roles = JwtClaimSessionlessIdentityProvider.GetRoles(identity);
 
-            Assert.That(roles, Is.EquivalentTo(new[] { "operator", "observer" }));
+            Assert.That(roles, Is.EquivalentTo(s_expectedRoles));
         }
 
         [Test]
@@ -223,9 +230,9 @@ namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
 
             Assert.That(JwtClaimSessionlessIdentityProvider.GetSubject(identity), Is.EqualTo("carol"));
             Assert.That(JwtClaimSessionlessIdentityProvider.GetScopes(identity),
-                Is.EquivalentTo(new[] { "a", "b" }));
+                Is.EquivalentTo(s_expectedCustomScopes));
             Assert.That(JwtClaimSessionlessIdentityProvider.GetRoles(identity),
-                Is.EquivalentTo(new[] { "engineering", "qa" }));
+                Is.EquivalentTo(s_expectedCustomRoles));
         }
 
         [Test]

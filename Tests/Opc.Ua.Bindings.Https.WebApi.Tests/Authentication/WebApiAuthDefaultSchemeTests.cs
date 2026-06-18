@@ -37,8 +37,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi.Authentication;
+using Opc.Ua.Bindings.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
+namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {
     /// <summary>
     /// Regression tests for the WebApi auth-scheme default + policy

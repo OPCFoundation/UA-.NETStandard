@@ -570,6 +570,11 @@ namespace Opc.Ua.Client.WebApi
 #pragma warning restore CA2025
                     if (!validationResult.IsValid)
                     {
+                        // CodeQL "Clear text storage of sensitive information" (CS347):
+                        // false positive — StatusCode is a non-secret, well-known UA
+                        // error code (e.g. BadCertificateUntrusted) that exists to be
+                        // surfaced to operators in logs/diagnostics. No PII or secret
+                        // material flows through this value.
                         m_logger.LogError(
                             "{ChannelType} Server certificate rejected by CertificateValidator: {Status}.",
                             nameof(WebApiWssTransportChannel),

@@ -129,7 +129,7 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                     sre,
                     "Failed to decode {RequestType} body for route {Path}: {Status}",
                     typeof(TRequest).Name,
-                    request.Path,
+                    SanitizePathForLog(request.Path),
                     sre.StatusCode);
                 response.StatusCode = (int)HttpStatusCode.BadRequest;
                 response.ContentLength = 0;
@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 logger.LogError(
                     "Unexpected response type {ActualType} for route {Path} (expected {ExpectedType}).",
                     dispatched?.GetType().FullName,
-                    request.Path,
+                    SanitizePathForLog(request.Path),
                     typeof(TResponse).FullName);
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
             }
@@ -184,7 +184,7 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                     ex,
                     "Failed to encode {ResponseType} body for route {Path}.",
                     typeof(TResponse).Name,
-                    request.Path);
+                    SanitizePathForLog(request.Path));
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
             }
         }
@@ -196,6 +196,29 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 return null;
             }
             return values.Count > 0 ? values[0] : null;
+        }
+
+        /// <summary>
+        /// Strips line-ending and other control characters from a user-supplied
+        /// request path before it is written to a log message. Mitigates the
+        /// CodeQL "Log entries created from user input" finding: a peer may
+        /// include CR/LF in the URL path to forge fake log lines.
+        /// </summary>
+        private static string SanitizePathForLog(PathString path)
+        {
+            string? value = path.HasValue ? path.Value : null;
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+            // Replace line endings first, then drop any remaining control chars.
+            value = value.ReplaceLineEndings(string.Empty);
+            var sb = new System.Text.StringBuilder(value.Length);
+            foreach (char ch in value)
+            {
+                sb.Append(char.IsControl(ch) ? '?' : ch);
+            }
+            return sb.ToString();
         }
     }
 }

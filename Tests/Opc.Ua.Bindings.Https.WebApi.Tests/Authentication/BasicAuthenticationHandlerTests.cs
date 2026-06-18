@@ -46,8 +46,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi.Authentication;
+using Opc.Ua.Bindings.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
+namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {
     /// <summary>
     /// Unit tests for the RFC 7617 Basic authentication handler used by

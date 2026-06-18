@@ -21,7 +21,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.WebApi.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https.WebApi.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

@@ -41,7 +41,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Tests for HTTPS listener startup contributor propagation and

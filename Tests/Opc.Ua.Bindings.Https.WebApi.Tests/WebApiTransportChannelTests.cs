@@ -44,7 +44,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Client.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="WebApiTransportChannel"/> — verifies

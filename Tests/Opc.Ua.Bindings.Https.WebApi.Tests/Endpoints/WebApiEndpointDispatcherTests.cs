@@ -41,8 +41,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi.Endpoints;
+using Opc.Ua.Bindings.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests.Endpoints
+namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
 {
     /// <summary>
     /// Unit tests for the AOT-friendly Minimal-API dispatcher

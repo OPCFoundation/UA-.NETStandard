@@ -58,7 +58,7 @@ namespace Opc.Ua.Sessions.Tests
     /// flow correctly through a real <see cref="StandardServer"/>
     /// instance — complementing the
     /// <c>RealHttpsListenerIntegrationTests</c> stub-callback coverage
-    /// in <c>Opc.Ua.Bindings.WebApi.Tests</c>.
+    /// in <c>Opc.Ua.Bindings.Https.WebApi.Tests</c>.
     /// </summary>
     /// <remarks>
     /// Runs per encoding (Compact / Verbose). Exercises FindServers,

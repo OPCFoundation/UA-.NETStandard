@@ -39,7 +39,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Regression tests for the WebApi route authorization metadata.

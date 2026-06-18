@@ -34,7 +34,7 @@ using System.IO;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using NUnit.Framework;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Source-level regression test for the Kestrel mTLS adapter

@@ -32,7 +32,7 @@
 using System;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
+using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -51,25 +51,39 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
-    /// TLS regression tests for <see cref="WebApiTransportChannel"/>.
-    /// Pins the server-cert validation contract: the HTTPS client
-    /// channel wires the OPC UA
-    /// <see cref="TransportChannelSettings.CertificateValidator"/>
-    /// (TrustedPeers store / application-URI rule / rejected list)
-    /// into the
-    /// <see cref="System.Net.Http.HttpClientHandler.ServerCertificateCustomValidationCallback"/>
-    /// so the server certificate is validated against the OPC UA trust
-    /// state, not just the default .NET TLS chain.
+    /// TLS regression tests for <see cref="WebApiWssTransportChannel"/>.
+    /// The channel must delegate server certificate validation to the
+    /// configured <see cref="TransportChannelSettings.CertificateValidator"/>
+    /// (or, when none is configured, fall back to the default TLS
+    /// chain check). Installing an unconditional pass-through callback
+    /// would silently accept any server certificate — including an
+    /// attacker MITM — defeating TLS server authentication.
     /// </summary>
+    /// <remarks>
+    /// Each test spins up a minimal Kestrel HTTPS host on
+    /// <c>127.0.0.1:0</c> with a throw-away self-signed certificate
+    /// that is NOT in the OS trust store, so the default TLS chain
+    /// build always fails. The expected behaviour is:
+    /// <list type="bullet">
+    /// <item><description>Without a configured
+    /// <see cref="TransportChannelSettings.CertificateValidator"/> the
+    /// channel rejects the connection (the legacy bypass would have
+    /// accepted it).</description></item>
+    /// <item><description>With an OPC UA
+    /// <see cref="ICertificateValidatorEx"/> that explicitly accepts
+    /// the test certificate, the connection succeeds — proving the
+    /// validator is consulted, not ignored.</description></item>
+    /// </list>
+    /// </remarks>
     [TestFixture]
-    [Category("WebApiTransportChannel")]
+    [Category("WebApiWssTransportChannel")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public class WebApiTransportChannelTlsTests
+    public class WebApiWssTransportChannelTlsTests
     {
         private IHost? m_host;
         private Uri m_baseUri = null!;
@@ -100,16 +114,33 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                             });
                         });
                     });
-                    webHost.ConfigureServices(_ => { });
+                    webHost.ConfigureServices(s => { });
                     webHost.Configure(app =>
                     {
-                        app.Run(ctx =>
+                        app.UseWebSockets();
+                        app.Run(async context =>
                         {
-                            // The TLS regression tests assert at the
-                            // channel-open stage; we never need to
-                            // dispatch a real OPC UA request here.
-                            ctx.Response.StatusCode = 204;
-                            return Task.CompletedTask;
+                            if (!context.WebSockets.IsWebSocketRequest)
+                            {
+                                context.Response.StatusCode =
+                                    Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest;
+                                return;
+                            }
+                            string? sub = context.WebSockets.WebSocketRequestedProtocols
+                                .FirstOrDefault();
+                            if (sub == null)
+                            {
+                                context.Response.StatusCode =
+                                    Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest;
+                                return;
+                            }
+                            using WebSocket ws = await context.WebSockets
+                                .AcceptWebSocketAsync(sub)
+                                .ConfigureAwait(false);
+                            await ws.CloseAsync(
+                                WebSocketCloseStatus.NormalClosure,
+                                "tls-test",
+                                context.RequestAborted).ConfigureAwait(false);
                         });
                     });
                 });
@@ -122,7 +153,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 .Get<IServerAddressesFeature>()!
                 .Addresses
                 .First();
-            m_baseUri = new Uri(baseAddress);
+            m_baseUri = new Uri(baseAddress.Replace("https://", "wss://", StringComparison.Ordinal));
         }
 
         [TearDown]
@@ -139,64 +170,30 @@ namespace Opc.Ua.Bindings.WebApi.Tests
         }
 
         [Test]
-        public async Task SendRequestRejectsUntrustedServerCertificateWhenValidatorRegisteredAsync()
+        public void OpenAsyncRejectsUntrustedServerCertificateByDefault()
         {
-            // CertificateValidator configured (rejects the test cert) →
-            // channel must reject the connection. Pins that the WebApi
-            // client now consults the OPC UA validator.
-            using var channel = new WebApiTransportChannel(new TelemetryStub());
-            TransportChannelSettings settings = CreateSettings(
-                certificateValidator: new RejectingCertificateValidator());
+            // No CertificateValidator on the settings — the channel must
+            // fall back to the default TLS chain result, which rejects
+            // the self-signed test cert.
+            using var channel = new WebApiWssTransportChannel(new TelemetryStub());
+            TransportChannelSettings settings = CreateSettings(certificateValidator: null);
 
-            await channel
-                .OpenAsync(m_baseUri, settings, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            // The TLS handshake fails inside HttpClient when the OPC UA
-            // CertificateValidator rejects the cert; HttpClient surfaces
-            // this as an HttpRequestException wrapping
-            // AuthenticationException("remote certificate was rejected").
-            Exception? ex = Assert.CatchAsync(async () =>
-            {
+            WebSocketException? ex = Assert.ThrowsAsync<WebSocketException>(async () =>
                 await channel
-                    .SendRequestAsync(
-                        new ReadRequest { RequestHeader = new RequestHeader() },
-                        CancellationToken.None)
-                    .ConfigureAwait(false);
-            });
+                    .OpenAsync(m_baseUri, settings, CancellationToken.None)
+                    .ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null,
-                "WebApiTransportChannel must reject server certificate when the configured " +
-                "OPC UA CertificateValidator returns invalid.");
-            bool isCertRejection = ex is HttpRequestException ||
-                ex is System.Security.Authentication.AuthenticationException ||
-                (ex is ServiceResultException) ||
-                ContainsInnerOfType<System.Security.Authentication.AuthenticationException>(ex);
-            Assert.That(isCertRejection, Is.True,
-                "Expected a TLS-layer rejection caused by the CertificateValidator, " +
-                "got " + ex!.GetType().FullName + ": " + ex.Message);
-
-            await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-
-        private static bool ContainsInnerOfType<TException>(Exception? ex) where TException : Exception
-        {
-            for (Exception? current = ex; current != null; current = current.InnerException)
-            {
-                if (current is TException)
-                {
-                    return true;
-                }
-            }
-            return false;
+                "WebApiWssTransportChannel must not silently accept untrusted " +
+                "server certificates — TLS server authentication is required.");
         }
 
         [Test]
-        public async Task SendRequestSucceedsWhenValidatorAcceptsServerCertificateAsync()
+        public async Task OpenAsyncSucceedsWhenValidatorAcceptsServerCertificateAsync()
         {
-            // CertificateValidator accepts any cert: the channel
-            // delegates to it and the request reaches the test server
-            // (which returns 204 NoContent).
-            using var channel = new WebApiTransportChannel(new TelemetryStub());
+            // Custom validator returns IsValid=true for any cert: pins
+            // that the channel actually consults the validator rather
+            // than silently bypassing TLS validation.
+            using var channel = new WebApiWssTransportChannel(new TelemetryStub());
             TransportChannelSettings settings = CreateSettings(
                 certificateValidator: new PermissiveCertificateValidator());
 
@@ -204,34 +201,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 .OpenAsync(m_baseUri, settings, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            // The server stub returns 204; the channel will fail to
-            // decode an OPC UA response from the empty body — we only
-            // care that the TLS handshake succeeded (no
-            // ServerCertificateRejected exception).
-            try
-            {
-                await channel
-                    .SendRequestAsync(
-                        new ReadRequest { RequestHeader = new RequestHeader() },
-                        CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException sre)
-            {
-                Assert.That(sre.StatusCode, Is.Not.EqualTo(StatusCodes.BadSecurityChecksFailed),
-                    "Server cert validation must succeed when the validator accepts the cert.");
-                Assert.That(sre.StatusCode, Is.Not.EqualTo(StatusCodes.BadCertificateUntrusted),
-                    "Server cert validation must succeed when the validator accepts the cert.");
-            }
-            catch (HttpRequestException ex)
-            {
-                Assert.That(ex.Message, Does.Not.Contain("certificate"),
-                    "Server cert validation must succeed when the validator accepts the cert: " + ex.Message);
-            }
-            finally
-            {
-                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-            }
+            await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
         private TransportChannelSettings CreateSettings(ICertificateValidatorEx? certificateValidator)
@@ -241,7 +211,7 @@ namespace Opc.Ua.Bindings.WebApi.Tests
                 Description = new EndpointDescription
                 {
                     EndpointUrl = m_baseUri.AbsoluteUri,
-                    SecurityMode = MessageSecurityMode.None,
+                    TransportProfileUri = Profiles.WssOpenApiTransport,
                     ServerCertificate = ByteString.From(0x01, 0x02, 0x03)
                 },
                 Configuration = EndpointConfiguration.Create(),
@@ -276,35 +246,11 @@ namespace Opc.Ua.Bindings.WebApi.Tests
             using X509Certificate2 cert = req.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-5),
                 DateTimeOffset.UtcNow.AddHours(1));
+            // Persist with the private key so Kestrel can use it for TLS.
             return X509CertificateLoader.LoadPkcs12(
                 cert.Export(X509ContentType.Pfx),
                 password: null,
                 keyStorageFlags: X509KeyStorageFlags.Exportable);
-        }
-
-        private sealed class RejectingCertificateValidator : ICertificateValidatorEx
-        {
-            public Func<Certificate, ServiceResult, bool>? AcceptError { get; set; }
-
-            private static readonly CertificateValidationResult s_rejection =
-                new(isValid: false, StatusCodes.BadCertificateUntrusted, [], false);
-
-            public Task<CertificateValidationResult> ValidateAsync(
-                CertificateCollection chain,
-                TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
-                CancellationToken ct = default)
-            {
-                return Task.FromResult(s_rejection);
-            }
-
-            public Task<CertificateValidationResult> ValidateAsync(
-                Certificate certificate,
-                TrustListIdentifier? trustList = null,
-                CancellationToken ct = default)
-            {
-                return Task.FromResult(s_rejection);
-            }
         }
 
         private sealed class PermissiveCertificateValidator : ICertificateValidatorEx

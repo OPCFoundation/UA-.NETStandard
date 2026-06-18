@@ -46,7 +46,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// End-to-end REST binding tests through a real

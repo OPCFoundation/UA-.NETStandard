@@ -48,7 +48,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="WebApiWssTransportChannel"/> — the
@@ -514,6 +514,19 @@ namespace Opc.Ua.Bindings.WebApi.Tests
 
         private sealed class CloseConnectionSentinel : Exception
         {
+            public CloseConnectionSentinel()
+            {
+            }
+
+            public CloseConnectionSentinel(string message)
+                : base(message)
+            {
+            }
+
+            public CloseConnectionSentinel(string message, Exception innerException)
+                : base(message, innerException)
+            {
+            }
         }
 
         private sealed class TelemetryStub : TelemetryContextBase

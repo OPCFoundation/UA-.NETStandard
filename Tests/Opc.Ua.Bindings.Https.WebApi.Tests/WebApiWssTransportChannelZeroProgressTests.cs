@@ -47,7 +47,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Regression test for the WebApi WSS zero-progress continuation-

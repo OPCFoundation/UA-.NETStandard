@@ -32,8 +32,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
+using Opc.Ua.Bindings.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests.Authentication
+namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {
     /// <summary>
     /// Unit tests for the default ASP.NET Core principal to OPC UA identity

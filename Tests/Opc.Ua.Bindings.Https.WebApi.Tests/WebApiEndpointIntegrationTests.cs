@@ -47,7 +47,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
 
-namespace Opc.Ua.Bindings.WebApi.Tests
+namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// In-process integration tests for the OPC UA REST Minimal-API
