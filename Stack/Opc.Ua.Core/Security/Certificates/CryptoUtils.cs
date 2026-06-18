@@ -114,6 +114,64 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Maps the public key of <paramref name="certificate"/> to a
+        /// <see cref="CertificateKeyAlgorithm"/>. Returns
+        /// <see cref="CertificateKeyAlgorithm.None"/> when the certificate
+        /// is <see langword="null"/> or the algorithm/curve cannot be
+        /// recognized.
+        /// </summary>
+        public static CertificateKeyAlgorithm GetCertificateKeyAlgorithm(Certificate? certificate)
+        {
+            if (certificate == null)
+            {
+                return CertificateKeyAlgorithm.None;
+            }
+
+            string keyAlgorithm = certificate.GetKeyAlgorithm();
+            if (keyAlgorithm == Oids.Rsa)
+            {
+                return CertificateKeyAlgorithm.RSA;
+            }
+
+            if (keyAlgorithm == Oids.ECPublicKey)
+            {
+                PublicKey encodedPublicKey = certificate.PublicKey;
+                if (encodedPublicKey.EncodedParameters?.RawData is byte[] rawData)
+                {
+                    switch (BitConverter.ToString(rawData))
+                    {
+                        case NistP256KeyParameters:
+                            return CertificateKeyAlgorithm.NistP256;
+                        case NistP384KeyParameters:
+                            return CertificateKeyAlgorithm.NistP384;
+                        case BrainpoolP256r1KeyParameters:
+                            return CertificateKeyAlgorithm.BrainpoolP256r1;
+                        case BrainpoolP384r1KeyParameters:
+                            return CertificateKeyAlgorithm.BrainpoolP384r1;
+                    }
+                }
+            }
+
+            return CertificateKeyAlgorithm.None;
+        }
+
+        /// <summary>
+        /// Returns the key length in bits of the RSA public key in
+        /// <paramref name="certificate"/>; returns 0 when the certificate
+        /// is <see langword="null"/> or not an RSA certificate.
+        /// </summary>
+        public static int GetRsaPublicKeySize(Certificate? certificate)
+        {
+            if (certificate == null || certificate.GetKeyAlgorithm() != Oids.Rsa)
+            {
+                return 0;
+            }
+
+            using System.Security.Cryptography.RSA? rsa = certificate.GetRSAPublicKey();
+            return rsa?.KeySize ?? 0;
+        }
+
+        /// <summary>
         /// returns an ECCCurve if there is a matching supported curve for the provided
         /// certificate type id. if no supported ECC curve is found null is returned.
         /// </summary>

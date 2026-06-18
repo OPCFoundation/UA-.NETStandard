@@ -144,18 +144,30 @@ namespace Opc.Ua.Identity
         }
 
         /// <inheritdoc/>
-        public bool CanSatisfy(
+        public async ValueTask<CanSatisfyResult> CanSatisfyAsync(
             UserTokenPolicy policy,
-            IdentitySelectionContext context)
+            IdentitySelectionContext context,
+            CancellationToken ct = default)
         {
+            List<string>? rejections = null;
             foreach (IClientIdentityProvider provider in m_providers)
             {
-                if (provider.CanSatisfy(policy, context))
+                CanSatisfyResult result = await provider
+                    .CanSatisfyAsync(policy, context, ct)
+                    .ConfigureAwait(false);
+                if (result.CanSatisfy)
                 {
-                    return true;
+                    return CanSatisfyResult.Yes;
                 }
+
+                rejections ??= [];
+                rejections.Add(result.RejectionReason ?? "rejected");
             }
-            return false;
+
+            return CanSatisfyResult.No(
+                rejections is { Count: > 0 }
+                    ? "No registered provider satisfied the policy: " + string.Join("; ", rejections)
+                    : "No registered identity providers.");
         }
 
         /// <inheritdoc/>
@@ -164,10 +176,16 @@ namespace Opc.Ua.Identity
             IdentitySelectionContext context,
             CancellationToken ct = default)
         {
+            List<string>? rejections = null;
             foreach (IClientIdentityProvider provider in m_providers)
             {
-                if (!provider.CanSatisfy(policy, context))
+                CanSatisfyResult result = await provider
+                    .CanSatisfyAsync(policy, context, ct)
+                    .ConfigureAwait(false);
+                if (!result.CanSatisfy)
                 {
+                    rejections ??= [];
+                    rejections.Add(result.RejectionReason ?? "rejected");
                     continue;
                 }
 
@@ -179,7 +197,8 @@ namespace Opc.Ua.Identity
 
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenRejected,
-                "No registered client identity provider can satisfy the selected user token policy.");
+                "No registered client identity provider can satisfy the selected user token policy: {0}",
+                rejections is { Count: > 0 } ? string.Join("; ", rejections) : "no providers registered");
         }
 
         private void MarkQueried(IClientIdentityProvider provider)
