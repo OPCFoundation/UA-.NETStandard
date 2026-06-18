@@ -77,6 +77,12 @@ namespace Opc.Ua
                         {
                             return policy;
                         }
+                        else if (tokenSecurityPolicyUri == SecurityPolicies.None &&
+                                 policy.SecurityPolicyUri != SecurityPolicies.None &&
+                                 !String.IsNullOrEmpty(policy.SecurityPolicyUri))
+                        {
+                            sameEncryptionAlgorithm ??= policy;
+                        }
                         else if ((
                                 policy.SecurityPolicyUri != null &&
                                 tokenSecurityPolicyUri != null &&

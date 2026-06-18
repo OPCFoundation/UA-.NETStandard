@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-#if NET8_0_OR_GREATER
 using System.Linq;
-#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -139,6 +137,11 @@ namespace Quickstarts
                     );
                 }
 
+                endpoints = endpoints
+                    .Filter(x => x != null &&
+                    (SecurityPolicies.GetInfo(x.SecurityPolicyUri!) != null)
+                );
+
                 if (endpoints.IsEmpty)
                 {
                     throw new InvalidOperationException("No endpoints selected!");
@@ -151,18 +154,6 @@ namespace Quickstarts
                 foreach (EndpointDescription ii in endpoints.ToArray()!)
                 {
                     string securityPolicyUri = ii.SecurityPolicyUri!;
-                    string userCertificateFile = GetUserCertificateFile(securityPolicyUri);
-
-                    X509Certificate2 x509 = X509CertificateLoader.LoadPkcs12FromFile(
-                        Path.Combine(s_settings.UserCertificatePath, userCertificateFile),
-                        s_settings.UserCertificatePassword);
-
-                    string thumbprint = x509.Thumbprint!;
-
-                    IClientIdentityProvider certificateProvider = await LoadUserCertificateProviderAsync(
-                        thumbprint,
-                        s_settings.UserCertificatePassword,
-                        ct).ConfigureAwait(false);
 
                     var identityProviders = new List<IClientIdentityProvider>
                     {
@@ -173,9 +164,26 @@ namespace Quickstarts
                     {
                         identityProviders.Add(userNameProvider);
                     }
+
                     if (s_settings.SupportsX509)
                     {
-                        identityProviders.Add(certificateProvider);
+                        string userCertificateFile = GetUserCertificateFile(securityPolicyUri, ii.UserIdentityTokens);
+
+                        if (!String.IsNullOrEmpty(userCertificateFile))
+                        {
+                            X509Certificate2 x509 = X509CertificateLoader.LoadPkcs12FromFile(
+                                Path.Combine(s_settings.UserCertificatePath, userCertificateFile),
+                                s_settings.UserCertificatePassword);
+
+                            string thumbprint = x509.Thumbprint!;
+
+                            IClientIdentityProvider certificateProvider = await LoadUserCertificateProviderAsync(
+                                thumbprint,
+                                s_settings.UserCertificatePassword,
+                                ct).ConfigureAwait(false);
+
+                            identityProviders.Add(certificateProvider);
+                        }
                     }
 
                     foreach (IClientIdentityProvider identityProvider in identityProviders)
@@ -209,7 +217,7 @@ namespace Quickstarts
                             m_logger.LogWarning("Waiting for SecureChannel renew");
                             await wrapper.Session.UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
 
-                            for (int count = 0; count < 1; count++)
+                            for (int count = 0; count < 10; count++)
                             {
                                 ReadResponse result = await wrapper.Session.ReadAsync(
                                     null,
@@ -367,7 +375,8 @@ namespace Quickstarts
                 ct);
         }
 
-        private async Task<IClientIdentityProvider> LoadUserCertificateProviderAsync(
+        private async Task<IClientIdentityProvider>
+            LoadUserCertificateProviderAsync(
             string thumbprint,
             string password,
             CancellationToken ct)
@@ -529,10 +538,34 @@ namespace Quickstarts
             }
         }
 
-        private static string GetUserCertificateFile(string securityPolicyUri)
+        private static string GetUserCertificateFile(string securityPolicyUri, ArrayOf<UserTokenPolicy> userTokenPolicies)
         {
             // GetInfo returns null only for null/empty URI; caller passes a non-empty value.
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)!;
+
+            if (securityPolicy == null)
+            {
+                return "";
+            }
+
+            var policies = new List<UserTokenPolicy>(userTokenPolicies.ToArray()!);
+
+            if (!policies.Any(x => x?.SecurityPolicyUri == securityPolicyUri))
+            {
+                foreach (var policy in policies)
+                {
+                    var tokenSecurityPolicy = SecurityPolicies.GetInfo(policy.SecurityPolicyUri!);
+
+                    if (tokenSecurityPolicy != null && tokenSecurityPolicy.CertificateKeyFamily == securityPolicy.CertificateKeyFamily)
+                    {
+                        if (tokenSecurityPolicy.SecureChannelEnhancements == securityPolicy.SecureChannelEnhancements)
+                        {
+                            securityPolicy = tokenSecurityPolicy;
+                            break;
+                        }
+                    }
+                }
+            }
 
             switch (securityPolicy.CertificateKeyAlgorithm)
             {

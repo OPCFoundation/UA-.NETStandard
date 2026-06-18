@@ -83,6 +83,8 @@ namespace Quickstarts
 
         public static ConnectTesterSettings Load()
         {
+            Opc.Ua.CryptoTrace.Enabled = false;
+
             string? overridePath
                 = Environment.GetEnvironmentVariable("REFCLIENT_CONNECTTESTER_SETTINGS_FILE");
             string path = !string.IsNullOrWhiteSpace(overridePath)

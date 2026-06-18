@@ -6,7 +6,7 @@
 >
   <!-- xsi:schemaLocation="http://opcfoundation.org/UA/SDK/Configuration.xsd ./Configuration.xsd" -->
   <ApplicationName>Quickstart Reference Server</ApplicationName>
-  <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
+  <ApplicationUri>urn:10.102.119.30:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
   <SecurityConfiguration>
@@ -15,35 +15,35 @@
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP256</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>NistP256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP384</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>NistP384</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP256r1</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP384r1</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
     </ApplicationCertificates>
@@ -98,9 +98,9 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
-      <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
-      <!--<ua:String>https://localhost:62542/Quickstarts/ReferenceServer</ua:String>-->
+      <ua:String>opc.https://10.102.119.30:62540/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://10.102.119.30:62541/Quickstarts/ReferenceServer</ua:String>
+      <!--<ua:String>https://10.102.119.30:62542/Quickstarts/ReferenceServer</ua:String>-->
     </BaseAddresses>
     <!--
     These list the alternate addresses (via firewalls, multiple NICs etc.) that can be

@@ -5,7 +5,7 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
   <ApplicationName>Quickstart Console Reference Client</ApplicationName>
-  <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceClient</ApplicationUri>
+  <ApplicationUri>urn:10.102.119.30:UA:Quickstarts:ReferenceClient</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   <SecurityConfiguration>
@@ -14,35 +14,35 @@
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP256</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>NistP256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP384</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference client, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>NistP384</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP256r1</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP384r1</TypeId> -->
         <StoreType>Directory</StoreType>
         <StorePath>../../pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=10.102.119.30</SubjectName>
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
     </ApplicationCertificates>
@@ -91,7 +91,7 @@
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
-    <ChannelLifetime>300000</ChannelLifetime>
+    <ChannelLifetime>30000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
   <ClientConfiguration>

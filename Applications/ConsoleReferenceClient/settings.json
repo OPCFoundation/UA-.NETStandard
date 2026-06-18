@@ -1,7 +1,0 @@
-{
-	"ServerUrl": "opc.tcp://whitecat:62541/Quickstarts/ReferenceServer",
-	"UserName": "sysadmin",
-	"Password": "demo",
-	"SecurityPolicyFilter": "",
-	"SupportsX509": true
-}

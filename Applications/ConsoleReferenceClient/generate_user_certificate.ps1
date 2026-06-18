@@ -103,7 +103,7 @@ $params = @{
         '2.5.29.17={text}upn=iama.tester@example.com', # SAN
         '2.5.29.19={text}ca=0'                         # Basic Constraints: Not a CA
     )
-    KeyUsage          = @('DigitalSignature', 'NonRepudiation') # Added KeyCertSign for self-signed logic
+    KeyUsage          = @('DigitalSignature', 'NonRepudiation', 'CertSign') # Added KeyCertSign for self-signed logic
     KeyAlgorithm      = "ECDSA_$curve"
     CurveExport       = 'CurveName'
     HashAlgorithm     = $signatureAlgorithm
