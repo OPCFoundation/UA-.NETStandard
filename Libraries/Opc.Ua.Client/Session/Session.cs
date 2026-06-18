@@ -1576,16 +1576,26 @@ namespace Opc.Ua.Client
         /// current server nonce.
         /// </summary>
         /// <param name="provider">The provider that materializes the new identity.</param>
+        /// <param name="overrideUserTokenPolicyUri">
+        /// When non-null, forces selection to the user-token policy with this
+        /// <see cref="UserTokenPolicy.SecurityPolicyUri"/> and renews any
+        /// existing ECC ephemeral key for the new policy. Use this to switch
+        /// user-token policies mid-session; pass <see langword="null"/> to let
+        /// the selector pin to the policy of the currently-bound ephemeral key.
+        /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException">
         /// <c>BadIdentityTokenRejected</c> when no offered policy can be
-        /// satisfied by the provider, or <c>BadIdentityChangeNotSupported</c>
-        /// when the server refuses user-identity changes on an active
-        /// session.
+        /// satisfied by the provider (including the case where
+        /// <paramref name="overrideUserTokenPolicyUri"/> is not in the
+        /// endpoint's offered <see cref="UserTokenPolicy"/> list), or
+        /// <c>BadIdentityChangeNotSupported</c> when the server refuses
+        /// user-identity changes on an active session.
         /// </exception>
         public async ValueTask UpdateIdentityAsync(
             IClientIdentityProvider provider,
+            string? overrideUserTokenPolicyUri = null,
             CancellationToken ct = default)
         {
             if (provider == null)
@@ -1609,15 +1619,107 @@ namespace Opc.Ua.Client
                             "Not connected to server.");
                     }
 
+                    if (overrideUserTokenPolicyUri != null)
+                    {
+                        // A null override means "use the default
+                        // selection logic". A non-null override must
+                        // be a non-whitespace string that is in the
+                        // endpoint's offered policies; we reject
+                        // whitespace-only / empty strings up-front so
+                        // a buggy caller fails fast rather than
+                        // silently falling through to the default
+                        // selector (CR/SR 3.5).
+                        if (string.IsNullOrWhiteSpace(overrideUserTokenPolicyUri))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenRejected,
+                                "OverrideUserTokenPolicyUriNotOffered (override is empty or whitespace).");
+                        }
+                        if (!IsUserTokenPolicyUriOffered(overrideUserTokenPolicyUri))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenRejected,
+                                "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
+                                overrideUserTokenPolicyUri);
+                        }
+                    }
+
+                    bool hasOverride = !string.IsNullOrEmpty(overrideUserTokenPolicyUri);
+                    ArrayOf<string> enabledPolicies;
+                    if (hasOverride)
+                    {
+                        enabledPolicies = new[] { overrideUserTokenPolicyUri! };
+                    }
+                    else if (m_configuration.SecurityConfiguration != null &&
+                        !m_configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
+                    {
+                        enabledPolicies = m_configuration.SecurityConfiguration
+                            .SupportedSecurityPolicies;
+                    }
+                    else
+                    {
+                        enabledPolicies = new[]
+                        {
+                            m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
+                        };
+                    }
+
+                    CertificateKeyAlgorithm instanceAlg =
+                        CryptoUtils.GetCertificateKeyAlgorithm(m_instanceCertificate);
+                    int instanceKeySize = instanceAlg == CertificateKeyAlgorithm.RSA
+                        ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificate)
+                        : 0;
+
+                    // Pin only when there's actually a bound ephemeral
+                    // key; an override request bypasses pinning (the
+                    // caller is explicitly asking for a new policy and
+                    // the ephemeral key will be renewed on the next
+                    // service call AFTER UpdateSessionAsync succeeds).
+                    string? boundEphemeralUri =
+                        !hasOverride && m_eccServerEphemeralKey != null
+                            ? m_userTokenSecurityPolicyUri
+                            : null;
+
                     context = new IdentitySelectionContext(
                         m_endpoint.Description,
-                        m_endpoint.Description.UserIdentityTokens.ToArray() ??
-                        [],
-                        MessageContext);
+                        m_endpoint.Description.UserIdentityTokens,
+                        MessageContext,
+                        enabledPolicies)
+                    {
+                        ClientInstanceCertificateAlgorithm = instanceAlg,
+                        ClientInstanceCertificateKeySize = instanceKeySize,
+                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri
+                    };
                 }
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
                     .ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                {
+                    string? previousPolicyUri;
+                    // Commit override state ONLY after the new identity
+                    // has been materialised — if AcquireIdentityAsync
+                    // threw (cert load failure, policy mismatch, etc.)
+                    // the previous ephemeral key + URI must remain
+                    // intact so the existing identity stays usable.
+                    lock (m_lock)
+                    {
+                        previousPolicyUri = m_userTokenSecurityPolicyUri;
+                        m_eccServerEphemeralKey?.Dispose();
+                        m_eccServerEphemeralKey = null;
+                        m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
+                    }
+
+                    // Auditable security event (CR/SR 1.10, SR 2.8):
+                    // the user-token policy in effect for the active
+                    // session has changed at the client's request.
+                    m_logger.LogInformation(
+                        "Session {SessionId} switched user-token policy: '{Previous}' -> '{Override}'.",
+                        SessionId,
+                        previousPolicyUri ?? "<none>",
+                        overrideUserTokenPolicyUri);
+                }
 
                 await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
             }
@@ -1651,6 +1753,29 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Release();
                 await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> when the current endpoint
+        /// advertises at least one <see cref="UserTokenPolicy"/> whose
+        /// <see cref="UserTokenPolicy.SecurityPolicyUri"/> matches
+        /// <paramref name="securityPolicyUri"/> (case-sensitive,
+        /// ordinal).
+        /// </summary>
+        private bool IsUserTokenPolicyUriOffered(string securityPolicyUri)
+        {
+            ArrayOf<UserTokenPolicy> offered = m_endpoint.Description.UserIdentityTokens;
+            for (int i = 0; i < offered.Count; i++)
+            {
+                if (string.Equals(
+                        offered[i]?.SecurityPolicyUri,
+                        securityPolicyUri,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <inheritdoc/>
