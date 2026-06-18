@@ -114,7 +114,7 @@ namespace OpcUaPubSubJsonTests
         /// </summary>
         /// <param name="encoding">Encoding selected for each field.</param>
         /// <returns>Field list.</returns>
-        public static IReadOnlyList<DataSetField> CreateFields(
+        public static ArrayOf<DataSetField> CreateFields(
             PubSubFieldEncoding encoding = PubSubFieldEncoding.Variant)
         {
             return new[]

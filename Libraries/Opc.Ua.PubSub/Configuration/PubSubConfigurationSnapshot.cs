@@ -85,10 +85,10 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubConfigurationDataType configuration,
             DateTimeUtc createdAt,
             IReadOnlyDictionary<string, PubSubConnectionDataType> connectionsByName,
-            IReadOnlyDictionary<(string Connection, ushort WriterGroupId), WriterGroupDataType> writerGroupsById,
-            IReadOnlyDictionary<(string Connection, ushort WriterGroupId, ushort DataSetWriterId), DataSetWriterDataType> dataSetWritersById,
-            IReadOnlyDictionary<(string Connection, string ReaderGroupName), ReaderGroupDataType> readerGroupsByName,
-            IReadOnlyDictionary<(string Connection, string ReaderGroupName, string ReaderName), DataSetReaderDataType> dataSetReadersByName,
+            IReadOnlyDictionary<WriterGroupKey, WriterGroupDataType> writerGroupsById,
+            IReadOnlyDictionary<DataSetWriterKey, DataSetWriterDataType> dataSetWritersById,
+            IReadOnlyDictionary<ReaderGroupKey, ReaderGroupDataType> readerGroupsByName,
+            IReadOnlyDictionary<DataSetReaderKey, DataSetReaderDataType> dataSetReadersByName,
             IReadOnlyDictionary<string, PublishedDataSetDataType> publishedDataSetsByName)
         {
             Configuration = configuration;
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// (<see cref="PubSubConnectionDataType.Name"/>,
         /// <see cref="WriterGroupDataType.WriterGroupId"/>).
         /// </summary>
-        public IReadOnlyDictionary<(string Connection, ushort WriterGroupId), WriterGroupDataType> WriterGroupsById { get; }
+        public IReadOnlyDictionary<WriterGroupKey, WriterGroupDataType> WriterGroupsById { get; }
 
         /// <summary>
         /// DataSet writers keyed by
@@ -130,14 +130,14 @@ namespace Opc.Ua.PubSub.Configuration
         /// <see cref="WriterGroupDataType.WriterGroupId"/>,
         /// <see cref="DataSetWriterDataType.DataSetWriterId"/>).
         /// </summary>
-        public IReadOnlyDictionary<(string Connection, ushort WriterGroupId, ushort DataSetWriterId), DataSetWriterDataType> DataSetWritersById { get; }
+        public IReadOnlyDictionary<DataSetWriterKey, DataSetWriterDataType> DataSetWritersById { get; }
 
         /// <summary>
         /// Reader groups keyed by
         /// (<see cref="PubSubConnectionDataType.Name"/>,
         /// <c>ReaderGroupDataType.Name</c>).
         /// </summary>
-        public IReadOnlyDictionary<(string Connection, string ReaderGroupName), ReaderGroupDataType> ReaderGroupsByName { get; }
+        public IReadOnlyDictionary<ReaderGroupKey, ReaderGroupDataType> ReaderGroupsByName { get; }
 
         /// <summary>
         /// DataSet readers keyed by
@@ -145,7 +145,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <c>ReaderGroupDataType.Name</c>,
         /// <see cref="DataSetReaderDataType.Name"/>).
         /// </summary>
-        public IReadOnlyDictionary<(string Connection, string ReaderGroupName, string ReaderName), DataSetReaderDataType> DataSetReadersByName { get; }
+        public IReadOnlyDictionary<DataSetReaderKey, DataSetReaderDataType> DataSetReadersByName { get; }
 
         /// <summary>
         /// Published data sets keyed by
@@ -192,10 +192,10 @@ namespace Opc.Ua.PubSub.Configuration
 
             var issues = new List<PubSubConfigurationIssue>();
             var connections = new Dictionary<string, PubSubConnectionDataType>(StringComparer.Ordinal);
-            var writerGroups = new Dictionary<(string, ushort), WriterGroupDataType>();
-            var dataSetWriters = new Dictionary<(string, ushort, ushort), DataSetWriterDataType>();
-            var readerGroups = new Dictionary<(string, string), ReaderGroupDataType>();
-            var dataSetReaders = new Dictionary<(string, string, string), DataSetReaderDataType>();
+            var writerGroups = new Dictionary<WriterGroupKey, WriterGroupDataType>();
+            var dataSetWriters = new Dictionary<DataSetWriterKey, DataSetWriterDataType>();
+            var readerGroups = new Dictionary<ReaderGroupKey, ReaderGroupDataType>();
+            var dataSetReaders = new Dictionary<DataSetReaderKey, DataSetReaderDataType>();
             var publishedDataSets = new Dictionary<string, PublishedDataSetDataType>(StringComparer.Ordinal);
 
             if (!configuration.Connections.IsNull)
@@ -286,8 +286,8 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubConnectionDataType connection,
             string connectionName,
             string connectionPath,
-            Dictionary<(string, ushort), WriterGroupDataType> writerGroups,
-            Dictionary<(string, ushort, ushort), DataSetWriterDataType> dataSetWriters,
+            Dictionary<WriterGroupKey, WriterGroupDataType> writerGroups,
+            Dictionary<DataSetWriterKey, DataSetWriterDataType> dataSetWriters,
             List<PubSubConfigurationIssue> issues)
         {
             if (connection.WriterGroups.IsNull)
@@ -299,7 +299,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 string wgPath = $"{connectionPath}.WriterGroups[{wgIndex}]";
                 ushort wgId = writerGroup.WriterGroupId;
-                if (connectionName.Length > 0 && !writerGroups.TryAdd((connectionName, wgId), writerGroup))
+                if (connectionName.Length > 0 && !writerGroups.TryAdd(new WriterGroupKey(connectionName, wgId), writerGroup))
                 {
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
@@ -315,7 +315,7 @@ namespace Opc.Ua.PubSub.Configuration
                         string dswPath = $"{wgPath}.DataSetWriters[{dswIndex}]";
                         ushort dswId = writer.DataSetWriterId;
                         if (connectionName.Length > 0 &&
-                            !dataSetWriters.TryAdd((connectionName, wgId, dswId), writer))
+                            !dataSetWriters.TryAdd(new DataSetWriterKey(connectionName, wgId, dswId), writer))
                         {
                             issues.Add(new PubSubConfigurationIssue(
                                 PubSubConfigurationIssueSeverity.Error,
@@ -334,8 +334,8 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubConnectionDataType connection,
             string connectionName,
             string connectionPath,
-            Dictionary<(string, string), ReaderGroupDataType> readerGroups,
-            Dictionary<(string, string, string), DataSetReaderDataType> dataSetReaders,
+            Dictionary<ReaderGroupKey, ReaderGroupDataType> readerGroups,
+            Dictionary<DataSetReaderKey, DataSetReaderDataType> dataSetReaders,
             List<PubSubConfigurationIssue> issues)
         {
             if (connection.ReaderGroups.IsNull)
@@ -356,7 +356,7 @@ namespace Opc.Ua.PubSub.Configuration
                         rgPath));
                 }
                 else if (connectionName.Length > 0 &&
-                    !readerGroups.TryAdd((connectionName, rgName), readerGroup))
+                    !readerGroups.TryAdd(new ReaderGroupKey(connectionName, rgName), readerGroup))
                 {
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
@@ -380,7 +380,7 @@ namespace Opc.Ua.PubSub.Configuration
                                 drPath));
                         }
                         else if (connectionName.Length > 0 && rgName.Length > 0 &&
-                            !dataSetReaders.TryAdd((connectionName, rgName, drName), reader))
+                            !dataSetReaders.TryAdd(new DataSetReaderKey(connectionName, rgName, drName), reader))
                         {
                             issues.Add(new PubSubConfigurationIssue(
                                 PubSubConfigurationIssueSeverity.Error,
@@ -398,21 +398,21 @@ namespace Opc.Ua.PubSub.Configuration
         private static readonly IReadOnlyDictionary<string, PubSubConnectionDataType> EmptyConnections
             = new Dictionary<string, PubSubConnectionDataType>(StringComparer.Ordinal);
         private static readonly IReadOnlyDictionary<
-            (string Connection, ushort WriterGroupId),
+            WriterGroupKey,
             WriterGroupDataType> EmptyWriterGroups
-            = new Dictionary<(string, ushort), WriterGroupDataType>();
+            = new Dictionary<WriterGroupKey, WriterGroupDataType>();
         private static readonly IReadOnlyDictionary<
-            (string Connection, ushort WriterGroupId, ushort DataSetWriterId),
+            DataSetWriterKey,
             DataSetWriterDataType> EmptyDataSetWriters
-            = new Dictionary<(string, ushort, ushort), DataSetWriterDataType>();
+            = new Dictionary<DataSetWriterKey, DataSetWriterDataType>();
         private static readonly IReadOnlyDictionary<
-            (string Connection, string ReaderGroupName),
+            ReaderGroupKey,
             ReaderGroupDataType> EmptyReaderGroups
-            = new Dictionary<(string, string), ReaderGroupDataType>();
+            = new Dictionary<ReaderGroupKey, ReaderGroupDataType>();
         private static readonly IReadOnlyDictionary<
-            (string Connection, string ReaderGroupName, string ReaderName),
+            DataSetReaderKey,
             DataSetReaderDataType> EmptyDataSetReaders
-            = new Dictionary<(string, string, string), DataSetReaderDataType>();
+            = new Dictionary<DataSetReaderKey, DataSetReaderDataType>();
         private static readonly IReadOnlyDictionary<string, PublishedDataSetDataType> EmptyPublishedDataSets
             = new Dictionary<string, PublishedDataSetDataType>(StringComparer.Ordinal);
 
@@ -430,4 +430,71 @@ namespace Opc.Ua.PubSub.Configuration
             public const string DuplicatePublishedDataSetName = "PSC0110";
         }
     }
+
+    /// <summary>
+    /// Composite key identifying a <see cref="WriterGroupDataType"/>
+    /// within a <see cref="PubSubConfigurationSnapshot"/>.
+    /// </summary>
+    /// <param name="Connection">
+    /// Owning <see cref="PubSubConnectionDataType.Name"/>.
+    /// </param>
+    /// <param name="WriterGroupId">
+    /// <see cref="WriterGroupDataType.WriterGroupId"/> unique within the
+    /// connection.
+    /// </param>
+    public readonly record struct WriterGroupKey(
+        string Connection,
+        ushort WriterGroupId);
+
+    /// <summary>
+    /// Composite key identifying a <see cref="DataSetWriterDataType"/>
+    /// within a <see cref="PubSubConfigurationSnapshot"/>.
+    /// </summary>
+    /// <param name="Connection">
+    /// Owning <see cref="PubSubConnectionDataType.Name"/>.
+    /// </param>
+    /// <param name="WriterGroupId">
+    /// Owning <see cref="WriterGroupDataType.WriterGroupId"/>.
+    /// </param>
+    /// <param name="DataSetWriterId">
+    /// <see cref="DataSetWriterDataType.DataSetWriterId"/> unique within
+    /// the writer group.
+    /// </param>
+    public readonly record struct DataSetWriterKey(
+        string Connection,
+        ushort WriterGroupId,
+        ushort DataSetWriterId);
+
+    /// <summary>
+    /// Composite key identifying a <see cref="ReaderGroupDataType"/>
+    /// within a <see cref="PubSubConfigurationSnapshot"/>.
+    /// </summary>
+    /// <param name="Connection">
+    /// Owning <see cref="PubSubConnectionDataType.Name"/>.
+    /// </param>
+    /// <param name="ReaderGroupName">
+    /// <c>ReaderGroupDataType.Name</c> unique within the connection.
+    /// </param>
+    public readonly record struct ReaderGroupKey(
+        string Connection,
+        string ReaderGroupName);
+
+    /// <summary>
+    /// Composite key identifying a <see cref="DataSetReaderDataType"/>
+    /// within a <see cref="PubSubConfigurationSnapshot"/>.
+    /// </summary>
+    /// <param name="Connection">
+    /// Owning <see cref="PubSubConnectionDataType.Name"/>.
+    /// </param>
+    /// <param name="ReaderGroupName">
+    /// Owning <c>ReaderGroupDataType.Name</c>.
+    /// </param>
+    /// <param name="ReaderName">
+    /// <see cref="DataSetReaderDataType.Name"/> unique within the reader
+    /// group.
+    /// </param>
+    public readonly record struct DataSetReaderKey(
+        string Connection,
+        string ReaderGroupName,
+        string ReaderName);
 }

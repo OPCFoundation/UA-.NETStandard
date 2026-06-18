@@ -274,10 +274,13 @@ namespace Opc.Ua.PubSub.Tests.Groups
 
             await reader.DispatchAsync(dsm).ConfigureAwait(false);
 
+            IReadOnlyList<DataSetField>? lastFields = countingSink.LastFields;
             Assert.Multiple(() =>
             {
                 Assert.That(countingSink.CallCount, Is.EqualTo(1));
-                Assert.That(countingSink.LastFields, Is.SameAs(fields));
+                Assert.That(lastFields, Is.Not.Null);
+                Assert.That(lastFields, Has.Count.EqualTo(fields.Length));
+                Assert.That(lastFields![0], Is.EqualTo(fields[0]));
             });
         }
 

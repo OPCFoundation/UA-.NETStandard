@@ -83,13 +83,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(rt.ApplicationUri, Is.EqualTo("urn:test:publisher"));
             Assert.That(rt.ProductUri, Is.EqualTo("urn:test:product"));
             Assert.That(rt.ApplicationType, Is.EqualTo(ApplicationType.Server));
-            Assert.That(rt.Capabilities, Has.Count.EqualTo(2));
-            Assert.That(rt.Capabilities, Has.Member("UA"));
-            Assert.That(rt.Capabilities, Has.Member("UAMA"));
-            Assert.That(rt.SupportedTransportProfiles, Has.Count.EqualTo(1));
-            Assert.That(rt.SupportedTransportProfiles,
+            Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Length.EqualTo(2));
+            Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Member("UA"));
+            Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Member("UAMA"));
+            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [], Has.Length.EqualTo(1));
+            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [],
                 Has.Member(Profiles.PubSubUdpUadpTransport));
-            Assert.That(rt.SupportedSecurityPolicies, Has.Count.EqualTo(1));
+            Assert.That(((string[]?)rt.SupportedSecurityPolicies) ?? [], Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -180,9 +180,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var decRes = (UadpDiscoveryResponseMessage)decoded!;
             Assert.That(decRes.ApplicationInformation, Is.Not.Null);
-            Assert.That(decRes.ApplicationInformation!.Capabilities, Is.Empty);
-            Assert.That(decRes.ApplicationInformation!.SupportedTransportProfiles, Is.Empty);
-            Assert.That(decRes.ApplicationInformation!.SupportedSecurityPolicies, Is.Empty);
+            Assert.That(((string[]?)decRes.ApplicationInformation!.Capabilities) ?? [], Is.Empty);
+            Assert.That(((string[]?)decRes.ApplicationInformation!.SupportedTransportProfiles) ?? [], Is.Empty);
+            Assert.That(((string[]?)decRes.ApplicationInformation!.SupportedSecurityPolicies) ?? [], Is.Empty);
         }
 
         [Test]

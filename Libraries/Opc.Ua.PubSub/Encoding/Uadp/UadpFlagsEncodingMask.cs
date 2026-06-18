@@ -121,12 +121,29 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="raw">The combined header byte.</param>
         /// <returns>
-        /// A tuple of <c>(version, flags)</c> with the UADP version in
-        /// the low nibble and the flag set in the high nibble.
+        /// The <see cref="UadpHeaderByteParts.Version"/> in the low
+        /// nibble and the <see cref="UadpHeaderByteParts.Flags"/> set in
+        /// the high nibble.
         /// </returns>
-        public static (byte Version, UadpFlagsEncodingMask Flags) Split(byte raw)
+        public static UadpHeaderByteParts Split(byte raw)
         {
-            return ((byte)(raw & VersionMask), (UadpFlagsEncodingMask)(raw & FlagsMask));
+            return new UadpHeaderByteParts(
+                (byte)(raw & VersionMask),
+                (UadpFlagsEncodingMask)(raw & FlagsMask));
         }
     }
+
+    /// <summary>
+    /// The two halves of the combined UADP NetworkMessage header byte
+    /// produced by <see cref="UadpFlagsEncodingMaskExtensions.Split"/>.
+    /// </summary>
+    /// <param name="Version">
+    /// UADP protocol version carried in the low nibble.
+    /// </param>
+    /// <param name="Flags">
+    /// Flag set carried in the high nibble.
+    /// </param>
+    public readonly record struct UadpHeaderByteParts(
+        byte Version,
+        UadpFlagsEncodingMask Flags);
 }

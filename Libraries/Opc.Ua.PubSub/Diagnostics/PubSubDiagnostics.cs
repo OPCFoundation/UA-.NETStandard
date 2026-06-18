@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace Opc.Ua.PubSub.Diagnostics
@@ -67,10 +66,10 @@ namespace Opc.Ua.PubSub.Diagnostics
         private readonly Lock m_lock = new();
         private readonly TimeProvider m_timeProvider;
         private readonly long[] m_counters;
-        private readonly ErrorEntry[]? m_errorHistory;
+        private readonly PubSubErrorEntry[]? m_errorHistory;
         private int m_errorHistoryHead;
         private int m_errorHistoryCount;
-        private ErrorEntry m_lastError;
+        private PubSubErrorEntry m_lastError;
 
         /// <summary>
         /// Initializes a new <see cref="PubSubDiagnostics"/> instance at
@@ -92,7 +91,7 @@ namespace Opc.Ua.PubSub.Diagnostics
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_counters = new long[s_counterCount];
             m_errorHistory = level == PubSubDiagnosticsLevel.High
-                ? new ErrorEntry[ErrorHistoryCapacity]
+                ? new PubSubErrorEntry[ErrorHistoryCapacity]
                 : null;
         }
 
@@ -106,28 +105,27 @@ namespace Opc.Ua.PubSub.Diagnostics
         /// <see cref="RecordError"/> calls. At lower verbosity tiers the
         /// list is empty.
         /// </summary>
-        public IReadOnlyList<(DateTimeUtc Timestamp, StatusCode StatusCode, string Message)> RecentErrors
+        public ArrayOf<PubSubErrorEntry> RecentErrors
         {
             get
             {
                 if (m_errorHistory == null)
                 {
-                    return Array.Empty<(DateTimeUtc, StatusCode, string)>();
+                    return ArrayOf<PubSubErrorEntry>.Empty;
                 }
                 lock (m_lock)
                 {
                     int count = m_errorHistoryCount;
                     if (count == 0)
                     {
-                        return Array.Empty<(DateTimeUtc, StatusCode, string)>();
+                        return ArrayOf<PubSubErrorEntry>.Empty;
                     }
-                    var snapshot = new (DateTimeUtc, StatusCode, string)[count];
+                    var snapshot = new PubSubErrorEntry[count];
                     int head = m_errorHistoryHead;
                     for (int i = 0; i < count; i++)
                     {
                         int idx = (head - 1 - i + ErrorHistoryCapacity) % ErrorHistoryCapacity;
-                        ErrorEntry entry = m_errorHistory[idx];
-                        snapshot[i] = (entry.Timestamp, entry.StatusCode, entry.Message);
+                        snapshot[i] = m_errorHistory[idx];
                     }
                     return snapshot;
                 }
@@ -177,7 +175,7 @@ namespace Opc.Ua.PubSub.Diagnostics
             {
                 return;
             }
-            var entry = new ErrorEntry(
+            var entry = new PubSubErrorEntry(
                 new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                 statusCode,
                 message);
@@ -220,7 +218,7 @@ namespace Opc.Ua.PubSub.Diagnostics
         /// <see langword="null"/> when none has been recorded at the current
         /// verbosity tier.
         /// </summary>
-        public (DateTimeUtc Timestamp, StatusCode StatusCode, string Message)? LastError
+        public PubSubErrorEntry? LastError
         {
             get
             {
@@ -234,23 +232,9 @@ namespace Opc.Ua.PubSub.Diagnostics
                     {
                         return null;
                     }
-                    return (m_lastError.Timestamp, m_lastError.StatusCode, m_lastError.Message);
+                    return m_lastError;
                 }
             }
-        }
-
-        private readonly struct ErrorEntry
-        {
-            public ErrorEntry(DateTimeUtc timestamp, StatusCode statusCode, string message)
-            {
-                Timestamp = timestamp;
-                StatusCode = statusCode;
-                Message = message;
-            }
-
-            public DateTimeUtc Timestamp { get; }
-            public StatusCode StatusCode { get; }
-            public string Message { get; }
         }
     }
 }

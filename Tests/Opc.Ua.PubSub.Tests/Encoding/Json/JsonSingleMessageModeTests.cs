@@ -124,7 +124,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(decoded, Is.Not.Null);
             var asJson = decoded as Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
             Assert.That(asJson, Is.Not.Null);
-            Assert.That(asJson!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)asJson!.DataSetMessages) ?? [], Has.Length.EqualTo(1));
             Assert.That(asJson.SingleMessageMode, Is.True);
         }
 

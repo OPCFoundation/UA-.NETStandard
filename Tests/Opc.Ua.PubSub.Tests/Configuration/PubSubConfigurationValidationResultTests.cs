@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var result = new PubSubConfigurationValidationResult(
                 Array.Empty<PubSubConfigurationIssue>());
             Assert.That(result.IsValid, Is.True);
-            Assert.That(result.Issues, Is.Empty);
+            Assert.That(((PubSubConfigurationIssue[]?)result.Issues) ?? [], Is.Empty);
         }
 
         [Test]
@@ -104,10 +104,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationException ex =
                 Assert.Throws<PubSubConfigurationException>(result.ThrowIfInvalid)!;
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0901"));
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0902"));
         }
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(ex.Message, Does.Contain("PSCAAA"));
             Assert.That(ex.Message, Does.Contain("PSCBBB"));
             Assert.That(ex.Message, Does.Contain("PSCCCC"));
-            Assert.That(ex.Issues, Has.Count.EqualTo(4));
+            Assert.That(((PubSubConfigurationIssue[]?)ex.Issues) ?? [], Has.Length.EqualTo(4));
         }
 
         [Test]
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var ex = new PubSubConfigurationException(
                 Array.Empty<PubSubConfigurationIssue>());
             Assert.That(ex.Message, Is.Not.Null);
-            Assert.That(ex.Issues, Is.Empty);
+            Assert.That(((PubSubConfigurationIssue[]?)ex.Issues) ?? [], Is.Empty);
         }
 
         [Test]

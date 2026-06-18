@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="detectedMode">Detected encoding mode.</param>
         /// <param name="context">Stack message context.</param>
         /// <returns>Ordered list of decoded fields.</returns>
-        public static IReadOnlyList<DataSetField> DecodeFields(
+        public static ArrayOf<DataSetField> DecodeFields(
             JsonElement payload,
             DataSetMetaDataType? metaData,
             JsonEncodingMode detectedMode,

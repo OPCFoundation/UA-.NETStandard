@@ -66,17 +66,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// compatibility (all members emitted).</param>
         public static void EncodeFields(
             ref UadpBinaryWriter writer,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             PubSubFieldEncoding encoding,
             PubSubDataSetMessageType messageType,
             DataSetMetaDataType? metaData,
             IServiceMessageContext context,
             DataSetFieldContentMask fieldContentMask = DataSetFieldContentMask.None)
         {
-            if (fields is null)
-            {
-                throw new ArgumentNullException(nameof(fields));
-            }
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -100,7 +96,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static void EncodeKeyOrEventFrame(
             ref UadpBinaryWriter writer,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             PubSubFieldEncoding encoding,
             DataSetMetaDataType? metaData,
             IServiceMessageContext context,
@@ -139,7 +135,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static void EncodeDeltaFrame(
             ref UadpBinaryWriter writer,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             PubSubFieldEncoding encoding,
             DataSetMetaDataType? metaData,
             IServiceMessageContext context,
@@ -236,7 +232,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static void EncodeRawFields(
             ref UadpBinaryWriter writer,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             DataSetMetaDataType metaData,
             IServiceMessageContext context)
         {

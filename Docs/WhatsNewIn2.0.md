@@ -346,8 +346,8 @@ to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-
   is supported.
 
 For library reference and code samples, read [`PubSub.md`](PubSub.md).
-For the upgrade story (compatibility matrix, codemod recipes,
-behavioural fixes), read
+For the upgrade story (breaking changes, compatibility matrix, and
+codemod recipes), read
 [`migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md).
 
 ### Tooling

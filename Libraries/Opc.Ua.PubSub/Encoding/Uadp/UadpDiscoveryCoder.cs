@@ -572,7 +572,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static void WriteStringArray(
             ref UadpBinaryWriter writer,
-            IReadOnlyList<string> values)
+            ArrayOf<string> values)
         {
             writer.WriteUInt16Le((ushort)values.Count);
             for (int i = 0; i < values.Count; i++)

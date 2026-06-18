@@ -171,9 +171,6 @@ namespace OpcUaPubSubJsonTests
                 null, JsonEncodingMode.Verbose, ctx),
                 Throws.ArgumentNullException);
             Assert.That(() => JsonFieldEncoder.EncodeFields(
-                writer, null!, null, JsonEncodingMode.Verbose, ctx),
-                Throws.ArgumentNullException);
-            Assert.That(() => JsonFieldEncoder.EncodeFields(
                 writer, JsonTestUtilities.CreateFields(),
                 null, JsonEncodingMode.Verbose, null!),
                 Throws.ArgumentNullException);
@@ -399,7 +396,7 @@ namespace OpcUaPubSubJsonTests
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
-            Assert.That(fields, Has.Count.EqualTo(1));
+            Assert.That(fields.Count, Is.EqualTo(1));
             Assert.That(fields[0].Encoding,
                 Is.EqualTo(PubSubFieldEncoding.DataValue));
         }
@@ -418,7 +415,7 @@ namespace OpcUaPubSubJsonTests
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
-            Assert.That(fields, Has.Count.EqualTo(1));
+            Assert.That(fields.Count, Is.EqualTo(1));
             Assert.That(fields[0].Encoding,
                 Is.EqualTo(PubSubFieldEncoding.Variant));
         }

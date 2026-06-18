@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
     /// <summary>
@@ -90,7 +88,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// DataSetWriterIds for the DataSetWriterConfiguration
         /// response.
         /// </summary>
-        public IReadOnlyList<ushort> DataSetWriterIds { get; init; } = [];
+        public ArrayOf<ushort> DataSetWriterIds { get; init; } = [];
 
         /// <summary>
         /// WriterGroup configuration payload for the
@@ -101,7 +99,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Publisher endpoint list for the PublisherEndpoints response.
         /// </summary>
-        public IReadOnlyList<EndpointDescription> PublisherEndpoints { get; init; } = [];
+        public ArrayOf<EndpointDescription> PublisherEndpoints { get; init; } = [];
 
         /// <summary>
         /// ApplicationInformation payload for the ApplicationInformation

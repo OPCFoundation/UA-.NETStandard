@@ -530,7 +530,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static void WritePromotedFields(
             ref UadpBinaryWriter writer,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             PubSubNetworkMessageContext context)
         {
             int sizePos = writer.Reserve(2);

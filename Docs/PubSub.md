@@ -171,6 +171,9 @@ the change.
 ([Part 14 §6.2.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.6)).
 Groups own writers / readers and drive the publishing / receive
 schedule via `IPubSubScheduler` ([§6.4.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1)).
+When a `WriterGroup` has `KeepAliveTime > 0`, the scheduler emits a
+KeepAlive NetworkMessage whenever the group has not sent a
+DataSetMessage during that interval.
 
 ### `DataSetWriter` / `DataSetReader`
 
@@ -181,6 +184,9 @@ stream
 ([§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.7)).
 Filters honoured: `PublisherId`, `WriterGroupId`, `DataSetWriterId`,
 `DataSetClassId`, `MessageReceiveTimeout`.
+`DataSetClassId` mismatches are rejected before the message reaches the
+sink. `MessageReceiveTimeout > 0` moves the reader to `PubSubState.Error`
+when no matching message arrives within the configured idle window.
 
 ### `IDataSetMetaDataRegistry`
 
@@ -525,7 +531,14 @@ nonce reuse is detected by `RandomNonceProvider` /
 
 `Opc.Ua.PubSub.Security.Sks` implements both sides of
 [Part 14 §8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4)
-without bringing the rest of the stack into PubSub.
+for PubSub symmetric group-key distribution. This is intentionally
+separate from the OPC 10000-12 KeyCredential services used by GDS and
+resource-server credential push: SKS rotates and serves
+`PubSubSecurityKey` material for SecurityGroups, while KeyCredential
+issues or pushes application credentials. Server hosting may bridge SKS
+security events into the normal server audit pipeline, but the core
+PubSub SKS abstractions avoid a dependency on GDS/server
+KeyCredential components.
 
 ### Pull (client)
 

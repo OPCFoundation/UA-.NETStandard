@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// </remarks>
     public sealed record SksKeyResponse
     {
-        private IReadOnlyList<PubSubSecurityKey>? m_unpacked;
+        private ArrayOf<PubSubSecurityKey>? m_unpacked;
 
         /// <summary>
         /// Initializes a new <see cref="SksKeyResponse"/>.
@@ -77,17 +77,13 @@ namespace Opc.Ua.PubSub.Security.Sks
         public SksKeyResponse(
             string securityPolicyUri,
             uint firstTokenId,
-            IReadOnlyList<byte[]> keys,
+            ArrayOf<byte[]> keys,
             TimeSpan timeToNextKey,
             TimeSpan keyLifetime)
         {
             if (securityPolicyUri is null)
             {
                 throw new ArgumentNullException(nameof(securityPolicyUri));
-            }
-            if (keys is null)
-            {
-                throw new ArgumentNullException(nameof(keys));
             }
             if (keyLifetime <= TimeSpan.Zero)
             {
@@ -117,7 +113,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <summary>
         /// Packed key material — one ByteString per token id.
         /// </summary>
-        public IReadOnlyList<byte[]> Keys { get; }
+        public ArrayOf<byte[]> Keys { get; }
 
         /// <summary>
         /// Time remaining before the SKS expects to rotate the
@@ -142,28 +138,25 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <see cref="InvalidOperationException"/> when a packed key
         /// has the wrong length for the resolved policy.
         /// </remarks>
-        public IReadOnlyList<PubSubSecurityKey> Unpacked
+        public ArrayOf<PubSubSecurityKey> Unpacked
         {
             get
             {
-                IReadOnlyList<PubSubSecurityKey>? cached = m_unpacked;
-                if (cached is not null)
+                if (!m_unpacked.HasValue)
                 {
-                    return cached;
+                    m_unpacked = UnpackKeys();
                 }
-                cached = UnpackKeys();
-                m_unpacked = cached;
-                return cached;
+                return m_unpacked.Value;
             }
         }
 
-        private PubSubSecurityKey[] UnpackKeys()
+        private ArrayOf<PubSubSecurityKey> UnpackKeys()
         {
             IPubSubSecurityPolicy? policy =
                 PubSubSecurityPolicyRegistry.GetByUri(SecurityPolicyUri);
             if (policy is null)
             {
-                return Array.Empty<PubSubSecurityKey>();
+                return [];
             }
             int signingLength = policy.SigningKeyLength;
             int encryptingLength = policy.EncryptingKeyLength;
@@ -171,7 +164,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             int totalLength = signingLength + encryptingLength + nonceLength;
             if (totalLength == 0)
             {
-                return Array.Empty<PubSubSecurityKey>();
+                return [];
             }
             DateTimeUtc issuedAt = DateTimeUtc.From(DateTime.UtcNow);
             var unpacked = new PubSubSecurityKey[Keys.Count];

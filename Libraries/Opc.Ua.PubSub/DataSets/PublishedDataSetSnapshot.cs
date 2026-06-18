@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.DataSets
@@ -57,16 +56,12 @@ namespace Opc.Ua.PubSub.DataSets
         /// <param name="sampledAt">Wall-clock time of the sample.</param>
         public PublishedDataSetSnapshot(
             ConfigurationVersionDataType metaDataVersion,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             DateTimeUtc sampledAt)
         {
             if (metaDataVersion is null)
             {
                 throw new ArgumentNullException(nameof(metaDataVersion));
-            }
-            if (fields is null)
-            {
-                throw new ArgumentNullException(nameof(fields));
             }
 
             MetaDataVersion = metaDataVersion;
@@ -82,7 +77,7 @@ namespace Opc.Ua.PubSub.DataSets
         /// <summary>
         /// Field values in MetaData order.
         /// </summary>
-        public IReadOnlyList<DataSetField> Fields { get; init; }
+        public ArrayOf<DataSetField> Fields { get; init; }
 
         /// <summary>
         /// Wall-clock time of the sample.

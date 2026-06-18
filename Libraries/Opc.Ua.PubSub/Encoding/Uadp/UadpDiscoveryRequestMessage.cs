@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
     /// <summary>
@@ -70,7 +68,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// DataSetWriterIds the subscriber is asking about. An empty
         /// list means "all writers known to the publisher".
         /// </summary>
-        public IReadOnlyList<ushort> DataSetWriterIds { get; init; } = [];
+        public ArrayOf<ushort> DataSetWriterIds { get; init; } = [];
 
         /// <summary>
         /// Optional filter applied when <see cref="DiscoveryType"/> is

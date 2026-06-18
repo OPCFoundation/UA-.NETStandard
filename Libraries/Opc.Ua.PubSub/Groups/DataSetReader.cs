@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Groups
             _ = State.TryMarkOperational();
             try
             {
-                await Sink.WriteAsync(dataSetMessage.Fields, cancellationToken)
+                await Sink.WriteAsync([.. dataSetMessage.Fields], cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)

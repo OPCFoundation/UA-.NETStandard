@@ -79,14 +79,14 @@ namespace Opc.Ua.PubSub.Tests.MetaData
         public void Constructor_DefaultLoggerIsAccepted()
         {
             var sut = new DataSetMetaDataRegistry();
-            Assert.That(sut.Keys, Is.Empty);
+            Assert.That(((DataSetMetaDataKey[]?)sut.Keys) ?? [], Is.Empty);
         }
 
         [Test]
         public void Keys_EmptyBeforeAnyRegister()
         {
             var sut = new DataSetMetaDataRegistry();
-            Assert.That(sut.Keys, Is.Empty);
+            Assert.That(((DataSetMetaDataKey[]?)sut.Keys) ?? [], Is.Empty);
         }
 
         [Test]
@@ -98,8 +98,8 @@ namespace Opc.Ua.PubSub.Tests.MetaData
 
             sut.Register(key, meta);
 
-            Assert.That(sut.Keys, Has.Count.EqualTo(1));
-            Assert.That(sut.Keys, Has.Member(key));
+            Assert.That(((DataSetMetaDataKey[]?)sut.Keys) ?? [], Has.Length.EqualTo(1));
+            Assert.That(((DataSetMetaDataKey[]?)sut.Keys) ?? [], Has.Member(key));
         }
 
         [Test]
@@ -262,7 +262,7 @@ namespace Opc.Ua.PubSub.Tests.MetaData
 
             Assert.Multiple(() =>
             {
-                Assert.That(sut.Keys, Has.Count.EqualTo(1), "identity replacement");
+                Assert.That(((DataSetMetaDataKey[]?)sut.Keys) ?? [], Has.Length.EqualTo(1), "identity replacement");
                 MetaDataMatchResult r = sut.TryGet(key2, out DataSetMetaDataType? out1);
                 Assert.That(r, Is.EqualTo(MetaDataMatchResult.Match));
                 Assert.That(out1, Is.SameAs(meta2));
@@ -335,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests.MetaData
 
             Assert.Multiple(() =>
             {
-                Assert.That(sut.Keys, Is.Empty);
+                Assert.That(((DataSetMetaDataKey[]?)sut.Keys) ?? [], Is.Empty);
                 MetaDataMatchResult r = sut.TryGet(key, out _);
                 Assert.That(r, Is.EqualTo(MetaDataMatchResult.NotFound));
             });
@@ -356,9 +356,9 @@ namespace Opc.Ua.PubSub.Tests.MetaData
             sut.Register(NewKey(writerGroupId: 1, dataSetWriterId: 1), NewMeta());
             sut.Register(NewKey(writerGroupId: 1, dataSetWriterId: 2), NewMeta());
 
-            IReadOnlyCollection<DataSetMetaDataKey> snapshot1 = sut.Keys;
+            ArrayOf<DataSetMetaDataKey> snapshot1 = sut.Keys;
             sut.Register(NewKey(writerGroupId: 1, dataSetWriterId: 3), NewMeta());
-            IReadOnlyCollection<DataSetMetaDataKey> snapshot2 = sut.Keys;
+            ArrayOf<DataSetMetaDataKey> snapshot2 = sut.Keys;
 
             Assert.Multiple(() =>
             {

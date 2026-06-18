@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         public async Task WriterGroupBuildsSuccessfully()
         {
             await using IPubSubApplication app = BuildAppWithWriterGroup();
-            Assert.That(app.Connections[0].WriterGroups, Has.Count.EqualTo(1));
+            Assert.That(app.Connections[0].WriterGroups.Count, Is.EqualTo(1));
             Assert.That(app.Connections[0].WriterGroups[0].State, Is.Not.Null);
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             await using IPubSubApplication app = BuildAppWithWriterGroup();
             var group = (WriterGroup)app.Connections[0].WriterGroups[0];
-            Assert.That(group.DataSetWriters, Is.Empty);
+            Assert.That(((IDataSetWriter[]?)group.DataSetWriters) ?? [], Is.Empty);
         }
 
         [Test]
@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             await using IPubSubApplication app = BuildAppWithReaderGroup();
             var group = (ReaderGroup)app.Connections[0].ReaderGroups[0];
-            Assert.That(group.DataSetReaders, Is.Empty);
+            Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.Empty);
         }
 
         [Test]

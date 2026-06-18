@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 NullLogger.Instance);
 
             Assert.That(routed, Is.True);
-            Assert.That(registry.Keys, Is.Empty);
+            Assert.That(((DataSetMetaDataKey[]?)registry.Keys) ?? [], Is.Empty);
         }
 
         [Test]
@@ -780,7 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class ThrowingRegistry : IDataSetMetaDataRegistry
         {
-            public IReadOnlyCollection<DataSetMetaDataKey> Keys => Array.Empty<DataSetMetaDataKey>();
+            public ArrayOf<DataSetMetaDataKey> Keys => [];
 
             public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged
             {

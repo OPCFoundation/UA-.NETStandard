@@ -309,7 +309,7 @@ namespace Opc.Ua.PubSub.Server
             }
             try
             {
-                IList<StatusCode> results = m_application
+                ArrayOf<StatusCode> results = m_application
                     .ReplaceConfigurationAsync(cfg)
                     .AsTask().GetAwaiter().GetResult();
                 outputArguments.Add(Variant.From([.. results]));

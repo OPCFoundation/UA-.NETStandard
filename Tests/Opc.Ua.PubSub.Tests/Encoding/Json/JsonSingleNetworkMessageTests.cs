@@ -173,7 +173,7 @@ namespace OpcUaPubSubJsonTests
             var asJson = decoded as JsonNetworkMessage;
             Assert.That(asJson, Is.Not.Null);
             Assert.That(asJson!.SingleMessageMode, Is.True);
-            Assert.That(asJson.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)asJson.DataSetMessages) ?? [], Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -213,7 +213,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(asJson, Is.Not.Null);
             JsonDataSetMessage rt = (JsonDataSetMessage)asJson!.DataSetMessages[0];
             Assert.That(rt.DataSetWriterId, Is.EqualTo(7));
-            Assert.That(rt.Fields, Has.Count.EqualTo(3));
+            Assert.That(((DataSetField[]?)rt.Fields) ?? [], Has.Length.EqualTo(3));
         }
     }
 }

@@ -396,7 +396,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private void ApplyResponse(SksKeyResponse response)
         {
-            IReadOnlyList<PubSubSecurityKey> keys = response.Unpacked;
+            ArrayOf<PubSubSecurityKey> keys = response.Unpacked;
             if (keys.Count == 0)
             {
                 m_logger.LogDebug(

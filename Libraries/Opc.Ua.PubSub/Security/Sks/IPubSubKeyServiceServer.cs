@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -55,7 +54,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <summary>
         /// Snapshot of every currently-registered SecurityGroupId.
         /// </summary>
-        IReadOnlyList<string> SecurityGroupIds { get; }
+        ArrayOf<string> SecurityGroupIds { get; }
 
         /// <summary>
         /// Issues keys for the requested SecurityGroup.

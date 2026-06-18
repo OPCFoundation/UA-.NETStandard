@@ -39,7 +39,7 @@ table; loading a single sub-doc keeps the context window small.
 | `CertificateValidator`, ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs | [`certificates.md`](certificates.md) |
 | `ApplicationConfiguration` changes, Data-Contract serializer removal, `ParseExtension` / `UpdateExtension` signature, session / browser state persistence | [`configuration.md`](configuration.md) |
 | `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect | [`sessions-subscriptions.md`](sessions-subscriptions.md) |
-| `UaPubSubApplication.Create*`, `IUaPubSubConnection`, `UaPubSubConfigurator`, `IUaPublisher`, AMQP transport, `JsonEncodingMode.Reversible/NonReversible`, `DataSetFieldContentMask`, `DatagramConnectionTransport2DataType`, fluent / DI / AOT PubSub | [`pubsub.md`](pubsub.md) |
+| `UaPubSubApplication.Create*`, `IUaPubSubConnection`, `UaPubSubConfigurator`, `IUaPublisher`, AMQP transport, `JsonEncodingMode.Reversible/NonReversible`, PubSub JSON encoder changes, `DataSetFieldContentMask` RawData / timestamp behaviour | [`pubsub.md`](pubsub.md) |
 | `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator`, `INodeCache.InvalidateNode` triggered by model change | [`alarms-model-change.md`](alarms-model-change.md) |
 | `DateTime.UtcNow`, `Timer`, deterministic time in tests; `System.TimeProvider` adoption | [`timeprovider.md`](timeprovider.md) |
 
@@ -55,7 +55,7 @@ table; loading a single sub-doc keeps the context window small.
 - [`certificates.md`](certificates.md) — Certificates and `ICertificateProvider`
 - [`configuration.md`](configuration.md) — Configuration and State Persistence
 - [`sessions-subscriptions.md`](sessions-subscriptions.md) — Sessions, GDS Client, and Subscriptions
-- [`pubsub.md`](pubsub.md) — PubSub (Part 14): API, AMQP removal, transports, encodings, security
+- [`pubsub.md`](pubsub.md) — PubSub (Part 14): breaking API, transport, JSON, and field-encoding changes
 - [`alarms-model-change.md`](alarms-model-change.md) — Alarms and Address-Space Model Changes
 - [`timeprovider.md`](timeprovider.md) — Time and Timer Abstraction (`TimeProvider`)
 

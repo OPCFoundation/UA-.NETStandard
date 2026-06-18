@@ -87,13 +87,12 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task ReplaceConfigurationAsyncReturnsStatusListWithGood()
         {
             await using IPubSubApplication app = NewApp();
-            IList<StatusCode> results = await app.ReplaceConfigurationAsync(
+            ArrayOf<StatusCode> results = await app.ReplaceConfigurationAsync(
                 new PubSubConfigurationDataType
                 {
                     Connections = [],
                     PublishedDataSets = []
                 });
-            Assert.That(results, Is.Not.Null);
             Assert.That(results, Is.Not.Empty);
             Assert.That(StatusCode.IsGood(results[0]), Is.True);
         }
@@ -224,7 +223,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishingInterval = 1000
             });
             await app.RemoveGroupAsync(wgId);
-            Assert.That(app.Connections[0].WriterGroups, Is.Empty);
+            Assert.That(app.Connections[0].WriterGroups.Count, Is.Zero);
         }
 
         [Test]
@@ -236,7 +235,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             NodeId rgId = await app.AddReaderGroupAsync(
                 connId, new ReaderGroupDataType { Name = "rg-1" });
             await app.RemoveGroupAsync(rgId);
-            Assert.That(app.Connections[0].ReaderGroups, Is.Empty);
+            Assert.That(app.Connections[0].ReaderGroups.Count, Is.Zero);
         }
 
         [Test]
@@ -569,8 +568,8 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             // pds-1 was registered at construction-time so it has a synthetic node id
             PubSubConfigurationDataType cfg = app.GetConfiguration();
-            Assert.That(cfg.Connections[0].WriterGroups[0].DataSetWriters,
-                Has.Count.EqualTo(1));
+            Assert.That(((DataSetWriterDataType[]?)cfg.Connections[0].WriterGroups[0].DataSetWriters) ?? [],
+                Has.Length.EqualTo(1));
 
             // Add a new PDS and then remove it; ensure no cascade affects the
             // pre-existing writer that was bound to pds-1.
@@ -579,8 +578,8 @@ namespace Opc.Ua.PubSub.Tests.Application
             await app.RemovePublishedDataSetAsync(addedId);
 
             cfg = app.GetConfiguration();
-            Assert.That(cfg.Connections[0].WriterGroups[0].DataSetWriters,
-                Has.Count.EqualTo(1));
+            Assert.That(((DataSetWriterDataType[]?)cfg.Connections[0].WriterGroups[0].DataSetWriters) ?? [],
+                Has.Length.EqualTo(1));
         }
 
         [Test]

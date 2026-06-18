@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             UadpNetworkMessage decoded = await RoundTripAsync(msg).ConfigureAwait(false);
 
-            Assert.That(decoded.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)decoded.DataSetMessages) ?? [], Has.Length.EqualTo(1));
             var ds = (UadpDataSetMessage)decoded.DataSetMessages[0];
             Assert.That(ds.Fields[0].Value, Is.EqualTo(new Variant(42)));
         }
@@ -145,7 +145,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             UadpNetworkMessage decoded = await RoundTripAsync(msg).ConfigureAwait(false);
 
-            Assert.That(decoded.DataSetMessages, Has.Count.EqualTo(3));
+            Assert.That(((PubSubDataSetMessage[]?)decoded.DataSetMessages) ?? [], Has.Length.EqualTo(3));
             Assert.That(decoded.DataSetMessages[0].DataSetWriterId, Is.EqualTo((ushort)11));
             Assert.That(decoded.DataSetMessages[1].DataSetWriterId, Is.EqualTo((ushort)12));
             Assert.That(decoded.DataSetMessages[2].DataSetWriterId, Is.EqualTo((ushort)13));
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             UadpNetworkMessage decoded = await RoundTripAsync(msg).ConfigureAwait(false);
 
-            Assert.That(decoded.PromotedFields, Has.Count.EqualTo(2));
+            Assert.That(((DataSetField[]?)decoded.PromotedFields) ?? [], Has.Length.EqualTo(2));
             Assert.That(decoded.PromotedFields[0].Value, Is.EqualTo(new Variant((uint)100)));
             Assert.That(decoded.PromotedFields[1].Value, Is.EqualTo(new Variant("alarm")));
         }
@@ -233,7 +233,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     ]
                 }).ConfigureAwait(false);
 
-            Assert.That(decoded.Fields, Has.Count.EqualTo(3));
+            Assert.That(((DataSetField[]?)decoded.Fields) ?? [], Has.Length.EqualTo(3));
             Assert.That(decoded.Fields[0].Value, Is.EqualTo(new Variant((short)-7)));
             Assert.That(decoded.Fields[1].Value, Is.EqualTo(new Variant("hello")));
             Assert.That(decoded.Fields[2].Value, Is.EqualTo(new Variant(3.14)));
@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decodedMsg, Is.Not.Null);
             var decoded = (UadpNetworkMessage)decodedMsg!;
             var ds = (UadpDataSetMessage)decoded.DataSetMessages[0];
-            Assert.That(ds.Fields, Has.Count.EqualTo(2));
+            Assert.That(((DataSetField[]?)ds.Fields) ?? [], Has.Length.EqualTo(2));
             Assert.That(ds.Fields[0].Value, Is.EqualTo(new Variant(123u)));
             Assert.That(ds.Fields[1].Value, Is.EqualTo(new Variant(2.5)));
         }
@@ -401,7 +401,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 }).ConfigureAwait(false);
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
-            Assert.That(decoded.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)decoded.Fields) ?? [], Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -417,7 +417,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 }).ConfigureAwait(false);
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
-            Assert.That(decoded.Fields, Is.Empty);
+            Assert.That(((DataSetField[]?)decoded.Fields) ?? [], Is.Empty);
         }
 
         [Test]
@@ -437,7 +437,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 }).ConfigureAwait(false);
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.Event));
-            Assert.That(decoded.Fields, Has.Count.EqualTo(2));
+            Assert.That(((DataSetField[]?)decoded.Fields) ?? [], Has.Length.EqualTo(2));
         }
 
         [Test]

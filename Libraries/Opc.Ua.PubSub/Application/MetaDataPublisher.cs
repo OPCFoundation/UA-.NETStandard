@@ -196,16 +196,25 @@ namespace Opc.Ua.PubSub.Application
 
         private async ValueTask PublishInitialAsync(CancellationToken cancellationToken)
         {
-            foreach (IPubSubConnection connection in m_application.Connections)
+            for (int connectionIndex = 0;
+                connectionIndex < m_application.Connections.Count;
+                connectionIndex++)
             {
+                IPubSubConnection connection = m_application.Connections[connectionIndex];
                 if (connection is not PubSubConnection runtime)
                 {
                     continue;
                 }
-                foreach (IWriterGroup writerGroup in runtime.WriterGroups)
+                for (int writerGroupIndex = 0;
+                    writerGroupIndex < runtime.WriterGroups.Count;
+                    writerGroupIndex++)
                 {
-                    foreach (IDataSetWriter writer in writerGroup.DataSetWriters)
+                    IWriterGroup writerGroup = runtime.WriterGroups[writerGroupIndex];
+                    for (int writerIndex = 0;
+                        writerIndex < writerGroup.DataSetWriters.Count;
+                        writerIndex++)
                     {
+                        IDataSetWriter writer = writerGroup.DataSetWriters[writerIndex];
                         DataSetMetaDataType? meta = ResolveWriterMetaData(writer);
                         if (meta is null)
                         {
@@ -267,8 +276,11 @@ namespace Opc.Ua.PubSub.Application
             DataSetMetaDataType current,
             CancellationToken cancellationToken)
         {
-            foreach (IPubSubConnection connection in m_application.Connections)
+            for (int connectionIndex = 0;
+                connectionIndex < m_application.Connections.Count;
+                connectionIndex++)
             {
+                IPubSubConnection connection = m_application.Connections[connectionIndex];
                 if (connection is not PubSubConnection runtime)
                 {
                     continue;
@@ -277,14 +289,20 @@ namespace Opc.Ua.PubSub.Application
                 {
                     continue;
                 }
-                foreach (IWriterGroup writerGroup in runtime.WriterGroups)
+                for (int writerGroupIndex = 0;
+                    writerGroupIndex < runtime.WriterGroups.Count;
+                    writerGroupIndex++)
                 {
+                    IWriterGroup writerGroup = runtime.WriterGroups[writerGroupIndex];
                     if (writerGroup.WriterGroupId != key.WriterGroupId)
                     {
                         continue;
                     }
-                    foreach (IDataSetWriter writer in writerGroup.DataSetWriters)
+                    for (int writerIndex = 0;
+                        writerIndex < writerGroup.DataSetWriters.Count;
+                        writerIndex++)
                     {
+                        IDataSetWriter writer = writerGroup.DataSetWriters[writerIndex];
                         if (writer.DataSetWriterId != key.DataSetWriterId)
                         {
                             continue;

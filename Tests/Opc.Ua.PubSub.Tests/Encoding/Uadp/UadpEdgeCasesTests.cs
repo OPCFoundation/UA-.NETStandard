@@ -405,11 +405,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 await encoder.EncodeAsync(msg, context).ConfigureAwait(false);
             var decoded = (UadpNetworkMessage?)UadpDecoder.Decode(bytes, context);
             Assert.That(decoded, Is.Not.Null);
-            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)decoded!.DataSetMessages) ?? [], Has.Length.EqualTo(1));
             var dsm = (UadpDataSetMessage)decoded.DataSetMessages[0];
             Assert.That(dsm.MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
-            Assert.That(dsm.Fields, Is.Empty);
+            Assert.That(((DataSetField[]?)dsm.Fields) ?? [], Is.Empty);
         }
     }
 }

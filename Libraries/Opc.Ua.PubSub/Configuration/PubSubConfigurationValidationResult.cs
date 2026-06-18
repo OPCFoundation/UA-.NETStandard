@@ -51,13 +51,13 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentNullException(nameof(issues));
             }
-            Issues = issues.ToArray();
+            Issues = issues.ToArrayOf();
         }
 
         /// <summary>
         /// Discovered issues. Never <see langword="null"/>.
         /// </summary>
-        public IReadOnlyList<PubSubConfigurationIssue> Issues { get; }
+        public ArrayOf<PubSubConfigurationIssue> Issues { get; }
 
         /// <summary>
         /// <see langword="true"/> when no error-severity issue was
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             if (!IsValid)
             {
-                throw new PubSubConfigurationException(Issues);
+                throw new PubSubConfigurationException([.. Issues]);
             }
         }
     }

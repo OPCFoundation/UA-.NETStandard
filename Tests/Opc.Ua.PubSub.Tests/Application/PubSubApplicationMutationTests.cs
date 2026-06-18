@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 }),
                 PublishedDataSets = []
             };
-            IList<StatusCode> results = await app.ReplaceConfigurationAsync(newCfg);
+            ArrayOf<StatusCode> results = await app.ReplaceConfigurationAsync(newCfg);
             Assert.That(results, Is.Not.Empty);
             Assert.That(app.Connections, Has.Count.EqualTo(1));
         }
@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             };
             NodeId wgId = await app.AddWriterGroupAsync(connId, wgCfg);
             Assert.That(wgId.IsNull, Is.False);
-            Assert.That(app.Connections[0].WriterGroups, Has.Count.EqualTo(1));
+            Assert.That(app.Connections[0].WriterGroups.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             var rgCfg = new ReaderGroupDataType { Name = "rg-1" };
             NodeId rgId = await app.AddReaderGroupAsync(connId, rgCfg);
             Assert.That(rgId.IsNull, Is.False);
-            Assert.That(app.Connections[0].ReaderGroups, Has.Count.EqualTo(1));
+            Assert.That(app.Connections[0].ReaderGroups.Count, Is.EqualTo(1));
         }
 
         [Test]

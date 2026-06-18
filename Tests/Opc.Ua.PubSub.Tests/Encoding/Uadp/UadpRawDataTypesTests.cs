@@ -158,9 +158,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var decoded = (UadpNetworkMessage?)UadpDecoder.Decode(bytes, context);
             Assert.That(decoded, Is.Not.Null,
                 $"Decode failed for {builtIn} rank={valueRank}");
-            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)decoded!.DataSetMessages) ?? [], Has.Length.EqualTo(1));
             var dsm = (UadpDataSetMessage)decoded.DataSetMessages[0];
-            Assert.That(dsm.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)dsm.Fields) ?? [], Has.Length.EqualTo(1));
         }
 
         private static readonly bool[] s_boolArr = [true, false, true];
@@ -268,7 +268,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var decoded = (UadpNetworkMessage?)UadpDecoder.Decode(bytes, context);
             Assert.That(decoded, Is.Not.Null);
             var dsm = (UadpDataSetMessage)decoded!.DataSetMessages[0];
-            Assert.That(dsm.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)dsm.Fields) ?? [], Has.Length.EqualTo(1));
         }
     }
 }

@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Groups
     internal sealed class DataSetReaderTimeoutWatcher : IAsyncDisposable
     {
         private static readonly TimeSpan s_pollInterval = TimeSpan.FromSeconds(1);
-        private readonly IReadOnlyList<DataSetReader> m_readers;
+        private readonly ArrayOf<DataSetReader> m_readers;
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly ILogger m_logger;
@@ -81,16 +81,12 @@ namespace Opc.Ua.PubSub.Groups
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="pollInterval">Override poll interval (test seam).</param>
         public DataSetReaderTimeoutWatcher(
-            IReadOnlyList<DataSetReader> readers,
+            ArrayOf<DataSetReader> readers,
             IPubSubScheduler scheduler,
             IPubSubDiagnostics diagnostics,
             ITelemetryContext telemetry,
             TimeSpan? pollInterval = null)
         {
-            if (readers is null)
-            {
-                throw new ArgumentNullException(nameof(readers));
-            }
             if (scheduler is null)
             {
                 throw new ArgumentNullException(nameof(scheduler));

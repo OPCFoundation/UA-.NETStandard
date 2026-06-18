@@ -402,6 +402,7 @@ namespace Opc.Ua.PubSub.Application
         public string ApplicationId { get; }
 
         /// <inheritdoc/>
+        // Live view over mutable internal list; ArrayOf would copy on every access.
         public IReadOnlyList<IPubSubConnection> Connections => m_connections;
 
         /// <inheritdoc/>
@@ -577,7 +578,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Replaces the entire runtime configuration.
         /// </summary>
-        public ValueTask<IList<StatusCode>> ReplaceConfigurationAsync(
+        public ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default)
         {
@@ -589,7 +590,7 @@ namespace Opc.Ua.PubSub.Application
             return ApplyMutationAsync(
                 _ => (
                     (PubSubConfigurationDataType)configuration.Clone(),
-                    (IList<StatusCode>)new List<StatusCode>(1) { StatusCodes.Good },
+                    (ArrayOf<StatusCode>)[StatusCodes.Good],
                     true),
                 cancellationToken);
         }
@@ -1192,17 +1193,28 @@ namespace Opc.Ua.PubSub.Application
             m_connectionNodeIdsByName[connectionName] = connectionNodeId;
             m_connectionNamesByNodeId[connectionNodeId] = connectionName;
 
-            foreach (WriterGroup writerGroup in connection.WriterGroups.OfType<WriterGroup>())
+            for (int writerGroupIndex = 0;
+                writerGroupIndex < connection.WriterGroups.Count;
+                writerGroupIndex++)
             {
+                if (connection.WriterGroups[writerGroupIndex] is not WriterGroup writerGroup)
+                {
+                    continue;
+                }
                 string writerGroupName = writerGroup.Name;
                 NodeId writerGroupNodeId =
                     CreateWriterGroupNodeId(connectionName, writerGroupName);
                 m_groupRefs[writerGroupNodeId] =
                     (connectionName, writerGroupName);
 
-                foreach (DataSetWriter writer
-                    in writerGroup.DataSetWriters.OfType<DataSetWriter>())
+                for (int writerIndex = 0;
+                    writerIndex < writerGroup.DataSetWriters.Count;
+                    writerIndex++)
                 {
+                    if (writerGroup.DataSetWriters[writerIndex] is not DataSetWriter writer)
+                    {
+                        continue;
+                    }
                     NodeId writerNodeId = CreateWriterNodeId(
                         connectionName,
                         writerGroupName,
@@ -1212,17 +1224,28 @@ namespace Opc.Ua.PubSub.Application
                 }
             }
 
-            foreach (ReaderGroup readerGroup in connection.ReaderGroups.OfType<ReaderGroup>())
+            for (int readerGroupIndex = 0;
+                readerGroupIndex < connection.ReaderGroups.Count;
+                readerGroupIndex++)
             {
+                if (connection.ReaderGroups[readerGroupIndex] is not ReaderGroup readerGroup)
+                {
+                    continue;
+                }
                 string readerGroupName = readerGroup.Name;
                 NodeId readerGroupNodeId =
                     CreateReaderGroupNodeId(connectionName, readerGroupName);
                 m_groupRefs[readerGroupNodeId] =
                     (connectionName, readerGroupName);
 
-                foreach (DataSetReader reader
-                    in readerGroup.DataSetReaders.OfType<DataSetReader>())
+                for (int readerIndex = 0;
+                    readerIndex < readerGroup.DataSetReaders.Count;
+                    readerIndex++)
                 {
+                    if (readerGroup.DataSetReaders[readerIndex] is not DataSetReader reader)
+                    {
+                        continue;
+                    }
                     NodeId readerNodeId = CreateReaderNodeId(
                         connectionName,
                         readerGroupName,
@@ -1249,11 +1272,22 @@ namespace Opc.Ua.PubSub.Application
 
             foreach (PubSubConnection connection in m_connections)
             {
-                foreach (WriterGroup writerGroup in connection.WriterGroups.OfType<WriterGroup>())
+                for (int writerGroupIndex = 0;
+                    writerGroupIndex < connection.WriterGroups.Count;
+                    writerGroupIndex++)
                 {
-                    foreach (DataSetWriter writer
-                        in writerGroup.DataSetWriters.OfType<DataSetWriter>())
+                    if (connection.WriterGroups[writerGroupIndex] is not WriterGroup writerGroup)
                     {
+                        continue;
+                    }
+                    for (int writerIndex = 0;
+                        writerIndex < writerGroup.DataSetWriters.Count;
+                        writerIndex++)
+                    {
+                        if (writerGroup.DataSetWriters[writerIndex] is not DataSetWriter writer)
+                        {
+                            continue;
+                        }
                         if (writer.PublishedDataSet is not PublishedDataSet publishedDataSet)
                         {
                             continue;

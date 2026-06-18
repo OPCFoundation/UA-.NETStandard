@@ -55,7 +55,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 TimeSpan.FromMinutes(5));
             Assert.That(response.SecurityPolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.None));
             Assert.That(response.FirstTokenId, Is.EqualTo(42U));
-            Assert.That(response.Keys, Is.SameAs(packed));
+            byte[][]? responseKeys = (byte[][]?)response.Keys;
+            Assert.That(responseKeys, Is.EqualTo(packed));
             Assert.That(response.TimeToNextKey, Is.EqualTo(TimeSpan.FromSeconds(15)));
             Assert.That(response.KeyLifetime, Is.EqualTo(TimeSpan.FromMinutes(5)));
         }
@@ -74,16 +75,15 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public void Constructor_RejectsNullKeys()
+        public void Constructor_DefaultKeys_AreNullArrayOf()
         {
-            Assert.That(
-                () => new SksKeyResponse(
-                    PubSubSecurityPolicyUri.None,
-                    1U,
-                    null!,
-                    TimeSpan.Zero,
-                    TimeSpan.FromMinutes(1)),
-                Throws.TypeOf<ArgumentNullException>());
+            SksKeyResponse response = new(
+                PubSubSecurityPolicyUri.None,
+                1U,
+                default,
+                TimeSpan.Zero,
+                TimeSpan.FromMinutes(1));
+            Assert.That(response.Keys.IsNull, Is.True);
         }
 
         [Test]
@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new[] { Array.Empty<byte>() },
                 TimeSpan.Zero,
                 TimeSpan.FromMinutes(1));
-            Assert.That(response.Unpacked, Is.Empty);
+            Assert.That(((PubSubSecurityKey[]?)response.Unpacked) ?? [], Is.Empty);
         }
 
         [Test]
@@ -132,8 +132,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 TimeSpan.Zero,
                 TimeSpan.FromMinutes(1));
 
-            IReadOnlyList<PubSubSecurityKey> unpacked = response.Unpacked;
-            Assert.That(unpacked, Has.Count.EqualTo(2));
+            ArrayOf<PubSubSecurityKey> unpacked = response.Unpacked;
+            Assert.That(unpacked.Count, Is.EqualTo(2));
             Assert.That(unpacked[0].TokenId, Is.EqualTo(10U));
             Assert.That(unpacked[1].TokenId, Is.EqualTo(11U));
             Assert.That(unpacked[0].SigningKey.Length, Is.EqualTo(policy.SigningKeyLength));
@@ -171,9 +171,11 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new[] { new byte[total] },
                 TimeSpan.Zero,
                 TimeSpan.FromMinutes(1));
-            IReadOnlyList<PubSubSecurityKey> first = response.Unpacked;
-            IReadOnlyList<PubSubSecurityKey> second = response.Unpacked;
-            Assert.That(second, Is.SameAs(first));
+            ArrayOf<PubSubSecurityKey> first = response.Unpacked;
+            ArrayOf<PubSubSecurityKey> second = response.Unpacked;
+            PubSubSecurityKey[]? firstKeys = (PubSubSecurityKey[]?)first;
+            PubSubSecurityKey[]? secondKeys = (PubSubSecurityKey[]?)second;
+            Assert.That(secondKeys, Is.EqualTo(firstKeys));
         }
     }
 }

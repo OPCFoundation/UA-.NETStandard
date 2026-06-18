@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
@@ -79,7 +77,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// Optional ReplyTo endpoint list used by request/response
         /// brokered transports (Part 14 §7.2.5.3).
         /// </summary>
-        public IReadOnlyList<string> ReplyTo { get; init; } = [];
+        public ArrayOf<string> ReplyTo { get; init; } = [];
 
         /// <summary>
         /// When <see langword="true"/>, the encoder emits the flat

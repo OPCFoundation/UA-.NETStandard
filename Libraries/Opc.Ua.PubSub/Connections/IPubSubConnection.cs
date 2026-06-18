@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Encoding;
@@ -69,12 +68,12 @@ namespace Opc.Ua.PubSub.Connections
         /// <summary>
         /// Writer groups attached to this connection.
         /// </summary>
-        IReadOnlyList<IWriterGroup> WriterGroups { get; }
+        ArrayOf<IWriterGroup> WriterGroups { get; }
 
         /// <summary>
         /// Reader groups attached to this connection.
         /// </summary>
-        IReadOnlyList<IReaderGroup> ReaderGroups { get; }
+        ArrayOf<IReaderGroup> ReaderGroups { get; }
 
         /// <summary>
         /// Original configuration record this runtime view was

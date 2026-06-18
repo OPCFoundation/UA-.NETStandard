@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded fields, or <c>null</c> if the payload was
         /// malformed (truncated, missing required metadata, etc.).</returns>
-        public static IReadOnlyList<DataSetField>? DecodeFields(
+        public static ArrayOf<DataSetField>? DecodeFields(
             ref UadpBinaryReader reader,
             PubSubFieldEncoding encoding,
             PubSubDataSetMessageType messageType,
@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             if (messageType == PubSubDataSetMessageType.KeepAlive)
             {
-                return Array.Empty<DataSetField>();
+                return [];
             }
 
             if (messageType == PubSubDataSetMessageType.DeltaFrame)
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return DecodeKeyOrEventFrame(ref reader, encoding, metaData, context);
         }
 
-        private static List<DataSetField>? DecodeKeyOrEventFrame(
+        private static ArrayOf<DataSetField>? DecodeKeyOrEventFrame(
             ref UadpBinaryReader reader,
             PubSubFieldEncoding encoding,
             DataSetMetaDataType? metaData,
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return fields;
         }
 
-        private static List<DataSetField>? DecodeDeltaFrame(
+        private static ArrayOf<DataSetField>? DecodeDeltaFrame(
             ref UadpBinaryReader reader,
             PubSubFieldEncoding encoding,
             DataSetMetaDataType? metaData,

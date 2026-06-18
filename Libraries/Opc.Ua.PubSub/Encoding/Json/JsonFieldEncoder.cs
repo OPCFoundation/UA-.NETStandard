@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// backward compatibility (every member emitted).</param>
         public static void EncodeFields(
             Utf8JsonWriter writer,
-            IReadOnlyList<DataSetField> fields,
+            ArrayOf<DataSetField> fields,
             DataSetMetaDataType? metaData,
             JsonEncodingMode mode,
             IServiceMessageContext context,
@@ -77,10 +77,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
             if (writer is null)
             {
                 throw new ArgumentNullException(nameof(writer));
-            }
-            if (fields is null)
-            {
-                throw new ArgumentNullException(nameof(fields));
             }
             if (context is null)
             {

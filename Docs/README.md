@@ -50,7 +50,7 @@ Starting with version 1.5.375.XX the Windows Forms reference client & reference 
   builder, transports (UDP / MQTT 3.1.1 + 5.0), encodings (UADP / JSON),
   security, server-side address space, Native AOT, spec coverage table.
 * The [PubSub migration sub-doc](migrate/2.0.x/pubsub.md) — 1.5.378
-  → 2.0 breaking changes, AMQP removal, fluent / DI / AOT migration,
+  → 2.0 breaking API, transport, JSON, and field-encoding changes,
   compatibility matrix.
 * The [Dependency Injection](DependencyInjection.md) extensions —
   `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`,

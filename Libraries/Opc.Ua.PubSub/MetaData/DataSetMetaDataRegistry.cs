@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.MetaData
         public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged;
 
         /// <inheritdoc/>
-        public IReadOnlyCollection<DataSetMetaDataKey> Keys
+        public ArrayOf<DataSetMetaDataKey> Keys
         {
             get
             {
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.MetaData
                 {
                     if (m_entries.Count == 0)
                     {
-                        return Array.Empty<DataSetMetaDataKey>();
+                        return [];
                     }
                     var snapshot = new DataSetMetaDataKey[m_entries.Count];
                     int i = 0;

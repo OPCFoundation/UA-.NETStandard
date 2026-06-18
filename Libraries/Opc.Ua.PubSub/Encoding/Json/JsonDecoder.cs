@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string messageId = ReadOptionalString(root, "MessageId");
             PublisherId envelopePublisherId = ReadPublisherId(root);
             Uuid envelopeDataSetClassId = ReadUuid(root, "DataSetClassId");
-            IReadOnlyList<string> replyTo = ReadStringArray(root, "ReplyTo");
+            ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo");
             bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement);
             var dataSetMessages = new List<PubSubDataSetMessage>();
             if (flatLayout)
@@ -579,7 +579,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     PubSubDiagnosticsCounterKind.ResolverErrors);
                 return null;
             }
-            IReadOnlyList<DataSetField> fields = [];
+            ArrayOf<DataSetField> fields = [];
             if (entry.TryGetProperty("Payload", out JsonElement payload))
             {
                 fields = JsonFieldDecoder.DecodeFields(

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
     /// <summary>
@@ -71,16 +69,16 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Optional capability identifiers (e.g. <c>UAMA</c>, <c>NA</c>).
         /// </summary>
-        public IReadOnlyList<string> Capabilities { get; init; } = [];
+        public ArrayOf<string> Capabilities { get; init; } = [];
 
         /// <summary>
         /// Supported transport profile URIs.
         /// </summary>
-        public IReadOnlyList<string> SupportedTransportProfiles { get; init; } = [];
+        public ArrayOf<string> SupportedTransportProfiles { get; init; } = [];
 
         /// <summary>
         /// Supported PubSub security policy URIs.
         /// </summary>
-        public IReadOnlyList<string> SupportedSecurityPolicies { get; init; } = [];
+        public ArrayOf<string> SupportedSecurityPolicies { get; init; } = [];
     }
 }

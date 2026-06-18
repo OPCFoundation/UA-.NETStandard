@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.DataSets
         /// event has fired since the previous call.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public async ValueTask<IReadOnlyList<IReadOnlyList<Encoding.DataSetField>>>
+        public async ValueTask<ArrayOf<ArrayOf<Encoding.DataSetField>>>
             SampleAsync(CancellationToken cancellationToken = default)
         {
             IReadOnlyList<IReadOnlyList<Variant>> rows =
@@ -157,26 +157,28 @@ namespace Opc.Ua.PubSub.DataSets
             int fieldCount = !MetaData.Fields.IsNull
                 ? MetaData.Fields.Count
                 : SelectedFields.Count;
-            var result = new List<IReadOnlyList<Encoding.DataSetField>>(rows.Count);
-            foreach (IReadOnlyList<Variant> row in rows)
+            var result = new Encoding.DataSetField[rows.Count][];
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
             {
+                IReadOnlyList<Variant> row = rows[rowIndex];
                 int columns = Math.Min(fieldCount, row.Count);
-                var converted = new List<Encoding.DataSetField>(columns);
+                var converted = new Encoding.DataSetField[columns];
                 for (int i = 0; i < columns; i++)
                 {
                     string fieldName = !MetaData.Fields.IsNull
                         && i < MetaData.Fields.Count
                         ? MetaData.Fields[i]?.Name ?? string.Empty
                         : string.Empty;
-                    converted.Add(new Encoding.DataSetField
+                    converted[i] = new Encoding.DataSetField
                     {
                         Name = fieldName,
                         Value = row[i]
-                    });
+                    };
                 }
-                result.Add(converted);
+                result[rowIndex] = converted;
             }
-            return result;
+            return result.ToArrayOf<Encoding.DataSetField[], ArrayOf<Encoding.DataSetField>>(
+                static row => row);
         }
     }
 }

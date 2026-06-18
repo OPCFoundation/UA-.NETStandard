@@ -300,7 +300,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 contentMask |= UadpNetworkMessageContentMask.PicoSeconds;
             }
 
-            IReadOnlyList<DataSetField>? promotedFields = null;
+            ArrayOf<DataSetField>? promotedFields = null;
             if ((ext2 & ExtendedFlags2EncodingMask.PromotedFields) != 0)
             {
                 promotedFields = ReadPromotedFields(ref reader, context);
@@ -661,7 +661,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
-        private static List<DataSetField>? ReadPromotedFields(
+        private static ArrayOf<DataSetField>? ReadPromotedFields(
             ref UadpBinaryReader reader,
             PubSubNetworkMessageContext context)
         {
@@ -793,7 +793,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 publisherId, writerGroupId, writerId, dataSetClassId,
                 majorVersion, context);
 
-            IReadOnlyList<DataSetField>? fields = UadpFieldDecoder.DecodeFields(
+            ArrayOf<DataSetField>? fields = UadpFieldDecoder.DecodeFields(
                 ref reader, encoding, messageType, metaData, context.MessageContext);
             if (fields is null)
             {
@@ -813,7 +813,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     MajorVersion = majorVersion,
                     MinorVersion = minorVersion
                 },
-                Fields = fields,
+                Fields = fields.Value,
                 ContentMask = contentMask,
                 FieldEncoding = encoding,
                 ConfiguredSize = 0

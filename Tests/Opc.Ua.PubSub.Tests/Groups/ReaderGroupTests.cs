@@ -64,14 +64,13 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
 
         [Test]
-        public void Constructor_ShortForm_NullReaders_ThrowsArgumentNullException()
+        public void Constructor_ShortForm_DefaultReaders_IsEmpty()
         {
-            Assert.That(
-                () => new ReaderGroup(
-                    new ReaderGroupDataType { Name = "g" },
-                    null!,
-                    NUnitTelemetryContext.Create()),
-                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("readers"));
+            ReaderGroup group = new(
+                new ReaderGroupDataType { Name = "g" },
+                default,
+                NUnitTelemetryContext.Create());
+            Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.Empty);
         }
 
         [Test]
@@ -96,14 +95,15 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
 
         [Test]
-        public void Constructor_LongForm_NullReaders_ThrowsArgumentNullException()
+        public void Constructor_LongForm_DefaultReaders_IsEmpty()
         {
-            Assert.That(
-                () => new ReaderGroup(
-                    new ReaderGroupDataType { Name = "g" },
-                    null!, NUnitTelemetryContext.Create(),
-                    scheduler: null, diagnostics: null),
-                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("readers"));
+            ReaderGroup group = new(
+                new ReaderGroupDataType { Name = "g" },
+                default,
+                NUnitTelemetryContext.Create(),
+                scheduler: null,
+                diagnostics: null);
+            Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.Empty);
         }
 
         [Test]
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.Multiple(() =>
             {
                 Assert.That(group.Name, Is.EqualTo("my-group"));
-                Assert.That(group.DataSetReaders, Has.Count.EqualTo(2));
+                Assert.That(group.DataSetReaders.Count, Is.EqualTo(2));
                 Assert.That(group.Configuration.Name, Is.EqualTo("my-group"));
             });
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             DataSetReader r = MakeReader(3);
             var group = MakeGroup([r]);
 
-            Assert.That(group.DataSetReaders, Is.EquivalentTo(new[] { r }));
+            Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.EquivalentTo(new[] { r }));
         }
 
         // ── DispatchAsync ────────────────────────────────────────────────────
@@ -379,11 +379,11 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 cfg, sink, NUnitTelemetryContext.Create(), TimeProvider.System);
         }
 
-        private static ReaderGroup MakeGroup(IReadOnlyList<DataSetReader>? readers = null)
+        private static ReaderGroup MakeGroup(ArrayOf<DataSetReader> readers = default)
         {
             return new ReaderGroup(
                 new ReaderGroupDataType { Name = "test-group" },
-                readers ?? [],
+                readers.IsNull ? [] : readers,
                 NUnitTelemetryContext.Create());
         }
 

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.MetaData
 {
@@ -98,7 +97,7 @@ namespace Opc.Ua.PubSub.MetaData
         /// concurrent <see cref="Register"/> or <see cref="Remove"/>
         /// calls.
         /// </summary>
-        IReadOnlyCollection<DataSetMetaDataKey> Keys { get; }
+        ArrayOf<DataSetMetaDataKey> Keys { get; }
 
         /// <summary>
         /// Raised whenever a metadata description is registered or

@@ -61,6 +61,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Configured connections.
         /// </summary>
+        // Live view over mutable internal list; ArrayOf would copy on every access.
         IReadOnlyList<IPubSubConnection> Connections { get; }
 
         /// <summary>
@@ -110,7 +111,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Replaces the entire configuration.
         /// </summary>
-        ValueTask<IList<StatusCode>> ReplaceConfigurationAsync(
+        ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default);
 

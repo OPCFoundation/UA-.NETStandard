@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
@@ -71,7 +69,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Payload DataSetMessages contained in this NetworkMessage.
         /// </summary>
-        public IReadOnlyList<PubSubDataSetMessage> DataSetMessages { get; init; }
+        public ArrayOf<PubSubDataSetMessage> DataSetMessages { get; init; }
             = [];
 
         /// <summary>

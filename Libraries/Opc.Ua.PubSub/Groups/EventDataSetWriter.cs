@@ -130,13 +130,13 @@ namespace Opc.Ua.PubSub.Groups
         /// empty list when no events fired since the previous call.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public async ValueTask<IReadOnlyList<PubSubDataSetMessage>>
+        public async ValueTask<ArrayOf<PubSubDataSetMessage>>
             BuildEventMessagesAsync(CancellationToken cancellationToken = default)
         {
-            IReadOnlyList<IReadOnlyList<DataSetField>> rows =
+            ArrayOf<ArrayOf<DataSetField>> rows =
                 await m_publishedDataSet.SampleAsync(cancellationToken)
                     .ConfigureAwait(false);
-            if (rows is null || rows.Count == 0)
+            if (rows.IsEmpty)
             {
                 return [];
             }
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Groups
                 EncodingProfile,
                 Profiles.PubSubMqttJsonTransport,
                 StringComparison.Ordinal);
-            foreach (IReadOnlyList<DataSetField> row in rows)
+            foreach (ArrayOf<DataSetField> row in rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 uint seq = ++m_sequenceNumber;

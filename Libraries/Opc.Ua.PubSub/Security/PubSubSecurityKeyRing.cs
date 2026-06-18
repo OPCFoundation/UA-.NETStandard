@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Security
         /// Snapshot of every token id currently known to this ring
         /// (current + past + future).
         /// </summary>
-        public IReadOnlyList<uint> KnownTokenIds
+        public ArrayOf<uint> KnownTokenIds
         {
             get
             {

@@ -89,7 +89,7 @@ namespace OpcUaPubSubJsonTests
                 Is.EqualTo("urn:test:json:publisher"));
             Assert.That(disc.ApplicationInformation!.ApplicationName.Text,
                 Is.EqualTo("JSON Publisher"));
-            Assert.That(disc.ApplicationInformation!.Capabilities, Has.Count.EqualTo(1));
+            Assert.That(((string[]?)disc.ApplicationInformation!.Capabilities) ?? [], Has.Length.EqualTo(1));
         }
 
         [Test]

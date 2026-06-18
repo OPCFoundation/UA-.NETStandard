@@ -58,7 +58,8 @@ namespace Opc.Ua.PubSub.Groups
     /// </remarks>
     public sealed class WriterGroup : IWriterGroup, IAsyncDisposable
     {
-        private readonly IReadOnlyList<DataSetWriter> m_writers;
+        private readonly ArrayOf<DataSetWriter> m_writers;
+        private readonly ArrayOf<IDataSetWriter> m_dataSetWriters;
         private readonly IPubSubScheduler m_scheduler;
         private readonly ILogger<WriterGroup> m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -79,7 +80,7 @@ namespace Opc.Ua.PubSub.Groups
         /// <param name="timeProvider">Clock.</param>
         public WriterGroup(
             WriterGroupDataType configuration,
-            IReadOnlyList<DataSetWriter> writers,
+            ArrayOf<DataSetWriter> writers,
             PubSubSchedule schedule,
             IPubSubScheduler scheduler,
             ITelemetryContext telemetry,
@@ -88,10 +89,6 @@ namespace Opc.Ua.PubSub.Groups
             if (configuration is null)
             {
                 throw new ArgumentNullException(nameof(configuration));
-            }
-            if (writers is null)
-            {
-                throw new ArgumentNullException(nameof(writers));
             }
             if (scheduler is null)
             {
@@ -103,6 +100,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             Configuration = configuration;
             m_writers = writers;
+            m_dataSetWriters = writers.ToArrayOf<DataSetWriter, IDataSetWriter>(static writer => writer);
             Schedule = schedule;
             m_scheduler = scheduler;
             m_timeProvider = timeProvider;
@@ -132,7 +130,7 @@ namespace Opc.Ua.PubSub.Groups
         public string Name { get; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IDataSetWriter> DataSetWriters => m_writers;
+        public ArrayOf<IDataSetWriter> DataSetWriters => m_dataSetWriters;
 
         /// <inheritdoc/>
         public PubSubSchedule Schedule { get; }
@@ -208,8 +206,9 @@ namespace Opc.Ua.PubSub.Groups
                 return;
             }
             var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
-            foreach (DataSetWriter writer in m_writers)
+            for (int i = 0; i < m_writers.Count; i++)
             {
+                DataSetWriter writer = m_writers[i];
                 if (writer.State.State == PubSubState.Disabled)
                 {
                     continue;
@@ -286,7 +285,7 @@ namespace Opc.Ua.PubSub.Groups
             DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
 
             PubSubDataSetMessageType messageType;
-            IReadOnlyList<DataSetField> fields;
+            ArrayOf<DataSetField> fields;
             if (writer.KeyFrameCount <= 1
                 || runtime.LastSnapshot is null
                 || runtime.CyclesSinceKeyFrame >= writer.KeyFrameCount)
@@ -300,7 +299,7 @@ namespace Opc.Ua.PubSub.Groups
                 DeadbandDescriptor[]? deadbands = GetDeadbandDescriptors(
                     writer.PublishedDataSet);
                 var delta = new List<DataSetField>();
-                IReadOnlyList<DataSetField> previous = runtime.LastSnapshot.Fields;
+                ArrayOf<DataSetField> previous = runtime.LastSnapshot.Fields;
                 int min = Math.Min(previous.Count, snapshot.Fields.Count);
                 for (int i = 0; i < min; i++)
                 {

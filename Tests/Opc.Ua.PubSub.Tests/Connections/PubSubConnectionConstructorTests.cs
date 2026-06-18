@@ -126,35 +126,37 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
-        public void ConstructorRejectsNullWriterGroups()
+        public void ConstructorAcceptsDefaultWriterGroups()
         {
-            Assert.Throws<ArgumentNullException>(() => new PubSubConnection(
+            PubSubConnection connection = new(
                 NewConfig(),
                 new StubTransportFactory(),
                 new Dictionary<string, INetworkMessageEncoder>(),
                 new Dictionary<string, INetworkMessageDecoder>(),
-                writerGroups: null!,
+                writerGroups: default,
                 Array.Empty<ReaderGroup>(),
                 new DataSetMetaDataRegistry(),
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
-                TimeProvider.System));
+                TimeProvider.System);
+            Assert.That(connection.WriterGroups.Count, Is.Zero);
         }
 
         [Test]
-        public void ConstructorRejectsNullReaderGroups()
+        public void ConstructorAcceptsDefaultReaderGroups()
         {
-            Assert.Throws<ArgumentNullException>(() => new PubSubConnection(
+            PubSubConnection connection = new(
                 NewConfig(),
                 new StubTransportFactory(),
                 new Dictionary<string, INetworkMessageEncoder>(),
                 new Dictionary<string, INetworkMessageDecoder>(),
                 Array.Empty<WriterGroup>(),
-                readerGroups: null!,
+                readerGroups: default,
                 new DataSetMetaDataRegistry(),
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
-                TimeProvider.System));
+                TimeProvider.System);
+            Assert.That(connection.ReaderGroups.Count, Is.Zero);
         }
 
         [Test]
@@ -252,8 +254,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task ConstructorInitializesWriterGroupsAndReaderGroups()
         {
             await using PubSubConnection conn = NewConnection();
-            Assert.That(conn.WriterGroups, Is.Empty);
-            Assert.That(conn.ReaderGroups, Is.Empty);
+            Assert.That(conn.WriterGroups.Count, Is.Zero);
+            Assert.That(conn.ReaderGroups.Count, Is.Zero);
         }
 
         [Test]
@@ -549,4 +551,3 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
     }
 }
-

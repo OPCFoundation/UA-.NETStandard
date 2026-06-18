@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Security.Policies
 {
@@ -56,7 +55,7 @@ namespace Opc.Ua.PubSub.Security.Policies
         /// <summary>
         /// Read-only view over every built-in policy.
         /// </summary>
-        public static IReadOnlyList<IPubSubSecurityPolicy> All => s_all;
+        public static ArrayOf<IPubSubSecurityPolicy> All => s_all;
 
         /// <summary>
         /// Looks up the policy bundle that matches

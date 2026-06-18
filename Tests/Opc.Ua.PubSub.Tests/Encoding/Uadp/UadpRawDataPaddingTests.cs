@@ -483,7 +483,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded, Is.Not.Null);
             var dsm = (UadpDataSetMessage)decoded!.DataSetMessages[0];
             Assert.That(dsm.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
-            Assert.That(dsm.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)dsm.Fields) ?? [], Has.Length.EqualTo(1));
             Assert.That(dsm.Fields[0].Value.TryGetValue(out string? text), Is.True);
             Assert.That(text, Is.EqualTo("delta"),
                 "Delta-frame RawData padded field must trim trailing NULs on decode.");

@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="nonce">Source span (must be 12 bytes).</param>
         /// <returns>The parsed components.</returns>
-        public static (uint MessageRandom, ulong MessageSequenceNumber) Parse(
+        public static AesCtrNonceComponents Parse(
             ReadOnlySpan<byte> nonce)
         {
             if (nonce.Length != NonceLength)
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Security
                 nonce.Slice(0, MessageRandomLength));
             ulong messageSequenceNumber = BinaryPrimitives.ReadUInt64LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength));
-            return (messageRandom, messageSequenceNumber);
+            return new AesCtrNonceComponents(messageRandom, messageSequenceNumber);
         }
 
         /// <summary>
@@ -244,4 +244,20 @@ namespace Opc.Ua.PubSub.Security
             return sb.ToString();
         }
     }
+
+    /// <summary>
+    /// The two components carried by an AES-CTR <c>MessageNonce</c>
+    /// parsed from its 12-byte wire layout by
+    /// <see cref="AesCtrNonceLayout.Parse"/>.
+    /// </summary>
+    /// <param name="MessageRandom">
+    /// Publisher-chosen 4-byte CSPRNG value carried in the nonce prefix.
+    /// </param>
+    /// <param name="MessageSequenceNumber">
+    /// Monotonic per-key message sequence number carried in the nonce
+    /// suffix.
+    /// </param>
+    public readonly record struct AesCtrNonceComponents(
+        uint MessageRandom,
+        ulong MessageSequenceNumber);
 }

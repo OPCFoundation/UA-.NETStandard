@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             ring.SetCurrent(TestSecurityKeyFactory.Create(1U));
             ring.SetCurrent(TestSecurityKeyFactory.Create(2U));
             ring.AddFuture(TestSecurityKeyFactory.Create(3U));
-            Assert.That(ring.KnownTokenIds, Is.EquivalentTo(s_expectedKnownTokens));
+            Assert.That(((uint[]?)ring.KnownTokenIds) ?? [], Is.EquivalentTo(s_expectedKnownTokens));
         }
 
         [Test]

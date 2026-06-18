@@ -63,13 +63,13 @@ namespace Opc.Ua.PubSub.Tests.Groups
             sampler.Enqueue([new Variant("A2"), new Variant(2.0)]);
             EventDataSetWriter writer = BuildWriter(sampler, clock);
 
-            IReadOnlyList<PubSubDataSetMessage> messages =
+            ArrayOf<PubSubDataSetMessage> messages =
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
 
             Assert.That(messages, Has.Count.EqualTo(2));
             Assert.That(((UadpDataSetMessageV2)messages[0]).MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.Event));
-            Assert.That(messages[0].Fields, Has.Count.EqualTo(2));
+            Assert.That(((DataSetField[]?)messages[0].Fields) ?? [], Has.Length.EqualTo(2));
             Assert.That(messages[0].Fields[0].Value, Is.EqualTo(new Variant("A1")));
             Assert.That(messages[1].Fields[1].Value, Is.EqualTo(new Variant(2.0)));
             Assert.That(messages[0].SequenceNumber, Is.LessThan(messages[1].SequenceNumber));
@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         {
             var sampler = new StubSampler();
             EventDataSetWriter writer = BuildWriter(sampler, new FakeTimeProvider());
-            IReadOnlyList<PubSubDataSetMessage> messages =
+            ArrayOf<PubSubDataSetMessage> messages =
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
             Assert.That(messages, Is.Empty);
         }
@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 new FakeTimeProvider(),
                 contentMask: (uint)DataSetFieldContentMask.StatusCode);
 
-            IReadOnlyList<PubSubDataSetMessage> messages =
+            ArrayOf<PubSubDataSetMessage> messages =
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
 
             Assert.That(messages, Has.Count.EqualTo(1));
@@ -113,10 +113,10 @@ namespace Opc.Ua.PubSub.Tests.Groups
             var sampler = new StubSampler();
             sampler.Enqueue([new Variant("event"), new Variant(99)]);
             EventPublishedDataSet pds = BuildPublishedDataSet(sampler);
-            IReadOnlyList<IReadOnlyList<DataSetField>> rows =
+            ArrayOf<ArrayOf<DataSetField>> rows =
                 await pds.SampleAsync().ConfigureAwait(false);
 
-            Assert.That(rows, Has.Count.EqualTo(1));
+            Assert.That(((ArrayOf<DataSetField>[]?)rows) ?? [], Has.Length.EqualTo(1));
             Assert.That(rows[0][0].Name, Is.EqualTo("Message"));
             Assert.That(rows[0][1].Name, Is.EqualTo("Severity"));
             Assert.That(rows[0][0].Value, Is.EqualTo(new Variant("event")));
@@ -187,5 +187,3 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
     }
 }
-
-

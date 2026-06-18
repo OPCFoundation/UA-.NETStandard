@@ -99,7 +99,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(data, Is.Not.Null);
             Assert.That(data!.MessageId, Is.EqualTo("rt-1"));
             Assert.That(data.PublisherId.IsNull, Is.False);
-            Assert.That(data.DataSetMessages, Has.Count.EqualTo(1),
+            Assert.That(((PubSubDataSetMessage[]?)data.DataSetMessages) ?? [], Has.Length.EqualTo(1),
                 $"Expected exactly one decoded DataSetMessage for mode={mode} type={type}; got {data.DataSetMessages.Count}");
             var receivedDsm = data.DataSetMessages[0]
                 as Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
@@ -110,7 +110,7 @@ namespace OpcUaPubSubJsonTests
             if (type != PubSubDataSetMessageType.KeepAlive
                 && mode == Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)
             {
-                Assert.That(receivedDsm.Fields, Has.Count.EqualTo(3));
+                Assert.That(((DataSetField[]?)receivedDsm.Fields) ?? [], Has.Length.EqualTo(3));
             }
         }
 

@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Part 14 §7.2.4.5.5 — visible to middleware filters without
         /// decrypting / decoding the DataSetMessages.
         /// </summary>
-        public IReadOnlyList<DataSetField> PromotedFields { get; init; } = [];
+        public ArrayOf<DataSetField> PromotedFields { get; init; } = [];
 
         /// <summary>
         /// Discriminator distinguishing regular data NetworkMessages

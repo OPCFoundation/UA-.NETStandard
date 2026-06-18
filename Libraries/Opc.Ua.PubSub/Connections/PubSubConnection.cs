@@ -58,8 +58,10 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IPubSubTransportFactory m_transportFactory;
         private readonly IReadOnlyDictionary<string, INetworkMessageEncoder> m_encoders;
         private readonly IReadOnlyDictionary<string, INetworkMessageDecoder> m_decoders;
-        private readonly IReadOnlyList<WriterGroup> m_writerGroups;
-        private readonly IReadOnlyList<ReaderGroup> m_readerGroups;
+        private readonly ArrayOf<WriterGroup> m_writerGroups;
+        private readonly ArrayOf<IWriterGroup> m_writerGroupViews;
+        private readonly ArrayOf<ReaderGroup> m_readerGroups;
+        private readonly ArrayOf<IReaderGroup> m_readerGroupViews;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IDataSetMetaDataRegistry m_metaDataRegistry;
@@ -95,8 +97,8 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubTransportFactory transportFactory,
             IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
             IReadOnlyDictionary<string, INetworkMessageDecoder> decoders,
-            IReadOnlyList<WriterGroup> writerGroups,
-            IReadOnlyList<ReaderGroup> readerGroups,
+            ArrayOf<WriterGroup> writerGroups,
+            ArrayOf<ReaderGroup> readerGroups,
             IDataSetMetaDataRegistry metaDataRegistry,
             IPubSubDiagnostics diagnostics,
             ITelemetryContext telemetry,
@@ -153,8 +155,8 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubTransportFactory transportFactory,
             IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
             IReadOnlyDictionary<string, INetworkMessageDecoder> decoders,
-            IReadOnlyList<WriterGroup> writerGroups,
-            IReadOnlyList<ReaderGroup> readerGroups,
+            ArrayOf<WriterGroup> writerGroups,
+            ArrayOf<ReaderGroup> readerGroups,
             IDataSetMetaDataRegistry metaDataRegistry,
             IPubSubDiagnostics diagnostics,
             ITelemetryContext telemetry,
@@ -180,14 +182,6 @@ namespace Opc.Ua.PubSub.Connections
             {
                 throw new ArgumentNullException(nameof(decoders));
             }
-            if (writerGroups is null)
-            {
-                throw new ArgumentNullException(nameof(writerGroups));
-            }
-            if (readerGroups is null)
-            {
-                throw new ArgumentNullException(nameof(readerGroups));
-            }
             if (metaDataRegistry is null)
             {
                 throw new ArgumentNullException(nameof(metaDataRegistry));
@@ -205,7 +199,9 @@ namespace Opc.Ua.PubSub.Connections
             m_encoders = encoders;
             m_decoders = decoders;
             m_writerGroups = writerGroups;
+            m_writerGroupViews = writerGroups.ToArrayOf<WriterGroup, IWriterGroup>(static group => group);
             m_readerGroups = readerGroups;
+            m_readerGroupViews = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
             m_metaDataRegistry = metaDataRegistry;
             m_diagnostics = diagnostics;
             m_telemetry = telemetry;
@@ -251,10 +247,10 @@ namespace Opc.Ua.PubSub.Connections
         public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IWriterGroup> WriterGroups => m_writerGroups;
+        public ArrayOf<IWriterGroup> WriterGroups => m_writerGroupViews;
 
         /// <inheritdoc/>
-        public IReadOnlyList<IReaderGroup> ReaderGroups => m_readerGroups;
+        public ArrayOf<IReaderGroup> ReaderGroups => m_readerGroupViews;
 
         /// <inheritdoc/>
         public PubSubConnectionDataType Configuration { get; }
@@ -340,12 +336,14 @@ namespace Opc.Ua.PubSub.Connections
                 m_receiveLoop = Task.Run(() => ReceiveLoopAsync(cts.Token), cts.Token);
             }
 
-            foreach (ReaderGroup rg in m_readerGroups)
+            for (int i = 0; i < m_readerGroups.Count; i++)
             {
+                ReaderGroup rg = m_readerGroups[i];
                 await rg.EnableAsync(cancellationToken).ConfigureAwait(false);
             }
-            foreach (WriterGroup wg in m_writerGroups)
+            for (int i = 0; i < m_writerGroups.Count; i++)
             {
+                WriterGroup wg = m_writerGroups[i];
                 await wg.EnableAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -354,12 +352,14 @@ namespace Opc.Ua.PubSub.Connections
         public async ValueTask DisableAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (WriterGroup wg in m_writerGroups)
+            for (int i = 0; i < m_writerGroups.Count; i++)
             {
+                WriterGroup wg = m_writerGroups[i];
                 await wg.DisableAsync(cancellationToken).ConfigureAwait(false);
             }
-            foreach (ReaderGroup rg in m_readerGroups)
+            for (int i = 0; i < m_readerGroups.Count; i++)
             {
+                ReaderGroup rg = m_readerGroups[i];
                 await rg.DisableAsync(cancellationToken).ConfigureAwait(false);
             }
 
@@ -541,8 +541,9 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    foreach (ReaderGroup rg in m_readerGroups)
+                    for (int i = 0; i < m_readerGroups.Count; i++)
                     {
+                        ReaderGroup rg = m_readerGroups[i];
                         try
                         {
                             await rg.DispatchAsync(message, cancellationToken)

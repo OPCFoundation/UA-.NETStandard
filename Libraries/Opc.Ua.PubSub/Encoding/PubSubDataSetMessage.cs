@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
@@ -92,6 +90,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// DataSetMetaData. Delta-frames may carry fewer fields than
         /// metadata; KeepAlive carries none.
         /// </summary>
-        public IReadOnlyList<DataSetField> Fields { get; init; } = [];
+        public ArrayOf<DataSetField> Fields { get; init; } = [];
     }
 }

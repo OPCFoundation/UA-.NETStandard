@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 await source.SampleAsync(new DataSetMetaDataType()).ConfigureAwait(false);
 
             Assert.That(snapshot, Is.Not.Null);
-            Assert.That(snapshot.Fields, Is.Empty);
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Is.Empty);
         }
 
         [Test]
@@ -159,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(null!).ConfigureAwait(false);
 
-            Assert.That(snapshot.Fields, Is.Empty);
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Is.Empty);
         }
 
         // ------------------------------------------------------------------
@@ -208,7 +208,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(metaData).ConfigureAwait(false);
 
-            Assert.That(snapshot.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Has.Length.EqualTo(1));
             Assert.That(snapshot.Fields[0].Name, Is.EqualTo("Temperature"));
         }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(metaData).ConfigureAwait(false);
 
-            Assert.That(snapshot.Fields, Has.Count.EqualTo(2));
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Has.Length.EqualTo(2));
             Assert.That(snapshot.Fields[0].Name, Is.EqualTo("OnlyOne"));
             Assert.That(snapshot.Fields[1].Name, Is.EqualTo(string.Empty));
         }
@@ -294,7 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(new DataSetMetaDataType()).ConfigureAwait(false);
 
-            Assert.That(snapshot.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Has.Length.EqualTo(1));
             storeMock.Verify(
                 m => m.TryReadPublishedDataItem(
                     It.IsAny<NodeId>(),
@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(new DataSetMetaDataType()).ConfigureAwait(false);
 
-            Assert.That(snapshot.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Has.Length.EqualTo(1));
             // DateTimeUtc.MinValue SourceTimestamp is mapped to default(DateTimeUtc)
             Assert.That(snapshot.Fields[0].SourceTimestamp, Is.Default);
         }
@@ -413,7 +413,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(new DataSetMetaDataType()).ConfigureAwait(false);
 
-            Assert.That(snapshot.Fields, Has.Count.EqualTo(1));
+            Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Has.Length.EqualTo(1));
             Assert.That(snapshot.Fields[0].Name, Is.EqualTo(string.Empty));
         }
 

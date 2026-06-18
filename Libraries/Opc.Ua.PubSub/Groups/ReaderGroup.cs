@@ -52,7 +52,8 @@ namespace Opc.Ua.PubSub.Groups
     /// </remarks>
     public sealed class ReaderGroup : IReaderGroup, IAsyncDisposable
     {
-        private readonly IReadOnlyList<DataSetReader> m_readers;
+        private readonly ArrayOf<DataSetReader> m_readers;
+        private readonly ArrayOf<IDataSetReader> m_dataSetReaders;
         private readonly ILogger<ReaderGroup> m_logger;
         private readonly IPubSubScheduler? m_scheduler;
         private readonly IPubSubDiagnostics? m_diagnostics;
@@ -67,7 +68,7 @@ namespace Opc.Ua.PubSub.Groups
         /// <param name="telemetry">Telemetry context.</param>
         public ReaderGroup(
             ReaderGroupDataType configuration,
-            IReadOnlyList<DataSetReader> readers,
+            ArrayOf<DataSetReader> readers,
             ITelemetryContext telemetry)
             : this(configuration, readers, telemetry, scheduler: null, diagnostics: null)
         {
@@ -92,7 +93,7 @@ namespace Opc.Ua.PubSub.Groups
         /// </param>
         public ReaderGroup(
             ReaderGroupDataType configuration,
-            IReadOnlyList<DataSetReader> readers,
+            ArrayOf<DataSetReader> readers,
             ITelemetryContext telemetry,
             IPubSubScheduler? scheduler,
             IPubSubDiagnostics? diagnostics)
@@ -101,16 +102,13 @@ namespace Opc.Ua.PubSub.Groups
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
-            if (readers is null)
-            {
-                throw new ArgumentNullException(nameof(readers));
-            }
             if (telemetry is null)
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
             Configuration = configuration;
             m_readers = readers;
+            m_dataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
             Name = configuration.Name ?? string.Empty;
             m_telemetry = telemetry;
             m_scheduler = scheduler;
@@ -130,7 +128,7 @@ namespace Opc.Ua.PubSub.Groups
         public string Name { get; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IDataSetReader> DataSetReaders => m_readers;
+        public ArrayOf<IDataSetReader> DataSetReaders => m_dataSetReaders;
 
         /// <inheritdoc/>
         public ReaderGroupDataType Configuration { get; }
@@ -156,10 +154,12 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return;
             }
-            foreach (PubSubDataSetMessage dataSetMessage in networkMessage.DataSetMessages)
+            for (int messageIndex = 0; messageIndex < networkMessage.DataSetMessages.Count; messageIndex++)
             {
-                foreach (DataSetReader reader in m_readers)
+                PubSubDataSetMessage dataSetMessage = networkMessage.DataSetMessages[messageIndex];
+                for (int readerIndex = 0; readerIndex < m_readers.Count; readerIndex++)
                 {
+                    DataSetReader reader = m_readers[readerIndex];
                     if (!reader.Matches(networkMessage, dataSetMessage))
                     {
                         continue;
@@ -190,8 +190,9 @@ namespace Opc.Ua.PubSub.Groups
             cancellationToken.ThrowIfCancellationRequested();
             if (State.TryEnable())
             {
-                foreach (DataSetReader reader in m_readers)
+                for (int i = 0; i < m_readers.Count; i++)
                 {
+                    DataSetReader reader = m_readers[i];
                     _ = reader.State.TryEnable();
                     _ = reader.State.TryMarkOperational();
                 }

@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
-            Assert.That(harness.SksServer.SecurityGroupIds, Contains.Item("seed-grp"));
+            Assert.That(((string[]?)harness.SksServer.SecurityGroupIds) ?? [], Contains.Item("seed-grp"));
         }
 
         [Test]

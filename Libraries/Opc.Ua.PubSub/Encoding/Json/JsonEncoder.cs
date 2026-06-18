@@ -452,7 +452,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         private static void WriteStringArray(
             Utf8JsonWriter writer,
-            System.Collections.Generic.IReadOnlyList<string> values)
+            ArrayOf<string> values)
         {
             writer.WriteStartArray();
             foreach (string value in values)
@@ -465,7 +465,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         private static void WriteUInt16Array(
             Utf8JsonWriter writer,
             string propertyName,
-            System.Collections.Generic.IReadOnlyList<ushort> values)
+            ArrayOf<ushort> values)
         {
             writer.WritePropertyName(propertyName);
             writer.WriteStartArray();

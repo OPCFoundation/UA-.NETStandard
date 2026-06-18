@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.WriterGroupsById, Has.Count.EqualTo(1));
-            Assert.That(snapshot.WriterGroupsById.ContainsKey(("Conn1", 1)), Is.True);
+            Assert.That(snapshot.WriterGroupsById.ContainsKey(new WriterGroupKey("Conn1", 1)), Is.True);
         }
 
         [Test]
@@ -145,8 +145,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.DataSetWritersById, Has.Count.EqualTo(2));
-            Assert.That(snapshot.DataSetWritersById.ContainsKey(("Conn1", 1, 10)), Is.True);
-            Assert.That(snapshot.DataSetWritersById.ContainsKey(("Conn1", 1, 11)), Is.True);
+            Assert.That(snapshot.DataSetWritersById.ContainsKey(new DataSetWriterKey("Conn1", 1, 10)), Is.True);
+            Assert.That(snapshot.DataSetWritersById.ContainsKey(new DataSetWriterKey("Conn1", 1, 11)), Is.True);
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.ReaderGroupsByName, Has.Count.EqualTo(1));
-            Assert.That(snapshot.ReaderGroupsByName.ContainsKey(("Conn1", "RG1")), Is.True);
+            Assert.That(snapshot.ReaderGroupsByName.ContainsKey(new ReaderGroupKey("Conn1", "RG1")), Is.True);
         }
 
         [Test]
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 BuildSimpleConfig());
             Assert.That(snapshot.DataSetReadersByName, Has.Count.EqualTo(1));
             Assert.That(
-                snapshot.DataSetReadersByName.ContainsKey(("Conn1", "RG1", "Reader1")),
+                snapshot.DataSetReadersByName.ContainsKey(new DataSetReaderKey("Conn1", "RG1", "Reader1")),
                 Is.True);
         }
 
@@ -197,9 +197,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationException ex =
                 Assert.Throws<PubSubConfigurationException>(
                     () => PubSubConfigurationSnapshot.Create(config))!;
-            Assert.That(ex.Issues, Is.Not.Empty);
+            Assert.That(((PubSubConfigurationIssue[]?)ex.Issues) ?? [], Is.Not.Empty);
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0102"));
         }
 
@@ -227,7 +227,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.Throws<PubSubConfigurationException>(
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0103"));
         }
 
@@ -264,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.Throws<PubSubConfigurationException>(
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0104"));
         }
 
@@ -292,7 +292,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.Throws<PubSubConfigurationException>(
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0106"));
         }
 
@@ -312,7 +312,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.Throws<PubSubConfigurationException>(
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0110"));
         }
 
@@ -348,7 +348,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.Throws<PubSubConfigurationException>(
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
-                ex.Issues,
+                ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0108"));
         }
 

@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string> SecurityGroupIds
+        public ArrayOf<string> SecurityGroupIds
         {
             get
             {
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     : DefaultMaxPastKeyCount;
 
                 List<PubSubSecurityKey> keys = group.Keys is { Count: > 0 } seed
-                    ? new List<PubSubSecurityKey>(seed)
+                    ? [.. seed]
                     : SeedInitialKeys(policy, maxFuture, group.KeyLifetime);
 
                 uint nextTokenId = NextTokenIdAfter(keys);

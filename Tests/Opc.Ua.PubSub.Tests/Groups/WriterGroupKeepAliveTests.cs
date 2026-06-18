@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.That(captured, Has.Count.EqualTo(1));
             Assert.That(captured[0], Is.InstanceOf<UadpNetworkMessageV2>());
             UadpNetworkMessageV2 first = (UadpNetworkMessageV2)captured[0];
-            Assert.That(first.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)first.DataSetMessages) ?? [], Has.Length.EqualTo(1));
             Assert.That(((UadpDataSetMessageV2)first.DataSetMessages[0]).MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.KeyFrame));
 
@@ -94,12 +94,12 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.That(captured, Has.Count.EqualTo(1),
                 "KeepAlive must be emitted once KeepAliveTime elapses.");
             UadpNetworkMessageV2 keepAlive = (UadpNetworkMessageV2)captured[0];
-            Assert.That(keepAlive.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(((PubSubDataSetMessage[]?)keepAlive.DataSetMessages) ?? [], Has.Length.EqualTo(1));
             UadpDataSetMessageV2 ds = (UadpDataSetMessageV2)keepAlive.DataSetMessages[0];
             Assert.Multiple(() =>
             {
                 Assert.That(ds.MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
-                Assert.That(ds.Fields, Is.Empty,
+                Assert.That(((DataSetField[]?)ds.Fields) ?? [], Is.Empty,
                     "KeepAlive DataSetMessage must carry an empty field list.");
                 Assert.That(ds.DataSetWriterId, Is.EqualTo((ushort)42));
                 Assert.That(ds.SequenceNumber, Is.GreaterThan(0u));

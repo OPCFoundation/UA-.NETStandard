@@ -76,8 +76,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             TimeSpan keyLifetime,
             int maxFutureKeyCount,
             int maxPastKeyCount,
-            IReadOnlyList<PubSubSecurityKey> keys,
-            IReadOnlyList<string>? authorizedCallerIdentities = null)
+            ArrayOf<PubSubSecurityKey> keys,
+            ArrayOf<string> authorizedCallerIdentities = default)
         {
             if (string.IsNullOrEmpty(securityGroupId))
             {
@@ -109,12 +109,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                     nameof(maxPastKeyCount),
                     "Max past key count must be non-negative.");
             }
-            if (keys is null)
-            {
-                throw new ArgumentNullException(nameof(keys));
-            }
             List<string> callers = [];
-            if (authorizedCallerIdentities is not null)
+            if (!authorizedCallerIdentities.IsNull)
             {
                 for (int i = 0; i < authorizedCallerIdentities.Count; i++)
                 {
@@ -171,12 +167,12 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Ordered key history (oldest first). The current key is the
         /// first non-expired entry.
         /// </summary>
-        public IReadOnlyList<PubSubSecurityKey> Keys { get; }
+        public ArrayOf<PubSubSecurityKey> Keys { get; }
 
         /// <summary>
         /// Caller identities authorized to retrieve keys for this group.
         /// </summary>
-        public IReadOnlyList<string> AuthorizedCallerIdentities { get; private init; }
+        public ArrayOf<string> AuthorizedCallerIdentities { get; private init; }
 
         /// <summary>
         /// Returns a copy of this group with the supplied caller authorized.

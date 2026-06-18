@@ -63,13 +63,13 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentNullException(nameof(issues));
             }
-            Issues = issues.ToArray();
+            Issues = issues.ToArrayOf();
         }
 
         /// <summary>
         /// All issues captured at the time the exception was raised.
         /// </summary>
-        public IReadOnlyList<PubSubConfigurationIssue> Issues { get; }
+        public ArrayOf<PubSubConfigurationIssue> Issues { get; }
 
         private static string BuildMessage(IEnumerable<PubSubConfigurationIssue> issues)
         {

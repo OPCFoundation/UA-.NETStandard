@@ -72,8 +72,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(roundTrip, Is.Not.Null);
             Assert.That(roundTrip!.SecurityGroupId, Is.EqualTo("group-1"));
             Assert.That(roundTrip.SecurityPolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.PubSubAes128Ctr));
-            Assert.That(roundTrip.Keys, Is.Not.Empty);
-            Assert.That(server.SecurityGroupIds, Has.Member("group-1"));
+            Assert.That(roundTrip.Keys.IsEmpty, Is.False);
+            Assert.That(((string[]?)server.SecurityGroupIds) ?? [], Has.Member("group-1"));
         }
 
         [Test]
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             SksKeyResponse response = await server.GetSecurityKeysAsync(
                 CallerId,
                 new SksKeyRequest("group-1", 0U, 3U));
-            Assert.That(response.Keys, Has.Count.EqualTo(3));
+            Assert.That(((byte[][]?)response.Keys) ?? [], Has.Length.EqualTo(3));
             Assert.That(response.SecurityPolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.PubSubAes128Ctr));
             Assert.That(response.KeyLifetime, Is.EqualTo(TimeSpan.FromMinutes(5)));
             Assert.That(response.FirstTokenId, Is.GreaterThan(0U));
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             SksKeyResponse response = await server.GetSecurityKeysAsync(
                 CallerId,
                 new SksKeyRequest("group-1", 0U, 2U));
-            Assert.That(response.Keys, Has.Count.EqualTo(2));
+            Assert.That(((byte[][]?)response.Keys) ?? [], Has.Length.EqualTo(2));
             Assert.That(response.SecurityPolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.PubSubAes128Ctr));
         }
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             await server.AddSecurityGroupAsync(BuildGroup());
             await server.RemoveSecurityGroupAsync("group-1");
             Assert.That(await server.GetSecurityGroupAsync("group-1"), Is.Null);
-            Assert.That(server.SecurityGroupIds, Does.Not.Contain("group-1"));
+            Assert.That(((string[]?)server.SecurityGroupIds) ?? [], Does.Not.Contain("group-1"));
         }
 
         [Test]
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             SksKeyResponse second = await server.GetSecurityKeysAsync(
                 CallerId,
                 new SksKeyRequest("group-1", 0U, 6U));
-            Assert.That(second.Keys, Has.Count.EqualTo(6));
+            Assert.That(((byte[][]?)second.Keys) ?? [], Has.Length.EqualTo(6));
             Assert.That(second.FirstTokenId, Is.EqualTo(first.FirstTokenId));
         }
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 CallerId,
                 new SksKeyRequest("group-1", pickStart, 2U));
             Assert.That(subset.FirstTokenId, Is.EqualTo(pickStart));
-            Assert.That(subset.Keys, Has.Count.EqualTo(2));
+            Assert.That(((byte[][]?)subset.Keys) ?? [], Has.Length.EqualTo(2));
         }
 
         [Test]

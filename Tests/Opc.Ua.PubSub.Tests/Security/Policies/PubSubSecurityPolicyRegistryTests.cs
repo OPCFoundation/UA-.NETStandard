@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         [Test]
         public void All_ContainsThreeBuiltInPolicies()
         {
-            Assert.That(PubSubSecurityPolicyRegistry.All, Has.Count.EqualTo(3));
+            Assert.That(PubSubSecurityPolicyRegistry.All.Count, Is.EqualTo(3));
         }
 
         [Test]

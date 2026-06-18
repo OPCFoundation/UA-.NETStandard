@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decRes.DiscoveryType,
                 Is.EqualTo(UadpDiscoveryType.PublisherEndpoints));
             Assert.That(decRes.SequenceNumber, Is.EqualTo(7));
-            Assert.That(decRes.PublisherEndpoints, Has.Count.EqualTo(1));
+            Assert.That(decRes.PublisherEndpoints.Count, Is.EqualTo(1));
             Assert.That(decRes.PublisherEndpoints[0].EndpointUrl,
                 Is.EqualTo("opc.tcp://host:4840"));
         }

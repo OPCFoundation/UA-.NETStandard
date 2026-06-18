@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -195,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Medium, clock);
             sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "comms");
-            (DateTimeUtc Timestamp, StatusCode StatusCode, string Message)? last = sut.LastError;
+            PubSubErrorEntry? last = sut.LastError;
             Assert.Multiple(() =>
             {
                 Assert.That(last, Is.Not.Null);
@@ -214,7 +213,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             clock.Advance(TimeSpan.FromMilliseconds(1));
             sut.RecordError((StatusCode)StatusCodes.BadTimeout, "second");
 
-            IReadOnlyList<(DateTimeUtc Timestamp, StatusCode StatusCode, string Message)> recent = sut.RecentErrors;
+            ArrayOf<PubSubErrorEntry> recent = sut.RecentErrors;
             Assert.Multiple(() =>
             {
                 Assert.That(recent, Has.Count.EqualTo(2));
@@ -237,7 +236,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
                 clock.Advance(TimeSpan.FromMilliseconds(1));
             }
 
-            IReadOnlyList<(DateTimeUtc Timestamp, StatusCode StatusCode, string Message)> recent = sut.RecentErrors;
+            ArrayOf<PubSubErrorEntry> recent = sut.RecentErrors;
             Assert.Multiple(() =>
             {
                 Assert.That(recent, Has.Count.EqualTo(PubSubDiagnostics.ErrorHistoryCapacity));
@@ -286,7 +285,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             DateTime expected = clock.GetUtcNow().UtcDateTime;
             sut.RecordError((StatusCode)StatusCodes.BadInternalError, "boom");
 
-            (DateTimeUtc Timestamp, StatusCode StatusCode, string Message)? last = sut.LastError;
+            PubSubErrorEntry? last = sut.LastError;
             Assert.That(last!.Value.Timestamp.ToDateTime(), Is.EqualTo(expected));
         }
 

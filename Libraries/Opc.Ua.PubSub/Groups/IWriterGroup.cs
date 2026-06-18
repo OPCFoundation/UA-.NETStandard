@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
 
@@ -60,7 +59,7 @@ namespace Opc.Ua.PubSub.Groups
         /// <summary>
         /// Snapshot of writers in this group.
         /// </summary>
-        IReadOnlyList<IDataSetWriter> DataSetWriters { get; }
+        ArrayOf<IDataSetWriter> DataSetWriters { get; }
 
         /// <summary>
         /// Publishing schedule (period, keep-alive, offsets).

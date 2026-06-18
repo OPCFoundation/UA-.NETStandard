@@ -164,7 +164,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
             Assert.That(response.SecurityPolicyUri, Is.EqualTo(Policy.PolicyUri));
             Assert.That(response.FirstTokenId, Is.EqualTo(7U));
-            Assert.That(response.Keys, Has.Count.EqualTo(1));
+            Assert.That(((byte[][]?)response.Keys) ?? [], Has.Length.EqualTo(1));
             Assert.That(response.TimeToNextKey, Is.EqualTo(TimeSpan.FromSeconds(1)));
             Assert.That(response.KeyLifetime, Is.EqualTo(TimeSpan.FromMinutes(1)));
         }

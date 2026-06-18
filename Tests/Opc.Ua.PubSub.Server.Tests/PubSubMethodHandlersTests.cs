@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(outputs[1].TryGetValue(out NodeId nodeId), Is.True);
                 Assert.That(nodeId.IsNull, Is.False);
             });
-            Assert.That(sks.SecurityGroupIds, Contains.Item("group-a"));
+            Assert.That(((string[]?)sks.SecurityGroupIds) ?? [], Contains.Item("group-a"));
         }
 
         [Test]
@@ -288,7 +288,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 outputArguments: new List<Variant>());
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            Assert.That(sks.SecurityGroupIds, Does.Not.Contain("g-x"));
+            Assert.That(((string[]?)sks.SecurityGroupIds) ?? [], Does.Not.Contain("g-x"));
         }
 
         [Test]
