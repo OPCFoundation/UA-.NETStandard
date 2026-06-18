@@ -155,6 +155,26 @@ namespace Opc.Ua.History.Tests
                 new Variant(eventId),
                 new Variant(new LocalizedText("en", string.Empty))).ConfigureAwait(false);
 
+            // The server may have stamped a new EventId between event-collector
+            // observation and the Acknowledge call (a concurrent condition
+            // refresh races with the test). Re-read the current EventId and
+            // retry once with the freshest value before failing the test.
+            if (callResult.StatusCode == StatusCodes.BadEventIdUnknown)
+            {
+                ByteString refreshedEventId = await ReadEventIdAsync(alarmId)
+                    .ConfigureAwait(false);
+                if (!refreshedEventId.IsNull && !refreshedEventId.Equals(eventId))
+                {
+                    collector.Reset();
+                    callResult = await CallMethodOnAlarmAsync(
+                        alarmId,
+                        MethodIds.AcknowledgeableConditionType_Acknowledge,
+                        new Variant(refreshedEventId),
+                        new Variant(new LocalizedText("en", string.Empty)))
+                        .ConfigureAwait(false);
+                }
+            }
+
             Assert.That(StatusCode.IsGood(callResult.StatusCode), Is.True,
                 $"Acknowledge should succeed: {callResult.StatusCode}");
 
