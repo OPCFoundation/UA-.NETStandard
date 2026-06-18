@@ -35,8 +35,7 @@
 - Multi-TFM: `netstandard2.0`, `netstandard2.1`, `net48`, `net472`,
   `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
-  `IL2026` / `IL3050` warnings (see
-  [Native AOT](#native-aot)).
+  `IL2026` / `IL3050` warnings.
 - Transports: **UDP** (uni/multi/broadcast) and **MQTT** (3.1.1 + 5.0).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
@@ -478,11 +477,6 @@ Additional v1.05.06 flavours:
 - `SingleNetworkMessage` mode flips the JSON array wrapper off, so
   each MQTT publish maps 1:1 to a single `JsonNetworkMessage`.
 
-The
-[migration sub-doc](migrate/2.0.x/pubsub.md#jsonencodingmode--104-names-removed)
-describes the rename of the legacy `Reversible` / `NonReversible`
-enum values introduced in v1.05.
-
 ## Security
 
 Implemented in `Opc.Ua.PubSub.Security`. Implements
@@ -667,12 +661,6 @@ PubSub is AOT-clean across all four assemblies.
   - [`Applications/ConsoleReferencePublisher`](../Applications/ConsoleReferencePublisher/README.md)
   - [`Applications/ConsoleReferenceSubscriber`](../Applications/ConsoleReferenceSubscriber/README.md)
 
-```pwsh
-dotnet publish Applications/ConsoleReferencePublisher -c Release -r win-x64
-```
-
-See [Native AOT Testing](NativeAoT.md) for the broader AOT story.
-
 ## Spec coverage
 
 The library implements every clause of Part 14 v1.05.06 the
@@ -750,11 +738,6 @@ Adding the missing tests is mechanical (mostly fluent-builder /
 mutation API smoke tests) but bulk; per the user-mandated scope of
 Phase 12 the gap is documented here rather than padded with shallow
 tests.
-
-The benchmark project
-[`Tests/Opc.Ua.PubSub.Bench`](../Tests/Opc.Ua.PubSub.Bench/README.md)
-ships baseline summaries under `Baselines/` for regression
-comparison; run real (long) benchmarks per the project README.
 
 ## Cross-references
 

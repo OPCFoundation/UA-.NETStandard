@@ -62,19 +62,6 @@ Tests/Opc.Ua.Aot.Tests/
 └── PubSubAotTests.cs          # Part 14 PubSub publisher / subscriber round-trips
 ```
 
-### Part 14 PubSub
-
-`PubSubAotTests.cs` exercises every code path that touches the PubSub
-runtime under AOT: `PubSubApplicationBuilder`, `IPubSubScheduler`,
-UADP and JSON encode/decode, the `UadpSecurityWrapper` security
-subsystem, MQTT and UDP transports, and the SKS client / server.
-The two reference applications under
-[`Applications/ConsoleReferencePublisher`](../Applications/ConsoleReferencePublisher)
-and [`Applications/ConsoleReferenceSubscriber`](../Applications/ConsoleReferenceSubscriber)
-publish AOT-clean (zero `IL2026` / `IL3050`) and are exercised end-to-end
-by the same suite. See [`PubSub.md`](PubSub.md#native-aot) for the
-PubSub-specific AOT guidance.
-
 ### Why TUnit Instead of NUnit?
 
 The project uses the [TUnit](https://tunit.dev/) test framework instead of

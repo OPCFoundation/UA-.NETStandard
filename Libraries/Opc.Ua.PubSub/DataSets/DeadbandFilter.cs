@@ -157,58 +157,20 @@ namespace Opc.Ua.PubSub.DataSets
 
         private static bool TryGetDouble(Variant value, out double result)
         {
-            if (value.TryGetValue(out double dbl))
+            try
             {
-                result = dbl;
+                result = value.ConvertToDouble().GetDouble();
                 return true;
             }
-            if (value.TryGetValue(out float f))
+            catch (Exception ex) when (
+                ex is InvalidCastException
+                    or FormatException
+                    or OverflowException
+                    or ServiceResultException)
             {
-                result = f;
-                return true;
+                result = 0;
+                return false;
             }
-            if (value.TryGetValue(out int i32))
-            {
-                result = i32;
-                return true;
-            }
-            if (value.TryGetValue(out uint u32))
-            {
-                result = u32;
-                return true;
-            }
-            if (value.TryGetValue(out long i64))
-            {
-                result = i64;
-                return true;
-            }
-            if (value.TryGetValue(out ulong u64))
-            {
-                result = u64;
-                return true;
-            }
-            if (value.TryGetValue(out short i16))
-            {
-                result = i16;
-                return true;
-            }
-            if (value.TryGetValue(out ushort u16))
-            {
-                result = u16;
-                return true;
-            }
-            if (value.TryGetValue(out sbyte i8))
-            {
-                result = i8;
-                return true;
-            }
-            if (value.TryGetValue(out byte u8))
-            {
-                result = u8;
-                return true;
-            }
-            result = 0;
-            return false;
         }
     }
 }

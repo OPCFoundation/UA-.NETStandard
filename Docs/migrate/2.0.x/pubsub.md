@@ -95,7 +95,7 @@ The wire-level layout is unchanged where the spec is unambiguous; see
 [`pubsub.md` §JSON SingleNetworkMessage](#18-json-singlenetworkmessage--jsonactionnetworkmessage--jsondiscoverymessage)
 for new content.
 
-## 4. `JsonEncodingMode` — 1.04 names removed
+## 4. `JsonEncodingMode` — Reversible/Non-Reversible encodings removed
 
 `Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible` and
 `Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible` are
@@ -110,11 +110,12 @@ v1.05.06 names:
 | `JsonEncodingMode.NonReversible` | `JsonEncodingMode.Compact`       |
 | _(new)_                          | `JsonEncodingMode.RawData`       |
 
-The wire format produced by `Verbose` is byte-identical to the wire
-format the old `Reversible` produced; similarly `Compact` ≡ old
-`NonReversible`. The rename is a public-API change only. No
-`[Obsolete]` aliases exist — consumers update enum references at
-upgrade time. Background:
+`Verbose` carries the same information as the old `Reversible` mode, and
+`Compact` the same as `NonReversible`; the rename is a public-API change.
+Note the encoder switch to `System.Text.Json` (§3) can change incidental
+formatting (e.g. number precision), so output is not guaranteed
+byte-identical to the 1.04 Newtonsoft encoder. No `[Obsolete]` aliases
+exist — consumers update enum references at upgrade time. Background:
 [#3609](https://github.com/OPCFoundation/UA-.NETStandard/issues/3609).
 
 ## 5. UADP RawData field padding
@@ -149,22 +150,8 @@ The encoder/decoder now honour every bit defined in the
 
 In 1.5.378 the encoder produced bare values regardless of the mask;
 consumers that explicitly opted in to timestamps now actually receive
-them. To migrate consumers that previously got bare values:
-
-```csharp
-// 1.5.378 — bare value, mask ignored
-DataValue dv = field.Value;
-
-// 2.0 — mask honoured. Read the field; check IsNull on the timestamp.
-DataValue dv = field.Value;
-if (!dv.SourceTimestamp.IsNull)
-{
-    /* mask included SourceTimestamp */
-}
-```
-
-If the consumer was written against 1.5.378 and is sensitive to a
-suddenly-non-default `SourceTimestamp`, configure the writer with
+them. A consumer written against 1.5.378 that is sensitive to a
+suddenly-non-default `SourceTimestamp` can configure the writer with
 `DataSetFieldContentMask.None` to opt back into bare-value behaviour.
 
 ## 7. `DataSetReader` honours `DataSetClassId` and `MessageReceiveTimeout`

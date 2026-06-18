@@ -208,9 +208,6 @@ machinery and conformance unit semantics are defined by
 - **[PubSub UDP UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp)** — UDP transport with UADP message encoding.
 - **[PubSub MQTT UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp)** — MQTT transport with UADP message encoding.
 - **[PubSub MQTT JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json)** — MQTT transport with JSON message encoding.
-
-#### v1.05.06 additions
-
 - **Datagram-v2 connection profile** —
   [`DatagramConnectionTransport2DataType`](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1.4)
   (Part 14 §6.4.1.4) is honoured for UDP transports. The
