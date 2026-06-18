@@ -35,6 +35,7 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Server.Internal;
 using Opc.Ua.PubSub.StateMachine;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 

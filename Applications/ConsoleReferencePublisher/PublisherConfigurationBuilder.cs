@@ -29,12 +29,14 @@
 
 using System;
 using Opc.Ua;
+using Opc.Ua.PubSub.Configuration;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
     /// <summary>
-    /// Constructs minimal Part 14 <see cref="PubSubConfigurationDataType"/>
-    /// payloads for the three demo wire profiles. The payloads use the
+    /// Builds minimal Part 14 <see cref="PubSubConfigurationDataType"/>
+    /// payloads for the three demo wire profiles using the fluent
+    /// <see cref="PubSubConfigurationBuilder"/>. The payloads use the
     /// "Simple" DataSet exposed by <see cref="SampleDataSetSource"/>
     /// (BoolToggle, Int32 counter, DateTime).
     /// </summary>
@@ -60,6 +62,13 @@ namespace Quickstarts.ConsoleReferencePublisher
             ushort dataSetWriterId,
             int intervalMs)
         {
+            bool udp = profile == PublisherProfile.UdpUadp;
+
+            // UADP message security (SignAndEncrypt) is wired for the UADP
+            // profiles via the shared StaticSecurityKeyProvider. The JSON
+            // profile has no UADP security wrapper, so it stays unsecured.
+            bool secured = profile != PublisherProfile.MqttJson;
+
             string transportProfileUri = profile switch
             {
                 PublisherProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
@@ -68,170 +77,103 @@ namespace Quickstarts.ConsoleReferencePublisher
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))
             };
 
-            var address = new NetworkAddressUrlDataType
+            return PubSubConfigurationBuilder.Create()
+                .AddPublishedDataSet(DataSetName, ds => ds
+                    .AddField("BoolToggle", (byte)DataTypes.Boolean, DataTypeIds.Boolean)
+                    .AddField("Int32", (byte)DataTypes.Int32, DataTypeIds.Int32)
+                    .AddField("DateTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime))
+                .AddConnection("Publisher Connection", connection =>
+                {
+                    connection
+                        .WithPublisherId(new Variant(publisherId))
+                        .WithTransportProfile(transportProfileUri)
+                        .WithAddress(endpoint)
+                        .AddWriterGroup("WriterGroup 1", group =>
+                        {
+                            group
+                                .WithWriterGroupId(writerGroupId)
+                                .WithPublishingInterval(intervalMs)
+                                .WithMessageSettings(WriterGroupMessageSettings(profile))
+                                .WithTransportSettings(udp
+                                    ? new DatagramWriterGroupTransportDataType()
+                                    : new BrokerWriterGroupTransportDataType
+                                    {
+                                        QueueName = MqttQueueName
+                                    });
+                            if (secured)
+                            {
+                                group.WithSecurity(
+                                    MessageSecurityMode.SignAndEncrypt,
+                                    SampleSecurity.SecurityGroupId,
+                                    SampleSecurity.SecurityKeyServiceUrl);
+                            }
+                            group.AddDataSetWriter("Writer 1", writer =>
+                            {
+                                writer
+                                    .WithDataSetWriterId(dataSetWriterId)
+                                    .WithDataSetName(DataSetName)
+                                    .WithKeyFrameCount(1)
+                                    .WithFieldContentMask(DataSetFieldContentMask.RawData)
+                                    .WithMessageSettings(WriterMessageSettings(profile));
+                                if (!udp)
+                                {
+                                    writer.WithTransportSettings(
+                                        new BrokerDataSetWriterTransportDataType
+                                        {
+                                            QueueName = MqttQueueName,
+                                            RequestedDeliveryGuarantee
+                                                = BrokerTransportQualityOfService.BestEffort
+                                        });
+                                }
+                            });
+                        });
+                })
+                .Build();
+        }
+
+        private static IEncodeable WriterGroupMessageSettings(PublisherProfile profile)
+        {
+            if (profile == PublisherProfile.MqttJson)
             {
-                NetworkInterface = string.Empty,
-                Url = endpoint
-            };
-
-            ExtensionObject writerGroupTransport = profile == PublisherProfile.UdpUadp
-                ? new ExtensionObject(new DatagramWriterGroupTransportDataType())
-                : new ExtensionObject(
-                    new BrokerWriterGroupTransportDataType { QueueName = MqttQueueName });
-
-            ExtensionObject writerGroupMessage = profile == PublisherProfile.MqttJson
-                ? new ExtensionObject(new JsonWriterGroupMessageDataType
+                return new JsonWriterGroupMessageDataType
                 {
                     NetworkMessageContentMask = (uint)(
                         JsonNetworkMessageContentMask.NetworkMessageHeader
                         | JsonNetworkMessageContentMask.DataSetMessageHeader
                         | JsonNetworkMessageContentMask.PublisherId)
-                })
-                : new ExtensionObject(new UadpWriterGroupMessageDataType
-                {
-                    DataSetOrdering = DataSetOrderingType.AscendingWriterId,
-                    NetworkMessageContentMask = (uint)(
-                        UadpNetworkMessageContentMask.PublisherId
-                        | UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.PayloadHeader
-                        | UadpNetworkMessageContentMask.NetworkMessageNumber
-                        | UadpNetworkMessageContentMask.SequenceNumber)
-                });
+                };
+            }
+            return new UadpWriterGroupMessageDataType
+            {
+                DataSetOrdering = DataSetOrderingType.AscendingWriterId,
+                NetworkMessageContentMask = (uint)(
+                    UadpNetworkMessageContentMask.PublisherId
+                    | UadpNetworkMessageContentMask.GroupHeader
+                    | UadpNetworkMessageContentMask.WriterGroupId
+                    | UadpNetworkMessageContentMask.PayloadHeader
+                    | UadpNetworkMessageContentMask.NetworkMessageNumber
+                    | UadpNetworkMessageContentMask.SequenceNumber)
+            };
+        }
 
-            ExtensionObject writerMessage = profile == PublisherProfile.MqttJson
-                ? new ExtensionObject(new JsonDataSetWriterMessageDataType
+        private static IEncodeable WriterMessageSettings(PublisherProfile profile)
+        {
+            if (profile == PublisherProfile.MqttJson)
+            {
+                return new JsonDataSetWriterMessageDataType
                 {
                     DataSetMessageContentMask = (uint)(
                         JsonDataSetMessageContentMask.DataSetWriterId
                         | JsonDataSetMessageContentMask.SequenceNumber
                         | JsonDataSetMessageContentMask.Status
                         | JsonDataSetMessageContentMask.Timestamp)
-                })
-                : new ExtensionObject(new UadpDataSetWriterMessageDataType
-                {
-                    DataSetMessageContentMask = (uint)(
-                        UadpDataSetMessageContentMask.Status
-                        | UadpDataSetMessageContentMask.SequenceNumber)
-                });
-
-            var writer = new DataSetWriterDataType
-            {
-                Name = "Writer 1",
-                DataSetWriterId = dataSetWriterId,
-                Enabled = true,
-                DataSetName = DataSetName,
-                KeyFrameCount = 1,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                MessageSettings = writerMessage
-            };
-            if (profile != PublisherProfile.UdpUadp)
-            {
-                writer.TransportSettings = new ExtensionObject(
-                    new BrokerDataSetWriterTransportDataType
-                    {
-                        QueueName = MqttQueueName,
-                        RequestedDeliveryGuarantee
-                            = BrokerTransportQualityOfService.BestEffort
-                    });
+                };
             }
-
-            // UADP message security (SignAndEncrypt) is wired for the UADP
-            // profiles via the shared StaticSecurityKeyProvider. The
-            // JSON profile has no UADP security wrapper, so it stays
-            // explicitly unsecured.
-            bool secured = profile != PublisherProfile.MqttJson;
-
-            var writerGroup = new WriterGroupDataType
+            return new UadpDataSetWriterMessageDataType
             {
-                Name = "WriterGroup 1",
-                WriterGroupId = writerGroupId,
-                Enabled = true,
-                SecurityMode = secured
-                    ? MessageSecurityMode.SignAndEncrypt
-                    : MessageSecurityMode.None,
-                SecurityGroupId = secured ? SampleSecurity.SecurityGroupId : string.Empty,
-                SecurityKeyServices = secured
-                    ? new ArrayOf<EndpointDescription>(new[]
-                    {
-                        new EndpointDescription
-                        {
-                            EndpointUrl = SampleSecurity.SecurityKeyServiceUrl
-                        }
-                    })
-                    : default,
-                PublishingInterval = intervalMs,
-                KeepAliveTime = intervalMs * 5.0,
-                MaxNetworkMessageSize = 1500,
-                MessageSettings = writerGroupMessage,
-                TransportSettings = writerGroupTransport,
-                DataSetWriters = new ArrayOf<DataSetWriterDataType>(new[] { writer })
-            };
-
-            var connection = new PubSubConnectionDataType
-            {
-                Name = "Publisher Connection",
-                Enabled = true,
-                PublisherId = new Variant(publisherId),
-                TransportProfileUri = transportProfileUri,
-                Address = new ExtensionObject(address),
-                WriterGroups = new ArrayOf<WriterGroupDataType>(new[] { writerGroup })
-            };
-
-            return new PubSubConfigurationDataType
-            {
-                Enabled = true,
-                Connections =
-                    new ArrayOf<PubSubConnectionDataType>(new[] { connection }),
-                PublishedDataSets =
-                    new ArrayOf<PublishedDataSetDataType>(
-                        new[] { BuildPublishedDataSet() })
-            };
-        }
-
-        private static PublishedDataSetDataType BuildPublishedDataSet()
-        {
-            var fields = new ArrayOf<FieldMetaData>(new[]
-            {
-                new FieldMetaData
-                {
-                    Name = "BoolToggle",
-                    DataSetFieldId = Uuid.NewUuid(),
-                    BuiltInType = (byte)DataTypes.Boolean,
-                    DataType = DataTypeIds.Boolean,
-                    ValueRank = ValueRanks.Scalar
-                },
-                new FieldMetaData
-                {
-                    Name = "Int32",
-                    DataSetFieldId = Uuid.NewUuid(),
-                    BuiltInType = (byte)DataTypes.Int32,
-                    DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar
-                },
-                new FieldMetaData
-                {
-                    Name = "DateTime",
-                    DataSetFieldId = Uuid.NewUuid(),
-                    BuiltInType = (byte)DataTypes.DateTime,
-                    DataType = DataTypeIds.DateTime,
-                    ValueRank = ValueRanks.Scalar
-                }
-            });
-            return new PublishedDataSetDataType
-            {
-                Name = DataSetName,
-                DataSetMetaData = new DataSetMetaDataType
-                {
-                    Name = DataSetName,
-                    DataSetClassId = Uuid.Empty,
-                    Fields = fields,
-                    ConfigurationVersion = new ConfigurationVersionDataType
-                    {
-                        MajorVersion = 1,
-                        MinorVersion = 0
-                    }
-                }
+                DataSetMessageContentMask = (uint)(
+                    UadpDataSetMessageContentMask.Status
+                    | UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
     }

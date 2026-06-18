@@ -34,12 +34,21 @@ assembly ships as its own NuGet package under the
 | `Opc.Ua.PubSub.Udp`     | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Udp`    | UDP datagram transport (Part 14 §7.3.2).                        |
 | `Opc.Ua.PubSub.Mqtt`    | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt`   | MQTT broker transport (Part 14 §7.3.4).                         |
 | `Opc.Ua.PubSub.Server`  | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Server` | Server-side address-space integration (Part 14 §9).             |
+| `Opc.Ua.PubSub.Legacy`  | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` | The `[Obsolete]` 1.04 compatibility shims (see §2).             |
 
 Consumers that previously referenced the single `Opc.Ua.PubSub` package must add
 the transport package(s) they use (`...PubSub.Udp` and/or `...PubSub.Mqtt`) and,
 for address-space integration, the `...PubSub.Server` package. The root
 namespaces follow the assembly names (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
 `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`).
+
+The legacy 1.04 types listed in §2 have moved out of the `Opc.Ua.PubSub` assembly
+into a dedicated `Opc.Ua.PubSub.Legacy` assembly/package. Their namespaces are
+unchanged (they remain under `Opc.Ua.PubSub.*`), so existing code compiles
+without edits once the `OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` package
+is referenced. `Opc.Ua.PubSub.Legacy` depends on `Opc.Ua.PubSub` (one-way); the
+modern assembly does **not** reference the legacy shims, so new code that does
+not use the obsolete API does not pull in `Opc.Ua.PubSub.Legacy`.
 
 ## 2. `UaPubSubApplication.Create*` and the legacy types are `[Obsolete]`
 
@@ -57,6 +66,12 @@ to the fluent builder or the DI extensions:
 | `IUaPublisher` / `UaPublisher`    | `IPubSubScheduler` + `WriterGroup` (engine-driven)           |
 | `UaPubSubConfigurator`            | `PubSubApplicationBuilder` (fluent) + `IPubSubConfigurationStore` |
 | `IUaPubSubDataStore`              | `IPublishedDataSetSource` (per-DataSet provider model)       |
+
+> **Assembly move:** every legacy type in this table (except `IUaPubSubDataStore`,
+> which the modern bridge still consumes and therefore stays in `Opc.Ua.PubSub`)
+> now ships from the `Opc.Ua.PubSub.Legacy` assembly/package described in §1.
+> Reference `OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` to keep compiling
+> against the shims; the namespaces are unchanged.
 
 Codemod recipe:
 
@@ -174,6 +189,40 @@ that explicitly opted in to timestamps now actually receive them.
 | `JsonEncodingMode.Reversible` / `NonReversible`              | **Source break.** Rename to `Verbose` / `Compact`.                |
 | `DataSetFieldContentMask.RawData` with bounded strings/arrays | **Wire break.** Fields are padded and length prefixes suppressed per spec. |
 | `DataSetFieldContentMask.SourceTimestamp` etc.               | **Behavioural break.** Now actually emitted; consumers must read. |
+
+## 9. Transport extensions moved to `IPubSubBuilder`
+
+The DI surface gained a fluent `AddPubSub(Action<IPubSubBuilder>)` overload.
+The `IPubSubBuilder` it hands to the callback exposes `AddPublisher` /
+`AddSubscriber`, `ConfigureApplication`, `AddSecurityKeyProvider`,
+`AddDataSetSource`, `AddSubscribedDataSetSink`, `UseConfiguration` /
+`UseConfigurationFile` and `Configure`, and the UDP / MQTT transport
+extensions now hang off it (a transport only makes sense together with the
+PubSub feature). This removes the need to pre-register a hand-rolled
+`IPubSubApplication` factory before adding the feature.
+
+```csharp
+// 1.5.378 — transports on IOpcUaBuilder, manual IPubSubApplication factory
+builder.Services.AddOpcUa()
+    .AddPubSubPublisher()
+    .AddUdpTransport()
+    .AddMqttTransport();
+
+// 2.0 — transports on IPubSubBuilder inside the AddPubSub callback
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddUdpTransport()
+        .AddMqttTransport()
+        .ConfigureApplication(app => app
+            .WithApplicationId("urn:opcfoundation:Publisher")
+            .UseConfigurationFile("publisher.xml")));
+```
+
+| Surface                                          | 2.0 outcome                                                            |
+| ------------------------------------------------ | ---------------------------------------------------------------------- |
+| `IOpcUaBuilder.AddUdpTransport(...)`             | Compiles + `[Obsolete]`. Move into `AddPubSub(pubsub => pubsub.AddUdpTransport())`. |
+| `IOpcUaBuilder.AddMqttTransport(...)`            | Compiles + `[Obsolete]`. Move into `AddPubSub(pubsub => pubsub.AddMqttTransport())`. |
 
 ## See also
 

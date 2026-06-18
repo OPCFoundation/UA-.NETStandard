@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.PubSub.Server.Tests

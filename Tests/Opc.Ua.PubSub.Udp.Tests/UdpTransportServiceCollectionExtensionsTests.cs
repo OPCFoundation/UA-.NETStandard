@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 })
                 .Build();
 
-            services.AddOpcUa().AddUdpTransport(configuration);
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddUdpTransport(configuration));
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             UdpTransportOptions options =
@@ -100,7 +100,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 })
                 .Build();
 
-            services.AddOpcUa().AddUdpTransport(configuration.GetSection("UdpSection"));
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddUdpTransport(configuration.GetSection("UdpSection")));
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             UdpTransportOptions options =

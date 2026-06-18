@@ -48,12 +48,19 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     [TestSpec("7.3.4", Summary = "MQTT broker transport DI registration")]
     public class MqttTransportBuilderExtensionsTests
     {
-        [Test]
-        public void AddMqttTransportRegistersBothFactories()
+        private static (IPubSubBuilder Builder, ServiceCollection Services) CreatePubSubBuilder()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            IPubSubBuilder captured = null!;
+            services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
+            return (captured, services);
+        }
+
+        [Test]
+        public void AddMqttTransportRegistersBothFactories()
+        {
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddMqttTransport();
             ServiceProvider sp = services.BuildServiceProvider();
             MqttPubSubTransportFactory[] mqttFactories =
@@ -73,9 +80,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddMqttTransportBindsOptions()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddMqttTransport(o => o.Endpoint = "mqtt://test-broker");
             ServiceProvider sp = services.BuildServiceProvider();
             MqttConnectionOptions options =
@@ -86,7 +91,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddMqttTransportNullBuilderThrows()
         {
-            IOpcUaBuilder? builder = null;
+            IPubSubBuilder? builder = null;
             Assert.That(
                 () => builder!.AddMqttTransport(),
                 Throws.ArgumentNullException);
@@ -95,7 +100,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddMqttTransportNullBuilderIConfigurationOverloadThrows()
         {
-            IOpcUaBuilder? builder = null;
+            IPubSubBuilder? builder = null;
             IConfiguration cfg = new ConfigurationBuilder().Build();
             Assert.That(
                 () => builder!.AddMqttTransport(cfg),
@@ -105,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddMqttTransportNullBuilderIConfigurationSectionOverloadThrows()
         {
-            IOpcUaBuilder? builder = null;
+            IPubSubBuilder? builder = null;
             IConfigurationSection section = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>())
                 .Build()
@@ -118,9 +123,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddMqttTransportNullConfigurationThrows()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, _) = CreatePubSubBuilder();
             Assert.That(
                 () => builder.AddMqttTransport(configuration: null!),
                 Throws.ArgumentNullException);
@@ -129,9 +132,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddMqttTransportNullSectionThrows()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, _) = CreatePubSubBuilder();
             Assert.That(
                 () => builder.AddMqttTransport(section: null!),
                 Throws.ArgumentNullException);
@@ -147,9 +148,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 })
                 .Build();
 
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddMqttTransport(configuration);
 
             ServiceProvider sp = services.BuildServiceProvider();
@@ -169,9 +168,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 .Build();
             IConfigurationSection section = root.GetSection("MyMqtt");
 
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddMqttTransport(section);
 
             ServiceProvider sp = services.BuildServiceProvider();

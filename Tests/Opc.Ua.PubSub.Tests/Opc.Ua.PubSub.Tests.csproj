@@ -35,6 +35,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <!-- The legacy 1.04 shim types (UaPubSubApplication, the 1.04 UDP/MQTT
+         transports and UADP/JSON encoders, ...) referenced by the legacy
+         coverage tests now live in Opc.Ua.PubSub.Legacy. -->
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Legacy\Opc.Ua.PubSub.Legacy.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />

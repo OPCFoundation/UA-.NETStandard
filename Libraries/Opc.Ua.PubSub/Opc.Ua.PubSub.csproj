@@ -33,6 +33,13 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Legacy.Tests" />
+    <!--
+      The legacy 1.04 shims live in Opc.Ua.PubSub.Legacy and forward to the
+      modern runtime internals, so the modern assembly exposes its internals to
+      the legacy compatibility assembly.
+    -->
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Legacy" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

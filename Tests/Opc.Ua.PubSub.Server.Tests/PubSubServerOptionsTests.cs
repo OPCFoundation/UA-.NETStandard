@@ -32,6 +32,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
 
 namespace Opc.Ua.PubSub.Server.Tests
 {

@@ -37,16 +37,17 @@ using Opc.Ua.PubSub.Udp;
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// <see cref="IOpcUaBuilder"/> extensions that register the
+    /// <see cref="IPubSubBuilder"/> extensions that register the
     /// <see cref="UdpPubSubTransportFactory"/> with the OPC UA
     /// PubSub DI surface.
     /// </summary>
     /// <remarks>
-    /// Mirrors the convention used by every other OPC UA .NET
-    /// Standard 2.x DI extension: every <c>Add*Transport</c> method
-    /// returns the
-    /// <see cref="IOpcUaBuilder"/> so the call chain remains
-    /// composable. Implements
+    /// A UDP transport only makes sense together with the PubSub
+    /// feature, so the supported surface hangs off
+    /// <see cref="IPubSubBuilder"/> (returned by
+    /// <c>AddPubSub(pubsub =&gt; ...)</c>). Every <c>Add*Transport</c>
+    /// method returns the builder so the call chain remains composable.
+    /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.2">
     /// Part 14 §7.3.2 UDP datagram transport</see>.
     /// </remarks>
@@ -54,7 +55,7 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary>
         /// Default configuration section name read by
-        /// <see cref="AddUdpTransport(IOpcUaBuilder, IConfiguration)"/>.
+        /// <see cref="AddUdpTransport(IPubSubBuilder, IConfiguration)"/>.
         /// </summary>
         public const string DefaultConfigurationSection = "OpcUa:PubSub:Udp";
 
@@ -65,10 +66,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="UdpTransportOptions"/> via the optional
         /// <paramref name="configure"/> callback.
         /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
-        public static IOpcUaBuilder AddUdpTransport(
-            this IOpcUaBuilder builder,
+        public static IPubSubBuilder AddUdpTransport(
+            this IPubSubBuilder builder,
             Action<UdpTransportOptions>? configure = null)
         {
             if (builder is null)
@@ -83,8 +84,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.Services.AddOptions<UdpTransportOptions>().Configure(configure);
             }
-            builder.Services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
+            RegisterFactory(builder.Services);
             return builder;
         }
 
@@ -93,10 +93,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="UdpPubSubTransportFactory"/> and binds
         /// <see cref="UdpTransportOptions"/> from <paramref name="configuration"/>.
         /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
-        public static IOpcUaBuilder AddUdpTransport(
-            this IOpcUaBuilder builder,
+        public static IPubSubBuilder AddUdpTransport(
+            this IPubSubBuilder builder,
             IConfiguration configuration)
         {
             if (builder is null)
@@ -116,10 +116,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="UdpTransportOptions"/> from the supplied
         /// section.
         /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
-        public static IOpcUaBuilder AddUdpTransport(
-            this IOpcUaBuilder builder,
+        public static IPubSubBuilder AddUdpTransport(
+            this IPubSubBuilder builder,
             IConfigurationSection section)
         {
             if (builder is null)
@@ -131,9 +131,43 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
             builder.Services.AddOptions<UdpTransportOptions>().Bind(section);
-            builder.Services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
+            RegisterFactory(builder.Services);
             return builder;
+        }
+
+        /// <summary>
+        /// Obsolete forwarder kept for source compatibility. Add the UDP
+        /// transport through the <see cref="IPubSubBuilder"/> returned by
+        /// <c>AddPubSub(pubsub =&gt; pubsub.AddUdpTransport())</c> instead.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configure">Optional options callback.</param>
+        [Obsolete("Add the UDP transport on the IPubSubBuilder: " +
+            "AddPubSub(pubsub => pubsub.AddUdpTransport()).")]
+        public static IOpcUaBuilder AddUdpTransport(
+            this IOpcUaBuilder builder,
+            Action<UdpTransportOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                builder.Services.AddOptions<UdpTransportOptions>();
+            }
+            else
+            {
+                builder.Services.AddOptions<UdpTransportOptions>().Configure(configure);
+            }
+            RegisterFactory(builder.Services);
+            return builder;
+        }
+
+        private static void RegisterFactory(IServiceCollection services)
+        {
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
         }
     }
 }

@@ -48,12 +48,19 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     [TestSpec("7.3.2", Summary = "UDP transport DI registration")]
     public class UdpTransportBuilderExtensionsTests
     {
-        [Test]
-        public void AddUdpTransportRegistersFactoryAsSingleton()
+        private static (IPubSubBuilder Builder, ServiceCollection Services) CreatePubSubBuilder()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            IPubSubBuilder captured = null!;
+            services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
+            return (captured, services);
+        }
+
+        [Test]
+        public void AddUdpTransportRegistersFactoryAsSingleton()
+        {
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddUdpTransport();
             ServiceProvider sp = services.BuildServiceProvider();
             IPubSubTransportFactory[] factories =
@@ -66,9 +73,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportBindsOptions()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddUdpTransport(o => o.Ttl = 7);
             ServiceProvider sp = services.BuildServiceProvider();
             UdpTransportOptions options =
@@ -79,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportNullBuilderThrows()
         {
-            IOpcUaBuilder? builder = null;
+            IPubSubBuilder? builder = null;
             Assert.That(
                 () => builder!.AddUdpTransport(),
                 Throws.ArgumentNullException);
@@ -88,7 +93,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportNullBuilderIConfigurationOverloadThrows()
         {
-            IOpcUaBuilder? builder = null;
+            IPubSubBuilder? builder = null;
             IConfiguration cfg = new ConfigurationBuilder().Build();
             Assert.That(
                 () => builder!.AddUdpTransport(cfg),
@@ -98,9 +103,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportNullConfigurationThrows()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, _) = CreatePubSubBuilder();
             Assert.That(
                 () => builder.AddUdpTransport(configuration: null!),
                 Throws.ArgumentNullException);
@@ -109,9 +112,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportNullSectionThrows()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, _) = CreatePubSubBuilder();
             Assert.That(
                 () => builder.AddUdpTransport(section: null!),
                 Throws.ArgumentNullException);
@@ -120,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportNullBuilderIConfigurationSectionOverloadThrows()
         {
-            IOpcUaBuilder? builder = null;
+            IPubSubBuilder? builder = null;
             IConfigurationSection section = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>())
                 .Build()
@@ -141,9 +142,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 })
                 .Build();
 
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddUdpTransport(configuration);
 
             ServiceProvider sp = services.BuildServiceProvider();
@@ -168,9 +167,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 .Build();
             IConfigurationSection section = root.GetSection("MyUdp");
 
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddUdpTransport(section);
 
             ServiceProvider sp = services.BuildServiceProvider();
@@ -186,9 +183,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         [Test]
         public void AddUdpTransportTwiceDoesNotDuplicateFactory()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            IOpcUaBuilder builder = services.AddOpcUa();
+            (IPubSubBuilder builder, ServiceCollection services) = CreatePubSubBuilder();
             builder.AddUdpTransport();
             builder.AddUdpTransport();
 

@@ -27,13 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Server.Internal;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Tests;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.PubSub.Server.Tests.Internal
 {

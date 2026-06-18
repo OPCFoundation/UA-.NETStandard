@@ -40,6 +40,7 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server;
 using Opc.Ua.PubSub.Server.Hosting;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Tests;
 

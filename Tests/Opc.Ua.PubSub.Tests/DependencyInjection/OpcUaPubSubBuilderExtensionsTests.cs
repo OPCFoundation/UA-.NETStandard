@@ -27,17 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
+using Opc.Ua.PubSub.Security;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {
@@ -120,6 +123,86 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(
                 () => builder!.AddPubSub(),
                 Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddPubSubFluent_ResolvesIPubSubApplication()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddPublisher());
+            ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(sp.GetService<IPubSubApplication>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSubFluent_NullConfigure_Throws()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            Assert.That(
+                () => builder.AddPubSub((Action<IPubSubBuilder>)null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddPubSubFluent_NullBuilder_Throws()
+        {
+            IOpcUaBuilder? builder = null;
+            Assert.That(
+                () => builder!.AddPubSub(pubsub => pubsub.AddPublisher()),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddPubSubFluent_ConfigureApplication_IsApplied()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            bool configureApplicationInvoked = false;
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddPublisher().ConfigureApplication(
+                    app =>
+                    {
+                        configureApplicationInvoked = true;
+                        app.WithApplicationId("urn:test:application");
+                    }));
+            ServiceProvider sp = services.BuildServiceProvider();
+            _ = sp.GetRequiredService<IPubSubApplication>();
+            Assert.That(configureApplicationInvoked, Is.True);
+        }
+
+        [Test]
+        public void AddPubSubFluent_AddSecurityKeyProvider_RegistersProvider()
+        {
+            var keyProvider = new Mock<IPubSubSecurityKeyProvider>();
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddSubscriber().AddSecurityKeyProvider(keyProvider.Object));
+            ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(
+                sp.GetService<IPubSubSecurityKeyProvider>(),
+                Is.SameAs(keyProvider.Object));
+        }
+
+        [Test]
+        public void AddPubSubFluent_ExposesServicesAndOpcUaBuilder()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IServiceCollection? captured = null;
+            IOpcUaBuilder root = services.AddOpcUa();
+            root.AddPubSub(pubsub =>
+            {
+                captured = pubsub.Services;
+                Assert.That(pubsub.OpcUaBuilder, Is.SameAs(root));
+            });
+            Assert.That(captured, Is.SameAs(services));
         }
     }
 }

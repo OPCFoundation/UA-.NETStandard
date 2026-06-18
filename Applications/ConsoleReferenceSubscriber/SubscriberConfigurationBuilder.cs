@@ -29,12 +29,14 @@
 
 using System;
 using Opc.Ua;
+using Opc.Ua.PubSub.Configuration;
 
 namespace Quickstarts.ConsoleReferenceSubscriber
 {
     /// <summary>
-    /// Constructs minimal Part 14 <see cref="PubSubConfigurationDataType"/>
-    /// payloads for the three demo wire profiles. The payloads wire one
+    /// Builds minimal Part 14 <see cref="PubSubConfigurationDataType"/>
+    /// payloads for the three demo wire profiles using the fluent
+    /// <see cref="PubSubConfigurationBuilder"/>. Each payload wires one
     /// PubSubConnection &gt; ReaderGroup &gt; DataSetReader filtered on
     /// PublisherId / WriterGroupId / DataSetWriterId.
     /// </summary>
@@ -60,6 +62,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             ushort writerGroupIdFilter,
             ushort dataSetWriterIdFilter)
         {
+            bool udp = profile == SubscriberProfile.UdpUadp;
+
+            // UADP message security (SignAndEncrypt) is wired for the UADP
+            // profiles via the shared StaticSecurityKeyProvider. The JSON
+            // profile has no UADP security wrapper, so it stays unsecured.
+            bool secured = profile != SubscriberProfile.MqttJson;
+
             string transportProfileUri = profile switch
             {
                 SubscriberProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
@@ -68,14 +77,60 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))
             };
 
-            var address = new NetworkAddressUrlDataType
-            {
-                NetworkInterface = string.Empty,
-                Url = endpoint
-            };
+            return PubSubConfigurationBuilder.Create()
+                .AddConnection("Subscriber Connection", connection =>
+                {
+                    connection
+                        .WithPublisherId(new Variant(publisherIdFilter))
+                        .WithTransportProfile(transportProfileUri)
+                        .WithAddress(endpoint)
+                        .AddReaderGroup("ReaderGroup 1", group =>
+                        {
+                            group.WithMaxNetworkMessageSize(1500);
+                            if (secured)
+                            {
+                                group.WithSecurity(
+                                    MessageSecurityMode.SignAndEncrypt,
+                                    SampleSecurity.SecurityGroupId,
+                                    SampleSecurity.SecurityKeyServiceUrl);
+                            }
+                            group.AddDataSetReader(ReaderName, reader =>
+                            {
+                                reader
+                                    .WithFilter(
+                                        new Variant(publisherIdFilter),
+                                        writerGroupIdFilter,
+                                        dataSetWriterIdFilter)
+                                    .WithFieldContentMask(DataSetFieldContentMask.RawData)
+                                    .WithMessageReceiveTimeout(5000)
+                                    .WithMessageSettings(ReaderMessageSettings(profile))
+                                    .WithMirrorSubscribedDataSet(ReaderName)
+                                    .WithDataSetMetaData(DataSetName, metaData => metaData
+                                        .WithoutFieldIds()
+                                        .AddField("BoolToggle", (byte)DataTypes.Boolean, DataTypeIds.Boolean)
+                                        .AddField("Int32", (byte)DataTypes.Int32, DataTypeIds.Int32)
+                                        .AddField("DateTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime));
+                                if (!udp)
+                                {
+                                    reader.WithTransportSettings(
+                                        new BrokerDataSetReaderTransportDataType
+                                        {
+                                            QueueName = MqttQueueName,
+                                            RequestedDeliveryGuarantee
+                                                = BrokerTransportQualityOfService.BestEffort
+                                        });
+                                }
+                            });
+                        });
+                })
+                .Build();
+        }
 
-            ExtensionObject readerMessage = profile == SubscriberProfile.MqttJson
-                ? new ExtensionObject(new JsonDataSetReaderMessageDataType
+        private static IEncodeable ReaderMessageSettings(SubscriberProfile profile)
+        {
+            if (profile == SubscriberProfile.MqttJson)
+            {
+                return new JsonDataSetReaderMessageDataType
                 {
                     NetworkMessageContentMask = (uint)(
                         JsonNetworkMessageContentMask.NetworkMessageHeader
@@ -86,135 +141,20 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | JsonDataSetMessageContentMask.SequenceNumber
                         | JsonDataSetMessageContentMask.Status
                         | JsonDataSetMessageContentMask.Timestamp)
-                })
-                : new ExtensionObject(new UadpDataSetReaderMessageDataType
-                {
-                    NetworkMessageContentMask = (uint)(
-                        UadpNetworkMessageContentMask.PublisherId
-                        | UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.PayloadHeader
-                        | UadpNetworkMessageContentMask.NetworkMessageNumber
-                        | UadpNetworkMessageContentMask.SequenceNumber),
-                    DataSetMessageContentMask = (uint)(
-                        UadpDataSetMessageContentMask.Status
-                        | UadpDataSetMessageContentMask.SequenceNumber)
-                });
-
-            var dataSetReader = new DataSetReaderDataType
-            {
-                Name = ReaderName,
-                Enabled = true,
-                PublisherId = new Variant(publisherIdFilter),
-                WriterGroupId = writerGroupIdFilter,
-                DataSetWriterId = dataSetWriterIdFilter,
-                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
-                MessageReceiveTimeout = 5000,
-                MessageSettings = readerMessage,
-                SubscribedDataSet = new ExtensionObject(
-                    new SubscribedDataSetMirrorDataType
-                    {
-                        ParentNodeName = ReaderName
-                    }),
-                DataSetMetaData = BuildMetaData()
-            };
-
-            if (profile != SubscriberProfile.UdpUadp)
-            {
-                dataSetReader.TransportSettings = new ExtensionObject(
-                    new BrokerDataSetReaderTransportDataType
-                    {
-                        QueueName = MqttQueueName,
-                        RequestedDeliveryGuarantee
-                            = BrokerTransportQualityOfService.BestEffort
-                    });
+                };
             }
-
-            // UADP message security (SignAndEncrypt) is wired for the UADP
-            // profiles via the shared StaticSecurityKeyProvider. The
-            // JSON profile has no UADP security wrapper, so it stays
-            // explicitly unsecured.
-            bool secured = profile != SubscriberProfile.MqttJson;
-
-            var readerGroup = new ReaderGroupDataType
+            return new UadpDataSetReaderMessageDataType
             {
-                Name = "ReaderGroup 1",
-                Enabled = true,
-                SecurityMode = secured
-                    ? MessageSecurityMode.SignAndEncrypt
-                    : MessageSecurityMode.None,
-                SecurityGroupId = secured ? SampleSecurity.SecurityGroupId : string.Empty,
-                SecurityKeyServices = secured
-                    ? new ArrayOf<EndpointDescription>(new[]
-                    {
-                        new EndpointDescription
-                        {
-                            EndpointUrl = SampleSecurity.SecurityKeyServiceUrl
-                        }
-                    })
-                    : default,
-                MaxNetworkMessageSize = 1500,
-                MessageSettings = new ExtensionObject(
-                    new ReaderGroupMessageDataType()),
-                DataSetReaders = new ArrayOf<DataSetReaderDataType>(
-                    new[] { dataSetReader })
-            };
-
-            var connection = new PubSubConnectionDataType
-            {
-                Name = "Subscriber Connection",
-                Enabled = true,
-                PublisherId = new Variant(publisherIdFilter),
-                TransportProfileUri = transportProfileUri,
-                Address = new ExtensionObject(address),
-                ReaderGroups = new ArrayOf<ReaderGroupDataType>(
-                    new[] { readerGroup })
-            };
-
-            return new PubSubConfigurationDataType
-            {
-                Enabled = true,
-                Connections = new ArrayOf<PubSubConnectionDataType>(
-                    new[] { connection }),
-                PublishedDataSets = []
-            };
-        }
-
-        private static DataSetMetaDataType BuildMetaData()
-        {
-            return new DataSetMetaDataType
-            {
-                Name = DataSetName,
-                DataSetClassId = Uuid.Empty,
-                Fields = new ArrayOf<FieldMetaData>(new[]
-                {
-                    new FieldMetaData
-                    {
-                        Name = "BoolToggle",
-                        BuiltInType = (byte)DataTypes.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "Int32",
-                        BuiltInType = (byte)DataTypes.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DateTime",
-                        BuiltInType = (byte)DataTypes.DateTime,
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar
-                    }
-                }),
-                ConfigurationVersion = new ConfigurationVersionDataType
-                {
-                    MajorVersion = 1,
-                    MinorVersion = 0
-                }
+                NetworkMessageContentMask = (uint)(
+                    UadpNetworkMessageContentMask.PublisherId
+                    | UadpNetworkMessageContentMask.GroupHeader
+                    | UadpNetworkMessageContentMask.WriterGroupId
+                    | UadpNetworkMessageContentMask.PayloadHeader
+                    | UadpNetworkMessageContentMask.NetworkMessageNumber
+                    | UadpNetworkMessageContentMask.SequenceNumber),
+                DataSetMessageContentMask = (uint)(
+                    UadpDataSetMessageContentMask.Status
+                    | UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
     }

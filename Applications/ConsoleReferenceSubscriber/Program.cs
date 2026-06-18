@@ -34,9 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Transports;
 
 namespace Quickstarts.ConsoleReferenceSubscriber
 {
@@ -155,53 +153,39 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             string transportEndpoint = endpoint
                 ?? SubscriberConfigurationBuilder.DefaultEndpointFor(profile);
 
-            // Register the IPubSubApplication BEFORE AddPubSubSubscriber so
-            // TryAddSingleton inside the DI extension skips its default
-            // factory. This lets the sample wire a fluent
-            // PubSubApplicationBuilder that pre-registers a console-logging
-            // sink for the configured DataSetReader.
-            builder.Services.AddSingleton<IPubSubApplication>(sp =>
+            builder.Services.AddOpcUa().AddPubSub(pubsub =>
             {
-                ITelemetryContext telemetry =
-                    sp.GetRequiredService<ITelemetryContext>();
-                ILogger<ConsoleLoggingSink> sinkLogger = sp
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger<ConsoleLoggingSink>();
-                var sink = new ConsoleLoggingSink(sinkLogger);
-                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
-                    .WithApplicationId("urn:opcfoundation:ConsoleReferenceSubscriber")
-                    .UseAllStandardEncoders()
+                IPubSubBuilder subscriber = pubsub
+                    .AddSubscriber()
+                    .AddUdpTransport()
                     .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
                     .AddSubscribedDataSetSink(
-                        SubscriberConfigurationBuilder.ReaderName, sink);
-                foreach (IPubSubTransportFactory factory
-                    in sp.GetServices<IPubSubTransportFactory>())
+                        SubscriberConfigurationBuilder.ReaderName,
+                        sp => new ConsoleLoggingSink(
+                            sp.GetRequiredService<ILoggerFactory>()
+                                .CreateLogger<ConsoleLoggingSink>()));
+                if (profile != SubscriberProfile.UdpUadp)
                 {
-                    pb.AddTransportFactory(factory);
+                    subscriber.AddMqttTransport();
                 }
-                if (!string.IsNullOrEmpty(configFile))
+                subscriber.ConfigureApplication(app =>
                 {
-                    pb.UseConfigurationFile(configFile);
-                }
-                else
-                {
-                    pb.UseConfiguration(SubscriberConfigurationBuilder.Build(
-                        profile,
-                        transportEndpoint,
-                        publisherIdFilter,
-                        writerGroupIdFilter,
-                        dataSetWriterIdFilter));
-                }
-                return pb.Build();
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferenceSubscriber");
+                    if (!string.IsNullOrEmpty(configFile))
+                    {
+                        app.UseConfigurationFile(configFile);
+                    }
+                    else
+                    {
+                        app.UseConfiguration(SubscriberConfigurationBuilder.Build(
+                            profile,
+                            transportEndpoint,
+                            publisherIdFilter,
+                            writerGroupIdFilter,
+                            dataSetWriterIdFilter));
+                    }
+                });
             });
-
-            IOpcUaBuilder ua = builder.Services.AddOpcUa()
-                .AddPubSubSubscriber()
-                .AddUdpTransport();
-            if (profile != SubscriberProfile.UdpUadp)
-            {
-                ua.AddMqttTransport();
-            }
 
             IHost host = builder.Build();
             ILogger logger = host.Services

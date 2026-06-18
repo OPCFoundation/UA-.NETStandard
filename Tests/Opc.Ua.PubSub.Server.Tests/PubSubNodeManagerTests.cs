@@ -37,6 +37,7 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 

@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 })
                 .Build();
 
-            services.AddOpcUa().AddMqttTransport(configuration);
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddMqttTransport(configuration));
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             MqttConnectionOptions options =
@@ -134,7 +134,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 })
                 .Build();
 
-            services.AddOpcUa().AddMqttTransport(configuration.GetSection("Custom"));
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddMqttTransport(configuration.GetSection("Custom")));
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             MqttConnectionOptions options =

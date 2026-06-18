@@ -339,26 +339,37 @@ way the rest of the stack does — see
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddOpcUa()
-    .AddPubSub(options =>
+    .AddPubSub(pubsub =>
     {
-        options.ConfigurationFilePath = "publisher.xml";
-        options.DiagnosticsLevel = PubSubDiagnosticsLevel.High;
-    })
-    .AddUdpTransport()
-    .AddMqttTransport()
-    .AddPubSubSecurityKeyServiceClient(opt =>
-    {
-        opt.SecurityKeyServiceUri = "opc.tcp://sks.example.com:4840";
+        pubsub.AddPublisher()
+            .AddUdpTransport()
+            .AddMqttTransport()
+            .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
+            .AddDataSetSource("Simple", new MyDataSetSource())
+            .ConfigureApplication(app => app
+                .WithApplicationId("urn:opcfoundation:ConsoleReferencePublisher")
+                .UseConfigurationFile("publisher.xml"));
     });
 
 IHost host = builder.Build();
 await host.RunAsync();
 ```
 
+The `AddPubSub(Action<IPubSubBuilder>)` overload hands a fluent
+`IPubSubBuilder` to the callback. It removes the need to pre-register a
+hand-rolled `IPubSubApplication` factory: `ConfigureApplication` runs the
+supplied callbacks against the `PubSubApplicationBuilder` after the
+builder has auto-added every registered `IPubSubTransportFactory`,
+security key provider, dataset source and sink. A default
+`IPubSubApplication` is still registered, so the direct
+`AddPubSub(Action<PubSubApplicationOptions>?)` / `AddPubSub(IConfiguration)`
+overloads keep working unchanged.
+
 DI extension methods provided by `Opc.Ua.PubSub`:
 
 | Extension                                  | Description                                                        |
 | ------------------------------------------ | ------------------------------------------------------------------ |
+| `AddPubSub(Action<IPubSubBuilder>)`        | Fluent composition root. Exposes `AddPublisher` / `AddSubscriber`, `ConfigureApplication`, `AddSecurityKeyProvider`, `AddDataSetSource`, `AddSubscribedDataSetSink`, `UseConfiguration` / `UseConfigurationFile`, `Configure`, plus the transport extensions. |
 | `AddPubSub(Action<PubSubApplicationOptions>?)` | Registers the `IPubSubApplication`, its hosted-service driver, all standard encoders/decoders, the scheduler, the diagnostics aggregator and the security policies. |
 | `AddPubSub(IConfiguration)`                | Same, binding `PubSubApplicationOptions` from the `OpcUa:PubSub` section. |
 | `AddPubSubPublisher` / `AddPubSubSubscriber` | Convenience aliases. Both register the full surface; "publisher" / "subscriber" only changes the `Role` field on the options bag. |
@@ -367,12 +378,17 @@ DI extension methods provided by `Opc.Ua.PubSub`:
 
 Transport-specific extensions
 (`Opc.Ua.PubSub.Udp` / `.Mqtt`) supply the matching
-`IPubSubTransportFactory`:
+`IPubSubTransportFactory` and now hang off `IPubSubBuilder` — a transport
+only makes sense together with the PubSub feature:
 
-- `IOpcUaBuilder.AddUdpTransport(Action<UdpTransportOptions>?)` — UDP
+- `IPubSubBuilder.AddUdpTransport(Action<UdpTransportOptions>?)` — UDP
   unicast / multicast / broadcast.
-- `IOpcUaBuilder.AddMqttTransport(Action<MqttTransportOptions>?)` —
+- `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
   MQTT 3.1.1 + 5.0 via MQTTnet.
+
+> The legacy `IOpcUaBuilder.AddUdpTransport` / `AddMqttTransport`
+> overloads remain as `[Obsolete]` forwarders for source compatibility;
+> move them into the `AddPubSub(pubsub => …)` callback.
 
 Server-side address space — see
 [Server-side address space](#server-side-address-space):

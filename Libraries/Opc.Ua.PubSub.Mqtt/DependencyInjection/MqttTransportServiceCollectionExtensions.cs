@@ -40,7 +40,7 @@ using Opc.Ua.PubSub.Transports;
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// <see cref="IOpcUaBuilder"/> extensions that register the
+    /// <see cref="IPubSubBuilder"/> extensions that register the
     /// MQTT PubSub transport with the OPC UA PubSub DI surface.
     /// </summary>
     /// <remarks>
@@ -48,7 +48,10 @@ namespace Microsoft.Extensions.DependencyInjection
     /// instances — one for the JSON profile and one for the UADP
     /// profile — so that the runtime can match an
     /// <see cref="PubSubConnectionDataType"/> by its
-    /// <c>TransportProfileUri</c>. Implements
+    /// <c>TransportProfileUri</c>. The supported surface hangs off
+    /// <see cref="IPubSubBuilder"/> (returned by
+    /// <c>AddPubSub(pubsub =&gt; ...)</c>) because a transport only makes
+    /// sense together with the PubSub feature. Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.4">
     /// Part 14 §7.3.4 MQTT broker transport</see>.
     /// </remarks>
@@ -56,7 +59,7 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary>
         /// Default configuration section name read by
-        /// <see cref="AddMqttTransport(IOpcUaBuilder, IConfiguration)"/>.
+        /// <see cref="AddMqttTransport(IPubSubBuilder, IConfiguration)"/>.
         /// </summary>
         public const string DefaultConfigurationSection = "OpcUa:PubSub:Mqtt";
 
@@ -65,10 +68,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="MqttConnectionOptions"/> via the optional
         /// <paramref name="configure"/> callback.
         /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
-        public static IOpcUaBuilder AddMqttTransport(
-            this IOpcUaBuilder builder,
+        public static IPubSubBuilder AddMqttTransport(
+            this IPubSubBuilder builder,
             Action<MqttConnectionOptions>? configure = null)
         {
             if (builder is null)
@@ -83,7 +86,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.Services.AddOptions<MqttConnectionOptions>().Configure(configure);
             }
-            RegisterShared(builder);
+            RegisterShared(builder.Services);
             return builder;
         }
 
@@ -93,10 +96,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <paramref name="configuration"/> under
         /// <see cref="DefaultConfigurationSection"/>.
         /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
-        public static IOpcUaBuilder AddMqttTransport(
-            this IOpcUaBuilder builder,
+        public static IPubSubBuilder AddMqttTransport(
+            this IPubSubBuilder builder,
             IConfiguration configuration)
         {
             if (builder is null)
@@ -115,10 +118,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="MqttConnectionOptions"/> from the supplied
         /// section.
         /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
-        public static IOpcUaBuilder AddMqttTransport(
-            this IOpcUaBuilder builder,
+        public static IPubSubBuilder AddMqttTransport(
+            this IPubSubBuilder builder,
             IConfigurationSection section)
         {
             if (builder is null)
@@ -130,14 +133,43 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
             builder.Services.AddOptions<MqttConnectionOptions>().Bind(section);
-            RegisterShared(builder);
+            RegisterShared(builder.Services);
             return builder;
         }
 
-        private static void RegisterShared(IOpcUaBuilder builder)
+        /// <summary>
+        /// Obsolete forwarder kept for source compatibility. Add the MQTT
+        /// transport through the <see cref="IPubSubBuilder"/> returned by
+        /// <c>AddPubSub(pubsub =&gt; pubsub.AddMqttTransport())</c> instead.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configure">Optional options callback.</param>
+        [Obsolete("Add the MQTT transport on the IPubSubBuilder: " +
+            "AddPubSub(pubsub => pubsub.AddMqttTransport()).")]
+        public static IOpcUaBuilder AddMqttTransport(
+            this IOpcUaBuilder builder,
+            Action<MqttConnectionOptions>? configure = null)
         {
-            builder.Services.TryAddSingleton<IMqttClientFactory, MqttClientAdapterFactory>();
-            builder.Services.Add(
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                builder.Services.AddOptions<MqttConnectionOptions>();
+            }
+            else
+            {
+                builder.Services.AddOptions<MqttConnectionOptions>().Configure(configure);
+            }
+            RegisterShared(builder.Services);
+            return builder;
+        }
+
+        private static void RegisterShared(IServiceCollection services)
+        {
+            services.TryAddSingleton<IMqttClientFactory, MqttClientAdapterFactory>();
+            services.Add(
                 ServiceDescriptor.Singleton<IPubSubTransportFactory>(sp =>
                     new MqttPubSubTransportFactory(
                         Profiles.PubSubMqttJsonTransport,
@@ -145,7 +177,7 @@ namespace Microsoft.Extensions.DependencyInjection
                         sp.GetRequiredService<IOptions<MqttConnectionOptions>>(),
                         sp.GetService<ISecretRegistry>(),
                         sp.GetService<IPubSubDiagnostics>())));
-            builder.Services.Add(
+            services.Add(
                 ServiceDescriptor.Singleton<IPubSubTransportFactory>(sp =>
                     new MqttPubSubTransportFactory(
                         Profiles.PubSubMqttUadpTransport,

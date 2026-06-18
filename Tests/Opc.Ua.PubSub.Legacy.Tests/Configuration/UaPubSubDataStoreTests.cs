@@ -1,0 +1,145 @@
+/* ====/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using NUnit.Framework;
+
+namespace Opc.Ua.PubSub.Legacy.Tests.Configuration
+{
+    [TestFixture(Description = "Tests for UaPubSubDataStore class")]
+    [Parallelizable]
+    public class UaPubSubDataStoreTests
+    {
+        [Test(Description = "Validate WritePublishedDataItem call with different values")]
+        public void ValidateWritePublishedDataItem(
+            [Values(
+                true,
+                (byte)1,
+                (ushort)2,
+                (short)3,
+                (uint)4,
+                5,
+                (ulong)6,
+                (long)7,
+                (double)8,
+                (float)9,
+                "10")]
+                object value)
+        {
+            //Arrange
+            var dataStore = new UaPubSubDataStore();
+            var nodeId = NodeId.Parse("ns=1;i=1");
+
+            //Act
+#pragma warning disable CS0618 // Type or member is obsolete
+            dataStore.WritePublishedDataItem(
+                nodeId,
+                Attributes.Value,
+                new DataValue(new Variant(value)));
+#pragma warning restore CS0618 // Type or member is obsolete
+            dataStore.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue readDataValue);
+
+            //Assert
+            Assert.That(
+                readDataValue.IsNull,
+                Is.False,
+                "Returned DataValue for written nodeId and attribute is null");
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(
+                value,
+                Is.EqualTo(readDataValue.Value),
+                "Read after write returned different value");
+#pragma warning restore CS0618 // Type or member is obsolete
+        }
+
+        [Test(Description = "Validate WritePublishedDataItem call with null NodeId")]
+        public void ValidateWritePublishedDataItemNullNodeId()
+        {
+            //Arrange
+            var dataStore = new UaPubSubDataStore();
+
+            //Assert
+            Assert
+                .Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(default));
+        }
+
+        [Test(Description = "Validate WritePublishedDataItem call with invalid Attribute")]
+        public void ValidateWritePublishedDataItemInvalidAttribute()
+        {
+            //Arrange
+            var dataStore = new UaPubSubDataStore();
+
+            //Assert
+            Assert.Throws<ArgumentException>(() =>
+                dataStore.WritePublishedDataItem(
+                    NodeId.Parse("ns=0;i=2253"),
+                    Attributes.AccessLevelEx + 1));
+        }
+
+        [Test(Description = "Validate ReadPublishedDataItem call for non existing node id")]
+        public void ValidateReadPublishedDataItem()
+        {
+            //Arrange
+            var dataStore = new UaPubSubDataStore();
+            var nodeId = NodeId.Parse("ns=1;i=1");
+
+            //Act
+            dataStore.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue readDataValue);
+
+            //Assert
+            Assert.That(
+                readDataValue.IsNull,
+                Is.True,
+                "Returned DataValue for written nodeId and attribute is NOT null");
+        }
+
+        [Test(Description = "Validate ReadPublishedDataItem call with null NodeId")]
+        public void ValidateReadPublishedDataItemNullNodeId()
+        {
+            //Arrange
+            var dataStore = new UaPubSubDataStore();
+
+            //Assert
+            Assert
+                .Throws<ArgumentException>(() => dataStore.TryReadPublishedDataItem(default, Attributes.Value, out _));
+        }
+
+        [Test(Description = "Validate ReadPublishedDataItem call with invalid Attribute")]
+        public void ValidateReadPublishedDataIteminvalidAttribute()
+        {
+            //Arrange
+            var dataStore = new UaPubSubDataStore();
+            //Assert
+            Assert.Throws<ArgumentException>(() =>
+                dataStore.TryReadPublishedDataItem(
+                    NodeId.Parse("ns=0;i=2253"),
+                    Attributes.AccessLevelEx + 1, out _));
+        }
+    }
+}

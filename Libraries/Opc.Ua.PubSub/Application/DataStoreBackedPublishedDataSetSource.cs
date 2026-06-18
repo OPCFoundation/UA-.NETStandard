@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Application
     /// 1.04-era data-store contract.
     /// </summary>
     /// <remarks>
-    /// Used exclusively by the <see cref="UaPubSubApplication"/>
+    /// Used exclusively by the <c>UaPubSubApplication</c>
     /// migration shim documented in
     /// <c>Docs/migrate/2.0.x/pubsub.md</c>. Internal because callers
     /// outside the shim should adopt

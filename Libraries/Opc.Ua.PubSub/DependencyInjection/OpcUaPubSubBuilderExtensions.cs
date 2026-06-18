@@ -149,6 +149,37 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the OPC UA PubSub application and exposes a fluent
+        /// <see cref="IPubSubBuilder"/> for composing publishers,
+        /// subscribers, transports, security key providers, DataSet
+        /// sources / sinks and inline configuration. Replaces the need to
+        /// pre-register a hand-rolled <see cref="IPubSubApplication"/>
+        /// factory before adding the feature.
+        /// </summary>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <param name="configure">PubSub composition callback.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        public static IOpcUaBuilder AddPubSub(
+            this IOpcUaBuilder builder,
+            Action<IPubSubBuilder> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            builder.Services.AddOptions<PubSubApplicationOptions>();
+            RegisterCoreServices(builder.Services);
+            var pubSubBuilder = new PubSubBuilder(builder);
+            configure(pubSubBuilder);
+            pubSubBuilder.Build();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the PubSub application as a publisher only.
         /// Convenience alias for <see cref="AddPubSub(IOpcUaBuilder, Action{PubSubApplicationOptions}?)"/>.
         /// </summary>

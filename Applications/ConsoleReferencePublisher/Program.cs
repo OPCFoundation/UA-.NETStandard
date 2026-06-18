@@ -34,10 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Transports;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
@@ -167,53 +164,36 @@ namespace Quickstarts.ConsoleReferencePublisher
                 ?? PublisherConfigurationBuilder.DefaultEndpointFor(profile);
             var sampleSource = new SampleDataSetSource();
 
-            builder.Services.AddSingleton(sampleSource);
-
-            // Register the IPubSubApplication BEFORE AddPubSubPublisher so
-            // TryAddSingleton inside the DI extension skips its default
-            // factory. This lets the sample wire a fluent
-            // PubSubApplicationBuilder that pre-registers a custom
-            // IPublishedDataSetSource for live demo data.
-            builder.Services.AddSingleton<IPubSubApplication>(sp =>
+            builder.Services.AddOpcUa().AddPubSub(pubsub =>
             {
-                ITelemetryContext telemetry =
-                    sp.GetRequiredService<ITelemetryContext>();
-                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
-                    .WithApplicationId("urn:opcfoundation:ConsoleReferencePublisher")
-                    .UseAllStandardEncoders()
+                IPubSubBuilder publisher = pubsub
+                    .AddPublisher()
+                    .AddUdpTransport()
                     .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
-                    .AddDataSetSource(
-                        PublisherConfigurationBuilder.DataSetName,
-                        sp.GetRequiredService<SampleDataSetSource>());
-                foreach (IPubSubTransportFactory factory
-                    in sp.GetServices<IPubSubTransportFactory>())
+                    .AddDataSetSource(PublisherConfigurationBuilder.DataSetName, sampleSource);
+                if (profile != PublisherProfile.UdpUadp)
                 {
-                    pb.AddTransportFactory(factory);
+                    publisher.AddMqttTransport();
                 }
-                if (!string.IsNullOrEmpty(configFile))
+                publisher.ConfigureApplication(app =>
                 {
-                    pb.UseConfigurationFile(configFile);
-                }
-                else
-                {
-                    pb.UseConfiguration(PublisherConfigurationBuilder.Build(
-                        profile,
-                        transportEndpoint,
-                        publisherId,
-                        writerGroupId,
-                        dataSetWriterId,
-                        intervalMs));
-                }
-                return pb.Build();
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePublisher");
+                    if (!string.IsNullOrEmpty(configFile))
+                    {
+                        app.UseConfigurationFile(configFile);
+                    }
+                    else
+                    {
+                        app.UseConfiguration(PublisherConfigurationBuilder.Build(
+                            profile,
+                            transportEndpoint,
+                            publisherId,
+                            writerGroupId,
+                            dataSetWriterId,
+                            intervalMs));
+                    }
+                });
             });
-
-            IOpcUaBuilder ua = builder.Services.AddOpcUa()
-                .AddPubSubPublisher()
-                .AddUdpTransport();
-            if (profile != PublisherProfile.UdpUadp)
-            {
-                ua.AddMqttTransport();
-            }
 
             IHost host = builder.Build();
             ILogger logger = host.Services
