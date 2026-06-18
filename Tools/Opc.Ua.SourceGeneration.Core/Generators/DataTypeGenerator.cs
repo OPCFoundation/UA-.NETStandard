@@ -1345,7 +1345,8 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
-            if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
+            if (IsFloatingPointScalar(field) ||
+                !field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
             {
                 context.Out.WriteLine(
                     "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
@@ -1368,6 +1369,17 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return null;
+
+            // The != operator is not reflexive for scalar floating point values:
+            // NaN != NaN is true, which would make a decoded value compare unequal
+            // to itself. Route those through CoreUtils.IsEqual (which uses the
+            // NaN-aware IEquatable comparer). Array / matrix / Variant forms already
+            // compare NaN-safely via ArrayOf/MatrixOf/Variant.
+            static bool IsFloatingPointScalar(Parameter field) =>
+                field.ValueRank == ValueRank.Scalar &&
+                field.DataTypeNode != null &&
+                (field.DataTypeNode.BasicDataType == BasicDataType.Float ||
+                    field.DataTypeNode.BasicDataType == BasicDataType.Double);
         }
 
         private TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)

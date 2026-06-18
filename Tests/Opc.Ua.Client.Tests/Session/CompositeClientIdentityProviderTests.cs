@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests.Identity
             };
             return new IdentitySelectionContext(
                 endpoint,
-                [policy],
+                new[] { policy },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
@@ -132,9 +132,16 @@ namespace Opc.Ua.Client.Tests.Identity
 
             public DateTime ExpiresAt { get; }
 
-            public bool CanSatisfy(UserTokenPolicy policy, IdentitySelectionContext context)
+            public ValueTask<CanSatisfyResult> CanSatisfyAsync(
+                UserTokenPolicy policy,
+                IdentitySelectionContext context,
+                CancellationToken ct = default)
             {
-                return policy.TokenType == TokenType;
+                return new ValueTask<CanSatisfyResult>(
+                    policy.TokenType == TokenType
+                        ? CanSatisfyResult.Yes
+                        : CanSatisfyResult.No(
+                            $"TokenTypeNotSupported (provider handles {TokenType}, policy is {policy.TokenType})."));
             }
 
             public ValueTask<IUserIdentity> GetIdentityAsync(

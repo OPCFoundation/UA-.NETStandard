@@ -239,7 +239,9 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (MinimumSamplingInterval != value.MinimumSamplingInterval)
+            // Use CoreUtils.IsEqual rather than the != operator: NaN != NaN is true,
+            // which would make a node compare unequal to an identical copy.
+            if (!CoreUtils.IsEqual(MinimumSamplingInterval, value.MinimumSamplingInterval))
             {
                 return false;
             }

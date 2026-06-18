@@ -39,22 +39,164 @@ namespace Opc.Ua.Identity
     /// Context passed to an <see cref="IClientIdentityProvider"/> while
     /// the client is negotiating <c>ActivateSession</c>.
     /// </summary>
-    /// <param name="EndpointDescription">
-    /// The endpoint the client is connecting to. Carries the
-    /// <see cref="EndpointDescription.SecurityPolicyUri"/> and offered
-    /// <see cref="EndpointDescription.UserIdentityTokens"/>.
-    /// </param>
-    /// <param name="OfferedPolicies">
-    /// The list of <see cref="UserTokenPolicy"/> values the server
-    /// advertised on the endpoint, ordered by server preference.
-    /// </param>
-    /// <param name="MessageContext">
-    /// The service message context (encoder factories, telemetry).
-    /// </param>
-    public readonly record struct IdentitySelectionContext(
-        EndpointDescription EndpointDescription,
-        IReadOnlyList<UserTokenPolicy> OfferedPolicies,
-        IServiceMessageContext MessageContext);
+    public readonly record struct IdentitySelectionContext
+    {
+        /// <summary>
+        /// Creates a context with no client-enabled-policy filter
+        /// (every offered <see cref="UserTokenPolicy"/> passes the
+        /// <c>NotEnabledByClient</c> gate). Use the four-argument
+        /// constructor to apply the
+        /// <see cref="SecurityConfiguration.SupportedSecurityPolicies"/>
+        /// snapshot.
+        /// </summary>
+        public IdentitySelectionContext(
+            EndpointDescription endpointDescription,
+            ArrayOf<UserTokenPolicy> offeredPolicies,
+            IServiceMessageContext messageContext)
+            : this(
+                endpointDescription,
+                offeredPolicies,
+                messageContext,
+                ArrayOf<string>.Null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a context with an explicit list of client-enabled
+        /// security policies.
+        /// </summary>
+        public IdentitySelectionContext(
+            EndpointDescription endpointDescription,
+            ArrayOf<UserTokenPolicy> offeredPolicies,
+            IServiceMessageContext messageContext,
+            ArrayOf<string> enabledSecurityPolicyUris)
+        {
+            EndpointDescription = endpointDescription;
+            OfferedPolicies = offeredPolicies;
+            MessageContext = messageContext;
+            EnabledSecurityPolicyUris = enabledSecurityPolicyUris;
+        }
+
+        /// <summary>
+        /// The endpoint the client is connecting to. Carries the
+        /// <see cref="EndpointDescription.SecurityPolicyUri"/> and
+        /// offered <see cref="EndpointDescription.UserIdentityTokens"/>.
+        /// </summary>
+        public EndpointDescription EndpointDescription { get; init; }
+
+        /// <summary>
+        /// The list of <see cref="UserTokenPolicy"/> values the server
+        /// advertised on the endpoint, ordered by server preference.
+        /// </summary>
+        public ArrayOf<UserTokenPolicy> OfferedPolicies { get; init; }
+
+        /// <summary>
+        /// The service message context (encoder factories, telemetry).
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; init; }
+
+        /// <summary>
+        /// The set of <see cref="SecurityPolicies"/> URIs the local
+        /// client has enabled (typically the
+        /// <see cref="SecurityConfiguration.SupportedSecurityPolicies"/>
+        /// snapshot). Selection rejects any offered
+        /// <see cref="UserTokenPolicy"/> whose non-empty
+        /// <see cref="UserTokenPolicy.SecurityPolicyUri"/> is not in
+        /// this list, so deprecated or locally-disabled security
+        /// policies cannot be used by accident. When
+        /// <see cref="ArrayOf{T}.IsNull"/> the filter is disabled and
+        /// every offered policy passes the gate.
+        /// </summary>
+        /// <remarks>
+        /// Note that per OPC UA Part 4 v1.05.07 §7.40.2 a channel
+        /// secured with <see cref="SecurityPolicies.None"/> may still
+        /// advertise an ECC user-token policy; the selection logic
+        /// honours that combination provided the policy URI is in
+        /// <see cref="EnabledSecurityPolicyUris"/>.
+        /// </remarks>
+        public ArrayOf<string> EnabledSecurityPolicyUris { get; init; }
+
+        /// <summary>
+        /// Public-key algorithm of the client's application instance
+        /// certificate. Used by selection to reject ECC user-token
+        /// policies that cannot be encrypted with the available
+        /// instance certificate (the instance cert is the ECDH sender
+        /// for ECC user-token encryption — see
+        /// <c>EncryptedSecret.CreateForEcc</c>).
+        /// Default <see cref="CertificateKeyAlgorithm.None"/> disables
+        /// the gate (back-compat for callers that do not populate it).
+        /// </summary>
+        public CertificateKeyAlgorithm ClientInstanceCertificateAlgorithm { get; init; }
+
+        /// <summary>
+        /// Public-key size in bits of the client's application instance
+        /// certificate when
+        /// <see cref="ClientInstanceCertificateAlgorithm"/> is
+        /// <see cref="CertificateKeyAlgorithm.RSA"/>; zero otherwise.
+        /// Reserved for future RSA instance-cert key-length gating;
+        /// currently informational.
+        /// </summary>
+        public int ClientInstanceCertificateKeySize { get; init; }
+
+        /// <summary>
+        /// Security-policy URI of the user-token policy whose ECC
+        /// ephemeral key is currently bound on the channel. When
+        /// non-null and non-empty, selection pins to this URI;
+        /// applications that want to switch must pass
+        /// <c>overrideUserTokenPolicyUri</c> to
+        /// <c>Session.UpdateIdentityAsync</c> so a fresh ephemeral key
+        /// is negotiated. Default <see langword="null"/> disables the
+        /// gate.
+        /// </summary>
+        public string? CurrentEphemeralKeyPolicyUri { get; init; }
+    }
+
+    /// <summary>
+    /// Result of <see cref="IClientIdentityProvider.CanSatisfyAsync"/>.
+    /// Carries a boolean and, when negative, a human-readable reason
+    /// that the client extension layer aggregates into the
+    /// <c>BadIdentityTokenRejected</c> diagnostic message.
+    /// </summary>
+    public readonly record struct CanSatisfyResult
+    {
+        private CanSatisfyResult(bool canSatisfy, string? rejectionReason)
+        {
+            CanSatisfy = canSatisfy;
+            RejectionReason = rejectionReason;
+        }
+
+        /// <summary>
+        /// True when the provider can produce an identity for the
+        /// supplied <see cref="UserTokenPolicy"/>.
+        /// </summary>
+        public bool CanSatisfy { get; }
+
+        /// <summary>
+        /// Reason the provider rejected the policy. Always non-null
+        /// when <see cref="CanSatisfy"/> is <see langword="false"/>.
+        /// </summary>
+        public string? RejectionReason { get; }
+
+        /// <summary>
+        /// The provider satisfies the policy.
+        /// </summary>
+        public static readonly CanSatisfyResult Yes = new(true, null);
+
+        /// <summary>
+        /// The provider rejects the policy with the supplied reason.
+        /// When <paramref name="reason"/> is <see langword="null"/> or
+        /// empty, a generic placeholder is used so the diagnostic
+        /// always carries a non-null message.
+        /// </summary>
+        public static CanSatisfyResult No(string? reason = null)
+        {
+            return new CanSatisfyResult(
+                false,
+                string.IsNullOrEmpty(reason)
+                    ? "Provider cannot satisfy the policy."
+                    : reason);
+        }
+    }
 
     /// <summary>
     /// Produces an <see cref="IUserIdentity"/> for use in
@@ -94,13 +236,30 @@ namespace Opc.Ua.Identity
 
         /// <summary>
         /// Asks the provider whether it can satisfy
-        /// <paramref name="policy"/> in <paramref name="context"/>. The
-        /// default implementation checks
+        /// <paramref name="policy"/> in <paramref name="context"/>.
+        /// Implementations check
         /// <see cref="SupportedTokenTypes"/> and
-        /// <see cref="SupportedIssuedTokenProfileUris"/>; bespoke
-        /// providers can override to factor in scope/audience/policy id.
+        /// <see cref="SupportedIssuedTokenProfileUris"/> at minimum;
+        /// providers that need to inspect a backing certificate or
+        /// secret to make the decision (e.g. matching an X.509 user
+        /// cert's curve against the policy's
+        /// <see cref="UserTokenPolicy.SecurityPolicyUri"/>) load the
+        /// material here through the appropriate provider abstraction
+        /// (<see cref="ICertificateProvider"/>,
+        /// <see cref="ISecretRegistry"/>,
+        /// <see cref="IAccessTokenProvider"/>).
         /// </summary>
-        bool CanSatisfy(UserTokenPolicy policy, IdentitySelectionContext context);
+        /// <remarks>
+        /// On rejection, return <see cref="CanSatisfyResult.No"/> with
+        /// a human-readable reason; the client extension aggregates
+        /// these reasons into the diagnostic message of the
+        /// <c>BadIdentityTokenRejected</c> exception that is raised
+        /// when no offered policy is selectable.
+        /// </remarks>
+        ValueTask<CanSatisfyResult> CanSatisfyAsync(
+            UserTokenPolicy policy,
+            IdentitySelectionContext context,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Materialize an <see cref="IUserIdentity"/> for the selected

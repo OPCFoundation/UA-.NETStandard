@@ -50,7 +50,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - All types implementing `INullable` must never be used or added via the `System.Nullable<T>` (`T?`). Instead use `.IsNull` check on the type to determine whether it is null and the `.Null` or default to create a null value.
 - ALWAYS use `TryGet` or `TryGetValue`, or similar on struct types vs casting. Particularly NEVER use `.AsBoxedValue` of the `Variant` type or `.Value` of `System.IUnion`. 
 - NEVER use `object` or `object?` in public API unless overriding `Equals`. If OPC UA related API, use `Variant`.
-- Prefer ArrayOf<T> over read-only collection types and ReadOnlyMemory<T> 
+- Prefer ArrayOf<T> over read-only collection types and ReadOnlyMemory<T> — including in new public API surfaces (parameters, properties, return types). When adding new APIs in 2.0 (or modifying existing 2.0 APIs), use `ArrayOf<T>` rather than `IReadOnlyList<T>`/`IList<T>`/`T[]`. This applies even when the value originates from a `IReadOnlyList<T>` source — wrap it in `ArrayOf<T>` at the API boundary.
 - Prefer ByteString over ArrayOf<byte>, byte[], ReadOnlyMemory<byte> and byte readonly collections in public API. 
 - Prefer Span<byte>/ReadOnlySpan<byte> over byte[] in any API.
 - DO NOT use API that is marked as [Obsolete] unless used inside "Test code".
