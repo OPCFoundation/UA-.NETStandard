@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Udp
     /// <summary>
     /// <see cref="IPubSubTransportFactory"/> for the
     /// <see cref="Profiles.PubSubUdpUadpTransport"/> profile. One
-    /// instance is registered with the DI container in Phase 9; it
+    /// instance is registered with the DI container; it
     /// turns each <see cref="PubSubConnectionDataType"/> with an
     /// <c>opc.udp://</c> address into a
     /// <see cref="UdpDatagramTransport"/>.
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Udp
         /// field. Must not be <see langword="null"/>.
         /// </param>
         /// <param name="diagnostics">
-        /// Optional shared diagnostics sink. Phase 9 wires the
+        /// Optional shared diagnostics sink. The DI container wires the
         /// per-component diagnostics container; tests and direct
         /// callers may pass <see langword="null"/>.
         /// </param>

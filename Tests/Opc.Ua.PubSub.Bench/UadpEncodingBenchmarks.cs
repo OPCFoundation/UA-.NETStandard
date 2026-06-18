@@ -90,43 +90,63 @@ namespace Opc.Ua.PubSub.Bench
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_SingleField()
-            => m_encoder.EncodeAsync(m_singleField, m_context);
+        {
+            return m_encoder.EncodeAsync(m_singleField, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_TenFields()
-            => m_encoder.EncodeAsync(m_tenFields, m_context);
+        {
+            return m_encoder.EncodeAsync(m_tenFields, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_HundredFields()
-            => m_encoder.EncodeAsync(m_hundredFields, m_context);
+        {
+            return m_encoder.EncodeAsync(m_hundredFields, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Strings()
-            => m_encoder.EncodeAsync(m_strings, m_context);
+        {
+            return m_encoder.EncodeAsync(m_strings, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_LargeArray()
-            => m_encoder.EncodeAsync(m_largeArray, m_context);
+        {
+            return m_encoder.EncodeAsync(m_largeArray, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_SingleField()
-            => m_decoder.TryDecodeAsync(m_singleFieldBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_singleFieldBytes, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_TenFields()
-            => m_decoder.TryDecodeAsync(m_tenFieldsBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_tenFieldsBytes, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_HundredFields()
-            => m_decoder.TryDecodeAsync(m_hundredFieldsBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_hundredFieldsBytes, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_Strings()
-            => m_decoder.TryDecodeAsync(m_stringsBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_stringsBytes, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_LargeArray()
-            => m_decoder.TryDecodeAsync(m_largeArrayBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_largeArrayBytes, m_context);
+        }
 
         private static UadpNetworkMessage BuildScalar(
             string name, int fieldCount, BuiltInType type, Func<Variant> factory)

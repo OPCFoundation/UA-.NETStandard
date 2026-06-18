@@ -504,7 +504,9 @@ namespace OpcUaPubSubJsonTests
         }
 
         private static ServiceMessageContext NewContext()
-            => (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
+        {
+            return (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
+        }
 
         private static string Encode(Action<PubSubJsonEncoder> write)
         {
@@ -515,7 +517,9 @@ namespace OpcUaPubSubJsonTests
         }
 
         private static PubSubJsonDecoder MakeDecoder(string json)
-            => new(json, NewContext());
+        {
+            return new(json, NewContext());
+        }
 
         private sealed class MinimalEncodeable : IEncodeable
         {

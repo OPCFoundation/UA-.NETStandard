@@ -167,25 +167,33 @@ namespace Opc.Ua.PubSub.Encoding
         /// Creates a Byte-typed PublisherId.
         /// </summary>
         public static PublisherId FromByte(byte value)
-            => new(PublisherIdType.Byte, value, null, Guid.Empty);
+        {
+            return new(PublisherIdType.Byte, value, null, Guid.Empty);
+        }
 
         /// <summary>
         /// Creates a UInt16-typed PublisherId.
         /// </summary>
         public static PublisherId FromUInt16(ushort value)
-            => new(PublisherIdType.UInt16, value, null, Guid.Empty);
+        {
+            return new(PublisherIdType.UInt16, value, null, Guid.Empty);
+        }
 
         /// <summary>
         /// Creates a UInt32-typed PublisherId.
         /// </summary>
         public static PublisherId FromUInt32(uint value)
-            => new(PublisherIdType.UInt32, value, null, Guid.Empty);
+        {
+            return new(PublisherIdType.UInt32, value, null, Guid.Empty);
+        }
 
         /// <summary>
         /// Creates a UInt64-typed PublisherId.
         /// </summary>
         public static PublisherId FromUInt64(ulong value)
-            => new(PublisherIdType.UInt64, value, null, Guid.Empty);
+        {
+            return new(PublisherIdType.UInt64, value, null, Guid.Empty);
+        }
 
         /// <summary>
         /// Creates a String-typed PublisherId.
@@ -203,23 +211,28 @@ namespace Opc.Ua.PubSub.Encoding
         /// Creates a Guid-typed PublisherId (JSON mapping).
         /// </summary>
         public static PublisherId FromGuid(Guid value)
-            => new(PublisherIdType.Guid, 0, null, value);
+        {
+            return new(PublisherIdType.Guid, 0, null, value);
+        }
 
         /// <summary>
         /// Converts the discriminated value back to a
         /// <see cref="Variant"/> for embedding in configuration objects.
         /// </summary>
         /// <returns>The PublisherId as a Variant.</returns>
-        public Variant ToVariant() => Type switch
+        public Variant ToVariant()
         {
-            PublisherIdType.Byte => new Variant((byte)m_numeric),
-            PublisherIdType.UInt16 => new Variant((ushort)m_numeric),
-            PublisherIdType.UInt32 => new Variant((uint)m_numeric),
-            PublisherIdType.UInt64 => new Variant(m_numeric),
-            PublisherIdType.String => new Variant(m_string ?? string.Empty),
-            PublisherIdType.Guid => new Variant(new Uuid(m_guid)),
-            _ => Variant.Null
-        };
+            return Type switch
+            {
+                PublisherIdType.Byte => new Variant((byte)m_numeric),
+                PublisherIdType.UInt16 => new Variant((ushort)m_numeric),
+                PublisherIdType.UInt32 => new Variant((uint)m_numeric),
+                PublisherIdType.UInt64 => new Variant(m_numeric),
+                PublisherIdType.String => new Variant(m_string ?? string.Empty),
+                PublisherIdType.Guid => new Variant(new Uuid(m_guid)),
+                _ => Variant.Null
+            };
+        }
 
         /// <summary>
         /// Tries to read the value as a <see cref="byte"/>.
@@ -306,15 +319,18 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public override string ToString() => Type switch
+        public override string ToString()
         {
-            PublisherIdType.Byte => m_numeric.ToString(CultureInfo.InvariantCulture),
-            PublisherIdType.UInt16 => m_numeric.ToString(CultureInfo.InvariantCulture),
-            PublisherIdType.UInt32 => m_numeric.ToString(CultureInfo.InvariantCulture),
-            PublisherIdType.UInt64 => m_numeric.ToString(CultureInfo.InvariantCulture),
-            PublisherIdType.String => m_string ?? string.Empty,
-            PublisherIdType.Guid => m_guid.ToString("D", CultureInfo.InvariantCulture),
-            _ => string.Empty
-        };
+            return Type switch
+            {
+                PublisherIdType.Byte => m_numeric.ToString(CultureInfo.InvariantCulture),
+                PublisherIdType.UInt16 => m_numeric.ToString(CultureInfo.InvariantCulture),
+                PublisherIdType.UInt32 => m_numeric.ToString(CultureInfo.InvariantCulture),
+                PublisherIdType.UInt64 => m_numeric.ToString(CultureInfo.InvariantCulture),
+                PublisherIdType.String => m_string ?? string.Empty,
+                PublisherIdType.Guid => m_guid.ToString("D", CultureInfo.InvariantCulture),
+                _ => string.Empty
+            };
+        }
     }
 }

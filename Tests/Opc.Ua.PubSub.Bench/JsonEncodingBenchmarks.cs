@@ -93,39 +93,57 @@ namespace Opc.Ua.PubSub.Bench
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Verbose_TenFields()
-            => m_verbose.EncodeAsync(m_tenFields, m_context);
+        {
+            return m_verbose.EncodeAsync(m_tenFields, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Compact_TenFields()
-            => m_compact.EncodeAsync(m_tenFields, m_context);
+        {
+            return m_compact.EncodeAsync(m_tenFields, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Verbose_SingleField()
-            => m_verbose.EncodeAsync(m_singleField, m_context);
+        {
+            return m_verbose.EncodeAsync(m_singleField, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Verbose_HundredFields()
-            => m_verbose.EncodeAsync(m_hundredFields, m_context);
+        {
+            return m_verbose.EncodeAsync(m_hundredFields, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Verbose_Strings()
-            => m_verbose.EncodeAsync(m_strings, m_context);
+        {
+            return m_verbose.EncodeAsync(m_strings, m_context);
+        }
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> Encode_Verbose_LargeArray()
-            => m_verbose.EncodeAsync(m_largeArray, m_context);
+        {
+            return m_verbose.EncodeAsync(m_largeArray, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_SingleField()
-            => m_decoder.TryDecodeAsync(m_singleFieldBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_singleFieldBytes, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_TenFields()
-            => m_decoder.TryDecodeAsync(m_tenFieldsBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_tenFieldsBytes, m_context);
+        }
 
         [Benchmark]
         public ValueTask<PubSubNetworkMessage?> Decode_HundredFields()
-            => m_decoder.TryDecodeAsync(m_hundredFieldsBytes, m_context);
+        {
+            return m_decoder.TryDecodeAsync(m_hundredFieldsBytes, m_context);
+        }
 
         private static PsJson.JsonNetworkMessage BuildMessage(DataSetField[] fields)
         {

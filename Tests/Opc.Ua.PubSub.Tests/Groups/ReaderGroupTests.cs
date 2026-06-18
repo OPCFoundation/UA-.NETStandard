@@ -53,8 +53,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
     [TestSpec("6.2.8", Summary = "ReaderGroup construction, dispatch and lifecycle")]
     public class ReaderGroupTests
     {
-        // ── Constructor ──────────────────────────────────────────────────────
-
         [Test]
         public void Constructor_ShortForm_NullConfiguration_ThrowsArgumentNullException()
         {
@@ -143,8 +141,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
 
             Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.EquivalentTo(new[] { r }));
         }
-
-        // ── DispatchAsync ────────────────────────────────────────────────────
 
         [Test]
         public void DispatchAsync_NullNetworkMessage_ThrowsArgumentNullException()
@@ -249,8 +245,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 "OCE from reader.DispatchAsync must propagate through the group.");
         }
 
-        // ── EnableAsync ──────────────────────────────────────────────────────
-
         [Test]
         public async Task EnableAsync_TransitionsGroupToOperationalAsync()
         {
@@ -308,8 +302,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 "Exactly one ScheduleAsync call must register the timeout-watcher poll.");
         }
 
-        // ── DisableAsync / DisposeAsync ───────────────────────────────────────
-
         [Test]
         public async Task DisableAsync_TransitionsToDisabledAsync()
         {
@@ -353,8 +345,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 "A second Enable after Disable must restart the timeout-watcher schedule.");
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────────
-
         private static DataSetReader MakeReader(ushort writerId = 0)
         {
             var cfg = new DataSetReaderDataType
@@ -394,7 +384,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
             public ValueTask WriteAsync(
                 IReadOnlyList<DataSetField> fields,
                 CancellationToken cancellationToken = default)
-                => default;
+            {
+                return default;
+            }
         }
 
         private sealed class CountingSink : ISubscribedDataSetSink
@@ -422,7 +414,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
             public ValueTask WriteAsync(
                 IReadOnlyList<DataSetField> fields,
                 CancellationToken cancellationToken = default)
-                => throw m_exception;
+            {
+                throw m_exception;
+            }
         }
 
         private sealed class TrackingScheduler : IPubSubScheduler
@@ -442,7 +436,10 @@ namespace Opc.Ua.PubSub.Tests.Groups
             {
                 public static NoOpHandle Instance { get; } = new();
 
-                public ValueTask DisposeAsync() => default;
+                public ValueTask DisposeAsync()
+                {
+                    return default;
+                }
             }
         }
     }

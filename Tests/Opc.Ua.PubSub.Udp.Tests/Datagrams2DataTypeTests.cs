@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
     /// <c>TransportSettings</c> is a v2-only
     /// <see cref="DatagramConnectionTransport2DataType"/> body (Part 14
     /// §6.4.1.2.7) without throwing — informative diagnostics about
-    /// v2-only fields belong to the configuration validator (Phase 4)
+    /// v2-only fields belong to the configuration validator
     /// and must not block transport construction.
     /// </summary>
     [TestFixture]

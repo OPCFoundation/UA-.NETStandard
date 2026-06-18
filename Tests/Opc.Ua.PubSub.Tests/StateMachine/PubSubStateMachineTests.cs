@@ -52,7 +52,9 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
         private static PubSubStateMachine NewMachine(
             string name = "M",
             PubSubComponentKind kind = PubSubComponentKind.Connection)
-            => new(name, kind, NullLogger.Instance);
+        {
+            return new(name, kind, NullLogger.Instance);
+        }
 
         [Test]
         public void Constructor_SeedsDisabledStateAndStatusCode()
@@ -92,10 +94,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 () => new PubSubStateMachine("M", PubSubComponentKind.Connection, null!),
                 Throws.ArgumentNullException);
         }
-
-        // ------------------------------------------------------------------
-        // Enable (Disabled -> PreOperational) — Part 14 §9.1.10.2
-        // ------------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.10.2", Summary = "Enable from Disabled is allowed")]
@@ -144,10 +142,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 Assert.That(events, Is.Zero);
             });
         }
-
-        // ------------------------------------------------------------------
-        // PreOperational -> Operational (and Error -> Operational recovery)
-        // ------------------------------------------------------------------
 
         [Test]
         public void TryMarkOperational_FromPreOperational_Transitions()
@@ -204,10 +198,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             });
         }
 
-        // ------------------------------------------------------------------
-        // Pause / Resume
-        // ------------------------------------------------------------------
-
         [Test]
         public void TryPause_FromOperational_Transitions()
         {
@@ -255,10 +245,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             Assert.That(sut.State, Is.EqualTo(startState));
         }
 
-        // ------------------------------------------------------------------
-        // Fault / Error path
-        // ------------------------------------------------------------------
-
         [Test]
         public void TryFault_FromAnyNonDisabledState_MovesToError(
             [Values(
@@ -290,10 +276,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             });
         }
 
-        // ------------------------------------------------------------------
-        // Disable (Part 14 §9.1.10.3)
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.10.3", Summary = "Disable from already-Disabled is rejected")]
         public void TryDisable_FromAlreadyDisabled_IsRejected()
@@ -316,10 +298,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             Assert.That(sut.TryDisable(), Is.True);
             Assert.That(sut.State, Is.EqualTo(PubSubState.Disabled));
         }
-
-        // ------------------------------------------------------------------
-        // Parent / Child cascade — Part 14 §9.1.3.5
-        // ------------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.3.5", Summary = "Children disabled before parent on cascading Disable")]
@@ -454,10 +432,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             Assert.That(() => parent.DetachChild(null!), Throws.ArgumentNullException);
         }
 
-        // ------------------------------------------------------------------
-        // Removal / disposed semantics
-        // ------------------------------------------------------------------
-
         [Test]
         public void MarkRemoved_DisablesAndDetachesFromParent()
         {
@@ -499,10 +473,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             Assert.That(() => sut.TryEnable(), Throws.InvalidOperationException);
         }
 
-        // ------------------------------------------------------------------
-        // Diagnostics: StateChanged handler exceptions must not destabilise
-        // ------------------------------------------------------------------
-
         [Test]
         public void StateChanged_HandlerException_IsSwallowedAndStateRemains()
         {
@@ -511,10 +481,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             Assert.That(() => sut.TryEnable(), Throws.Nothing);
             Assert.That(sut.State, Is.EqualTo(PubSubState.PreOperational));
         }
-
-        // ------------------------------------------------------------------
-        // DefaultStatusCodeFor utility
-        // ------------------------------------------------------------------
 
         public static IEnumerable<TestCaseData> DefaultStatusCodeFor_TestCases()
         {
@@ -540,10 +506,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             StatusCode code = PubSubStateMachine.DefaultStatusCodeFor((PubSubState)99);
             Assert.That(code, Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
         }
-
-        // ------------------------------------------------------------------
-        // PubSubStateChangedEventArgs constructor argument guards
-        // ------------------------------------------------------------------
 
         [Test]
         public void EventArgs_NullComponentName_Throws()
@@ -580,10 +542,6 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 Assert.That(evt.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadCommunicationError));
             });
         }
-
-        // ------------------------------------------------------------------
-        // Threading sanity: concurrent transitions never corrupt state
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task ConcurrentTransitions_LeaveMachineInConsistentState()

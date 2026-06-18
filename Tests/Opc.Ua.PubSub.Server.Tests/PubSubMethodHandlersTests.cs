@@ -56,10 +56,6 @@ namespace Opc.Ua.PubSub.Server.Tests
     [TestSpec("8.3.2", Summary = "GetSecurityKeys")]
     public class PubSubMethodHandlersTests
     {
-        // -------------------------------------------------------------
-        // Enable / Disable
-        // -------------------------------------------------------------
-
         [Test]
         public void OnEnable_StartsApplicationAndReturnsGood()
         {
@@ -83,10 +79,6 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
         }
-
-        // -------------------------------------------------------------
-        // AddConnection / RemoveConnection
-        // -------------------------------------------------------------
 
         [Test]
         public void OnAddConnection_NoArgs_ReturnsBadInvalidArgument()
@@ -141,10 +133,6 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
         }
-
-        // -------------------------------------------------------------
-        // AddSecurityGroup / RemoveSecurityGroup
-        // -------------------------------------------------------------
 
         [Test]
         public void OnAddSecurityGroup_RoundtripsGroupAndReturnsNodeId()
@@ -345,10 +333,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
-        // -------------------------------------------------------------
-        // GetSecurityKeys — delegates to SksMethodHandler
-        // -------------------------------------------------------------
-
         [Test]
         public async Task OnGetSecurityKeys_ReturnsGoodAndKeyMaterial()
         {
@@ -394,10 +378,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
         }
 
-        // -------------------------------------------------------------
-        // Constructor & helpers
-        // -------------------------------------------------------------
-
         [Test]
         public void Constructor_NullArgs_Throw()
         {
@@ -440,10 +420,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 opt => opt.DefaultSecurityPolicyUri = PubSubSecurityPolicyUri.PubSubAes128Ctr);
             Assert.That(handlers.DefaultPolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.PubSubAes128Ctr));
         }
-
-        // -------------------------------------------------------------
-        // Helpers
-        // -------------------------------------------------------------
 
         private static PubSubMethodHandlers CreateHandlers(
             out IPubSubApplication application,

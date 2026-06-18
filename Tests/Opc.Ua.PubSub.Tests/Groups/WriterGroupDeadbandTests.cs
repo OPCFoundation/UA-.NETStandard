@@ -216,7 +216,10 @@ namespace Opc.Ua.PubSub.Tests.Groups
             {
                 public static NoOpHandle Instance { get; } = new();
 
-                public ValueTask DisposeAsync() => default;
+                public ValueTask DisposeAsync()
+                {
+                    return default;
+                }
             }
         }
     }

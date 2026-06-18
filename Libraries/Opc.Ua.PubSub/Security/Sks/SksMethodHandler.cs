@@ -42,10 +42,9 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3.2">
-    /// Part 14 §8.3.2 GetSecurityKeys</see>. Phase 10 will mount
-    /// this handler on the address-space node; Phase 8 ships the
-    /// adapter itself plus tests so the pipeline can be wired up
-    /// without further changes to this class.
+    /// Part 14 §8.3.2 GetSecurityKeys</see>. The adapter and its
+    /// tests are provided so the pipeline can be wired onto the
+    /// address-space node without further changes to this class.
     /// </remarks>
     public sealed class SksMethodHandler
     {
@@ -82,8 +81,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </summary>
         /// <remarks>
         /// This is the single sanctioned sync-over-async bridge in
-        /// the Phase 8 SKS surface: the legacy OPC UA NodeManager
-        /// method-handler contract is synchronous. Phase 10's async
+        /// the SKS surface: the legacy OPC UA NodeManager
+        /// method-handler contract is synchronous. A future async
         /// node-manager API will replace this with a fully
         /// asynchronous handler.
         /// </remarks>

@@ -52,10 +52,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
     [Parallelizable(ParallelScope.All)]
     public sealed class UdpDiscoverySubscriberTests
     {
-        // ------------------------------------------------------------------
-        // Constructor
-        // ------------------------------------------------------------------
-
         [Test]
         public void Constructor_CreatesInstanceWithoutThrowingOrOpeningSockets()
         {
@@ -63,10 +59,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             var subscriber = NewSubscriber(app);
             Assert.That(subscriber, Is.Not.Null);
         }
-
-        // ------------------------------------------------------------------
-        // AddWriterIdForDataSetMetadata
-        // ------------------------------------------------------------------
 
         [Test]
         public void AddWriterIdForDataSetMetadata_NewId_AddsToQueue()
@@ -98,10 +90,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.DoesNotThrow(() => sub.SendDiscoveryRequestDataSetMetaData());
         }
 
-        // ------------------------------------------------------------------
-        // RemoveWriterIdForDataSetMetadata
-        // ------------------------------------------------------------------
-
         [Test]
         public void RemoveWriterIdForDataSetMetadata_ExistingId_RemovesFromQueue()
         {
@@ -125,10 +113,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.DoesNotThrow(() => sub.RemoveWriterIdForDataSetMetadata(99));
         }
 
-        // ------------------------------------------------------------------
-        // SendDiscoveryRequestDataSetMetaData – early-return path
-        // ------------------------------------------------------------------
-
         [Test]
         public void SendDiscoveryRequestDataSetMetaData_WhenNoIdsQueued_ReturnsImmediatelyWithNoException()
         {
@@ -150,10 +134,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             // List is empty again → early return.
             Assert.DoesNotThrow(() => sub.SendDiscoveryRequestDataSetMetaData());
         }
-
-        // ------------------------------------------------------------------
-        // UpdateDataSetWriterConfiguration
-        // ------------------------------------------------------------------
 
         [Test]
         public void UpdateDataSetWriterConfiguration_WithUnknownWriterGroupId_IsNoOp()
@@ -212,10 +192,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
                 Is.True);
         }
 
-        // ------------------------------------------------------------------
-        // CanPublish (private) – covers the internal interval-reset logic
-        // ------------------------------------------------------------------
-
         [Test]
         public void CanPublish_WhenNoIdsQueued_ReturnsFalse()
         {
@@ -251,10 +227,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
 
             Assert.That(result, Is.False);
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static T InvokePrivate<T>(object instance, string methodName, params object[] args)
         {

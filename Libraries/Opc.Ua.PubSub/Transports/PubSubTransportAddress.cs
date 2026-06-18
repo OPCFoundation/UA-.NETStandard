@@ -44,9 +44,9 @@ namespace Opc.Ua.PubSub.Transports
     /// Part 14 §7.3.2 UDP datagram transport</see> and
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.4">
     /// Part 14 §7.3.4 Broker transport (MQTT)</see>. Uses dedicated
-    /// parsing instead of <see cref="Uri"/> because Phase 5 needs to
+    /// parsing instead of <see cref="Uri"/> because the address must
     /// validate unicast / multicast / broadcast classes for the UDP
-    /// scheme explicitly. Phase 1 only models the structural fields;
+    /// scheme explicitly. Only the structural fields are modelled here;
     /// detection of address class is performed by the UDP transport
     /// layer.
     /// </remarks>

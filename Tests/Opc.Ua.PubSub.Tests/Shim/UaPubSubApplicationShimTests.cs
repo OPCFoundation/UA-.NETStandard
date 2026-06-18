@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Tests.Shim
     /// Verifies the [Obsolete] markers wired onto the legacy 1.04
     /// PubSub top-level types so consumers see UA0023 migration
     /// diagnostics. The legacy implementations themselves are
-    /// unchanged in Phase 9.
+    /// unchanged.
     /// </summary>
     [TestFixture]
     public class UaPubSubApplicationShimTests

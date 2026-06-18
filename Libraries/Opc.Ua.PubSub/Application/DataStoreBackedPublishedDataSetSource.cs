@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Application
     /// <summary>
     /// Adapter that exposes a legacy <see cref="IUaPubSubDataStore"/>
     /// as an <see cref="IPublishedDataSetSource"/> so that the
-    /// migration shim can drive the new Phase 9 runtime with the
+    /// migration shim can drive the new runtime with the
     /// 1.04-era data-store contract.
     /// </summary>
     /// <remarks>

@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Diagnostics
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.11">
     /// Part 14 §9.1.11 PubSubDiagnosticsType</see>. The enum is exhaustive
-    /// for the counters required to cover the Phase 1 - Phase 10
+    /// for the counters required to cover the
     /// implementation (state-transition cause counters, receive / send
     /// counters, security/decoder error counters, and chunking counters).
     /// </remarks>

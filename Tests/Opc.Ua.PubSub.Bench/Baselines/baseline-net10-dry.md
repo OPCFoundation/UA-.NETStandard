@@ -1,6 +1,6 @@
 # PubSub benchmarks — net10.0 dry baseline
 
-> **Generated:** Phase 12 commit. Captured by:
+> **Generated:** Captured by:
 >
 > ```pwsh
 > dotnet run -c Release -p Tests/Opc.Ua.PubSub.Bench -f net10.0 \

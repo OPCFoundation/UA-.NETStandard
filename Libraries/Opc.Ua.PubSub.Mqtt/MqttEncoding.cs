@@ -77,12 +77,15 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <exception cref="ArgumentOutOfRangeException">
         /// <paramref name="encoding"/> is not a defined value.
         /// </exception>
-        public static string ToTopicSegment(this MqttEncoding encoding) => encoding switch
+        public static string ToTopicSegment(this MqttEncoding encoding)
         {
-            MqttEncoding.Uadp => "uadp",
-            MqttEncoding.Json => "json",
-            _ => throw new ArgumentOutOfRangeException(nameof(encoding))
-        };
+            return encoding switch
+            {
+                MqttEncoding.Uadp => "uadp",
+                MqttEncoding.Json => "json",
+                _ => throw new ArgumentOutOfRangeException(nameof(encoding))
+            };
+        }
 
         /// <summary>
         /// Returns the MQTT 5 ContentType property value for the given
@@ -96,11 +99,14 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <exception cref="ArgumentOutOfRangeException">
         /// <paramref name="encoding"/> is not a defined value.
         /// </exception>
-        public static string ToContentType(this MqttEncoding encoding) => encoding switch
+        public static string ToContentType(this MqttEncoding encoding)
         {
-            MqttEncoding.Uadp => "application/opcua+uadp",
-            MqttEncoding.Json => "application/json",
-            _ => throw new ArgumentOutOfRangeException(nameof(encoding))
-        };
+            return encoding switch
+            {
+                MqttEncoding.Uadp => "application/opcua+uadp",
+                MqttEncoding.Json => "application/json",
+                _ => throw new ArgumentOutOfRangeException(nameof(encoding))
+            };
+        }
     }
 }

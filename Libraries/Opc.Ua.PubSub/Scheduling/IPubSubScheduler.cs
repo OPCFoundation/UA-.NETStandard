@@ -42,9 +42,8 @@ namespace Opc.Ua.PubSub.Scheduling
     /// <remarks>
     /// Implements the periodic scheduling abstraction required by
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1">
-    /// Part 14 §6.4.1 Periodic publishing</see>. The default
-    /// implementation ships in Phase 5; Phase 1 only commits the
-    /// contract.
+    /// Part 14 §6.4.1 Periodic publishing</see>. A default
+    /// implementation is provided.
     /// </remarks>
     public interface IPubSubScheduler
     {

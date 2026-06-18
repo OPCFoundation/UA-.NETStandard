@@ -713,45 +713,6 @@ below maps Part 14 sections to the type / file that implements them.
 | §9.1.6       | Runtime mutation                                    | `IPubSubApplication.cs` (mutation surface)                                      |
 | §9.1.11      | Diagnostics                                         | `Diagnostics/IPubSubDiagnostics.cs`, `Diagnostics/PubSubDiagnostics.cs`        |
 
-## Test coverage
-
-The four PubSub libraries are exercised by 1 007 net10 tests:
-734 in `Opc.Ua.PubSub.Tests`, 104 in `Opc.Ua.PubSub.Udp.Tests`,
-100 in `Opc.Ua.PubSub.Mqtt.Tests`, and 69 in
-`Opc.Ua.PubSub.Server.Tests`. The latest local
-`XPlat Code Coverage` collection on `net10.0` reported the following
-per-assembly **line-rate** (cobertura `<coverage line-rate>` for the
-matching `<package>` only — coverage of cross-cutting `Opc.Ua.Core`
-attribution is excluded):
-
-| Project                | line-rate | branch-rate |
-| ---------------------- | --------- | ----------- |
-| `Opc.Ua.PubSub`        | 37.09 %   | 29.51 %     |
-| `Opc.Ua.PubSub.Udp`    | 62.84 %   | 61.92 %     |
-| `Opc.Ua.PubSub.Mqtt`   | 60.35 %   | 50.00 %     |
-| `Opc.Ua.PubSub.Server` | 52.16 %   | 48.69 %     |
-
-The four libraries do not yet hit the 80 % gate of plan acceptance
-criterion #5. The deficit is concentrated in three areas, all queued
-for the backlog Phase 18 polish pass:
-
-- **`Opc.Ua.PubSub`** — JSON discovery / Action message paths,
-  `MetaDataPublisher` retained-publish edge cases, several
-  `IPubSubConfigurationStore` fault paths, fluent builder error
-  branches, and the SKS server pull endpoint paths are not yet
-  covered.
-- **`Opc.Ua.PubSub.Udp`** — multicast / broadcast send paths,
-  `DiscoveryAnnounceRate` driver, `QosCategory` → DSCP mapping
-  fallback (when raw socket TOS is rejected by the OS).
-- **`Opc.Ua.PubSub.Server`** — `Get/SetSecurityKeys`,
-  `AddSecurityGroup`, and the diagnostic Variables on each
-  PubSub component.
-
-Adding the missing tests is mechanical (mostly fluent-builder /
-mutation API smoke tests) but bulk; per the user-mandated scope of
-Phase 12 the gap is documented here rather than padded with shallow
-tests.
-
 ## Cross-references
 
 - [Migration sub-doc — `migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md)

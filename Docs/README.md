@@ -34,31 +34,21 @@ Here is a list of available documentation for different topics:
 * [AuthorizationService](AuthorizationService.md) - Modern Part 12 `StartRequestToken` / `FinishRequestToken`, `ITokenIssuer`, and GDS token issuance.
 * [Fuzz testing](../Fuzzing/Fuzzing.md) - SharpFuzz + afl-fuzz + libFuzzer integration. Three areas: `Encoders` (Binary/JSON/XML decoders, built-in type readers, parser entry points), `Certificates` (`X509CRL`, X509 extension parsers, `PEMReader`, `Pkcs10CertificationRequest`, ASN.1 helpers), and `Network` (UA-SC framing via `Opc.Ua.Bindings.Pcap` + internal `TcpMessageParsers` seam on `Opc.Ua.Core`). The [`fuzz-tester`](../.github/agents/fuzz-tester.agent.md) custom agent drives the whole toolchain autonomously: it detects OS-available engines, runs them in parallel, fixes novel findings per repo guidelines, adds the failing input as a regression asset, and pushes one commit per fix until the user says stop.
 * [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
+* [PubSub (Part 14)](PubSub.md) - Publisher/subscriber support library: architecture, fluent builder, transports (UDP / MQTT 3.1.1 + 5.0), encodings (UADP / JSON), security, and server-side address space.
+  * [Migration sub-doc](migrate/2.0.x/pubsub.md) - 1.5.378 → 2.0 breaking API, transport, JSON, and field-encoding changes, plus the compatibility matrix.
+  * [Dependency Injection extensions](DependencyInjection.md) - `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`, `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
+  * [Profiles](Profiles.md#pubsub-transports) - Datagram-v2, SKS pull / push, AES-128/256-CTR security facets.
 
 ## Reference application related
 
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
 * [Reference Server](../Applications/README.md) documentation for running against CTT.
+* [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation for the PubSub reference publisher.
+* [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/README.md) documentation for the PubSub reference subscriber.
 * [Provisioning Mode](ProvisioningMode.md) for secure certificate provisioning and initial server configuration.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in Visual Studio 2026 and for local testing.
 
 Starting with version 1.5.375.XX the Windows Forms reference client & reference server were moved to the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
-
-## For the PubSub support library
-
-* The [PubSub](PubSub.md) library reference — architecture, fluent
-  builder, transports (UDP / MQTT 3.1.1 + 5.0), encodings (UADP / JSON),
-  security, server-side address space, Native AOT, spec coverage table.
-* The [PubSub migration sub-doc](migrate/2.0.x/pubsub.md) — 1.5.378
-  → 2.0 breaking API, transport, JSON, and field-encoding changes,
-  compatibility matrix.
-* The [Dependency Injection](DependencyInjection.md) extensions —
-  `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`,
-  `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
-* The [Profiles](Profiles.md#pubsub-transports) doc — Datagram-v2,
-  SKS pull / push, AES-128/256-CTR security facets.
-* The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation.
-* The [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/README.md) documentation.
 
 ## Global Discovery Server (GDS)
 

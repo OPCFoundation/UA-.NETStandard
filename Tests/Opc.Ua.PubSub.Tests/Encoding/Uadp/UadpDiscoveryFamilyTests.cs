@@ -35,8 +35,8 @@ using Opc.Ua.PubSub.Encoding.Uadp;
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 {
     /// <summary>
-    /// Round-trip coverage for the new UADP discovery variants closed in
-    /// Phase 16 follow-up (sub-task 16c): ApplicationInformation,
+    /// Round-trip coverage for the new UADP discovery variants:
+    /// ApplicationInformation,
     /// PubSubConnection announcement and the generic discovery probe
     /// request.
     /// </summary>

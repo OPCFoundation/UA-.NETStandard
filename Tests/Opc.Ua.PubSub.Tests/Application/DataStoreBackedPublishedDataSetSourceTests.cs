@@ -53,10 +53,6 @@ namespace Opc.Ua.PubSub.Tests.Application
     [Parallelizable(ParallelScope.All)]
     public sealed class DataStoreBackedPublishedDataSetSourceTests
     {
-        // ------------------------------------------------------------------
-        // Constructor
-        // ------------------------------------------------------------------
-
         [Test]
         public void Constructor_NullDataStore_ThrowsArgumentNullException()
         {
@@ -74,10 +70,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 () => new DataStoreBackedPublishedDataSetSource(store, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
         }
-
-        // ------------------------------------------------------------------
-        // BuildMetaData
-        // ------------------------------------------------------------------
 
         [Test]
         public void BuildMetaData_WhenConfigHasMetaData_ReturnsSameInstance()
@@ -110,10 +102,6 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(result, Is.Not.Null);
         }
 
-        // ------------------------------------------------------------------
-        // SampleAsync – cancellation
-        // ------------------------------------------------------------------
-
         [Test]
         public async Task SampleAsync_WithCancelledToken_ThrowsOperationCanceledExceptionAsync()
         {
@@ -128,10 +116,6 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             await Task.CompletedTask.ConfigureAwait(false);
         }
-
-        // ------------------------------------------------------------------
-        // SampleAsync – null / empty DataSetSource
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task SampleAsync_WithNullDataSetSource_ReturnsEmptyFieldsAsync()
@@ -161,10 +145,6 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Is.Empty);
         }
-
-        // ------------------------------------------------------------------
-        // SampleAsync – field enumeration
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task SampleAsync_WithItemsAndMetaData_MapsFieldNamesFromMetaDataAsync()
@@ -416,10 +396,6 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(((DataSetField[]?)snapshot.Fields) ?? [], Has.Length.EqualTo(1));
             Assert.That(snapshot.Fields[0].Name, Is.EqualTo(string.Empty));
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static DataStoreBackedPublishedDataSetSource NewSource(
             PublishedDataSetDataType config)

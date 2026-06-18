@@ -234,13 +234,19 @@ namespace Quickstarts.ConsoleReferencePublisher
     /// </summary>
     public enum PublisherProfile
     {
-        /// <summary>UDP transport with UADP message mapping.</summary>
+        /// <summary>
+        /// UDP transport with UADP message mapping.
+        /// </summary>
         UdpUadp = 0,
 
-        /// <summary>MQTT broker transport with UADP message mapping.</summary>
+        /// <summary>
+        /// MQTT broker transport with UADP message mapping.
+        /// </summary>
         MqttUadp = 1,
 
-        /// <summary>MQTT broker transport with JSON message mapping.</summary>
+        /// <summary>
+        /// MQTT broker transport with JSON message mapping.
+        /// </summary>
         MqttJson = 2
     }
 }

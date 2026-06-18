@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 {
     /// <summary>
     /// Verifies <see cref="UdpTransportOptions"/> defaults and
-    /// <c>IConfiguration</c> binding round-trip used in Phase 9 DI wiring.
+    /// <c>IConfiguration</c> binding round-trip used in DI wiring.
     /// </summary>
     [TestFixture]
     [Category("Unit")]

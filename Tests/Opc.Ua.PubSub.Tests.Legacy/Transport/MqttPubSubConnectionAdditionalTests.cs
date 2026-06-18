@@ -385,10 +385,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             return (T)result;
         }
 
-        // -----------------------------------------------------------------------
-        // ProcessMqttMessage – no matching readers
-        // -----------------------------------------------------------------------
-
         [Test]
         public async Task ProcessMqttMessageWithNoMatchingReadersDoesNotThrowAsync()
         {
@@ -412,10 +408,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.That(async () => await result.ConfigureAwait(false), Throws.Nothing);
         }
-
-        // -----------------------------------------------------------------------
-        // ProcessMqttMessage – message marked as handled
-        // -----------------------------------------------------------------------
 
         [Test]
         public async Task ProcessMqttMessageWithHandledRawDataEarlyReturnsAsync()
@@ -466,10 +458,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.That(eventWasRaised, Is.True,
                 "RawDataReceived event should have been raised for a matching topic");
         }
-
-        // -----------------------------------------------------------------------
-        // GetMqttClientOptions – valid mqtt:// URL produces non-null options
-        // -----------------------------------------------------------------------
 
         [Test]
         public void GetMqttClientOptionsWithValidMqttUrlCreatesNonNullOptions()
@@ -527,10 +515,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.That(connection.UrlScheme, Is.EqualTo(Utils.UriSchemeMqtts));
         }
 
-        // -----------------------------------------------------------------------
-        // GetMqttQualityOfServiceLevel – BestEffort maps to AtLeastOnce
-        // -----------------------------------------------------------------------
-
         [Test]
         public void GetMqttQualityOfServiceLevelBestEffortMapsToAtLeastOnce()
         {
@@ -540,10 +524,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     BrokerTransportQualityOfService.BestEffort),
                 Is.EqualTo(MqttQualityOfServiceLevel.AtLeastOnce));
         }
-
-        // -----------------------------------------------------------------------
-        // IsAcceptableValidationFailure – various error-list combinations
-        // -----------------------------------------------------------------------
 
         [Test]
         public void IsAcceptableValidationFailureWithMultipleErrorsAllAcceptableReturnsTrue()

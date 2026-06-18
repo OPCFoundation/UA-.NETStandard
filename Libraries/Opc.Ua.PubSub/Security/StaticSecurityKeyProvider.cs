@@ -42,8 +42,8 @@ namespace Opc.Ua.PubSub.Security
     /// <remarks>
     /// Implements the local-key-provider contract referenced from
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3">
-    /// Part 14 §8.3 Security Key Service</see>. Phase 8 ships an
-    /// SKS-backed provider that wraps the same ring abstraction.
+    /// Part 14 §8.3 Security Key Service</see>. An SKS-backed
+    /// provider wraps the same ring abstraction.
     /// </remarks>
     public sealed class StaticSecurityKeyProvider : IPubSubSecurityKeyProvider
     {

@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Application
     /// Implements the Application abstraction described in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.2">
     /// Part 14 §9.1.2 PubSub address space root</see>.
-    /// Phase 17 added runtime mutation API per Part 14 §9.1.6.
+    /// Exposes a runtime mutation API per Part 14 §9.1.6.
     /// </remarks>
     public interface IPubSubApplication : IAsyncDisposable
     {

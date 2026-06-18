@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Server
     /// §9.1.10 and §8.3.1).
     /// </summary>
     /// <remarks>
-    /// Phase 17 implements the configuration-mutation entry-points
+    /// Implements the configuration-mutation entry-points
     /// via the mutable <see cref="IPubSubApplication"/> surface.
     /// All entry-points adhere to the legacy synchronous
     /// <c>GenericMethodCalledEventHandler</c> contract; every async

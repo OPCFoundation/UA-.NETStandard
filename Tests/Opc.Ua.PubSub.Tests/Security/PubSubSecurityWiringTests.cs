@@ -179,7 +179,9 @@ namespace Opc.Ua.PubSub.Tests.Security
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
                 TimeProvider timeProvider)
-                => new StubTransport();
+            {
+                return new StubTransport();
+            }
         }
 
         private sealed class StubTransport : IPubSubTransport
@@ -213,11 +215,16 @@ namespace Opc.Ua.PubSub.Tests.Security
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
                 string? topic = null,
-                CancellationToken cancellationToken = default) => default;
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public System.Collections.Generic.IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 CancellationToken cancellationToken = default)
-                => System.Linq.AsyncEnumerable.Empty<PubSubTransportFrame>();
+            {
+                return System.Linq.AsyncEnumerable.Empty<PubSubTransportFrame>();
+            }
 
             public ValueTask DisposeAsync()
             {

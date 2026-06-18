@@ -57,8 +57,6 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             publishingOffset: TimeSpan.Zero,
             receiveOffset: TimeSpan.Zero);
 
-        // ── Constructor ──────────────────────────────────────────────────────
-
         [Test]
         public void Constructor_NullTelemetryAndTimeProvider_DoesNotThrow()
         {
@@ -66,8 +64,6 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
                 () => new PubSubScheduler(telemetry: null, timeProvider: null),
                 Throws.Nothing);
         }
-
-        // ── ScheduleAsync – argument validation ──────────────────────────────
 
         [Test]
         public async Task ScheduleAsync_NullAction_ThrowsArgumentNullExceptionAsync()
@@ -119,8 +115,6 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
 
             await Task.CompletedTask.ConfigureAwait(false);
         }
-
-        // ── Timer fires the action ────────────────────────────────────────────
 
         [Test]
         public async Task ScheduleAsync_TimerFires_InvokesActionOnceAsync()
@@ -193,8 +187,6 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
                 "Action must fire at PublishingOffset (50 ms), not at Period (200 ms).");
         }
 
-        // ── Back-pressure ────────────────────────────────────────────────────
-
         [Test]
         public async Task ScheduleAsync_BackPressure_SkipsTickWhileActionRunningAsync()
         {
@@ -227,8 +219,6 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             }
         }
 
-        // ── Action throws ────────────────────────────────────────────────────
-
         [Test]
         public async Task ScheduleAsync_ActionThrowsNonOce_ExceptionSwallowedAsync()
         {
@@ -252,8 +242,6 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             Assert.That(actionRan, Is.True,
                 "Action must have run even though it then threw.");
         }
-
-        // ── DisposeAsync ─────────────────────────────────────────────────────
 
         [Test]
         public async Task DisposeAsync_StopsSubsequentTicksAsync()

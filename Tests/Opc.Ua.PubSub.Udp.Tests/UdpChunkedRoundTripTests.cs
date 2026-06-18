@@ -50,8 +50,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
     /// <see cref="UadpReassembler"/>.
     /// </summary>
     /// <remarks>
-    /// Exercises the Phase 14 wire-up of Phase 2 chunking primitives
-    /// into the Phase 9 UDP transport pipeline. Covers
+    /// Exercises the wire-up of the chunking primitives
+    /// into the UDP transport pipeline. Covers
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
     /// Part 14 §7.2.4.4.4 Chunked NetworkMessages</see>.
     /// </remarks>

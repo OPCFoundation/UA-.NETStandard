@@ -53,8 +53,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
     [TestSpec("6.2.9", Summary = "DataSetReader construction, filtering and dispatch")]
     public class DataSetReaderTests
     {
-        // ── Constructor ──────────────────────────────────────────────────────
-
         [Test]
         public void Constructor_NullConfiguration_ThrowsArgumentNullException()
         {
@@ -118,8 +116,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
                     Is.EqualTo(TimeSpan.FromMilliseconds(5000)));
             });
         }
-
-        // ── Matches – WriterGroupId filter ───────────────────────────────────
 
         [Test]
         [TestSpec("6.2.9")]
@@ -188,8 +184,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.That(reader.Matches(net, dsm), Is.True);
         }
 
-        // ── Matches – PublisherId filter ─────────────────────────────────────
-
         [Test]
         [TestSpec("6.2.9")]
         public void Matches_NullPublisherId_AcceptsAnyPublisher()
@@ -232,8 +226,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
 
             Assert.That(reader.Matches(net, dsm), Is.False);
         }
-
-        // ── DispatchAsync ────────────────────────────────────────────────────
 
         [Test]
         public void DispatchAsync_NullDataSetMessage_ThrowsArgumentNullException()
@@ -319,8 +311,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
-        // ── IsReceiveTimedOut ────────────────────────────────────────────────
-
         [Test]
         public void IsReceiveTimedOut_ZeroTimeout_AlwaysFalse()
         {
@@ -352,8 +342,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.That(reader.IsReceiveTimedOut(), Is.True);
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────────
-
         private static DataSetReader BuildReader(
             ushort writerId = 5,
             ushort writerGroupId = 0,
@@ -384,7 +372,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
             public ValueTask WriteAsync(
                 IReadOnlyList<DataSetField> fields,
                 CancellationToken cancellationToken = default)
-                => default;
+            {
+                return default;
+            }
         }
 
         private sealed class CountingSink : ISubscribedDataSetSink
@@ -414,7 +404,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
             public ValueTask WriteAsync(
                 IReadOnlyList<DataSetField> fields,
                 CancellationToken cancellationToken = default)
-                => throw m_exception;
+            {
+                throw m_exception;
+            }
         }
     }
 }

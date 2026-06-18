@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Tests.Application
     /// <summary>
     /// Extends <see cref="PubSubApplicationMutationTests"/> with the
     /// remove-side and PublishedDataSet-side mutation paths, and the
-    /// negative validation paths missing in the Phase 17 baseline.
+    /// negative validation paths missing in the base mutation tests.
     /// All tests link to Part 14 §9.1.6 / §9.1.7 / §9.1.8.
     /// </summary>
     [TestFixture]
@@ -52,10 +52,6 @@ namespace Opc.Ua.PubSub.Tests.Application
     {
         private const string UdpProfile = Profiles.PubSubUdpUadpTransport;
         private const string AddrUrl = "opc.udp://224.0.0.22:4840";
-
-        // -------------------------------------------------------------
-        // ReplaceConfiguration negative paths
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6")]
@@ -96,10 +92,6 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(results, Is.Not.Empty);
             Assert.That(StatusCode.IsGood(results[0]), Is.True);
         }
-
-        // -------------------------------------------------------------
-        // AddConnection negative paths
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.3.4")]
@@ -143,10 +135,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Throws.TypeOf<PubSubConfigurationException>());
         }
 
-        // -------------------------------------------------------------
-        // RemoveConnection
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.3.5")]
         public async Task RemoveConnectionAsyncUnknownIdThrowsArgumentException()
@@ -167,10 +155,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 async () => await app.RemoveConnectionAsync(NodeId.Null),
                 Throws.TypeOf<ArgumentException>());
         }
-
-        // -------------------------------------------------------------
-        // Add/Remove WriterGroup
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6")]
@@ -259,10 +243,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Throws.TypeOf<ArgumentException>());
         }
 
-        // -------------------------------------------------------------
-        // Add/Remove ReaderGroup
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.6")]
         public async Task AddReaderGroupAsyncNullConfigThrowsArgumentNullException()
@@ -297,10 +277,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                     new ReaderGroupDataType { Name = "rg" }),
                 Throws.TypeOf<ArgumentException>());
         }
-
-        // -------------------------------------------------------------
-        // Add/Remove DataSetWriter
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.7")]
@@ -405,10 +381,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Throws.TypeOf<ArgumentException>());
         }
 
-        // -------------------------------------------------------------
-        // Add/Remove DataSetReader
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.8")]
         public async Task AddDataSetReaderAsyncNullConfigThrowsArgumentNullException()
@@ -501,10 +473,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 async () => await app.RemoveDataSetReaderAsync(NodeId.Null),
                 Throws.TypeOf<ArgumentException>());
         }
-
-        // -------------------------------------------------------------
-        // Add/Remove PublishedDataSet
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6")]
@@ -603,10 +571,6 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Throws.TypeOf<ArgumentException>());
         }
 
-        // -------------------------------------------------------------
-        // GetConfiguration semantics (deep clone)
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.6")]
         public async Task GetConfigurationMutatingResultDoesNotAffectApplication()
@@ -621,10 +585,6 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(again.Connections[0].Name, Is.EqualTo("clone-test"));
         }
 
-        // -------------------------------------------------------------
-        // ConfigurationVersion stamping
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("5.2.3")]
         public async Task EveryMutationStampsNewConfigurationVersion()
@@ -638,10 +598,6 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(v1.MajorVersion, Is.GreaterThanOrEqualTo(v0.MajorVersion));
             Assert.That(v1.MinorVersion, Is.GreaterThanOrEqualTo(v0.MinorVersion));
         }
-
-        // -------------------------------------------------------------
-        // Helpers
-        // -------------------------------------------------------------
 
         private static IPubSubApplication NewApp()
         {

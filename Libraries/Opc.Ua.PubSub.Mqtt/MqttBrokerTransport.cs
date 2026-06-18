@@ -205,8 +205,8 @@ namespace Opc.Ua.PubSub.Mqtt
 
         /// <summary>
         /// Topic subscriptions installed on the broker session. May be
-        /// supplied by the application layer in Phase 9; for Phase 6
-        /// callers populate this list before <see cref="OpenAsync"/>
+        /// supplied by the application layer; callers populate this list
+        /// before <see cref="OpenAsync"/>
         /// so the adapter knows what topics to subscribe to.
         /// </summary>
         public IList<MqttTopicFilter> Subscriptions { get; } = new List<MqttTopicFilter>();

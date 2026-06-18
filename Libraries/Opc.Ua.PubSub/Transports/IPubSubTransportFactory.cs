@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Transports
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3">
     /// Part 14 §7.3 PubSub transport mappings</see>. Each transport
     /// library (Opc.Ua.PubSub.Udp, Opc.Ua.PubSub.Mqtt) registers one
-    /// implementation via DI in Phase 9.
+    /// implementation via DI.
     /// </remarks>
     public interface IPubSubTransportFactory
     {

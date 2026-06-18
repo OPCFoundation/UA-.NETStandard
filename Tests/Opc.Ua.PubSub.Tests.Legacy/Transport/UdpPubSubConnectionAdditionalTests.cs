@@ -339,10 +339,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.That(() => m_connection.RequestDataSetMetaData(), Throws.Nothing);
         }
 
-        // -----------------------------------------------------------------------
-        // ResetSequenceNumber
-        // -----------------------------------------------------------------------
-
         [Test]
         public void ResetSequenceNumberResetsStaticCounters()
         {
@@ -352,10 +348,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // If no exception was thrown the static reset path is exercised.
             Assert.Pass();
         }
-
-        // -----------------------------------------------------------------------
-        // MetaDataReceived (private event handler)
-        // -----------------------------------------------------------------------
 
         [Test]
         public void MetaDataReceivedWithNullDiscoverySubscriberIsNoOp()
@@ -419,10 +411,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 () => subscriber.SendDiscoveryRequestDataSetMetaData(),
                 Throws.Nothing);
         }
-
-        // -----------------------------------------------------------------------
-        // DataSetWriterConfigurationReceived (private event handler)
-        // -----------------------------------------------------------------------
 
         [Test]
         public void DataSetWriterConfigurationReceivedWithNullConfigIsNoOp()
@@ -499,10 +487,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 connCfg.WriterGroups.ToList().Exists(g => g.WriterGroupId == 7 && g.Name == "UpdatedGroup"),
                 Is.True);
         }
-
-        // -----------------------------------------------------------------------
-        // NetworkMessage_DataSetDecodeErrorOccurred (private event handler)
-        // -----------------------------------------------------------------------
 
         [Test]
         public void NetworkMessageDecodeErrorWithMetadataMajorVersionAndNonZeroIdAddsWriterId()
@@ -597,10 +581,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Throws.Nothing);
         }
 
-        // -----------------------------------------------------------------------
-        // ProcessReceivedMessage (private method)
-        // -----------------------------------------------------------------------
-
         [Test]
         public void ProcessReceivedMessageWithNoReadersCompletesWithoutException()
         {
@@ -616,10 +596,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 () => InvokePrivate(m_connection, "ProcessReceivedMessage", message, source),
                 Throws.Nothing);
         }
-
-        // -----------------------------------------------------------------------
-        // Helpers
-        // -----------------------------------------------------------------------
 
         private static void InvokePrivate(object instance, string methodName, params object[] args)
         {

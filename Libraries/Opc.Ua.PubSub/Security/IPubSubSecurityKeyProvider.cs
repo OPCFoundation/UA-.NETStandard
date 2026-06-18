@@ -43,9 +43,8 @@ namespace Opc.Ua.PubSub.Security
     /// Implements the key-acquisition contract used by Publisher
     /// and Subscriber as described in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3">
-    /// Part 14 §8.3 Security Key Service</see>. Phase 8 will ship
-    /// the SKS pull implementation and the local in-memory provider;
-    /// Phase 1 only commits the contract.
+    /// Part 14 §8.3 Security Key Service</see>. An SKS pull
+    /// implementation and a local in-memory provider are provided.
     /// </remarks>
     public interface IPubSubSecurityKeyProvider
     {

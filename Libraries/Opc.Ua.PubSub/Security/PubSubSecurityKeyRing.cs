@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Security
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3">
     /// Part 14 §8.3 Security Key Service</see>. The ring is the
     /// stateful object inside <see cref="StaticSecurityKeyProvider"/>
-    /// and any SKS-backed provider added in Phase 8.
+    /// and any SKS-backed provider.
     /// </remarks>
     public sealed class PubSubSecurityKeyRing : IDisposable
     {

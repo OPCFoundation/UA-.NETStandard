@@ -52,10 +52,10 @@ namespace OpcUaPubSubJsonTests
     [TestSpec("7.2.5")]
     public sealed class PubSubJsonEncoderDecoderTests
     {
-        // ── helpers ────────────────────────────────────────────────────────────
-
         private static ServiceMessageContext NewContext()
-            => (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
+        {
+            return (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
+        }
 
         /// <summary>Encode one or more fields and return the complete JSON text.</summary>
         private static string Encode(
@@ -70,7 +70,9 @@ namespace OpcUaPubSubJsonTests
 
         /// <summary>Create a decoder for the supplied JSON text.</summary>
         private static PubSubJsonDecoder MakeDecoder(string json)
-            => new PubSubJsonDecoder(json, NewContext());
+        {
+            return new PubSubJsonDecoder(json, NewContext());
+        }
 
         /// <summary>
         /// Encode then immediately decode, returning the decoded value.
@@ -88,14 +90,10 @@ namespace OpcUaPubSubJsonTests
             return read(dec);
         }
 
-        // ── Static arrays for CA1861 (constant array argument warnings) ────────
-
         private static readonly int[] s_int10_20_30 = [10, 20, 30];
         private static readonly string[] s_strA_B_C = ["a", "b", "c"];
         private static readonly bool[] s_boolTFTF = [true, false, true, false];
         private static readonly string[] s_strAlphaBetaGamma = ["alpha", "beta", "gamma"];
-
-        // ── Boolean ────────────────────────────────────────────────────────────
 
         [TestCase(true)]
         [TestCase(false)]
@@ -112,8 +110,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = MakeDecoder("{\"f\":42}");
             Assert.That(dec.ReadBoolean("f"), Is.False);
         }
-
-        // ── SByte ──────────────────────────────────────────────────────────────
 
         [TestCase((sbyte)0)]
         [TestCase((sbyte)-128)]
@@ -133,8 +129,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadSByte("f"), Is.Zero);
         }
 
-        // ── Byte ───────────────────────────────────────────────────────────────
-
         [TestCase((byte)0)]
         [TestCase((byte)255)]
         public void ByteRoundTrip(byte value)
@@ -150,8 +144,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = MakeDecoder("{\"f\":-1}");
             Assert.That(dec.ReadByte("f"), Is.Zero);
         }
-
-        // ── Int16 / UInt16 ─────────────────────────────────────────────────────
 
         [TestCase((short)0)]
         [TestCase(short.MinValue)]
@@ -172,8 +164,6 @@ namespace OpcUaPubSubJsonTests
                 Is.EqualTo(value));
         }
 
-        // ── Int32 / UInt32 ─────────────────────────────────────────────────────
-
         [TestCase(0)]
         [TestCase(int.MinValue)]
         [TestCase(int.MaxValue)]
@@ -192,8 +182,6 @@ namespace OpcUaPubSubJsonTests
                 RoundTrip(e => e.WriteUInt32("f", value), d => d.ReadUInt32("f")),
                 Is.EqualTo(value));
         }
-
-        // ── Int64 / UInt64 — encoded as quoted strings in Reversible mode ──────
 
         [TestCase(0L)]
         [TestCase(long.MinValue)]
@@ -230,8 +218,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = MakeDecoder("{\"f\":\"18446744073709551615\"}");
             Assert.That(dec.ReadUInt64("f"), Is.EqualTo(ulong.MaxValue));
         }
-
-        // ── Float ──────────────────────────────────────────────────────────────
 
         [TestCase(0.0f)]
         [TestCase(1.5f)]
@@ -288,8 +274,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadFloat("f"), Is.EqualTo(float.NegativeInfinity));
         }
 
-        // ── Double ─────────────────────────────────────────────────────────────
-
         [TestCase(0.0)]
         [TestCase(3.141592653589793)]
         [TestCase(-1.0e308)]
@@ -331,8 +315,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadDouble("f"), Is.NaN);
         }
 
-        // ── String ─────────────────────────────────────────────────────────────
-
         [TestCase("hello")]
         [TestCase("")]
         [TestCase("unicode \u00e9\u4e2d\u6587")]
@@ -373,8 +355,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadString("f"), Is.Null);
         }
 
-        // ── DateTime ───────────────────────────────────────────────────────────
-
         [Test]
         public void DateTimeRoundTrip()
         {
@@ -391,8 +371,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = MakeDecoder(json);
             Assert.That(dec.ReadDateTime("f"), Is.EqualTo(DateTimeUtc.MinValue));
         }
-
-        // ── Guid ───────────────────────────────────────────────────────────────
 
         [Test]
         public void GuidRoundTrip()
@@ -411,8 +389,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.HasField("f"), Is.False);
         }
 
-        // ── ByteString ─────────────────────────────────────────────────────────
-
         [Test]
         public void ByteStringRoundTrip()
         {
@@ -428,8 +404,6 @@ namespace OpcUaPubSubJsonTests
             var result = RoundTrip(e => e.WriteByteString("f", bs), d => d.ReadByteString("f"));
             Assert.That(result.IsEmpty, Is.True);
         }
-
-        // ── NodeId ─────────────────────────────────────────────────────────────
 
         [TestCase(0u)]
         [TestCase(1u)]
@@ -496,8 +470,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result.Identifier, Is.EqualTo(99u));
         }
 
-        // ── ExpandedNodeId ─────────────────────────────────────────────────────
-
         [Test]
         public void ExpandedNodeIdNumericRoundTrip()
         {
@@ -513,8 +485,6 @@ namespace OpcUaPubSubJsonTests
             var result = RoundTrip(e => e.WriteExpandedNodeId("f", eid), d => d.ReadExpandedNodeId("f"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
         }
-
-        // ── QualifiedName ──────────────────────────────────────────────────────
 
         [Test]
         public void QualifiedNameNs0RoundTrip()
@@ -532,8 +502,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = MakeDecoder(json);
             Assert.That(dec.HasField("f"), Is.False);
         }
-
-        // ── LocalizedText ──────────────────────────────────────────────────────
 
         [Test]
         public void LocalizedTextReversibleRoundTrip()
@@ -577,8 +545,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.HasField("f"), Is.False);
         }
 
-        // ── StatusCode ─────────────────────────────────────────────────────────
-
         [Test]
         public void StatusCodeGoodRoundTrip()
         {
@@ -610,8 +576,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadStatusCode("status"), Is.EqualTo(StatusCodes.Good));
         }
 
-        // ── DiagnosticInfo ─────────────────────────────────────────────────────
-
         [Test]
         public void DiagnosticInfoRoundTrip()
         {
@@ -638,8 +602,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = MakeDecoder(json);
             Assert.That(dec.HasField("f"), Is.False);
         }
-
-        // ── Variant ────────────────────────────────────────────────────────────
 
         [Test]
         public void VariantBooleanRoundTrip()
@@ -729,8 +691,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result.Value, Is.EqualTo("verbose-value"));
         }
 
-        // ── DataValue ──────────────────────────────────────────────────────────
-
         [Test]
         public void DataValueWithInt32VariantRoundTrip()
         {
@@ -778,8 +738,6 @@ namespace OpcUaPubSubJsonTests
                 PubSubJsonEncoding.Compact);
             Assert.That(result.WrappedValue.Value, Is.EqualTo("sensor-reading"));
         }
-
-        // ── Arrays of primitives ───────────────────────────────────────────────
 
         [Test]
         public void BooleanArrayRoundTrip()
@@ -883,8 +841,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result[1].IdType, Is.EqualTo(IdType.String));
         }
 
-        // ── Decoder missing-field behaviour ────────────────────────────────────
-
         [Test]
         public void ReadMissingBooleanFieldReturnsFalse()
         {
@@ -920,8 +876,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadVariant("missing"), Is.EqualTo(Variant.Null));
         }
 
-        // ── HasField ───────────────────────────────────────────────────────────
-
         [Test]
         public void HasFieldReturnsTrueForPresentField()
         {
@@ -944,8 +898,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.HasField(null), Is.True);
             Assert.That(dec.HasField(string.Empty), Is.True);
         }
-
-        // ── Encoder properties and Close ───────────────────────────────────────
 
         [Test]
         public void EncoderEncodingTypeIsJson()
@@ -1017,8 +969,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(json, Does.Contain("\"text\""));
         }
 
-        // ── Decoder properties ─────────────────────────────────────────────────
-
         [Test]
         public void DecoderEncodingTypeIsJson()
         {
@@ -1033,8 +983,6 @@ namespace OpcUaPubSubJsonTests
             using var dec = new PubSubJsonDecoder("{}", ctx);
             Assert.That(dec.Context, Is.SameAs(ctx));
         }
-
-        // ── Static guard tests ─────────────────────────────────────────────────
 
         [Test]
         public void EncodeMessageStaticNullMessageThrows()
@@ -1085,8 +1033,6 @@ namespace OpcUaPubSubJsonTests
             Assert.Throws<ArgumentNullException>(() =>
                 new PubSubJsonDecoder("{}", null!));
         }
-
-        // ── Default-value suppression differences between encoding modes ────────
 
         [Test]
         public void ReversibleIncludesDefaultNumberZero()
@@ -1151,8 +1097,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(json, Does.Contain("EncodingMask"));
         }
 
-        // ── PushNamespace / PopNamespace are no-ops on decoder ─────────────────
-
         [Test]
         public void DecoderPushAndPopNamespaceAreSafe()
         {
@@ -1163,8 +1107,6 @@ namespace OpcUaPubSubJsonTests
                 dec.PopNamespace();
             });
         }
-
-        // ── Multiple fields in one JSON object ─────────────────────────────────
 
         [Test]
         public void MultipleFieldsRoundTrip()
@@ -1181,8 +1123,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(dec.ReadInt32("intF"), Is.EqualTo(42));
             Assert.That(dec.ReadString("strF"), Is.EqualTo("hello"));
         }
-
-        // ── ReadEnumerated ─────────────────────────────────────────────────────
 
         [Test]
         public void ReadEnumeratedFromIntegerToken()
@@ -1201,8 +1141,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That((int)result, Is.EqualTo(2));
         }
 
-        // ── Minimal helper encodeable ──────────────────────────────────────────
-
         private sealed class MinimalEncodeable : IEncodeable
         {
             public ExpandedNodeId TypeId => NodeId.Null;
@@ -1211,8 +1149,14 @@ namespace OpcUaPubSubJsonTests
 
             public void Encode(IEncoder encoder) { }
             public void Decode(IDecoder decoder) { }
-            public bool IsEqual(IEncodeable? encodeable) => true;
-            public object Clone() => new MinimalEncodeable();
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return true;
+            }
+            public object Clone()
+            {
+                return new MinimalEncodeable();
+            }
         }
     }
 }

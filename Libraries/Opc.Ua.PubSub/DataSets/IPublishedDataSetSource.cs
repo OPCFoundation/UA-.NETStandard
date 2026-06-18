@@ -43,9 +43,8 @@ namespace Opc.Ua.PubSub.DataSets
     /// <see cref="PublishedDataItemsDataType"/> and
     /// <see cref="PublishedEventsDataType"/> in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.3">
-    /// Part 14 §6.2.3 PublishedDataSet</see>. Phase 4 ships the
-    /// default variable-sampling source; Phase 1 only commits the
-    /// contract.
+    /// Part 14 §6.2.3 PublishedDataSet</see>. A default
+    /// variable-sampling source is provided.
     /// </remarks>
     public interface IPublishedDataSetSource
     {

@@ -50,10 +50,6 @@ namespace Opc.Ua.PubSub.Udp.Tests
     [CancelAfter(10000)]
     public sealed class UdpTransportStaticTests
     {
-        // ------------------------------------------------------------------
-        // MapQosCategoryToTos – internal static, no network required
-        // ------------------------------------------------------------------
-
         [TestCase("Reliable", 0x48)]
         [TestCase("BestEffort", 0x00)]
         [TestCase("ExpeditedForwarding", 0xB8)]
@@ -73,10 +69,6 @@ namespace Opc.Ua.PubSub.Udp.Tests
             int tos = UdpDatagramTransport.MapQosCategoryToTos(category);
             Assert.That(tos, Is.Zero);
         }
-
-        // ------------------------------------------------------------------
-        // CloseAsync on an unopened send-only transport
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task CloseAsync_OnUnopenedSendTransport_CompletesWithoutException(
@@ -111,10 +103,6 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await transport.DisposeAsync().ConfigureAwait(false);
         }
 
-        // ------------------------------------------------------------------
-        // StateChanged event – fires on OpenAsync / CloseAsync for unicast
-        // ------------------------------------------------------------------
-
         [Test]
         [Category("Integration")]
         [CancelAfter(8000)]
@@ -136,10 +124,6 @@ namespace Opc.Ua.PubSub.Udp.Tests
             Assert.That(stateChanges, Is.GreaterThanOrEqualTo(2),
                 "Expected at least one StateChanged event for open and one for close.");
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static UdpDatagramTransport NewSendTransport(string url)
         {

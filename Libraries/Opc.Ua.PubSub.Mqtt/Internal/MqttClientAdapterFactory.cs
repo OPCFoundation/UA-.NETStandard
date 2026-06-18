@@ -37,8 +37,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
     /// by MQTTnet (v4 on netstandard / net48, v5 on net8+).
     /// </summary>
     /// <remarks>
-    /// Wired into the DI container by the PubSub transport composition
-    /// in Phase 9; tests may instantiate it directly or substitute a
+    /// Wired into the DI container by the PubSub transport composition;
+    /// tests may instantiate it directly or substitute a
     /// fake factory to avoid an actual broker connection.
     /// </remarks>
     internal sealed class MqttClientAdapterFactory : IMqttClientFactory

@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Mqtt
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.4">
     /// Part 14 §7.3.4 Broker transport (MQTT)</see> from the factory
-    /// side. Two instances are registered with DI in Phase 9 — one
+    /// side. Two instances are registered with DI — one
     /// per encoding profile — so the transport registry can pick the
     /// right factory based on the connection's
     /// <c>TransportProfileUri</c> field.
@@ -81,20 +81,20 @@ namespace Opc.Ua.PubSub.Mqtt
         /// </param>
         /// <param name="clientFactory">
         /// <see cref="IMqttClientFactory"/> used to create the
-        /// underlying client adapter. Wired by DI in Phase 9;
+        /// underlying client adapter. Wired by DI;
         /// tests inject a fake.
         /// </param>
         /// <param name="defaultOptions">
         /// Default connection options applied to each transport. The
         /// caller may override per-connection via the connection's
-        /// <c>ConnectionProperties</c> in Phase 9.
+        /// <c>ConnectionProperties</c>.
         /// </param>
         /// <param name="secretRegistry">
         /// Optional <see cref="ISecretRegistry"/> used to resolve
         /// <see cref="MqttConnectionOptions.PasswordSecretId"/>.
         /// </param>
         /// <param name="diagnostics">
-        /// Optional shared diagnostics sink. Phase 9 wires the
+        /// Optional shared diagnostics sink. The DI container wires the
         /// per-component diagnostics container.
         /// </param>
         public MqttPubSubTransportFactory(

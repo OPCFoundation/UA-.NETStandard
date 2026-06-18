@@ -33,7 +33,7 @@ namespace Opc.Ua.PubSub.Udp
 {
     /// <summary>
     /// Tunables for the UDP datagram transport.
-    /// <c>IConfiguration</c>-bindable so the DI surface in Phase 9 can
+    /// <c>IConfiguration</c>-bindable so the DI surface can
     /// load defaults from <c>OpcUa:PubSub:Udp</c>.
     /// </summary>
     /// <remarks>

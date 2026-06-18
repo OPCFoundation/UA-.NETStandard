@@ -47,10 +47,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
     [Parallelizable(ParallelScope.All)]
     public sealed class PublishedDataSetTests
     {
-        // ------------------------------------------------------------------
-        // Constructor
-        // ------------------------------------------------------------------
-
         [Test]
         public void Constructor_NullConfiguration_ThrowsArgumentNullException()
         {
@@ -70,10 +66,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 () => new PublishedDataSet(config, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("source"));
         }
-
-        // ------------------------------------------------------------------
-        // Name
-        // ------------------------------------------------------------------
 
         [Test]
         public void Constructor_WithConfigName_SetsNameProperty()
@@ -96,10 +88,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(ds.Name, Is.EqualTo(string.Empty));
         }
-
-        // ------------------------------------------------------------------
-        // MetaData source precedence
-        // ------------------------------------------------------------------
 
         [Test]
         public void Constructor_SourceMetaDataTakesPrecedenceOverConfigMetaData()
@@ -147,10 +135,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(ds.MetaData, Is.Not.Null);
         }
 
-        // ------------------------------------------------------------------
-        // DataSetClassId
-        // ------------------------------------------------------------------
-
         [Test]
         public void Constructor_MetaDataHasNonEmptyDataSetClassId_PropertyReflectsIt()
         {
@@ -175,10 +159,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(ds.DataSetClassId, Is.EqualTo(Uuid.Empty));
         }
-
-        // ------------------------------------------------------------------
-        // SampleAsync
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task SampleAsync_DelegatesToSourceWithCurrentMetaDataAsync()
@@ -210,10 +190,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 s => s.SampleAsync(meta, It.IsAny<CancellationToken>()),
                 Times.Once);
         }
-
-        // ------------------------------------------------------------------
-        // RefreshMetaData
-        // ------------------------------------------------------------------
 
         [Test]
         public void RefreshMetaData_WhenSourceReturnsNull_IsNoOpAndDoesNotFireEvent()
@@ -312,10 +288,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(ds.MetaData, Is.SameAs(meta2));
         }
 
-        // ------------------------------------------------------------------
-        // Configuration property
-        // ------------------------------------------------------------------
-
         [Test]
         public void Configuration_ReturnsTheSuppliedConfiguration()
         {
@@ -324,10 +296,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(ds.Configuration, Is.SameAs(config));
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static IPublishedDataSetSource SourceReturning(DataSetMetaDataType meta)
         {

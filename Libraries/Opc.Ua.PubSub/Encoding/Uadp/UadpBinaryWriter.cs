@@ -116,7 +116,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// written.
         /// </returns>
         public ReadOnlySpan<byte> WrittenSpan()
-            => new(m_buffer, m_origin, m_position);
+        {
+            return new(m_buffer, m_origin, m_position);
+        }
 
         /// <summary>
         /// Underlying backing buffer; exposed for direct integration

@@ -53,10 +53,6 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
     [CancelAfter(10000)]
     public sealed class MqttClientAdapterGuardTests
     {
-        // ------------------------------------------------------------------
-        // DisconnectAsync – no-op when client is not connected (no broker)
-        // ------------------------------------------------------------------
-
         [Test]
         public async Task DisconnectAsync_WhenNotConnected_CompletesWithoutException(
             CancellationToken cancellationToken)
@@ -72,10 +68,6 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             Assert.That(adapter.IsConnected, Is.False);
         }
 
-        // ------------------------------------------------------------------
-        // DisposeAsync – idempotent (double dispose must not throw)
-        // ------------------------------------------------------------------
-
         [Test]
         public async Task DisposeAsync_CalledTwice_DoesNotThrow()
         {
@@ -87,12 +79,6 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             // Second dispose should be guarded by m_disposed flag.
             await adapter.DisposeAsync().ConfigureAwait(false);
         }
-
-        // ------------------------------------------------------------------
-        // Disposed-state guards: ConnectAsync, SubscribeAsync,
-        // UnsubscribeAsync, PublishAsync must all throw ObjectDisposedException
-        // after DisposeAsync.
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task ConnectAsync_AfterDispose_ThrowsObjectDisposedException(
@@ -201,10 +187,6 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 async () => await adapter.PublishAsync(message, cancellationToken)
                     .ConfigureAwait(false));
         }
-
-        // ------------------------------------------------------------------
-        // PublishAsync – empty-topic guard fires before disposed check
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task PublishAsync_WithEmptyTopic_ThrowsArgumentExceptionBeforeDisposedCheck(

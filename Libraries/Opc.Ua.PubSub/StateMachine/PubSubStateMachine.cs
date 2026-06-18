@@ -403,7 +403,8 @@ namespace Opc.Ua.PubSub.StateMachine
         /// Returns the canonical Part 14 status code for a state.
         /// </summary>
         internal static StatusCode DefaultStatusCodeFor(PubSubState state)
-            => state switch
+        {
+            return state switch
             {
                 PubSubState.Operational => StatusCodes.Good,
                 PubSubState.Paused => StatusCodes.GoodNoData,
@@ -412,6 +413,7 @@ namespace Opc.Ua.PubSub.StateMachine
                 PubSubState.Disabled => StatusCodes.BadInvalidState,
                 _ => StatusCodes.BadUnexpectedError
             };
+        }
 
         private bool TryTransition(
             PubSubState target,

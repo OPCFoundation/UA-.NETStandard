@@ -50,10 +50,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
     [Parallelizable(ParallelScope.All)]
     public sealed class UdpDiscoveryPublisherTests
     {
-        // ------------------------------------------------------------------
-        // Constructor
-        // ------------------------------------------------------------------
-
         [Test]
         public void Constructor_CreatesInstanceWithoutThrowingOrOpeningSockets()
         {
@@ -84,10 +80,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
 
             Assert.That(publisher, Is.Not.Null);
         }
-
-        // ------------------------------------------------------------------
-        // GetPublisherEndpoints delegate property
-        // ------------------------------------------------------------------
 
         [Test]
         public void GetPublisherEndpoints_DefaultIsNull()
@@ -136,10 +128,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.That(publisher.GetPublisherEndpoints, Is.Null);
         }
 
-        // ------------------------------------------------------------------
-        // GetDataSetWriterIds delegate property
-        // ------------------------------------------------------------------
-
         [Test]
         public void GetDataSetWriterIds_DefaultIsNull()
         {
@@ -173,10 +161,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.That(publisher.GetDataSetWriterIds, Is.Null);
         }
 
-        // ------------------------------------------------------------------
-        // kMinimumResponseInterval constant (via reflection)
-        // ------------------------------------------------------------------
-
         [Test]
         public void KMinimumResponseInterval_IsFiveHundredMilliseconds()
         {
@@ -191,10 +175,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.That(value, Is.EqualTo(500));
         }
 
-        // ------------------------------------------------------------------
-        // DiscoveryNetworkAddressEndPoint (set by Initialize in base)
-        // ------------------------------------------------------------------
-
         [Test]
         public void Constructor_SetsDiscoveryNetworkAddressEndPoint()
         {
@@ -205,10 +185,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             // to a non-null IPEndPoint.
             Assert.That(publisher.DiscoveryNetworkAddressEndPoint, Is.Not.Null);
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static UdpDiscoveryPublisher NewPublisher(UaPubSubApplication app)
         {

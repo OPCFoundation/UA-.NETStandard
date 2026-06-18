@@ -702,9 +702,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
@@ -726,7 +732,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 }
             }
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
 
         private sealed class StubEncoder : INetworkMessageEncoder

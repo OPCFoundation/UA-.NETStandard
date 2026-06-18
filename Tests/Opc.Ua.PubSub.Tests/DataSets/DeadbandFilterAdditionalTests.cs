@@ -47,10 +47,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
     [TestSpec("6.2.11.1", Summary = "DeadbandFilter numeric type conversions and edge cases")]
     public sealed class DeadbandFilterAdditionalTests
     {
-        // ------------------------------------------------------------------
-        // Null-previous / null-current guard paths
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_BothNull_ReturnsFalse()
@@ -91,11 +87,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(result, Is.True, "current null → always passes.");
         }
-
-        // ------------------------------------------------------------------
-        // Numeric type conversions via the public PassesFilter API
-        // (each test exercises a different branch of TryGetDouble)
-        // ------------------------------------------------------------------
 
         [Test]
         [TestSpec("6.2.11.1")]
@@ -229,10 +220,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(result, Is.True);
         }
 
-        // ------------------------------------------------------------------
-        // Percent deadband – zero previous value fallback
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_PercentDeadband_ZeroPreviousValue_AnyDiffPasses()
@@ -261,10 +248,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(result, Is.False, "Zero change from zero previous must be suppressed.");
         }
 
-        // ------------------------------------------------------------------
-        // None deadband with positive value still uses equality, not numeric
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_NoneDeadbandWithPositiveValue_UsesEqualityCheck()
@@ -280,10 +263,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(result, Is.False, "Identical values must be suppressed under None deadband.");
         }
 
-        // ------------------------------------------------------------------
-        // Absolute threshold: exactly at boundary (not exceeded → suppress)
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_AbsoluteExactlyAtThreshold_Suppressed()
@@ -297,10 +276,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(result, Is.False, "Equal to threshold is not strictly above → suppress.");
         }
-
-        // ------------------------------------------------------------------
-        // Timestamp-changed path with numeric values (deadband applies)
-        // ------------------------------------------------------------------
 
         [Test]
         [TestSpec("6.2.11.1")]
@@ -358,10 +333,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(result, Is.True);
         }
 
-        // ------------------------------------------------------------------
-        // Non-numeric type falls back to equality for Absolute deadband
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_NonNumericEqualStrings_Suppressed()
@@ -387,10 +358,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(result, Is.True, "Different non-numeric values must pass.");
         }
-
-        // ------------------------------------------------------------------
-        // Status code change
-        // ------------------------------------------------------------------
 
         [Test]
         [TestSpec("6.2.11.1")]
@@ -436,10 +403,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(result, Is.False);
         }
 
-        // ------------------------------------------------------------------
-        // Zero deadband value with Absolute type: uses equality
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_AbsoluteDeadbandWithZeroValue_UsesEquality()
@@ -466,10 +429,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             Assert.That(result, Is.True, "Zero deadband: any change passes via equality path.");
         }
 
-        // ------------------------------------------------------------------
-        // Percent deadband with positive EuRange → scaled threshold
-        // ------------------------------------------------------------------
-
         [Test]
         [TestSpec("6.2.11.1")]
         public void PassesFilter_PercentWithZeroEuRange_FallsBackToPreviousMagnitude()
@@ -483,10 +442,6 @@ namespace Opc.Ua.PubSub.Tests.DataSets
 
             Assert.That(result, Is.False);
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static DataSetField Field(double v)
         {

@@ -42,9 +42,8 @@ namespace Opc.Ua.PubSub.Configuration
     /// <remarks>
     /// Implements the configuration-storage contract derived from
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.6">
-    /// Part 14 §9.1.6 PubSub configuration model</see>. The default
-    /// file-backed implementation ships in Phase 4; Phase 1 only
-    /// commits the contract.
+    /// Part 14 §9.1.6 PubSub configuration model</see>. A default
+    /// file-backed implementation is provided.
     /// </remarks>
     public interface IPubSubConfigurationStore
     {

@@ -56,10 +56,6 @@ namespace Opc.Ua.PubSub.Server.Tests
         private const string UdpProfile =
             "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
 
-        // -------------------------------------------------------------
-        // OnEnable / OnDisable
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.10.2")]
         public void OnEnableTwiceIsIdempotent()
@@ -84,10 +80,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 NewContext(), null!, default, outputs);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
         }
-
-        // -------------------------------------------------------------
-        // OnAddConnection failure paths
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.3.4")]
@@ -155,10 +147,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
 
-        // -------------------------------------------------------------
-        // OnRemoveConnection
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.3.5")]
         public void OnRemoveConnectionUnknownIdReturnsBadNodeIdUnknown()
@@ -198,10 +186,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
         }
-
-        // -------------------------------------------------------------
-        // OnSetConfiguration
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6")]
@@ -289,10 +273,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
         }
 
-        // -------------------------------------------------------------
-        // OnGetConfiguration
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.6")]
         public void OnGetConfigurationWhenDisabledReturnsAccessDenied()
@@ -305,10 +285,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
         }
-
-        // -------------------------------------------------------------
-        // OnAddPublishedDataItems / OnAddPublishedEvents
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6.4")]
@@ -347,10 +323,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
         }
-
-        // -------------------------------------------------------------
-        // OnRemovePublishedDataSet
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6")]
@@ -405,10 +377,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
         }
-
-        // -------------------------------------------------------------
-        // OnAddDataSetFolder / OnRemoveDataSetFolder
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.5")]
@@ -488,10 +456,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 NewContext(), null!, inputs, outputs);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
         }
-
-        // -------------------------------------------------------------
-        // OnAddWriterGroup
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.6")]
@@ -608,10 +572,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
         }
 
-        // -------------------------------------------------------------
-        // OnAddReaderGroup
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.6")]
         public void OnAddReaderGroupHappyPathReturnsGoodAndNodeId()
@@ -721,10 +681,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
         }
 
-        // -------------------------------------------------------------
-        // OnRemoveGroup
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.6")]
         public void OnRemoveGroupRoundTripsForWriterGroup()
@@ -802,10 +758,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
         }
-
-        // -------------------------------------------------------------
-        // OnAddDataSetWriter / OnRemoveDataSetWriter
-        // -------------------------------------------------------------
 
         [Test]
         [TestSpec("9.1.7")]
@@ -1007,10 +959,6 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
         }
 
-        // -------------------------------------------------------------
-        // OnAddDataSetReader / OnRemoveDataSetReader
-        // -------------------------------------------------------------
-
         [Test]
         [TestSpec("9.1.8")]
         public void OnAddDataSetReaderHappyPathReturnsGoodAndNodeId()
@@ -1208,10 +1156,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
         }
-
-        // -------------------------------------------------------------
-        // Helpers
-        // -------------------------------------------------------------
 
         private static PubSubMethodHandlers NewHandlers(
             Action<PubSubServerOptions>? configure = null)

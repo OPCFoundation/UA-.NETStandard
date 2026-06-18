@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Application
     /// Part 14 §9.1.2 PubSub application root</see>. Lifecycle is
     /// cascade-driven via <see cref="PubSubStateMachine"/>: enabling /
     /// disabling the application cascades to every connection.
-    /// Phase 17 added runtime mutation API per Part 14 §9.1.6.
+    /// Exposes a runtime mutation API per Part 14 §9.1.6.
     /// </remarks>
     public sealed class PubSubApplication : IPubSubApplication
     {
@@ -463,7 +463,7 @@ namespace Opc.Ua.PubSub.Application
                         "Failed to enable connection '{Name}'.", connection.Name);
                 }
             }
-            // Phase 16 §16a — start the metadata publisher AFTER the
+            // Start the metadata publisher AFTER the
             // connections are enabled so a transport is bound for the
             // initial announcement (Part 14 §7.3.4.8 / §7.2.4.6.4).
             var metaDataPublisher = new MetaDataPublisher(

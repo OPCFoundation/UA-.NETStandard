@@ -57,10 +57,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
         private const string UdpProfile =
             "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
 
-        // ------------------------------------------------------------------
-        // Constructor null-guard tests
-        // ------------------------------------------------------------------
-
         [Test]
         public void ConstructorRejectsNullConfiguration()
         {
@@ -207,10 +203,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 timeProvider: null!));
         }
 
-        // ------------------------------------------------------------------
-        // Property initialisation
-        // ------------------------------------------------------------------
-
         [Test]
         public async Task ConstructorInitializesName()
         {
@@ -279,10 +271,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await using PubSubConnection conn = NewConnection();
             Assert.That(conn.CurrentTransport, Is.Null);
         }
-
-        // ------------------------------------------------------------------
-        // Lifecycle tests
-        // ------------------------------------------------------------------
 
         [Test]
         public async Task EnableAsync_SetsStateOperational()
@@ -364,10 +352,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 async () => await conn.DisableAsync(cts.Token).ConfigureAwait(false));
         }
 
-        // ------------------------------------------------------------------
-        // TryRouteInboundMetaData – instance overload delegates to static
-        // ------------------------------------------------------------------
-
         [Test]
         public async Task TryRouteInboundMetaData_JsonMetaData_UpdatesRegistryAndReturnsTrue()
         {
@@ -412,10 +396,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
             Assert.That(routed, Is.False);
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         private static PubSubConnectionDataType NewConfig(
             string name = "test-conn",
@@ -494,7 +474,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
                 TimeProvider timeProvider)
-                => new StubTransport();
+            {
+                return new StubTransport();
+            }
         }
 
         private sealed class StubTransport : IPubSubTransport
@@ -528,11 +510,16 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
                 string? topic = null,
-                CancellationToken cancellationToken = default) => default;
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public System.Collections.Generic.IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 CancellationToken cancellationToken = default)
-                => System.Linq.AsyncEnumerable.Empty<PubSubTransportFrame>();
+            {
+                return System.Linq.AsyncEnumerable.Empty<PubSubTransportFrame>();
+            }
 
             public ValueTask DisposeAsync()
             {

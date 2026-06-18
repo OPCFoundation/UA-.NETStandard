@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Server.Tests
     /// <summary>
     /// Negative-path coverage for
     /// <c>OpcUaServerBuilderPubSubExtensions.AddPubSub</c>: missing
-    /// Phase 9 runtime + missing OPC UA server must surface
+    /// PubSub runtime + missing OPC UA server must surface
     /// <see cref="InvalidOperationException"/>.
     /// </summary>
     [TestFixture]

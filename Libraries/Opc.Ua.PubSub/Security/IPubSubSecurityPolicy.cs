@@ -41,9 +41,8 @@ namespace Opc.Ua.PubSub.Security
     /// <remarks>
     /// Implements the algorithm-policy contract defined in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3">
-    /// Part 14 §7.2.4.4.3 PubSub security headers</see>. The default
-    /// AES-CTR implementation will be added in the Phase 7 security
-    /// subsystem; Phase 1 only commits the contract.
+    /// Part 14 §7.2.4.4.3 PubSub security headers</see>. A default
+    /// AES-CTR implementation is provided by the security subsystem.
     /// </remarks>
     public interface IPubSubSecurityPolicy
     {

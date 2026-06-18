@@ -222,10 +222,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             });
         }
 
-        // -------------------------------------------------------------
-        // Mock harness — modelled on the WotCon ManagerHarness pattern.
-        // -------------------------------------------------------------
-
         private sealed class Harness : IDisposable
         {
             public Harness(Action<PubSubServerOptions>? configure = null, bool includeSks = false)

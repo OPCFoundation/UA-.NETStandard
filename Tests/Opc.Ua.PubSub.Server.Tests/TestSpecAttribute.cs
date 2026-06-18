@@ -34,9 +34,9 @@ namespace Opc.Ua.PubSub.Server.Tests
     /// <summary>
     /// Links a test method, fixture, or assembly to the OPC UA
     /// specification clause it validates. Mirrors the
-    /// <c>TestSpecAttribute</c> in the Phase 1-9 tests project so
-    /// the spec-coverage reporter can include the Phase 10
-    /// server-side fixtures.
+    /// <c>TestSpecAttribute</c> in the core tests project so
+    /// the spec-coverage reporter can include the server-side
+    /// fixtures.
     /// </summary>
     [AttributeUsage(
         AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly,

@@ -122,13 +122,17 @@ namespace Opc.Ua.PubSub.Bench
 
         [Benchmark]
         public ValueTask<ReadOnlyMemory<byte>> WrapAsync()
-            => m_sender.WrapAsync(s_outerPrefix, m_payload);
+        {
+            return m_sender.WrapAsync(s_outerPrefix, m_payload);
+        }
 
         [Benchmark]
         public ValueTask<UadpSecurityWrapper.UnwrapResult> UnwrapAsync()
-            => m_receiver.TryUnwrapAsync(
+        {
+            return m_receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
                 m_wrapped.Slice(s_outerPrefix.Length));
+        }
 
         private sealed class NullTelemetryContext : TelemetryContextBase
         {

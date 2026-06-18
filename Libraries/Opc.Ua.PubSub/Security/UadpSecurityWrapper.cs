@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.PubSub.Security
 {
     /// <summary>
-    /// Bridges the Phase 2 UADP encoder/decoder with the Phase 7
+    /// Bridges the UADP encoder/decoder with the
     /// security subsystem. Wraps an unsecured NetworkMessage with the
     /// SecurityHeader, encrypts the payload, and appends the
     /// signature; on receive does the inverse plus replay-window and

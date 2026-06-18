@@ -33,7 +33,7 @@ using Opc.Ua.PubSub.Diagnostics;
 namespace Opc.Ua.PubSub.Application
 {
     /// <summary>
-    /// Configuration bag bound by Phase 9's DI builder from the
+    /// Configuration bag bound by the DI builder from the
     /// <c>OpcUa:PubSub</c> configuration section. Kept POCO for AOT
     /// friendliness — no init-only requirements so the configuration
     /// binder can populate at runtime.

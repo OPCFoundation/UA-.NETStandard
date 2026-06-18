@@ -55,14 +55,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
     [Parallelizable(ParallelScope.All)]
     public sealed class MqttMetadataPublisherTests
     {
-        // ===================================================================
-        // MetaDataState
-        // ===================================================================
-
-        // ------------------------------------------------------------------
-        // Constructor
-        // ------------------------------------------------------------------
-
         [Test]
         public void MetaDataState_Constructor_WithoutTransportSettings_SetsUpdateTimeToZero()
         {
@@ -117,10 +109,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.That(state.MetaDataUpdateTime, Is.EqualTo(expectedInterval));
         }
 
-        // ------------------------------------------------------------------
-        // GetNextPublishInterval
-        // ------------------------------------------------------------------
-
         [Test]
         public void MetaDataState_GetNextPublishInterval_WhenNeverSent_ReturnsZero()
         {
@@ -172,10 +160,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             Assert.That(interval, Is.Zero);
         }
 
-        // ------------------------------------------------------------------
-        // Property setters
-        // ------------------------------------------------------------------
-
         [Test]
         public void MetaDataState_LastMetaDataProperty_CanBeSetAndRetrieved()
         {
@@ -199,14 +183,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
 
             Assert.That(state.LastSendTime, Is.EqualTo(now));
         }
-
-        // ===================================================================
-        // MqttMetadataPublisher
-        // ===================================================================
-
-        // ------------------------------------------------------------------
-        // Constructor / Start / Stop lifecycle
-        // ------------------------------------------------------------------
 
         [Test]
         public void MqttMetadataPublisher_StartThenStop_DoesNotThrow()
@@ -247,10 +223,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
             });
         }
 
-        // ------------------------------------------------------------------
-        // CanPublish (private) — reflection approved by user
-        // ------------------------------------------------------------------
-
         [Test]
         public void CanPublish_WhenConnectionAllows_ReturnsTrue()
         {
@@ -276,10 +248,6 @@ namespace Opc.Ua.PubSub.Tests.Transports
 
             Assert.That(result, Is.False);
         }
-
-        // ------------------------------------------------------------------
-        // Helpers
-        // ------------------------------------------------------------------
 
         /// <summary>
         /// Invokes the private <c>CanPublish</c> method via reflection.

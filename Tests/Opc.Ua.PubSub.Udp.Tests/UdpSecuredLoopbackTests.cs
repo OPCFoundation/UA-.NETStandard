@@ -50,8 +50,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
     /// <see cref="PubSubSecurityKeyRing"/>.
     /// </summary>
     /// <remarks>
-    /// Exercises the Phase 14 wire-up of Phase 7 security primitives
-    /// into the Phase 9 UDP transport pipeline. Covers
+    /// Exercises the wire-up of the security primitives
+    /// into the UDP transport pipeline. Covers
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3">
     /// Part 14 §8.3 Security</see> and
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.2.5">

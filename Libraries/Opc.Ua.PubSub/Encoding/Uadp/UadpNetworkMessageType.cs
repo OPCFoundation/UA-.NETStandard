@@ -32,7 +32,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// <summary>
     /// NetworkMessage subtype indicator (UADP). Stored as the high
     /// nibble of the legacy UADPNetworkMessageType byte; mirrors the
-    /// values previously surfaced in Phase 1 of the v1.5 stack so
+    /// values previously surfaced in the v1.5 stack so
     /// downstream code paths remain comparable.
     /// </summary>
     /// <remarks>
