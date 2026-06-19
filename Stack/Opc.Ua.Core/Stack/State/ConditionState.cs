@@ -209,13 +209,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Retrieves the branches for the current ConditionState.
-        /// Creates the branches dictionary if required
+        /// Returns a snapshot of the current branches for this ConditionState.
         /// </summary>
         /// <remarks>
         /// Function exists because constructor is in auto generated code.
         /// Returns a snapshot copy so the caller can safely enumerate it
         /// while other threads concurrently modify the branch collection.
+        /// If no branches exist, an empty dictionary is returned.
         /// </remarks>
         public Dictionary<string, ConditionState> GetBranches()
         {
