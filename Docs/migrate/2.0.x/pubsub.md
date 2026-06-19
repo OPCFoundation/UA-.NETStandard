@@ -13,7 +13,7 @@ required for existing consumers.
 ## Contents
 
 1. [PubSub assemblies and NuGet packages renamed and split](#1-pubsub-assemblies-and-nuget-packages-renamed-and-split)
-2. [`UaPubSubApplication.Create*` and the legacy types are `[Obsolete]`](#2-uapubsubapplicationcreate-and-the-legacy-types-are-obsolete)
+2. [`UaPubSubApplication.Create*` and the legacy 1.04 API are removed](#2-uapubsubapplicationcreate-and-the-legacy-104-api-are-removed)
 3. [AMQP transport removed](#3-amqp-transport-removed-breaking)
 4. [JSON encoder switched to System.Text.Json](#4-json-encoder-switched-to-systemtextjson)
 5. [`JsonEncodingMode` Reversible/Non-Reversible encodings removed](#5-jsonencodingmode-reversiblenon-reversible-encodings-removed)
@@ -34,7 +34,6 @@ assembly ships as its own NuGet package under the
 | `Opc.Ua.PubSub.Udp`     | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Udp`    | UDP datagram transport (Part 14 §7.3.2).                        |
 | `Opc.Ua.PubSub.Mqtt`    | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt`   | MQTT broker transport (Part 14 §7.3.4).                         |
 | `Opc.Ua.PubSub.Server`  | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Server` | Server-side address-space integration (Part 14 §9).             |
-| `Opc.Ua.PubSub.Legacy`  | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` | The `[Obsolete]` 1.04 compatibility shims (see §2).             |
 
 Consumers that previously referenced the single `Opc.Ua.PubSub` package must add
 the transport package(s) they use (`...PubSub.Udp` and/or `...PubSub.Mqtt`) and,
@@ -42,36 +41,29 @@ for address-space integration, the `...PubSub.Server` package. The root
 namespaces follow the assembly names (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
 `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`).
 
-The legacy 1.04 types listed in §2 have moved out of the `Opc.Ua.PubSub` assembly
-into a dedicated `Opc.Ua.PubSub.Legacy` assembly/package. Their namespaces are
-unchanged (they remain under `Opc.Ua.PubSub.*`), so existing code compiles
-without edits once the `OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` package
-is referenced. `Opc.Ua.PubSub.Legacy` depends on `Opc.Ua.PubSub` (one-way); the
-modern assembly does **not** reference the legacy shims, so new code that does
-not use the obsolete API does not pull in `Opc.Ua.PubSub.Legacy`.
+The legacy 1.04 types listed in §2 are **removed** in 2.0 — there is no
+compatibility shim assembly or package. Existing code that uses the obsolete API
+must be migrated to the modern fluent builder / DI surface as described below.
 
-## 2. `UaPubSubApplication.Create*` and the legacy types are `[Obsolete]`
+## 2. `UaPubSubApplication.Create*` and the legacy 1.04 API are removed
 
-`UaPubSubApplication.Create(...)` and its overloads remain as thin shims that
-defer to the new `IPubSubApplication` and emit `[Obsolete]` warnings (`UA0030`).
-The shim covers the most common "create from XML configuration file" flow. The
-following types are also marked `[Obsolete]` with no in-place rewrite — migrate
-to the fluent builder or the DI extensions:
+`UaPubSubApplication.Create(...)` (and its overloads) and the legacy 1.04 PubSub
+types are **removed** in 2.0. They are not shipped as `[Obsolete]` shims and there
+is no `Opc.Ua.PubSub.Legacy` compatibility package — migrate to the fluent builder
+or the DI extensions:
 
-| Legacy type                       | New replacement                                              |
+| Removed legacy type               | New replacement                                              |
 | --------------------------------- | ------------------------------------------------------------ |
 | `UaPubSubApplication`             | `IPubSubApplication` (built via `PubSubApplicationBuilder`)  |
 | `IUaPubSubConnection`             | `PubSubConnection` (sealed, immutable)                       |
 | `UaPubSubConnection`              | `PubSubConnection`                                           |
 | `IUaPublisher` / `UaPublisher`    | `IPubSubScheduler` + `WriterGroup` (engine-driven)           |
 | `UaPubSubConfigurator`            | `PubSubApplicationBuilder` (fluent) + `IPubSubConfigurationStore` |
-| `IUaPubSubDataStore`              | `IPublishedDataSetSource` (per-DataSet provider model)       |
+| `PubSubJsonEncoder` / `PubSubJsonDecoder` | `Opc.Ua.PubSub.Encoding.Json.JsonEncoder` / `JsonDecoder` (System.Text.Json) |
 
-> **Assembly move:** every legacy type in this table (except `IUaPubSubDataStore`,
-> which the modern bridge still consumes and therefore stays in `Opc.Ua.PubSub`)
-> now ships from the `Opc.Ua.PubSub.Legacy` assembly/package described in §1.
-> Reference `OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` to keep compiling
-> against the shims; the namespaces are unchanged.
+> **`IUaPubSubDataStore`** remains in `Opc.Ua.PubSub` (marked `[Obsolete]`,
+> `UA0023`) because the modern bridge still consumes it; migrate to
+> `IPublishedDataSetSource` (per-DataSet provider model) when convenient.
 
 Codemod recipe:
 

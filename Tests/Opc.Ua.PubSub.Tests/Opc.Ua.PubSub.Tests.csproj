@@ -5,14 +5,13 @@
     <RootNamespace>Opc.Ua.PubSub.Tests</RootNamespace>
     <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;UA0023;CS0618;CS0612</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;UA0023;CS0618</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" PrivateAssets="all" />
     <PackageReference Include="Moq" />
@@ -36,10 +35,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
-    <!-- The legacy 1.04 shim types (UaPubSubApplication, the 1.04 UDP/MQTT
-         transports and UADP/JSON encoders, ...) referenced by the legacy
-         coverage tests now live in Opc.Ua.PubSub.Legacy. -->
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Legacy\Opc.Ua.PubSub.Legacy.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />

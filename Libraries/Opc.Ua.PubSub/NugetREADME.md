@@ -34,8 +34,9 @@ builder.Services.AddOpcUa()
             .UseConfigurationFile("publisher.xml")));
 ```
 
-The legacy 1.04 `UaPubSubApplication.Create(...)` API now lives in the
-`OPCFoundation.NetStandard.Opc.Ua.PubSub.Legacy` package.
+The legacy 1.04 `UaPubSubApplication.Create(...)` API has been removed in 2.0.
+See [the PubSub migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md)
+to move to the fluent builder / DI surface.
 
 ## Target frameworks
 

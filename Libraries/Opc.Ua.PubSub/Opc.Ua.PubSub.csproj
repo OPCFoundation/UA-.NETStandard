@@ -11,13 +11,11 @@
     <Nullable>enable</Nullable>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!--
-      Legacy 1.04 PubSub types (UaPubSubApplication, IUaPubSubConnection, ...)
-      are marked [Obsolete(DiagnosticId = "UA0023")] so consumer code sees
-      the migration warning. The library itself still references them
-      from other 1.04 internals (UaPubSubConnection, MqttPubSubConnection,
-      UdpPubSubConnection, UadpDiscoveryMessages, ObjectFactory, ...),
-      so we suppress UA0023 + CS0618 within the library while keeping the
-      warnings active for downstream consumers.
+      IUaPubSubDataStore is marked [Obsolete(DiagnosticId = "UA0023")] so consumer
+      code sees the migration warning, but the modern PubSubApplicationBuilder and
+      DataStoreBackedPublishedDataSetSource still consume it, so we suppress
+      UA0023 + CS0618 within the library while keeping the warnings active for
+      downstream consumers.
     -->
     <NoWarn>$(NoWarn);UA0023;CS0618</NoWarn>
   </PropertyGroup>
@@ -34,13 +32,6 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.PubSub.Legacy.Tests" />
-    <!--
-      The legacy 1.04 shims live in Opc.Ua.PubSub.Legacy and forward to the
-      modern runtime internals, so the modern assembly exposes its internals to
-      the legacy compatibility assembly.
-    -->
-    <InternalsVisibleTo Include="Opc.Ua.PubSub.Legacy" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
