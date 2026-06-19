@@ -958,7 +958,8 @@ namespace Opc.Ua.SourceGeneration
                     {
                         state.NodeId = nodeId;
                     }
-                    else if (context.NodeIdFactory != null)
+                    else if (context.NodeIdFactory != null &&
+                        state.NodeId.Equals({{Tokens.NodeIdConstant}}))
                     {
                         state.NodeId = context.NodeIdFactory.New(context, state);
                     }
@@ -1818,6 +1819,7 @@ namespace Opc.Ua.SourceGeneration
                 var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                {{Tokens.InstanceNodeIdOverride}}
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
@@ -1863,6 +1865,7 @@ namespace Opc.Ua.SourceGeneration
                 var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                {{Tokens.InstanceNodeIdOverride}}
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.NumericId = {{Tokens.NumericIdValue}};
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
@@ -1916,6 +1919,7 @@ namespace Opc.Ua.SourceGeneration
                 var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                {{Tokens.InstanceNodeIdOverride}}
                 {{Tokens.MethodDeclarationId}}
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
@@ -2139,6 +2143,36 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
             };
 
+            """);
+
+        /// <summary>
+        /// Wrapper template for the singleton-instance NodeId override
+        /// emitted right after the type-level <c>state.NodeId</c>
+        /// assignment in <c>Create_ChildObject</c> / <c>Create_ChildVariable</c>
+        /// / <c>Create_ChildMethod</c>. Renders only when at least one
+        /// singleton-instance branch is collected; otherwise the token
+        /// expands to nothing.
+        /// </summary>
+        public static readonly TemplateString InstanceNodeIdOverride = TemplateString.Parse(
+            $$"""
+            if (forInstance && parent != null)
+            {
+                {{Tokens.ListOfInstanceNodeIdBranches}}
+            }
+            """);
+
+        /// <summary>
+        /// One per-singleton branch of the singleton-instance
+        /// <c>state.NodeId</c> override dispatch. Rebinds
+        /// <c>state.NodeId</c> to <see cref="Tokens.NodeIdConstant"/>
+        /// when the parent owner matches <see cref="Tokens.ParentNodeIdConstant"/>.
+        /// </summary>
+        public static readonly TemplateString InstanceNodeIdBranch = TemplateString.Parse(
+            $$"""
+            {{Tokens.IfOrElseIf}} (parent.NodeId.Equals({{Tokens.ParentNodeIdConstant}}))
+            {
+                state.NodeId = {{Tokens.NodeIdConstant}};
+            }
             """);
 
         /// <summary>

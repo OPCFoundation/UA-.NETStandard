@@ -175,9 +175,16 @@ namespace Opc.Ua.Client.Tests.Identity
 
             public DateTime ExpiresAt => DateTime.MaxValue;
 
-            public bool CanSatisfy(UserTokenPolicy policy, IdentitySelectionContext context)
+            public ValueTask<CanSatisfyResult> CanSatisfyAsync(
+                UserTokenPolicy policy,
+                IdentitySelectionContext context,
+                CancellationToken ct = default)
             {
-                return policy.TokenType == m_tokenType;
+                return new ValueTask<CanSatisfyResult>(
+                    policy.TokenType == m_tokenType
+                        ? CanSatisfyResult.Yes
+                        : CanSatisfyResult.No(
+                            $"TokenTypeNotSupported (provider handles {m_tokenType}, policy is {policy.TokenType})."));
             }
 
             public ValueTask<IUserIdentity> GetIdentityAsync(

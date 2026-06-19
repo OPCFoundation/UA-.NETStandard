@@ -308,6 +308,19 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         [Test]
+        public void IsEqualWithNaNMinimumSamplingIntervalReturnsTrue()
+        {
+            // NaN != NaN under the != operator; IsEqual must remain reflexive so a
+            // node round-tripped through encode/decode compares equal to itself even
+            // when MinimumSamplingInterval decodes to NaN. Regression for the binary
+            // encoder idempotency fuzz gate (issue #3546).
+            var node1 = new VariableNode { MinimumSamplingInterval = double.NaN };
+            var node2 = new VariableNode { MinimumSamplingInterval = double.NaN };
+
+            Assert.That(node1.IsEqual(node2), Is.True);
+        }
+
+        [Test]
         public void IsEqualWithDifferentBaseFieldReturnsFalse()
         {
             var node1 = new VariableNode { NodeId = new NodeId(1u) };

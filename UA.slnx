@@ -128,7 +128,6 @@
     <File Path="Docs/TransferSubscription.md" />
     <File Path="Docs/McpServer.md" />
     <File Path="Docs/MigrationGuide.md" />
-    <File Path="Docs/NugetREADME.md" />
     <File Path="Docs/README.md" />
   </Folder>
   <Folder Name="/Solution Items/Skills/">

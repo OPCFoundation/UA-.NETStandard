@@ -254,7 +254,12 @@ namespace Opc.Ua
                         x == (value.TryGetAsXml(out XmlElement x2) ? x2 : default),
                     IEncodeable e => e.IsEqual(
                         value.TryGetValue(out IEncodeable? e2) ? e2 : default),
-                    _ => false
+                    // No body (Encoding == None): equal when the other side also
+                    // has no body. The matching Encoding guard above guarantees
+                    // this, but the explicit null check keeps Equals reflexive for
+                    // ExtensionObjects that carry a TypeId without a body (e.g. an
+                    // AdditionalHeader decoded from a binary "no body" encoding).
+                    _ => value.m_body is null
                 };
             }
             return CoreUtils.IsEqual(m_body!, value.m_body!);
