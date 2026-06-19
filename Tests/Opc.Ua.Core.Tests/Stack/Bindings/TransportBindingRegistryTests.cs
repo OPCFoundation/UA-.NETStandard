@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
@@ -269,6 +271,114 @@ namespace Opc.Ua.Bindings.Tests
             Assert.That(registry.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<FakeListenerFactory>(),
                 "The second configurator must override the first for the same URI scheme.");
+        }
+
+        [Test]
+        public void GetListenerFactoryThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.GetListenerFactory(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void GetChannelFactoryThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.GetChannelFactory(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void HasListenerFactoryThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.HasListenerFactory(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void HasChannelFactoryThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.HasChannelFactory(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void CreateListenerThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.CreateListener(null!, m_telemetry),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void CreateListenerThrowsOnNullTelemetry()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.CreateListener(Utils.UriSchemeOpcTcp, null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("telemetry"));
+        }
+
+        [Test]
+        public void CreateChannelThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.CreateChannel(null!, m_telemetry),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void CreateChannelThrowsOnNullTelemetry()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.CreateChannel(Utils.UriSchemeOpcTcp, null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("telemetry"));
+        }
+
+        [Test]
+        public void ITransportChannelBindingsCreateForwardsToCreateChannel()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+
+            // Cast to the explicit interface implementation.
+            ITransportChannelBindings bindings = registry;
+
+            // Unknown scheme → null (same behaviour as CreateChannel).
+            Assert.That(bindings.Create("opc.unknown", m_telemetry), Is.Null);
+        }
+
+        [Test]
+        public void CreateListenerReturnsInstanceForKnownScheme()
+        {
+            DefaultTransportBindingRegistry registry =
+                DefaultTransportBindingRegistry.WithDefaultTcp();
+
+            using ITransportListener? listener =
+                registry.CreateListener(Utils.UriSchemeOpcTcp, m_telemetry);
+
+            Assert.That(listener, Is.Not.Null);
+        }
+
+        [Test]
+        public void CreateChannelReturnsInstanceForKnownScheme()
+        {
+            DefaultTransportBindingRegistry registry =
+                DefaultTransportBindingRegistry.WithDefaultTcp();
+
+            using ITransportChannel? channel =
+                registry.CreateChannel(Utils.UriSchemeOpcTcp, m_telemetry);
+
+            Assert.That(channel, Is.Not.Null);
         }
 
         private sealed class FakeListenerFactory : ITransportListenerFactory
