@@ -1311,7 +1311,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 CancellationToken cancellationToken = default)
             {
                 _ = cancellationToken;
-                return AsyncEnumerable.Empty<PubSubTransportFrame>();
+                return TestAsyncEnumerable.Empty<PubSubTransportFrame>();
             }
 
             public ValueTask DisposeAsync()

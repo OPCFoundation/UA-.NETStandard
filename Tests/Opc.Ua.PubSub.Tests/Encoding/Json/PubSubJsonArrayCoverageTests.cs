@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Newtonsoft.Json;
 using NUnit.Framework;
@@ -357,8 +358,13 @@ namespace OpcUaPubSubJsonTests
 
             using var nonReversible = new PubSubJsonEncoder(context, PubSubJsonEncoding.NonReversible);
             nonReversible.WriteByteString("nullBytes", null!, 0, 0);
+#if NET5_0_OR_GREATER
             nonReversible.WriteByteString("spanBytes", new byte[] { 1, 2, 3 }.AsSpan());
             nonReversible.WriteByteString("emptySpan", ReadOnlySpan<byte>.Empty);
+#else
+            nonReversible.WriteByteString("spanBytes", ByteString.Create(new byte[] { 1, 2, 3 }));
+            nonReversible.WriteByteString("emptySpan", ByteString.Create(ReadOnlySpan<byte>.Empty));
+#endif
             nonReversible.WriteXmlElement("emptyXml", default);
             nonReversible.WriteXmlElement("xml", XmlElement.From("<x>value</x>"));
             nonReversible.WriteNodeId("guidNode", new NodeId(new Guid("33333333-3333-3333-3333-333333333333"), 1));

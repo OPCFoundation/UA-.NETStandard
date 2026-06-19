@@ -36,6 +36,9 @@ using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Packets;
 using MQTTnet.Protocol;
+#if !NET8_0_OR_GREATER
+using MQTTnet.Client;
+#endif
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Legacy.Tests.Encoding;

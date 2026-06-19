@@ -217,7 +217,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task SendNetworkMessageAsync_WithLargeUadpPayload_UsesChunkingAsync()
         {
             byte[] payload = new byte[48];
-            Array.Fill(payload, (byte)0x5A);
+            for (int i = 0; i < payload.Length; i++)
+            {
+                payload[i] = 0x5A;
+            }
             var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, payload);
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
@@ -760,7 +763,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 CancellationToken cancellationToken = default)
             {
                 EncodeCallCount++;
-                return ValueTask.FromResult(m_payload);
+                return new ValueTask<ReadOnlyMemory<byte>>(m_payload);
             }
         }
 
@@ -783,7 +786,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 PubSubNetworkMessageContext context,
                 CancellationToken cancellationToken = default)
             {
-                return ValueTask.FromResult(m_decode(frame, context, cancellationToken));
+                return new ValueTask<PubSubNetworkMessage?>(m_decode(frame, context, cancellationToken));
             }
         }
 
@@ -891,14 +894,14 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     throw new InvalidOperationException("current key unavailable");
                 }
 
-                return ValueTask.FromResult(CreateKey());
+                return new ValueTask<PubSubSecurityKey>(CreateKey());
             }
 
             public ValueTask<PubSubSecurityKey?> TryGetKeyAsync(
                 uint tokenId,
                 CancellationToken cancellationToken = default)
             {
-                return ValueTask.FromResult(
+                return new ValueTask<PubSubSecurityKey?>(
                     m_acceptInbound ? CreateKey() : null);
             }
 

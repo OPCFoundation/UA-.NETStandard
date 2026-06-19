@@ -518,7 +518,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public System.Collections.Generic.IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 CancellationToken cancellationToken = default)
             {
-                return System.Linq.AsyncEnumerable.Empty<PubSubTransportFrame>();
+                return TestAsyncEnumerable.Empty<PubSubTransportFrame>();
             }
 
             public ValueTask DisposeAsync()
