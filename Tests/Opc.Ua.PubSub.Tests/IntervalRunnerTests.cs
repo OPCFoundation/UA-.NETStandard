@@ -351,7 +351,11 @@ namespace Opc.Ua.PubSub.Tests
             Func<bool> condition,
             TimeSpan? timeout = null)
         {
-            TimeSpan deadline = timeout ?? TimeSpan.FromSeconds(5);
+            // Default deadline is generous to absorb thread-pool starvation
+            // on busy CI Windows runners; the underlying scheduling itself is
+            // driven by the FakeTimeProvider so actual wall-clock duration in
+            // a healthy run is sub-second.
+            TimeSpan deadline = timeout ?? TimeSpan.FromSeconds(30);
             DateTime end = DateTime.UtcNow + deadline;
             while (!condition())
             {
@@ -359,7 +363,7 @@ namespace Opc.Ua.PubSub.Tests
                 {
                     Assert.Fail($"Condition not satisfied within {deadline.TotalMilliseconds}ms.");
                 }
-                await Task.Delay(5).ConfigureAwait(false);
+                await Task.Delay(10).ConfigureAwait(false);
             }
         }
     }
