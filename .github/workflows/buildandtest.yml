@@ -50,8 +50,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
-        os: [ubuntu-latest, windows-latest]
+        # Linux + macOS only — Windows is covered by the AzDO testfastpr stage,
+        # so the GH Actions matrix focuses on the platforms AzDO does not.
+        os: [ubuntu-latest, macOS-latest]
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
           - framework: 'net10.0'
@@ -139,7 +140,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Linux only — Windows AoT is covered by the AzDO testaot stage.
+        # macOS AoT would require adding osx-x64/osx-arm64 publish path
+        # handling below; left for a follow-up.
+        os: [ubuntu-latest]
         include:
           - dotnet-version: '10.0.x'
             configuration: 'Release'

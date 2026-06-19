@@ -102,17 +102,11 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ mac = "${{ variables.macImage }}" }'
+      agents: '@{ windows = "${{ variables.windowsImage }}" }'
       jobnamesuffix: net100
       customtestarget: net10.0
-      hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # Skip macOS tests on draft GitHub PRs; non-PR builds and non-draft PRs
-      # run them as usual.  Note: System.PullRequest.IsDraft is undocumented for
-      # GitHub-PR triggers but exposed in practice; if it stops being set, the
-      # condition safe-degrades to "always run mac".
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
