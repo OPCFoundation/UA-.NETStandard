@@ -303,6 +303,149 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// <see cref="WebSocketServerByteTransport"/> exposes the
+        /// <see cref="EndPoint"/> values passed to its constructor.
+        /// </summary>
+        [Test]
+        public async Task ServerTransportEndpointPropertiesReturnConstructorValues()
+        {
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            var local = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 4840);
+            var remote = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345);
+
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: local,
+                remoteEndpoint: remote,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            Assert.That(transport.LocalEndpoint, Is.EqualTo(local));
+            Assert.That(transport.RemoteEndpoint, Is.EqualTo(remote));
+        }
+
+        /// <summary>
+        /// <see cref="WebSocketServerByteTransport.ConnectAsync"/> must
+        /// throw <see cref="NotSupportedException"/> because the server
+        /// transport is built from an already-accepted WebSocket.
+        /// </summary>
+        [Test]
+        public async Task ServerTransportConnectAsyncThrowsNotSupported()
+        {
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            Assert.ThrowsAsync<NotSupportedException>(
+                async () => await transport.ConnectAsync(
+                    new Uri("opc.wss://localhost:4840"),
+                    CancellationToken.None).ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Sending on a closed <see cref="WebSocketServerByteTransport"/>
+        /// must throw <see cref="StatusCodes.BadConnectionClosed"/>.
+        /// </summary>
+        [Test]
+        public async Task SendChunkAsyncOnClosedTransportThrowsBadConnectionClosed()
+        {
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            transport.Close();
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(
+                    new byte[8].AsMemory(),
+                    CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+        }
+
+        /// <summary>
+        /// <see cref="WebSocketServerByteTransport"/> must reject null
+        /// WebSocket in the constructor.
+        /// </summary>
+        [Test]
+        public void ServerTransportConstructorRejectsNullSocket()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                _ = new WebSocketServerByteTransport(
+                    null!,
+                    localEndpoint: null,
+                    remoteEndpoint: null,
+                    m_bufferManager,
+                    kBufferSize,
+                    m_telemetry));
+        }
+
+        /// <summary>
+        /// <see cref="WebSocketClientByteTransport.ConnectAsync"/> must
+        /// throw <see cref="ArgumentNullException"/> when the URL is null.
+        /// </summary>
+        [Test]
+        public void ClientTransportConnectAsyncRejectsNullUrl()
+        {
+            using var transport = new WebSocketClientByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await transport.ConnectAsync(null!, CancellationToken.None)
+                    .ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// <see cref="WebSocketClientByteTransport.LocalEndpoint"/> is
+        /// always <c>null</c> (client sockets have no bound local address
+        /// exposed via this property).
+        /// </summary>
+        [Test]
+        public void ClientTransportLocalEndpointIsNull()
+        {
+            using var transport = new WebSocketClientByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+            Assert.That(transport.LocalEndpoint, Is.Null);
+        }
+
+        /// <summary>
+        /// <see cref="WebSocketClientByteTransport.RemoteEndpoint"/> is
+        /// <c>null</c> before a successful <c>ConnectAsync</c>.
+        /// </summary>
+        [Test]
+        public void ClientTransportRemoteEndpointIsNullBeforeConnect()
+        {
+            using var transport = new WebSocketClientByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+            Assert.That(transport.RemoteEndpoint, Is.Null);
+        }
+
+        /// <summary>
+        /// The Implementation and Features properties are set correctly.
+        /// </summary>
+        [Test]
+        public async Task TransportImplementationAndFeaturesAreCorrect()
+        {
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            Assert.That(transport.Implementation, Is.EqualTo("UA-WSS"));
+            Assert.That(transport.Features, Is.EqualTo(TransportChannelFeatures.Reconnect));
+        }
+
+        /// <summary>
         /// Creates a pair of <see cref="WebSocket"/> instances connected
         /// to each other over a loopback TCP <see cref="NetworkStream"/>.
         /// The handshake is bypassed via <see cref="WebSocket.CreateFromStream"/>.
