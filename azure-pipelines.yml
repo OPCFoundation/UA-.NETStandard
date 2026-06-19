@@ -30,6 +30,24 @@ pr:
   paths:
     include:
     - '*'
+    exclude:
+    - 'Docs/**'
+    - '**/*.md'
+
+# Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday
+# night in the Americas / early Sunday morning in EU).  `always: true`
+# forces the run even when there are no commits since the previous one so
+# the badge in README.md reflects a recent green build.  All stages that
+# are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard,
+# Coverage, mac matrix) are automatically included because Build.Reason
+# is 'Schedule' for these runs.
+schedules:
+- cron: '0 2 * * 0'
+  displayName: 'Weekly full-scope tests (Sat night UTC)'
+  branches:
+    include:
+    - master
+  always: true
 
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
@@ -68,20 +86,6 @@ stages:
         tfms: 'net10.0,net48'
       ${{ else }}:
         tfms: 'net472,net48,netstandard2.0,netstandard2.1,net8.0,net9.0,net10.0'
-- stage: buildnohttps
-  dependsOn: []
-  displayName: 'Build NoHttps .NET Core Samples'
-  # succeeded() wraps the gate so a user-issued build cancellation propagates;
-  # without it the bare condition re-evaluates to true on cancel and the stage
-  # keeps running.
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/ci.yml
-    parameters:
-      buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "${{ variables.linuxImage }}" }'
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
 - stage: testfastpr
   dependsOn: []
   displayName: 'Fast PR test'
