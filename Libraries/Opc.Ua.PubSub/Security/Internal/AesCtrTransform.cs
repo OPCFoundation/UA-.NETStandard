@@ -153,16 +153,16 @@ namespace Opc.Ua.PubSub.Security.Internal
             ReadOnlySpan<byte> input,
             Span<byte> output)
         {
+            // AES-CTR is constructed by encrypting deterministic counter
+            // blocks with the raw AES block cipher and XOR-ing the keystream
+            // with the message. The block cipher is only ever applied to
+            // unique counter blocks, never to message data directly, so the
+            // standard ECB risks (block-level pattern leakage, replay) do not
+            // apply to the message. Newer targets use the allocation-free
+            // one-shot EncryptEcb API; older targets fall back to an
+            // ECB ICryptoTransform that is fed one unique counter block at a
+            // time.
             using var aes = Aes.Create();
-            // ECB is intentional here: AES-CTR is constructed by
-            // encrypting deterministic counter blocks with the raw block
-            // cipher and XOR-ing the keystream with the message. The
-            // ECB primitive is never applied to message data directly,
-            // so the standard ECB risks (block-level pattern leakage)
-            // do not apply.
-#pragma warning disable CA5358
-            aes.Mode = CipherMode.ECB;
-#pragma warning restore CA5358
             aes.Padding = PaddingMode.None;
             byte[] aesKey = key.ToArray();
             byte[] counterBuffer = ArrayPool<byte>.Shared.Rent(BlockSize);
@@ -170,23 +170,33 @@ namespace Opc.Ua.PubSub.Security.Internal
             try
             {
                 aes.Key = aesKey;
-
+#if !NET6_0_OR_GREATER
+#pragma warning disable CA5358
+                aes.Mode = CipherMode.ECB;
+#pragma warning restore CA5358
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
-
+#endif
                 int processed = 0;
                 while (processed < input.Length)
                 {
                     counter.CopyTo(counterBuffer);
+#if NET6_0_OR_GREATER
+                    int produced = aes.EncryptEcb(
+                        counterBuffer.AsSpan(0, BlockSize),
+                        keystreamBuffer.AsSpan(0, BlockSize),
+                        PaddingMode.None);
+#else
                     int produced = encryptor.TransformBlock(
                         counterBuffer,
                         0,
                         BlockSize,
                         keystreamBuffer,
                         0);
+#endif
                     if (produced != BlockSize)
                     {
                         throw new CryptographicException(
-                            "AES-ECB block transform produced an unexpected length.");
+                            "AES-CTR keystream block had an unexpected length.");
                     }
 
                     int remaining = input.Length - processed;
