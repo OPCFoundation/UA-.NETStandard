@@ -320,7 +320,28 @@ namespace Opc.Ua.Server.Tests
                     MethodIds.WellKnownRole_Engineer_RemoveIdentity,
                     MethodIds.WellKnownRole_Supervisor_RemoveApplication,
                     MethodIds.WellKnownRole_ConfigureAdmin_RemoveEndpoint,
-                    MethodIds.WellKnownRole_SecurityAdmin_AddIdentity
+                    MethodIds.WellKnownRole_SecurityAdmin_AddIdentity,
+
+                    // Mandatory descendants of patched singleton methods
+                    // must also resolve at their well-known instance
+                    // NodeIds. Synthesized InputArguments / OutputArguments
+                    // properties used to silently take the type-level
+                    // NodeId because the Add{Child} fluent extension only
+                    // patched the top-level method NodeId; the generator
+                    // now dispatches the singleton-instance child factory
+                    // on the owner's NodeId, so reads against these
+                    // well-known instance NodeIds no longer return
+                    // BadNodeIdUnknown.
+                    VariableIds.Server_GetMonitoredItems_InputArguments,
+                    VariableIds.Server_GetMonitoredItems_OutputArguments,
+                    VariableIds.Server_ResendData_InputArguments,
+                    VariableIds.WellKnownRole_Observer_AddIdentity_InputArguments,
+                    VariableIds.WellKnownRole_Observer_AddApplication_InputArguments,
+                    VariableIds.WellKnownRole_Operator_AddEndpoint_InputArguments,
+                    VariableIds.WellKnownRole_Engineer_RemoveIdentity_InputArguments,
+                    VariableIds.WellKnownRole_Supervisor_RemoveApplication_InputArguments,
+                    VariableIds.WellKnownRole_ConfigureAdmin_RemoveEndpoint_InputArguments,
+                    VariableIds.WellKnownRole_SecurityAdmin_AddIdentity_InputArguments
                 ];
 
                 foreach (NodeId sdkAddedNodeId in sdkAddedNodeIds)

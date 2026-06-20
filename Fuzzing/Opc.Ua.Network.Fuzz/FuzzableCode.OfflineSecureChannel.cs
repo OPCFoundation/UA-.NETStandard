@@ -29,7 +29,7 @@
 using System;
 using System.IO;
 using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.Pcap.Dissection;
+using Opc.Ua.Pcap.Dissection;
 
 namespace Opc.Ua.Fuzzing
 {

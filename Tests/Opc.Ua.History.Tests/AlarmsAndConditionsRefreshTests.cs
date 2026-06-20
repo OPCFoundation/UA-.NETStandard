@@ -38,10 +38,23 @@ namespace Opc.Ua.History.Tests
     /// conformance units. Verifies that ConditionRefresh and
     /// ConditionRefresh2 methods exist and work correctly.
     /// </summary>
+    /// <remarks>
+    /// Bounded with <see cref="CancelAfterAttribute"/> to prevent a known
+    /// macOS hang where one of the concurrent <c>ConditionRefresh2</c>
+    /// tests can deadlock the server-side subscription refresh path
+    /// (observed in build #14738 on the macOS net10.0 runner: server logs
+    /// <c>DoConditionRefresh2 Exited Unexpectedly</c> followed by a
+    /// 10-minute idle timeout). Without a per-test deadline NUnit waits
+    /// indefinitely, the entire test host hangs, and the run is killed by
+    /// <c>--blame-hang-timeout</c>. The 60s budget is well above the
+    /// healthy-run cost (~1s per test) and turns the deadlock into a
+    /// per-test cancellation that lets the rest of the suite complete.
+    /// </remarks>
     [NonParallelizable]
     [TestFixture]
     [Category("Conformance")]
     [Category("AlarmsAndConditions")]
+    [CancelAfter(60_000)]
     public class AlarmsAndConditionsRefreshTests : AlarmsAndConditionsTestFixture
     {
         [SetUp]
