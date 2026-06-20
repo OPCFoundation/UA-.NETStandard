@@ -6,6 +6,7 @@
     <RootNamespace>Opc.Ua.Client</RootNamespace>
     <Description>OPC UA Client Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <DefineConstants>$(DefineConstants);OPCUA_V1_CLIENT</DefineConstants>
@@ -58,4 +59,7 @@
     </ProjectReference>
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 </Project>

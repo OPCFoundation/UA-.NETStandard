@@ -85,16 +85,11 @@ jobs:
       projects: |
         **/*.Tests.csproj
         !**/Opc.Ua.Aot.Tests.csproj
-      # --blame (plain) + --blame-hang-timeout 5m: name the in-flight test when
-      # the test host hangs OR crashes (sequence collector); abort any single
-      # test exceeding 5 min. --blame-hang-dump-type 'none' keeps artifacts
-      # small. We intentionally do NOT add --blame-crash because
-      # --blame-crash-dump-type does not accept 'none' (only full/mini); plain
-      # --blame already names the in-flight test on crash via the Sequence file.
-      # See test.yml for the full background (build 14598 log 933 silent hang,
-      # build 14707 log 1067 crash with no name surfaced).
+      # --blame-hang-timeout/--blame-hang-dump-type: kill (and name) any single test
+      # that exceeds 10 min so silent hangs surface as a named test failure instead
+      # of burning the step timeout with no diagnostic info. See test.yml for context.
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory) --blame --blame-hang-timeout 5m --blame-hang-dump-type none'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory) --blame-hang-timeout 10m --blame-hang-dump-type none'
       publishTestResults: false
   - script: |
       bash <(curl -s https://codecov.io/bash) -s $(Agent.TempDirectory)

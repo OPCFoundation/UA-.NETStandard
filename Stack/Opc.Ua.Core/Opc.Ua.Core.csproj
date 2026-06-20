@@ -6,6 +6,7 @@
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
@@ -18,8 +19,8 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
@@ -54,4 +55,7 @@
     </ProjectReference>
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 </Project>

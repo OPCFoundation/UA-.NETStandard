@@ -37,14 +37,14 @@ test projects are wired into `UA.slnx` and CI.
 * `UA.slnx` lists the 3 Encoders projects + loose files. Azure `test.yml` / `testcc.yml`
   overlay `FuzzingArtifacts.zip` into `Fuzzing/Encoders/Fuzz.Tests` and run the suite.
 * `Opc.Ua.Core.csproj` already uses `<InternalsVisibleTo>` items (seam pattern exists).
-* `Stack/Opc.Ua.Bindings.Pcap` is new — multi-targets `net8.0;net9.0;net10.0`
+* `Stack/Opc.Ua.Core.Diagnostics` is new — multi-targets `net8.0;net9.0;net10.0`
   and depends on PacketDotNet + SharpPcap. Public surfaces relevant to fuzzing:
   `OpcUaFrameParser` (TCP → UA-SC chunk splitter), `TcpStreamReassembler`
   (raw TCP), `OfflineSecureChannel` (re-uses the stack's
   `UaSCUaBinaryChannel.ReadSymmetricMessage` so all security profiles are
   covered for free), `ServiceCallReassembler` (chunk → service-call assembly),
   and `MockServerReplay` / `MockClientReplay` (stateful loopback replay drivers).
-* `Tests/Opc.Ua.Bindings.Pcap.Tests` (net10.0-only test project) contains mock
+* `Tests/Opc.Ua.Core.Diagnostics.Tests` (net10.0-only test project) contains mock
   handshake / replay helpers (`ReplayTestHelpers`, `MockServerReplayTests`,
   `MockClientReplayTests`, `OfflineSecureChannelSmokeTests`). These cannot be
   project-referenced from a multi-TFM fuzz area; the equivalent live helpers
@@ -81,7 +81,7 @@ Fuzzing/
             fuzz-menu.ps1 (NEW: dynamic menu from host target list)
   Encoders/      Fuzz | Fuzz.Tests | Fuzz.Tools  (hardened; + Parsers targets)
   Certificates/  Fuzz | Fuzz.Tests | Fuzz.Tools  (NEW area)
-  Network/       Fuzz | Fuzz.Tests | Fuzz.Tools  (NEW area; refs Opc.Ua.Bindings.Pcap;
+  Network/       Fuzz | Fuzz.Tests | Fuzz.Tools  (NEW area; refs Opc.Ua.Core.Diagnostics;
                                                   hosts both pcap-binding targets [4a]
                                                   and the optional Core UA-SC seam [4b])
 ```
@@ -149,10 +149,10 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
 > changes and lands the bulk of network-layer coverage. 4b is additive and
 > stays gated on owner OK.
 
-#### Phase 4a — Network-layer fuzzing via `Opc.Ua.Bindings.Pcap` (no Core changes)
+#### Phase 4a — Network-layer fuzzing via `Opc.Ua.Core.Diagnostics` (no Core changes)
 
 * New `Fuzzing/Network/{Fuzz,Fuzz.Tests,Fuzz.Tools}`, referencing
-  `Opc.Ua.Bindings.Pcap` (+ `Opc.Ua.Core` transitively). Multi-targets
+  `Opc.Ua.Core.Diagnostics` (+ `Opc.Ua.Core` transitively). Multi-targets
   `net8.0;net9.0;net10.0` to match the binding's matrix (no net48/net472 — the
   pcap binding does not support .NET Framework, which is consistent with how
   modern areas are added elsewhere in the repo).
@@ -188,7 +188,7 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
   MSG (Read/Browse) → CLO handshake against an in-process reference server
   using the binding's own `MockServerReplay` / `MockClientReplay` +
   capturing message-socket factory (the same pattern
-  `Opc.Ua.Bindings.Pcap.Tests` uses, but inlined into `Network.Fuzz.Tools`
+  `Opc.Ua.Core.Diagnostics.Tests` uses, but inlined into `Network.Fuzz.Tools`
   so it stays multi-TFM and doesn't depend on the net10.0-only test
   project). Emit:
   * raw TCP segments → `Testcases.Tcp/`
@@ -245,7 +245,7 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
   matrix); net48/net472 stays in scope for Encoders / Parsers / Certificates areas.
 * Rewrite `Fuzzing.md`: mark XML done, document new areas + targets, dictionaries, the
   dynamic menu, a step-by-step "add a new fuzz area" recipe, and the Network area's
-  replay-driven seed pipeline + `Opc.Ua.Bindings.Pcap` dependency note
+  replay-driven seed pipeline + `Opc.Ua.Core.Diagnostics` dependency note
   (TFM matrix + PacketDotNet/SharpPcap).
 * Cross-link from `Docs/README.md` if a fuzzing doc is referenced there; cross-link
   the pcap binding's diagnostics docs (if present) so they point to the fuzz benefit.
@@ -260,7 +260,7 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
 * Smoke-run at least one libFuzzer target per new area locally (short duration) to
   confirm the host wiring + dictionaries load. For Network area, smoke-run ≥1
   stateless target (e.g. `OpcUaFrameParser`) and ≥1 replay-driven target to
-  confirm `Opc.Ua.Bindings.Pcap` loads cleanly under the fuzz host without
+  confirm `Opc.Ua.Core.Diagnostics` loads cleanly under the fuzz host without
   initialising any live capture source.
 * Keep code coverage of `*.Fuzz.Tests` from regressing; new targets are exercised by
   the generic replay harness.
@@ -271,9 +271,9 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
   verify before adding areas.
 * Phase 4b requires touching product code (`Opc.Ua.Core`); keep the seam internal,
   behavior-preserving, and compatible (no breaking public API). Gate on owner OK.
-  Phase 4a is unblocked by this — it can land first via `Opc.Ua.Bindings.Pcap`'s
+  Phase 4a is unblocked by this — it can land first via `Opc.Ua.Core.Diagnostics`'s
   existing public surface.
-* `Opc.Ua.Bindings.Pcap` multi-targets `net8.0;net9.0;net10.0` and depends on
+* `Opc.Ua.Core.Diagnostics` multi-targets `net8.0;net9.0;net10.0` and depends on
   PacketDotNet + SharpPcap (not AOT-verified). Network fuzz area follows the same
   TFM matrix; it is excluded from net48/net472 and from any AOT matrix.
 * `OfflineSecureChannel.ReadChunk` exercises real crypto via the stack — use

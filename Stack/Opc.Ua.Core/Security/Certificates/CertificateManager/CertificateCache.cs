@@ -76,33 +76,33 @@ namespace Opc.Ua
             if (m_meter != null)
             {
                 m_meter.CreateObservableCounter(
-                    "opcua.certcache.hit",
+                    "opc.ua.certcache.hit",
                     () =>
                         (m_publicKeyCache?.Metrics.Value?.Hits ?? 0) +
                         (m_privateKeyCache?.Metrics.Value?.Hits ?? 0),
                     description: "Total certificate cache hits");
 
                 m_meter.CreateObservableCounter(
-                    "opcua.certcache.miss",
+                    "opc.ua.certcache.miss",
                     () =>
                         (m_publicKeyCache?.Metrics.Value?.Misses ?? 0) +
                         (m_privateKeyCache?.Metrics.Value?.Misses ?? 0),
                     description: "Total certificate cache misses");
 
                 m_meter.CreateObservableGauge(
-                    "opcua.certcache.size",
+                    "opc.ua.certcache.size",
                     () =>
                         (m_publicKeyCache?.Count ?? 0) +
                         (m_privateKeyCache?.Count ?? 0),
                     description: "Current number of cached certificate entries");
 
                 m_meter.CreateObservableGauge(
-                    "opcua.certcache.private_key_entries",
+                    "opc.ua.certcache.private_key_entries",
                     () => m_privateKeyCache?.Count ?? 0,
                     description: "Current number of cached entries with private keys");
 
                 m_meter.CreateObservableCounter(
-                    "opcua.certcache.eviction",
+                    "opc.ua.certcache.eviction",
                     () =>
                         (m_publicKeyCache?.Metrics.Value?.Evicted ?? 0) +
                         (m_privateKeyCache?.Metrics.Value?.Evicted ?? 0),

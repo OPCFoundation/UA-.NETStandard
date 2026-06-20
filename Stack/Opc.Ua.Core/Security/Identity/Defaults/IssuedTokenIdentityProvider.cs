@@ -73,13 +73,29 @@ namespace Opc.Ua.Identity
         }
 
         /// <inheritdoc/>
-        public bool CanSatisfy(
+        public ValueTask<CanSatisfyResult> CanSatisfyAsync(
             UserTokenPolicy policy,
-            IdentitySelectionContext context)
+            IdentitySelectionContext context,
+            CancellationToken ct = default)
         {
-            return policy != null &&
-                policy.TokenType == UserTokenType.IssuedToken &&
-                string.Equals(policy.IssuedTokenType, m_profileUri, StringComparison.Ordinal);
+            if (policy == null)
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No("Policy is null."));
+            }
+            if (policy.TokenType != UserTokenType.IssuedToken)
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No(
+                        $"TokenTypeNotSupported (provider handles IssuedToken, policy is {policy.TokenType})."));
+            }
+            if (!string.Equals(policy.IssuedTokenType, m_profileUri, StringComparison.Ordinal))
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No(
+                        $"IssuedTokenProfileNotSupported (provider handles '{m_profileUri}', policy requests '{policy.IssuedTokenType}')."));
+            }
+            return new ValueTask<CanSatisfyResult>(CanSatisfyResult.Yes);
         }
 
         /// <inheritdoc/>
@@ -88,12 +104,15 @@ namespace Opc.Ua.Identity
             IdentitySelectionContext context,
             CancellationToken ct = default)
         {
-            if (!CanSatisfy(policy, context) ||
+            CanSatisfyResult satisfied = await CanSatisfyAsync(policy, context, ct)
+                .ConfigureAwait(false);
+            if (!satisfied.CanSatisfy ||
                 !AuthorizationServerMetadata.TryFromPolicy(policy, out AuthorizationServerMetadata metadata))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
-                    "Issued-token identity provider requires a JWT user token policy.");
+                    "Issued-token identity provider cannot satisfy the supplied user token policy: {0}",
+                    satisfied.RejectionReason ?? "policy is missing required JWT metadata");
             }
 
             AccessToken accessToken = await m_accessTokenProvider

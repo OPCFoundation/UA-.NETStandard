@@ -13,11 +13,11 @@ under `Common/`.
 |------|---------|--------|
 | `Opc.Ua.Encoders.Fuzz` | BinaryDecoder / JsonDecoder / XmlDecoder + idempotent round-trip, individual built-in type readers (NodeId, ExpandedNodeId, Variant, ExtensionObject, DataValue, DiagnosticInfo, QualifiedName, LocalizedText) and parser entry points (`NodeId.Parse`, `ExpandedNodeId.Parse`, `RelativePathFormatter.Parse`, `QualifiedName.Parse`, `NumericRange.Parse`, `Uuid` round-trip) | shipped |
 | `Opc.Ua.Certificates.Fuzz` | `X509CRL` decode + extensions (`X509SubjectAltNameExtension`, `X509AuthorityKeyIdentifierExtension`, `X509CrlNumberExtension`), `PEMReader` cert/key import, `Pkcs10CertificationRequest`, low-level `AsnUtils` helpers | shipped |
-| `Opc.Ua.Network.Fuzz` | OPC UA UA-SC / TCP framing via `Opc.Ua.Bindings.Pcap` (`OpcUaFrameParser`, `TcpStreamReassembler`, `OfflineSecureChannel.ReadChunk`, `ServiceCallReassembler`, `MockServerReplay`/`MockClientReplay` stateful drivers) and the `Opc.Ua.Core` UA-SC parse seam (`TcpMessageParsers.TryParseChunkHeader` / `ReadHelloMessage` / `ReadAcknowledgeMessage` / `ReadErrorMessage` / `ReadReverseHelloMessage` / `ReadAsymmetricMessageHeader`) | shipped |
+| `Opc.Ua.Network.Fuzz` | OPC UA UA-SC / TCP framing via `Opc.Ua.Core.Diagnostics` (`OpcUaFrameParser`, `TcpStreamReassembler`, `OfflineSecureChannel.ReadChunk`, `ServiceCallReassembler`, `MockServerReplay`/`MockClientReplay` stateful drivers) and the `Opc.Ua.Core` UA-SC parse seam (`TcpMessageParsers.TryParseChunkHeader` / `ReadHelloMessage` / `ReadAcknowledgeMessage` / `ReadErrorMessage` / `ReadReverseHelloMessage` / `ReadAsymmetricMessageHeader`) | shipped |
 
 `Encoders` and `Certificates` build for the repo's standard `TestsTargetFrameworks` matrix
 (`net48`, `net8.0`, `net9.0`, `net10.0`). `Network` is `net8.0;net9.0;net10.0` only because
-`Opc.Ua.Bindings.Pcap` does not target .NET Framework.
+`Opc.Ua.Core.Diagnostics` does not target .NET Framework.
 
 ## Directory layout
 
@@ -118,12 +118,12 @@ under the `[Category("Fuzzing")]` filter.
 
 ## Areas in detail
 
-### Network / Transport area — `Opc.Ua.Bindings.Pcap` + Core UA-SC seam
+### Network / Transport area — `Opc.Ua.Core.Diagnostics` + Core UA-SC seam
 
 The Network area is unusual because it's split across two complementary entry points:
 
 * **Phase 4a (no Core changes).** Fuzzes the public surfaces of
-  `Stack/Opc.Ua.Bindings.Pcap`: `OpcUaFrameParser.Process` (TCP → UA-SC chunk splitter),
+  `Stack/Opc.Ua.Core.Diagnostics`: `OpcUaFrameParser.Process` (TCP → UA-SC chunk splitter),
   `TcpStreamReassembler.Process` (raw TCP), `OfflineSecureChannel.ReadChunk` (UA-SC
   symmetric decrypt + verify using the stack's own `UaSCUaBinaryChannel.ReadSymmetricMessage`,
   so every security profile is covered for free), and `ServiceCallReassembler.Push` (chunk
@@ -157,7 +157,7 @@ the existing fixture test certificates via the binding's own multi-TFM replay he
 
 #### Dependency hygiene
 
-The Network fuzz host references `Opc.Ua.Bindings.Pcap` (which transitively pulls
+The Network fuzz host references `Opc.Ua.Core.Diagnostics` (which transitively pulls
 PacketDotNet + SharpPcap) but **does not** instantiate `NicCaptureSource` so the
 AFL/libFuzzer process never opens raw sockets.
 

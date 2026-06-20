@@ -917,7 +917,7 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false))
             {
                 await InnerSession
-                    .UpdateIdentityAsync(provider, ct)
+                    .UpdateIdentityAsync(provider, ct: ct)
                     .ConfigureAwait(false);
             }
         }
@@ -984,7 +984,7 @@ namespace Opc.Ua.Client
                         .ConfigureAwait(false))
                     {
                         await session
-                            .UpdateIdentityAsync(m_identityProvider, ct)
+                            .UpdateIdentityAsync(m_identityProvider, ct: ct)
                             .ConfigureAwait(false);
                     }
                     StartIdentityRefreshLoop();
@@ -1539,7 +1539,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                await session.UpdateIdentityAsync(provider, ct).ConfigureAwait(false);
+                await session.UpdateIdentityAsync(provider, ct: ct).ConfigureAwait(false);
             }
         }
 
