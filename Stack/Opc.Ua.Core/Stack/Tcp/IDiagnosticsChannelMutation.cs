@@ -31,7 +31,7 @@ namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// Internal extension surface used by the
-    /// <c>Opc.Ua.Bindings.Pcap</c> offline-decode pipeline to seed a
+    /// <c>Opc.Ua.Pcap</c> offline-decode pipeline to seed a
     /// secure-channel instance with channel tokens reconstructed from a
     /// keylog file.
     /// </summary>

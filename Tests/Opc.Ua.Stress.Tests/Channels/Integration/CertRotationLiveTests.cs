@@ -377,8 +377,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         }
 
         private const int SessionCount = 3;
-        private const string ChannelCloseMetric = "opcua.channel.close";
-        private const string ReconnectAttemptsMetric = "opcua.channel.reconnect.attempts";
+        private const string ChannelCloseMetric = "opc.ua.channel.close";
+        private const string ReconnectAttemptsMetric = "opc.ua.channel.reconnect.attempts";
 
         private static readonly MethodInfo s_recreateInPlaceAsync =
             typeof(Session).GetMethod(

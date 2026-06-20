@@ -66,7 +66,7 @@ namespace Opc.Ua.Bindings
     /// NOT take a direct dependency on it. A consumer wires the
     /// observer into the pipeline by registering a capturing transport
     /// binding (for example via
-    /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap</c>) - when no
+    /// <c>OPCFoundation.NetStandard.Opc.Ua.Pcap</c>) - when no
     /// such binding is installed there is no runtime cost on the
     /// channel's send / receive path.
     /// </para>

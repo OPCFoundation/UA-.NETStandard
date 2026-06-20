@@ -463,21 +463,196 @@ namespace Opc.Ua.Server.TestFramework
             m_startupCts?.Dispose();
             m_startupCts = null;
 
+            // Watchdog around server / application teardown. Without it, a
+            // stuck Server.StopAsync() or Application.DisposeAsync() blocks
+            // the per-fixture OneTimeTearDown indefinitely, and the entire
+            // dotnet test host hangs until the --blame-hang-timeout fires
+            // (observed in macOS net10.0 CI runs of Opc.Ua.History.Tests:
+            // all 466+ tests pass, then a 10-minute teardown hang followed
+            // by a hang dump and exit code 1). Mirrors the bounded-thread
+            // pattern in LeakDetectionHelpers.TryRunFinalizerSweep so a
+            // process-killing hang becomes an observable per-fixture
+            // warning while subsequent fixtures' teardowns and the dotnet
+            // host shutdown can still complete.
+            //
+            // The per-call timeout is kept tight (5s) because each test
+            // project has up to 27 fixtures; a 30s budget per call would
+            // exceed the 10-minute dotnet test hang timeout once even a
+            // handful of fixtures hit the watchdog in series. A graceful
+            // shutdown in the healthy case completes in well under 5s.
+            // The same timeout is propagated as a CancellationToken so the
+            // server can short-circuit instead of being abandoned (the
+            // server StopAsync overload threads the token through
+            // RegisterWithDiscoveryServerAsync, the shutdown semaphore,
+            // SubscriptionManager.ShutdownAsync and
+            // NodeManager.ShutdownAsync).
+            //
+            // GLOBAL FAST-PATH: once any fixture's teardown exceeds the
+            // watchdog in this test process, set a static "give up
+            // teardown" flag and short-circuit subsequent fixtures'
+            // teardowns to a no-op. This converts the worst case from
+            // (27 fixtures x N watchdog operations x 5s) into a single
+            // ~10s teardown stall: only the first hung fixture pays the
+            // watchdog cost; the rest skip directly to the next test
+            // host shutdown step. We accept the resource leak as the
+            // test process is about to exit.
+            if (s_skipRemainingTeardowns)
+            {
+                m_logger.LogWarning(
+                    "ServerFixture.StopAsync: a prior fixture teardown timed out; " +
+                    "skipping the remaining server / application disposal in this process to " +
+                    "avoid pinning the dotnet test host past --blame-hang-timeout. " +
+                    "References will be released to the runtime for finalization.");
+                Server = null;
+                Application = null;
+                Config = null;
+                ActivityListener?.Dispose();
+                ActivityListener = null;
+                return;
+            }
+
             if (Server != null)
             {
-                await Server.StopAsync().ConfigureAwait(false);
-                Server.Dispose();
+                using var serverStopCts = new CancellationTokenSource(s_teardownTimeout);
+                await RunWithTeardownWatchdogAsync(
+                    () => Server.StopAsync(serverStopCts.Token).AsTask(),
+                    nameof(Server) + "." + nameof(Server.StopAsync)).ConfigureAwait(false);
+                RunSyncWithTeardownWatchdog(
+                    () => Server.Dispose(),
+                    nameof(Server) + "." + nameof(Server.Dispose));
                 Server = null;
             }
             if (Application != null)
             {
-                await Application.DisposeAsync().ConfigureAwait(false);
+                await RunWithTeardownWatchdogAsync(
+                    () => Application.DisposeAsync().AsTask(),
+                    nameof(Application) + "." + nameof(Application.DisposeAsync)).ConfigureAwait(false);
                 Application = null;
             }
             Config = null;
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Set by the first <see cref="RunWithTeardownWatchdogAsync"/> or
+        /// <see cref="RunSyncWithTeardownWatchdog"/> invocation that
+        /// exceeds the watchdog. Subsequent fixtures' <see cref="StopAsync"/>
+        /// calls short-circuit to a no-op so we do not stack N x watchdog
+        /// timeouts during a known-bad teardown chain.
+        /// </summary>
+        private static volatile bool s_skipRemainingTeardowns;
+
+        /// <summary>
+        /// Runs <paramref name="taskFactory"/> bounded by
+        /// <see cref="s_teardownTimeout"/>. If the task does not complete
+        /// in time, logs a warning, sets <see cref="s_skipRemainingTeardowns"/>
+        /// so subsequent fixtures short-circuit, and returns; the
+        /// underlying task is abandoned (it is a background continuation
+        /// in the runtime thread pool, so it does not block process
+        /// exit). Cross-TFM compatible: avoids
+        /// <c>Task.WaitAsync(TimeSpan)</c> which is .NET 6+; the test
+        /// framework targets net48 and netstandard2.0 among others.
+        /// </summary>
+        private async Task RunWithTeardownWatchdogAsync(
+            Func<Task> taskFactory,
+            string operationName)
+        {
+            Task work;
+            try
+            {
+                work = taskFactory();
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "ServerFixture.StopAsync: {Operation} threw synchronously.",
+                    operationName);
+                return;
+            }
+
+            Task winner = await Task
+                .WhenAny(work, Task.Delay(s_teardownTimeout))
+                .ConfigureAwait(false);
+            if (winner != work)
+            {
+                s_skipRemainingTeardowns = true;
+                m_logger.LogWarning(
+                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog. " +
+                    "Continuing with the rest of the fixture teardown; subsequent fixtures will short-circuit.",
+                    operationName,
+                    s_teardownTimeout.TotalSeconds);
+                return;
+            }
+
+            try
+            {
+                await work.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "ServerFixture.StopAsync: {Operation} faulted.",
+                    operationName);
+            }
+        }
+
+        /// <summary>
+        /// Runs a synchronous <paramref name="action"/> on a background
+        /// thread bounded by <see cref="s_teardownTimeout"/>. Used for
+        /// synchronous <c>Dispose()</c> calls that can block on socket
+        /// shutdown or thread joins; the async watchdog above only
+        /// bounds <see cref="Task"/>-returning calls and cannot interrupt
+        /// a sync method that ignores cancellation.
+        /// </summary>
+        private void RunSyncWithTeardownWatchdog(Action action, string operationName)
+        {
+            using var done = new ManualResetEventSlim(false);
+            Exception captured = null;
+            var worker = new Thread(() =>
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    captured = ex;
+                }
+                finally
+                {
+                    done.Set();
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "ServerFixture.SyncTeardown." + operationName
+            };
+            worker.Start();
+
+            if (!done.Wait(s_teardownTimeout))
+            {
+                s_skipRemainingTeardowns = true;
+                m_logger.LogWarning(
+                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog (sync). " +
+                    "Continuing with the rest of the fixture teardown; subsequent fixtures will short-circuit.",
+                    operationName,
+                    s_teardownTimeout.TotalSeconds);
+                return;
+            }
+
+            if (captured != null)
+            {
+                m_logger.LogWarning(
+                    captured,
+                    "ServerFixture.StopAsync: {Operation} threw.",
+                    operationName);
+            }
         }
 
         private static void AddPolicyIfSupported(

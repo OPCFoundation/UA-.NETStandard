@@ -200,6 +200,10 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfOptionalChildNodeStates => nameof(ListOfOptionalChildNodeStates);
         public static string ListOfReferences => nameof(ListOfReferences);
         public static string NodeIdConstant => nameof(NodeIdConstant);
+        public static string InstanceNodeIdOverride => nameof(InstanceNodeIdOverride);
+        public static string ListOfInstanceNodeIdBranches => nameof(ListOfInstanceNodeIdBranches);
+        public static string ParentNodeIdConstant => nameof(ParentNodeIdConstant);
+        public static string IfOrElseIf => nameof(IfOrElseIf);
         public static string SuperTypeId => nameof(SuperTypeId);
         public static string TypeDefinitionId => nameof(TypeDefinitionId);
         public static string ReferenceTypeId => nameof(ReferenceTypeId);

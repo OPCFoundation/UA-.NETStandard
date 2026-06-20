@@ -1190,7 +1190,7 @@ namespace Opc.Ua.Client.Tests
             {
                 InstrumentPublished = (instrument, l) =>
                 {
-                    if (instrument.Name.StartsWith("opcua.client.nodecache.", StringComparison.Ordinal))
+                    if (instrument.Name.StartsWith("opc.ua.client.nodecache.", StringComparison.Ordinal))
                     {
                         l.EnableMeasurementEvents(instrument);
                     }
@@ -1209,13 +1209,13 @@ namespace Opc.Ua.Client.Tests
                 }
                 switch (instrument.Name)
                 {
-                    case "opcua.client.nodecache.hits":
+                    case "opc.ua.client.nodecache.hits":
                         capturedHits[cacheTag] = value;
                         break;
-                    case "opcua.client.nodecache.misses":
+                    case "opc.ua.client.nodecache.misses":
                         capturedMisses[cacheTag] = value;
                         break;
-                    case "opcua.client.nodecache.size":
+                    case "opc.ua.client.nodecache.size":
                         capturedSize[cacheTag] = value;
                         break;
                 }

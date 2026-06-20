@@ -851,5 +851,5 @@ TypeInfo TypeInfo { get; }                // Type info of the field
 
 - [Source-Generated Data Types](SourceGeneratedDataTypes.md) - Auto-generate IEncodeable implementations from annotated POCO classes
 - [Platform Build Documentation](PlatformBuild.md) - Information about building and versioning
-- [Observability Documentation](Observability.md) - Information about logging and telemetry
+- [Diagnostics Documentation](Diagnostics.md) - Logging, telemetry, audit events, server diagnostics, and packet capture
 - [Console Reference Client](../Applications/ConsoleReferenceClient/README.md) - Example client implementation

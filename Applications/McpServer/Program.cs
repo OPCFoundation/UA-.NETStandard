@@ -36,7 +36,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
@@ -135,7 +135,7 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
     services.AddSingleton(_ => CreateMcpServerOptions());
-    services.AddPcapBinding(options =>
+    services.AddPcap(options =>
     {
         options.BaseFolder = pcapOptions.BaseFolder;
         options.MaxActiveSessions = pcapOptions.MaxActiveSessions;

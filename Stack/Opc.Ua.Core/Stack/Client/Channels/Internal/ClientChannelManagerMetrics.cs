@@ -41,37 +41,37 @@ namespace Opc.Ua
         {
             m_owner = owner;
             m_channelOpen = meter.CreateCounter<long>(
-                "opcua.channel.open",
+                "opc.ua.channel.open",
                 description: "Number of OPC UA client transport channels opened.");
             m_channelClose = meter.CreateCounter<long>(
-                "opcua.channel.close",
+                "opc.ua.channel.close",
                 description: "Number of OPC UA client transport channels closed.");
             m_channelActive = meter.CreateUpDownCounter<long>(
-                "opcua.channel.active",
+                "opc.ua.channel.active",
                 description: "Current number of active OPC UA client channel entries.");
             m_reconnectAttempts = meter.CreateCounter<long>(
-                "opcua.channel.reconnect.attempts",
+                "opc.ua.channel.reconnect.attempts",
                 description: "Number of OPC UA client channel reconnect attempts.");
             m_reconnectDuration = meter.CreateHistogram<double>(
-                "opcua.channel.reconnect.duration",
+                "opc.ua.channel.reconnect.duration",
                 unit: "ms",
                 description: "Duration of OPC UA client channel reconnect cycles.");
             m_gateWait = meter.CreateHistogram<double>(
-                "opcua.channel.gate.wait",
+                "opc.ua.channel.gate.wait",
                 unit: "ms",
                 description: "Time spent waiting for an OPC UA client channel ready gate.");
             m_participantTimeout = meter.CreateCounter<long>(
-                "opcua.channel.participant.timeout.count",
+                "opc.ua.channel.participant.timeout.count",
                 description: "Number of OPC UA client reconnect participant callbacks that timed out.");
             m_participantRecreate = meter.CreateCounter<long>(
-                "opcua.channel.participant.recreate.count",
+                "opc.ua.channel.participant.recreate.count",
                 description: "Number of OPC UA client reconnect participant recreate callbacks.");
             m_refCountGauge = meter.CreateObservableGauge(
-                "opcua.channel.refcount",
+                "opc.ua.channel.refcount",
                 ObserveRefCounts,
                 description: "Current reference count for OPC UA client channel entries.");
             m_participantGauge = meter.CreateObservableGauge(
-                "opcua.channel.participants",
+                "opc.ua.channel.participants",
                 ObserveParticipants,
                 description: "Current participant count for OPC UA client channel entries.");
         }
