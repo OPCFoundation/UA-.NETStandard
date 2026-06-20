@@ -759,7 +759,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
             CheckAndIncrementNestingLevel();
 
@@ -787,7 +787,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             if (BeginField(fieldName, value.IsNull, true))
             {
@@ -1753,9 +1753,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            WriteVariantValue(fieldName, value, true);
+            WriteVariantValue(fieldName, in value, true);
         }
 
         /// <summary>
@@ -1807,7 +1807,7 @@ namespace Opc.Ua
         /// if each encoder call would be called) or as variant encoding
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteVariantValue(string? fieldName, Variant value, bool writeRawValue)
+        private void WriteVariantValue(string? fieldName, in Variant value, bool writeRawValue)
         {
             if (fieldName != null && BeginField(fieldName, false, false))
             {

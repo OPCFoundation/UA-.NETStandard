@@ -742,13 +742,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
             CheckAndIncrementNestingLevel();
 
             try
             {
-                WriteVariantValue(value, false);
+                WriteVariantValue(in value, false);
             }
             finally
             {
@@ -757,7 +757,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             // check for null/default.
             if (value.IsNull)
@@ -1350,9 +1350,10 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
+            ReadOnlySpan<Variant> span = values.Span;
+            for (int ii = 0; ii < span.Length; ii++)
             {
-                WriteVariant(null, values[ii]);
+                WriteVariant(null, in span[ii]);
             }
         }
 
@@ -1366,9 +1367,10 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
+            ReadOnlySpan<DataValue> span = values.Span;
+            for (int ii = 0; ii < span.Length; ii++)
             {
-                WriteDataValue(null, values[ii]);
+                WriteDataValue(null, in span[ii]);
             }
         }
 
@@ -1497,9 +1499,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            WriteVariantValue(value, true);
+            WriteVariantValue(in value, true);
         }
 
         /// <inheritdoc/>
@@ -1520,7 +1522,7 @@ namespace Opc.Ua
         /// or with type information.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteVariantValue(Variant value, bool writeRawValue)
+        private void WriteVariantValue(in Variant value, bool writeRawValue)
         {
             // check for null.
             if (value.IsNull ||
