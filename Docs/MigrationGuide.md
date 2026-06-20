@@ -57,10 +57,12 @@ call the `Async` version synchronously with
 
 ### Observability
 
-[Observability](Observability.md) is now plumbed through
-`ITelemetryContext` in preparation for better dependency-injection
-support. See the document for breaking changes.
-
+Observability is now plumbed through `ITelemetryContext`. The legacy
+static `Utils.SetLogger` / `Utils.Trace*` model has been removed in
+2.0. See
+[`migrate/2.0.x/telemetry.md`](migrate/2.0.x/telemetry.md) for OLD
+vs NEW snippets, the per-type constructor matrix, and the full
+inventory of removed / `[Obsolete]` `Utils` APIs.
 ## Migrating from 1.04 to 1.05
 
 A few features are still missing to fully comply with 1.05, but

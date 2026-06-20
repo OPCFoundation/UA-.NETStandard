@@ -19,8 +19,8 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap" />
-    <InternalsVisibleTo Include="Opc.Ua.Bindings.Pcap.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

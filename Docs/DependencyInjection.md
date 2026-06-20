@@ -889,4 +889,4 @@ services.AddOpcUa()
 - [Native AOT](NativeAoT.md) — AOT testing setup.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
-- [Observability](Observability.md) — `ITelemetryContext` end-to-end.
+- [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.

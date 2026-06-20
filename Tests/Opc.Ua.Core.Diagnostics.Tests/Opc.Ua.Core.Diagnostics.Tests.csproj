@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Core.Diagnostics.Tests follows the same CustomTestTarget rule as the binding: when
+         CI pins a single modern TFM the test project must match (otherwise it
+         can't restore against the single-TFM Opc.Ua.Core). For legacy CI runs
+         Directory.Build.targets strips this project to an empty no-op shell
+         via $(RestrictForLegacyTfm). -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <RootNamespace>Opc.Ua.Pcap.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" PrivateAssets="all" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Core.TestFramework\Opc.Ua.Core.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+    <!--
+      McpServerOptionsTests / PacketDecodePathValidationTests
+      reflectively load the Opc.Ua.Mcp assembly from
+      Applications/McpServer/bin via Assembly.LoadFrom. On CI the
+      per-project build (dotnet build $CSPROJECT) only builds projects
+      that this Core.Diagnostics.Tests csproj transitively references — so without
+      this ProjectReference the McpServer DLL would never be produced
+      before Core.Diagnostics.Tests runs and LoadMcpAssembly would fail with the
+      assembly missing. Reference it as a project so MSBuild builds it
+      before this test assembly. ReferenceOutputAssembly=false keeps
+      it out of the test's compile-time reference set (tests load it
+      reflectively, deliberately).
+    -->
+    <ProjectReference Include="..\..\Applications\McpServer\Opc.Ua.Mcp.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+</Project>

@@ -57,7 +57,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// Diagnostic and observability layers (for example
-        /// <c>OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap</c>) use this
+        /// <c>OPCFoundation.NetStandard.Opc.Ua.Pcap</c>) use this
         /// to inject a capturing socket factory. When
         /// <paramref name="messageSocketFactory"/> is <c>null</c> the
         /// channel behaves exactly like the parameterless overload.

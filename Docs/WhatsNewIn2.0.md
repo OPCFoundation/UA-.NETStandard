@@ -375,7 +375,7 @@ follows a strict `dotnet format` baseline (whitespace, IDE, RCS) enforced
 by the `opc-ua-codestyle-enforcer` agent. Code analysis runs at "preview"
 level with "all" mode, package validation is on, and treat-warnings-as-
 errors is set repo-wide. On the runtime side,
-[Observability](Observability.md) is plumbed through `ITelemetryContext`:
+[Diagnostics](Diagnostics.md) is plumbed through `ITelemetryContext`:
 loggers, meters, and activities all hang off the same context object, and
 log redaction is wired through the audit APIs. Tests have been
 reorganised for faster CI, with several integration suites separated from
@@ -393,7 +393,7 @@ projects.
   classic vs V2 subscription engines.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
-  [Observability](Observability.md),
+  [Diagnostics](Diagnostics.md),
   [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md),
   [Source-Generated DataTypes](SourceGeneratedDataTypes.md).
 - Companion specs:
