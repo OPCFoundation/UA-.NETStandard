@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Net;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
