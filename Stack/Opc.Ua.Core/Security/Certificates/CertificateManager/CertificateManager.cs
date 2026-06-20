@@ -539,9 +539,16 @@ namespace Opc.Ua
                         .ConfigureAwait(false);
                     if (certificate != null)
                     {
+                        // Resolve the issuer chain so that servers configured
+                        // with SendCertificateChain = true transmit the full
+                        // chain. The leaf alone is registered when no issuers
+                        // are found. (Regression #3896.)
+                        using CertificateCollection issuerChain =
+                            await ResolveIssuerChainAsync(certificate, ct)
+                                .ConfigureAwait(false);
                         newEntries.Add(new CertificateEntry(
                             certificate,
-                            [],
+                            issuerChain,
                             certId.CertificateType));
                     }
                 }
@@ -578,6 +585,61 @@ namespace Opc.Ua
                     pending.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Resolves the issuer chain for an application certificate from the
+        /// configured trusted and issuer stores.
+        /// </summary>
+        /// <remarks>
+        /// Returns an owned <see cref="CertificateCollection"/> (never
+        /// <c>null</c>, possibly empty) that the caller must dispose. Every
+        /// resolved issuer is included irrespective of trust state: the
+        /// boolean returned by <see cref="GetIssuersAsync(Certificate, IList{CertificateIssuerReference}, CancellationToken)"/>
+        /// reports whether the issuer is <em>trusted</em> (only true when the
+        /// issuer is in the trusted store), not whether it was resolved, so it
+        /// is deliberately ignored — a server must send its chain even when the
+        /// issuing CA lives in the issuer store. Resolution failures are logged
+        /// and swallowed so they never block certificate registration / server
+        /// startup (a leaf-only chain is returned instead).
+        /// </remarks>
+        /// <param name="certificate">The application (leaf) certificate.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async Task<CertificateCollection> ResolveIssuerChainAsync(
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            var issuerChain = new CertificateCollection();
+            var issuerReferences = new List<CertificateIssuerReference>();
+            try
+            {
+                await GetIssuersAsync(certificate, issuerReferences, ct)
+                    .ConfigureAwait(false);
+
+                foreach (CertificateIssuerReference issuerReference in issuerReferences)
+                {
+                    issuerChain.Add(issuerReference.Certificate);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "Failed to resolve issuer chain for application certificate " +
+                    "{Certificate}; sending leaf certificate only.",
+                    certificate);
+            }
+            finally
+            {
+                // GetIssuersAsync hands back caller-owned references; the chain
+                // collection took its own AddRef in Add, so release ours here.
+                foreach (CertificateIssuerReference issuerReference in issuerReferences)
+                {
+                    issuerReference.Certificate.Dispose();
+                }
+            }
+
+            return issuerChain;
         }
 
         /// <inheritdoc/>
@@ -750,12 +812,22 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task UpdateApplicationCertificateAsync(
+        public async Task UpdateApplicationCertificateAsync(
             NodeId certificateType,
             Certificate newCertificate,
             CertificateCollection? issuerChain = null,
             CancellationToken ct = default)
         {
+            // When the caller does not supply a chain (e.g. the GDS push /
+            // rotation flow), resolve it from the configured stores so the
+            // replaced certificate also emits its full chain immediately
+            // rather than waiting for the next reload (regression #3896).
+            // Resolution must happen outside the lock.
+            using CertificateCollection? resolvedChain = issuerChain == null
+                ? await ResolveIssuerChainAsync(newCertificate, ct).ConfigureAwait(false)
+                : null;
+            CertificateCollection effectiveChain = issuerChain ?? resolvedChain!;
+
             CertificateEntry? oldEntry = null;
             CertificateValidationCore? oldPeer;
             CertificateValidationCore? oldUser;
@@ -771,7 +843,7 @@ namespace Opc.Ua
                         oldEntry = m_applicationCertificates[i];
                         m_applicationCertificates[i] = new CertificateEntry(
                             newCertificate,
-                            issuerChain ?? [],
+                            effectiveChain,
                             certificateType);
                         break;
                     }
@@ -782,7 +854,7 @@ namespace Opc.Ua
                 {
                     m_applicationCertificates.Add(new CertificateEntry(
                         newCertificate,
-                        issuerChain ?? [],
+                        effectiveChain,
                         certificateType));
                 }
 
@@ -819,8 +891,6 @@ namespace Opc.Ua
             // Dispose the old entry after notification so observers
             // can still read the old certificate during the callback.
             oldEntry?.Dispose();
-
-            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>

@@ -823,8 +823,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "must be disposable by the caller (no orphaned refcount).");
         }
 
+        /// <summary>
+        /// Regression test for issue #3896: a server whose CA is in the
+        /// <c>TrustedIssuerCertificates</c> store (not the trusted-peer store)
+        /// must still emit the full chain. <see cref="CertificateManager.LoadApplicationCertificatesAsync"/>
+        /// has to resolve the issuer chain from the issuer store on its own —
+        /// no manual injection — so that <see cref="CertificateManager.LoadCertificateChainRaw"/>
+        /// returns the legacy <c>leaf || issuers</c> blob byte-for-byte.
+        /// </summary>
         [Test]
-        public async Task SendCertificateChainBlobMatchesLeafOrFullChain()
+        public async Task SendCertificateChainBlobResolvesFullChainFromIssuerStore()
         {
             // Build a 2-level chain: root CA + leaf signed by root.
             using Certificate rootCa = CertificateBuilder
@@ -838,8 +846,99 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            // Persist the leaf cert into a temp directory store so the
+            // Persist the leaf cert into an application-certificate store so the
             // resolver can find it during LoadApplicationCertificatesAsync.
+            string leafStorePath = CreateTempDir();
+            await leaf.AddToStoreAsync(
+                CertificateStoreType.Directory,
+                leafStorePath,
+                password: null,
+                m_telemetry).ConfigureAwait(false);
+
+            // Place the CA in the *issuer* store only (NOT the trusted-peer
+            // store) — the exact setup described in issue #3896.
+            string trustedPeerPath = CreateTempDir();
+            string issuerStorePath = CreateTempDir();
+            using (Certificate rootCaPublic = Certificate.FromRawData(rootCa.RawData))
+            {
+                await rootCaPublic.AddToStoreAsync(
+                    CertificateStoreType.Directory,
+                    issuerStorePath,
+                    password: null,
+                    m_telemetry).ConfigureAwait(false);
+            }
+
+            var leafCertId = new CertificateIdentifier
+            {
+                Thumbprint = leaf.Thumbprint,
+                SubjectName = leaf.Subject,
+                StoreType = CertificateStoreType.Directory,
+                StorePath = leafStorePath,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            var secConfig = new SecurityConfiguration
+            {
+                ApplicationCertificates = [leafCertId],
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedPeerPath
+                },
+                TrustedIssuerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = issuerStorePath
+                },
+                SendCertificateChain = true
+            };
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(secConfig);
+            await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
+
+            // The load path must resolve the issuer chain from the issuer store
+            // on its own — previously the entry was built with an empty issuer
+            // chain so the blob regressed to leaf-only.
+            CertificateEntry entry = manager.GetInstanceCertificate(SecurityPolicies.Basic256Sha256);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(
+                entry.IssuerChain,
+                Has.Count.EqualTo(1),
+                "LoadApplicationCertificatesAsync must resolve the issuer chain " +
+                "from the issuer store (CA is not in the trusted-peer store).");
+
+            // Full chain: blob == leaf raw bytes followed by root raw bytes.
+            byte[] fullChain = manager.LoadCertificateChainRaw(leaf);
+            Assert.That(fullChain, Is.Not.Null);
+            byte[] expectedFull = new byte[leaf.RawData.Length + rootCa.RawData.Length];
+            Buffer.BlockCopy(leaf.RawData, 0, expectedFull, 0, leaf.RawData.Length);
+            Buffer.BlockCopy(rootCa.RawData, 0, expectedFull, leaf.RawData.Length, rootCa.RawData.Length);
+            Assert.That(fullChain, Is.EqualTo(expectedFull),
+                "CertificateManager.LoadCertificateChainRaw must produce the legacy " +
+                "DER-encoded chain blob (leaf || issuers) byte-for-byte.");
+        }
+
+        /// <summary>
+        /// When the issuing CA is present in neither the trusted-peer nor the
+        /// issuer store, the chain cannot be resolved and
+        /// <see cref="CertificateManager.LoadCertificateChainRaw"/> must fall
+        /// back to a leaf-only blob without throwing.
+        /// </summary>
+        [Test]
+        public async Task LoadApplicationCertificatesProducesLeafOnlyBlobWhenIssuerUnavailable()
+        {
+            using Certificate rootCa = CertificateBuilder
+                .Create("CN=MissingIssuerRoot, O=OPC Foundation")
+                .SetCAConstraint(-1)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=MissingIssuerLeaf, O=OPC Foundation")
+                .SetIssuer(rootCa)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
             string leafStorePath = CreateTempDir();
             await leaf.AddToStoreAsync(
                 CertificateStoreType.Directory,
@@ -856,10 +955,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            // Configure SendCertificateChain = true and load the cert with its issuer chain.
+            // Both trust stores are configured but empty: the CA lives in
+            // neither, so issuer resolution finds nothing.
             var secConfig = new SecurityConfiguration
             {
                 ApplicationCertificates = [leafCertId],
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = CreateTempDir()
+                },
+                TrustedIssuerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = CreateTempDir()
+                },
                 SendCertificateChain = true
             };
 
@@ -867,32 +977,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             manager.MapFromSecurityConfiguration(secConfig);
             await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
 
-            // Inject the issuer into the entry's pre-loaded chain so the registry
-            // knows about it (mirrors what CheckApplicationInstanceCertificatesAsync
-            // does in production).
             CertificateEntry entry = manager.GetInstanceCertificate(SecurityPolicies.Basic256Sha256);
             Assert.That(entry, Is.Not.Null);
-            entry.IssuerChain.Add(rootCa);
+            Assert.That(entry.IssuerChain, Is.Empty);
 
-            // Full chain: blob == leaf raw bytes followed by root raw bytes.
-            byte[] fullChain = manager.LoadCertificateChainRaw(leaf);
-            Assert.That(fullChain, Is.Not.Null);
-            byte[] expectedFull = new byte[leaf.RawData.Length + rootCa.RawData.Length];
-            Buffer.BlockCopy(leaf.RawData, 0, expectedFull, 0, leaf.RawData.Length);
-            Buffer.BlockCopy(rootCa.RawData, 0, expectedFull, leaf.RawData.Length, rootCa.RawData.Length);
-            Assert.That(fullChain, Is.EqualTo(expectedFull),
-                "CertificateManager.LoadCertificateChainRaw must produce the legacy " +
-                "DER-encoded chain blob (leaf || issuers) byte-for-byte.");
-
-            // Leaf-only mode: blob is just the leaf's raw bytes.
-            var leafOnlyConfig = new SecurityConfiguration
-            {
-                ApplicationCertificates = [leafCertId],
-                SendCertificateChain = false
-            };
-            using var leafOnlyManager = new CertificateManager(m_telemetry);
-            leafOnlyManager.MapFromSecurityConfiguration(leafOnlyConfig);
-            Assert.That(leafOnlyManager.SendCertificateChain, Is.False);
+            byte[] blob = manager.LoadCertificateChainRaw(leaf);
+            Assert.That(
+                blob,
+                Is.EqualTo(leaf.RawData),
+                "When the issuer cannot be resolved the chain blob must be leaf-only.");
         }
 
         [Test]
