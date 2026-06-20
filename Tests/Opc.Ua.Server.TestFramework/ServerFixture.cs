@@ -444,16 +444,29 @@ namespace Opc.Ua.Server.TestFramework
             // the per-fixture OneTimeTearDown indefinitely, and the entire
             // dotnet test host hangs until the --blame-hang-timeout fires
             // (observed in macOS net10.0 CI runs of Opc.Ua.History.Tests:
-            // all 466 tests pass, then a 10-minute teardown hang followed
+            // all 466+ tests pass, then a 10-minute teardown hang followed
             // by a hang dump and exit code 1). Mirrors the bounded-thread
             // pattern in LeakDetectionHelpers.TryRunFinalizerSweep so a
             // process-killing hang becomes an observable per-fixture
             // warning while subsequent fixtures' teardowns and the dotnet
             // host shutdown can still complete.
+            //
+            // The per-call timeout is kept tight (5s) because each test
+            // project has up to 27 fixtures; a 30s budget per call would
+            // exceed the 10-minute dotnet test hang timeout once even a
+            // handful of fixtures hit the watchdog in series. A graceful
+            // shutdown in the healthy case completes in well under 5s.
+            // The same timeout is propagated as a CancellationToken so the
+            // server can short-circuit instead of being abandoned (the
+            // server StopAsync overload threads the token through
+            // RegisterWithDiscoveryServerAsync, the shutdown semaphore,
+            // SubscriptionManager.ShutdownAsync and
+            // NodeManager.ShutdownAsync).
             if (Server != null)
             {
+                using var serverStopCts = new CancellationTokenSource(s_teardownTimeout);
                 await RunWithTeardownWatchdogAsync(
-                    () => Server.StopAsync().AsTask(),
+                    () => Server.StopAsync(serverStopCts.Token).AsTask(),
                     nameof(Server) + "." + nameof(Server.StopAsync)).ConfigureAwait(false);
                 Server.Dispose();
                 Server = null;
@@ -471,7 +484,7 @@ namespace Opc.Ua.Server.TestFramework
             await Task.Delay(100).ConfigureAwait(false);
         }
 
-        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
 
         /// <summary>
         /// Runs <paramref name="taskFactory"/> bounded by
