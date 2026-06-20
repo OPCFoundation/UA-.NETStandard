@@ -120,7 +120,7 @@
     <File Path="Docs/EccProfiles.md" />
     <File Path="Docs/AsyncServerSupport.md" />
     <File Path="Docs/Certificates.md" />
-    <File Path="Docs/Observability.md" />
+    <File Path="Docs/Diagnostics.md" />
     <File Path="Docs/PlatformBuild.md" />
     <File Path="Docs/PubSub.md" />
     <File Path="Docs/ReverseConnect.md" />
@@ -137,7 +137,7 @@
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
-    <Project Path="Stack/Opc.Ua.Bindings.Pcap/Opc.Ua.Bindings.Pcap.csproj" />
+    <Project Path="Stack/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
     <Project Path="Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
@@ -150,7 +150,7 @@
     <Project Path="Tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Bindings.Pcap.Tests/Opc.Ua.Bindings.Pcap.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />

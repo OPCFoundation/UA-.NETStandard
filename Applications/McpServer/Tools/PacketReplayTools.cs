@@ -35,11 +35,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
-using Opc.Ua.Bindings.Pcap.Audit;
-using Opc.Ua.Bindings.Pcap.Capture;
-using Opc.Ua.Bindings.Pcap.DependencyInjection;
-using Opc.Ua.Bindings.Pcap.Models;
-using Opc.Ua.Bindings.Pcap.Replay;
+using Opc.Ua.Pcap.Audit;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Models;
+using Opc.Ua.Pcap.Replay;
 
 namespace Opc.Ua.Mcp.Tools
 {
