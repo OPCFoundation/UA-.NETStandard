@@ -628,11 +628,11 @@ The metric tag set is also bounded for routine operation:
 
 | Instrument | Tag keys |
 |---|---|
-| `opcua.channel.open` / `opcua.channel.close` | `endpoint`, `reverse` (+ `reason` on close) |
-| `opcua.channel.active` / `opcua.channel.refcount` / `opcua.channel.participants` | `endpoint` |
-| `opcua.channel.reconnect.attempts` / `opcua.channel.reconnect.duration` | `endpoint`, `outcome` |
-| `opcua.channel.gate.wait` | `endpoint` |
-| `opcua.channel.participant.timeout.count` / `opcua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
+| `opc.ua.channel.open` / `opc.ua.channel.close` | `endpoint`, `reverse` (+ `reason` on close) |
+| `opc.ua.channel.active` / `opc.ua.channel.refcount` / `opc.ua.channel.participants` | `endpoint` |
+| `opc.ua.channel.reconnect.attempts` / `opc.ua.channel.reconnect.duration` | `endpoint`, `outcome` |
+| `opc.ua.channel.gate.wait` | `endpoint` |
+| `opc.ua.channel.participant.timeout.count` / `opc.ua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
 
 `outcome` is one of `success`, `transient-failure`, `policy-exhausted`,
 `fatal-channel`. `reason` is one of `lease-released`,
@@ -996,6 +996,6 @@ Pick the entry point that best matches your call site:
 - [2.0 migration guide — ManagedSession and Automatic Reconnection](migrate/2.0.x/sessions-subscriptions.md#managedsession-and-automatic-reconnection)
 - [2.0 migration guide — Sessions, GDS Client, and Subscriptions](migrate/2.0.x/sessions-subscriptions.md) — V2 subscription engine, fluent builder, and DI integration are covered alongside ManagedSession.
 - [TransferSubscription](TransferSubscription.md) — server-driven session-handoff support.
-- [Observability](Observability.md) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
+- [Diagnostics](Diagnostics.md#1-telemetry-context-itelemetrycontext) — telemetry plumbed through `ITelemetryContext` on every factory and session type.
 - [Reverse Connect](ReverseConnect.md) — works with both `Session` and `ManagedSession`.
-- [Packet Capture, Dissection, and Replay](PacketCapture.md) — `Opc.Ua.Bindings.Pcap` composes with `IClientChannelManager` via the global `TransportBindings.Channels` registry; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.
+- [Diagnostics — Packet capture, dissection, and replay](Diagnostics.md#4-packet-capture-dissection-and-replay) — `Opc.Ua.Core.Diagnostics` composes with `IClientChannelManager` via the global `TransportBindings.Channels` registry; channel sharing, transparent reconnect, and faulted-entry swap all flow through to one continuous capture session per `ManagedChannelKey`.

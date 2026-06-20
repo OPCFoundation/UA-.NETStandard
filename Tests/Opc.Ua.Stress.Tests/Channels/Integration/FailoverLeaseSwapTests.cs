@@ -209,7 +209,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             string endpointUrl)
         {
             return metrics.Measurements
-                .Where(measurement => measurement.Name == "opcua.channel.open" &&
+                .Where(measurement => measurement.Name == "opc.ua.channel.open" &&
                     HasTag(measurement.Tags, "endpoint", endpointUrl) &&
                     HasTag(measurement.Tags, "reverse", false))
                 .Sum(measurement => measurement.Value);

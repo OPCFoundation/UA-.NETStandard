@@ -55,7 +55,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Replaces the current and previous tokens without re-deriving any
         /// key material. Used exclusively by the offline diagnostic
-        /// decoder (Opc.Ua.Bindings.Pcap) which reconstitutes
+        /// decoder (Opc.Ua.Pcap) which reconstitutes
         /// <see cref="ChannelToken"/> instances directly from a keylog and
         /// must NOT trigger the live token-activation pipeline.
         /// </summary>
@@ -87,7 +87,7 @@ namespace Opc.Ua.Bindings
         private static void EnsureDiagnosticsCallerIsAllowed()
         {
             const string coreAssemblyName = "Opc.Ua.Core";
-            const string pcapAssemblyName = "Opc.Ua.Bindings.Pcap";
+            const string diagnosticsAssemblyName = "Opc.Ua.Core.Diagnostics";
             var stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
 
             for (int ii = 0; ii < stackTrace.FrameCount; ii++)
@@ -99,17 +99,17 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
-                if (assemblyName == pcapAssemblyName || assemblyName.EndsWith(".Tests", StringComparison.Ordinal))
+                if (assemblyName == diagnosticsAssemblyName || assemblyName.EndsWith(".Tests", StringComparison.Ordinal))
                 {
                     return;
                 }
 
                 throw new InvalidOperationException(
-                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Bindings.Pcap binding.");
+                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics assembly.");
             }
 
             throw new InvalidOperationException(
-                "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Bindings.Pcap binding.");
+                "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics assembly.");
         }
 
         private static string? GetStackFrameAssemblyName(System.Diagnostics.StackFrame? frame)
