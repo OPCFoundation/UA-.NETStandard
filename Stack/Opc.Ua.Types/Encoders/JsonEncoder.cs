@@ -343,7 +343,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             if (value.IsNull)
             {
@@ -875,7 +875,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
             if (value.IsNull)
             {
@@ -898,7 +898,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
             if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
             {
@@ -910,7 +910,7 @@ namespace Opc.Ua
                 return;
             }
             m_writer.WritePropertyName(fieldName!);
-            WriteVariantContents(value, true, m_options.SuppressArtifacts);
+            WriteVariantContents(in value, true, m_options.SuppressArtifacts);
         }
 
         /// <inheritdoc/>
@@ -1026,7 +1026,7 @@ namespace Opc.Ua
         /// Write data value
         /// </summary>
         /// <param name="value"></param>
-        private void WriteDataValue(DataValue value)
+        private void WriteDataValue(in DataValue value)
         {
             if (value.IsNull)
             {
@@ -1087,9 +1087,10 @@ namespace Opc.Ua
         private void WriteDataValueArray(ArrayOf<DataValue> values)
         {
             StartArray(values.Count);
-            for (int i = 0; i < values.Count; i++)
+            ReadOnlySpan<DataValue> span = values.Span;
+            for (int i = 0; i < span.Length; i++)
             {
-                WriteDataValue(values.Span[i]);
+                WriteDataValue(in span[i]);
             }
             EndArray();
         }
@@ -1786,7 +1787,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write variant
         /// </summary>
-        private void WriteVariant(Variant value, bool suppressUaType)
+        private void WriteVariant(in Variant value, bool suppressUaType)
         {
             if (value.IsNull)
             {
@@ -1801,7 +1802,7 @@ namespace Opc.Ua
             if (!m_options.IgnoreDefaultValues || !value.ValueIsDefaultOrNull)
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
-                WriteVariantContents(value, false, suppressUaType);
+                WriteVariantContents(in value, false, suppressUaType);
             }
             EndObject();
         }
@@ -1812,9 +1813,10 @@ namespace Opc.Ua
         private void WriteVariantArray(ArrayOf<Variant> values, bool suppressUaType)
         {
             StartArray(values.Count);
-            for (int i = 0; i < values.Count; i++)
+            ReadOnlySpan<Variant> span = values.Span;
+            for (int i = 0; i < span.Length; i++)
             {
-                WriteVariant(values.Span[i], suppressUaType);
+                WriteVariant(in span[i], suppressUaType);
             }
             EndArray();
         }
@@ -1863,7 +1865,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void WriteVariantContents(
-            Variant value,
+            in Variant value,
             bool writeRawValue,
             bool suppressUaType)
         {
@@ -2172,7 +2174,7 @@ namespace Opc.Ua
         /// Write the UaType byte
         /// </summary>
         /// <param name="value"></param>
-        private void WriteVariantUaTypeByte(Variant value)
+        private void WriteVariantUaTypeByte(in Variant value)
         {
             if (!value.IsNull &&
                 value.TypeInfo.BuiltInType != BuiltInType.Null)
@@ -2225,6 +2227,7 @@ namespace Opc.Ua
         internal void StartObject()
         {
             CheckNestingLevel();
+            MaybeFlush();
             m_writer.WriteStartObject();
         }
 
@@ -2237,12 +2240,31 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Flushes buffered JSON to the underlying stream once enough bytes
+        /// have accumulated. <see cref="Utf8JsonWriter"/> never flushes on its
+        /// own, so without this its internal buffer grows (doubling, and onto
+        /// the large object heap) to the size of the entire encoded message.
+        /// Flushing at structural boundaries caps that buffer and lets the
+        /// pooled buffer be reused, which dramatically reduces allocations for
+        /// large or streamed payloads. Flushing only writes already-complete
+        /// tokens to the stream and never changes the encoded output.
+        /// </summary>
+        private void MaybeFlush()
+        {
+            if (m_writer.BytesPending >= kFlushThreshold)
+            {
+                m_writer.Flush();
+            }
+        }
+
+        /// <summary>
         /// Start new array
         /// </summary>
         /// <param name="count"></param>
         private void StartArray(int count)
         {
             CheckArrayLength(count);
+            MaybeFlush();
             m_writer.WriteStartArray();
         }
 
@@ -2311,6 +2333,7 @@ namespace Opc.Ua
             }
         }
 
+        private const int kFlushThreshold = 16 * 1024;
         private readonly Stream? m_stream;
         private readonly bool m_leaveOpen;
         private readonly ILogger m_logger;
