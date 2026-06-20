@@ -494,6 +494,54 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.True);
         }
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        [Test]
+        public void TryFormatMatchesFormatForNonUriForm(
+            [Values] bool useNamespaceUri)
+        {
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            NodeId[] cases =
+            [
+                new NodeId(42u),
+                new NodeId(42u, 3),
+                new NodeId("TestNode", 0),
+                new NodeId("TestNode", 5),
+                new NodeId(Guid.NewGuid(), 0),
+                new NodeId(Guid.NewGuid(), 2),
+                new NodeId(ByteString.From(1, 2, 3, 4)),
+                new NodeId(ByteString.From(1, 2, 3, 4), 7),
+            ];
+
+            foreach (NodeId nodeId in cases)
+            {
+                Span<char> buffer = stackalloc char[256];
+                bool ok = nodeId.TryFormat(buffer, out int charsWritten, useNamespaceUri);
+
+                // The namespace-uri form is only unsupported when the node id is
+                // in a non-default namespace; otherwise TryFormat must succeed.
+                if (useNamespaceUri && nodeId.NamespaceIndex > 0)
+                {
+                    Assert.That(ok, Is.False);
+                    continue;
+                }
+
+                Assert.That(ok, Is.True);
+                Assert.That(
+                    new string(buffer[..charsWritten]),
+                    Is.EqualTo(nodeId.Format(context, useNamespaceUri)));
+            }
+        }
+
+        [Test]
+        public void TryFormatReturnsFalseWhenBufferTooSmall()
+        {
+            var nodeId = new NodeId("a-fairly-long-string-identifier", 5);
+            Span<char> buffer = stackalloc char[4];
+            Assert.That(nodeId.TryFormat(buffer, out int charsWritten), Is.False);
+            Assert.That(charsWritten, Is.Zero);
+        }
+#endif
+
         [Test]
         public void ParseWithContextInvalidThrows()
         {

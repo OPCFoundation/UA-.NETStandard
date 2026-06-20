@@ -90,7 +90,6 @@ namespace Opc.Ua
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_options = options ?? JsonEncoderOptions.Verbose;
             m_stream = null;
             m_writer = writer;
@@ -107,7 +106,6 @@ namespace Opc.Ua
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_options = options ?? JsonEncoderOptions.Verbose;
 
             if (stream == null)
@@ -1184,7 +1182,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_logger.LogWarning(
+                    Logger.LogWarning(
                         "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                         DiagnosticInfo.MaxInnerDepth);
                 }
@@ -1539,6 +1537,17 @@ namespace Opc.Ua
                 return;
             }
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            // Avoid the per node id string allocation for the common cases that
+            // fit into a stack buffer (numeric/guid/string in the default
+            // namespace or any non namespace-uri form).
+            Span<char> buffer = stackalloc char[256];
+            if (value.TryFormat(buffer, out int charsWritten, m_options.ForceNamespaceUri))
+            {
+                m_writer.WriteStringValue(buffer[..charsWritten]);
+                return;
+            }
+#endif
             m_writer.WriteStringValue(value.Format(Context, m_options.ForceNamespaceUri));
         }
 
@@ -2334,9 +2343,10 @@ namespace Opc.Ua
         }
 
         private const int kFlushThreshold = 16 * 1024;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<JsonEncoder>();
         private readonly Stream? m_stream;
         private readonly bool m_leaveOpen;
-        private readonly ILogger m_logger;
+        private ILogger? m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
 #pragma warning disable IDE0052 // TODO Keep for future implementation or remove

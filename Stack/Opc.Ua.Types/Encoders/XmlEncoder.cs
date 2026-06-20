@@ -49,7 +49,6 @@ namespace Opc.Ua
         public XmlEncoder(IServiceMessageContext context)
         {
             Context = context;
-            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
             m_destination = new StringBuilder();
             m_nestingLevel = 0;
 
@@ -76,7 +75,6 @@ namespace Opc.Ua
         public XmlEncoder(XmlQualifiedName root, XmlWriter writer, IServiceMessageContext context)
         {
             Context = context;
-            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
             if (writer == null)
             {
                 m_destination = new StringBuilder();
@@ -676,7 +674,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        m_logger.LogWarning(
+                        Logger.LogWarning(
                             "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
@@ -2335,7 +2333,8 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        private readonly ILogger m_logger;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<XmlEncoder>();
+        private ILogger? m_logger;
         private readonly StringBuilder? m_destination;
         private readonly XmlWriter m_writer;
         private readonly Stack<string> m_namespaces = [];

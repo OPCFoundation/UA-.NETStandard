@@ -551,6 +551,133 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        /// <summary>
+        /// Formats the node id into a span without allocating a string.
+        /// Writes the same text as <see cref="Format(IServiceMessageContext, bool)"/>
+        /// for the non namespace-uri form (<c>ns=N;i=...</c>). When the namespace
+        /// uri form is requested for a node id in a non-default namespace the
+        /// namespace table is required, so this method returns <c>false</c> and the
+        /// caller should fall back to <see cref="Format(IServiceMessageContext, bool)"/>.
+        /// </summary>
+        /// <param name="destination">
+        /// The span to write the formatted node id into.
+        /// </param>
+        /// <param name="charsWritten">
+        /// The number of characters written to <paramref name="destination"/>.
+        /// </param>
+        /// <param name="useNamespaceUri">
+        /// Whether the namespace uri form was requested.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the node id was formatted into the destination;
+        /// <c>false</c> if the destination was too small or the namespace uri
+        /// form is required.
+        /// </returns>
+        public bool TryFormat(
+            Span<char> destination,
+            out int charsWritten,
+            bool useNamespaceUri = false)
+        {
+            charsWritten = 0;
+
+            if (IsNull)
+            {
+                return true;
+            }
+
+            int pos = 0;
+            ushort namespaceIndex = NamespaceIndex;
+
+            if (namespaceIndex > 0)
+            {
+                // the namespace uri form needs the namespace table; let the caller
+                // fall back to the string based Format overload.
+                if (useNamespaceUri)
+                {
+                    return false;
+                }
+
+                if (!"ns=".AsSpan().TryCopyTo(destination[pos..]))
+                {
+                    return false;
+                }
+                pos += 3;
+                if (!namespaceIndex.TryFormat(
+                    destination[pos..], out int nsWritten, provider: CultureInfo.InvariantCulture))
+                {
+                    return false;
+                }
+                pos += nsWritten;
+                if (pos >= destination.Length)
+                {
+                    return false;
+                }
+                destination[pos++] = ';';
+            }
+
+            switch (IdType)
+            {
+                case IdType.Numeric:
+                    if (!"i=".AsSpan().TryCopyTo(destination[pos..]))
+                    {
+                        return false;
+                    }
+                    pos += 2;
+                    if (!NumericIdentifier.TryFormat(
+                        destination[pos..], out int idWritten, provider: CultureInfo.InvariantCulture))
+                    {
+                        return false;
+                    }
+                    pos += idWritten;
+                    break;
+                case IdType.String:
+                    if (!"s=".AsSpan().TryCopyTo(destination[pos..]))
+                    {
+                        return false;
+                    }
+                    pos += 2;
+                    string identifier = StringIdentifier;
+                    if (!identifier.AsSpan().TryCopyTo(destination[pos..]))
+                    {
+                        return false;
+                    }
+                    pos += identifier.Length;
+                    break;
+                case IdType.Guid:
+                    if (!"g=".AsSpan().TryCopyTo(destination[pos..]))
+                    {
+                        return false;
+                    }
+                    pos += 2;
+                    if (!GuidIdentifier.TryFormat(destination[pos..], out int guidWritten))
+                    {
+                        return false;
+                    }
+                    pos += guidWritten;
+                    break;
+                case IdType.Opaque:
+                    if (!"b=".AsSpan().TryCopyTo(destination[pos..]))
+                    {
+                        return false;
+                    }
+                    pos += 2;
+                    if (!Convert.TryToBase64Chars(
+                        OpaqueIdentifer.Span, destination[pos..], out int b64Written))
+                    {
+                        return false;
+                    }
+                    pos += b64Written;
+                    break;
+                default:
+                    return false;
+            }
+
+            charsWritten = pos;
+            return true;
+        }
+#endif
+
         /// <summary>
         /// Converts an identifier and a namespaceUri to a local NodeId using the namespaceTable.
         /// </summary>

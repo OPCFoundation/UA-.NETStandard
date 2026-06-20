@@ -53,7 +53,6 @@ namespace Opc.Ua
         public BinaryEncoder(IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
             m_leaveOpen = false;
@@ -75,7 +74,6 @@ namespace Opc.Ua
             }
 
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
             m_leaveOpen = false;
@@ -94,7 +92,6 @@ namespace Opc.Ua
             bool leaveOpen)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = stream ?? throw new ArgumentNullException(nameof(stream));
             m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
             m_leaveOpen = leaveOpen;
@@ -769,7 +766,8 @@ namespace Opc.Ua
             // calculate the encoding.
             byte encoding = 0;
 
-            if (!value.WrappedValue.IsNull)
+            Variant wrappedValue = value.WrappedValue;
+            if (!wrappedValue.IsNull)
             {
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
@@ -805,7 +803,7 @@ namespace Opc.Ua
             // write the fields of the data value structure.
             if ((encoding & (byte)DataValueEncodingBits.Value) != 0)
             {
-                WriteVariant(null, value.WrappedValue);
+                WriteVariant(null, wrappedValue);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.StatusCode) != 0)
@@ -1524,10 +1522,15 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteVariantValue(in Variant value, bool writeRawValue)
         {
+            // Snapshot the type info once; Variant is immutable so repeated
+            // value.TypeInfo property reads would each copy the struct.
+            TypeInfo typeInfo = value.TypeInfo;
+            BuiltInType builtInType = typeInfo.BuiltInType;
+
             // check for null.
             if (value.IsNull ||
-                value.TypeInfo.IsUnknown ||
-                value.TypeInfo.BuiltInType == BuiltInType.Null)
+                typeInfo.IsUnknown ||
+                builtInType == BuiltInType.Null)
             {
                 if (!writeRawValue)
                 {
@@ -1537,20 +1540,20 @@ namespace Opc.Ua
             }
 
             // encode enums as int32.
-            byte encodingByte = (byte)value.TypeInfo.BuiltInType;
-            if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+            byte encodingByte = (byte)builtInType;
+            if (builtInType == BuiltInType.Enumeration)
             {
                 encodingByte = (byte)BuiltInType.Int32;
             }
 
-            if (value.TypeInfo.IsScalar)
+            if (typeInfo.IsScalar)
             {
                 // Write scalar
                 if (!writeRawValue)
                 {
                     WriteByte(null, encodingByte);
                 }
-                switch (value.TypeInfo.BuiltInType)
+                switch (builtInType)
                 {
                     case BuiltInType.Boolean:
                         WriteBoolean(null, value.GetBoolean());
@@ -1633,13 +1636,13 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
+                            builtInType);
                     default:
                         throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
-            else if (value.TypeInfo.IsArray)
+            else if (typeInfo.IsArray)
             {
                 // Write arrays
 
@@ -1650,7 +1653,7 @@ namespace Opc.Ua
                         (byte)(encodingByte | (byte)VariantArrayEncodingBits.Array));
                 }
 
-                switch (value.TypeInfo.BuiltInType)
+                switch (builtInType)
                 {
                     case BuiltInType.Boolean:
                         WriteBooleanArray(null, value.GetBooleanArray());
@@ -1735,10 +1738,10 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
+                            builtInType);
                     default:
                         throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             else // Write multi dimensional arrays
@@ -1751,7 +1754,7 @@ namespace Opc.Ua
                         (byte)VariantArrayEncodingBits.ArrayDimensions));
                 }
                 int[] dim;
-                switch (value.TypeInfo.BuiltInType)
+                switch (builtInType)
                 {
                     case BuiltInType.Boolean:
                     {
@@ -2020,7 +2023,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        m_logger.LogWarning(
+                        Logger.LogWarning(
                             "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
@@ -2210,7 +2213,8 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        private readonly ILogger m_logger;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryEncoder>();
+        private ILogger? m_logger;
         private Stream m_ostrm;
         private BinaryWriter m_writer;
         private readonly bool m_leaveOpen;

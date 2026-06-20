@@ -79,7 +79,6 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(buffer));
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryDecoder>();
             var stream = new MemoryStream(buffer, start, count, false);
             m_reader = new BinaryReader(stream);
         }
@@ -101,7 +100,6 @@ namespace Opc.Ua
                 throw new ArgumentException("Stream must be seekable and readable.");
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryDecoder>();
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
         }
 
@@ -626,25 +624,31 @@ namespace Opc.Ua
                 return DataValue.Null;
             }
 
-            var value = new DataValue();
+            // read the fields of the DataValue structure into locals so the
+            // DataValue is constructed once instead of via a chain of
+            // intermediate "With..." struct copies.
+            Variant wrappedValue = Variant.Null;
+            StatusCode statusCode = StatusCodes.Good;
+            DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
+            DateTimeUtc serverTimestamp = DateTimeUtc.MinValue;
+            ushort sourcePicoseconds = 0;
+            ushort serverPicoseconds = 0;
 
-            // read the fields of the DataValue structure.
             if ((encodingByte & (byte)DataValueEncodingBits.Value) != 0)
             {
-                value = value.WithWrappedValue(ReadVariant(null));
+                wrappedValue = ReadVariant(null);
             }
 
             if ((encodingByte & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                value = value.WithStatus(ReadStatusCode(null));
+                statusCode = ReadStatusCode(null);
             }
 
-            ushort sourcePicoseconds = 0;
             bool hasPicoseconds = (encodingByte &
                 (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
-                value = value.WithSourceTimestamp(ReadDateTime(null));
+                sourceTimestamp = ReadDateTime(null);
                 if (hasPicoseconds)
                 {
                     sourcePicoseconds = ReadUInt16(null);
@@ -654,13 +658,11 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            value = value.WithSourcePicoseconds(sourcePicoseconds);
 
-            ushort serverPicoseconds = 0;
             hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
-                value = value.WithServerTimestamp(ReadDateTime(null));
+                serverTimestamp = ReadDateTime(null);
                 if (hasPicoseconds)
                 {
                     serverPicoseconds = ReadUInt16(null);
@@ -670,7 +672,14 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            return value.WithServerPicoseconds(serverPicoseconds);
+
+            return new DataValue(
+                wrappedValue,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                sourcePicoseconds,
+                serverPicoseconds);
         }
 
         /// <inheritdoc/>
@@ -685,7 +694,7 @@ namespace Opc.Ua
 
             if (!typeId.IsNull && extension.TypeId.IsNull)
             {
-                m_logger.LogWarning(
+                Logger.LogWarning(
                     "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                     typeId);
             }
@@ -714,7 +723,7 @@ namespace Opc.Ua
                 extension.TypeId,
                 out IEncodeableType? activator))
             {
-                m_logger.LogDebug("Failed to retrieve activator for extension object.");
+                Logger.LogDebug("Failed to retrieve activator for extension object.");
                 // Continue without registered type by reading the binary blob for later.
             }
 
@@ -746,7 +755,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
+                        Logger.LogError(
                             "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
                             activator.XmlName,
                             e.Message,
@@ -835,7 +844,7 @@ namespace Opc.Ua
                     else if (m_encodeablesRecovered == 0)
                     {
                         // log the error only once to avoid flooding the log.
-                        m_logger.LogWarning(
+                        Logger.LogWarning(
                             exception,
                             "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
@@ -2325,6 +2334,7 @@ namespace Opc.Ua
         private ushort[]? m_serverMappings;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
-        private readonly ILogger m_logger;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();
+        private ILogger? m_logger;
     }
 }
