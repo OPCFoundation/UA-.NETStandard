@@ -157,6 +157,11 @@ jobs:
       # diagnostic info (observed on mac PR build 14598 log 933: 28 min of silence
       # after the previous test before the step timeout fired). LongRunning/Stress
       # tests are already filtered out, so 10 min is well above any legitimate run.
+      # --blame-hang-dump-type mini: capture a minidump on hang so we can root-cause
+      # teardown / shutdown hangs (observed on mac PR build 14799: 11m55s of silent
+      # teardown after the last test event, with no actionable info because the
+      # previous "none" setting suppressed the dump). Mini dumps are small (<50MB)
+      # and travel through the trx logger automatically.
       # --logger trx + --results-directory: emit trx ourselves because we set
       # publishTestResults: false below to decouple "ran tests" from "published
       # results to AzDO" - the inline publish step inside DotNetCoreCLI@2 fails
@@ -164,7 +169,7 @@ jobs:
       # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
       # all 707 tests passed, then post-test publish errored with
       # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type none --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
