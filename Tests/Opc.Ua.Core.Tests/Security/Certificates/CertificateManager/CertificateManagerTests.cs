@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -986,6 +987,44 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 blob,
                 Is.EqualTo(leaf.RawData),
                 "When the issuer cannot be resolved the chain blob must be leaf-only.");
+        }
+
+        /// <summary>
+        /// Issuer-chain resolution must not swallow caller-requested
+        /// cancellation: a cancelled token has to surface as an
+        /// <see cref="OperationCanceledException"/> so callers can abort (e.g.
+        /// responsive shutdown) instead of silently registering a leaf-only
+        /// chain.
+        /// </summary>
+        [Test]
+        public void UpdateApplicationCertificatePropagatesCancellation()
+        {
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, CreateTempDir());
+
+            // A CA-signed (non-self-signed) leaf forces issuer resolution to
+            // walk the chain, where the cancelled token is observed.
+            using Certificate ca = CertificateBuilder
+                .Create("CN=CancelRoot, O=OPC Foundation")
+                .SetCAConstraint(-1)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CancelLeaf, O=OPC Foundation")
+                .SetIssuer(ca)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                async () => await manager.UpdateApplicationCertificateAsync(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    leaf,
+                    issuerChain: null,
+                    cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
         }
 
         [Test]

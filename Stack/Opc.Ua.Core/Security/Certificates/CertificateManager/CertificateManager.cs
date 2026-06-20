@@ -621,6 +621,14 @@ namespace Opc.Ua
                     issuerChain.Add(issuerReference.Certificate);
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Propagate caller-requested cancellation so shutdown / abort
+                // stays responsive; only genuine resolution failures are
+                // swallowed below. Dispose the (empty) chain to avoid a leak.
+                issuerChain.Dispose();
+                throw;
+            }
             catch (Exception ex)
             {
                 m_logger.LogWarning(
