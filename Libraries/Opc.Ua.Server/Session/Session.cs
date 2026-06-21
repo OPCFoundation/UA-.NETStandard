@@ -206,16 +206,30 @@ namespace Opc.Ua.Server
             {
                 m_securityDiagnostics.ClientCertificate = clientCertificate.RawData.ToByteString();
             }
+        }
 
+        /// <summary>
+        /// Completes session creation by registering the session diagnostics
+        /// node in the address space. This is the asynchronous part of session
+        /// creation and must be awaited after construction (the
+        /// <see cref="SessionManager"/> does this); it sets <see cref="Id"/>.
+        /// </summary>
+        /// <param name="context">The operation context of the create request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        internal async ValueTask InitializeAsync(
+            OperationContext context,
+            CancellationToken cancellationToken = default)
+        {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
 
             // create diagnostics object.
-            Id = server.DiagnosticsNodeManager.CreateSessionDiagnosticsAsync(
+            Id = await m_server.DiagnosticsNodeManager.CreateSessionDiagnosticsAsync(
                 systemContext,
                 SessionDiagnostics,
                 OnUpdateDiagnostics,
                 m_securityDiagnostics,
-                OnUpdateSecurityDiagnostics).AsTask().GetAwaiter().GetResult();
+                OnUpdateSecurityDiagnostics,
+                cancellationToken).ConfigureAwait(false);
 
             TraceState("CREATED");
         }
@@ -278,7 +292,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
-        public NodeId Id { get; }
+        public NodeId Id { get; private set; }
 
         /// <summary>
         /// The user identity provided by the client.
