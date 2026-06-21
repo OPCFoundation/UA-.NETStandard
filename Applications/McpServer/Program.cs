@@ -37,6 +37,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.PubSub.Pcap;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
@@ -143,6 +144,7 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
     });
     services.AddPcapFormatters();
     services.AddPcapReplay();
+    services.AddPubSubPcap();
 }
 
 static McpServerOptions CreateMcpServerOptions()
@@ -195,6 +197,7 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
         .WithTools<PacketCaptureTools>()
         .WithTools<PkiTools>()
         .WithTools<PubSubActionTools>()
+        .WithTools<PubSubCaptureTools>()
         .WithTools<PubSubKeyServiceTools>()
         .WithTools<SubscriptionServiceTools>()
         .WithTools<ViewServiceTools>();
@@ -203,7 +206,8 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
     {
         mcpServerBuilder
             .WithTools<PacketDecodeTools>()
-            .WithTools<PacketReplayTools>();
+            .WithTools<PacketReplayTools>()
+            .WithTools<PubSubDecodeTools>();
     }
 
     mcpServerBuilder.WithResources<SessionResources>();
@@ -234,4 +238,5 @@ static void ConfigureLogging(ILoggingBuilder logging)
         options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     });
 }
+
 
