@@ -125,7 +125,7 @@ namespace Opc.Ua.Client
             ];
 
             meter.CreateObservableCounter(
-                "opcua.client.nodecache.hits",
+                "opc.ua.client.nodecache.hits",
                 () =>
                 {
                     Optional<ICacheMetrics> metrics = cache.Metrics;
@@ -134,7 +134,7 @@ namespace Opc.Ua.Client
                 description: "Number of cache hits in the OPC UA client node cache.");
 
             meter.CreateObservableCounter(
-                "opcua.client.nodecache.misses",
+                "opc.ua.client.nodecache.misses",
                 () =>
                 {
                     Optional<ICacheMetrics> metrics = cache.Metrics;
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client
                 description: "Number of cache misses in the OPC UA client node cache.");
 
             meter.CreateObservableCounter(
-                "opcua.client.nodecache.evictions",
+                "opc.ua.client.nodecache.evictions",
                 () =>
                 {
                     Optional<ICacheMetrics> metrics = cache.Metrics;
@@ -152,7 +152,7 @@ namespace Opc.Ua.Client
                 description: "Number of evictions from the OPC UA client node cache.");
 
             meter.CreateObservableGauge(
-                "opcua.client.nodecache.size",
+                "opc.ua.client.nodecache.size",
                 () => new Measurement<long>(cache.Count, tag),
                 description: "Current number of entries in the OPC UA client node cache.");
         }

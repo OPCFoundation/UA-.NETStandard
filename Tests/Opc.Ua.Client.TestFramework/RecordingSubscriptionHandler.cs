@@ -320,14 +320,19 @@ namespace Opc.Ua.Client.TestFramework
         private int m_eventCount;
         private int m_keepAliveCount;
         private int m_stateChangedCount;
+
         private TaskCompletionSource<bool> m_firstData =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private TaskCompletionSource<bool> m_firstKeepAlive =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private TaskCompletionSource<bool> m_firstEvent =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private TaskCompletionSource<bool> m_firstTransferred =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly ConcurrentDictionary<ISubscription, uint> m_lastSequenceNumber = new();
         private readonly List<RecordedDataValueChange> m_recordedChanges = [];
         private readonly Lock m_recordedChangesLock = new();

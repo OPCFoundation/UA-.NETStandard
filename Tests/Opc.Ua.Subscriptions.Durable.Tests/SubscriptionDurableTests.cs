@@ -41,7 +41,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Subscriptions.Durable.Tests
@@ -410,19 +409,25 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 {
                     await originSession.DisposeAsync().ConfigureAwait(false);
                 }
-                catch { /* best effort */ }
+                catch
+                { /* best effort */
+                }
                 if (targetSession != null)
                 {
                     try
                     {
                         await targetSession.CloseAsync().ConfigureAwait(false);
                     }
-                    catch { /* best effort */ }
+                    catch
+                    { /* best effort */
+                    }
                     try
                     {
                         await targetSession.DisposeAsync().ConfigureAwait(false);
                     }
-                    catch { /* best effort */ }
+                    catch
+                    { /* best effort */
+                    }
                 }
             }
         }
@@ -456,7 +461,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 100,
@@ -492,7 +497,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
                 bool everyPartCreated = await WaitForAsync(
                     () => sub.Created &&
-                          sub.MonitoredItems.Items.All(i => i.Created),
+                        sub.MonitoredItems.Items.All(i => i.Created),
                     TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
                 Assert.That(everyPartCreated, Is.True,
                     "every item across every partition must reach Created");
@@ -516,12 +521,16 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 {
                     await session.CloseAsync().ConfigureAwait(false);
                 }
-                catch { /* best effort */ }
+                catch
+                { /* best effort */
+                }
                 try
                 {
                     await session.DisposeAsync().ConfigureAwait(false);
                 }
-                catch { /* best effort */ }
+                catch
+                { /* best effort */
+                }
             }
         }
 

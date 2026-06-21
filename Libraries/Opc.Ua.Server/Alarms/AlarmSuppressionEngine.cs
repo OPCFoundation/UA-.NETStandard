@@ -48,6 +48,7 @@ namespace Opc.Ua.Server.Alarms
         /// Registers a suppression group. When <paramref name="suppressionSource"/>
         /// returns true, all alarm members are suppressed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="suppressionGroup"/> is <c>null</c>.</exception>
         public void RegisterSuppressionGroup(
             AlarmGroupState suppressionGroup,
             Func<bool> suppressionSource,
@@ -85,6 +86,7 @@ namespace Opc.Ua.Server.Alarms
         /// Registers a first-in-group alarm. When this alarm activates,
         /// the supplied member alarms are suppressed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="firstAlarm"/> is <c>null</c>.</exception>
         public void RegisterFirstInGroupAlarm(
             AlarmConditionState firstAlarm,
             AlarmGroupState group,
@@ -120,6 +122,7 @@ namespace Opc.Ua.Server.Alarms
         /// suppression to their alarm members based on the current
         /// source condition value.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Evaluate(ISystemContext context)
         {
             if (context == null)
@@ -171,6 +174,7 @@ namespace Opc.Ua.Server.Alarms
         /// active state. The engine suppresses other group members
         /// when this alarm is active.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void OnFirstInGroupActiveChanged(
             ISystemContext context,
             AlarmConditionState firstAlarm,

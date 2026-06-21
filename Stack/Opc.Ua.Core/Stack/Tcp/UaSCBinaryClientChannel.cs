@@ -151,7 +151,7 @@ namespace Opc.Ua.Bindings
 
             if (disposing)
             {
-                OnTokenActivated = null;
+                TokenActivatedCallback = null;
 
                 m_handshakeTimer?.Dispose();
                 m_handshakeTimer = null;

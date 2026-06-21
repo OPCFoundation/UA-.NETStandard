@@ -490,8 +490,21 @@ namespace Opc.Ua.SourceGeneration
             }
             return null;
 
+            // The != operator is not reflexive for scalar floating point values:
+            // NaN != NaN is true, which would make a decoded value compare unequal
+            // to itself. Route those through CoreUtils.IsEqual (which uses the
+            // NaN-aware IEquatable comparer) so equality stays reflexive. Array /
+            // matrix forms already compare NaN-safely via ArrayOf/MatrixOf.
             static bool IsDotNetEqualityComparable(TypeFieldModel field) =>
-                !field.IsEncodeable; // Add any other type not comparable using ==
+                !field.IsEncodeable && !IsFloatingPointScalar(field);
+
+            static bool IsFloatingPointScalar(TypeFieldModel field) =>
+                !field.IsArray &&
+                !field.IsMatrix &&
+                field.ShortTypeName != null &&
+                (field.ShortTypeName.Equals("Double", StringComparison.OrdinalIgnoreCase) ||
+                    field.ShortTypeName.Equals("Single", StringComparison.OrdinalIgnoreCase) ||
+                    field.ShortTypeName.Equals("Float", StringComparison.OrdinalIgnoreCase));
         }
 
         private static TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)

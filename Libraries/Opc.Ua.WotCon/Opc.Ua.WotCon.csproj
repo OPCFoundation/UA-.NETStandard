@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <Description>OPC UA WoT Connectivity (OPC 10100-1) information model</Description>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -46,5 +47,8 @@
   <ItemGroup>
     <AdditionalFiles Include="Design\WotConnection.csv" />
     <AdditionalFiles Include="Design\WotConnection.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

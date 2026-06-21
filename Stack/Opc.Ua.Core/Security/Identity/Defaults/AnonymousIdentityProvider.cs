@@ -52,31 +52,46 @@ namespace Opc.Ua.Identity
         public DateTime ExpiresAt => DateTime.MaxValue;
 
         /// <inheritdoc/>
-        public bool CanSatisfy(
-            UserTokenPolicy policy,
-            IdentitySelectionContext context)
-        {
-            return policy != null && policy.TokenType == UserTokenType.Anonymous;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<IUserIdentity> GetIdentityAsync(
+        public ValueTask<CanSatisfyResult> CanSatisfyAsync(
             UserTokenPolicy policy,
             IdentitySelectionContext context,
             CancellationToken ct = default)
         {
-            if (!CanSatisfy(policy, context))
+            if (policy == null)
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No("Policy is null."));
+            }
+            if (policy.TokenType != UserTokenType.Anonymous)
+            {
+                return new ValueTask<CanSatisfyResult>(
+                    CanSatisfyResult.No(
+                        $"TokenTypeNotSupported (provider handles Anonymous, policy is {policy.TokenType})."));
+            }
+            return new ValueTask<CanSatisfyResult>(CanSatisfyResult.Yes);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<IUserIdentity> GetIdentityAsync(
+            UserTokenPolicy policy,
+            IdentitySelectionContext context,
+            CancellationToken ct = default)
+        {
+            CanSatisfyResult result = await CanSatisfyAsync(policy, context, ct)
+                .ConfigureAwait(false);
+            if (!result.CanSatisfy)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
-                    "Anonymous identity provider can only satisfy anonymous user token policies.");
+                    "Anonymous identity provider cannot satisfy the supplied user token policy: {0}",
+                    result.RejectionReason ?? string.Empty);
             }
 
             var identity = new UserIdentity
             {
                 PolicyId = policy.PolicyId ?? string.Empty
             };
-            return new ValueTask<IUserIdentity>(identity);
+            return identity;
         }
     }
 }

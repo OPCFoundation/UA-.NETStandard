@@ -43,7 +43,7 @@ namespace Opc.Ua.Di.Server.Transfer
     /// </param>
     /// <param name="Value">The parameter value.</param>
     /// <param name="StatusCode">
-    /// Per-parameter status. <see cref="Opc.Ua.StatusCodes.Good"/>
+    /// Per-parameter status. <see cref="StatusCodes.Good"/>
     /// for successful transfers; per-parameter bad codes are surfaced
     /// to the client via <c>FetchTransferResultData</c>.
     /// </param>
@@ -71,7 +71,7 @@ namespace Opc.Ua.Di.Server.Transfer
                 throw new System.ArgumentNullException(nameof(elementId));
             }
             ElementId = elementId;
-            Entries = new List<ParameterEntry>();
+            Entries = [];
         }
 
         /// <summary>

@@ -697,5 +697,8 @@ sc = sc.WithAggregateBits(agg);
    equality, default values, and parameter passing.
 4. **Build incrementally.** Fix one priority layer at a time and rebuild to
    track progress.
-5. **Refer to canonical docs.** `Docs/MigrationGuide.md` is the upstream
-   source of truth — sync this skill against it on every PR.
+5. **Refer to canonical docs.** The
+   [`Docs/migrate/2.0.x/`](../../../Docs/migrate/2.0.x/) sub-docs are the
+   upstream source of truth — sync this skill against them on every PR.
+   Use the symptom → sub-doc table in `SKILL.md` to load only the
+   relevant one.

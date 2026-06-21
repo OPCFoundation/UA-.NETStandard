@@ -37,8 +37,10 @@ namespace Opc.Ua.Core.Security.Tests
     /// from a non-admin session returns no children — the standard nodeset
     /// declares <c>RolePermission Permissions="61455">SecurityAdmin</c> on
     /// these methods/variables, so anonymous and authenticated-user sessions
-    /// cannot Browse them. These tests still need to verify the methods exist
-    /// on the server, which they do — Browse just hides them.
+    /// cannot Browse them. These tests still need to verify the methods
+    /// exist on the server, which they do (the source generator emits them
+    /// at their well-known instance NodeIds in the SDK's address space) —
+    /// Browse just hides them from low-privilege sessions.
     /// </summary>
     public static class WellKnownRoleNodeIds
     {

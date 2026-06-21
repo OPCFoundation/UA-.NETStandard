@@ -352,9 +352,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.IsNotExplicitlyDefined)
 
             {
-
                 return null;
-
             }
             if (instance.IsOverriddenWithSameClass(
                 m_context.ModelDesign.TargetNamespace.Value,
@@ -408,6 +406,11 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces));
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
+            context.Template.AddReplacement(
+                Tokens.NodeIdConstant,
+                instance.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable));
 
             return context.Template.Render();
         }
@@ -456,9 +459,7 @@ namespace Opc.Ua.SourceGeneration
             if (fields.Count == 0)
 
             {
-
                 return null;
-
             }
             return context.TemplateString;
         }
@@ -475,9 +476,7 @@ namespace Opc.Ua.SourceGeneration
             if (fields.Count == 0)
 
             {
-
                 return false;
-
             }
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.DataType, type.DataTypeNode.GetDotNetTypeName(
@@ -618,9 +617,7 @@ namespace Opc.Ua.SourceGeneration
             if (effectiveRule == ModellingRule.None)
 
             {
-
                 return null;
-
             }
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
@@ -956,9 +953,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.IsNotExplicitlyDefined)
 
             {
-
                 return null;
-
             }
             if (GetEffectiveModellingRule(node, instance) != ModellingRule.Optional)
             {
@@ -1011,9 +1006,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.IsNotExplicitlyDefined)
 
             {
-
                 return null;
-
             }
             ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
 
@@ -1028,9 +1021,7 @@ namespace Opc.Ua.SourceGeneration
             if (effectiveRule == ModellingRule.None)
 
             {
-
                 return null;
-
             }
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
@@ -1107,9 +1098,7 @@ namespace Opc.Ua.SourceGeneration
                 if (child.IsNotExplicitlyDefined)
 
                 {
-
                     continue;
-
                 }
                 ModellingRule childEffectiveRule =
                     GetEffectiveModellingRule(child, instance);
@@ -1125,9 +1114,7 @@ namespace Opc.Ua.SourceGeneration
                 if (childEffectiveRule is ModellingRule.None)
 
                 {
-
                     continue;
-
                 }
                 if (childEffectiveRule is
                     ModellingRule.OptionalPlaceholder or
@@ -1149,9 +1136,7 @@ namespace Opc.Ua.SourceGeneration
             if (count == 0)
 
             {
-
                 return null;
-
             }
             return context.TemplateString;
         }
@@ -1367,6 +1352,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.NodeIdConstant,
                 root.GetNodeIdAsCode(m_context.ModelDesign.Namespaces, kNamespaceTableContextVariable));
+            AddInstanceNodeIdOverrideReplacement(context, node);
 
             // .net efficiently interns constant string, so usage of the BrowseName constants is not needed.
             string symbolicNameSymbol = root.SymbolicName.Name.AsStringLiteral();
@@ -1469,7 +1455,8 @@ namespace Opc.Ua.SourceGeneration
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
-                    root.AccessRestrictionsSpecified) ?? root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
+                    root.AccessRestrictionsSpecified) ??
+                root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
                     root.DefaultAccessRestrictionsSpecified);
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
@@ -1649,10 +1636,10 @@ namespace Opc.Ua.SourceGeneration
                                 {
                                     case ModellingRule.Mandatory:
                                     case ModellingRule.Optional:
-                                        context.Out.WriteLine(
-                                            "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
-                                            instance.SymbolicName.Name,
-                                            instance.SymbolicId.Name,
+                                        EmitCreateOrReplaceChild(
+                                            context,
+                                            node,
+                                            instance,
                                             forInstanceVariableValue);
                                         return null;
                                     case ModellingRule.OptionalPlaceholder:
@@ -1677,6 +1664,82 @@ namespace Opc.Ua.SourceGeneration
                 forInstanceVariableValue);
             return null;
         }
+
+        /// <summary>
+        /// Emits the <c>state.CreateOrReplace{Name}(context, Create{Symbolic}(context, state, forInstance: …))</c>
+        /// call site for a child of an InstanceDesign parent. When the child
+        /// lives in a type-level factory body (<see cref="NodeToGenerate.RootIsTypeDefinition"/>
+        /// is <c>true</c>) AND the type has well-known singleton instances
+        /// whose corresponding child factories have been collected, also
+        /// dispatches the <c>forInstance: true</c> path into the appropriate
+        /// singleton-instance child factory. This ensures that lazy-added
+        /// methods on singleton owners (e.g.
+        /// <c>serverObject.AddGetMonitoredItems(context, MethodIds.Server_GetMonitoredItems)</c>)
+        /// produce synthesized children (<c>InputArguments</c>,
+        /// <c>OutputArguments</c>) at their well-known instance NodeIds
+        /// rather than the type-level placeholders.
+        /// </summary>
+        private void EmitCreateOrReplaceChild(
+            ILoadContext context,
+            NodeToGenerate node,
+            InstanceDesign instance,
+            string forInstanceVariableValue)
+        {
+            List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> singletonChildren =
+                FindSingletonChildren(node);
+            if (singletonChildren.Count == 0)
+            {
+                context.Out.WriteLine(
+                    "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                    instance.SymbolicName.Name,
+                    instance.SymbolicId.Name,
+                    forInstanceVariableValue);
+                return;
+            }
+
+            // Dispatch on the parent's NodeId so the singleton-instance
+            // child factory is invoked when the type-level factory is
+            // materialising an actual well-known instance subtree. The
+            // <paramref name="forInstance"/> gate keeps the type-template
+            // emission path (forInstance: false) unchanged.
+            context.Out.WriteLine("if ({0} && parent != null)", forInstanceVariableValue);
+            context.Out.WriteLine("{");
+            for (int i = 0; i < singletonChildren.Count; i++)
+            {
+                (NodeToGenerate singletonRoot, NodeToGenerate _, string singletonChildSymbolicId)
+                    = singletonChildren[i];
+                string keyword = i == 0 ? "if" : "else if";
+                context.Out.WriteLine(
+                    "    {0} (parent.NodeId.Equals({1}))",
+                    keyword,
+                    singletonRoot.Design.GetNodeIdAsCode(
+                        m_context.ModelDesign.Namespaces,
+                        kNamespaceTableContextVariable));
+                context.Out.WriteLine("    {");
+                context.Out.WriteLine(
+                    "        state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: true));",
+                    instance.SymbolicName.Name,
+                    singletonChildSymbolicId);
+                context.Out.WriteLine("    }");
+            }
+            context.Out.WriteLine("    else");
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine(
+                "        state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: true));",
+                instance.SymbolicName.Name,
+                instance.SymbolicId.Name);
+            context.Out.WriteLine("    }");
+            context.Out.WriteLine("}");
+            context.Out.WriteLine("else");
+            context.Out.WriteLine("{");
+            context.Out.WriteLine(
+                "    state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                instance.SymbolicName.Name,
+                instance.SymbolicId.Name,
+                forInstanceVariableValue);
+            context.Out.WriteLine("}");
+        }
+
 
         private bool WriteTemplate_RolePermissions(IWriteContext context)
         {
@@ -1810,9 +1873,7 @@ namespace Opc.Ua.SourceGeneration
             if (variableType.SymbolicName.Name == "TwoStateDiscreteType")
 
             {
-
                 variableType.ValueRank = ValueRank.Scalar;
-
             }
             if (!variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
@@ -2481,6 +2542,197 @@ namespace Opc.Ua.SourceGeneration
             // a Hierarchy from the model validation, so we build a minimal one with
             // their references to emit them into the address space.
             CollectEncodingNodes();
+
+            // Index well-known singleton roots by their TypeDefinition so the
+            // child-emission writer can dispatch the type-level factory's
+            // forInstance: true branch into the matching singleton-instance
+            // child factory (e.g. CreateServerType_GetMonitoredItems can
+            // produce InputArguments at the well-known Server_*
+            // NodeIds when the parent is the Server singleton).
+            BuildSingletonInstanceIndex();
+        }
+
+        /// <summary>
+        /// Populates <see cref="m_singletonsByType"/> with every singleton
+        /// instance root or nested well-known instance in
+        /// <see cref="m_nodes"/> grouped by its
+        /// <see cref="InstanceDesign.TypeDefinitionNode"/>'s SymbolicId.
+        /// Top-level entries correspond to declared
+        /// <c>&lt;opc:Object&gt;</c> / <c>&lt;opc:Variable&gt;</c>
+        /// singletons such as <c>Server</c> or
+        /// <c>WellKnownRole_Observer</c>; nested entries cover Mandatory
+        /// well-known children such as <c>Server_ServerCapabilities</c>
+        /// (an instance of <c>ServerCapabilitiesType</c>) so the type-level
+        /// factory's child-dispatch can produce the well-known instance
+        /// NodeIds at every depth.
+        /// </summary>
+        private void BuildSingletonInstanceIndex()
+        {
+            foreach (NodeToGenerate entry in m_nodes.Values)
+            {
+                if (entry.Design is not InstanceDesign instance)
+                {
+                    continue;
+                }
+                TypeDesign typeDef = instance.TypeDefinitionNode;
+                if (typeDef == null || typeDef.SymbolicId == null)
+                {
+                    continue;
+                }
+                if (!m_singletonsByType.TryGetValue(typeDef.SymbolicId,
+                    out List<NodeToGenerate> singletons))
+                {
+                    singletons = [];
+                    m_singletonsByType[typeDef.SymbolicId] = singletons;
+                }
+                singletons.Add(entry);
+            }
+        }
+
+        /// <summary>
+        /// Given the type-level child <paramref name="typeChild"/> that is
+        /// about to be emitted inside a type-level factory body (e.g. the
+        /// InputArguments slot inside <c>CreateServerType_GetMonitoredItems</c>),
+        /// returns the singleton-instance equivalents — the same relative
+        /// path under each known singleton instance of the type root, when
+        /// such a child has been collected.
+        /// </summary>
+        private List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>
+            FindSingletonChildren(NodeToGenerate typeChild)
+        {
+            var result = new List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>();
+            if (typeChild == null || !typeChild.RootIsTypeDefinition)
+            {
+                return result;
+            }
+
+            // Walk up to the type root NodeToGenerate.
+            NodeToGenerate typeRoot = typeChild;
+            while (typeRoot.Parent != null)
+            {
+                typeRoot = typeRoot.Parent;
+            }
+            if (typeRoot.Design is not TypeDesign typeDef ||
+                typeDef.SymbolicId == null)
+            {
+                return result;
+            }
+
+            // Find singletons of this type, if any.
+            if (!m_singletonsByType.TryGetValue(typeDef.SymbolicId,
+                out List<NodeToGenerate> singletons))
+            {
+                return result;
+            }
+
+            // The relative path suffix is the part of the child's SymbolicId
+            // that follows the type-root SymbolicId. Both type and singleton
+            // trees use the same "_<ChildSymbolicName>" path scheme, so we
+            // can compute the singleton child SymbolicId by prefix swap.
+            string typeRootName = typeDef.SymbolicId.Name;
+            string childName = typeChild.Design.SymbolicId.Name;
+            if (childName == null ||
+                !childName.StartsWith(typeRootName, StringComparison.Ordinal))
+            {
+                return result;
+            }
+            string relativeSuffix = childName.Substring(typeRootName.Length);
+
+            // Only count singletons whose corresponding child has actually
+            // been collected (m_nodes contains the singleton-instance
+            // descendants). For example, RoleType has both modifiable
+            // (Observer/Operator/...) and immutable (Anonymous/...)
+            // singletons; only the modifiable ones have the Mandatory
+            // promoted AddIdentity child.
+            foreach (NodeToGenerate singleton in singletons)
+            {
+                if (singleton.Design?.SymbolicId == null)
+                {
+                    continue;
+                }
+                string singletonChildName = singleton.Design.SymbolicId.Name + relativeSuffix;
+                var singletonChildSymbolicId = new XmlQualifiedName(
+                    singletonChildName,
+                    typeChild.Design.SymbolicId.Namespace);
+                if (m_nodes.TryGetValue(singletonChildSymbolicId,
+                    out NodeToGenerate singletonChild))
+                {
+                    result.Add((singleton, singletonChild, singletonChildName));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Registers the <see cref="Tokens.InstanceNodeIdOverride"/>
+        /// replacement for the type-level factory currently being emitted.
+        /// When the node has well-known singleton instances (e.g. a method
+        /// declared under <c>ServerType</c> whose <c>Server</c> singleton
+        /// has its own well-known <c>NodeId</c>), the wrapper template
+        /// renders a runtime dispatch that rebinds <c>state.NodeId</c> to
+        /// the singleton-instance value when <c>forInstance: true</c> is
+        /// passed AND <c>parent</c> matches one of the known singleton
+        /// instances. The token expands to nothing when no singleton
+        /// dispatch is applicable.
+        /// </summary>
+        private void AddInstanceNodeIdOverrideReplacement(
+            IWriteContext context,
+            NodeToGenerate node)
+        {
+            List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>
+                singletonChildren = FindSingletonChildren(node);
+            context.Template.AddReplacement(
+                Tokens.InstanceNodeIdOverride,
+                NodeStateTemplates.InstanceNodeIdOverride,
+                singletonChildren.Count > 0
+                    ? (IReadOnlyList<object>)new object[] { singletonChildren }
+                    : [],
+                WriteTemplate_InstanceNodeIdOverride);
+        }
+
+        /// <summary>
+        /// Wrapper writer for <see cref="NodeStateTemplates.InstanceNodeIdOverride"/>;
+        /// expands the inner <see cref="Tokens.ListOfInstanceNodeIdBranches"/>
+        /// token by iterating the collected per-singleton branches.
+        /// </summary>
+        private bool WriteTemplate_InstanceNodeIdOverride(IWriteContext context)
+        {
+            if (context.Target is not List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> branches)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.ListOfInstanceNodeIdBranches,
+                NodeStateTemplates.InstanceNodeIdBranch,
+                branches.Cast<object>().ToArray(),
+                WriteTemplate_InstanceNodeIdBranch);
+            return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Per-branch writer for <see cref="NodeStateTemplates.InstanceNodeIdBranch"/>;
+        /// the first branch emits <c>if</c>, subsequent ones <c>else if</c>.
+        /// </summary>
+        private bool WriteTemplate_InstanceNodeIdBranch(IWriteContext context)
+        {
+            if (context.Target is not ValueTuple<NodeToGenerate, NodeToGenerate, string> branch)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.IfOrElseIf,
+                context.Index == 0 ? "if" : "else if");
+            context.Template.AddReplacement(
+                Tokens.ParentNodeIdConstant,
+                branch.Item1.Design.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable));
+            context.Template.AddReplacement(
+                Tokens.NodeIdConstant,
+                branch.Item2.Design.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable));
+            return context.Template.Render();
         }
 
         private void CollectEncodingNodes()
@@ -2500,9 +2752,7 @@ namespace Opc.Ua.SourceGeneration
                 if (encoding.NotInAddressSpace)
 
                 {
-
                     continue;
-
                 }
                 if (m_context.ModelDesign.IsExcluded(encoding))
                 {
@@ -2693,9 +2943,7 @@ namespace Opc.Ua.SourceGeneration
                 if (m_context.Options.UseTypeDefinitionModellingRules)
 
                 {
-
                     return typeDefRule;
-
                 }
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
@@ -2727,9 +2975,7 @@ namespace Opc.Ua.SourceGeneration
                 if (m_context.Options.UseTypeDefinitionModellingRules)
 
                 {
-
                     return typeDefRule;
-
                 }
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
@@ -2815,9 +3061,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.Hierarchy == null)
 
             {
-
                 return;
-
             }
             foreach (HierarchyNode current in node.Hierarchy.NodeList)
             {
@@ -2858,9 +3102,7 @@ namespace Opc.Ua.SourceGeneration
                     if (parentPath != node.Path)
 
                     {
-
                         continue;
-
                     }
                 }
 
@@ -2877,9 +3119,7 @@ namespace Opc.Ua.SourceGeneration
                 if (current.Instance is not InstanceDesign child)
 
                 {
-
                     continue;
-
                 }
                 ModellingRule effectiveRule = GetEffectiveModellingRule(
                     current, child, node.RootIsTypeDefinition);
@@ -3070,9 +3310,7 @@ namespace Opc.Ua.SourceGeneration
                     if (!target.ExplicitlyDefined && node.RootIsTypeDefinition)
 
                     {
-
                         continue;
-
                     }
                     references.Add(new ReferenceToGenerate(
                         target.Instance,
@@ -3182,9 +3420,7 @@ namespace Opc.Ua.SourceGeneration
                     if (roleNode != null)
 
                     {
-
                         rolePermissions.Add(rp);
-
                     }
                 }
             }
@@ -3286,9 +3522,7 @@ namespace Opc.Ua.SourceGeneration
             if (type.BaseTypeNode == null)
 
             {
-
                 return "<T>";
-
             }
             if (GetTemplateParameter(type.BaseTypeNode, out variantBuilder) != "<T>")
             {
@@ -3508,6 +3742,7 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly Dictionary<XmlQualifiedName, NodeToGenerate> m_nodes = [];
         private readonly Dictionary<XmlQualifiedName, NodeToGenerate> m_instances = [];
+        private readonly Dictionary<XmlQualifiedName, List<NodeToGenerate>> m_singletonsByType = [];
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;

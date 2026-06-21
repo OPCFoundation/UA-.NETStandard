@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             if (initialTriggers != null && monitoredItem != null)
             {
                 EnqueueTriggeringDelta(monitoredItem, initialTriggers,
-                    Array.Empty<string>());
+                    []);
             }
             m_context.Update();
             return true;
@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 foreach ((IMonitoredItem item, IReadOnlyList<string> triggers) in initialTriggers)
                 {
-                    EnqueueTriggeringDelta(item, triggers, Array.Empty<string>());
+                    EnqueueTriggeringDelta(item, triggers, []);
                 }
             }
             m_context.Update();
@@ -895,7 +895,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 => Volatile.Read(ref Cancelled) != 0;
 
             internal void MarkCancelled()
-                => Interlocked.Exchange(ref Cancelled, 1);
+            {
+                Interlocked.Exchange(ref Cancelled, 1);
+            }
         }
 
         /// <summary>
@@ -911,6 +913,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <see cref="MonitoredItem.Snapshot"/> reflect the requested
         /// intent before the batched apply pass runs.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="triggeringItem"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         internal void ValidateBelongsAndUpdateDesired(
             IMonitoredItem triggeringItem,
             IReadOnlyList<IMonitoredItem> add,
@@ -994,6 +998,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Enqueue a triggering operation for batched apply during
         /// <see cref="ApplyMonitoredItemChangesAsync"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void EnqueueTriggeringOperation(TriggeringOperation op)
         {
             m_triggeringOps.Enqueue(op ?? throw new ArgumentNullException(nameof(op)));
@@ -1057,8 +1062,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         m_triggeringOps.Enqueue(new TriggeringOperation(
                             trig,
-                            Array.Empty<IMonitoredItem>(),
-                            new IMonitoredItem[] { triggeredItem },
+                            [],
+                            [triggeredItem],
                             null));
                     }
                     else
@@ -1076,8 +1081,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         m_triggeringOps.Enqueue(new TriggeringOperation(
                             trig,
-                            new IMonitoredItem[] { triggeredItem },
-                            Array.Empty<IMonitoredItem>(),
+                            [triggeredItem],
+                            [],
                             null));
                     }
                     else
@@ -1177,7 +1182,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // still desires this triggering name — guards against a
                 // stale add that was already revoked by an options
                 // change before the triggering item appeared.
-                if (kv.Value && !ContainsOrdinal(
+                if (kv.Value &&
+                    !ContainsOrdinal(
                         current.DesiredTriggeredByNames,
                         triggeringItem.Name))
                 {
@@ -1186,11 +1192,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_triggeringOps.Enqueue(new TriggeringOperation(
                     triggeringItem,
                     kv.Value
-                        ? new IMonitoredItem[] { triggered }
+                        ? [triggered]
                         : Array.Empty<IMonitoredItem>(),
                     kv.Value
                         ? Array.Empty<IMonitoredItem>()
-                        : new IMonitoredItem[] { triggered },
+                        : [triggered],
                     null));
             }
         }
@@ -1427,19 +1433,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         addList.Add(kv.Key);
                     }
+                    else if (!kv.Key.Created)
+                    {
+                        // Server auto-removed the link when the
+                        // item was deleted (§5.13.1.6) — model as
+                        // Good no-op on the client side.
+                        edgeApplied[kv.Key] = StatusCodes.Good;
+                    }
                     else
                     {
-                        if (!kv.Key.Created)
-                        {
-                            // Server auto-removed the link when the
-                            // item was deleted (§5.13.1.6) — model as
-                            // Good no-op on the client side.
-                            edgeApplied[kv.Key] = StatusCodes.Good;
-                        }
-                        else
-                        {
-                            removeList.Add(kv.Key);
-                        }
+                        removeList.Add(kv.Key);
                     }
                 }
 
@@ -1453,12 +1456,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     try
                     {
-                        var addIds = new uint[addList.Count];
+                        uint[] addIds = new uint[addList.Count];
                         for (int i = 0; i < addList.Count; i++)
                         {
                             addIds[i] = addList[i].ServerId;
                         }
-                        var removeIds = new uint[removeList.Count];
+                        uint[] removeIds = new uint[removeList.Count];
                         for (int i = 0; i < removeList.Count; i++)
                         {
                             removeIds[i] = removeList[i].ServerId;
@@ -1534,10 +1537,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             // during recovery; the retry path will
                             // re-issue against the recreated
                             // subscription with the correct intent.
-                            foreach (TriggeringOperation o in ops)
-                            {
-                                toRequeue.Add(o);
-                            }
+                            toRequeue.AddRange(ops);
                             continue;
                         }
                         else
@@ -1571,10 +1571,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             // Recoverable: KEEP desired-state and
                             // re-queue. Same rationale as the
                             // service-result path above.
-                            foreach (TriggeringOperation o in ops)
-                            {
-                                toRequeue.Add(o);
-                            }
+                            toRequeue.AddRange(ops);
                             continue;
                         }
                         // Terminal: rollback the optimistic desired
@@ -1685,14 +1682,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <c>Bad_MonitoredItemIdInvalid</c> as a fallback).
         /// </summary>
         private const int MaxTriggeringRetryCount = 10;
-        // Internal (not private) so the regression test in
-        // MonitoredItemManagerTriggeringTests can compute "cap + N"
-        // without hard-coding 256 alongside the production constant.
+
+        /// <summary>
+        /// Internal (not private) so the regression test in
+        /// MonitoredItemManagerTriggeringTests can compute "cap + N"
+        /// without hard-coding 256 alongside the production constant.
+        /// </summary>
         internal const int MaxPendingTriggeringEntries = 256;
         private readonly ConcurrentQueue<TriggeringOperation> m_triggeringOps = new();
-        // Pending unresolved declarative-path triggering deltas keyed by
-        // triggering-item name; inner dictionary folds per triggered
-        // item (last-intent wins). Protected by m_monitoredItemsLock.
+
+        /// <summary>
+        /// Pending unresolved declarative-path triggering deltas keyed by
+        /// triggering-item name; inner dictionary folds per triggered
+        /// item (last-intent wins). Protected by m_monitoredItemsLock.
+        /// </summary>
         private readonly Dictionary<string, Dictionary<IMonitoredItem, bool>>
             m_pendingByTriggeringName =
                 new(StringComparer.Ordinal);

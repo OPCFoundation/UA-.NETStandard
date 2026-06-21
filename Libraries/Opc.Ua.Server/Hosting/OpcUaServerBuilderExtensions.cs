@@ -252,6 +252,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers a server-side identity authenticator and adds it to the server registry on startup.
         /// </summary>
         /// <typeparam name="TAuth">The concrete authenticator type to register.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddIdentityAuthenticator<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAuth>(
                 this IOpcUaServerBuilder builder)
@@ -272,6 +273,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers a server-side identity augmenter and adds it to the server registry on startup.
         /// </summary>
         /// <typeparam name="TAugmenter">The concrete augmenter type to register.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddIdentityAugmenter<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAugmenter>(
                 this IOpcUaServerBuilder builder)
@@ -291,6 +293,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a server-side identity augmenter factory and adds it to the server registry on startup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddIdentityAugmenter(
             this IOpcUaServerBuilder builder,
             Func<IServiceProvider, IIdentityAugmenter> factory)
@@ -311,6 +314,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC 10000-12 §8 resource-server KeyCredential push model.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder WithKeyCredentialPush(
             this IOpcUaServerBuilder builder,
             Action<KeyCredentialPushOptions>? configure = null)
@@ -341,6 +345,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the built-in identity authenticators that can be resolved from DI and server state.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddDefaultIdentityAuthenticators(
             this IOpcUaServerBuilder builder,
             Action<DefaultAuthenticatorOptions> configure)
@@ -394,6 +399,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the registered resolver queries JWKS first and static keys second so online
         /// key rotation wins while inline keys remain available as a fallback.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddJwtIssuer(
             this IOpcUaServerBuilder builder,
             Action<JwtIssuerOptions> configure)
@@ -416,6 +422,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a trusted JWT issuer from a configuration section.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddJwtIssuer(
             this IOpcUaServerBuilder builder,
             IConfiguration section)

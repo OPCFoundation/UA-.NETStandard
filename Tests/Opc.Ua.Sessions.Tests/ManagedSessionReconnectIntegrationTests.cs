@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
-// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
-// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
-#pragma warning disable CA2016
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -46,6 +41,11 @@ using IServerRedundancyHandler = Opc.Ua.Client.IServerRedundancyHandler;
 using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
+
+// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
+// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
+// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
+#pragma warning disable CA2016
 
 namespace Opc.Ua.Sessions.Tests
 {
@@ -455,6 +455,7 @@ namespace Opc.Ua.Sessions.Tests
             // machine exhausts its retries and falls through to the
             // Failover state. Without this, the channel is restored on
             // the same alive server and reconnect succeeds on attempt 0.
+            session.StateMachine.ReconnectWithBudgetAsync = null;
             session.StateMachine.ReconnectAsync = _ =>
                 Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -564,6 +565,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // Force reconnect attempts to fail so the state machine
             // proceeds to Failover.
+            session.StateMachine.ReconnectWithBudgetAsync = null;
             session.StateMachine.ReconnectAsync = _ =>
                 Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -839,6 +841,7 @@ namespace Opc.Ua.Sessions.Tests
                 // proceeds to Failover, which now drives
                 // Session.RecreateInPlaceAsync against the failover
                 // endpoint and rotates the server-side session id.
+                session.StateMachine.ReconnectWithBudgetAsync = null;
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -1176,6 +1179,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 // Force a failover via the same fake-reconnect technique
                 // as SubscriptionRecoversAfterFailover.
+                session.StateMachine.ReconnectWithBudgetAsync = null;
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(
                         new ServiceResult(StatusCodes.BadNotConnected));

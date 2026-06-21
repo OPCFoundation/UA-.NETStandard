@@ -26,7 +26,9 @@ metadata:
   version: "1.0.0"
   upstream: https://github.com/OPCFoundation/UA-.NETStandard
   canonical-docs:
-    - Docs/MigrationGuide.md
+    - Docs/MigrationGuide.md                      # landing page (small)
+    - Docs/migrate/2.0.x/README.md                # 2.0 version landing + sub-doc index
+    - Docs/migrate/2.0.x/                         # 12 thematic sub-docs (load only what you need)
     - Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md
 ---
 
@@ -35,6 +37,37 @@ metadata:
 Upgrade existing OPC UA .NET Standard consumer projects from 1.5.378
 (`master378`) to 2.0.x (`master`). The skill assumes you already have a working
 1.5.378 codebase; it does not teach OPC UA from scratch.
+
+## Migration sub-doc index — load only what you need
+
+**Context-efficiency rule.** The full migration content is no longer in
+a single ~150 KB document; it is split across 12 thematic sub-docs under
+[`Docs/migrate/2.0.x/`](../../../Docs/migrate/2.0.x/README.md).
+**Do not load `Docs/MigrationGuide.md` into context** — it is now a thin
+landing page. Instead, match the user's symptom to a row below and load
+the **single** sub-doc named in that row.
+
+| When the user hits… | Load only |
+| --- | --- |
+| `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or `[Obsolete]` on built-in type APIs (analyzer `UA0001`–`UA0020`) | [`Docs/migrate/2.0.x/types.md`](../../../Docs/migrate/2.0.x/types.md) |
+| `Utils.LogX`, `Utils.Trace`, static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel` removed), `ITelemetryContext` constructor parameter shape per type, OLD-vs-NEW logger snippets, fluent `AddOpcUa().AddLogging().AddMetrics()` registration, breaking-changes inventory across Core / Configuration / Client / Server / PubSub / Certificate / Transport, migration utilities (`DefaultTelemetry`, `Telemetry.NullLogger`, `Utils.Fallback.Logger`) | [`Docs/migrate/2.0.x/telemetry.md`](../../../Docs/migrate/2.0.x/telemetry.md) |
+| Package upgrades, TFM changes, `Newtonsoft.Json` removal from `Opc.Ua.Core`, new published packages | [`Docs/migrate/2.0.x/packages.md`](../../../Docs/migrate/2.0.x/packages.md) |
+| Source-generated `*Collection` shims, NodeManager generator, default of `bool` properties, project structure | [`Docs/migrate/2.0.x/source-generation.md`](../../../Docs/migrate/2.0.x/source-generation.md) |
+| `IEncodeableFactoryBuilder`, `IType`, JSON / XML / binary encoders, `EncodeableFactory.GlobalFactory`, `IJsonEncodeable`, `ComplexTypes` namespace move | [`Docs/migrate/2.0.x/encoders.md`](../../../Docs/migrate/2.0.x/encoders.md) |
+| Custom NodeManagers, `NodeState` clone / read / write helpers, `Clone` → `CreateCopy`, `OnAfterCreate(CancellationToken)`, `INodeManager3`, `INodeCache.InvalidateNode`, generics on `BaseVariableState` / `BaseVariableTypeState` | [`Docs/migrate/2.0.x/node-states.md`](../../../Docs/migrate/2.0.x/node-states.md) |
+| `IUserIdentityTokenHandler`, `IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, caller-supplied secrets, secret store | [`Docs/migrate/2.0.x/identity.md`](../../../Docs/migrate/2.0.x/identity.md) |
+| `CertificateValidator` rename (`UA0021`), ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs | [`Docs/migrate/2.0.x/certificates.md`](../../../Docs/migrate/2.0.x/certificates.md) |
+| `ApplicationConfiguration` changes, Data-Contract serializer removal, `ParseExtension` / `UpdateExtension` signature, session / browser state persistence | [`Docs/migrate/2.0.x/configuration.md`](../../../Docs/migrate/2.0.x/configuration.md) |
+| `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect | [`Docs/migrate/2.0.x/sessions-subscriptions.md`](../../../Docs/migrate/2.0.x/sessions-subscriptions.md) |
+| `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator` | [`Docs/migrate/2.0.x/alarms-model-change.md`](../../../Docs/migrate/2.0.x/alarms-model-change.md) |
+| `DateTime.UtcNow`, `Timer`, deterministic-time tests, `System.TimeProvider` adoption | [`Docs/migrate/2.0.x/timeprovider.md`](../../../Docs/migrate/2.0.x/timeprovider.md) |
+
+If the user's symptom does not obviously map to one row, read
+[`Docs/migrate/2.0.x/README.md`](../../../Docs/migrate/2.0.x/README.md) (small —
+the same table plus a short intro) and pick from there. Avoid loading
+multiple sub-docs unless the symptom genuinely spans two areas (for
+example, `node-states.md` *and* `types.md` when a NodeManager runs into
+both `INodeManager3` adoption and `Variant`-for-`object` API changes).
 
 ## Level 1: Quick Start (5 minutes)
 
@@ -303,5 +336,7 @@ material. Load them on demand via your agent runtime's
 
 ### Canonical upstream docs
 
-- [`Docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md) — the human-facing migration guide that this skill distils.
+- [`Docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md) — the human-facing migration guide landing page (~3 KB; intentionally small, just an index across versions).
+- [`Docs/migrate/2.0.x/README.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/README.md) — the 2.0 migration index + the same symptom → sub-doc table this skill uses.
+- [`Docs/migrate/2.0.x/`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Docs/migrate/2.0.x) — the 12 thematic sub-docs (telemetry, packages, source-generation, types, encoders, node-states, identity, certificates, configuration, sessions-subscriptions, alarms-model-change, timeprovider).
 - [`Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md) — the package's own README, shipped inside the NuGet.

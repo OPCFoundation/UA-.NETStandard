@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Tests.Identity
                 new UserIdentity(),
                 [GdsRole.ApplicationAdmin],
                 default,
-                new[] { administeredId },
+                [administeredId],
                 namespaces);
 
             AuthenticationResult result = await provider.AugmentAsync(
@@ -163,7 +163,7 @@ namespace Opc.Ua.Gds.Tests.Identity
             Assert.That(result.Identity, Is.InstanceOf<GdsRoleBasedIdentity>());
             var gdsIdentity = (GdsRoleBasedIdentity)result.Identity;
             Assert.That(gdsIdentity.ApplicationId, Is.EqualTo(applicationId));
-            Assert.That(gdsIdentity.AdministeredApplicationIds, Is.EquivalentTo(new[] { administeredId }));
+            Assert.That(gdsIdentity.AdministeredApplicationIds, Is.EquivalentTo([administeredId]));
             Assert.That(gdsIdentity.Roles, Does.Contain(GdsRole.ApplicationAdmin));
             Assert.That(gdsIdentity.Roles, Does.Contain(GdsRole.ApplicationSelfAdmin));
         }

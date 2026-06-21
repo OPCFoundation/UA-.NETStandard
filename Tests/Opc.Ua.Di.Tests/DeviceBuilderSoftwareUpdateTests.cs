@@ -30,7 +30,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
@@ -221,7 +220,7 @@ namespace Opc.Ua.Di.Tests
                 new Variant("urn:acme:firmware"),
                 new Variant("2.0.0"),
                 new Variant(System.Array.Empty<string>()),
-                new Variant(System.Array.Empty<byte>()),
+                new Variant(System.Array.Empty<byte>())
             });
 
             ServiceResult result = await InvokeMethodAsync(

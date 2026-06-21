@@ -79,7 +79,7 @@ namespace Opc.Ua.Lds.Tests
                 .RegisterServer2Async(
                     null,
                     server,
-                    BuildMdnsConfig("test-instance-A", new[] { "LDS-ME" }),
+                    BuildMdnsConfig("test-instance-A", ["LDS-ME"]),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
@@ -98,7 +98,7 @@ namespace Opc.Ua.Lds.Tests
             // Register, then mark offline.
             await registration
                 .RegisterServer2Async(null, NewServer(ServerUriA, isOnline: true),
-                    BuildMdnsConfig("instance-A", new[] { "LDS-ME" }), CancellationToken.None)
+                    BuildMdnsConfig("instance-A", ["LDS-ME"]), CancellationToken.None)
                 .ConfigureAwait(false);
 
             (ArrayOf<ServerOnNetwork> after1, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
@@ -106,7 +106,7 @@ namespace Opc.Ua.Lds.Tests
 
             await registration
                 .RegisterServer2Async(null, NewServer(ServerUriA, isOnline: false),
-                    BuildMdnsConfig("instance-A", new[] { "LDS-ME" }), CancellationToken.None)
+                    BuildMdnsConfig("instance-A", ["LDS-ME"]), CancellationToken.None)
                 .ConfigureAwait(false);
 
             (ArrayOf<ServerOnNetwork> after2, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
@@ -117,8 +117,8 @@ namespace Opc.Ua.Lds.Tests
         public async Task LdsMeFindServersOnNetworkAsync()
         {
             // Seed two via direct store (only one cert available for RegisterServer2).
-            SeedRecord(ServerUriA, "instance-A", new[] { "LDS-ME" }, "opc.tcp://host-a:48010");
-            SeedRecord(ServerUriB, "instance-B", new[] { "DA" }, "opc.tcp://host-b:48010");
+            SeedRecord(ServerUriA, "instance-A", ["LDS-ME"], "opc.tcp://host-a:48010");
+            SeedRecord(ServerUriB, "instance-B", ["DA"], "opc.tcp://host-b:48010");
 
             (ArrayOf<ServerOnNetwork> records, DateTime resetTime) =
                 await FindServersOnNetworkAsync().ConfigureAwait(false);
@@ -136,7 +136,7 @@ namespace Opc.Ua.Lds.Tests
                 SeedRecord(
                     $"urn:test:server-{i}",
                     $"instance-{i}",
-                    new[] { "LDS-ME" },
+                    ["LDS-ME"],
                     $"opc.tcp://host-{i}:48010");
             }
 
@@ -164,7 +164,7 @@ namespace Opc.Ua.Lds.Tests
                 await registration
                     .RegisterServer2Async(null,
                         NewServer(ServerUriA, isOnline: true),
-                        BuildMdnsConfig("instance-A", new[] { "LDS-ME" }),
+                        BuildMdnsConfig("instance-A", ["LDS-ME"]),
                         CancellationToken.None)
                     .ConfigureAwait(false);
             }
@@ -176,7 +176,7 @@ namespace Opc.Ua.Lds.Tests
         [Test]
         public async Task LdsMeServerCapabilitiesOnNetworkAsync()
         {
-            SeedRecord(ServerUriA, "instance-A", new[] { "LDS", "LDS-ME" }, "opc.tcp://host-a:48010");
+            SeedRecord(ServerUriA, "instance-A", ["LDS", "LDS-ME"], "opc.tcp://host-a:48010");
 
             (ArrayOf<ServerOnNetwork> records, _) =
                 await FindServersOnNetworkAsync().ConfigureAwait(false);
@@ -192,7 +192,7 @@ namespace Opc.Ua.Lds.Tests
         public async Task LdsMeDiscoveryUrlsOnNetworkAsync()
         {
             const string url = "opc.tcp://specific-host:51234/CustomPath";
-            SeedRecord(ServerUriA, "instance-A", new[] { "LDS-ME" }, url);
+            SeedRecord(ServerUriA, "instance-A", ["LDS-ME"], url);
 
             (ArrayOf<ServerOnNetwork> records, _) =
                 await FindServersOnNetworkAsync().ConfigureAwait(false);
@@ -224,7 +224,7 @@ namespace Opc.Ua.Lds.Tests
                 serverUri: ServerUriA,
                 serverName: "instance-A",
                 discoveryUrl: "opc.tcp://host-a:48010",
-                capabilities: new[] { "LDS-ME" });
+                capabilities: ["LDS-ME"]);
 
             (ArrayOf<ServerOnNetwork> before, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
             Assert.That(before.Count, Is.GreaterThanOrEqualTo(1));
@@ -240,26 +240,26 @@ namespace Opc.Ua.Lds.Tests
         [Test]
         public async Task LdsMeFilterByCapabilitiesAsync()
         {
-            SeedRecord(ServerUriA, "alpha", new[] { "DA", "LDS-ME" }, "opc.tcp://a:1");
-            SeedRecord(ServerUriB, "beta", new[] { "GDS" }, "opc.tcp://b:1");
-            SeedRecord(ServerUriC, "gamma", new[] { "DA" }, "opc.tcp://c:1");
+            SeedRecord(ServerUriA, "alpha", ["DA", "LDS-ME"], "opc.tcp://a:1");
+            SeedRecord(ServerUriB, "beta", ["GDS"], "opc.tcp://b:1");
+            SeedRecord(ServerUriC, "gamma", ["DA"], "opc.tcp://c:1");
 
             (ArrayOf<ServerOnNetwork> all, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
             Assert.That(all.Count, Is.GreaterThanOrEqualTo(3));
 
             (ArrayOf<ServerOnNetwork> da, _) =
-                await FindServersOnNetworkAsync(serverCapabilityFilter: new[] { "DA" })
+                await FindServersOnNetworkAsync(serverCapabilityFilter: ["DA"])
                     .ConfigureAwait(false);
             Assert.That(da.Count, Is.EqualTo(2));
 
             (ArrayOf<ServerOnNetwork> daAndLdsMe, _) =
-                await FindServersOnNetworkAsync(serverCapabilityFilter: new[] { "DA", "LDS-ME" })
+                await FindServersOnNetworkAsync(serverCapabilityFilter: ["DA", "LDS-ME"])
                     .ConfigureAwait(false);
             Assert.That(daAndLdsMe.Count, Is.EqualTo(1));
             Assert.That(daAndLdsMe[0].ServerName, Is.EqualTo("alpha"));
 
             (ArrayOf<ServerOnNetwork> none, _) =
-                await FindServersOnNetworkAsync(serverCapabilityFilter: new[] { "NoSuchCap" })
+                await FindServersOnNetworkAsync(serverCapabilityFilter: ["NoSuchCap"])
                     .ConfigureAwait(false);
             Assert.That(none, Has.Count.EqualTo(0));
         }
@@ -271,8 +271,8 @@ namespace Opc.Ua.Lds.Tests
             // Tag 011 in the spec talks about distinguishing servers by their
             // mDNS instance name — verify that distinct MdnsServerName values
             // produce distinct records.
-            SeedRecord(ServerUriA, "name-1", new[] { "LDS-ME" }, "opc.tcp://h:1");
-            SeedRecord(ServerUriB, "name-2", new[] { "LDS-ME" }, "opc.tcp://h:2");
+            SeedRecord(ServerUriA, "name-1", ["LDS-ME"], "opc.tcp://h:1");
+            SeedRecord(ServerUriB, "name-2", ["LDS-ME"], "opc.tcp://h:2");
 
             (ArrayOf<ServerOnNetwork> records, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
 
@@ -295,7 +295,7 @@ namespace Opc.Ua.Lds.Tests
             await registration
                 .RegisterServer2Async(null,
                     NewServer(ServerUriA, isOnline: true),
-                    BuildMdnsConfig("instance-A", new[] { "LDS-ME" }),
+                    BuildMdnsConfig("instance-A", ["LDS-ME"]),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
@@ -312,7 +312,7 @@ namespace Opc.Ua.Lds.Tests
                 await registration
                     .RegisterServer2Async(null,
                         NewServer(ServerUriA, isOnline: true),
-                        BuildMdnsConfig("instance-A", new[] { "LDS-ME" }),
+                        BuildMdnsConfig("instance-A", ["LDS-ME"]),
                         CancellationToken.None)
                     .ConfigureAwait(false);
             }

@@ -323,7 +323,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             public uint Count => 0;
 
-            public IEnumerable<IMonitoredItem> Items => Array.Empty<IMonitoredItem>();
+            public IEnumerable<IMonitoredItem> Items => [];
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
                 out IMonitoredItem? monitoredItem)
@@ -355,7 +355,7 @@ namespace Opc.Ua.Client.Subscriptions
             public IReadOnlyList<IMonitoredItem> Update(
                 IReadOnlyList<(string Name, IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options)> state)
             {
-                return Array.Empty<IMonitoredItem>();
+                return [];
             }
         }
 
@@ -373,7 +373,7 @@ namespace Opc.Ua.Client.Subscriptions
                 get { CountCalls++; return 0; }
             }
 
-            public IEnumerable<IMonitoredItem> Items => Array.Empty<IMonitoredItem>();
+            public IEnumerable<IMonitoredItem> Items => [];
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
                 out IMonitoredItem? monitoredItem)
@@ -406,7 +406,7 @@ namespace Opc.Ua.Client.Subscriptions
             public IReadOnlyList<IMonitoredItem> Update(
                 IReadOnlyList<(string Name, IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options)> state)
             {
-                return Array.Empty<IMonitoredItem>();
+                return [];
             }
         }
     }

@@ -981,7 +981,7 @@ namespace Opc.Ua.Server
             //     not opted in to NodeManagement, fall back to the first
             //     opted-in NodeManager so cross-NodeManager AddNodes under a
             //     read-only parent (e.g. ObjectsFolder) is still serviceable.
-            INodeManagementAsyncNodeManager? nodeManagement = null;
+            INodeManagementAsyncNodeManager? nodeManagement;
             if (!item.RequestedNewNodeId.IsNull)
             {
                 var requestedNodeId = ExpandedNodeId.ToNodeId(

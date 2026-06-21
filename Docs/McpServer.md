@@ -20,8 +20,27 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 | **Configuration** | `GetConfiguration`, `SetConfiguration` | View/modify client settings for current session |
 | **NodeSet Export** | `ExportNodeSet`, `ExportNodeSetPerNamespace` | Export address space to NodeSet2 XML |
 | **Convenience** | `ReadValue`, `ReadValues`, `WriteValue`, `BrowseAll`, `CallMethod`, `ReadNode`, `Cancel` | Simplified high-level operations |
+| **Packet Capture** | `list_interfaces`, `start_capture`, `stop_capture`, `list_captures`, `get_capture`, `capture_now`, `list_active_channels`, `dump_keys`, `decode_pcap_with_keys`, `summarize_service_calls`, `replay_pcap`, `stop_replay`, `list_replays` | OPC UA-aware packet capture, offline decode, service-call summaries, replay |
 
 All OPC UA types (NodeId, DataValue, Variant, StatusCode, etc.) are represented as JSON for LLM-friendly interaction.
+
+The packet-capture tools are described in detail in [Diagnostics](Diagnostics.md#4-packet-capture-dissection-and-replay). For convenience the per-tool surface is:
+
+| Tool | Description | Parameters |
+|---|---|---|
+| `list_interfaces` | Enumerates NICs available to SharpPcap. | None |
+| `start_capture` | Starts a capture session. | `source`; optional interface, filter, endpoint, limits, folder |
+| `stop_capture` | Stops an active session and finalizes artifacts. | `sessionId` |
+| `list_captures` | Lists capture sessions. | Optional `state` |
+| `get_capture` | Returns an artifact or formatted analysis. | `sessionId`, `format`, optional packet/partial controls |
+| `capture_now` | Starts, waits, stops, and returns output. | Capture options plus output `format` |
+| `list_active_channels` | Lists in-process secure channels with current tokens. | None |
+| `dump_keys` | Emits keylog data. | Optional `sessionId`, `format`, `includeExpired` |
+| `decode_pcap_with_keys` | Decodes an existing pcap and keylog offline. | `pcapPath`, `keylogPath`, `format`, optional `maxFrames` |
+| `summarize_service_calls` | Reports service counts, latency, and errors. | `sessionId` or `pcapPath` + `keylogPath`, optional `top` |
+| `replay_pcap` | Replays as a mock server or mock client. | `pcapPath`, `keylogPath`, `mode`, endpoints, `speed` |
+| `stop_replay` | Stops an active replay session. | `sessionId` |
+| `list_replays` | Lists active and recently-completed replay sessions. | None |
 
 ## Resources
 

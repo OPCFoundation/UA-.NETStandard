@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Alarms
         /// is <c>null</c>.</exception>
         public AlarmClientFactory(ITelemetryContext telemetry)
         {
-            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Alarms
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            return new AlarmClient(session, m_telemetry);
+            return new AlarmClient(session, Telemetry);
         }
 
         /// <summary>
@@ -90,8 +90,6 @@ namespace Opc.Ua.Client.Alarms
         /// scenarios; the standard <see cref="Create(ISessionClient)"/>
         /// path threads it implicitly.
         /// </summary>
-        public ITelemetryContext Telemetry => m_telemetry;
-
-        private readonly ITelemetryContext m_telemetry;
+        public ITelemetryContext Telemetry { get; }
     }
 }

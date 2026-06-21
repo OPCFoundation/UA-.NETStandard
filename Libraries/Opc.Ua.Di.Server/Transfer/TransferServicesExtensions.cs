@@ -67,6 +67,7 @@ namespace Opc.Ua.Di.Server.Transfer
         /// Thrown when the supplied node does not expose the three
         /// expected child methods.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="transferServices"/> is <c>null</c>.</exception>
         public static void BindToTransferService(
             this BaseObjectState transferServices,
             NodeId elementId,
@@ -181,7 +182,7 @@ namespace Opc.Ua.Di.Server.Transfer
             // read the per-entry status from the result via the
             // server-side service directly (programmatic binding).
             outputs.Add(Variant.Null);
-            return result.TransferError == (StatusCode)StatusCodes.Good
+            return result.TransferError == StatusCodes.Good
                 ? ServiceResult.Good
                 : new ServiceResult(result.TransferError);
         }
@@ -189,7 +190,7 @@ namespace Opc.Ua.Di.Server.Transfer
         private static MethodState? FindMethodChild(
             BaseObjectState parent, string browseName)
         {
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            List<BaseInstanceState> children = [];
             parent.GetChildren(context: null!, children);
             foreach (BaseInstanceState child in children)
             {

@@ -393,7 +393,9 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             NodeId value = m.CurrentState!.Id!.Value;
             if (value.IsNull)
-            { return 0; }
+            {
+                return 0;
+            }
             return value.TryGetValue(out uint numericId) ? numericId : 0;
         }
     }

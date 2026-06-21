@@ -146,6 +146,7 @@ namespace Opc.Ua.Server.Fluent
         /// same sink with its original options. <c>null</c> uses the
         /// defaults in <see cref="HistorianCaptureOptions"/>.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static IVariableBuilder<TValue> Historize<TValue>(
             this IVariableBuilder<TValue> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
@@ -178,6 +179,7 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="INodeBuilder{TState}"/> view of a
         /// <see cref="BaseVariableState"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static INodeBuilder<BaseVariableState> Historize(
             this INodeBuilder<BaseVariableState> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
@@ -216,6 +218,7 @@ namespace Opc.Ua.Server.Fluent
         /// (e.g., one provider per signal vendor).
         /// </remarks>
         /// <typeparam name="TValue">The CLR value type of the historized variable.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static IVariableBuilder<TValue> WithHistorian<TValue>(
             this IVariableBuilder<TValue> variable,
             IHistorianProvider provider)

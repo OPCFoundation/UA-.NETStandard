@@ -50,6 +50,26 @@ namespace Opc.Ua.Bindings
             : base(new TcpMessageSocketFactory(telemetry), telemetry)
         {
         }
+
+        /// <summary>
+        /// Create a Tcp transport channel with an explicit
+        /// <see cref="IMessageSocketFactory"/> override.
+        /// </summary>
+        /// <remarks>
+        /// Diagnostic and observability layers (for example
+        /// <c>OPCFoundation.NetStandard.Opc.Ua.Pcap</c>) use this
+        /// to inject a capturing socket factory. When
+        /// <paramref name="messageSocketFactory"/> is <c>null</c> the
+        /// channel behaves exactly like the parameterless overload.
+        /// </remarks>
+        public TcpTransportChannel(
+            ITelemetryContext telemetry,
+            IMessageSocketFactory? messageSocketFactory)
+            : base(
+                messageSocketFactory ?? new TcpMessageSocketFactory(telemetry),
+                telemetry)
+        {
+        }
     }
 
     /// <summary>
@@ -57,6 +77,28 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportChannelFactory : ITransportChannelFactory
     {
+        /// <summary>
+        /// Default factory that uses the built-in TCP socket factory.
+        /// </summary>
+        public TcpTransportChannelFactory()
+        {
+        }
+
+        /// <summary>
+        /// Factory that produces channels which use the supplied
+        /// <see cref="IMessageSocketFactory"/> instead of the built-in
+        /// <see cref="TcpMessageSocketFactory"/>. Used by diagnostic
+        /// bindings to inject a capturing socket factory transparently.
+        /// </summary>
+        /// <param name="messageSocketFactory">
+        /// The socket factory each created channel will use, or
+        /// <c>null</c> to behave like the parameterless overload.
+        /// </param>
+        public TcpTransportChannelFactory(IMessageSocketFactory? messageSocketFactory)
+        {
+            m_messageSocketFactory = messageSocketFactory;
+        }
+
         /// <summary>
         /// The protocol supported by the channel.
         /// </summary>
@@ -68,8 +110,10 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport channel</returns>
         public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new TcpTransportChannel(telemetry);
+            return new TcpTransportChannel(telemetry, m_messageSocketFactory);
         }
+
+        private readonly IMessageSocketFactory? m_messageSocketFactory;
     }
 
     /// <summary>
@@ -146,6 +190,12 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public int BytesTransferred => Args.BytesTransferred;
+
+        /// <inheritdoc/>
+        public int Offset => Args.Offset;
+
+        /// <inheritdoc/>
+        public int Count => Args.Count;
 
         /// <inheritdoc/>
         public byte[]? Buffer => Args.Buffer;

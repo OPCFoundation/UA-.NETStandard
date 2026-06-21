@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// applied to secondary partitions; secondary partitions
         /// that have had no monitored items for this long are removed
         /// via <paramref name="secondaryDisposer"/>. Pass
-        /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
+        /// <see cref="Timeout.InfiniteTimeSpan"/>
         /// (the default) to disable idle-delete.</param>
         /// <param name="secondaryDisposer">Async callback to dispose
         /// a secondary partition once its idle timeout elapses. The
@@ -139,11 +139,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void AttachForwardingHandler(PartitionForwardingHandler handler)
         {
-            if (handler == null)
-            {
-                throw new ArgumentNullException(nameof(handler));
-            }
-            m_forwardingHandler = handler;
+            m_forwardingHandler = handler ?? throw new ArgumentNullException(nameof(handler));
         }
 
         /// <summary>
@@ -271,7 +267,7 @@ namespace Opc.Ua.Client.Subscriptions
                     // the Created-aggregate path makes.
                     if (!m_partitions[0].Created)
                     {
-                        return Array.Empty<uint>();
+                        return [];
                     }
                     if (m_partitions.Count == 1)
                     {
@@ -288,16 +284,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IManagedSubscription> Partitions
-        {
-            get
-            {
-                // Defensive snapshot — never hand out the live list so
-                // callers cannot observe a torn read while a new
-                // partition is being added under m_partitionLock.
-                return SnapshotPartitions();
-            }
-        }
+        public IReadOnlyList<IManagedSubscription> Partitions =>
+            // Defensive snapshot — never hand out the live list so
+            // callers cannot observe a torn read while a new
+            // partition is being added under m_partitionLock.
+            SnapshotPartitions();
 
         /// <inheritdoc/>
         public async ValueTask ConditionRefreshAsync(CancellationToken ct = default)
@@ -472,9 +463,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// subscription, or when items resolve to different
         /// partitions.</exception>
         public ValueTask<SetTriggeringResult> SetTriggeringAsync(
-            MonitoredItems.IMonitoredItem triggeringItem,
-            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToAdd = null,
-            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? linksToRemove = null,
+            IMonitoredItem triggeringItem,
+            IReadOnlyCollection<IMonitoredItem>? linksToAdd = null,
+            IReadOnlyCollection<IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
             if (triggeringItem == null)
@@ -511,7 +502,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private static IManagedSubscription? ResolveOwningPartition(
-            MonitoredItems.IMonitoredItem item,
+            IMonitoredItem item,
             IReadOnlyList<IManagedSubscription> partitions)
         {
             foreach (IManagedSubscription partition in partitions)
@@ -519,7 +510,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (partition.MonitoredItems
                     .TryGetMonitoredItemByClientHandle(
                         item.ClientHandle,
-                        out MonitoredItems.IMonitoredItem? candidate)
+                        out IMonitoredItem? candidate)
                     && ReferenceEquals(candidate, item))
                 {
                     return partition;
@@ -530,7 +521,7 @@ namespace Opc.Ua.Client.Subscriptions
 
         private static void EnsureSamePartition(
             IManagedSubscription owner,
-            IReadOnlyCollection<MonitoredItems.IMonitoredItem>? items,
+            IReadOnlyCollection<IMonitoredItem>? items,
             IReadOnlyList<IManagedSubscription> partitions,
             string paramName)
         {
@@ -538,7 +529,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
-            foreach (MonitoredItems.IMonitoredItem item in items)
+            foreach (IMonitoredItem item in items)
             {
                 if (item == null)
                 {
@@ -546,13 +537,9 @@ namespace Opc.Ua.Client.Subscriptions
                         "Triggered item entries must not be null.");
                 }
                 IManagedSubscription? itemPartition = ResolveOwningPartition(
-                    item, partitions);
-                if (itemPartition == null)
-                {
-                    throw new ArgumentException(
+                    item, partitions) ?? throw new ArgumentException(
                         "Monitored item is not part of this subscription.",
                         paramName);
-                }
                 if (!ReferenceEquals(itemPartition, owner))
                 {
                     throw new ArgumentException(
@@ -690,7 +677,6 @@ namespace Opc.Ua.Client.Subscriptions
             if (partition is Subscription concrete)
             {
                 concrete.OnAfterCreateAsync = async ct =>
-                {
                     // Discard the server-revised lifetime; the
                     // wrapper caches its own intent and reports the
                     // min revised lifetime from the synchronous Apply
@@ -698,7 +684,6 @@ namespace Opc.Ua.Client.Subscriptions
                     // machine and logged.
                     _ = await partition.SetAsDurableAsync(lifetime, ct)
                         .ConfigureAwait(false);
-                };
             }
         }
 

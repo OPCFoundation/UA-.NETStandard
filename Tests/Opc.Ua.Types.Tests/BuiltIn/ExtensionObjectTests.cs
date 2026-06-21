@@ -349,5 +349,54 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(byTypeId.Equals(byXml), Is.EqualTo(byXml.Equals(byTypeId)));
             Assert.That(byBinary.Equals(byXml), Is.EqualTo(byXml.Equals(byBinary)));
         }
+
+        /// <summary>
+        /// Two ExtensionObjects that carry a non-null TypeId but no body (the
+        /// binary "no body" encoding, e.g. an AdditionalHeader) must compare
+        /// equal. Regression for the non-reflexive Equals that tripped the binary
+        /// encoder idempotency fuzz gate across nearly every request/response type
+        /// (their RequestHeader/ResponseHeader AdditionalHeader decodes to exactly
+        /// this shape).
+        /// </summary>
+        [Test]
+        public void EqualsMatchesWhenBothHaveTypeIdAndNoBody()
+        {
+            var typeId = new ExpandedNodeId(59);
+            var left = new ExtensionObject(typeId);
+            var right = new ExtensionObject(typeId);
+
+            Assert.That(left.IsNull, Is.False);
+            Assert.That(left.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(right, Is.EqualTo(left));
+            Assert.That(left.GetHashCode(), Is.EqualTo(right.GetHashCode()));
+        }
+
+        /// <summary>
+        /// Two bodyless ExtensionObjects with different TypeIds are not equal.
+        /// </summary>
+        [Test]
+        public void EqualsRejectsWhenBodylessTypeIdsDiffer()
+        {
+            var left = new ExtensionObject(new ExpandedNodeId(59));
+            var right = new ExtensionObject(new ExpandedNodeId(60));
+            Assert.That(left, Is.Not.EqualTo(right));
+            Assert.That(right, Is.Not.EqualTo(left));
+        }
+
+        /// <summary>
+        /// A bodyless ExtensionObject does not equal one with the same TypeId but
+        /// a non-empty body (the encodings differ).
+        /// </summary>
+        [Test]
+        public void EqualsRejectsBodylessVersusBody()
+        {
+            var typeId = new ExpandedNodeId(59);
+            var bodyless = new ExtensionObject(typeId);
+            ByteString bytes = [1, 2, 3];
+            var withBody = new ExtensionObject(typeId, bytes);
+            Assert.That(bodyless, Is.Not.EqualTo(withBody));
+            Assert.That(withBody, Is.Not.EqualTo(bodyless));
+        }
     }
 }

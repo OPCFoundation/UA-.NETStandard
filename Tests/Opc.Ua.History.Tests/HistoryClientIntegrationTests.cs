@@ -466,7 +466,7 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(buckets, Is.Not.Empty);
             Assert.That(
-                buckets.Any(v => v.WrappedValue.TryGetValue(out double a) && System.Math.Abs(a - 77.0) < 0.0001),
+                buckets.Any(v => v.WrappedValue.TryGetValue(out double a) && Math.Abs(a - 77.0) < 0.0001),
                 Is.True,
                 "Average of five 77.0 samples must be 77.0.");
         }
@@ -505,10 +505,10 @@ namespace Opc.Ua.History.Tests
             }
 
             Assert.That(
-                minBuckets.Any(v => v.WrappedValue.TryGetValue(out double m) && System.Math.Abs(m - 5.0) < 0.0001),
+                minBuckets.Any(v => v.WrappedValue.TryGetValue(out double m) && Math.Abs(m - 5.0) < 0.0001),
                 Is.True, "Minimum of the inserted samples must be 5.");
             Assert.That(
-                maxBuckets.Any(v => v.WrappedValue.TryGetValue(out double m) && System.Math.Abs(m - 50.0) < 0.0001),
+                maxBuckets.Any(v => v.WrappedValue.TryGetValue(out double m) && Math.Abs(m - 50.0) < 0.0001),
                 Is.True, "Maximum of the inserted samples must be 50.");
         }
 

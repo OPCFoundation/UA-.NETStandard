@@ -5,13 +5,14 @@ Here is a list of available documentation for different topics:
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
+* [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
-* [Observability](Observability.md) support in the stack.
+* [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
@@ -25,12 +26,13 @@ Here is a list of available documentation for different topics:
 * [Historical Access (Part 11)](HistoricalAccess.md) - Server provider model (`IHistorianProvider` family) and `InMemoryHistorianProvider`, plus the client `HistoryClient` (`session.Historian()`) for raw/modified/at-time/processed reads, annotations, and updates.
 * [Aggregates (Part 13)](Aggregates.md) - All 37 standard Part 13 v1.05.07 aggregate functions over historical data: server `AggregateManager` / calculators, native push-down vs framework fallback, `AnnotationCount` via the annotation provider, `AggregateConfiguration` defaults, and the client `ReadProcessedAsync` helper.
 * [Subscriptions and Monitored Items Service Set](Subscriptions.md) - V2 subscription engine API. Covers `ISubscriptionManager` for long-lived callback-based subscriptions, the declarative+imperative `SetTriggering` API with N:M support and automatic replay on recreate/reconnect, and `IStreamingSubscription` (`IAsyncEnumerable`-based) for state-machine waits and short-lived monitoring (`ManagedSession.DefaultStreaming`, `TakeUntilAsync` / `WithTimeoutAsync` helpers).
-* [Unbounded Monitored Items](UnboundedSubscriptions.md) - V2 logical-subscription wrapper that transparently splits monitored items across multiple server-side partitions when the per-subscription cap is exceeded (`IPartitionedSubscription`, `MonitoredItemOptions.Affinity`, reactive `Bad_TooManyMonitoredItems` fallback, secondary-partition idle-delete).
+* [Unbounded Monitored Items](Subscriptions.md#unbounded-monitored-items) - V2 logical-subscription wrapper that transparently splits monitored items across multiple server-side partitions when the per-subscription cap is exceeded (`IPartitionedSubscription`, `MonitoredItemOptions.Affinity`, reactive `Bad_TooManyMonitoredItems` fallback, secondary-partition idle-delete).
 * [State Machines](StateMachines.md) - Generic, extensible Part 16 state-machine API. Client side: streaming + read helpers on the source-generated `*TypeClient` proxies (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`, `WaitForStateAsync`). Server side: unified fluent `StateMachineBuilder` with two complementary modes — *definition* (`Create(...)` + `AddState` / `AddTransition` / `OnCause` for ad-hoc machines via `FluentFiniteStateMachineState`) and *lifecycle* (`For(...)` / `INodeBuilder.AsStateMachine()` + `OnEnterState` / `WithCause` / `WithTimedTransition` to attach behavior to stack-shipped or generator-emitted FSMs). Vendor state machines inherit both ends of the API automatically.
 * [Model Change Tracking](ModelChangeTracking.md) - Client-side address-space change tracking with per-node `INodeCache` invalidation; server-side `ModelChangeAggregator` and auto-emitted `GeneralModelChangeEvent` from `CustomNodeManager.CreateNode/DeleteNode`.
 * [NodeManagement Service Set](NodeManagement.md) - Server-side AddNodes / DeleteNodes / AddReferences / DeleteReferences, including the `INodeManagementAsyncNodeManager` opt-in pattern and per-NodeManager `AllowNodeManagement` gate.
 * [Dependency Injection](DependencyInjection.md) - The unified `services.AddOpcUa()` / `IOpcUaBuilder` surface for hosting OPC UA components in `Microsoft.Extensions.DependencyInjection` / the .NET Generic Host (servers as `IHostedService`, options via `Action<T>` or `IConfiguration`, AOT-friendly).
 * [AuthorizationService](AuthorizationService.md) - Modern Part 12 `StartRequestToken` / `FinishRequestToken`, `ITokenIssuer`, and GDS token issuance.
+* [Fuzz testing](../Fuzzing/Fuzzing.md) - SharpFuzz + afl-fuzz + libFuzzer integration. Three areas: `Encoders` (Binary/JSON/XML decoders, built-in type readers, parser entry points), `Certificates` (`X509CRL`, X509 extension parsers, `PEMReader`, `Pkcs10CertificationRequest`, ASN.1 helpers), and `Network` (UA-SC framing via `Opc.Ua.Core.Diagnostics` + internal `TcpMessageParsers` seam on `Opc.Ua.Core`). The [`fuzz-tester`](../.github/agents/fuzz-tester.agent.md) custom agent drives the whole toolchain autonomously: it detects OS-available engines, runs them in parallel, fixes novel findings per repo guidelines, adds the failing input as a regression asset, and pushes one commit per fix until the user says stop.
 * [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
 
 ## Reference application related
