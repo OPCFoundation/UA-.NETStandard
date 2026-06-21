@@ -31,11 +31,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
 using PubSubJsonDecoder = Opc.Ua.PubSub.Encoding.Json.JsonDecoder;
 
 namespace Opc.Ua.PubSub.Pcap
@@ -59,9 +61,28 @@ namespace Opc.Ua.PubSub.Pcap
         /// </summary>
         /// <param name="context">PubSub decoder context.</param>
         public PubSubOfflineDissector(PubSubNetworkMessageContext context)
+            : this(context, keyResolver: null, securityGroupId: null, securityPolicyUri: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new offline dissector with optional key resolution for secured UADP frames.
+        /// </summary>
+        /// <param name="context">PubSub decoder context.</param>
+        /// <param name="keyResolver">Key resolver used for offline decryption.</param>
+        /// <param name="securityGroupId">SecurityGroupId to prefer when resolving keys.</param>
+        /// <param name="securityPolicyUri">Security policy URI to prefer when resolving keys.</param>
+        public PubSubOfflineDissector(
+            PubSubNetworkMessageContext context,
+            IPubSubKeyResolver? keyResolver,
+            string? securityGroupId = null,
+            string? securityPolicyUri = null)
         {
             ArgumentNullException.ThrowIfNull(context);
             m_context = context;
+            m_keyResolver = keyResolver;
+            m_securityGroupId = securityGroupId;
+            m_securityPolicyUri = securityPolicyUri;
         }
 
         /// <summary>
@@ -79,7 +100,46 @@ namespace Opc.Ua.PubSub.Pcap
             PubSubDissectionMessageType mapping = DetectMessageType(in frame);
             if (mapping == PubSubDissectionMessageType.Uadp)
             {
-                return DissectUadp(in frame);
+                return await DissectUadpAsync(
+                    frame,
+                    m_keyResolver,
+                    m_securityGroupId,
+                    m_securityPolicyUri,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            if (mapping == PubSubDissectionMessageType.Json)
+            {
+                return await DissectJsonAsync(frame, cancellationToken).ConfigureAwait(false);
+            }
+            return CreateUndecodable(frame, mapping, "PubSub message mapping could not be determined.");
+        }
+
+        /// <summary>
+        /// Dissects a captured PubSub frame using the supplied key resolver for this call.
+        /// </summary>
+        /// <param name="frame">Captured frame.</param>
+        /// <param name="keyResolver">Key resolver used for offline decryption.</param>
+        /// <param name="securityGroupId">SecurityGroupId to prefer when resolving keys.</param>
+        /// <param name="securityPolicyUri">Security policy URI to prefer when resolving keys.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The dissection result.</returns>
+        public async ValueTask<PubSubDissectionResult> DissectAsync(
+            PubSubCaptureFrame frame,
+            IPubSubKeyResolver? keyResolver,
+            string? securityGroupId = null,
+            string? securityPolicyUri = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            PubSubDissectionMessageType mapping = DetectMessageType(in frame);
+            if (mapping == PubSubDissectionMessageType.Uadp)
+            {
+                return await DissectUadpAsync(
+                    frame,
+                    keyResolver,
+                    securityGroupId,
+                    securityPolicyUri,
+                    cancellationToken).ConfigureAwait(false);
             }
             if (mapping == PubSubDissectionMessageType.Json)
             {
@@ -97,13 +157,28 @@ namespace Opc.Ua.PubSub.Pcap
                 TimeProvider.System);
         }
 
-        private PubSubDissectionResult DissectUadp(in PubSubCaptureFrame frame)
+        private async ValueTask<PubSubDissectionResult> DissectUadpAsync(
+            PubSubCaptureFrame frame,
+            IPubSubKeyResolver? keyResolver,
+            string? securityGroupId,
+            string? securityPolicyUri,
+            CancellationToken cancellationToken)
         {
             try
             {
-                if (TryDetectSecuredUadp(in frame, out PubSubDissectionResult secured))
+                if (TryDetectSecuredUadp(in frame, out SecuredUadpInfo secured))
                 {
-                    return secured;
+                    if (keyResolver is null || !secured.Encrypted)
+                    {
+                        return secured.Result;
+                    }
+                    return await TryDecryptUadpAsync(
+                        frame,
+                        secured,
+                        keyResolver,
+                        securityGroupId,
+                        securityPolicyUri,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 PubSubNetworkMessage? message = UadpDecoder.Decode(frame.Data, m_context);
@@ -147,9 +222,140 @@ namespace Opc.Ua.PubSub.Pcap
             }
         }
 
+        private async ValueTask<PubSubDissectionResult> TryDecryptUadpAsync(
+            PubSubCaptureFrame frame,
+            SecuredUadpInfo secured,
+            IPubSubKeyResolver keyResolver,
+            string? securityGroupId,
+            string? securityPolicyUri,
+            CancellationToken cancellationToken)
+        {
+            PubSubKeyMaterial? keyMaterial = null;
+            try
+            {
+                keyMaterial = await ResolveKeyMaterialAsync(
+                    keyResolver,
+                    securityGroupId,
+                    secured.SecurityTokenId,
+                    securityPolicyUri,
+                    cancellationToken).ConfigureAwait(false);
+                if (keyMaterial is null)
+                {
+                    return secured.Result;
+                }
+
+                IPubSubSecurityPolicy? policy = PubSubSecurityPolicyRegistry.GetByUri(keyMaterial.SecurityPolicyUri);
+                if (policy is null)
+                {
+                    return secured.Result with
+                    {
+                        DiagnosticMessage = "decryption failed: unsupported PubSub security policy."
+                    };
+                }
+
+                using DecryptWrapperLease wrapperLease = CreateDecryptWrapper(keyMaterial, policy);
+                UadpSecurityWrapper.UnwrapResult unwrap = await wrapperLease.Wrapper.TryUnwrapAsync(
+                    frame.Data.Slice(0, secured.PrefixLength),
+                    frame.Data.Slice(secured.PrefixLength),
+                    cancellationToken).ConfigureAwait(false);
+                if (!unwrap.IsSuccess || !unwrap.InnerPayload.HasValue)
+                {
+                    return secured.Result with
+                    {
+                        DiagnosticMessage = "decryption failed: " + (unwrap.Reason ?? "UADP unwrap failed.")
+                    };
+                }
+
+                byte[] cleartext = new byte[secured.PrefixLength + unwrap.InnerPayload.Value.Length];
+                frame.Data.Span.Slice(0, secured.PrefixLength).CopyTo(cleartext);
+                unwrap.InnerPayload.Value.Span.CopyTo(cleartext.AsSpan(secured.PrefixLength));
+                var clearFrame = new PubSubCaptureFrame(
+                    frame.Timestamp,
+                    frame.Direction,
+                    frame.TransportProfileUri,
+                    cleartext,
+                    frame.Endpoint,
+                    frame.Topic);
+                PubSubNetworkMessage? message = UadpDecoder.Decode(clearFrame.Data, m_context);
+                if (message is null)
+                {
+                    return secured.Result with
+                    {
+                        DiagnosticMessage = "decryption failed: recovered UADP payload could not be decoded."
+                    };
+                }
+
+                PubSubDissectionMessageType messageType = message.DataSetMessages.Count == 0
+                    ? PubSubDissectionMessageType.Discovery
+                    : PubSubDissectionMessageType.Uadp;
+                return Project(
+                    frame,
+                    message,
+                    messageType,
+                    secured.SecurityState,
+                    secured.SecurityTokenId,
+                    "decrypted");
+            }
+            catch (Exception ex) when (ex is FormatException || ex is ArgumentException || ex is InvalidOperationException)
+            {
+                return secured.Result with
+                {
+                    DiagnosticMessage = "decryption failed: " + ex.Message
+                };
+            }
+            finally
+            {
+                keyMaterial?.Dispose();
+            }
+        }
+
+        private static async ValueTask<PubSubKeyMaterial?> ResolveKeyMaterialAsync(
+            IPubSubKeyResolver keyResolver,
+            string? securityGroupId,
+            uint tokenId,
+            string? securityPolicyUri,
+            CancellationToken cancellationToken)
+        {
+            if (!string.IsNullOrEmpty(securityPolicyUri))
+            {
+                return await keyResolver.TryResolveAsync(
+                    securityGroupId,
+                    tokenId,
+                    securityPolicyUri,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            IPubSubSecurityPolicy[] policies = [.. PubSubSecurityPolicyRegistry.All];
+            for (int index = 0; index < policies.Length; index++)
+            {
+                IPubSubSecurityPolicy policy = policies[index];
+                if (string.Equals(policy.PolicyUri, PubSubSecurityPolicyUri.None, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                PubSubKeyMaterial? material = await keyResolver.TryResolveAsync(
+                    securityGroupId,
+                    tokenId,
+                    policy.PolicyUri,
+                    cancellationToken).ConfigureAwait(false);
+                if (material is not null)
+                {
+                    return material;
+                }
+            }
+            return null;
+        }
+
+        private static DecryptWrapperLease CreateDecryptWrapper(
+            PubSubKeyMaterial material,
+            IPubSubSecurityPolicy policy)
+        {
+            return new DecryptWrapperLease(material, policy);
+        }
+
         private static bool TryDetectSecuredUadp(
             in PubSubCaptureFrame frame,
-            out PubSubDissectionResult result)
+            out SecuredUadpInfo result)
         {
             result = default!;
             if (!UadpDecoder.TryReadOuterPrefix(
@@ -169,17 +375,25 @@ namespace Opc.Ua.PubSub.Pcap
                     out UadpSecurityHeader header,
                     out _))
             {
-                result = CreateUndecodable(
+                result = new SecuredUadpInfo(
+                    CreateUndecodable(
                     frame,
                     PubSubDissectionMessageType.Uadp,
-                    "UADP SecurityHeader is malformed or truncated.");
+                    "UADP SecurityHeader is malformed or truncated."),
+                    prefixLength,
+                    SecurityTokenId: 0,
+                    Encrypted: false,
+                    PubSubDissectionSecurityState.None);
                 return true;
             }
 
             var flags = (UadpSecurityFlagsEncodingMask)header.SecurityFlags;
             bool encrypted = (flags & UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) != 0;
             bool signed = (flags & UadpSecurityFlagsEncodingMask.NetworkMessageSigned) != 0;
-            result = new PubSubDissectionResult
+            PubSubDissectionSecurityState securityState = encrypted
+                ? PubSubDissectionSecurityState.Encrypted
+                : PubSubDissectionSecurityState.Signed;
+            PubSubDissectionResult dissection = new()
             {
                 Timestamp = frame.Timestamp,
                 Direction = frame.Direction,
@@ -188,9 +402,7 @@ namespace Opc.Ua.PubSub.Pcap
                 Topic = frame.Topic,
                 PayloadLength = frame.Data.Length,
                 MessageType = PubSubDissectionMessageType.Uadp,
-                SecurityState = encrypted
-                    ? PubSubDissectionSecurityState.Encrypted
-                    : PubSubDissectionSecurityState.Signed,
+                SecurityState = securityState,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId == 0 ? null : writerGroupId,
                 SecurityTokenId = header.SecurityTokenId,
@@ -200,13 +412,22 @@ namespace Opc.Ua.PubSub.Pcap
                     ? "encrypted (key required)"
                     : "SecurityHeader present with no signing or encryption flags."
             };
+            result = new SecuredUadpInfo(
+                dissection,
+                prefixLength,
+                header.SecurityTokenId,
+                encrypted,
+                securityState);
             return true;
         }
 
         private static PubSubDissectionResult Project(
             in PubSubCaptureFrame frame,
             PubSubNetworkMessage message,
-            PubSubDissectionMessageType messageType)
+            PubSubDissectionMessageType messageType,
+            PubSubDissectionSecurityState securityState = PubSubDissectionSecurityState.None,
+            uint? securityTokenId = null,
+            string? diagnosticMessage = null)
         {
             List<ushort> writerIds = [];
             List<PubSubDissectedDataSet> dataSets = [];
@@ -225,13 +446,15 @@ namespace Opc.Ua.PubSub.Pcap
                 Topic = frame.Topic,
                 PayloadLength = frame.Data.Length,
                 MessageType = messageType,
-                SecurityState = PubSubDissectionSecurityState.None,
+                SecurityState = securityState,
                 PublisherId = message.PublisherId,
                 WriterGroupId = message.WriterGroupId,
                 DataSetWriterIds = [.. writerIds],
                 DataSets = [.. dataSets],
+                SecurityTokenId = securityTokenId,
                 IsDecoded = true,
-                IsUndecodable = false
+                IsUndecodable = false,
+                DiagnosticMessage = diagnosticMessage
             };
         }
 
@@ -310,6 +533,66 @@ namespace Opc.Ua.PubSub.Pcap
         }
 
         private readonly PubSubNetworkMessageContext m_context;
+        private readonly IPubSubKeyResolver? m_keyResolver;
+        private readonly string? m_securityGroupId;
+        private readonly string? m_securityPolicyUri;
         private readonly PubSubJsonDecoder m_jsonDecoder = new();
+
+        private sealed record SecuredUadpInfo(
+            PubSubDissectionResult Result,
+            int PrefixLength,
+            uint SecurityTokenId,
+            bool Encrypted,
+            PubSubDissectionSecurityState SecurityState);
+
+        private sealed class OfflineTelemetryContext : TelemetryContextBase
+        {
+            private OfflineTelemetryContext()
+                : base(NullLoggerFactory.Instance)
+            {
+            }
+
+            public static OfflineTelemetryContext Instance { get; } = new();
+        }
+
+        private sealed class DecryptWrapperLease : IDisposable
+        {
+            [System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Reliability",
+                "CA2000:Dispose objects before losing scope",
+                Justification = "TODO: PubSubSecurityKey ownership transfers to PubSubSecurityKeyRing.SetCurrent.")]
+            public DecryptWrapperLease(PubSubKeyMaterial material, IPubSubSecurityPolicy policy)
+            {
+                m_ring = new PubSubSecurityKeyRing(material.SecurityGroupId);
+                var key = new PubSubSecurityKey(
+                    material.TokenId,
+                    ByteString.Create(material.SigningKey.ToArray()),
+                    ByteString.Create(material.EncryptingKey.ToArray()),
+                    ByteString.Create(material.KeyNonce.ToArray()),
+                    DateTimeUtc.From(DateTime.UtcNow),
+                    TimeSpan.FromDays(1));
+                m_ring.SetCurrent(key);
+                m_nonceProvider = new RandomNonceProvider(PublisherId.FromUInt32(0U));
+                var window = new SecurityTokenWindow();
+                window.RegisterToken(material.TokenId);
+                Wrapper = new UadpSecurityWrapper(
+                    policy,
+                    new StaticSecurityKeyProvider(material.SecurityGroupId, m_ring),
+                    m_nonceProvider,
+                    window,
+                    OfflineTelemetryContext.Instance);
+            }
+
+            public UadpSecurityWrapper Wrapper { get; }
+
+            public void Dispose()
+            {
+                m_nonceProvider.Dispose();
+                m_ring.Dispose();
+            }
+
+            private readonly PubSubSecurityKeyRing m_ring;
+            private readonly RandomNonceProvider m_nonceProvider;
+        }
     }
 }
