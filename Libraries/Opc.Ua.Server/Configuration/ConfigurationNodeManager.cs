@@ -233,28 +233,8 @@ namespace Opc.Ua.Server
                                 .AddGetCertificates(context)
                                 .AddCreateSelfSignedCertificate(context);
 
-                            // copy the predefined instance (node ids, browse name and the
-                            // children defined in the node set) onto the strongly typed node.
-                            activeNode.Create(context, passiveNode);
-
                             m_serverConfigurationNode = activeNode;
 
-                            // replace the node in the parent.
-                            if (passiveNode.Parent != null)
-                            {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
-                            else
-                            {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                    .ConfigureAwait(false);
-                                serverNode?.ReplaceChild(context, activeNode);
-                            }
-                            // remove the reference to server node because it is set as parent
-                            activeNode.RemoveReference(
-                                ReferenceTypeIds.HasComponent,
-                                true,
-                                ObjectIds.Server);
                             return activeNode;
                         }
                         case ObjectTypes.CertificateGroupFolderType:
