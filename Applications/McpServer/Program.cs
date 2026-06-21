@@ -135,6 +135,7 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
 {
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
+    services.AddSingleton<PubSubRuntimeManager>();
     services.AddSingleton(_ => CreateMcpServerOptions());
     services.AddPcap(options =>
     {
@@ -199,6 +200,7 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
         .WithTools<PubSubActionTools>()
         .WithTools<PubSubCaptureTools>()
         .WithTools<PubSubKeyServiceTools>()
+        .WithTools<PubSubRuntimeTools>()
         .WithTools<SubscriptionServiceTools>()
         .WithTools<ViewServiceTools>();
 
@@ -238,5 +240,4 @@ static void ConfigureLogging(ILoggingBuilder logging)
         options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     });
 }
-
 
