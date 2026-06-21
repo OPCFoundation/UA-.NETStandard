@@ -236,7 +236,17 @@ namespace Opc.Ua.Client.TestFramework
             {
                 try
                 {
-                    await Session.CloseAsync(5000, true).ConfigureAwait(false);
+                    // Bound the close so that WaitForOrCancelOutstandingPublishRequestsAsync
+                    // and any CancelAsync calls inside CloseAsync cannot block indefinitely.
+                    // On slow macOS CI runners an orphaned publish request from
+                    // AlarmEventCollector.PublishLoopAsync can linger in m_outstandingRequests
+                    // for >5 s; without this cap every fixture would wait up to 90 s
+                    // (OperationTimeout) per pending Cancel service call, causing the
+                    // cumulative teardown time of 27+ fixtures to exceed the 10-minute
+                    // blame-hang watchdog.  10 s per fixture caps worst-case teardown at
+                    // ~4.5 min for the full suite.
+                    using var sessionCloseCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await Session.CloseAsync(5000, true, sessionCloseCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
