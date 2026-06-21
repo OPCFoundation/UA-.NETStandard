@@ -332,6 +332,60 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Test that the branch collection can be safely created, enumerated and
+        /// cleared from multiple threads concurrently without throwing.
+        /// Reproduces the race that previously crashed the process when the
+        /// branch dictionary was enumerated while being modified.
+        /// </summary>
+        [Test]
+        public void ConcurrentBranchAccessIsThreadSafe()
+        {
+            var condition = new ConditionState(null);
+            condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
+            // Ensure each created branch receives a unique EventId.
+            condition.AutoReportStateChanges = true;
+            condition.SetEnableState(m_context, true);
+
+            const int iterations = 2000;
+            using var cts = new System.Threading.CancellationTokenSource();
+
+            // Writer: continuously creates and clears branches.
+            System.Threading.Tasks.Task writer = System.Threading.Tasks.Task.Run(() =>
+            {
+                for (int i = 0; i < iterations; i++)
+                {
+                    condition.CreateBranch(m_context, new NodeId((uint)(i + 2)));
+                    if (i % 10 == 0)
+                    {
+                        condition.ClearBranches();
+                    }
+                }
+            });
+
+            // Reader: continuously enumerates and counts branches.
+            System.Threading.Tasks.Task reader = System.Threading.Tasks.Task.Run(() =>
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    foreach (System.Collections.Generic.KeyValuePair<string, ConditionState> branch
+                        in condition.GetBranches())
+                    {
+                        Assert.That(branch.Value, Is.Not.Null);
+                    }
+
+                    _ = condition.GetBranchCount();
+                }
+            });
+
+            Assert.That(() =>
+            {
+                writer.GetAwaiter().GetResult();
+                cts.Cancel();
+                reader.GetAwaiter().GetResult();
+            }, Throws.Nothing);
+        }
+
+        /// <summary>
         /// Test condition that exposes method to force Retain value for testing.
         /// </summary>
         private sealed class TestConditionStateWithRetain : ConditionState
