@@ -205,13 +205,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Retrieves the branches for the current ConditionState.
-        /// Returns a snapshot copy of the current branches.
+        /// Returns a snapshot of the current branches for this ConditionState.
         /// </summary>
         /// <remarks>
         /// Function exists because constructor is in auto generated code.
         /// Returns a snapshot copy so the caller can safely enumerate it
         /// while other threads concurrently modify the branch collection.
+        /// If no branches exist, an empty dictionary is returned.
         /// </remarks>
         public Dictionary<string, ConditionState> GetBranches()
         {
@@ -801,7 +801,11 @@ namespace Opc.Ua
         /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState>? m_branches;
-        private readonly object m_branchesLock = new();
+
+        /// <summary>
+        /// Lock protecting all access to <see cref="m_branches"/>.
+        /// </summary>
+        protected readonly Lock m_branchesLock = new();
         private PropertyState<bool>? m_supportsFilteredRetain;
     }
 
