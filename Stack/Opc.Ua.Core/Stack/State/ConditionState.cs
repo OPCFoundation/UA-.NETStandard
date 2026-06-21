@@ -813,7 +813,10 @@ namespace Opc.Ua
         /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState> m_branches;
-        private readonly Lock m_branchesLock = new();
+        /// <summary>
+        /// Lock protecting all access to <see cref="m_branches"/>.
+        /// </summary>
+        protected readonly Lock m_branchesLock = new();
         private PropertyState<bool> m_supportsFilteredRetain;
     }
 
