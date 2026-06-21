@@ -813,6 +813,7 @@ namespace Opc.Ua
         /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState> m_branches;
+
         /// <summary>
         /// Lock protecting all access to <see cref="m_branches"/>.
         /// </summary>
