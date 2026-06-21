@@ -338,6 +338,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// branch dictionary was enumerated while being modified.
         /// </summary>
         [Test]
+        [CancelAfter(10_000)]
         public void ConcurrentBranchAccessIsThreadSafe()
         {
             var condition = new ConditionState(null);
@@ -379,8 +380,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.That(() =>
             {
-                writer.GetAwaiter().GetResult();
-                cts.Cancel();
+                try
+                {
+                    writer.GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    cts.Cancel();
+                }
+
                 reader.GetAwaiter().GetResult();
             }, Throws.Nothing);
         }
