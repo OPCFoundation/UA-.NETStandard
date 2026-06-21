@@ -301,6 +301,17 @@ namespace Opc.Ua.PubSub.Tests
             // to register and fire each new Delay; a single Advance(300) would
             // race because each subsequent Delay is only registered after the
             // previous timer's continuation resumes on the thread pool.
+            //
+            // After WaitForAsync returns, the action has fired but the runner's
+            // loop iteration may not yet have called the next Delay on the fake
+            // provider (it queues Task.Run(action) while still inside the lock,
+            // then loops back to register the new Delay outside it). On .NET
+            // Framework 4.8 the thread pool can schedule the action Task before
+            // the runner's continuation completes its current iteration, so a
+            // subsequent Advance finds no pending timer and the runner stalls.
+            // The 50 ms real-time pause is ample for the runner to finish the
+            // few synchronous steps between firing the action and registering
+            // the next Delay, while adding negligible wall-clock time to the test.
             int afterFirstAdvance = Volatile.Read(ref executionCount);
             for (int i = 0; i < 3; i++)
             {
@@ -308,6 +319,9 @@ namespace Opc.Ua.PubSub.Tests
                 fake.Advance(TimeSpan.FromMilliseconds(100));
                 await WaitForAsync(() => Volatile.Read(ref executionCount) >= before + 1)
                     .ConfigureAwait(false);
+                // Give the runner time to complete its current loop iteration and
+                // re-register the next Delay before we advance the clock again.
+                await Task.Delay(50).ConfigureAwait(false);
             }
             Assert.That(
                 Volatile.Read(ref executionCount),
