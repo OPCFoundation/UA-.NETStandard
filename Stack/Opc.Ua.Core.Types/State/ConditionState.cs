@@ -206,7 +206,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Retrieves the branches for the current ConditionState.
-        /// Creates the branches dictionary if required
+        /// Returns a snapshot copy of the current branches.
         /// </summary>
         /// <remarks>
         /// Function exists because constructor is in auto generated code.
