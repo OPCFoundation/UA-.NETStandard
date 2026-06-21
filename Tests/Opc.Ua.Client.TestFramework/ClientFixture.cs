@@ -167,6 +167,8 @@ namespace Opc.Ua.Client.TestFramework
             if (disposing)
             {
                 StopActivityListener();
+                ReverseConnectManager?.Dispose();
+                ReverseConnectManager = null;
                 m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 m_application = null;
             }

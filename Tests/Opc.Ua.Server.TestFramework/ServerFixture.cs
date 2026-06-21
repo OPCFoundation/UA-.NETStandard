@@ -281,7 +281,15 @@ namespace Opc.Ua.Server.TestFramework
                 .SetMaxMessageQueueSize(20)
                 .SetDiagnosticsEnabled(true)
                 .SetAuditingEnabled(true)
-                .SetHttpsMutualTls(HttpsMutualTls);
+                .SetHttpsMutualTls(HttpsMutualTls)
+                // Tests always close the session explicitly before stopping the server,
+                // so no real client needs the shutdown-delay grace period. Setting to 0
+                // eliminates the Thread.Sleep(1000)×ShutdownDelay blocking call in
+                // StandardServer.ShutDownDelay(), which otherwise races with the
+                // ServerFixture teardown watchdog (both default to 5 s) and causes a
+                // post-test process hang on macOS where Thread.Sleep drifts slightly
+                // above 1 s per iteration.
+                .SetShutdownDelay(0);
 
             if (ReverseConnectTimeout != 0)
             {
