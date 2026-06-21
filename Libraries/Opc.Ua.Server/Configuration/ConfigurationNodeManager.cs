@@ -197,7 +197,26 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            var activeNode = new ServerConfigurationState(passiveNode.Parent);
+                            if (passiveNode is not ServerConfigurationState activeNode)
+                            {
+                                activeNode = context.CreateInstanceOfServerConfigurationType(passiveNode.Parent!);
+
+                                if (passiveNode.Parent != null)
+                                {
+                                    passiveNode.Parent.ReplaceChild(context, activeNode);
+                                }
+                                else
+                                {
+                                    NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
+                                        .ConfigureAwait(false);
+                                    serverNode?.ReplaceChild(context, activeNode);
+                                }
+                                // remove the reference to server node because it is set as parent
+                                activeNode.RemoveReference(
+                                    ReferenceTypeIds.HasComponent,
+                                    true,
+                                    ObjectIds.Server);
+                            }
 
                             // Optional ServerConfigurationType methods this
                             // SDK wires in CreateServerConfiguration but that
