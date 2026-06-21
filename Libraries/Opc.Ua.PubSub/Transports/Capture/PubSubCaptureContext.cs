@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Transports
     /// datagram / broker message together with the metadata an offline
     /// dissector needs.
     /// </summary>
-    public readonly struct PubSubCaptureContext
+    public readonly record struct PubSubCaptureContext
     {
         /// <summary>
         /// Initializes a new <see cref="PubSubCaptureContext"/>.
