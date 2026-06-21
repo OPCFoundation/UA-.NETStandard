@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -812,7 +813,7 @@ namespace Opc.Ua
         /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState> m_branches;
-        private readonly object m_branchesLock = new();
+        private readonly Lock m_branchesLock = new();
         private PropertyState<bool> m_supportsFilteredRetain;
     }
 

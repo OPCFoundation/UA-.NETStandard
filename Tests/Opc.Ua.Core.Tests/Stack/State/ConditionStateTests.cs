@@ -384,6 +384,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             Assert.That(reader.Wait(System.TimeSpan.FromSeconds(5)), Is.True, "Reader task did not stop after cancellation.");
+        }
 
         /// <summary>
         /// Test condition that exposes method to force Retain value for testing.
