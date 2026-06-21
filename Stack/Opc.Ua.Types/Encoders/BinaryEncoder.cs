@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
@@ -741,6 +742,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariant(string? fieldName, in Variant value)
         {
+            // Scalar values cannot nest, so skip the nesting-level bookkeeping
+            // (and the try/finally) for the common scalar fast path.
+            if (value.TypeInfo.IsScalar)
+            {
+                WriteVariantValue(in value, false);
+                return;
+            }
+
             CheckAndIncrementNestingLevel();
 
             try
@@ -1011,11 +1020,8 @@ namespace Opc.Ua
                 return;
             }
 
-            // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteSByte(null, values[ii]);
-            }
+            // write contents (single byte elements, endianness independent).
+            m_writer.Write(MemoryMarshal.AsBytes(values.Span));
         }
 
         /// <inheritdoc/>
@@ -1028,10 +1034,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteByte(null, values[ii]);
-            }
+            m_writer.Write(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1044,10 +1047,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteInt16(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1060,10 +1060,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteUInt16(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1076,10 +1073,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteInt32(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1092,10 +1086,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteUInt32(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1108,10 +1099,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteInt64(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1124,10 +1112,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteUInt64(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1140,10 +1125,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteFloat(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1156,10 +1138,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteDouble(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -2100,6 +2079,34 @@ namespace Opc.Ua
             // write length.
             WriteInt32(null, values.Count);
             return values.Count == 0;
+        }
+
+        /// <summary>
+        /// Writes a fixed-width unmanaged numeric array as raw little-endian
+        /// bytes. On little-endian hosts the span is blitted in a single write;
+        /// on big-endian hosts each element is byte-reversed to little-endian
+        /// (OPC UA binary encoding is always little-endian).
+        /// </summary>
+        /// <typeparam name="T">The unmanaged element type.</typeparam>
+        private void WriteFixedWidthArray<T>(ReadOnlySpan<T> values)
+            where T : unmanaged
+        {
+            if (BitConverter.IsLittleEndian)
+            {
+                m_writer.Write(MemoryMarshal.AsBytes(values));
+                return;
+            }
+
+            int size = Unsafe.SizeOf<T>();
+            ReadOnlySpan<byte> bytes = MemoryMarshal.AsBytes(values);
+            Span<byte> element = stackalloc byte[16];
+            for (int offset = 0; offset < bytes.Length; offset += size)
+            {
+                Span<byte> slot = element[..size];
+                bytes.Slice(offset, size).CopyTo(slot);
+                slot.Reverse();
+                m_writer.Write(slot);
+            }
         }
 
         /// <summary>
