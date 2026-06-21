@@ -80,6 +80,7 @@ namespace Opc.Ua.PubSub.Udp
         private readonly UdpTransportOptions m_options;
         private readonly ILogger m_logger;
         private readonly IPubSubDiagnostics? m_diagnostics;
+        private readonly IPubSubCaptureRegistry? m_captureRegistry;
         private readonly UdpMessageRepeater m_repeater;
         private readonly System.Threading.Lock m_sync = new();
         private readonly DatagramV2Settings m_v2Settings;
@@ -126,6 +127,11 @@ namespace Opc.Ua.PubSub.Udp
         /// Optional diagnostics sink; counters are incremented per
         /// inbound / outbound frame when non-null.
         /// </param>
+        /// <param name="captureRegistry">
+        /// Optional capture registry; when a capture session is active the
+        /// transport taps its raw datagram bytes through the registry's
+        /// observer. <see langword="null"/> disables capture at zero cost.
+        /// </param>
         public UdpDatagramTransport(
             PubSubConnectionDataType connection,
             UdpEndpoint endpoint,
@@ -134,7 +140,8 @@ namespace Opc.Ua.PubSub.Udp
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
             UdpTransportOptions options,
-            IPubSubDiagnostics? diagnostics = null)
+            IPubSubDiagnostics? diagnostics = null,
+            IPubSubCaptureRegistry? captureRegistry = null)
         {
             if (connection is null)
             {
@@ -165,6 +172,7 @@ namespace Opc.Ua.PubSub.Udp
             m_timeProvider = timeProvider;
             m_options = options;
             m_diagnostics = diagnostics;
+            m_captureRegistry = captureRegistry;
             m_logger = telemetry.CreateLogger<UdpDatagramTransport>();
             m_repeater = new UdpMessageRepeater(
                 options.MessageRepeatCount,
@@ -477,6 +485,7 @@ namespace Opc.Ua.PubSub.Udp
 #endif
                 }
                 m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages);
+                NotifyCapture(PubSubCaptureDirection.Outbound, destination, payload.Span);
             }
             catch (SocketException ex)
             {
@@ -485,6 +494,31 @@ namespace Opc.Ua.PubSub.Udp
                     m_connection.Name,
                     destination ?? (object)LocalSendStateLabel);
                 throw;
+            }
+        }
+
+        private void NotifyCapture(
+            PubSubCaptureDirection direction,
+            EndPoint? endpoint,
+            ReadOnlySpan<byte> payload)
+        {
+            IPubSubCaptureObserver? observer = m_captureRegistry?.CurrentObserver;
+            if (observer is null)
+            {
+                return;
+            }
+            try
+            {
+                var context = new PubSubCaptureContext(
+                    direction,
+                    TransportProfileUri,
+                    new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
+                    endpoint?.ToString());
+                observer.OnFrameCaptured(in context, payload);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "PubSub capture observer threw; ignoring.");
             }
         }
 
@@ -560,6 +594,10 @@ namespace Opc.Ua.PubSub.Udp
                     }
                     byte[] copy = new byte[result.ReceivedBytes];
                     Buffer.BlockCopy(receiveBuffer, 0, copy, 0, result.ReceivedBytes);
+                    NotifyCapture(
+                        PubSubCaptureDirection.Inbound,
+                        result.RemoteEndPoint,
+                        new ReadOnlySpan<byte>(copy));
                     var frame = new PubSubTransportFrame(
                         new ReadOnlyMemory<byte>(copy),
                         topic: null,

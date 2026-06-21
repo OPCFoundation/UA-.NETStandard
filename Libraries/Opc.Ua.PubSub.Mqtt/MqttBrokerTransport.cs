@@ -90,6 +90,7 @@ namespace Opc.Ua.PubSub.Mqtt
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IPubSubDiagnostics? m_diagnostics;
+        private readonly IPubSubCaptureRegistry? m_captureRegistry;
         private readonly ILogger m_logger;
         private readonly System.Threading.Lock m_sync = new();
         private readonly string m_transportProfileUri;
@@ -129,6 +130,11 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Optional diagnostics sink. Counters are incremented per
         /// inbound / outbound frame when non-<see langword="null"/>.
         /// </param>
+        /// <param name="captureRegistry">
+        /// Optional capture registry; when a capture session is active the
+        /// transport taps its raw payload bytes through the registry's
+        /// observer. <see langword="null"/> disables capture at zero cost.
+        /// </param>
         public MqttBrokerTransport(
             PubSubConnectionDataType connection,
             MqttEndpoint endpoint,
@@ -137,7 +143,8 @@ namespace Opc.Ua.PubSub.Mqtt
             IMqttClientFactory clientFactory,
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
-            IPubSubDiagnostics? diagnostics = null)
+            IPubSubDiagnostics? diagnostics = null,
+            IPubSubCaptureRegistry? captureRegistry = null)
         {
             if (connection is null)
             {
@@ -168,6 +175,7 @@ namespace Opc.Ua.PubSub.Mqtt
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_diagnostics = diagnostics;
+            m_captureRegistry = captureRegistry;
             m_logger = telemetry.CreateLogger<MqttBrokerTransport>();
             m_transportProfileUri = DetermineTransportProfileUri(connection);
         }
@@ -377,6 +385,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
             await adapter.PublishAsync(message, cancellationToken).ConfigureAwait(false);
             m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages, 1);
+            NotifyCapture(PubSubCaptureDirection.Outbound, topic, payload.Span);
         }
 
         /// <inheritdoc/>
@@ -455,6 +464,33 @@ namespace Opc.Ua.PubSub.Mqtt
                 return;
             }
             m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages, 1);
+            NotifyCapture(PubSubCaptureDirection.Inbound, e.Message.Topic, e.Message.Payload.Span);
+        }
+
+        private void NotifyCapture(
+            PubSubCaptureDirection direction,
+            string? topic,
+            ReadOnlySpan<byte> payload)
+        {
+            IPubSubCaptureObserver? observer = m_captureRegistry?.CurrentObserver;
+            if (observer is null)
+            {
+                return;
+            }
+            try
+            {
+                var context = new PubSubCaptureContext(
+                    direction,
+                    m_transportProfileUri,
+                    new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
+                    m_endpoint.ToString(),
+                    topic);
+                observer.OnFrameCaptured(in context, payload);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "PubSub capture observer threw; ignoring.");
+            }
         }
 
         private void OnConnectionStateChanged(
