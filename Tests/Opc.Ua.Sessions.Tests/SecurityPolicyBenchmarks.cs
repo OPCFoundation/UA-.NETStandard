@@ -168,6 +168,7 @@ namespace Opc.Ua.Sessions.Tests
                     yield return policyUri;
                 }
             }
+
         }
 
         /// <summary>
@@ -917,4 +918,164 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(successful, Is.GreaterThan(0), "No security policies were successful");
         }
     }
+
+    /// <summary>
+    /// <para>
+    /// Session-establishment benchmarks restricted to the RSA security-policy suites that are common with
+    /// OPC UA .NET Standard 1.5.378.
+    /// </para>
+    /// <para>
+    /// The common-with-1.5.378 set is Basic128Rsa15, Basic256, Basic256Sha256,
+    /// Aes128_Sha256_RsaOaep, and Aes256_Sha256_RsaPss. These were the RSA suites available in
+    /// 1.5.378, so this fixture excludes SecurityPolicies.None and the 2.0-only ECC/RSA-DH AES-GCM and
+    /// ChaCha20-Poly1305 suites to provide an apples-to-apples session-establishment geomean.
+    /// </para>
+    /// <para>
+    /// Run with:
+    ///   dotnet run -c Release -f net10.0 -- --filter '*SecurityPolicySessionCommonWithV15378Benchmarks*'
+    /// </para>
+    /// </summary>
+    [TestFixture]
+    [Explicit]
+    [Category("Client")]
+    [Category("SecurityPolicyBenchmark")]
+    [Category("SecurityPolicyBenchmarkCommonWithV15378")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Config(typeof(SecurityPolicyBenchmarkConfig))]
+    [MemoryDiagnoser]
+    public class SecurityPolicySessionCommonWithV15378Benchmarks
+    {
+        private ClientTestFramework m_framework;
+        private ArrayOf<EndpointDescription> m_endpoints;
+
+        /// <summary>
+        /// Security-policy URIs that exist in both OPC UA .NET Standard 1.5.378 and 2.0.
+        /// </summary>
+        public static IEnumerable<string> BenchPoliciesCommonWithV15378()
+        {
+            yield return SecurityPolicies.Basic128Rsa15;
+            yield return SecurityPolicies.Basic256;
+            yield return SecurityPolicies.Basic256Sha256;
+            yield return SecurityPolicies.Aes128_Sha256_RsaOaep;
+            yield return SecurityPolicies.Aes256_Sha256_RsaPss;
+        }
+
+        /// <summary>
+        /// The security policy used by the common-with-1.5.378 session-establishment benchmarks.
+        /// </summary>
+        [ParamsSource(nameof(BenchPoliciesCommonWithV15378))]
+        public string SecurityPolicy = SecurityPolicies.Basic256Sha256;
+
+        /// <summary>
+        /// Set up a Server and a Client instance.
+        /// </summary>
+        [OneTimeSetUp]
+        [GlobalSetup]
+        public async Task SetUpAsync()
+        {
+            if (m_framework != null)
+            {
+                return;
+            }
+
+            m_framework = new ClientTestFramework(Utils.UriSchemeOpcTcp)
+            {
+                SingleSession = false,
+                SupportsExternalServerUrl = true
+            };
+
+            await m_framework.OneTimeSetUpAsync().ConfigureAwait(false);
+            m_endpoints = await m_framework.ClientFixture
+                .GetEndpointsAsync(m_framework.ServerUrl)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Tear down the Server and the Client.
+        /// </summary>
+        [OneTimeTearDown]
+        [GlobalCleanup]
+        public async Task TearDownAsync()
+        {
+            if (m_framework == null)
+            {
+                return;
+            }
+
+            await m_framework.OneTimeTearDownAsync().ConfigureAwait(false);
+            m_framework = null;
+            m_endpoints = default;
+        }
+
+        /// <summary>
+        /// Benchmark: Create and close session for policies common with OPC UA .NET Standard 1.5.378.
+        /// </summary>
+        [Test]
+        [Order(700)]
+        [Benchmark(Description = "Create and close session (common with 1.5.378)")]
+        public async Task CreateCloseSessionAsync()
+        {
+            ISession session = await m_framework.ClientFixture.ConnectAsync(
+                m_framework.ServerUrl,
+                SecurityPolicy,
+                m_endpoints
+            ).ConfigureAwait(false);
+
+            Assert.That(session, Is.Not.Null);
+
+            await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            session.Dispose();
+        }
+
+        /// <summary>
+        /// Benchmark: Create, read, and close session for policies common with OPC UA .NET Standard 1.5.378.
+        /// </summary>
+        [Test]
+        [Order(701)]
+        [Benchmark(Description = "Session lifecycle with read (common with 1.5.378)")]
+        public async Task SessionLifecycleWithReadAsync()
+        {
+            ISession session = await m_framework.ClientFixture.ConnectAsync(
+                m_framework.ServerUrl,
+                SecurityPolicy,
+                m_endpoints
+            ).ConfigureAwait(false);
+
+            Assert.That(session, Is.Not.Null);
+
+            await session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                [
+                    new ReadValueId
+                    {
+                        NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                        AttributeId = Attributes.Value
+                    }
+                ],
+                CancellationToken.None
+            ).ConfigureAwait(false);
+
+            await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            session.Dispose();
+        }
+
+        /// <summary>
+        /// Benchmark: Discover endpoints for policies common with OPC UA .NET Standard 1.5.378.
+        /// </summary>
+        [Test]
+        [Order(702)]
+        [Benchmark(Description = "Discover endpoints (common with 1.5.378)")]
+        public async Task DiscoverEndpointsAsync()
+        {
+            ArrayOf<EndpointDescription> endpoints = await m_framework.ClientFixture
+                .GetEndpointsAsync(m_framework.ServerUrl)
+                .ConfigureAwait(false);
+
+            Assert.That(endpoints.IsNull, Is.False);
+        }
+    }
+
 }
