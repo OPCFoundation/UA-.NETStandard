@@ -36,7 +36,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server.Internal;
@@ -84,6 +86,8 @@ namespace Opc.Ua.PubSub.Server
         private const uint GetSecurityGroupNodeId = 15440;
         private const uint AddSecurityGroupNodeId = 15444;
         private const uint RemoveSecurityGroupNodeId = 15447;
+        // TODO(RD3-securitygroup-nodes): Part 14 §8.3/§9.1 materialize SecurityGroupType instance nodes.
+        // TODO(RD4-sks-push-targets): Part 14 §8.4 materialize SKS KeyPushTargets and push-target methods.
         private const uint AddPublishedDataItemsNodeId = 14479;
         private const uint AddPublishedEventsNodeId = 14482;
         private const uint AddPublishedDataItemsTemplateNodeId = 16842;
@@ -181,6 +185,11 @@ namespace Opc.Ua.PubSub.Server
         /// </summary>
         internal PubSubMethodHandlers MethodHandlers => m_methodHandlers;
 
+        /// <summary>
+        /// Namespace index registered for dynamic PubSub instance nodes. Test-only.
+        /// </summary>
+        internal ushort AddressSpaceNamespaceIndex => NamespaceIndexes[0];
+
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -195,6 +204,11 @@ namespace Opc.Ua.PubSub.Server
                 m_logger.LogWarning(
                     "DiagnosticsNodeManager is not available; PubSub methods will not be bound.");
                 return;
+            }
+
+            if (m_application is PubSubApplication concreteApplication)
+            {
+                concreteApplication.SetAddressSpaceNamespaceIndex(NamespaceIndexes[0]);
             }
 
             BindMethods(diagnosticsNodeManager);
@@ -266,6 +280,14 @@ namespace Opc.Ua.PubSub.Server
                 if (setKeys is not null)
                 {
                     setKeys.OnCallMethod = m_methodHandlers.OnSetSecurityKeys;
+                    setKeys.RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)PermissionType.Call
+                        }
+                    ];
                 }
                 if (addConn is not null)
                 {
@@ -367,10 +389,12 @@ namespace Opc.Ua.PubSub.Server
 
             PubSubConfigurationDataType configuration = m_application.GetConfiguration();
             List<NodeState> oldRoots;
+            string[] dataSetFolders;
             lock (m_addressSpaceGate)
             {
                 oldRoots = [.. m_dynamicRoots];
                 m_dynamicRoots.Clear();
+                dataSetFolders = [.. m_dataSetFolders];
             }
 
             foreach (NodeState oldRoot in oldRoots)
@@ -462,7 +486,7 @@ namespace Opc.Ua.PubSub.Server
 
             BaseObjectState configurationFile = CreateObject(
                 publishSubscribe,
-                new NodeId("pubsub:configuration", 0),
+                new NodeId("pubsub:configuration", NamespaceIndexes[0]),
                 "PubSubConfiguration",
                 new NodeId(25482u));
             BindPubSubConfigurationFileMethods(configurationFile);
@@ -470,7 +494,7 @@ namespace Opc.Ua.PubSub.Server
 
             if (publishedDataSets is not null)
             {
-                foreach (string folderName in m_dataSetFolders)
+                foreach (string folderName in dataSetFolders)
                 {
                     BaseObjectState folderNode = CreateObject(
                         publishedDataSets,
@@ -637,6 +661,8 @@ namespace Opc.Ua.PubSub.Server
             PubSubState target)
         {
             string statusId = status.NodeId.IdentifierAsString;
+            NodeId componentId = status.Parent?.NodeId
+                ?? throw new ArgumentException("Status object must have a parent.", nameof(status));
             var method = new MethodState(status)
             {
                 NodeId = new NodeId($"{statusId}:{browseName}", status.NodeId.NamespaceIndex),
@@ -646,12 +672,269 @@ namespace Opc.Ua.PubSub.Server
                 UserExecutable = true,
                 OnCallMethod = (_, _, _, _) =>
                 {
-                    state.Value = Variant.From((int)target);
-                    state.Timestamp = DateTime.UtcNow;
-                    return ServiceResult.Good;
+                    try
+                    {
+                        ApplyStatusTransition(componentId, target, CancellationToken.None)
+                            .AsTask()
+                            .GetAwaiter()
+                            .GetResult();
+                        state.Value = Variant.From((int)target);
+                        state.Timestamp = DateTime.UtcNow;
+                        return ServiceResult.Good;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogWarning(
+                            ex,
+                            "PubSub instance Status.{Method} failed for {NodeId}.",
+                            browseName,
+                            componentId);
+                        return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
+                    }
                 }
             };
             status.AddChild(method);
+        }
+
+        private async ValueTask ApplyStatusTransition(
+            NodeId componentId,
+            PubSubState target,
+            CancellationToken cancellationToken)
+        {
+            if (target == PubSubState.PreOperational)
+            {
+                await EnableComponentAsync(componentId, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await DisableComponentAsync(componentId, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask EnableComponentAsync(NodeId componentId, CancellationToken cancellationToken)
+        {
+            if (TryGetConnection(componentId, out IPubSubConnection? connection))
+            {
+                await connection!.EnableAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (TryGetWriterGroup(componentId, out WriterGroup? writerGroup))
+            {
+                await writerGroup!.EnableAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (TryGetReaderGroup(componentId, out ReaderGroup? readerGroup))
+            {
+                await readerGroup!.EnableAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (TryGetDataSetWriter(componentId, out IDataSetWriter? writer))
+            {
+                _ = writer!.State.TryEnable();
+                _ = writer.State.TryMarkOperational();
+                return;
+            }
+
+            if (TryGetDataSetReader(componentId, out IDataSetReader? reader))
+            {
+                _ = reader!.State.TryEnable();
+                _ = reader.State.TryMarkOperational();
+                return;
+            }
+
+            throw new ArgumentException("The specified PubSub component does not exist.", nameof(componentId));
+        }
+
+        private async ValueTask DisableComponentAsync(NodeId componentId, CancellationToken cancellationToken)
+        {
+            if (TryGetConnection(componentId, out IPubSubConnection? connection))
+            {
+                await connection!.DisableAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (TryGetWriterGroup(componentId, out WriterGroup? writerGroup))
+            {
+                await writerGroup!.DisableAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (TryGetReaderGroup(componentId, out ReaderGroup? readerGroup))
+            {
+                await readerGroup!.DisableAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (TryGetDataSetWriter(componentId, out IDataSetWriter? writer))
+            {
+                _ = writer!.State.TryDisable();
+                return;
+            }
+
+            if (TryGetDataSetReader(componentId, out IDataSetReader? reader))
+            {
+                _ = reader!.State.TryDisable();
+                return;
+            }
+
+            throw new ArgumentException("The specified PubSub component does not exist.", nameof(componentId));
+        }
+
+        private bool TryGetConnection(NodeId componentId, out IPubSubConnection? connection)
+        {
+            string? id = componentId.IdentifierAsString;
+            const string prefix = "pubsub:connection:";
+            if (id is not null && id.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                string connectionName = id[prefix.Length..];
+                connection = m_application.Connections.FirstOrDefault(c =>
+                    StringComparer.Ordinal.Equals(c.Name, connectionName));
+                return connection is not null;
+            }
+
+            connection = null;
+            return false;
+        }
+
+        private bool TryGetWriterGroup(NodeId componentId, out WriterGroup? writerGroup)
+        {
+            string[] parts = SplitNodeId(componentId);
+            if (parts.Length == 4 &&
+                parts[0] == "pubsub" &&
+                parts[1] == "writer-group")
+            {
+                foreach (IPubSubConnection connection in m_application.Connections)
+                {
+                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
+                    {
+                        continue;
+                    }
+
+                    foreach (IWriterGroup group in connection.WriterGroups)
+                    {
+                        if (group is WriterGroup runtimeGroup &&
+                            StringComparer.Ordinal.Equals(runtimeGroup.Name, parts[3]))
+                        {
+                            writerGroup = runtimeGroup;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            writerGroup = null;
+            return false;
+        }
+
+        private bool TryGetReaderGroup(NodeId componentId, out ReaderGroup? readerGroup)
+        {
+            string[] parts = SplitNodeId(componentId);
+            if (parts.Length == 4 &&
+                parts[0] == "pubsub" &&
+                parts[1] == "reader-group")
+            {
+                foreach (IPubSubConnection connection in m_application.Connections)
+                {
+                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
+                    {
+                        continue;
+                    }
+
+                    foreach (IReaderGroup group in connection.ReaderGroups)
+                    {
+                        if (group is ReaderGroup runtimeGroup &&
+                            StringComparer.Ordinal.Equals(runtimeGroup.Name, parts[3]))
+                        {
+                            readerGroup = runtimeGroup;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            readerGroup = null;
+            return false;
+        }
+
+        private bool TryGetDataSetWriter(NodeId componentId, out IDataSetWriter? writer)
+        {
+            string[] parts = SplitNodeId(componentId);
+            if (parts.Length == 5 &&
+                parts[0] == "pubsub" &&
+                parts[1] == "writer")
+            {
+                foreach (IPubSubConnection connection in m_application.Connections)
+                {
+                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
+                    {
+                        continue;
+                    }
+
+                    foreach (IWriterGroup group in connection.WriterGroups)
+                    {
+                        if (!StringComparer.Ordinal.Equals(group.Name, parts[3]))
+                        {
+                            continue;
+                        }
+
+                        foreach (IDataSetWriter candidate in group.DataSetWriters)
+                        {
+                            if (StringComparer.Ordinal.Equals(candidate.Name, parts[4]))
+                            {
+                                writer = candidate;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            writer = null;
+            return false;
+        }
+
+        private bool TryGetDataSetReader(NodeId componentId, out IDataSetReader? reader)
+        {
+            string[] parts = SplitNodeId(componentId);
+            if (parts.Length == 5 &&
+                parts[0] == "pubsub" &&
+                parts[1] == "reader")
+            {
+                foreach (IPubSubConnection connection in m_application.Connections)
+                {
+                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
+                    {
+                        continue;
+                    }
+
+                    foreach (IReaderGroup group in connection.ReaderGroups)
+                    {
+                        if (!StringComparer.Ordinal.Equals(group.Name, parts[3]))
+                        {
+                            continue;
+                        }
+
+                        foreach (IDataSetReader candidate in group.DataSetReaders)
+                        {
+                            if (StringComparer.Ordinal.Equals(candidate.Name, parts[4]))
+                            {
+                                reader = candidate;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            reader = null;
+            return false;
+        }
+
+        private static string[] SplitNodeId(NodeId componentId)
+        {
+            return componentId.IdentifierAsString?.Split(':') ?? [];
         }
 
         private void BindConnectionMethods(BaseObjectState connectionNode)
@@ -679,6 +962,8 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindPubSubConfigurationFileMethods(BaseObjectState fileNode)
         {
+            AddPlainMethod(fileNode, "SetConfiguration", m_methodHandlers.OnSetConfiguration);
+            AddPlainMethod(fileNode, "GetConfiguration", m_methodHandlers.OnGetConfiguration);
             AddPlainMethod(fileNode, "Open", OnOpenPubSubConfigurationFile);
             AddPlainMethod(fileNode, "Read", OnReadPubSubConfigurationFile);
             AddPlainMethod(fileNode, "Write", OnWritePubSubConfigurationFile);
@@ -842,10 +1127,11 @@ namespace Opc.Ua.PubSub.Server
             {
                 _ = inputArguments[0].TryGetValue(out mode);
             }
-            uint handle = ++m_nextFileHandle;
             byte[] buffer = IsWriteMode(mode) ? [] : EncodeConfiguration(m_application.GetConfiguration());
+            uint handle;
             lock (m_addressSpaceGate)
             {
+                handle = ++m_nextFileHandle;
                 m_fileHandles[handle] = new PubSubConfigurationFileHandle(IsWriteMode(mode), buffer);
             }
             outputArguments.Add(Variant.From(handle));
@@ -1014,39 +1300,39 @@ namespace Opc.Ua.PubSub.Server
             return [.. values];
         }
 
-        private static NodeId CreateConnectionNodeId(string connectionName)
+        private NodeId CreateConnectionNodeId(string connectionName)
         {
-            return new($"pubsub:connection:{connectionName}", 0);
+            return new($"pubsub:connection:{connectionName}", NamespaceIndexes[0]);
         }
 
-        private static NodeId CreateWriterGroupNodeId(string connectionName, string writerGroupName)
+        private NodeId CreateWriterGroupNodeId(string connectionName, string writerGroupName)
         {
-            return new($"pubsub:writer-group:{connectionName}:{writerGroupName}", 0);
+            return new($"pubsub:writer-group:{connectionName}:{writerGroupName}", NamespaceIndexes[0]);
         }
 
-        private static NodeId CreateReaderGroupNodeId(string connectionName, string readerGroupName)
+        private NodeId CreateReaderGroupNodeId(string connectionName, string readerGroupName)
         {
-            return new($"pubsub:reader-group:{connectionName}:{readerGroupName}", 0);
+            return new($"pubsub:reader-group:{connectionName}:{readerGroupName}", NamespaceIndexes[0]);
         }
 
-        private static NodeId CreateWriterNodeId(string connectionName, string writerGroupName, string writerName)
+        private NodeId CreateWriterNodeId(string connectionName, string writerGroupName, string writerName)
         {
-            return new($"pubsub:writer:{connectionName}:{writerGroupName}:{writerName}", 0);
+            return new($"pubsub:writer:{connectionName}:{writerGroupName}:{writerName}", NamespaceIndexes[0]);
         }
 
-        private static NodeId CreateReaderNodeId(string connectionName, string readerGroupName, string readerName)
+        private NodeId CreateReaderNodeId(string connectionName, string readerGroupName, string readerName)
         {
-            return new($"pubsub:reader:{connectionName}:{readerGroupName}:{readerName}", 0);
+            return new($"pubsub:reader:{connectionName}:{readerGroupName}:{readerName}", NamespaceIndexes[0]);
         }
 
-        private static NodeId CreatePublishedDataSetNodeId(string publishedDataSetName)
+        private NodeId CreatePublishedDataSetNodeId(string publishedDataSetName)
         {
-            return new($"pubsub:published-data-set:{publishedDataSetName}", 0);
+            return new($"pubsub:published-data-set:{publishedDataSetName}", NamespaceIndexes[0]);
         }
 
-        private static NodeId CreateDataSetFolderNodeId(string folderName)
+        private NodeId CreateDataSetFolderNodeId(string folderName)
         {
-            return new($"pubsub:folder:{folderName}", 0);
+            return new($"pubsub:folder:{folderName}", NamespaceIndexes[0]);
         }
 
         private void RegisterActionMethodHandlers()

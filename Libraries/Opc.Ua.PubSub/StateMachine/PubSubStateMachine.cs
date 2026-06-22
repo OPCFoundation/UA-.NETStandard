@@ -318,6 +318,7 @@ namespace Opc.Ua.PubSub.StateMachine
             StatusCode errorStatus,
             PubSubStateTransitionReason reason = PubSubStateTransitionReason.Fatal)
         {
+            TryPauseChildrenCascade();
             return TryTransition(
                 PubSubState.Error,
                 reason,
@@ -377,6 +378,20 @@ namespace Opc.Ua.PubSub.StateMachine
                 _ = child.TryPauseCascade();
             }
             return TryPause(PubSubStateTransitionReason.ByParent);
+        }
+
+        private void TryPauseChildrenCascade()
+        {
+            PubSubStateMachine[] childSnapshot;
+            lock (m_lock)
+            {
+                childSnapshot = [.. m_children];
+            }
+
+            foreach (PubSubStateMachine child in childSnapshot)
+            {
+                _ = child.TryPauseCascade();
+            }
         }
 
         /// <summary>

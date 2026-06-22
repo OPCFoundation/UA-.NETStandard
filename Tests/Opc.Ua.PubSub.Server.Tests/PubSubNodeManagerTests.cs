@@ -187,14 +187,17 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(connectionId);
             BaseObjectState statusNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
-                new NodeId("pubsub:connection:conn-tree:Status", 0));
+                new NodeId("pubsub:connection:conn-tree:Status", harness.Manager.AddressSpaceNamespaceIndex));
             MethodState enable = harness.Manager.FindPredefinedNode<MethodState>(
-                new NodeId("pubsub:connection:conn-tree:Status:Enable", 0));
+                new NodeId("pubsub:connection:conn-tree:Status:Enable", harness.Manager.AddressSpaceNamespaceIndex));
             BaseDataVariableState version = harness.Manager.FindPredefinedNode<BaseDataVariableState>(
-                new NodeId("pubsub:connection:conn-tree:ConfigurationVersion", 0));
+                new NodeId(
+                    "pubsub:connection:conn-tree:ConfigurationVersion",
+                    harness.Manager.AddressSpaceNamespaceIndex));
 
             Assert.Multiple(() =>
             {
+                Assert.That(connectionId.NamespaceIndex, Is.EqualTo(harness.Manager.AddressSpaceNamespaceIndex));
                 Assert.That(connectionNode, Is.Not.Null);
                 Assert.That(connectionNode.TypeDefinitionId, Is.EqualTo(new NodeId(14209u)));
                 Assert.That(statusNode, Is.Not.Null);
@@ -246,7 +249,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             BaseObjectState fileNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
-                new NodeId("pubsub:configuration", 0))!;
+                new NodeId("pubsub:configuration", harness.Manager.AddressSpaceNamespaceIndex))!;
             var open = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("Open"))!;
             var read = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("Read"))!;
             var reserve = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("ReserveIds"))!;

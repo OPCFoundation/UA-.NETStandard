@@ -102,6 +102,9 @@ namespace Opc.Ua.PubSub.Configuration
                 }
             }
 
+            ConfigurationVersionDataType currentVersion = newMetaData.ConfigurationVersion
+                ?? new ConfigurationVersionDataType();
+
             if (hasMajorVersionChange || hasMinorVersionChange)
             {
                 uint versionTime = CalculateVersionTime(DateTime.UtcNow);
@@ -118,15 +121,15 @@ namespace Opc.Ua.PubSub.Configuration
                 return new ConfigurationVersionDataType
                 {
                     MinorVersion = versionTime,
-                    MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                    MajorVersion = currentVersion.MajorVersion
                 };
             }
 
             // there is no change
             return new ConfigurationVersionDataType
             {
-                MinorVersion = newMetaData.ConfigurationVersion.MinorVersion,
-                MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                MinorVersion = currentVersion.MinorVersion,
+                MajorVersion = currentVersion.MajorVersion
             };
         }
 

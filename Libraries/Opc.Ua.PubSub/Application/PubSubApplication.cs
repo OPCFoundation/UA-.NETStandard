@@ -99,9 +99,12 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
             m_actionHandlers = [];
+        // TODO(RE1-provider-abstractions): Part 14 HA remediation requires pluggable PubSub configuration, id,
+        // runtime-state, and security-key stores while preserving the current in-memory default semantics.
 
         private bool m_started;
         private bool m_disposed;
+        private ushort m_addressSpaceNamespaceIndex;
         private MetaDataPublisher? m_metaDataPublisher;
 
         /// <summary>
@@ -257,6 +260,24 @@ namespace Opc.Ua.PubSub.Application
             }
 
             RegisterPublishedDataSets();
+        }
+
+        /// <summary>
+        /// Sets the namespace index used for dynamic PubSub address-space NodeIds.
+        /// </summary>
+        /// <param name="namespaceIndex">Namespace index owned by the hosting PubSub node manager.</param>
+        public void SetAddressSpaceNamespaceIndex(ushort namespaceIndex)
+        {
+            lock (m_gate)
+            {
+                if (m_addressSpaceNamespaceIndex == namespaceIndex)
+                {
+                    return;
+                }
+
+                m_addressSpaceNamespaceIndex = namespaceIndex;
+                RebuildAddressSpaceReferences();
+            }
         }
 
         private PubSubConnection? BuildConnection(
@@ -1329,7 +1350,11 @@ namespace Opc.Ua.PubSub.Application
         private void RegisterConnection(PubSubConnection connection)
         {
             State.AttachChild(connection.State);
+            RegisterConnectionAddressSpaceReferences(connection);
+        }
 
+        private void RegisterConnectionAddressSpaceReferences(PubSubConnection connection)
+        {
             string connectionName = connection.Name;
             NodeId connectionNodeId = CreateConnectionNodeId(connectionName);
             m_connectionNodeIdsByName[connectionName] = connectionNodeId;
@@ -1398,6 +1423,32 @@ namespace Opc.Ua.PubSub.Application
             }
         }
 
+        private void RebuildAddressSpaceReferences()
+        {
+            m_connectionNodeIdsByName.Clear();
+            m_connectionNamesByNodeId.Clear();
+            m_groupRefs.Clear();
+            m_writerRefs.Clear();
+            m_readerRefs.Clear();
+
+            foreach (PubSubConnection connection in m_connections)
+            {
+                RegisterConnectionAddressSpaceReferences(connection);
+            }
+
+            RegisterPublishedDataSetNodeIds();
+        }
+
+        private void RegisterPublishedDataSetNodeIds()
+        {
+            m_publishedDataSetRefs.Clear();
+            foreach (KeyValuePair<string, PublishedDataSetDataType> kvp
+                in Snapshot.PublishedDataSetsByName)
+            {
+                m_publishedDataSetRefs[CreatePublishedDataSetNodeId(kvp.Key)] = kvp.Key;
+            }
+        }
+
         private void RegisterPublishedDataSets()
         {
             foreach (DataSetMetaDataKey key in MetaDataRegistry.Keys)
@@ -1405,12 +1456,7 @@ namespace Opc.Ua.PubSub.Application
                 MetaDataRegistry.Remove(key);
             }
 
-            m_publishedDataSetRefs.Clear();
-            foreach (KeyValuePair<string, PublishedDataSetDataType> kvp
-                in Snapshot.PublishedDataSetsByName)
-            {
-                m_publishedDataSetRefs[CreatePublishedDataSetNodeId(kvp.Key)] = kvp.Key;
-            }
+            RegisterPublishedDataSetNodeIds();
 
             foreach (PubSubConnection connection in m_connections)
             {
@@ -1829,44 +1875,44 @@ namespace Opc.Ua.PubSub.Application
             return true;
         }
 
-        private static NodeId CreateConnectionNodeId(string connectionName)
+        private NodeId CreateConnectionNodeId(string connectionName)
         {
-            return new($"pubsub:connection:{connectionName}", 0);
+            return new($"pubsub:connection:{connectionName}", m_addressSpaceNamespaceIndex);
         }
 
-        private static NodeId CreateWriterGroupNodeId(
+        private NodeId CreateWriterGroupNodeId(
             string connectionName,
             string writerGroupName)
         {
-            return new($"pubsub:writer-group:{connectionName}:{writerGroupName}", 0);
+            return new($"pubsub:writer-group:{connectionName}:{writerGroupName}", m_addressSpaceNamespaceIndex);
         }
 
-        private static NodeId CreateReaderGroupNodeId(
+        private NodeId CreateReaderGroupNodeId(
             string connectionName,
             string readerGroupName)
         {
-            return new($"pubsub:reader-group:{connectionName}:{readerGroupName}", 0);
+            return new($"pubsub:reader-group:{connectionName}:{readerGroupName}", m_addressSpaceNamespaceIndex);
         }
 
-        private static NodeId CreateWriterNodeId(
+        private NodeId CreateWriterNodeId(
             string connectionName,
             string writerGroupName,
             string writerName)
         {
-            return new($"pubsub:writer:{connectionName}:{writerGroupName}:{writerName}", 0);
+            return new($"pubsub:writer:{connectionName}:{writerGroupName}:{writerName}", m_addressSpaceNamespaceIndex);
         }
 
-        private static NodeId CreateReaderNodeId(
+        private NodeId CreateReaderNodeId(
             string connectionName,
             string readerGroupName,
             string readerName)
         {
-            return new($"pubsub:reader:{connectionName}:{readerGroupName}:{readerName}", 0);
+            return new($"pubsub:reader:{connectionName}:{readerGroupName}:{readerName}", m_addressSpaceNamespaceIndex);
         }
 
-        private static NodeId CreatePublishedDataSetNodeId(string publishedDataSetName)
+        private NodeId CreatePublishedDataSetNodeId(string publishedDataSetName)
         {
-            return new($"pubsub:published-data-set:{publishedDataSetName}", 0);
+            return new($"pubsub:published-data-set:{publishedDataSetName}", m_addressSpaceNamespaceIndex);
         }
 
         private static string GetRequiredName(
