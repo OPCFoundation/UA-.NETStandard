@@ -1041,7 +1041,17 @@ namespace Opc.Ua
             }
 
             // write contents.
-            m_writer.Write(values.Span);
+            if (MemoryMarshal.TryGetArray(values.Memory, out ArraySegment<byte> segment) && segment.Array != null)
+            {
+                m_writer.Write(segment.Array, segment.Offset, segment.Count);
+            }
+            else
+            {
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteByte(null, values[ii]);
+                }
+            }
         }
 
         /// <inheritdoc/>
