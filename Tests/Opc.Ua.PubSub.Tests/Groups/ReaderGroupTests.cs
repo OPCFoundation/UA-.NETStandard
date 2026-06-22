@@ -256,7 +256,8 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
 
         [Test]
-        public async Task EnableAsync_TransitionsAllReadersToOperationalAsync()
+        [TestSpec("6.2.1", Summary = "DataSetReader remains PreOperational until first DataSetMessage")]
+        public async Task EnableAsync_TransitionsAllReadersToPreOperationalAsync()
         {
             DataSetReader r1 = MakeReader(1);
             DataSetReader r2 = MakeReader(2);
@@ -266,8 +267,8 @@ namespace Opc.Ua.PubSub.Tests.Groups
 
             Assert.Multiple(() =>
             {
-                Assert.That(r1.State.State, Is.EqualTo(PubSubState.Operational));
-                Assert.That(r2.State.State, Is.EqualTo(PubSubState.Operational));
+                Assert.That(r1.State.State, Is.EqualTo(PubSubState.PreOperational));
+                Assert.That(r2.State.State, Is.EqualTo(PubSubState.PreOperational));
             });
         }
 

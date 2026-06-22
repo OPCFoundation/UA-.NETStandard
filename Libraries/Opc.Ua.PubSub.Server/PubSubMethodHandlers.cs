@@ -362,10 +362,7 @@ namespace Opc.Ua.PubSub.Server
         }
 
         /// <summary>
-        /// Implements Part 14 §9.1.6.4 <c>AddPublishedDataItems</c>.
-        /// Returns <see cref="StatusCodes.BadNotSupported"/> — clients
-        /// must use <c>SetConfiguration</c> with a fully populated
-        /// <see cref="PublishedDataSetDataType"/> instead.
+        /// Implements Part 14 §9.1.4.5 <c>AddPublishedDataItems</c>.
         /// </summary>
         public ServiceResult OnAddPublishedDataItems(
             ISystemContext context,
@@ -375,24 +372,35 @@ namespace Opc.Ua.PubSub.Server
         {
             _ = context;
             _ = method;
-            _ = inputArguments;
-            _ = outputArguments;
             if (!m_options.ExposeConfigurationMethods)
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
-            return new ServiceResult(
-                StatusCodes.BadNotSupported,
-                new LocalizedText(
-                    "AddPublishedDataItems is not supported via method call. "
-                    + "Use SetConfiguration with a fully populated "
-                    + "PublishedDataSetDataType instead."));
+            if (inputArguments.Count < 4)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItems expects 4 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out string? name) || string.IsNullOrEmpty(name))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItems argument 0 (Name) is missing or empty."));
+            }
+            string[] aliases = TryGetStringArray(inputArguments[1]);
+            if (!TryGetEncodeableArray(inputArguments[3], context, out PublishedVariableDataType[] variables))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItems argument 3 is not a PublishedVariableDataType array."));
+            }
+            PublishedDataSetDataType dataSet = CreatePublishedDataItemsDataSet(name, aliases, variables, null);
+            return AddPublishedDataSet(dataSet, variables.Length, outputArguments, includeConfigurationVersion: true);
         }
 
         /// <summary>
-        /// Implements Part 14 §9.1.6.4 <c>AddPublishedEvents</c>.
-        /// Returns <see cref="StatusCodes.BadNotSupported"/> — clients
-        /// must use <c>SetConfiguration</c>.
+        /// Implements Part 14 §9.1.4.5 <c>AddPublishedEvents</c>.
         /// </summary>
         public ServiceResult OnAddPublishedEvents(
             ISystemContext context,
@@ -402,18 +410,97 @@ namespace Opc.Ua.PubSub.Server
         {
             _ = context;
             _ = method;
-            _ = inputArguments;
-            _ = outputArguments;
             if (!m_options.ExposeConfigurationMethods)
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
-            return new ServiceResult(
-                StatusCodes.BadNotSupported,
-                new LocalizedText(
-                    "AddPublishedEvents is not supported via method call. "
-                    + "Use SetConfiguration with a fully populated "
-                    + "PublishedDataSetDataType instead."));
+            if (inputArguments.Count < 6)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedEvents expects 6 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out string? name) || string.IsNullOrEmpty(name))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedEvents argument 0 (Name) is missing or empty."));
+            }
+            if (!inputArguments[1].TryGetValue(out NodeId eventNotifier) || eventNotifier.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedEvents argument 1 is not a valid NodeId."));
+            }
+            string[] aliases = TryGetStringArray(inputArguments[2]);
+            if (!TryGetEncodeableArray(inputArguments[4], context, out SimpleAttributeOperand[] selectedFields))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedEvents argument 4 is not a SimpleAttributeOperand array."));
+            }
+            ContentFilter filter = inputArguments[5].TryGetValue(out ExtensionObject filterObject) &&
+                filterObject.TryGetValue(out ContentFilter? decodedFilter) &&
+                decodedFilter is not null
+                ? decodedFilter
+                : new ContentFilter();
+            PublishedDataSetDataType dataSet = CreatePublishedEventsDataSet(
+                name,
+                eventNotifier,
+                aliases,
+                selectedFields,
+                filter,
+                null);
+            return AddPublishedDataSet(dataSet, selectedFields.Length, outputArguments, includeConfigurationVersion: true);
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.4.5 <c>AddPublishedDataItemsTemplate</c>.
+        /// </summary>
+        public ServiceResult OnAddPublishedDataItemsTemplate(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 3)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItemsTemplate expects 3 input arguments."));
+            }
+            if (!inputArguments[0].TryGetValue(out string? name) || string.IsNullOrEmpty(name))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItemsTemplate argument 0 (Name) is missing or empty."));
+            }
+            if (!inputArguments[1].TryGetValue(out ExtensionObject metaDataObject) ||
+                !metaDataObject.TryGetValue(out DataSetMetaDataType? metaData) ||
+                metaData is null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItemsTemplate argument 1 is not DataSetMetaDataType."));
+            }
+            if (!TryGetEncodeableArray(inputArguments[2], context, out PublishedVariableDataType[] variables))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddPublishedDataItemsTemplate argument 2 is not a PublishedVariableDataType array."));
+            }
+            PublishedDataSetDataType dataSet = CreatePublishedDataItemsDataSet(
+                name,
+                [],
+                variables,
+                metaData);
+            return AddPublishedDataSet(dataSet, variables.Length, outputArguments, includeConfigurationVersion: false);
         }
 
         /// <summary>
@@ -475,8 +562,9 @@ namespace Opc.Ua.PubSub.Server
 
         /// <summary>
         /// Implements Part 14 §9.1.5 <c>AddDataSetFolder</c>.
-        /// Folders are pure addressing and not first-class in the
-        /// configuration model — returns Good with a synthetic NodeId.
+        /// The server NodeManager materializes the returned folder NodeId
+        /// because folders are address-space objects, not configuration
+        /// records.
         /// </summary>
         public ServiceResult OnAddDataSetFolder(
             ISystemContext context,
@@ -511,7 +599,7 @@ namespace Opc.Ua.PubSub.Server
 
         /// <summary>
         /// Implements Part 14 §9.1.5 <c>RemoveDataSetFolder</c>.
-        /// Symmetric to <see cref="OnAddDataSetFolder"/>; no-op.
+        /// The server NodeManager owns address-space removal for folder nodes.
         /// </summary>
         public ServiceResult OnRemoveDataSetFolder(
             ISystemContext context,
@@ -988,6 +1076,436 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
             }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.4.3 <c>AddVariables</c>.
+        /// </summary>
+        public ServiceResult OnAddVariables(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (!TryGetPublishedDataSetName(method, out string dataSetName))
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+            if (inputArguments.Count < 4)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddVariables expects 4 input arguments."));
+            }
+            string[] aliases = TryGetStringArray(inputArguments[1]);
+            if (!TryGetEncodeableArray(inputArguments[3], context, out PublishedVariableDataType[] variables))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddVariables argument 3 is not a PublishedVariableDataType array."));
+            }
+
+            return MutatePublishedDataItems(
+                dataSetName,
+                (dataSet, items) =>
+                {
+                    List<PublishedVariableDataType> published = ClonePublishedVariables(items);
+                    published.AddRange(variables);
+                    items.PublishedData = [.. published];
+                    AppendMetaDataFields(dataSet, aliases, variables.Length);
+                    return variables.Length;
+                },
+                outputArguments);
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.4.3 <c>RemoveVariables</c>.
+        /// </summary>
+        public ServiceResult OnRemoveVariables(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (!TryGetPublishedDataSetName(method, out string dataSetName))
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+            if (inputArguments.Count < 2)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveVariables expects 2 input arguments."));
+            }
+            if (!TryGetUInt32Array(inputArguments[1], out uint[] variablesToRemove))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveVariables argument 1 is not a UInt32 array."));
+            }
+
+            return MutatePublishedDataItems(
+                dataSetName,
+                (dataSet, items) =>
+                {
+                    List<PublishedVariableDataType> published = ClonePublishedVariables(items);
+                    List<FieldMetaData> fields = CloneMetaDataFields(dataSet.DataSetMetaData);
+                    Array.Sort(variablesToRemove);
+                    int removed = 0;
+                    for (int i = variablesToRemove.Length - 1; i >= 0; i--)
+                    {
+                        int index = checked((int)variablesToRemove[i]);
+                        if (index < 0 || index >= published.Count)
+                        {
+                            continue;
+                        }
+                        published.RemoveAt(index);
+                        if (index < fields.Count)
+                        {
+                            fields.RemoveAt(index);
+                        }
+                        removed++;
+                    }
+                    items.PublishedData = [.. published];
+                    dataSet.DataSetMetaData ??= new DataSetMetaDataType();
+                    dataSet.DataSetMetaData.Fields = [.. fields];
+                    return removed;
+                },
+                outputArguments);
+        }
+
+        private ServiceResult AddPublishedDataSet(
+            PublishedDataSetDataType dataSet,
+            int resultCount,
+            List<Variant> outputArguments,
+            bool includeConfigurationVersion)
+        {
+            try
+            {
+                NodeId dataSetId = m_application.AddPublishedDataSetAsync(dataSet)
+                    .AsTask().GetAwaiter().GetResult();
+                PublishedDataSetDataType? added = FindPublishedDataSet(dataSet.Name ?? string.Empty);
+                outputArguments.Add(Variant.From(dataSetId));
+                if (includeConfigurationVersion)
+                {
+                    outputArguments.Add(Variant.From(new ExtensionObject(
+                        added?.DataSetMetaData?.ConfigurationVersion ?? new ConfigurationVersionDataType())));
+                }
+                outputArguments.Add(Variant.From(CreateGoodResults(resultCount)));
+                return ServiceResult.Good;
+            }
+            catch (PubSubConfigurationException vex)
+            {
+                return new ServiceResult(StatusCodes.BadConfigurationError, new LocalizedText(vex.Message));
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "AddPublishedDataSet failed.");
+                return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
+            }
+        }
+
+        private ServiceResult MutatePublishedDataItems(
+            string dataSetName,
+            Func<PublishedDataSetDataType, PublishedDataItemsDataType, int> mutator,
+            List<Variant> outputArguments)
+        {
+            try
+            {
+                PubSubConfigurationDataType configuration = m_application.GetConfiguration();
+                PubSubConfigurationDataType clone = (PubSubConfigurationDataType)configuration.Clone();
+                if (clone.PublishedDataSets.IsNull)
+                {
+                    return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                }
+                int index = FindIndexByName(clone.PublishedDataSets, dataSetName);
+                if (index < 0)
+                {
+                    return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                }
+                PublishedDataSetDataType dataSet = clone.PublishedDataSets[index];
+                if (dataSet.DataSetSource.IsNull ||
+                    !dataSet.DataSetSource.TryGetValue(out PublishedDataItemsDataType? items) ||
+                    items is null)
+                {
+                    return new ServiceResult(
+                        StatusCodes.BadInvalidState,
+                        new LocalizedText("The PublishedDataSet is not a PublishedDataItemsType instance."));
+                }
+
+                int resultCount = mutator(dataSet, items);
+                dataSet.DataSetSource = new ExtensionObject(items);
+                ArrayOf<StatusCode> replaceResults = m_application.ReplaceConfigurationAsync(clone)
+                    .AsTask().GetAwaiter().GetResult();
+                _ = replaceResults;
+                PublishedDataSetDataType? updated = FindPublishedDataSet(dataSetName);
+                outputArguments.Add(Variant.From(new ExtensionObject(
+                    updated?.DataSetMetaData?.ConfigurationVersion ?? new ConfigurationVersionDataType())));
+                outputArguments.Add(Variant.From(CreateGoodResults(resultCount)));
+                return ServiceResult.Good;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "PublishedDataItems mutation failed.");
+                return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
+            }
+        }
+
+        private static PublishedDataSetDataType CreatePublishedDataItemsDataSet(
+            string name,
+            string[] aliases,
+            PublishedVariableDataType[] variables,
+            DataSetMetaDataType? templateMetaData)
+        {
+            DataSetMetaDataType metaData = templateMetaData is null
+                ? CreateMetaData(name, aliases, variables.Length)
+                : (DataSetMetaDataType)templateMetaData.Clone();
+            if (templateMetaData is not null)
+            {
+                metaData.Fields = [.. CloneMetaDataFields(templateMetaData)];
+            }
+            if (metaData.Fields.IsNull || metaData.Fields.Count == 0)
+            {
+                metaData.Fields = CreateFields(aliases, variables.Length);
+            }
+            return new PublishedDataSetDataType
+            {
+                Name = name,
+                DataSetMetaData = metaData,
+                DataSetSource = new ExtensionObject(new PublishedDataItemsDataType
+                {
+                    PublishedData = [.. variables]
+                })
+            };
+        }
+
+        private static PublishedDataSetDataType CreatePublishedEventsDataSet(
+            string name,
+            NodeId eventNotifier,
+            string[] aliases,
+            SimpleAttributeOperand[] selectedFields,
+            ContentFilter filter,
+            DataSetMetaDataType? templateMetaData)
+        {
+            DataSetMetaDataType metaData = templateMetaData is null
+                ? CreateMetaData(name, aliases, selectedFields.Length)
+                : (DataSetMetaDataType)templateMetaData.Clone();
+            if (templateMetaData is not null)
+            {
+                metaData.Fields = [.. CloneMetaDataFields(templateMetaData)];
+            }
+            if (metaData.Fields.IsNull || metaData.Fields.Count == 0)
+            {
+                metaData.Fields = CreateFields(aliases, selectedFields.Length);
+            }
+            return new PublishedDataSetDataType
+            {
+                Name = name,
+                DataSetMetaData = metaData,
+                DataSetSource = new ExtensionObject(new PublishedEventsDataType
+                {
+                    EventNotifier = eventNotifier,
+                    SelectedFields = [.. selectedFields],
+                    Filter = filter
+                })
+            };
+        }
+
+        private static DataSetMetaDataType CreateMetaData(
+            string name,
+            string[] aliases,
+            int fieldCount)
+        {
+            return new DataSetMetaDataType
+            {
+                Name = name,
+                Fields = CreateFields(aliases, fieldCount)
+            };
+        }
+
+        private static ArrayOf<FieldMetaData> CreateFields(string[] aliases, int fieldCount)
+        {
+            var fields = new FieldMetaData[fieldCount];
+            for (int i = 0; i < fields.Length; i++)
+            {
+                string fieldName = i < aliases.Length && !string.IsNullOrEmpty(aliases[i])
+                    ? aliases[i]
+                    : $"Field{i + 1}";
+                fields[i] = new FieldMetaData
+                {
+                    Name = fieldName,
+                    DataType = DataTypeIds.BaseDataType,
+                    ValueRank = ValueRanks.Scalar,
+                    Properties = []
+                };
+            }
+            return [.. fields];
+        }
+
+        private static void AppendMetaDataFields(
+            PublishedDataSetDataType dataSet,
+            string[] aliases,
+            int fieldCount)
+        {
+            dataSet.DataSetMetaData ??= new DataSetMetaDataType();
+            List<FieldMetaData> fields = CloneMetaDataFields(dataSet.DataSetMetaData);
+            ArrayOf<FieldMetaData> newFields = CreateFields(aliases, fieldCount);
+            for (int i = 0; i < newFields.Count; i++)
+            {
+                fields.Add(newFields[i]);
+            }
+            dataSet.DataSetMetaData.Fields = [.. fields];
+        }
+
+        private PublishedDataSetDataType? FindPublishedDataSet(string name)
+        {
+            PubSubConfigurationDataType configuration = m_application.GetConfiguration();
+            if (configuration.PublishedDataSets.IsNull)
+            {
+                return null;
+            }
+            int index = FindIndexByName(configuration.PublishedDataSets, name);
+            return index < 0 ? null : configuration.PublishedDataSets[index];
+        }
+
+        private static int FindIndexByName(
+            ArrayOf<PublishedDataSetDataType> dataSets,
+            string name)
+        {
+            for (int i = 0; i < dataSets.Count; i++)
+            {
+                if (StringComparer.Ordinal.Equals(dataSets[i].Name, name))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static List<PublishedVariableDataType> ClonePublishedVariables(
+            PublishedDataItemsDataType items)
+        {
+            var published = new List<PublishedVariableDataType>();
+            if (items.PublishedData.IsNull)
+            {
+                return published;
+            }
+            foreach (PublishedVariableDataType item in items.PublishedData)
+            {
+                published.Add((PublishedVariableDataType)item.Clone());
+            }
+            return published;
+        }
+
+        private static List<FieldMetaData> CloneMetaDataFields(DataSetMetaDataType? metaData)
+        {
+            var fields = new List<FieldMetaData>();
+            if (metaData is null || metaData.Fields.IsNull)
+            {
+                return fields;
+            }
+            foreach (FieldMetaData field in metaData.Fields)
+            {
+                fields.Add((FieldMetaData)field.Clone());
+            }
+            return fields;
+        }
+
+        private static StatusCode[] CreateGoodResults(int count)
+        {
+            var results = new StatusCode[count];
+            Array.Fill(results, StatusCodes.Good);
+            return results;
+        }
+
+        private static string[] TryGetStringArray(Variant value)
+        {
+            if (!value.TryGetValue(out ArrayOf<string> values) || values.IsNull)
+            {
+                return [];
+            }
+            var result = new string[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                result[i] = values[i];
+            }
+            return result;
+        }
+
+        private static bool TryGetUInt32Array(Variant value, out uint[] result)
+        {
+            result = [];
+            if (!value.TryGetValue(out ArrayOf<uint> values) || values.IsNull)
+            {
+                return false;
+            }
+            result = new uint[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                result[i] = values[i];
+            }
+            return true;
+        }
+
+        private static bool TryGetEncodeableArray<T>(
+            Variant value,
+            ISystemContext context,
+            out T[] result)
+            where T : class, IEncodeable
+        {
+            result = [];
+            IServiceMessageContext? messageContext = context as IServiceMessageContext
+                ?? AmbientMessageContext.CurrentContext;
+            if (!value.TryGetValue(out ArrayOf<T> values, messageContext) || values.IsNull)
+            {
+                return false;
+            }
+            result = new T[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                result[i] = values[i];
+            }
+            return true;
+        }
+
+        private static bool TryGetPublishedDataSetName(MethodState method, out string dataSetName)
+        {
+            dataSetName = string.Empty;
+            string nodeId;
+            if (method?.Parent is BaseObjectState parent)
+            {
+                nodeId = parent.NodeId.IdentifierAsString;
+            }
+            else if (method?.NodeId is not null)
+            {
+                nodeId = method.NodeId.IdentifierAsString;
+            }
+            else
+            {
+                return false;
+            }
+            const string prefix = "pubsub:published-data-set:";
+            if (!nodeId.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            dataSetName = nodeId[prefix.Length..];
+            int separator = dataSetName.IndexOf(':', StringComparison.Ordinal);
+            if (separator >= 0)
+            {
+                dataSetName = dataSetName[..separator];
+            }
+            return dataSetName.Length > 0;
         }
 
         /// <summary>

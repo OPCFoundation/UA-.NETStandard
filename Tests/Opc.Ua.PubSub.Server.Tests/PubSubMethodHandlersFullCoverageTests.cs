@@ -288,15 +288,15 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
-        [TestSpec("9.1.6.4")]
-        public void OnAddPublishedEventsReturnsBadNotSupported()
+        [TestSpec("9.1.4.5")]
+        public void OnAddPublishedEventsMissingArgumentsReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddPublishedEvents(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
         [Test]

@@ -333,7 +333,10 @@ namespace Opc.Ua.PubSub.Connections
                 m_transport = transport;
             }
 
-            _ = State.TryMarkOperational();
+            if (State.TryMarkOperational())
+            {
+                _ = State.TryResumeCascade();
+            }
 
             // Start receive pump.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

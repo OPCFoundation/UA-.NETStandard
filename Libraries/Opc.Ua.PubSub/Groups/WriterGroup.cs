@@ -163,7 +163,10 @@ namespace Opc.Ua.PubSub.Groups
                 _ = writer.State.TryEnable();
                 _ = writer.State.TryMarkOperational();
             }
-            _ = State.TryMarkOperational();
+            if (State.TryMarkOperational())
+            {
+                _ = State.TryResumeCascade();
+            }
             m_schedule = await m_scheduler.ScheduleAsync(
                 Schedule,
                 PublishOnceAsync,

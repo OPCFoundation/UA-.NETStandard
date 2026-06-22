@@ -215,20 +215,27 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
         }
 
         [Test]
-        public void TryPause_FromDisabledOrError_IsRejected(
-            [Values(PubSubState.Disabled, PubSubState.Error)] PubSubState startState)
+        public void TryPause_FromError_Transitions()
         {
-            PubSubStateMachine sut = SetupInState(startState);
-            Assert.That(sut.TryPause(), Is.False);
-            Assert.That(sut.State, Is.EqualTo(startState));
+            PubSubStateMachine sut = SetupInState(PubSubState.Error);
+            Assert.That(sut.TryPause(), Is.True);
+            Assert.That(sut.State, Is.EqualTo(PubSubState.Paused));
         }
 
         [Test]
-        public void TryResume_FromPaused_TransitionsToOperational()
+        public void TryPause_FromDisabled_IsRejected()
+        {
+            PubSubStateMachine sut = SetupInState(PubSubState.Disabled);
+            Assert.That(sut.TryPause(), Is.False);
+            Assert.That(sut.State, Is.EqualTo(PubSubState.Disabled));
+        }
+
+        [Test]
+        public void TryResume_FromPaused_TransitionsToPreOperational()
         {
             PubSubStateMachine sut = SetupInState(PubSubState.Paused);
             Assert.That(sut.TryResume(), Is.True);
-            Assert.That(sut.State, Is.EqualTo(PubSubState.Operational));
+            Assert.That(sut.State, Is.EqualTo(PubSubState.PreOperational));
         }
 
         [Test]
@@ -246,11 +253,10 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
         }
 
         [Test]
-        public void TryFault_FromAnyNonDisabledState_MovesToError(
+        public void TryFault_FromPreOperationalOperationalOrError_MovesToError(
             [Values(
                 PubSubState.PreOperational,
                 PubSubState.Operational,
-                PubSubState.Paused,
                 PubSubState.Error)]
             PubSubState startState)
         {
@@ -261,6 +267,18 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 Assert.That(result, Is.True);
                 Assert.That(sut.State, Is.EqualTo(PubSubState.Error));
                 Assert.That(sut.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadCommunicationError));
+            });
+        }
+
+        [Test]
+        public void TryFault_FromPaused_IsRejected()
+        {
+            PubSubStateMachine sut = SetupInState(PubSubState.Paused);
+            bool result = sut.TryFault(StatusCodes.BadCommunicationError);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.False);
+                Assert.That(sut.State, Is.EqualTo(PubSubState.Paused));
             });
         }
 
@@ -561,6 +579,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 sut.State,
                 Is.AnyOf(
                     PubSubState.Operational,
+                    PubSubState.PreOperational,
                     PubSubState.Paused,
                     PubSubState.Error));
         }

@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub.DataSets
 {
@@ -78,6 +79,13 @@ namespace Opc.Ua.PubSub.DataSets
             DataSetMetaDataType? sourceMetaData = source.BuildMetaData();
             m_metaData = sourceMetaData ?? configuration.DataSetMetaData
                 ?? new DataSetMetaDataType();
+            if (m_metaData.ConfigurationVersion is null ||
+                m_metaData.ConfigurationVersion.MajorVersion == 0)
+            {
+                m_metaData.ConfigurationVersion =
+                    ConfigurationVersionUtils.CalculateConfigurationVersion(null!, m_metaData);
+            }
+            Configuration.DataSetMetaData = m_metaData;
             Name = configuration.Name ?? string.Empty;
             DataSetClassId = m_metaData.DataSetClassId == Uuid.Empty
                 ? Uuid.Empty
@@ -138,7 +146,10 @@ namespace Opc.Ua.PubSub.DataSets
             lock (m_gate)
             {
                 previous = m_metaData;
+                rebuilt.ConfigurationVersion =
+                    ConfigurationVersionUtils.CalculateConfigurationVersion(previous, rebuilt);
                 m_metaData = rebuilt;
+                Configuration.DataSetMetaData = rebuilt;
             }
             if (!ReferenceEquals(previous, rebuilt))
             {
