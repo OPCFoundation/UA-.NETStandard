@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.Server;
 
@@ -55,6 +56,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly ITelemetryContext m_telemetry;
         private readonly IEnumerable<PubSubActionMethodRegistration> m_actionMethodRegistrations;
         private readonly IEnumerable<PushSecurityKeyProvider> m_pushKeyProviders;
+        private readonly IPubSubIdAllocator m_idAllocator;
 
         /// <summary>
         /// Creates a new factory with explicit dependencies.
@@ -65,13 +67,15 @@ namespace Opc.Ua.PubSub.Server
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="actionMethodRegistrations">Optional PublishedActionMethod bindings.</param>
         /// <param name="pushKeyProviders">Optional SetSecurityKeys push providers.</param>
+        /// <param name="idAllocator">Shared PubSub id allocator.</param>
         public PubSubNodeManagerFactory(
             IPubSubApplication application,
             IPubSubKeyServiceServer? keyService,
             PubSubServerOptions options,
             ITelemetryContext telemetry,
             IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null,
-            IEnumerable<PushSecurityKeyProvider>? pushKeyProviders = null)
+            IEnumerable<PushSecurityKeyProvider>? pushKeyProviders = null,
+            IPubSubIdAllocator? idAllocator = null)
         {
             if (application is null)
             {
@@ -92,6 +96,7 @@ namespace Opc.Ua.PubSub.Server
             m_actionMethodRegistrations =
                 actionMethodRegistrations ?? Array.Empty<PubSubActionMethodRegistration>();
             m_pushKeyProviders = pushKeyProviders ?? Array.Empty<PushSecurityKeyProvider>();
+            m_idAllocator = idAllocator ?? new InMemoryPubSubIdAllocator();
         }
 
         /// <inheritdoc/>
@@ -111,7 +116,8 @@ namespace Opc.Ua.PubSub.Server
                     m_options,
                     m_telemetry,
                     m_actionMethodRegistrations,
-                    m_pushKeyProviders)
+                    m_pushKeyProviders,
+                    m_idAllocator)
                 .SyncNodeManager;
 #pragma warning restore CA2000 // Dispose objects before losing scope
         }

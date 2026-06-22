@@ -70,6 +70,22 @@ namespace Opc.Ua.PubSub.Configuration
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Gets the persisted application ConfigurationVersion.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Persists the application ConfigurationVersion.
+        /// </summary>
+        /// <param name="configurationVersion">ConfigurationVersion to persist.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask SetConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Gets the persisted ConfigurationVersion for a PublishedDataSet.
         /// </summary>
         /// <param name="publishedDataSetName">PublishedDataSet name.</param>

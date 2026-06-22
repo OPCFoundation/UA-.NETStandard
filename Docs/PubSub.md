@@ -829,9 +829,10 @@ services.AddOpcUa()
 
 The default registrations preserve the existing process-local behavior. A
 distributed provider must make allocation atomic and persist configuration
-before a peer rebuilds its address space. TODO(RE3-refactor-to-providers):
-complete the runtime refactor so all mutable PubSub server state is read and
-written through these providers.
+before a peer rebuilds its address space. Runtime mutations save the updated
+configuration and per-dataset `ConfigurationVersion`, SKS key changes are
+mirrored to the security-key store, and component run-state transitions are
+mirrored to the runtime-state store.
 
 ## Diagnostics
 

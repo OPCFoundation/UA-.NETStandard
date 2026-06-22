@@ -112,13 +112,10 @@ namespace Opc.Ua.PubSub.Server
         private readonly SortedSet<string> m_dataSetFolders = new(StringComparer.Ordinal);
         private readonly Dictionary<uint, PubSubConfigurationFileHandle> m_fileHandles = [];
         private readonly Dictionary<NodeId, PubSubKeyPushTargetRegistration> m_keyPushTargets = [];
-        // TODO(RE3-refactor-to-providers): Route dynamic roots, folders, file handles, and push targets through
-        // the HA provider stores so a second server instance can reconstruct the same address space.
+        private readonly IPubSubIdAllocator m_idAllocator;
         private IDiagnosticsNodeManager? m_diagnosticsNodeManager;
         private PubSubStatusBinding? m_statusBinding;
         private bool m_methodsBound;
-        private uint m_nextFileHandle;
-        private uint m_nextReservedId;
 
         /// <summary>
         /// Creates a new <see cref="PubSubNodeManager"/>.
@@ -135,6 +132,7 @@ namespace Opc.Ua.PubSub.Server
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="actionMethodRegistrations">Optional PublishedActionMethod bindings.</param>
         /// <param name="pushKeyProviders">Optional SetSecurityKeys push providers.</param>
+        /// <param name="idAllocator">Optional shared id allocator.</param>
         public PubSubNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -143,7 +141,8 @@ namespace Opc.Ua.PubSub.Server
             PubSubServerOptions options,
             ITelemetryContext telemetry,
             IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null,
-            IEnumerable<PushSecurityKeyProvider>? pushKeyProviders = null)
+            IEnumerable<PushSecurityKeyProvider>? pushKeyProviders = null,
+            IPubSubIdAllocator? idAllocator = null)
             : base(
                   server,
                   configuration,
@@ -166,6 +165,7 @@ namespace Opc.Ua.PubSub.Server
             m_actionMethodRegistrations = actionMethodRegistrations?.ToArray()
                 ?? Array.Empty<PubSubActionMethodRegistration>();
             m_pushKeyProviders = pushKeyProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
+            m_idAllocator = idAllocator ?? new InMemoryPubSubIdAllocator();
             m_methodHandlers = new PubSubMethodHandlers(
                 pubSubApplication,
                 options.ExposeSecurityKeyService ? sksServer : null,
@@ -1587,8 +1587,13 @@ namespace Opc.Ua.PubSub.Server
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
             outputArguments.Add(Variant.Null);
-            outputArguments.Add(Variant.From(ReserveIds(writerGroupCount)));
-            outputArguments.Add(Variant.From(ReserveIds(dataSetWriterCount)));
+            if (!TryReserveIds(writerGroupCount, out ArrayOf<uint> writerGroupIds) ||
+                !TryReserveIds(dataSetWriterCount, out ArrayOf<uint> dataSetWriterIds))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
+            outputArguments.Add(Variant.From(writerGroupIds));
+            outputArguments.Add(Variant.From(dataSetWriterIds));
             return ServiceResult.Good;
         }
 
@@ -1606,10 +1611,12 @@ namespace Opc.Ua.PubSub.Server
                 _ = inputArguments[0].TryGetValue(out mode);
             }
             byte[] buffer = IsWriteMode(mode) ? [] : EncodeConfiguration(m_application.GetConfiguration());
-            uint handle;
+            if (!TryAllocateFileHandle(out uint handle))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
             lock (m_addressSpaceGate)
             {
-                handle = ++m_nextFileHandle;
                 m_fileHandles[handle] = new PubSubConfigurationFileHandle(IsWriteMode(mode), buffer);
             }
             outputArguments.Add(Variant.From(handle));
@@ -1750,17 +1757,32 @@ namespace Opc.Ua.PubSub.Server
             return (mode & 0x2) != 0 || (mode & 0x4) != 0;
         }
 
-        private ArrayOf<uint> ReserveIds(ushort count)
+        private bool TryReserveIds(ushort count, out ArrayOf<uint> ids)
         {
-            var ids = new uint[count];
-            lock (m_addressSpaceGate)
+            ids = default;
+            ValueTask<ArrayOf<uint>> idTask =
+                m_idAllocator.ReserveIdsAsync(count, CancellationToken.None);
+            if (!idTask.IsCompletedSuccessfully)
             {
-                for (int i = 0; i < ids.Length; i++)
-                {
-                    ids[i] = ++m_nextReservedId;
-                }
+                return false;
             }
-            return new ArrayOf<uint>(ids);
+
+            ids = idTask.Result;
+            return true;
+        }
+
+        private bool TryAllocateFileHandle(out uint handle)
+        {
+            handle = 0;
+            ValueTask<uint> handleTask =
+                m_idAllocator.AllocateFileHandleAsync(CancellationToken.None);
+            if (!handleTask.IsCompletedSuccessfully)
+            {
+                return false;
+            }
+
+            handle = handleTask.Result;
+            return true;
         }
 
         private static ArrayOf<ExtensionObject> CreateExtensionObjects(

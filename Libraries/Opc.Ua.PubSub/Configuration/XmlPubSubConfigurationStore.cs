@@ -145,6 +145,39 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <inheritdoc/>
+        public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            lock (m_versionGate)
+            {
+                return new ValueTask<ConfigurationVersionDataType?>(
+                    m_configurationVersion is null
+                        ? null
+                        : (ConfigurationVersionDataType)m_configurationVersion.Clone());
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (configurationVersion is null)
+            {
+                throw new ArgumentNullException(nameof(configurationVersion));
+            }
+
+            lock (m_versionGate)
+            {
+                m_configurationVersion = (ConfigurationVersionDataType)configurationVersion.Clone();
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
             string publishedDataSetName,
             CancellationToken cancellationToken = default)
@@ -332,5 +365,7 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly string m_filePath;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private readonly System.Threading.Lock m_versionGate = new();
+        private ConfigurationVersionDataType? m_configurationVersion;
     }
 }

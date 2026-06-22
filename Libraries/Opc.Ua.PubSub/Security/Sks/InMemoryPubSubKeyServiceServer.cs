@@ -61,6 +61,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly IPubSubSecurityEventSink? m_securityEventSink;
+        private readonly IPubSubSecurityKeyStore m_keyStore;
 
         /// <summary>
         /// Initializes a new
@@ -69,16 +70,20 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="timeProvider">Time source.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="securityEventSink">Optional structured security-event sink.</param>
+        /// <param name="keyStore">Optional external SecurityGroup key store.</param>
         public InMemoryPubSubKeyServiceServer(
             TimeProvider? timeProvider = null,
             ITelemetryContext? telemetry = null,
-            IPubSubSecurityEventSink? securityEventSink = null)
+            IPubSubSecurityEventSink? securityEventSink = null,
+            IPubSubSecurityKeyStore? keyStore = null)
         {
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = telemetry is null
                 ? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance
                 : telemetry.CreateLogger<InMemoryPubSubKeyServiceServer>();
             m_securityEventSink = securityEventSink;
+            m_keyStore = keyStore ?? new InMemoryPubSubSecurityKeyStore();
+            RestoreSecurityGroups();
         }
 
         /// <inheritdoc/>
@@ -113,6 +118,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
             }
 
+            SksSecurityGroup? snapshot = null;
             lock (m_lock)
             {
                 if (m_groups.ContainsKey(group.SecurityGroupId))
@@ -150,16 +156,19 @@ namespace Opc.Ua.PubSub.Security.Sks
                     nextTokenId,
                     currentIndex: 0);
                 m_groups[group.SecurityGroupId] = state;
+                snapshot = SnapshotLocked(state);
                 m_logger.LogInformation(
                     "Registered SKS SecurityGroup {GroupId} with policy {PolicyUri}.",
                     group.SecurityGroupId,
                     group.SecurityPolicyUri);
             }
-            return default;
+            return snapshot is null
+                ? default
+                : m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken);
         }
 
         /// <inheritdoc/>
-        public ValueTask RemoveSecurityGroupAsync(
+        public async ValueTask RemoveSecurityGroupAsync(
             string securityGroupId,
             CancellationToken cancellationToken = default)
         {
@@ -171,16 +180,19 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            bool removed;
             lock (m_lock)
             {
-                if (!m_groups.Remove(securityGroupId))
+                removed = m_groups.Remove(securityGroupId);
+                if (!removed)
                 {
                     throw new OpcUaSksException(
                         StatusCodes.BadNotFound,
                         $"SecurityGroup '{securityGroupId}' is not registered.");
                 }
             }
-            return default;
+            _ = await m_keyStore.RemoveSecurityGroupAsync(securityGroupId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -206,8 +218,103 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
 
+        private void RestoreSecurityGroups()
+        {
+            try
+            {
+                ValueTask<ArrayOf<string>> idsTask =
+                    m_keyStore.GetSecurityGroupIdsAsync(CancellationToken.None);
+                if (idsTask.IsCompletedSuccessfully)
+                {
+                    RestoreSecurityGroups(idsTask.Result);
+                    return;
+                }
+
+                _ = RestoreSecurityGroupsAsync(idsTask.AsTask());
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to restore persisted SKS SecurityGroups.");
+            }
+        }
+
+        private void RestoreSecurityGroups(ArrayOf<string> securityGroupIds)
+        {
+            if (securityGroupIds.IsNull)
+            {
+                return;
+            }
+
+            foreach (string securityGroupId in securityGroupIds)
+            {
+                ValueTask<SksSecurityGroup?> groupTask =
+                    m_keyStore.GetSecurityGroupAsync(securityGroupId, CancellationToken.None);
+                if (groupTask.IsCompletedSuccessfully && groupTask.Result is SksSecurityGroup group)
+                {
+                    RestoreSecurityGroup(group);
+                }
+            }
+        }
+
+        private async Task RestoreSecurityGroupsAsync(Task<ArrayOf<string>> idsTask)
+        {
+            try
+            {
+                ArrayOf<string> ids = await idsTask.ConfigureAwait(false);
+                if (ids.IsNull)
+                {
+                    return;
+                }
+
+                string[] securityGroupIds = [.. ids];
+                foreach (string securityGroupId in securityGroupIds)
+                {
+                    SksSecurityGroup? group = await m_keyStore
+                        .GetSecurityGroupAsync(securityGroupId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    if (group is not null)
+                    {
+                        RestoreSecurityGroup(group);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to restore persisted SKS SecurityGroups.");
+            }
+        }
+
+        private void RestoreSecurityGroup(SksSecurityGroup group)
+        {
+            IPubSubSecurityPolicy? policy =
+                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri);
+            if (policy is null)
+            {
+                return;
+            }
+
+            var keys = group.Keys.IsNull
+                ? []
+                : new List<PubSubSecurityKey>([.. group.Keys]);
+            if (keys.Count == 0)
+            {
+                keys = SeedInitialKeys(policy, group.MaxFutureKeyCount, group.KeyLifetime);
+            }
+
+            var state = new SecurityGroupState(
+                group,
+                policy,
+                keys,
+                NextTokenIdAfter(keys),
+                currentIndex: 0);
+            lock (m_lock)
+            {
+                m_groups[group.SecurityGroupId] = state;
+            }
+        }
+
         /// <inheritdoc/>
-        public ValueTask<SksKeyResponse> GetSecurityKeysAsync(
+        public async ValueTask<SksKeyResponse> GetSecurityKeysAsync(
             string callerIdentity,
             SksKeyRequest request,
             ArrayOf<NodeId> callerRoleIds = default,
@@ -221,6 +328,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            SksSecurityGroup snapshot;
+            SksKeyResponse response;
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(request.SecurityGroupId, out SecurityGroupState? state))
@@ -304,12 +413,13 @@ namespace Opc.Ua.PubSub.Security.Sks
 
                 uint actualFirst = state.Keys[FindFirstIndexLocked(state, firstTokenId)].TokenId;
                 TimeSpan timeToNextKey = ComputeTimeToNextKeyLocked(state);
-                var response = new SksKeyResponse(
+                response = new SksKeyResponse(
                     state.Group.SecurityPolicyUri,
                     actualFirst,
                     packed,
                     timeToNextKey,
                     state.Group.KeyLifetime);
+                snapshot = SnapshotLocked(state);
                 m_logger.LogDebug(
                     "Issued {Count} key(s) for {GroupId} starting at TokenId {TokenId} to {Caller}.",
                     packed.Count,
@@ -323,8 +433,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                     tokenId: actualFirst,
                     securityGroupId: request.SecurityGroupId,
                     callerIdentity: callerIdentity));
-                return new ValueTask<SksKeyResponse>(response);
             }
+
+            await m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            return response;
         }
 
         private static int FindFirstIndexLocked(SecurityGroupState state, uint tokenId)
@@ -340,7 +452,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         }
 
         /// <inheritdoc/>
-        public ValueTask InvalidateKeysAsync(
+        public async ValueTask InvalidateKeysAsync(
             string securityGroupId,
             CancellationToken cancellationToken = default)
         {
@@ -352,6 +464,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            SksSecurityGroup snapshot;
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(securityGroupId, out SecurityGroupState? state))
@@ -378,12 +491,13 @@ namespace Opc.Ua.PubSub.Security.Sks
                 state.CurrentIndex = state.Keys.Count - 1;
                 state.NextTokenId = unchecked(nextTokenId + 1u);
                 EnsureFutureKeysLocked(state, (uint)(state.Group.MaxFutureKeyCount + 1));
+                snapshot = SnapshotLocked(state);
             }
-            return default;
+            await m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public ValueTask ForceKeyRotationAsync(
+        public async ValueTask ForceKeyRotationAsync(
             string securityGroupId,
             CancellationToken cancellationToken = default)
         {
@@ -395,6 +509,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            SksSecurityGroup snapshot;
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(securityGroupId, out SecurityGroupState? state))
@@ -414,8 +529,9 @@ namespace Opc.Ua.PubSub.Security.Sks
                 state.CurrentIndex++;
                 PrunePastKeysLocked(state);
                 EnsureFutureKeysLocked(state, (uint)(state.Group.MaxFutureKeyCount + 1));
+                snapshot = SnapshotLocked(state);
             }
-            return default;
+            await m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken).ConfigureAwait(false);
         }
 
         private List<PubSubSecurityKey> SeedInitialKeys(

@@ -75,12 +75,14 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            builder.Services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
 
             builder.Services.TryAddSingleton(sp =>
             {
                 var server = new InMemoryPubSubKeyServiceServer(
                     sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                    sp.GetRequiredService<ITelemetryContext>());
+                    sp.GetRequiredService<ITelemetryContext>(),
+                    keyStore: sp.GetRequiredService<IPubSubSecurityKeyStore>());
                 configure?.Invoke(server);
                 return server;
             });

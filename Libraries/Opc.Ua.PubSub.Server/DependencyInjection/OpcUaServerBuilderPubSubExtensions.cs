@@ -34,6 +34,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server;
 using Opc.Ua.PubSub.Server.Hosting;
@@ -197,6 +198,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services.TryAddSingleton<IPubSubIdAllocator, InMemoryPubSubIdAllocator>();
 
             services.AddSingleton(sp =>
             {
@@ -216,7 +218,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     options,
                     telemetry,
                     registrations,
-                    pushProviders);
+                    pushProviders,
+                    sp.GetRequiredService<IPubSubIdAllocator>());
             });
 
             services.AddSingleton(sp =>

@@ -42,6 +42,7 @@ namespace Opc.Ua.PubSub.Configuration
     {
         private readonly System.Threading.Lock m_gate = new();
         private PubSubConfigurationDataType m_configuration;
+        private ConfigurationVersionDataType? m_configurationVersion;
 
         /// <summary>
         /// Initializes a new store.
@@ -80,6 +81,37 @@ namespace Opc.Ua.PubSub.Configuration
             }
 
             Changed?.Invoke(this, new PubSubConfigurationChangedEventArgs(previous, configuration));
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            lock (m_gate)
+            {
+                return new ValueTask<ConfigurationVersionDataType?>(
+                    m_configurationVersion is null
+                        ? null
+                        : (ConfigurationVersionDataType)m_configurationVersion.Clone());
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default)
+        {
+            if (configurationVersion is null)
+            {
+                throw new ArgumentNullException(nameof(configurationVersion));
+            }
+
+            lock (m_gate)
+            {
+                m_configurationVersion = (ConfigurationVersionDataType)configurationVersion.Clone();
+            }
+
             return default;
         }
 

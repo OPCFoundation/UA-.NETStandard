@@ -99,7 +99,9 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
             m_actionHandlers = [];
-        // TODO(RE3-refactor-to-providers): Route mutable maps and ConfigurationVersion through the HA providers.
+        private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = new();
+        private readonly IPubSubConfigurationStore m_configurationStore;
+        private readonly IPubSubRuntimeStateStore m_runtimeStateStore;
 
         private bool m_started;
         private bool m_disposed;
@@ -139,6 +141,8 @@ namespace Opc.Ua.PubSub.Application
         /// outbound UADP NetworkMessage size before chunking. Returning
         /// <c>0</c> disables chunking for that connection.
         /// </param>
+        /// <param name="configurationStore">Optional external configuration store.</param>
+        /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -153,7 +157,9 @@ namespace Opc.Ua.PubSub.Application
             IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources = null,
             IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks = null,
             IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
-            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null)
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
+            IPubSubConfigurationStore? configurationStore = null,
+            IPubSubRuntimeStateStore? runtimeStateStore = null)
         {
             if (snapshot is null)
             {
@@ -205,6 +211,9 @@ namespace Opc.Ua.PubSub.Application
             m_subscribedDataSetSinks = subscribedDataSetSinks;
             m_securityWrapperResolver = securityWrapperResolver;
             m_maxNetworkMessageSizeResolver = maxNetworkMessageSizeResolver;
+            m_configurationStore = configurationStore
+                ?? new InMemoryPubSubConfigurationStore(snapshot.Configuration);
+            m_runtimeStateStore = runtimeStateStore ?? new InMemoryPubSubRuntimeStateStore();
             m_factoryMap = m_factories.ToDictionary(
                 factory => factory.TransportProfileUri,
                 StringComparer.Ordinal);
@@ -224,7 +233,7 @@ namespace Opc.Ua.PubSub.Application
                 diagnostics,
                 EnumerateComponentDiagnostics);
             Diagnostics = m_aggregatingDiagnostics;
-            ConfigurationVersion = CreateConfigurationVersion(snapshot.CreatedAt.ToDateTime());
+            ConfigurationVersion = ResolveConfigurationVersion(snapshot);
 
             var validator = new PubSubConfigurationValidator(
                 m_factories.Select(factory => factory.TransportProfileUri));
@@ -1358,6 +1367,7 @@ namespace Opc.Ua.PubSub.Application
             NodeId connectionNodeId = CreateConnectionNodeId(connectionName);
             m_connectionNodeIdsByName[connectionName] = connectionNodeId;
             m_connectionNamesByNodeId[connectionNodeId] = connectionName;
+            TrackRuntimeState(connectionNodeId.IdentifierAsString, connection.State);
 
             for (int writerGroupIndex = 0;
                 writerGroupIndex < connection.WriterGroups.Count;
@@ -1372,6 +1382,7 @@ namespace Opc.Ua.PubSub.Application
                     CreateWriterGroupNodeId(connectionName, writerGroupName);
                 m_groupRefs[writerGroupNodeId] =
                     (connectionName, writerGroupName);
+                TrackRuntimeState(writerGroupNodeId.IdentifierAsString, writerGroup.State);
 
                 for (int writerIndex = 0;
                     writerIndex < writerGroup.DataSetWriters.Count;
@@ -1387,6 +1398,7 @@ namespace Opc.Ua.PubSub.Application
                         writer.Name);
                     m_writerRefs[writerNodeId] =
                         (connectionName, writerGroupName, writer.Name);
+                    TrackRuntimeState(writerNodeId.IdentifierAsString, writer.State);
                 }
             }
 
@@ -1403,6 +1415,7 @@ namespace Opc.Ua.PubSub.Application
                     CreateReaderGroupNodeId(connectionName, readerGroupName);
                 m_groupRefs[readerGroupNodeId] =
                     (connectionName, readerGroupName);
+                TrackRuntimeState(readerGroupNodeId.IdentifierAsString, readerGroup.State);
 
                 for (int readerIndex = 0;
                     readerIndex < readerGroup.DataSetReaders.Count;
@@ -1418,7 +1431,91 @@ namespace Opc.Ua.PubSub.Application
                         reader.Name);
                     m_readerRefs[readerNodeId] =
                         (connectionName, readerGroupName, reader.Name);
+                    TrackRuntimeState(readerNodeId.IdentifierAsString, reader.State);
                 }
+            }
+        }
+
+        private void TrackRuntimeState(string componentId, PubSubStateMachine stateMachine)
+        {
+            if (string.IsNullOrEmpty(componentId))
+            {
+                return;
+            }
+
+            if (!m_runtimeStateIds.TryAdd(stateMachine, componentId))
+            {
+                return;
+            }
+
+            RestoreRuntimeState(componentId, stateMachine);
+            stateMachine.StateChanged += OnRuntimeStateChanged;
+        }
+
+        private void OnRuntimeStateChanged(object? sender, StateMachine.PubSubStateChangedEventArgs e)
+        {
+            if (sender is not PubSubStateMachine stateMachine ||
+                !m_runtimeStateIds.TryGetValue(stateMachine, out string? componentId))
+            {
+                return;
+            }
+
+            _ = PersistRuntimeStateAsync(componentId, e.NewState);
+        }
+
+        private void RestoreRuntimeState(string componentId, PubSubStateMachine stateMachine)
+        {
+            try
+            {
+                ValueTask<PubSubState?> stateTask =
+                    m_runtimeStateStore.GetStateAsync(componentId, CancellationToken.None);
+                if (stateTask.IsCompletedSuccessfully)
+                {
+                    PubSubState? state = stateTask.Result;
+                    if (state.HasValue)
+                    {
+                        stateMachine.Restore(state.Value);
+                    }
+                    return;
+                }
+
+                _ = RestoreRuntimeStateAsync(componentId, stateMachine, stateTask.AsTask());
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to restore PubSub state for {ComponentId}.", componentId);
+            }
+        }
+
+        private async Task RestoreRuntimeStateAsync(
+            string componentId,
+            PubSubStateMachine stateMachine,
+            Task<PubSubState?> stateTask)
+        {
+            try
+            {
+                PubSubState? state = await stateTask.ConfigureAwait(false);
+                if (state.HasValue)
+                {
+                    stateMachine.Restore(state.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to restore PubSub state for {ComponentId}.", componentId);
+            }
+        }
+
+        private async Task PersistRuntimeStateAsync(string componentId, PubSubState state)
+        {
+            try
+            {
+                await m_runtimeStateStore.SetStateAsync(componentId, state, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to persist PubSub state for {ComponentId}.", componentId);
             }
         }
 
@@ -1531,6 +1628,12 @@ namespace Opc.Ua.PubSub.Application
 
                 MaintainPublishedDataSetConfigurationVersions(previousConfiguration, configuration);
                 RebuiltState rebuilt = BuildRebuiltState(configuration);
+                ConfigurationVersionDataType newConfigurationVersion = CreateConfigurationVersion(
+                    m_timeProvider.GetUtcNow().UtcDateTime);
+                await PersistConfigurationAsync(
+                    configuration,
+                    newConfigurationVersion,
+                    cancellationToken).ConfigureAwait(false);
                 bool restartRequired;
                 lock (m_gate)
                 {
@@ -1564,8 +1667,7 @@ namespace Opc.Ua.PubSub.Application
                 }
 
                 RegisterPublishedDataSets();
-                ConfigurationVersion = CreateConfigurationVersion(
-                    m_timeProvider.GetUtcNow().UtcDateTime);
+                ConfigurationVersion = newConfigurationVersion;
 
                 foreach (PubSubConnection oldConnection in oldConnections)
                 {
@@ -1612,6 +1714,72 @@ namespace Opc.Ua.PubSub.Application
             finally
             {
                 _ = m_mutationGate.Release();
+            }
+        }
+
+        private ConfigurationVersionDataType ResolveConfigurationVersion(
+            PubSubConfigurationSnapshot snapshot)
+        {
+            ConfigurationVersionDataType fallback =
+                CreateConfigurationVersion(snapshot.CreatedAt.ToDateTime());
+            try
+            {
+                ValueTask<ConfigurationVersionDataType?> versionTask =
+                    m_configurationStore.GetConfigurationVersionAsync(CancellationToken.None);
+                if (versionTask.IsCompletedSuccessfully && versionTask.Result is ConfigurationVersionDataType version)
+                {
+                    return version;
+                }
+
+                _ = InitializeConfigurationVersionAsync(fallback);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to restore PubSub configuration version.");
+            }
+
+            return fallback;
+        }
+
+        private async Task InitializeConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion)
+        {
+            try
+            {
+                await m_configurationStore
+                    .SetConfigurationVersionAsync(configurationVersion, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogDebug(ex, "Failed to persist initial PubSub configuration version.");
+            }
+        }
+
+        private async ValueTask PersistConfigurationAsync(
+            PubSubConfigurationDataType configuration,
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken)
+        {
+            await m_configurationStore.SaveAsync(configuration, cancellationToken).ConfigureAwait(false);
+            await m_configurationStore.SetConfigurationVersionAsync(configurationVersion, cancellationToken)
+                .ConfigureAwait(false);
+            if (configuration.PublishedDataSets.IsNull)
+            {
+                return;
+            }
+
+            PublishedDataSetDataType[] publishedDataSets = [.. configuration.PublishedDataSets];
+            foreach (PublishedDataSetDataType dataSet in publishedDataSets)
+            {
+                ConfigurationVersionDataType? version = dataSet.DataSetMetaData?.ConfigurationVersion;
+                if (!string.IsNullOrEmpty(dataSet.Name) && version is not null)
+                {
+                    await m_configurationStore.SetPublishedDataSetConfigurationVersionAsync(
+                        dataSet.Name,
+                        version,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 

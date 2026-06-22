@@ -293,7 +293,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     publishedDataSetSources: null,
                     subscribedDataSetSinks: null,
                     securityWrapperResolver:
-                        sp.GetRequiredService<IPubSubSecurityWrapperResolver>());
+                        sp.GetRequiredService<IPubSubSecurityWrapperResolver>(),
+                    configurationStore: store,
+                    runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();
@@ -308,6 +310,7 @@ namespace Microsoft.Extensions.DependencyInjection
     internal sealed class InlinePubSubConfigurationStore : IPubSubConfigurationStore
     {
         private readonly PubSubConfigurationDataType m_configuration;
+        private ConfigurationVersionDataType? m_configurationVersion;
 
         public InlinePubSubConfigurationStore(PubSubConfigurationDataType configuration)
         {
@@ -332,6 +335,30 @@ namespace Microsoft.Extensions.DependencyInjection
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default)
         {
+            return default;
+        }
+
+        public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            return new ValueTask<ConfigurationVersionDataType?>(
+                m_configurationVersion is null
+                    ? null
+                    : (ConfigurationVersionDataType)m_configurationVersion.Clone());
+        }
+
+        public ValueTask SetConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (configurationVersion is null)
+            {
+                throw new ArgumentNullException(nameof(configurationVersion));
+            }
+
+            m_configurationVersion = (ConfigurationVersionDataType)configurationVersion.Clone();
             return default;
         }
 
