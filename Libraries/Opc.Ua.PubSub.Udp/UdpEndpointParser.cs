@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Udp
         public const string Scheme = "opc.udp";
 
         /// <summary>
-        /// DTLS URL scheme accepted for Part 14 §7.3.2.4 unicast endpoints.
+        /// DTLS URL scheme reserved for Part 14 §7.3.2.4 unicast endpoints.
         /// </summary>
         public const string DtlsScheme = "opc.dtls";
 
@@ -112,6 +112,12 @@ namespace Opc.Ua.PubSub.Udp
             {
                 throw new FormatException(
                     "PubSub UDP URL must start with 'opc.udp://' or 'opc.dtls://'.");
+            }
+            if (isDtls)
+            {
+                // TODO(B15): add an injectable DTLS provider before accepting opc.dtls:// endpoints.
+                throw new NotSupportedException(
+                    "DTLS transport (opc.dtls://) is not yet implemented; payload protection unavailable");
             }
             string remainder = isDtls ? url[DtlsSchemePrefix.Length..] : url[SchemePrefix.Length..];
             if (remainder.Length == 0)

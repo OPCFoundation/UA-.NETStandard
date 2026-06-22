@@ -1484,6 +1484,10 @@ namespace Opc.Ua.PubSub.Connections
                 return;
             }
             string? topic = ResolveDiscoveryTopic(response);
+            if (topic is null && CurrentTransport is IPubSubTopicProvider)
+            {
+                return;
+            }
             PubSubNetworkMessage networkMessage = ConvertDiscoveryMessageForTransport(response);
             INetworkMessageEncoder? encoder = ResolveEncoder();
             if (ShouldUseDiscoveryAnnouncementDestination(
@@ -1583,16 +1587,38 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return null;
             }
+            return ResolveDiscoveryTopic(response, provider, PublisherId);
+        }
+
+        internal static string? ResolveDiscoveryTopic(
+            UadpDiscoveryResponseMessage response,
+            IPubSubTopicProvider provider,
+            PublisherId publisherId)
+        {
+            if (response is null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
             return response.DiscoveryType switch
             {
                 UadpDiscoveryType.ApplicationInformation when response.ApplicationStatus is not null =>
-                    provider.BuildDiscoveryTopic(PublisherId, MqttStatusSegment),
+                    provider.BuildDiscoveryTopic(publisherId, MqttStatusSegment),
                 UadpDiscoveryType.ApplicationInformation =>
-                    provider.BuildDiscoveryTopic(PublisherId, MqttApplicationSegment),
+                    provider.BuildDiscoveryTopic(publisherId, MqttApplicationSegment),
                 UadpDiscoveryType.PublisherEndpoints =>
-                    provider.BuildDiscoveryTopic(PublisherId, MqttEndpointsSegment),
+                    provider.BuildDiscoveryTopic(publisherId, MqttEndpointsSegment),
                 UadpDiscoveryType.PubSubConnection =>
-                    provider.BuildDiscoveryTopic(PublisherId, MqttConnectionSegment),
+                    provider.BuildDiscoveryTopic(publisherId, MqttConnectionSegment),
+                UadpDiscoveryType.DataSetMetaData when response.WriterGroupId is ushort writerGroupId =>
+                    provider.BuildMetaDataTopic(
+                        publisherId,
+                        writerGroupId,
+                        response.DataSetWriterId),
                 _ => null
             };
         }

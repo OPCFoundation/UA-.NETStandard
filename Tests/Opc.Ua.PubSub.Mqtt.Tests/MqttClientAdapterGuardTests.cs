@@ -134,6 +134,63 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        [TestSpec("7.3.4.4")]
+        public void ConfigureBrokerTransportWebSocketSchemesUseWebSocketChannel()
+        {
+            MqttEndpoint wsEndpoint = MqttEndpointParser.Parse("ws://broker.example/mqtt");
+            MqttEndpoint wssEndpoint = MqttEndpointParser.Parse("wss://broker.example/mqtt");
+
+#if NET8_0_OR_GREATER
+            var wsOptions = MqttClientAdapter.ConfigureBrokerTransport(
+                new MqttClientOptionsBuilder(),
+                wsEndpoint).Build();
+            var wssOptions = MqttClientAdapter.ConfigureBrokerTransport(
+                new MqttClientOptionsBuilder(),
+                wssEndpoint).Build();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(wsOptions.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientWebSocketOptions>());
+                Assert.That(wssOptions.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientWebSocketOptions>());
+                Assert.That(
+                    ((MQTTnet.MqttClientWebSocketOptions)wsOptions.ChannelOptions).Uri,
+                    Is.EqualTo("ws://broker.example/mqtt"));
+                Assert.That(
+                    ((MQTTnet.MqttClientWebSocketOptions)wssOptions.ChannelOptions).Uri,
+                    Is.EqualTo("wss://broker.example/mqtt"));
+            });
+#else
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => MqttClientAdapter.ConfigureBrokerTransport(new MqttClientOptionsBuilder(), wsEndpoint),
+                    Throws.TypeOf<NotSupportedException>()
+                        .With.Message.Contains("MQTT over WebSocket"));
+                Assert.That(
+                    () => MqttClientAdapter.ConfigureBrokerTransport(new MqttClientOptionsBuilder(), wssEndpoint),
+                    Throws.TypeOf<NotSupportedException>()
+                        .With.Message.Contains("MQTT over WebSocket"));
+            });
+#endif
+        }
+
+        [Test]
+        [TestSpec("7.3.4.4")]
+        public void ConfigureBrokerTransportMqttSchemesUseTcpChannel()
+        {
+            MqttEndpoint endpoint = MqttEndpointParser.Parse("mqtt://broker.example:1884");
+            var options = MqttClientAdapter.ConfigureBrokerTransport(
+                new MqttClientOptionsBuilder(),
+                endpoint).Build();
+
+#if NET8_0_OR_GREATER
+            Assert.That(options.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientTcpOptions>());
+#else
+            Assert.That(options.ChannelOptions, Is.TypeOf<MQTTnet.Client.MqttClientTcpOptions>());
+#endif
+        }
+
+        [Test]
         [TestSpec("7.3.4.3")]
         public void ApplyEnhancedAuthenticationSetsMqttV5AuthFields()
         {

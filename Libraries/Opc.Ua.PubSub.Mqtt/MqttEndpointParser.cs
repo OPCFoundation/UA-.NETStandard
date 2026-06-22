@@ -33,7 +33,8 @@ using System.Globalization;
 namespace Opc.Ua.PubSub.Mqtt
 {
     /// <summary>
-    /// Dedicated parser for <c>mqtt://</c> and <c>mqtts://</c> URLs.
+    /// Dedicated parser for <c>mqtt://</c>, <c>mqtts://</c>, <c>ws://</c>,
+    /// and <c>wss://</c> URLs.
     /// Used instead of <see cref="Uri"/> directly so the scheme
     /// validation and default-port selection are explicit and so we
     /// can reject malformed inputs with a precise
@@ -64,6 +65,11 @@ namespace Opc.Ua.PubSub.Mqtt
         public const string WssScheme = "wss";
 
         /// <summary>
+        /// MQTT scheme for plaintext WebSocket transport.
+        /// </summary>
+        public const string WsScheme = "ws";
+
+        /// <summary>
         /// Default MQTT plaintext port.
         /// </summary>
         public const int DefaultPlaintextPort = 1883;
@@ -79,17 +85,24 @@ namespace Opc.Ua.PubSub.Mqtt
         public const int DefaultWebSocketTlsPort = 443;
 
         /// <summary>
+        /// Default plaintext WebSocket MQTT port.
+        /// </summary>
+        public const int DefaultWebSocketPlaintextPort = 80;
+
+        /// <summary>
         /// Parses <paramref name="url"/> into a strongly-typed
         /// <see cref="MqttEndpoint"/>.
         /// </summary>
-        /// <param name="url">URL to parse (<c>mqtt://</c> or <c>mqtts://</c>).</param>
+        /// <param name="url">
+        /// URL to parse (<c>mqtt://</c>, <c>mqtts://</c>, <c>ws://</c>, or <c>wss://</c>).
+        /// </param>
         /// <returns>The parsed endpoint.</returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="url"/> is <see langword="null"/>.
         /// </exception>
         /// <exception cref="FormatException">
         /// <paramref name="url"/> is malformed or uses a scheme other
-        /// than <c>mqtt</c> / <c>mqtts</c>.
+        /// than <c>mqtt</c> / <c>mqtts</c> / <c>ws</c> / <c>wss</c>.
         /// </exception>
         public static MqttEndpoint Parse(string url)
         {
@@ -111,31 +124,43 @@ namespace Opc.Ua.PubSub.Mqtt
             string scheme = url.Substring(0, schemeEnd);
             bool useTls;
             int defaultPort;
+            bool isWebSocket;
             if (string.Equals(scheme, MqttScheme, StringComparison.OrdinalIgnoreCase))
             {
+                isWebSocket = false;
                 useTls = false;
                 defaultPort = DefaultPlaintextPort;
             }
             else if (string.Equals(scheme, MqttsScheme, StringComparison.OrdinalIgnoreCase))
             {
+                isWebSocket = false;
                 useTls = true;
                 defaultPort = DefaultTlsPort;
             }
+            else if (string.Equals(scheme, WsScheme, StringComparison.OrdinalIgnoreCase))
+            {
+                isWebSocket = true;
+                useTls = false;
+                defaultPort = DefaultWebSocketPlaintextPort;
+            }
             else if (string.Equals(scheme, WssScheme, StringComparison.OrdinalIgnoreCase))
             {
+                isWebSocket = true;
                 useTls = true;
                 defaultPort = DefaultWebSocketTlsPort;
             }
             else
             {
                 throw new FormatException(
-                    "MQTT endpoint scheme must be 'mqtt', 'mqtts', or 'wss'.");
+                    "MQTT endpoint scheme must be 'mqtt', 'mqtts', 'ws', or 'wss'.");
             }
 
             string authority = url.Substring(schemeEnd + 3);
+            string path = string.Empty;
             int pathStart = authority.IndexOf('/', StringComparison.Ordinal);
             if (pathStart >= 0)
             {
+                path = authority.Substring(pathStart);
                 authority = authority.Substring(0, pathStart);
             }
             if (authority.Length == 0)
@@ -191,13 +216,16 @@ namespace Opc.Ua.PubSub.Mqtt
                 throw new FormatException("MQTT endpoint is missing the host component.");
             }
 
+            string canonicalScheme = isWebSocket
+                ? useTls ? WssScheme : WsScheme
+                : useTls ? MqttsScheme : MqttScheme;
             string canonical = string.Concat(
-                string.Equals(scheme, WssScheme, StringComparison.OrdinalIgnoreCase) ? WssScheme :
-                    useTls ? MqttsScheme : MqttScheme,
+                canonicalScheme,
                 "://",
                 host.Contains(':', StringComparison.Ordinal) ? string.Concat("[", host, "]") : host,
                 ":",
-                port.ToString(CultureInfo.InvariantCulture));
+                port.ToString(CultureInfo.InvariantCulture),
+                isWebSocket ? path : string.Empty);
             Uri uri;
             try
             {

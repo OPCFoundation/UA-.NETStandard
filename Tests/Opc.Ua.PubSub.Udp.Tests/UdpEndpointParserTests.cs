@@ -58,12 +58,13 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
         [Test]
         [TestSpec("7.3.2.4")]
-        public void Parse_DtlsScheme_DefaultPortIs4843()
+        public void ParseDtlsSchemeThrowsNotSupportedException()
         {
-            UdpEndpoint endpoint = UdpEndpointParser.Parse("opc.dtls://127.0.0.1");
-            Assert.That(endpoint.Port, Is.EqualTo(UdpEndpointParser.DefaultDtlsPort));
-            Assert.That(endpoint.AddressType, Is.EqualTo(UdpAddressType.Unicast));
-            Assert.That(endpoint.IsValid, Is.True);
+            Assert.That(
+                () => UdpEndpointParser.Parse("opc.dtls://127.0.0.1"),
+                Throws.TypeOf<NotSupportedException>()
+                    .With.Message.EqualTo(
+                        "DTLS transport (opc.dtls://) is not yet implemented; payload protection unavailable"));
         }
 
         [Test]

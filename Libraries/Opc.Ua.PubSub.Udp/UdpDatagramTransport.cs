@@ -210,9 +210,8 @@ namespace Opc.Ua.PubSub.Udp
         /// </summary>
         public uint DiscoveryAnnounceRate => m_v2Settings.DiscoveryAnnounceRate;
         // TODO(B15): add DTLS 1.3 handshake/record protection for opc.dtls://
-        // unicast per Part 14 §7.3.2.4. The current target TFMs do not expose a
-        // DTLS client/server API in System.Net.Security, so the parser accepts the
-        // URL and defaults port 4843 but payload protection needs a DTLS provider.
+        // unicast per Part 14 §7.3.2.4; the parser rejects DTLS URLs until an
+        // injectable provider can guarantee payload protection.
 
         /// <summary>
         /// Standard IPv4 discovery multicast destination from Part 14 §7.3.2.1.
@@ -801,16 +800,19 @@ namespace Opc.Ua.PubSub.Udp
                 case UdpAddressType.Multicast:
                     BindForMulticast(socket);
                     JoinMulticastGroup(socket);
+                    JoinStandardDiscoveryGroupIfNeeded(socket);
                     m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
                     break;
                 case UdpAddressType.Broadcast:
                 case UdpAddressType.SubnetBroadcast:
                     BindForBroadcast(socket);
+                    JoinStandardDiscoveryGroupIfNeeded(socket);
                     m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
                     break;
                 case UdpAddressType.Unicast:
                 default:
                     BindForUnicast(socket);
+                    JoinStandardDiscoveryGroupIfNeeded(socket);
                     break;
             }
         }
@@ -868,24 +870,67 @@ namespace Opc.Ua.PubSub.Udp
             }
         }
 
-        private void DropMembershipsIfNeeded(Socket socket)
+        private void JoinStandardDiscoveryGroupIfNeeded(Socket socket)
         {
-            if (m_endpoint.AddressType != UdpAddressType.Multicast)
+            if (!ShouldJoinStandardDiscoveryGroup(m_endpoint, m_direction))
             {
                 return;
             }
-            if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+
+            IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
+            var option = new MulticastOption(s_standardDiscoveryEndpoint.Address, localAddress);
+            socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, option);
+        }
+
+        private void DropMembershipsIfNeeded(Socket socket)
+        {
+            if (m_endpoint.AddressType == UdpAddressType.Multicast)
             {
-                IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
-                var option = new MulticastOption(m_endpoint.Address, localAddress);
-                socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.DropMembership, option);
+                if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
+                    var option = new MulticastOption(m_endpoint.Address, localAddress);
+                    socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.DropMembership, option);
+                }
+                else
+                {
+                    int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
+                    var option = new IPv6MulticastOption(m_endpoint.Address, interfaceIndex);
+                    socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DropMembership, option);
+                }
             }
-            else
+            if (!ShouldJoinStandardDiscoveryGroup(m_endpoint, m_direction))
             {
-                int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
-                var option = new IPv6MulticastOption(m_endpoint.Address, interfaceIndex);
-                socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DropMembership, option);
+                return;
             }
+
+            IPAddress standardAddress = s_standardDiscoveryEndpoint.Address;
+            IPAddress localDiscoveryAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
+            var discoveryOption = new MulticastOption(standardAddress, localDiscoveryAddress);
+            socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.DropMembership, discoveryOption);
+        }
+
+        internal static bool ShouldJoinStandardDiscoveryGroup(
+            UdpEndpoint endpoint,
+            PubSubTransportDirection direction)
+        {
+            if ((direction & PubSubTransportDirection.Receive) != PubSubTransportDirection.Receive)
+            {
+                return false;
+            }
+            if (endpoint.Port != StandardDiscoveryPort)
+            {
+                return false;
+            }
+            if (endpoint.Address is null)
+            {
+                return false;
+            }
+            if (endpoint.Address.AddressFamily != AddressFamily.InterNetwork)
+            {
+                return false;
+            }
+            return !endpoint.Address.Equals(s_standardDiscoveryEndpoint.Address);
         }
 
         private static IPAddress? SelectLocalIPv4(NetworkInterface? networkInterface)

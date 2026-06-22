@@ -108,8 +108,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             ThrowIfDisposed();
 
             var endpoint = MqttEndpointParser.Parse(options.Endpoint);
-            var builder = new MqttClientOptionsBuilder()
-                .WithTcpServer(endpoint.Host, endpoint.Port)
+            var builder = ConfigureBrokerTransport(new MqttClientOptionsBuilder(), endpoint)
                 .WithKeepAlivePeriod(options.KeepAlivePeriod)
                 .WithCleanSession(options.CleanSession)
                 .WithProtocolVersion(MapProtocolVersion(options.ProtocolVersion))
@@ -147,6 +146,29 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 useTls,
                 options.ProtocolVersion);
             await m_client.ConnectAsync(mqttOptions, ct).ConfigureAwait(false);
+        }
+
+        internal static MqttClientOptionsBuilder ConfigureBrokerTransport(
+            MqttClientOptionsBuilder builder,
+            MqttEndpoint endpoint)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            if (endpoint.Uri.Scheme is MqttEndpointParser.WsScheme or MqttEndpointParser.WssScheme)
+            {
+#if NET8_0_OR_GREATER
+                return builder.WithWebSocketServer(o => o.WithUri(endpoint.Uri.AbsoluteUri));
+#else
+                // TODO(RB2): enable MQTT-over-WebSocket when the legacy MQTTnet target TFMs expose it.
+                throw new NotSupportedException(
+                    "MQTT over WebSocket is not available with MQTTnet 4.x target TFMs.");
+#endif
+            }
+
+            return builder.WithTcpServer(endpoint.Host, endpoint.Port);
         }
 
         internal static void ApplyEnhancedAuthentication(

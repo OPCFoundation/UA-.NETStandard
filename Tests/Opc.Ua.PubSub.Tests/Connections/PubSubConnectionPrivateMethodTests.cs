@@ -213,6 +213,73 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        [TestSpec("7.3.4.7.4", Summary = "MQTT DataSetMetaData discovery responses use metadata topic")]
+        public async Task SendDiscoveryResponseAsyncDataSetMetaDataOnTopicTransportUsesMetadataTopicAsync()
+        {
+            byte[] payload = [1, 2, 3];
+            var encoder = new StubEncoder(Profiles.PubSubMqttUadpTransport, payload);
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttUadpTransport,
+                new Dictionary<string, INetworkMessageEncoder>
+                {
+                    [Profiles.PubSubMqttUadpTransport] = encoder
+                },
+                new Dictionary<string, INetworkMessageDecoder>());
+            var transport = new SpyTopicTransport();
+            SetPrivateField(connection, "m_transport", transport);
+
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt16(1),
+                WriterGroupId = 2,
+                DataSetWriterId = 3,
+                DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                DataSetMetaData = new DataSetMetaDataType()
+            };
+
+            await InvokePrivateAsync(
+                connection,
+                "SendDiscoveryResponseAsync",
+                response,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(transport.SentTopics, Has.Count.EqualTo(1));
+            Assert.That(transport.SentTopics[0], Is.EqualTo("metadata/2/3"));
+        }
+
+        [Test]
+        [TestSpec("7.3.4.8", Summary = "MQTT discovery responses without a topic are skipped")]
+        public async Task SendDiscoveryResponseAsyncWriterConfigurationOnTopicTransportDoesNotSendAsync()
+        {
+            byte[] payload = [1, 2, 3];
+            var encoder = new StubEncoder(Profiles.PubSubMqttUadpTransport, payload);
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttUadpTransport,
+                new Dictionary<string, INetworkMessageEncoder>
+                {
+                    [Profiles.PubSubMqttUadpTransport] = encoder
+                },
+                new Dictionary<string, INetworkMessageDecoder>());
+            var transport = new SpyTopicTransport();
+            SetPrivateField(connection, "m_transport", transport);
+
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt16(1),
+                WriterGroupId = 2,
+                DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration
+            };
+
+            await InvokePrivateAsync(
+                connection,
+                "SendDiscoveryResponseAsync",
+                response,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(transport.SentPayloads, Is.Empty);
+        }
+
+        [Test]
         [TestSpec("7.2.4.4.4", Summary = "Large UADP frames are chunked before transport send")]
         public async Task SendNetworkMessageAsync_WithLargeUadpPayload_UsesChunkingAsync()
         {
@@ -751,6 +818,82 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     yield return frame;
                     await Task.Yield();
                 }
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+        }
+
+        private sealed class SpyTopicTransport : IPubSubTransport, IPubSubTopicProvider
+        {
+            public string TransportProfileUri => Profiles.PubSubMqttUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected => true;
+
+            public List<ReadOnlyMemory<byte>> SentPayloads { get; } = [];
+
+            public List<string> SentTopics { get; } = [];
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public string BuildMetaDataTopic(
+                PublisherId publisherId,
+                ushort writerGroupId,
+                ushort dataSetWriterId)
+            {
+                return $"metadata/{writerGroupId}/{dataSetWriterId}";
+            }
+
+            public string BuildDataTopic(
+                PublisherId publisherId,
+                WriterGroupDataType writerGroup,
+                ushort? dataSetWriterId)
+            {
+                return "data";
+            }
+
+            public string BuildDiscoveryTopic(PublisherId publisherId, string messageTypeSegment)
+            {
+                return $"discovery/{messageTypeSegment}";
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                if (topic is null)
+                {
+                    throw new ArgumentException("Topic is required.", nameof(topic));
+                }
+                SentPayloads.Add(payload.ToArray());
+                SentTopics.Add(topic);
+                return default;
+            }
+
+            public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield break;
             }
 
             public ValueTask DisposeAsync()

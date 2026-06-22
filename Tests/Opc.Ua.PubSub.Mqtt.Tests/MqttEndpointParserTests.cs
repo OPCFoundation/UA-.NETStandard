@@ -71,6 +71,15 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        public void ParseWsSchemeDefaultPortIs80TlsIsFalse()
+        {
+            MqttEndpoint endpoint = MqttEndpointParser.Parse("ws://broker.example.com");
+            Assert.That(endpoint.Host, Is.EqualTo("broker.example.com"));
+            Assert.That(endpoint.Port, Is.EqualTo(80));
+            Assert.That(endpoint.UseTls, Is.False);
+        }
+
+        [Test]
         public void Parse_ExplicitPort_OverridesDefault()
         {
             MqttEndpoint endpoint = MqttEndpointParser.Parse("mqtt://broker.example.com:9999");

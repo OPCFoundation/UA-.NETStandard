@@ -130,6 +130,39 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [TestSpec("7.3.2.1")]
+        public void DiscoveryJoinReceiveOnAlternateMulticast4840JoinsStandardDiscoveryGroup()
+        {
+            UdpEndpoint alternate = UdpEndpointParser.Parse("opc.udp://239.0.0.1:4840");
+            UdpEndpoint standard = UdpEndpointParser.Parse("opc.udp://224.0.2.14:4840");
+            UdpEndpoint alternatePort = UdpEndpointParser.Parse("opc.udp://239.0.0.1:4841");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    UdpDatagramTransport.ShouldJoinStandardDiscoveryGroup(
+                        alternate,
+                        PubSubTransportDirection.Receive),
+                    Is.True);
+                Assert.That(
+                    UdpDatagramTransport.ShouldJoinStandardDiscoveryGroup(
+                        standard,
+                        PubSubTransportDirection.Receive),
+                    Is.False);
+                Assert.That(
+                    UdpDatagramTransport.ShouldJoinStandardDiscoveryGroup(
+                        alternatePort,
+                        PubSubTransportDirection.Receive),
+                    Is.False);
+                Assert.That(
+                    UdpDatagramTransport.ShouldJoinStandardDiscoveryGroup(
+                        alternate,
+                        PubSubTransportDirection.Send),
+                    Is.False);
+            });
+        }
+
+        [Test]
         public void QosCategoryReliable_SetsTosToAf21()
         {
             // AF21 = DSCP 18 = 0b010010, encoded TOS byte = DSCP << 2 = 0x48.
