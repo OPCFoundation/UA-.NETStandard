@@ -122,6 +122,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         => DecodeDiscovery(root, context),
                     JsonActionNetworkMessage.MessageTypeAction
                         => DecodeAction(root, context),
+                    JsonActionNetworkMessage.MessageTypeActionMetaData
+                        => DecodeActionMetaData(root, context),
+                    JsonActionNetworkMessage.MessageTypeActionResponder
+                        => DecodeActionResponder(root, context),
                     _ => DecodeUnknown(context, messageType)
                 };
             }
@@ -466,45 +470,110 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId publisherId = ReadPublisherId(root);
-            string action = ReadOptionalString(root, "Action");
-            if (string.IsNullOrEmpty(action))
+            Opc.Ua.JsonActionNetworkMessage? network =
+                DecodeEncodeable<Opc.Ua.JsonActionNetworkMessage>(
+                    "ActionNetworkMessage",
+                    root,
+                    context);
+            if (network is null || network.Messages.Count == 0)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                 return null;
             }
-            string requestId = ReadOptionalString(root, "RequestId");
-            string responseId = ReadOptionalString(root, "ResponseId");
-            if (string.IsNullOrEmpty(requestId) && string.IsNullOrEmpty(responseId))
+            ArrayOf<ExtensionObject> messages = DecodeActionMessageBodies(
+                root,
+                network.Messages,
+                context);
+            network.Messages = messages;
+            return new JsonActionNetworkMessage
             {
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                return null;
+                NetworkMessage = network,
+                MessageId = network.MessageId ?? string.Empty,
+                PublisherId = ReadPublisherId(root),
+                ResponseAddress = network.ResponseAddress ?? string.Empty,
+                CorrelationData = network.CorrelationData,
+                RequestorId = network.RequestorId ?? string.Empty,
+                TimeoutHint = network.TimeoutHint,
+                Messages = messages
+            };
+        }
+
+        private static ArrayOf<ExtensionObject> DecodeActionMessageBodies(
+            JsonElement root,
+            ArrayOf<ExtensionObject> fallback,
+            PubSubNetworkMessageContext context)
+        {
+            if (!root.TryGetProperty("Messages", out JsonElement messagesElement)
+                || messagesElement.ValueKind != JsonValueKind.Array)
+            {
+                return fallback;
             }
-            var parameters = new Dictionary<string, Variant>(StringComparer.Ordinal);
-            if (root.TryGetProperty("Parameters", out JsonElement paramsElement)
-                && paramsElement.ValueKind == JsonValueKind.Object)
+            var messages = new List<ExtensionObject>();
+            foreach (JsonElement entry in messagesElement.EnumerateArray())
             {
-                foreach (JsonProperty prop in paramsElement.EnumerateObject())
+                if (entry.ValueKind != JsonValueKind.Object)
                 {
-                    Variant variant = JsonVariantDecoder.DecodeVariant(
-                        prop.Value,
-                        JsonEncodingMode.Verbose,
-                        null,
-                        context.MessageContext);
-                    parameters[prop.Name] = variant;
+                    continue;
                 }
+                IEncodeable? body = entry.TryGetProperty("Status", out _)
+                    ? DecodeEncodeable<Opc.Ua.JsonActionResponseMessage>(
+                        "ActionResponse",
+                        entry,
+                        context)
+                    : DecodeEncodeable<Opc.Ua.JsonActionRequestMessage>(
+                        "ActionRequest",
+                        entry,
+                        context);
+                if (body is not null)
+                {
+                    messages.Add(new ExtensionObject(body));
+                }
+            }
+            return messages.Count == 0
+                ? fallback
+                : new ArrayOf<ExtensionObject>(messages.ToArray());
+        }
+
+        private static JsonActionNetworkMessage? DecodeActionMetaData(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            Opc.Ua.JsonActionMetaDataMessage? metaData =
+                DecodeEncodeable<Opc.Ua.JsonActionMetaDataMessage>(
+                    "ActionMetaData",
+                    root,
+                    context);
+            if (metaData is null)
+            {
+                return null;
             }
             return new JsonActionNetworkMessage
             {
-                MessageId = messageId,
-                PublisherId = publisherId,
-                Action = action,
-                RequestId = requestId,
-                ResponseId = responseId,
-                Parameters = parameters
+                MetaDataMessage = metaData,
+                MessageId = metaData.MessageId ?? string.Empty,
+                PublisherId = ReadPublisherId(root)
+            };
+        }
+
+        private static JsonActionNetworkMessage? DecodeActionResponder(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            Opc.Ua.JsonActionResponderMessage? responder =
+                DecodeEncodeable<Opc.Ua.JsonActionResponderMessage>(
+                    "ActionResponder",
+                    root,
+                    context);
+            if (responder is null)
+            {
+                return null;
+            }
+            return new JsonActionNetworkMessage
+            {
+                ResponderMessage = responder,
+                MessageId = responder.MessageId ?? string.Empty,
+                PublisherId = ReadPublisherId(root)
             };
         }
 

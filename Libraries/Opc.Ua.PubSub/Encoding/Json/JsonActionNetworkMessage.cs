@@ -27,23 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
-    /// JSON action NetworkMessage carrying an action invocation
-    /// request or response over JSON-on-MQTT.
+    /// JSON action message carrying Part 14 action request,
+    /// response, metadata or responder payloads over JSON-on-MQTT.
     /// </summary>
     /// <remarks>
+    /// Carries the source-generated <see cref="Opc.Ua.JsonActionNetworkMessage"/>,
+    /// <see cref="Opc.Ua.JsonActionMetaDataMessage"/> and
+    /// <see cref="Opc.Ua.JsonActionResponderMessage"/> models while keeping
+    /// the PubSub pipeline's <see cref="PubSubNetworkMessage"/> contract.
     /// Implements
     /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6">
     /// Part 14 §7.2.5.6</see> request/response Action NetworkMessage
-    /// envelope with <c>MessageType=ua-action</c>, an
-    /// <see cref="Action"/> URI, named
-    /// <see cref="Parameters"/> (Variant-keyed) and a request /
-    /// response correlation pair (<see cref="RequestId"/> /
-    /// <see cref="ResponseId"/>).
+    /// envelope with <c>MessageType=ua-action</c>.
     /// </remarks>
     public sealed record JsonActionNetworkMessage : PubSubNetworkMessage
     {
@@ -53,36 +51,96 @@ namespace Opc.Ua.PubSub.Encoding.Json
         public const string MessageTypeAction = "ua-action";
 
         /// <summary>
-        /// MessageId per Part 14 §7.2.5.3.
+        /// Wire literal for the JSON action metadata message.
+        /// </summary>
+        public const string MessageTypeActionMetaData = "ua-actionmetadata";
+
+        /// <summary>
+        /// Wire literal for the JSON action responder message.
+        /// </summary>
+        public const string MessageTypeActionResponder = "ua-actionresponder";
+
+        /// <summary>
+        /// Source-generated Part 14 action NetworkMessage envelope.
+        /// </summary>
+        public Opc.Ua.JsonActionNetworkMessage? NetworkMessage { get; init; }
+
+        /// <summary>
+        /// Source-generated Part 14 action metadata message.
+        /// </summary>
+        public Opc.Ua.JsonActionMetaDataMessage? MetaDataMessage { get; init; }
+
+        /// <summary>
+        /// Source-generated Part 14 action responder message.
+        /// </summary>
+        public Opc.Ua.JsonActionResponderMessage? ResponderMessage { get; init; }
+
+        /// <summary>
+        /// MessageId per Part 14 §7.2.5.3. Kept as a convenience mirror
+        /// for the generated action message carried by this instance.
         /// </summary>
         public string MessageId { get; init; } = string.Empty;
 
         /// <summary>
-        /// Action URI invoked by this message.
+        /// Response address for action responses.
         /// </summary>
+        public string ResponseAddress { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Binary correlation data for action request/response matching.
+        /// </summary>
+        public ByteString CorrelationData { get; init; } = ByteString.Empty;
+
+        /// <summary>
+        /// Requestor identity supplied by the action requestor.
+        /// </summary>
+        public string RequestorId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Action timeout hint in milliseconds.
+        /// </summary>
+        public double TimeoutHint { get; init; }
+
+        /// <summary>
+        /// Action request/response structures carried by the network envelope.
+        /// </summary>
+        public ArrayOf<ExtensionObject> Messages { get; init; } = [];
+
+        /// <summary>
+        /// Legacy non-spec Action URI.
+        /// </summary>
+        [System.Obsolete(
+            "Use NetworkMessage.Messages with Opc.Ua.JsonActionRequestMessage or " +
+            "Opc.Ua.JsonActionResponseMessage payloads.")]
         public string Action { get; init; } = string.Empty;
 
         /// <summary>
-        /// Named Variant parameters carrying the action arguments.
+        /// Legacy non-spec named Variant parameters.
         /// </summary>
-        public IReadOnlyDictionary<string, Variant> Parameters { get; init; }
-            = new Dictionary<string, Variant>();
+        [System.Obsolete(
+            "Use the Payload field on Opc.Ua.JsonActionRequestMessage or " +
+            "Opc.Ua.JsonActionResponseMessage.")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, Variant> Parameters { get; init; }
+            = new System.Collections.Generic.Dictionary<string, Variant>();
 
         /// <summary>
-        /// Correlation identifier for the originating request.
+        /// Legacy non-spec request identifier.
         /// </summary>
+        [System.Obsolete(
+            "Use Opc.Ua.JsonActionRequestMessage.RequestId or " +
+            "Opc.Ua.JsonActionResponseMessage.RequestId.")]
         public string RequestId { get; init; } = string.Empty;
 
         /// <summary>
-        /// Correlation identifier for the matching response (only set
-        /// on response messages).
+        /// Legacy non-spec response identifier.
         /// </summary>
+        [System.Obsolete("Use NetworkMessage.CorrelationData for response correlation.")]
         public string ResponseId { get; init; } = string.Empty;
 
         /// <summary>
-        /// Indicates the action carries a response (i.e.
-        /// <see cref="ResponseId"/> is non-empty).
+        /// Indicates the legacy action carries a response.
         /// </summary>
+        [System.Obsolete("Inspect NetworkMessage.Messages for Opc.Ua.JsonActionResponseMessage.")]
         public bool IsResponse => !string.IsNullOrEmpty(ResponseId);
 
         /// <inheritdoc/>

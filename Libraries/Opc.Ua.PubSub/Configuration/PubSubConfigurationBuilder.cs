@@ -94,6 +94,62 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
+        /// Adds a PublishedAction DataSet with request metadata and dispatch targets.
+        /// </summary>
+        /// <param name="name">PublishedDataSet name.</param>
+        /// <param name="requestMetaData">Request DataSet metadata.</param>
+        /// <param name="targets">Action targets that can receive requests.</param>
+        /// <param name="configure">Optional callback for additional generated type settings.</param>
+        /// <returns>The same builder for chaining.</returns>
+        public PubSubConfigurationBuilder AddPublishedAction(
+            string name,
+            DataSetMetaDataType requestMetaData,
+            ArrayOf<ActionTargetDataType> targets,
+            Action<PublishedActionDataType>? configure = null)
+        {
+            PublishedActionDataType action = CreatePublishedAction(
+                requestMetaData,
+                targets);
+
+            configure?.Invoke(action);
+            m_publishedDataSets.Add(CreatePublishedActionDataSet(name, action));
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a PublishedActionMethod DataSet with request metadata, targets and method bindings.
+        /// </summary>
+        /// <param name="name">PublishedDataSet name.</param>
+        /// <param name="requestMetaData">Request DataSet metadata.</param>
+        /// <param name="targets">Action targets that can receive requests.</param>
+        /// <param name="methods">Method bindings for the action targets.</param>
+        /// <param name="configure">Optional callback for additional generated type settings.</param>
+        /// <returns>The same builder for chaining.</returns>
+        public PubSubConfigurationBuilder AddPublishedAction(
+            string name,
+            DataSetMetaDataType requestMetaData,
+            ArrayOf<ActionTargetDataType> targets,
+            ArrayOf<ActionMethodDataType> methods,
+            Action<PublishedActionMethodDataType>? configure = null)
+        {
+            if (methods.IsNull)
+            {
+                throw new ArgumentException("methods must not be null.", nameof(methods));
+            }
+
+            var action = new PublishedActionMethodDataType
+            {
+                RequestDataSetMetaData = ValidateRequestMetaData(requestMetaData),
+                ActionTargets = ValidateTargets(targets),
+                ActionMethods = methods
+            };
+
+            configure?.Invoke(action);
+            m_publishedDataSets.Add(CreatePublishedActionDataSet(name, action));
+            return this;
+        }
+
+        /// <summary>
         /// Adds a PubSubConnection via a nested
         /// <see cref="PubSubConnectionBuilder"/>.
         /// </summary>
@@ -112,6 +168,54 @@ namespace Opc.Ua.PubSub.Configuration
             configure(builder);
             m_connections.Add(builder.Build());
             return this;
+        }
+
+        private static PublishedActionDataType CreatePublishedAction(
+            DataSetMetaDataType requestMetaData,
+            ArrayOf<ActionTargetDataType> targets)
+        {
+            return new PublishedActionDataType
+            {
+                RequestDataSetMetaData = ValidateRequestMetaData(requestMetaData),
+                ActionTargets = ValidateTargets(targets)
+            };
+        }
+
+        private static PublishedDataSetDataType CreatePublishedActionDataSet(
+            string name,
+            PublishedActionDataType action)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentException("name must not be empty.", nameof(name));
+            }
+
+            return new PublishedDataSetDataType
+            {
+                Name = name,
+                DataSetMetaData = action.RequestDataSetMetaData,
+                DataSetSource = new ExtensionObject(action)
+            };
+        }
+
+        private static DataSetMetaDataType ValidateRequestMetaData(DataSetMetaDataType requestMetaData)
+        {
+            if (requestMetaData is null)
+            {
+                throw new ArgumentNullException(nameof(requestMetaData));
+            }
+
+            return requestMetaData;
+        }
+
+        private static ArrayOf<ActionTargetDataType> ValidateTargets(ArrayOf<ActionTargetDataType> targets)
+        {
+            if (targets.IsNull)
+            {
+                throw new ArgumentException("targets must not be null.", nameof(targets));
+            }
+
+            return targets;
         }
 
         /// <summary>

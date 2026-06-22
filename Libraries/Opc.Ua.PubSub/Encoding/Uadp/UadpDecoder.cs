@@ -312,6 +312,22 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             int payloadCount = payloadWriterIds?.Length ?? 1;
+            if ((ext2 & ExtendedFlags2EncodingMask.ActionHeaderEnabled) != 0)
+            {
+                if (payloadCount != 1)
+                {
+                    return null;
+                }
+                var header = new UadpDecodedHeader
+                {
+                    PublisherId = publisherId,
+                    WriterGroupId = writerGroupId,
+                    DataSetClassId = dataSetClassId
+                };
+                return UadpActionCoder.TryDecode(
+                    ref reader, header, payloadWriterIds?[0] ?? 0, context);
+            }
+
             ushort[]? payloadSizes = null;
             if (payloadWriterIds is not null && payloadWriterIds.Length > 1)
             {
@@ -506,7 +522,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 prefixLength = reader.Position;
                 return true;
             }
-
             int payloadCount = 0;
             if ((uadpFlags & UadpFlagsEncodingMask.GroupHeaderEnabled) != 0)
             {
@@ -588,6 +603,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return false;
                 }
                 reader.Advance(promotedSize);
+            }
+
+            if ((ext2 & ExtendedFlags2EncodingMask.ActionHeaderEnabled) != 0)
+            {
+                prefixLength = reader.Position;
+                return true;
             }
 
             if (payloadWriterIds is not null && payloadWriterIds.Length > 1)

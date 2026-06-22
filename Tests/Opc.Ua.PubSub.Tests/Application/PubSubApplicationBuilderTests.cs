@@ -195,5 +195,56 @@ namespace Opc.Ua.PubSub.Tests.Application
                 .UseInMemorySks();
             Assert.That(builder.SecurityKeyServiceServer, Is.Not.Null);
         }
+
+        [Test]
+        public void AddPublishedActionWithNullActionThrowsArgumentNullException()
+        {
+            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create());
+
+            Assert.That(
+                () => builder.AddPublishedAction("ActionDataSet", (PublishedActionDataType)null!),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("action"));
+        }
+
+        [Test]
+        public void BuildWithPublishedActionConfigurationSucceeds()
+        {
+            DataSetMetaDataType requestMetaData = CreateActionRequestMetaData();
+            PubSubConfigurationDataType config = PubSubConfigurationBuilder.Create()
+                .AddPublishedAction("ActionDataSet", requestMetaData, CreateActionTargets())
+                .Build();
+
+            IPubSubApplication app = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .UseConfiguration(config)
+                .Build();
+
+            Assert.That(app.GetConfiguration().PublishedDataSets, Has.Count.EqualTo(1));
+        }
+
+        private static DataSetMetaDataType CreateActionRequestMetaData()
+        {
+            return new DataSetMetaDataType
+            {
+                Name = "ActionRequest",
+                ConfigurationVersion = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 1,
+                    MinorVersion = 0
+                }
+            };
+        }
+
+        private static ArrayOf<ActionTargetDataType> CreateActionTargets()
+        {
+            return
+            [
+                new ActionTargetDataType
+                {
+                    ActionTargetId = 1,
+                    Name = "Target",
+                    Description = new LocalizedText("en-US", "Target action")
+                }
+            ];
+        }
     }
 }

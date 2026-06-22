@@ -651,6 +651,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 message.DataSetClassId, discoveryBit);
         }
 
+        public static void WriteCommonHeader(
+            ref UadpBinaryWriter writer,
+            byte uadpVersion,
+            PublisherId publisherId,
+            Uuid dataSetClassId,
+            ExtendedFlags2EncodingMask extendedFlags2,
+            bool securityEnabled,
+            bool payloadHeaderEnabled,
+            ushort? writerGroupId)
+        {
+            WriteCommonHeaderCore(
+                ref writer, uadpVersion, publisherId, dataSetClassId, extendedFlags2,
+                securityEnabled, payloadHeaderEnabled, writerGroupId);
+        }
+
         private static void WriteCommonHeader(
             ref UadpBinaryWriter writer,
             byte uadpVersion,
@@ -658,9 +673,32 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             Uuid dataSetClassId,
             ExtendedFlags2EncodingMask discoveryBit)
         {
+            WriteCommonHeaderCore(
+                ref writer, uadpVersion, publisherId, dataSetClassId, discoveryBit,
+                securityEnabled: false, payloadHeaderEnabled: false, writerGroupId: null);
+        }
+
+        private static void WriteCommonHeaderCore(
+            ref UadpBinaryWriter writer,
+            byte uadpVersion,
+            PublisherId publisherId,
+            Uuid dataSetClassId,
+            ExtendedFlags2EncodingMask extendedFlags2,
+            bool securityEnabled,
+            bool payloadHeaderEnabled,
+            ushort? writerGroupId)
+        {
             UadpFlagsEncodingMask uadpFlags =
                 UadpFlagsEncodingMask.PublisherIdEnabled |
                 UadpFlagsEncodingMask.ExtendedFlags1Enabled;
+            if (payloadHeaderEnabled)
+            {
+                uadpFlags |= UadpFlagsEncodingMask.PayloadHeaderEnabled;
+            }
+            if (writerGroupId.HasValue)
+            {
+                uadpFlags |= UadpFlagsEncodingMask.GroupHeaderEnabled;
+            }
             ExtendedFlags1EncodingMask ext1 =
                 ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
 
@@ -674,16 +712,25 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 ext1 |= ExtendedFlags1EncodingMask.DataSetClassIdEnabled;
             }
+            if (securityEnabled)
+            {
+                ext1 |= ExtendedFlags1EncodingMask.SecurityEnabled;
+            }
 
             writer.WriteByte(UadpFlagsEncodingMaskExtensions.Combine(uadpVersion, uadpFlags));
             writer.WriteByte((byte)ext1);
-            writer.WriteByte((byte)discoveryBit);
+            writer.WriteByte((byte)extendedFlags2);
 
             WritePublisherIdValue(ref writer, publisherId, type);
 
             if ((ext1 & ExtendedFlags1EncodingMask.DataSetClassIdEnabled) != 0)
             {
                 writer.WriteGuid((Guid)dataSetClassId);
+            }
+            if (writerGroupId.HasValue)
+            {
+                writer.WriteByte((byte)GroupFlagsEncodingMask.WriterGroupIdEnabled);
+                writer.WriteUInt16Le(writerGroupId.Value);
             }
         }
 

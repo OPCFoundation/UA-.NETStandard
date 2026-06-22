@@ -368,6 +368,48 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <summary>
+        /// Registers a PublishedAction source for the named PublishedDataSet.
+        /// </summary>
+        /// <param name="publishedDataSetName">PublishedDataSet name.</param>
+        /// <param name="action">Published action configuration.</param>
+        public PubSubApplicationBuilder AddPublishedAction(
+            string publishedDataSetName,
+            PublishedActionDataType action)
+        {
+            if (string.IsNullOrEmpty(publishedDataSetName))
+            {
+                throw new ArgumentException(
+                    "publishedDataSetName must not be empty.",
+                    nameof(publishedDataSetName));
+            }
+
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            m_dataSetSources[publishedDataSetName] = new PublishedActionSource(action);
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a PublishedActionMethod source for the named PublishedDataSet.
+        /// </summary>
+        /// <param name="publishedDataSetName">PublishedDataSet name.</param>
+        /// <param name="action">Published method-action configuration.</param>
+        public PubSubApplicationBuilder AddPublishedAction(
+            string publishedDataSetName,
+            PublishedActionMethodDataType action)
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            return AddPublishedAction(publishedDataSetName, (PublishedActionDataType)action);
+        }
+
+        /// <summary>
         /// Wires an <see cref="ISubscribedDataSetSink"/> for the
         /// DataSetReader named <paramref name="dataSetReaderName"/>.
         /// </summary>
@@ -493,10 +535,11 @@ namespace Opc.Ua.PubSub.Application
         {
             var sources = new Dictionary<string, IPublishedDataSetSource>(
                 m_dataSetSources, StringComparer.Ordinal);
-            if (m_dataStore is null || configuration.PublishedDataSets.IsNull)
+            if (configuration.PublishedDataSets.IsNull)
             {
                 return sources;
             }
+
             foreach (PublishedDataSetDataType pds in configuration.PublishedDataSets)
             {
                 string name = pds.Name ?? string.Empty;
@@ -504,9 +547,47 @@ namespace Opc.Ua.PubSub.Application
                 {
                     continue;
                 }
-                sources[name] = new DataStoreBackedPublishedDataSetSource(m_dataStore, pds);
+                if (TryCreatePublishedActionSource(pds, out IPublishedDataSetSource? actionSource)
+                    && actionSource is not null)
+                {
+                    sources[name] = actionSource;
+                    continue;
+                }
+                if (m_dataStore is not null)
+                {
+                    sources[name] = new DataStoreBackedPublishedDataSetSource(m_dataStore, pds);
+                }
             }
+
             return sources;
+        }
+
+        private static bool TryCreatePublishedActionSource(
+            PublishedDataSetDataType publishedDataSet,
+            out IPublishedDataSetSource? source)
+        {
+            source = null;
+            ExtensionObject dataSetSource = publishedDataSet.DataSetSource;
+            if (dataSetSource.IsNull)
+            {
+                return false;
+            }
+
+            if (dataSetSource.TryGetValue(out PublishedActionMethodDataType? methodAction)
+                && methodAction is not null)
+            {
+                source = new PublishedActionSource(methodAction);
+                return true;
+            }
+
+            if (dataSetSource.TryGetValue(out PublishedActionDataType? action)
+                && action is not null)
+            {
+                source = new PublishedActionSource(action);
+                return true;
+            }
+
+            return false;
         }
 
         private IPubSubSecurityWrapperResolver? ResolveSecurityWrapperResolver()

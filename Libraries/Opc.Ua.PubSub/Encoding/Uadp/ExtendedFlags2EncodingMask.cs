@@ -33,16 +33,16 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 {
     /// <summary>
     /// ExtendedFlags2 byte of a UADP NetworkMessage. Selects between
-    /// regular DataSetMessages, chunked transfers, and the two discovery
-    /// NetworkMessage subtypes.
+    /// regular DataSetMessages, chunked transfers, discovery
+    /// NetworkMessage subtypes, and ActionHeader presence.
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.2.4">
     /// Part 14 §A.2.2.4 — UADP NetworkMessage Header Layout</see>
     /// (Table 160). The low 2 bits distinguish chunked messages and
-    /// the optional promoted-fields header; bits 2-3 mark the message
-    /// as a discovery request or response respectively.
+    /// the optional promoted-fields header; bits 2-4 carry the UADP
+    /// NetworkMessage type, and bit 5 marks an ActionHeader.
     /// </remarks>
     [Flags]
     public enum ExtendedFlags2EncodingMask : byte
@@ -76,6 +76,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Bit 3 — NetworkMessage carries a DiscoveryResponse.
         /// </summary>
-        NetworkMessageWithDiscoveryResponse = 0x08
+        NetworkMessageWithDiscoveryResponse = 0x08,
+
+        /// <summary>
+        /// Bit 5 — NetworkMessage carries an ActionHeader for an
+        /// ActionRequest or ActionResponse. Part 14 v1.05 Table 154
+        /// keeps action request/response payloads under the default
+        /// DataSetMessage NetworkMessage type and uses ActionFlags bit 0
+        /// to distinguish request from response.
+        /// </summary>
+        ActionHeaderEnabled = 0x20
     }
 }

@@ -29,21 +29,21 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Tests;
-using JsonActionNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonActionNetworkMessage;
-using JsonDecoder = Opc.Ua.PubSub.Encoding.Json.JsonDecoder;
-using JsonEncoder = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
+using PubSubJsonActionNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonActionNetworkMessage;
+using PubSubJsonDecoder = Opc.Ua.PubSub.Encoding.Json.JsonDecoder;
+using PubSubJsonEncoder = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
 
 namespace OpcUaPubSubJsonTests
 {
     /// <summary>
     /// Round-trip coverage for the JSON Action NetworkMessage
-    /// (<c>ua-action</c>) per Part 14 §7.2.5.6 (sub-task 16e).
+    /// (<c>ua-action</c>) per Part 14 §7.2.5.6.
     /// </summary>
     [TestFixture]
     [Category("PubSub")]
@@ -51,81 +51,170 @@ namespace OpcUaPubSubJsonTests
     {
         [Test]
         [TestSpec("7.2.5.6.1")]
-        public async Task Encode_Request_RoundTripsAsync()
+        public async Task EncodeActionRequestAndResponseRoundTripsAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            var msg = new JsonActionNetworkMessage
+            var request = new JsonActionRequestMessage
             {
-                MessageId = "act-req-1",
-                PublisherId = PublisherId.FromUInt16(0x100),
-                Action = "urn:test:action:start",
-                RequestId = "req-1",
-                Parameters = new Dictionary<string, Variant>
+                DataSetWriterId = 11,
+                ActionTargetId = 22,
+                DataSetWriterName = "Writer",
+                WriterGroupName = "Group",
+                MetaDataVersion = new ConfigurationVersionDataType
                 {
-                    ["Mode"] = new Variant("Auto"),
-                    ["Speed"] = new Variant(42)
-                }
+                    MajorVersion = 1,
+                    MinorVersion = 2
+                },
+                MinorVersion = 3,
+                Timestamp = new DateTime(2026, 6, 22, 8, 0, 0, DateTimeKind.Utc),
+                MessageType = "ua-action-request",
+                RequestId = 44,
+                ActionState = ActionState.Executing,
+                Payload = new ExtensionObject(CreatePayload("Speed", (byte)BuiltInType.Double))
             };
-            var encoder = new JsonEncoder();
+            var response = new JsonActionResponseMessage
+            {
+                DataSetWriterId = 11,
+                ActionTargetId = 22,
+                DataSetWriterName = "Writer",
+                WriterGroupName = "Group",
+                MetaDataVersion = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 1,
+                    MinorVersion = 2
+                },
+                MinorVersion = 4,
+                Timestamp = new DateTime(2026, 6, 22, 8, 0, 1, DateTimeKind.Utc),
+                Status = StatusCodes.BadTimeout,
+                MessageType = "ua-action-response",
+                RequestId = 44,
+                ActionState = ActionState.Done,
+                Payload = new ExtensionObject(CreatePayload("Result", (byte)BuiltInType.String))
+            };
+            var msg = new PubSubJsonActionNetworkMessage
+            {
+                MessageId = "act-1",
+                PublisherId = PublisherId.FromString("publisher-1"),
+                ResponseAddress = "mqtt://broker/responses",
+                CorrelationData = new ByteString(new byte[] { 1, 2, 3, 4 }),
+                RequestorId = "requestor-1",
+                TimeoutHint = 12_000,
+                Messages =
+                [
+                    new ExtensionObject(request),
+                    new ExtensionObject(response)
+                ]
+            };
+            var encoder = new PubSubJsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
 
-            var decoder = new JsonDecoder();
+            using (JsonDocument document = JsonDocument.Parse(bytes))
+            {
+                JsonElement root = document.RootElement;
+                Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo(
+                    PubSubJsonActionNetworkMessage.MessageTypeAction));
+                Assert.That(root.GetProperty("ResponseAddress").GetString(),
+                    Is.EqualTo("mqtt://broker/responses"));
+                Assert.That(root.GetProperty("Messages").GetArrayLength(), Is.EqualTo(2));
+            }
+
+            var decoder = new PubSubJsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
                 .ConfigureAwait(false);
 
-            var act = decoded as JsonActionNetworkMessage;
+            var act = decoded as PubSubJsonActionNetworkMessage;
             Assert.That(act, Is.Not.Null);
-            Assert.That(act!.Action, Is.EqualTo("urn:test:action:start"));
-            Assert.That(act.RequestId, Is.EqualTo("req-1"));
-            Assert.That(act.IsResponse, Is.False);
-            Assert.That(act.Parameters, Has.Count.EqualTo(2));
-            Assert.That(act.Parameters["Mode"].TryGetValue(out string mode), Is.True);
-            Assert.That(mode, Is.EqualTo("Auto"));
+            Assert.That(act!.NetworkMessage, Is.Not.Null);
+            Assert.That(act.MessageId, Is.EqualTo("act-1"));
+            Assert.That(act.ResponseAddress, Is.EqualTo("mqtt://broker/responses"));
+            Assert.That(act.CorrelationData, Is.EqualTo(
+                new ByteString(new byte[] { 1, 2, 3, 4 })));
+            Assert.That(act.RequestorId, Is.EqualTo("requestor-1"));
+            Assert.That(act.TimeoutHint, Is.EqualTo(12_000));
+            Assert.That(act.Messages, Has.Count.EqualTo(2));
+            Assert.That(act.Messages[0].TryGetValue(out IEncodeable? first), Is.True);
+            Assert.That(first, Is.TypeOf<JsonActionRequestMessage>());
+            var roundTripRequest = (JsonActionRequestMessage)first!;
+            Assert.That(roundTripRequest.RequestId, Is.EqualTo(44));
+            Assert.That(roundTripRequest.ActionTargetId, Is.EqualTo(22));
+            Assert.That(roundTripRequest.ActionState, Is.EqualTo(ActionState.Executing));
+            AssertPayload(roundTripRequest.Payload, "Speed");
+
+            Assert.That(act.Messages[1].TryGetValue(out IEncodeable? second), Is.True);
+            Assert.That(second, Is.TypeOf<JsonActionResponseMessage>());
+            var roundTripResponse = (JsonActionResponseMessage)second!;
+            Assert.That(roundTripResponse.RequestId, Is.EqualTo(44));
+            Assert.That(roundTripResponse.ActionTargetId, Is.EqualTo(22));
+            Assert.That(roundTripResponse.ActionState, Is.EqualTo(ActionState.Done));
+            Assert.That(roundTripResponse.Status, Is.EqualTo(StatusCodes.BadTimeout));
+            AssertPayload(roundTripResponse.Payload, "Result");
         }
 
         [Test]
-        [TestSpec("7.2.5.6.2")]
-        public async Task Encode_Response_RoundTripsAsync()
+        [TestSpec("7.2.5.6.3")]
+        public async Task EncodeActionMetaDataRoundTripsAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            var msg = new JsonActionNetworkMessage
+            DataSetMetaDataType requestMetaData = JsonTestUtilities.CreateMetaData("ActionRequest");
+            DataSetMetaDataType responseMetaData = JsonTestUtilities.CreateMetaData("ActionResponse");
+            var message = new PubSubJsonActionNetworkMessage
             {
-                MessageId = "act-resp-1",
-                PublisherId = PublisherId.FromUInt16(0x100),
-                Action = "urn:test:action:start",
-                RequestId = "req-1",
-                ResponseId = "resp-1",
-                Parameters = new Dictionary<string, Variant>
+                MetaDataMessage = new JsonActionMetaDataMessage
                 {
-                    ["Result"] = new Variant("OK"),
-                    ["Code"] = new Variant(0u)
+                    MessageId = "action-md-1",
+                    PublisherId = "publisher-1",
+                    DataSetWriterId = 9,
+                    DataSetWriterName = "ActionWriter",
+                    Timestamp = new DateTime(2026, 6, 22, 8, 1, 0, DateTimeKind.Utc),
+                    Request = requestMetaData,
+                    Response = responseMetaData,
+                    ActionTargets =
+                    [
+                        new ActionTargetDataType
+                        {
+                            ActionTargetId = 22,
+                            Name = "Target"
+                        }
+                    ],
+                    ActionMethods =
+                    [
+                        new ActionMethodDataType
+                        {
+                            ObjectId = new NodeId(Objects.Server),
+                            MethodId = new NodeId(Methods.Server_GetMonitoredItems)
+                        }
+                    ]
                 }
             };
-            var encoder = new JsonEncoder();
-            ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
+            var encoder = new PubSubJsonEncoder();
+            ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(message, ctx)
                 .ConfigureAwait(false);
 
-            var decoder = new JsonDecoder();
+            var decoder = new PubSubJsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
                 .ConfigureAwait(false);
 
-            var act = decoded as JsonActionNetworkMessage;
-            Assert.That(act, Is.Not.Null);
-            Assert.That(act!.IsResponse, Is.True);
-            Assert.That(act.ResponseId, Is.EqualTo("resp-1"));
-            Assert.That(act.RequestId, Is.EqualTo("req-1"));
+            var action = decoded as PubSubJsonActionNetworkMessage;
+            Assert.That(action, Is.Not.Null);
+            Assert.That(action!.MetaDataMessage, Is.Not.Null);
+            Assert.That(action.MetaDataMessage!.MessageType, Is.EqualTo(
+                PubSubJsonActionNetworkMessage.MessageTypeActionMetaData));
+            Assert.That(action.MetaDataMessage.DataSetWriterId, Is.EqualTo(9));
+            Assert.That(action.MetaDataMessage.Request.Name, Is.EqualTo("ActionRequest"));
+            Assert.That(action.MetaDataMessage.Response.Name, Is.EqualTo("ActionResponse"));
+            Assert.That(action.MetaDataMessage.ActionTargets, Has.Count.EqualTo(1));
+            Assert.That(action.MetaDataMessage.ActionMethods, Has.Count.EqualTo(1));
         }
 
         [Test]
         [TestSpec("7.2.5.6.1")]
-        public async Task Decode_MissingRequestId_RejectsAsync()
+        public async Task DecodeMissingMessagesRejectsAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             ReadOnlyMemory<byte> bytes = System.Text.Encoding.UTF8.GetBytes(
-                "{\"MessageType\":\"ua-action\",\"Action\":\"urn:test:noid\"," +
-                "\"Parameters\":{}}");
-            var decoder = new JsonDecoder();
+                "{\"MessageType\":\"ua-action\",\"Messages\":[]}");
+            var decoder = new PubSubJsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
                 .ConfigureAwait(false);
             Assert.That(decoded, Is.Null);
@@ -133,56 +222,43 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.2.5.6.1")]
-        public async Task Encode_NestedVariantParameters_RoundTripsAsync()
+        public void EncodeMissingMessagesRejects()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            var matrix = new Variant(new long[] { 1, 2, 3, 4, 5 });
-            var msg = new JsonActionNetworkMessage
-            {
-                MessageId = "act-nested",
-                PublisherId = PublisherId.FromUInt16(0x100),
-                Action = "urn:test:action:configure",
-                RequestId = "req-7",
-                Parameters = new Dictionary<string, Variant>
-                {
-                    ["Bool"] = new Variant(true),
-                    ["Array"] = matrix,
-                    ["Bytes"] = new Variant(new byte[] { 0x01, 0x02, 0x03 })
-                }
-            };
-            var encoder = new JsonEncoder();
-            ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
-                .ConfigureAwait(false);
-
-            var decoder = new JsonDecoder();
-            PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
-                .ConfigureAwait(false);
-
-            var act = decoded as JsonActionNetworkMessage;
-            Assert.That(act, Is.Not.Null);
-            Assert.That(act!.Parameters, Has.Count.EqualTo(3));
-            Assert.That(act.Parameters["Bool"].TryGetValue(out bool b), Is.True);
-            Assert.That(b, Is.True);
-            Assert.That(act.Parameters["Array"].TypeInfo.BuiltInType,
-                Is.EqualTo(BuiltInType.Int64));
-        }
-
-        [Test]
-        [TestSpec("7.2.5.6.1")]
-        public void Encode_EmptyAction_Rejects()
-        {
-            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            var msg = new JsonActionNetworkMessage
+            var msg = new PubSubJsonActionNetworkMessage
             {
                 MessageId = "act-bad",
-                PublisherId = PublisherId.FromUInt16(0x100),
-                Action = string.Empty,
-                RequestId = "req-x"
+                PublisherId = PublisherId.FromUInt16(0x100)
             };
-            var encoder = new JsonEncoder();
+            var encoder = new PubSubJsonEncoder();
 
             Assert.ThrowsAsync<ArgumentException>(async () =>
                 await encoder.EncodeAsync(msg, ctx).ConfigureAwait(false));
+        }
+
+        private static FieldMetaData CreatePayload(string name, byte builtInType)
+        {
+            return new FieldMetaData
+            {
+                Name = name,
+                BuiltInType = builtInType,
+                ValueRank = ValueRanks.Scalar
+            };
+        }
+
+        private static void AssertPayload(ExtensionObject payload, string expectedName)
+        {
+            Assert.That(payload.IsNull, Is.False);
+            if (payload.TryGetValue(out IEncodeable? body))
+            {
+                Assert.That(body, Is.TypeOf<FieldMetaData>());
+                var field = (FieldMetaData)body!;
+                Assert.That(field.Name, Is.EqualTo(expectedName));
+                return;
+            }
+
+            Assert.That(payload.TryGetAsJson(out string? json), Is.True);
+            Assert.That(json, Does.Contain(expectedName));
         }
     }
 }

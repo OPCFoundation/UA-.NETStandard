@@ -546,54 +546,91 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonActionNetworkMessage message,
             PubSubNetworkMessageContext context)
         {
-            if (string.IsNullOrEmpty(message.Action))
+            if (message.MetaDataMessage is not null)
+            {
+                message.MetaDataMessage.MessageType =
+                    JsonActionNetworkMessage.MessageTypeActionMetaData;
+                return EncodeEncodeableRoot(
+                    "ActionMetaData",
+                    message.MetaDataMessage,
+                    context.MessageContext);
+            }
+
+            if (message.ResponderMessage is not null)
+            {
+                message.ResponderMessage.MessageType =
+                    JsonActionNetworkMessage.MessageTypeActionResponder;
+                return EncodeEncodeableRoot(
+                    "ActionResponder",
+                    message.ResponderMessage,
+                    context.MessageContext);
+            }
+
+            Opc.Ua.JsonActionNetworkMessage network = message.NetworkMessage
+                ?? CreateActionNetworkMessage(message);
+            network.MessageType = JsonActionNetworkMessage.MessageTypeAction;
+            if (string.IsNullOrEmpty(network.MessageId))
+            {
+                network.MessageId = message.MessageId;
+            }
+            if (string.IsNullOrEmpty(network.PublisherId)
+                && !message.PublisherId.IsNull)
+            {
+                network.PublisherId = message.PublisherId.ToString();
+            }
+            if (network.Messages.Count == 0)
             {
                 throw new ArgumentException(
-                    "JsonActionNetworkMessage requires a non-empty Action URI " +
-                    "per Part 14 §7.2.5.6.",
+                    "JsonActionNetworkMessage requires at least one generated " +
+                    "JsonActionRequestMessage or JsonActionResponseMessage in Messages.",
                     nameof(message));
             }
-            using JsonBufferWriter buffer = new(512);
-            using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
+
+            return EncodeEncodeableRoot(
+                "ActionNetworkMessage",
+                network,
+                context.MessageContext);
+        }
+
+        private static Opc.Ua.JsonActionNetworkMessage CreateActionNetworkMessage(
+            JsonActionNetworkMessage message)
+        {
+            return new Opc.Ua.JsonActionNetworkMessage
             {
-                SkipValidation = true,
-                Indented = false
-            }))
+                MessageId = message.MessageId,
+                MessageType = JsonActionNetworkMessage.MessageTypeAction,
+                PublisherId = message.PublisherId.IsNull
+                    ? null
+                    : message.PublisherId.ToString(),
+                ResponseAddress = string.IsNullOrEmpty(message.ResponseAddress)
+                    ? null
+                    : message.ResponseAddress,
+                CorrelationData = message.CorrelationData,
+                RequestorId = string.IsNullOrEmpty(message.RequestorId)
+                    ? null
+                    : message.RequestorId,
+                TimeoutHint = message.TimeoutHint,
+                Messages = message.Messages
+            };
+        }
+
+        private static ReadOnlyMemory<byte> EncodeEncodeableRoot(
+            string propertyName,
+            IEncodeable encodeable,
+            IServiceMessageContext context)
+        {
+            using JsonBufferWriter buffer = new(1024);
+            using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
             {
-                writer.WriteStartObject();
-                if (!string.IsNullOrEmpty(message.MessageId))
-                {
-                    writer.WriteString("MessageId", message.MessageId);
-                }
-                writer.WriteString(
-                    "MessageType",
-                    JsonActionNetworkMessage.MessageTypeAction);
-                WritePublisherId(writer, "PublisherId", message.PublisherId);
-                writer.WriteString("Action", message.Action);
-                if (!string.IsNullOrEmpty(message.RequestId))
-                {
-                    writer.WriteString("RequestId", message.RequestId);
-                }
-                if (!string.IsNullOrEmpty(message.ResponseId))
-                {
-                    writer.WriteString("ResponseId", message.ResponseId);
-                }
-                writer.WritePropertyName("Parameters");
-                writer.WriteStartObject();
-                foreach (System.Collections.Generic.KeyValuePair<string, Variant> kvp
-                    in message.Parameters)
-                {
-                    JsonVariantEncoder.WriteVariantProperty(
-                        writer,
-                        kvp.Key,
-                        kvp.Value,
-                        Mode,
-                        context.MessageContext);
-                }
-                writer.WriteEndObject();
-                writer.WriteEndObject();
+                encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
             }
-            return buffer.GetWritten();
+            using JsonDocument doc = JsonDocument.Parse(buffer.WrittenMemory);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object
+                || !doc.RootElement.TryGetProperty(propertyName, out JsonElement element))
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingError);
+            }
+            return System.Text.Encoding.UTF8.GetBytes(element.GetRawText());
         }
 
         /// <summary>

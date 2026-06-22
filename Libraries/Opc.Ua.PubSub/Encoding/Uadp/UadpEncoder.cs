@@ -84,10 +84,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return new ValueTask<ReadOnlyMemory<byte>>(discovery);
             }
 
+            if (networkMessage is UadpActionRequestMessage
+                or UadpActionResponseMessage)
+            {
+                ReadOnlyMemory<byte> action =
+                    UadpActionCoder.Encode(networkMessage, context);
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.SentNetworkMessages);
+                return new ValueTask<ReadOnlyMemory<byte>>(action);
+            }
+
             if (networkMessage is not UadpNetworkMessage uadp)
             {
                 throw new ArgumentException(
-                    "UadpEncoder only accepts UadpNetworkMessage or discovery instances.",
+                    "UadpEncoder only accepts UadpNetworkMessage, discovery, or action instances.",
                     nameof(networkMessage));
             }
 
@@ -133,6 +143,35 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ? networkMessage
                 : networkMessage with { SecurityEnabled = true };
             return EncodeData(withFlag, context, out payloadOffset);
+        }
+
+        /// <summary>
+        /// Encodes a UADP data or action NetworkMessage with the
+        /// <c>ExtendedFlags1.SecurityEnabled</c> bit set and reports the
+        /// byte offset at which the security wrapper must insert the
+        /// SecurityHeader.
+        /// </summary>
+        /// <param name="networkMessage">UADP data or action message.</param>
+        /// <param name="context">Network message context.</param>
+        /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
+        public static ReadOnlyMemory<byte> EncodeWithSecurityBoundary(
+            PubSubNetworkMessage networkMessage,
+            PubSubNetworkMessageContext context,
+            out int payloadOffset)
+        {
+            if (networkMessage is UadpNetworkMessage uadp)
+            {
+                return EncodeWithSecurityBoundary(uadp, context, out payloadOffset);
+            }
+            if (networkMessage is UadpActionRequestMessage
+                or UadpActionResponseMessage)
+            {
+                return UadpActionCoder.Encode(
+                    networkMessage, context, securityEnabled: true, out payloadOffset);
+            }
+            throw new ArgumentException(
+                "Security wrapping is supported for UADP data and action messages.",
+                nameof(networkMessage));
         }
 
         /// <summary>
