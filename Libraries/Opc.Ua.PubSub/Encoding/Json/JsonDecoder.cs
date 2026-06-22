@@ -96,6 +96,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
             using (document)
             {
                 JsonElement root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    context.Diagnostics.Increment(
+                        PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                    return DecodeDataWithoutNetworkHeader(root, context);
+                }
                 if (root.ValueKind != JsonValueKind.Object)
                 {
                     context.Diagnostics.Increment(
@@ -105,9 +111,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 if (!root.TryGetProperty("MessageType", out JsonElement typeElement)
                     || typeElement.ValueKind != JsonValueKind.String)
                 {
+                    if (root.TryGetProperty("MessageId", out _)
+                        || root.TryGetProperty("PublisherId", out _)
+                        || root.TryGetProperty("Messages", out _))
+                    {
+                        context.Diagnostics.Increment(
+                            PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                        return null;
+                    }
                     context.Diagnostics.Increment(
-                        PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                    return null;
+                        PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                    return DecodeDataWithoutNetworkHeader(root, context);
                 }
                 string messageType = typeElement.GetString() ?? string.Empty;
                 context.Diagnostics.Increment(
@@ -118,9 +132,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         => DecodeData(root, context),
                     JsonNetworkMessage.MessageTypeMetaData
                         => DecodeMetaData(root, context),
-                    JsonDiscoveryMessage.MessageTypeDiscovery
-                        => DecodeDiscovery(root, context),
-                    JsonActionNetworkMessage.MessageTypeAction
+                    JsonDiscoveryMessage.MessageTypeApplication
+                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.ApplicationInformation),
+                    JsonDiscoveryMessage.MessageTypeEndpoints
+                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.PublisherEndpoints),
+                    JsonDiscoveryMessage.MessageTypeStatus
+                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.None),
+                    JsonDiscoveryMessage.MessageTypeConnection
+                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.PubSubConnection),
+                    JsonActionNetworkMessage.MessageTypeActionRequest
+                        => DecodeAction(root, context),
+                    JsonActionNetworkMessage.MessageTypeActionResponse
                         => DecodeAction(root, context),
                     JsonActionNetworkMessage.MessageTypeActionMetaData
                         => DecodeActionMetaData(root, context),
@@ -129,6 +151,69 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     _ => DecodeUnknown(context, messageType)
                 };
             }
+        }
+
+        private static JsonNetworkMessage? DecodeDataWithoutNetworkHeader(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            var dataSetMessages = new List<PubSubDataSetMessage>();
+            bool singleMessage = root.ValueKind == JsonValueKind.Object;
+            if (singleMessage)
+            {
+                JsonDataSetMessage? dsm = DecodeOneDataSetMessage(
+                    root,
+                    PublisherId.Null,
+                    Uuid.Empty,
+                    context,
+                    out bool identityConflict);
+                if (identityConflict || dsm is null)
+                {
+                    return null;
+                }
+                dataSetMessages.Add(dsm);
+            }
+            else
+            {
+                foreach (JsonElement entry in root.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+                    JsonDataSetMessage? dsm = DecodeOneDataSetMessage(
+                        entry,
+                        PublisherId.Null,
+                        Uuid.Empty,
+                        context,
+                        out bool identityConflict);
+                    if (identityConflict)
+                    {
+                        return null;
+                    }
+                    if (dsm is not null)
+                    {
+                        dataSetMessages.Add(dsm);
+                    }
+                }
+            }
+            context.Diagnostics.Increment(
+                PubSubDiagnosticsCounterKind.ReceivedDataSetMessages,
+                dataSetMessages.Count);
+            if (dataSetMessages.Count == 0)
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
+            return new JsonNetworkMessage
+            {
+                ContentMask = singleMessage
+                    ? JsonNetworkMessageContentMask.SingleDataSetMessage
+                    : JsonNetworkMessageContentMask.None,
+                SingleMessageMode = singleMessage,
+                DataSetMessages = dataSetMessages
+            };
         }
 
         /// <summary>
@@ -146,13 +231,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string messageId = ReadOptionalString(root, "MessageId");
             PublisherId envelopePublisherId = ReadPublisherId(root);
             Uuid envelopeDataSetClassId = ReadUuid(root, "DataSetClassId");
+            string writerGroupName = ReadOptionalString(root, "WriterGroupName");
             ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo");
-            bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement);
+            bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement)
+                || messagesElement.ValueKind == JsonValueKind.Object;
             var dataSetMessages = new List<PubSubDataSetMessage>();
             if (flatLayout)
             {
+                JsonElement singleElement = root.TryGetProperty("Messages", out messagesElement)
+                    ? messagesElement
+                    : root;
                 JsonDataSetMessage? dsm = DecodeOneDataSetMessage(
-                    root,
+                    singleElement,
                     envelopePublisherId,
                     envelopeDataSetClassId,
                     context,
@@ -211,7 +301,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 MessageType = JsonNetworkMessage.MessageTypeData,
                 PublisherId = envelopePublisherId,
                 DataSetClassId = envelopeDataSetClassId,
+                WriterGroupName = writerGroupName,
                 ReplyTo = replyTo,
+                ContentMask = DeriveNetworkMask(root, flatLayout),
                 SingleMessageMode = flatLayout,
                 DataSetMessages = dataSetMessages
             };
@@ -264,18 +356,26 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
+        /// <param name="forcedType">Discovery type implied by the JSON
+        /// MessageType, when the spec-specific envelope is used.</param>
         /// <returns>Decoded discovery message or
         /// <see langword="null"/>.</returns>
         private static JsonDiscoveryMessage? DecodeDiscovery(
             JsonElement root,
-            PubSubNetworkMessageContext context)
+            PubSubNetworkMessageContext context,
+            Uadp.UadpDiscoveryType? forcedType = null)
         {
             string messageId = ReadOptionalString(root, "MessageId");
             PublisherId publisherId = ReadPublisherId(root);
             uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             uint statusCode = ReadOptionalUInt32(root, "Status");
-            var discoveryType = (Uadp.UadpDiscoveryType)typeCode;
+            var discoveryType = forcedType ?? (Uadp.UadpDiscoveryType)typeCode;
+            if (discoveryType == Uadp.UadpDiscoveryType.None
+                && root.TryGetProperty("WriterConfiguration", out _))
+            {
+                discoveryType = Uadp.UadpDiscoveryType.DataSetWriterConfiguration;
+            }
             var msg = new JsonDiscoveryMessage
             {
                 MessageId = messageId,
@@ -628,15 +728,27 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 }
             }
             ushort writerId = ReadOptionalUInt16(entry, "DataSetWriterId");
+            string writerName = ReadOptionalString(entry, "DataSetWriterName");
+            PublisherId messagePublisherId = entry.TryGetProperty("PublisherId", out JsonElement pubElement)
+                ? ParsePublisherId(pubElement)
+                : PublisherId.Null;
+            string writerGroupName = ReadOptionalString(entry, "WriterGroupName");
             uint sequenceNumber = ReadOptionalUInt32(entry, "SequenceNumber");
             ConfigurationVersionDataType metaVersion = ReadMetaVersion(entry);
+            uint minorVersion = ReadOptionalUInt32(entry, "MinorVersion");
+            if (minorVersion != 0)
+            {
+                metaVersion.MinorVersion = minorVersion;
+            }
             DateTimeUtc timestamp = ReadOptionalTimestamp(entry, "Timestamp");
             StatusCode status = ReadOptionalStatus(entry, "Status");
             PubSubDataSetMessageType messageType = ReadMessageType(
                 entry, out string messageTypeName);
             JsonDataSetMessageContentMask mask = DeriveMask(entry);
+            bool hasPayloadWrapper = entry.TryGetProperty("Payload", out JsonElement payload);
+            bool hasDataSetHeader = HasDataSetMessageHeader(entry);
             DataSetMetaDataType? metaData = ResolveMetaData(
-                envelopePublisherId,
+                messagePublisherId.IsNull ? envelopePublisherId : messagePublisherId,
                 envelopeClassId,
                 writerId,
                 metaVersion,
@@ -649,7 +761,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return null;
             }
             ArrayOf<DataSetField> fields = [];
-            if (entry.TryGetProperty("Payload", out JsonElement payload))
+            if (hasPayloadWrapper)
             {
                 fields = JsonFieldDecoder.DecodeFields(
                     payload,
@@ -657,9 +769,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     detectedMode,
                     context.MessageContext);
             }
+            else if (!hasDataSetHeader)
+            {
+                fields = JsonFieldDecoder.DecodeFields(
+                    entry,
+                    metaData,
+                    detectedMode,
+                    context.MessageContext);
+            }
             return new JsonDataSetMessage
             {
                 DataSetWriterId = writerId,
+                DataSetWriterName = writerName,
+                PublisherId = messagePublisherId,
+                WriterGroupName = writerGroupName,
                 SequenceNumber = sequenceNumber,
                 MetaDataVersion = metaVersion,
                 Timestamp = timestamp,
@@ -669,6 +792,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 ContentMask = mask,
                 Fields = fields
             };
+        }
+
+        private static bool HasDataSetMessageHeader(JsonElement entry)
+        {
+            return entry.TryGetProperty("DataSetWriterId", out _)
+                || entry.TryGetProperty("DataSetWriterName", out _)
+                || entry.TryGetProperty("SequenceNumber", out _)
+                || entry.TryGetProperty("MetaDataVersion", out _)
+                || entry.TryGetProperty("Timestamp", out _)
+                || entry.TryGetProperty("Status", out _)
+                || entry.TryGetProperty("MessageType", out _)
+                || entry.TryGetProperty("Payload", out _);
         }
 
         /// <summary>
@@ -891,6 +1026,52 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 mask |= JsonDataSetMessageContentMask.MessageType;
             }
+            if (root.TryGetProperty("DataSetWriterName", out _))
+            {
+                mask |= JsonDataSetMessageContentMask.DataSetWriterName;
+            }
+            if (root.TryGetProperty("PublisherId", out _))
+            {
+                mask |= JsonDataSetMessageContentMask.PublisherId;
+            }
+            if (root.TryGetProperty("WriterGroupName", out _))
+            {
+                mask |= JsonDataSetMessageContentMask.WriterGroupName;
+            }
+            if (root.TryGetProperty("MinorVersion", out _))
+            {
+                mask |= JsonDataSetMessageContentMask.MinorVersion;
+            }
+            return mask;
+        }
+
+        private static JsonNetworkMessageContentMask DeriveNetworkMask(
+            JsonElement root,
+            bool singleMessage)
+        {
+            JsonNetworkMessageContentMask mask =
+                JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.DataSetMessageHeader;
+            if (singleMessage)
+            {
+                mask |= JsonNetworkMessageContentMask.SingleDataSetMessage;
+            }
+            if (root.TryGetProperty("PublisherId", out _))
+            {
+                mask |= JsonNetworkMessageContentMask.PublisherId;
+            }
+            if (root.TryGetProperty("DataSetClassId", out _))
+            {
+                mask |= JsonNetworkMessageContentMask.DataSetClassId;
+            }
+            if (root.TryGetProperty("ReplyTo", out _))
+            {
+                mask |= JsonNetworkMessageContentMask.ReplyTo;
+            }
+            if (root.TryGetProperty("WriterGroupName", out _))
+            {
+                mask |= JsonNetworkMessageContentMask.WriterGroupName;
+            }
             return mask;
         }
 
@@ -906,8 +1087,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </returns>
         private static JsonEncodingMode DetectMode(JsonElement root)
         {
-            if (!root.TryGetProperty("Payload", out JsonElement payload)
-                || payload.ValueKind != JsonValueKind.Object)
+            JsonElement payload = root;
+            if (root.TryGetProperty("Payload", out JsonElement wrappedPayload))
+            {
+                payload = wrappedPayload;
+            }
+            if (payload.ValueKind != JsonValueKind.Object)
             {
                 return JsonEncodingMode.Verbose;
             }

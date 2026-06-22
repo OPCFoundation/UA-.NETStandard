@@ -118,10 +118,16 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonNetworkMessage message,
             PubSubNetworkMessageContext context)
         {
-            if (message.SingleMessageMode && message.DataSetMessages.Count != 1)
+            bool singleMessage = message.SingleMessageMode
+                || (message.ContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
+            bool networkHeader =
+                (message.ContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
+            bool dataSetHeader =
+                (message.ContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
+            if (singleMessage && message.DataSetMessages.Count != 1)
             {
                 throw new ArgumentException(
-                    "JsonNetworkMessage with SingleMessageMode requires exactly one " +
+                    "JsonNetworkMessage with SingleDataSetMessage requires exactly one " +
                     "DataSetMessage per Part 14 §7.2.5.4.5 / §7.3.4.7.3 / Annex A.3.3.",
                     nameof(message));
             }
@@ -132,11 +138,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 Indented = false
             }))
             {
-                bool flatLayout = message.SingleMessageMode
-                    && message.DataSetMessages.Count == 1;
-                writer.WriteStartObject();
-                WriteEnvelopeHead(writer, message);
-                if (flatLayout)
+                if (networkHeader)
+                {
+                    writer.WriteStartObject();
+                    WriteEnvelopeHead(writer, message);
+                    writer.WritePropertyName("Messages");
+                }
+                if (singleMessage)
                 {
                     if (message.DataSetMessages[0] is not JsonDataSetMessage only)
                     {
@@ -144,11 +152,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                             "SingleMessageMode requires a JsonDataSetMessage payload.",
                             nameof(message));
                     }
-                    WriteDataSetMessageFields(writer, only, message, context, flatLayout: true);
+                    WriteDataSetMessageContent(writer, only, message, context, dataSetHeader);
                 }
                 else
                 {
-                    writer.WritePropertyName("Messages");
                     writer.WriteStartArray();
                     for (int i = 0; i < message.DataSetMessages.Count; i++)
                     {
@@ -158,14 +165,15 @@ namespace Opc.Ua.PubSub.Encoding.Json
                                 "DataSetMessage entries must be JsonDataSetMessage instances.",
                                 nameof(message));
                         }
-                        writer.WriteStartObject();
-                        WriteDataSetMessageFields(writer, dsm, message, context, flatLayout: false);
-                        writer.WriteEndObject();
+                        WriteDataSetMessageContent(writer, dsm, message, context, dataSetHeader);
                     }
                     writer.WriteEndArray();
                 }
-                WriteEnvelopeTail(writer, message);
-                writer.WriteEndObject();
+                if (networkHeader)
+                {
+                    WriteEnvelopeTail(writer, message);
+                    writer.WriteEndObject();
+                }
             }
             return buffer.GetWritten();
         }
@@ -189,8 +197,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 string.IsNullOrEmpty(message.MessageType)
                     ? JsonNetworkMessage.MessageTypeData
                     : message.MessageType);
-            WritePublisherId(writer, "PublisherId", message.PublisherId);
-            if (message.DataSetClassId.Guid != Guid.Empty)
+            if ((message.ContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+            {
+                WritePublisherId(writer, "PublisherId", message.PublisherId);
+            }
+            if ((message.ContentMask & JsonNetworkMessageContentMask.WriterGroupName) != 0
+                && !string.IsNullOrEmpty(message.WriterGroupName))
+            {
+                writer.WriteString("WriterGroupName", message.WriterGroupName);
+            }
+            if ((message.ContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0
+                && message.DataSetClassId.Guid != Guid.Empty)
             {
                 writer.WriteString("DataSetClassId", message.DataSetClassId.ToString());
             }
@@ -206,7 +223,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             Utf8JsonWriter writer,
             JsonNetworkMessage message)
         {
-            if (message.ReplyTo.Count == 0)
+            if ((message.ContentMask & JsonNetworkMessageContentMask.ReplyTo) == 0
+                || message.ReplyTo.Count == 0)
             {
                 return;
             }
@@ -219,6 +237,33 @@ namespace Opc.Ua.PubSub.Encoding.Json
             writer.WriteEndArray();
         }
 
+        private void WriteDataSetMessageContent(
+            Utf8JsonWriter writer,
+            JsonDataSetMessage dsm,
+            JsonNetworkMessage envelope,
+            PubSubNetworkMessageContext context,
+            bool dataSetHeader)
+        {
+            writer.WriteStartObject();
+            if (dataSetHeader)
+            {
+                WriteDataSetMessageFields(writer, dsm, envelope, context);
+            }
+            else if (dsm.MessageType != PubSubDataSetMessageType.KeepAlive)
+            {
+                DataSetMetaDataType? metaData = ResolveMetaData(envelope, dsm, context);
+                JsonFieldEncoder.EncodeFields(
+                    writer,
+                    dsm.Fields,
+                    metaData,
+                    Mode,
+                    context.MessageContext,
+                    dsm.FieldContentMask,
+                    writePayloadWrapper: false);
+            }
+            writer.WriteEndObject();
+        }
+
         /// <summary>
         /// Writes the per-DataSetMessage fields in the order required
         /// by Part 14 §7.2.5.4, respecting the
@@ -228,24 +273,34 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="dsm">DataSetMessage to encode.</param>
         /// <param name="envelope">Owning envelope (provides defaults).</param>
         /// <param name="context">Encoder context.</param>
-        /// <param name="flatLayout">
-        /// True when the DataSetMessage is being merged into the envelope
-        /// in single-message mode; suppresses the per-message
-        /// <c>MessageType</c> property so it does not shadow the
-        /// envelope's <c>ua-data</c> tag.
-        /// </param>
         private void WriteDataSetMessageFields(
             Utf8JsonWriter writer,
             JsonDataSetMessage dsm,
             JsonNetworkMessage envelope,
-            PubSubNetworkMessageContext context,
-            bool flatLayout)
+            PubSubNetworkMessageContext context)
         {
             JsonDataSetMessageContentMask mask = dsm.ContentMask;
             if ((mask & JsonDataSetMessageContentMask.DataSetWriterId) != 0
                 && dsm.DataSetWriterId != 0)
             {
                 writer.WriteNumber("DataSetWriterId", dsm.DataSetWriterId);
+            }
+            if ((mask & JsonDataSetMessageContentMask.DataSetWriterName) != 0
+                && !string.IsNullOrEmpty(dsm.DataSetWriterName))
+            {
+                writer.WriteString("DataSetWriterName", dsm.DataSetWriterName);
+            }
+            if ((mask & JsonDataSetMessageContentMask.PublisherId) != 0
+                && (envelope.ContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) == 0)
+            {
+                WritePublisherId(writer, "PublisherId",
+                    dsm.PublisherId.IsNull ? envelope.PublisherId : dsm.PublisherId);
+            }
+            if ((mask & JsonDataSetMessageContentMask.WriterGroupName) != 0
+                && string.IsNullOrEmpty(envelope.WriterGroupName)
+                && !string.IsNullOrEmpty(dsm.WriterGroupName))
+            {
+                writer.WriteString("WriterGroupName", dsm.WriterGroupName);
             }
             if ((mask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
             {
@@ -267,15 +322,26 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             if ((mask & JsonDataSetMessageContentMask.Status) != 0)
             {
+                // Part 14 Table 185 makes DataSetMessage Status presence
+                // depend on the JsonDataSetMessageContentMask; only
+                // field-level DataValue Status is omitted when Code is 0
+                // in the §7.2.5.4.2 example.
                 writer.WriteNumber("Status", dsm.Status.Code);
             }
-            if (!flatLayout
-                && (mask & JsonDataSetMessageContentMask.MessageType) != 0)
+            if ((mask & JsonDataSetMessageContentMask.MessageType) != 0)
             {
                 string wireType = string.IsNullOrEmpty(dsm.MessageTypeName)
                     ? JsonDataSetMessageType.ToWireString(dsm.MessageType)
                     : dsm.MessageTypeName;
                 writer.WriteString("MessageType", wireType);
+            }
+            if ((mask & JsonDataSetMessageContentMask.MinorVersion) != 0)
+            {
+                writer.WriteNumber("MinorVersion", dsm.MetaDataVersion.MinorVersion);
+            }
+            if (dsm.MessageType == PubSubDataSetMessageType.KeepAlive)
+            {
+                return;
             }
             DataSetMetaDataType? metaData = ResolveMetaData(envelope, dsm, context);
             JsonFieldEncoder.EncodeFields(
@@ -342,7 +408,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         /// <summary>
         /// Encodes a <see cref="JsonDiscoveryMessage"/>
-        /// (<c>ua-discovery</c> envelope) per
+        /// per
         /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
         /// Part 14 §7.2.5.5</see>.
         /// </summary>
@@ -365,11 +431,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 {
                     writer.WriteString("MessageId", message.MessageId);
                 }
-                writer.WriteString(
-                    "MessageType",
-                    JsonDiscoveryMessage.MessageTypeDiscovery);
+                writer.WriteString("MessageType", GetDiscoveryMessageType(message.DiscoveryType));
                 WritePublisherId(writer, "PublisherId", message.PublisherId);
-                writer.WriteNumber("DiscoveryType", (uint)message.DiscoveryType);
                 if (message.DataSetWriterId != 0)
                 {
                     writer.WriteNumber("DataSetWriterId", message.DataSetWriterId);
@@ -426,6 +489,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 writer.WriteEndObject();
             }
             return buffer.GetWritten();
+        }
+
+        private static string GetDiscoveryMessageType(Uadp.UadpDiscoveryType discoveryType)
+        {
+            return discoveryType switch
+            {
+                Uadp.UadpDiscoveryType.ApplicationInformation
+                    => JsonDiscoveryMessage.MessageTypeApplication,
+                Uadp.UadpDiscoveryType.PublisherEndpoints
+                    => JsonDiscoveryMessage.MessageTypeEndpoints,
+                Uadp.UadpDiscoveryType.PubSubConnection
+                    => JsonDiscoveryMessage.MessageTypeConnection,
+                Uadp.UadpDiscoveryType.DataSetMetaData
+                    => JsonNetworkMessage.MessageTypeMetaData,
+                _ => JsonDiscoveryMessage.MessageTypeStatus
+            };
         }
 
         private static void WriteApplicationInformation(
@@ -568,7 +647,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
             Opc.Ua.JsonActionNetworkMessage network = message.NetworkMessage
                 ?? CreateActionNetworkMessage(message);
-            network.MessageType = JsonActionNetworkMessage.MessageTypeAction;
+            network.MessageType = DetermineActionMessageType(network.Messages);
             if (string.IsNullOrEmpty(network.MessageId))
             {
                 network.MessageId = message.MessageId;
@@ -598,7 +677,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             return new Opc.Ua.JsonActionNetworkMessage
             {
                 MessageId = message.MessageId,
-                MessageType = JsonActionNetworkMessage.MessageTypeAction,
+                MessageType = DetermineActionMessageType(message.Messages),
                 PublisherId = message.PublisherId.IsNull
                     ? null
                     : message.PublisherId.ToString(),
@@ -612,6 +691,35 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 TimeoutHint = message.TimeoutHint,
                 Messages = message.Messages
             };
+        }
+
+        private static string DetermineActionMessageType(ArrayOf<ExtensionObject> messages)
+        {
+            bool hasRequest = false;
+            bool hasResponse = false;
+            for (int i = 0; i < messages.Count; i++)
+            {
+                if (!messages[i].TryGetValue(out IEncodeable? value) || value is null)
+                {
+                    continue;
+                }
+                if (value is Opc.Ua.JsonActionResponseMessage)
+                {
+                    hasResponse = true;
+                }
+                else if (value is Opc.Ua.JsonActionRequestMessage)
+                {
+                    hasRequest = true;
+                }
+            }
+            if (hasRequest && hasResponse)
+            {
+                throw new ArgumentException(
+                    "JSON Action NetworkMessages shall contain either ActionRequest or ActionResponse messages.");
+            }
+            return hasResponse
+                ? JsonActionNetworkMessage.MessageTypeActionResponse
+                : JsonActionNetworkMessage.MessageTypeActionRequest;
         }
 
         private static ReadOnlyMemory<byte> EncodeEncodeableRoot(

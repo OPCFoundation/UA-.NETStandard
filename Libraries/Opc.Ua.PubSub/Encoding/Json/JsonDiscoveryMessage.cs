@@ -32,7 +32,7 @@ using Opc.Ua.PubSub.Encoding.Uadp;
 namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
-    /// JSON discovery NetworkMessage (<c>ua-discovery</c> envelope)
+    /// JSON discovery NetworkMessage envelope
     /// carrying any of the discovery-response variants defined in
     /// Part 14.
     /// </summary>
@@ -51,11 +51,24 @@ namespace Opc.Ua.PubSub.Encoding.Json
     public sealed record JsonDiscoveryMessage : PubSubNetworkMessage
     {
         /// <summary>
-        /// MessageType wire literal for the JSON discovery envelope
-        /// (<see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
-        /// Part 14 §7.2.5.5</see>).
+        /// MessageType wire literal for application discovery.
         /// </summary>
-        public const string MessageTypeDiscovery = "ua-discovery";
+        public const string MessageTypeApplication = "ua-application";
+
+        /// <summary>
+        /// MessageType wire literal for endpoint discovery.
+        /// </summary>
+        public const string MessageTypeEndpoints = "ua-endpoints";
+
+        /// <summary>
+        /// MessageType wire literal for status discovery.
+        /// </summary>
+        public const string MessageTypeStatus = "ua-status";
+
+        /// <summary>
+        /// MessageType wire literal for connection discovery.
+        /// </summary>
+        public const string MessageTypeConnection = "ua-connection";
 
         /// <summary>
         /// MessageId per Part 14 §7.2.5.3.

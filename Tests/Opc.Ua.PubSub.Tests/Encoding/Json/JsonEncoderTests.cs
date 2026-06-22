@@ -184,6 +184,78 @@ namespace OpcUaPubSubJsonTests
                 Assert.That(payload.ValueKind, Is.EqualTo(JsonValueKind.Object));
                 Assert.That(payload.TryGetProperty("BoolField", out _), Is.True);
             }
+            else
+            {
+                Assert.That(only.TryGetProperty("Payload", out _), Is.False,
+                    "Part 14 §7.2.5.4.1 keep-alive DataSetMessages shall have no Payload field.");
+            }
+        }
+
+        [Test]
+        [TestSpec("7.2.5.3")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task HeaderSuppressionEmitsBarePayloadObjectAsync()
+        {
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                ContentMask = JsonDataSetMessageContentMask.None,
+                Fields = JsonTestUtilities.CreateFields()
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                ContentMask = JsonNetworkMessageContentMask.SingleDataSetMessage,
+                SingleMessageMode = true,
+                MetaData = meta,
+                DataSetMessages = [dsm]
+            };
+            var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
+            ReadOnlyMemory<byte> bytes = await encoder
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            JsonElement root = document.RootElement;
+            Assert.That(root.TryGetProperty("MessageId", out _), Is.False);
+            Assert.That(root.TryGetProperty("MessageType", out _), Is.False);
+            Assert.That(root.TryGetProperty("Payload", out _), Is.False);
+            Assert.That(root.TryGetProperty("BoolField", out _), Is.True);
+        }
+
+        [Test]
+        [TestSpec("7.2.5.3")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task OptionalNamesAndDataSetPublisherIdEmitByMaskAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                ContentMask = JsonDataSetMessageContentMask.DataSetWriterName
+                    | JsonDataSetMessageContentMask.PublisherId
+                    | JsonDataSetMessageContentMask.WriterGroupName
+                    | JsonDataSetMessageContentMask.MessageType,
+                DataSetWriterName = "WriterA",
+                PublisherId = PublisherId.FromString("publisher-dsm"),
+                WriterGroupName = "GroupA",
+                Fields = []
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
+                    | JsonNetworkMessageContentMask.SingleDataSetMessage
+                    | JsonNetworkMessageContentMask.WriterGroupName,
+                WriterGroupName = string.Empty,
+                DataSetMessages = [dsm]
+            };
+            var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
+            ReadOnlyMemory<byte> bytes = await encoder
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            JsonElement dsmJson = document.RootElement;
+            Assert.That(dsmJson.GetProperty("DataSetWriterName").GetString(), Is.EqualTo("WriterA"));
+            Assert.That(dsmJson.GetProperty("PublisherId").GetString(), Is.EqualTo("publisher-dsm"));
+            Assert.That(dsmJson.GetProperty("WriterGroupName").GetString(), Is.EqualTo("GroupA"));
         }
 
         private sealed record ForeignNetworkMessage : PubSubNetworkMessage

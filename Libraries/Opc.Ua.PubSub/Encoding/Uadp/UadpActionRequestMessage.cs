@@ -85,6 +85,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public ByteString CorrelationData { get; init; }
 
         /// <summary>
+        /// PublisherId of the requestor encoded as BaseDataType in the
+        /// UADP ActionHeader.
+        /// </summary>
+        public Variant RequestorId { get; init; }
+
+        /// <summary>
         /// Optional address used by the responder for responses.
         /// </summary>
         public string ResponseAddress { get; init; } = string.Empty;

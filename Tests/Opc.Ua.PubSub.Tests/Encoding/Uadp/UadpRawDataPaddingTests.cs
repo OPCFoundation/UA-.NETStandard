@@ -410,7 +410,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
         [Test]
         [TestSpec("7.2.4.5.11")]
-        public async Task DeltaFrame_RawDataPaddedFields_RoundTrip()
+        public void DeltaFrameRawDataPaddedFieldsThrows()
         {
             var registry = new DataSetMetaDataRegistry();
             PubSubNetworkMessageContext context =
@@ -477,16 +477,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 ]
             };
 
-            ReadOnlyMemory<byte> bytes =
-                await new UadpEncoder().EncodeAsync(msg, context).ConfigureAwait(false);
-            var decoded = (UadpNetworkMessage?)UadpDecoder.Decode(bytes, context);
-            Assert.That(decoded, Is.Not.Null);
-            var dsm = (UadpDataSetMessage)decoded!.DataSetMessages[0];
-            Assert.That(dsm.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
-            Assert.That(((DataSetField[]?)dsm.Fields) ?? [], Has.Length.EqualTo(1));
-            Assert.That(dsm.Fields[0].Value.TryGetValue(out string? text), Is.True);
-            Assert.That(text, Is.EqualTo("delta"),
-                "Delta-frame RawData padded field must trim trailing NULs on decode.");
+            Assert.That(
+                async () => await new UadpEncoder().EncodeAsync(msg, context).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("RawData"),
+                "Part 14 §7.2.4.5.11 restricts RawData to Data Key Frame DataSetMessages.");
         }
 
         private static async Task<ReadOnlyMemory<byte>>

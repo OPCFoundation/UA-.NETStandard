@@ -41,24 +41,30 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// Implements
     /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6">
     /// Part 14 §7.2.5.6</see> request/response Action NetworkMessage
-    /// envelope with <c>MessageType=ua-action</c>.
+    /// envelope with <c>MessageType=ua-action-request</c> or
+    /// <c>ua-action-response</c>.
     /// </remarks>
     public sealed record JsonActionNetworkMessage : PubSubNetworkMessage
     {
         /// <summary>
-        /// Wire literal for the JSON action envelope.
+        /// Wire literal for the JSON action request envelope.
         /// </summary>
-        public const string MessageTypeAction = "ua-action";
+        public const string MessageTypeActionRequest = "ua-action-request";
+
+        /// <summary>
+        /// Wire literal for the JSON action response envelope.
+        /// </summary>
+        public const string MessageTypeActionResponse = "ua-action-response";
 
         /// <summary>
         /// Wire literal for the JSON action metadata message.
         /// </summary>
-        public const string MessageTypeActionMetaData = "ua-actionmetadata";
+        public const string MessageTypeActionMetaData = "ua-action-metadata";
 
         /// <summary>
         /// Wire literal for the JSON action responder message.
         /// </summary>
-        public const string MessageTypeActionResponder = "ua-actionresponder";
+        public const string MessageTypeActionResponder = "ua-action-responder";
 
         /// <summary>
         /// Source-generated Part 14 action NetworkMessage envelope.

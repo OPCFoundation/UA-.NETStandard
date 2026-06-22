@@ -75,6 +75,16 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return [];
             }
+            if (messageType == PubSubDataSetMessageType.Event
+                && encoding != PubSubFieldEncoding.Variant)
+            {
+                return null;
+            }
+            if (messageType == PubSubDataSetMessageType.DeltaFrame
+                && encoding == PubSubFieldEncoding.RawData)
+            {
+                return null;
+            }
 
             if (messageType == PubSubDataSetMessageType.DeltaFrame)
             {
@@ -152,7 +162,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 {
                     return null;
                 }
-                fields.Add(field);
+                fields.Add(field with { FieldIndex = fieldIndex });
             }
             return fields;
         }

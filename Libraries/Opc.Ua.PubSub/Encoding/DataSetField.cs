@@ -60,6 +60,12 @@ namespace Opc.Ua.PubSub.Encoding
         public Variant Value { get; init; }
 
         /// <summary>
+        /// Metadata field index for UADP delta frames. A negative value
+        /// means the field keeps its current list position.
+        /// </summary>
+        public int FieldIndex { get; init; } = -1;
+
+        /// <summary>
         /// Per-field status code; meaningful only for
         /// <see cref="PubSubFieldEncoding.DataValue"/> encoding. Defaults
         /// to <see cref="StatusCodes.Good"/>.

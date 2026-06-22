@@ -67,11 +67,26 @@ namespace Opc.Ua.PubSub.Encoding.Json
         public string MessageType { get; init; } = MessageTypeData;
 
         /// <summary>
+        /// JSON NetworkMessageContentMask controlling the envelope and
+        /// optional NetworkMessage fields.
+        /// </summary>
+        public JsonNetworkMessageContentMask ContentMask { get; init; }
+            = JsonNetworkMessageContentMask.NetworkMessageHeader
+            | JsonNetworkMessageContentMask.DataSetMessageHeader
+            | JsonNetworkMessageContentMask.PublisherId
+            | JsonNetworkMessageContentMask.DataSetClassId;
+
+        /// <summary>
         /// DataSetClassId of the published dataset class. May be
         /// <see cref="Uuid.Empty"/> when the publisher does not assign
         /// one.
         /// </summary>
         public Uuid DataSetClassId { get; init; }
+
+        /// <summary>
+        /// Name of the WriterGroup that created the NetworkMessage.
+        /// </summary>
+        public string WriterGroupName { get; init; } = string.Empty;
 
         /// <summary>
         /// Optional ReplyTo endpoint list used by request/response

@@ -82,6 +82,18 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return;
             }
+            if (messageType == PubSubDataSetMessageType.Event
+                && encoding != PubSubFieldEncoding.Variant)
+            {
+                throw new InvalidOperationException(
+                    "Event DataSetMessages shall use Variant field encoding with DataSetFlags1 field-encoding bits false.");
+            }
+            if (messageType == PubSubDataSetMessageType.DeltaFrame
+                && encoding == PubSubFieldEncoding.RawData)
+            {
+                throw new InvalidOperationException(
+                    "RawData field encoding shall only be applied to Data Key Frame DataSetMessages.");
+            }
 
             if (messageType == PubSubDataSetMessageType.DeltaFrame)
             {
@@ -155,22 +167,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     case PubSubFieldEncoding.DataValue:
                         DataValue dv = BuildDataValue(field, fieldContentMask);
                         writer.WriteDataValue(dv, context);
-                        break;
-                    case PubSubFieldEncoding.RawData:
-                        if (metaData is null ||
-                            i >= metaData.Fields.Count)
-                        {
-                            throw new InvalidOperationException(
-                                "RawData delta frame requires aligned DataSetMetaData fields.");
-                        }
-                        FieldMetaData fmd = metaData.Fields[i];
-                        writer.WriteRawScalar(
-                            field.Value,
-                            fmd.BuiltInType.ToBuiltInType(),
-                            fmd.ValueRank,
-                            fmd.MaxStringLength,
-                            fmd.ArrayDimensions,
-                            context);
                         break;
                     default:
                         throw new InvalidOperationException(
@@ -268,14 +264,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         /// <summary>
         /// Returns the explicit delta frame field index for a field — at
-        /// the wire level this is the metadata position; the data model
-        /// preserves order, so we use the loop index.
+        /// the wire level this is the metadata position.
         /// </summary>
         /// <param name="field">Source field.</param>
         /// <param name="index">Iterator index used as the wire index.</param>
         public static ushort DeltaFrameFieldIndex(this DataSetField field, int index)
         {
-            _ = field;
+            if (field.FieldIndex >= 0)
+            {
+                if (field.FieldIndex > ushort.MaxValue)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(field));
+                }
+                return (ushort)field.FieldIndex;
+            }
             if (index < 0 || index > ushort.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));

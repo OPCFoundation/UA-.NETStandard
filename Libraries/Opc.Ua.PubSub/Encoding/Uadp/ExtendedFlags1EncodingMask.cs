@@ -41,8 +41,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.2.4">
     /// Part 14 §A.2.2.4 — UADP NetworkMessage Header Layout</see>
-    /// (Table 158). The PublisherId type bits (Table 159) are: Byte=0,
-    /// UInt16=1, UInt32=2, UInt64=3, String=4, Guid=5.
+    /// (Table 154). The PublisherId type bits are: Byte=0,
+    /// UInt16=1, UInt32=2, UInt64=3, String=4. Value 5 is reserved.
     /// </remarks>
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 158 uses both single-bit flags AND a
                                // bitmask helper (PublisherIdTypeMask = 0x07); [Flags] reflects the spec semantics.
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Extracts the <see cref="PublisherIdType"/> from the
         /// <see cref="ExtendedFlags1EncodingMask.PublisherIdTypeMask"/>
         /// bits of the raw byte. Returns <see langword="false"/> when
-        /// the bit pattern is reserved (values 6 and 7).
+        /// the bit pattern is reserved (values 5, 6 and 7).
         /// </summary>
         /// <param name="raw">Raw ExtendedFlags1 byte from the wire.</param>
         /// <param name="type">Decoded PublisherId type when supported.</param>
@@ -138,9 +138,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 case 4:
                     type = PublisherIdType.String;
                     return true;
-                case 5:
-                    type = PublisherIdType.Guid;
-                    return true;
                 default:
                     type = PublisherIdType.Byte;
                     return false;
@@ -154,7 +151,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// nibble.
         /// </summary>
         /// <param name="type">PublisherId type to encode.</param>
-        /// <returns>The 3-bit encoding (0..5).</returns>
+        /// <returns>The 3-bit encoding (0..4).</returns>
         public static byte EncodePublisherIdType(PublisherIdType type)
         {
             return type switch
@@ -164,7 +161,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 PublisherIdType.UInt32 => 2,
                 PublisherIdType.UInt64 => 3,
                 PublisherIdType.String => 4,
-                PublisherIdType.Guid => 5,
+                PublisherIdType.Guid => throw new InvalidOperationException(
+                    "Guid PublisherId is reserved in the UADP mapping; use JSON mapping."),
                 _ => 0
             };
         }

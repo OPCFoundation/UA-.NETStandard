@@ -51,7 +51,7 @@ namespace OpcUaPubSubJsonTests
     {
         [Test]
         [TestSpec("7.2.5.6.1")]
-        public async Task EncodeActionRequestAndResponseRoundTripsAsync()
+        public async Task EncodeActionRequestRoundTripsAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var request = new JsonActionRequestMessage
@@ -72,25 +72,6 @@ namespace OpcUaPubSubJsonTests
                 ActionState = ActionState.Executing,
                 Payload = new ExtensionObject(CreatePayload("Speed", (byte)BuiltInType.Double))
             };
-            var response = new JsonActionResponseMessage
-            {
-                DataSetWriterId = 11,
-                ActionTargetId = 22,
-                DataSetWriterName = "Writer",
-                WriterGroupName = "Group",
-                MetaDataVersion = new ConfigurationVersionDataType
-                {
-                    MajorVersion = 1,
-                    MinorVersion = 2
-                },
-                MinorVersion = 4,
-                Timestamp = new DateTime(2026, 6, 22, 8, 0, 1, DateTimeKind.Utc),
-                Status = StatusCodes.BadTimeout,
-                MessageType = "ua-action-response",
-                RequestId = 44,
-                ActionState = ActionState.Done,
-                Payload = new ExtensionObject(CreatePayload("Result", (byte)BuiltInType.String))
-            };
             var msg = new PubSubJsonActionNetworkMessage
             {
                 MessageId = "act-1",
@@ -101,8 +82,7 @@ namespace OpcUaPubSubJsonTests
                 TimeoutHint = 12_000,
                 Messages =
                 [
-                    new ExtensionObject(request),
-                    new ExtensionObject(response)
+                    new ExtensionObject(request)
                 ]
             };
             var encoder = new PubSubJsonEncoder();
@@ -113,10 +93,10 @@ namespace OpcUaPubSubJsonTests
             {
                 JsonElement root = document.RootElement;
                 Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo(
-                    PubSubJsonActionNetworkMessage.MessageTypeAction));
+                    PubSubJsonActionNetworkMessage.MessageTypeActionRequest));
                 Assert.That(root.GetProperty("ResponseAddress").GetString(),
                     Is.EqualTo("mqtt://broker/responses"));
-                Assert.That(root.GetProperty("Messages").GetArrayLength(), Is.EqualTo(2));
+                Assert.That(root.GetProperty("Messages").GetArrayLength(), Is.EqualTo(1));
             }
 
             var decoder = new PubSubJsonDecoder();
@@ -132,7 +112,7 @@ namespace OpcUaPubSubJsonTests
                 new ByteString(new byte[] { 1, 2, 3, 4 })));
             Assert.That(act.RequestorId, Is.EqualTo("requestor-1"));
             Assert.That(act.TimeoutHint, Is.EqualTo(12_000));
-            Assert.That(act.Messages, Has.Count.EqualTo(2));
+            Assert.That(act.Messages, Has.Count.EqualTo(1));
             Assert.That(act.Messages[0].TryGetValue(out IEncodeable? first), Is.True);
             Assert.That(first, Is.TypeOf<JsonActionRequestMessage>());
             var roundTripRequest = (JsonActionRequestMessage)first!;
@@ -141,12 +121,48 @@ namespace OpcUaPubSubJsonTests
             Assert.That(roundTripRequest.ActionState, Is.EqualTo(ActionState.Executing));
             AssertPayload(roundTripRequest.Payload, "Speed");
 
-            Assert.That(act.Messages[1].TryGetValue(out IEncodeable? second), Is.True);
-            Assert.That(second, Is.TypeOf<JsonActionResponseMessage>());
-            var roundTripResponse = (JsonActionResponseMessage)second!;
-            Assert.That(roundTripResponse.RequestId, Is.EqualTo(44));
-            Assert.That(roundTripResponse.ActionTargetId, Is.EqualTo(22));
-            Assert.That(roundTripResponse.ActionState, Is.EqualTo(ActionState.Done));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.6.3")]
+        public async Task EncodeActionResponseUsesResponseMessageTypeAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var response = new JsonActionResponseMessage
+            {
+                DataSetWriterId = 11,
+                ActionTargetId = 22,
+                Status = StatusCodes.BadTimeout,
+                MessageType = "ua-action-response",
+                RequestId = 44,
+                ActionState = ActionState.Done,
+                Payload = new ExtensionObject(CreatePayload("Result", (byte)BuiltInType.String))
+            };
+            var msg = new PubSubJsonActionNetworkMessage
+            {
+                MessageId = "act-response-1",
+                PublisherId = PublisherId.FromString("publisher-1"),
+                RequestorId = "requestor-1",
+                Messages = [new ExtensionObject(response)]
+            };
+            var encoder = new PubSubJsonEncoder();
+            ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
+                .ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
+                Is.EqualTo(PubSubJsonActionNetworkMessage.MessageTypeActionResponse));
+
+            var decoder = new PubSubJsonDecoder();
+            PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
+                .ConfigureAwait(false);
+
+            var act = decoded as PubSubJsonActionNetworkMessage;
+            Assert.That(act, Is.Not.Null);
+            Assert.That(act!.Messages, Has.Count.EqualTo(1));
+            Assert.That(act.Messages[0].TryGetValue(out IEncodeable? body), Is.True);
+            Assert.That(body, Is.TypeOf<JsonActionResponseMessage>());
+            var roundTripResponse = (JsonActionResponseMessage)body!;
             Assert.That(roundTripResponse.Status, Is.EqualTo(StatusCodes.BadTimeout));
             AssertPayload(roundTripResponse.Payload, "Result");
         }
@@ -213,7 +229,7 @@ namespace OpcUaPubSubJsonTests
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             ReadOnlyMemory<byte> bytes = System.Text.Encoding.UTF8.GetBytes(
-                "{\"MessageType\":\"ua-action\",\"Messages\":[]}");
+                "{\"MessageType\":\"ua-action-request\",\"Messages\":[]}");
             var decoder = new PubSubJsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
                 .ConfigureAwait(false);

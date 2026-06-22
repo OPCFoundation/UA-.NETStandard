@@ -79,7 +79,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestCase(PublisherIdType.UInt32)]
         [TestCase(PublisherIdType.UInt64)]
         [TestCase(PublisherIdType.String)]
-        [TestCase(PublisherIdType.Guid)]
         public void ExtendedFlags1_PublisherIdType_RoundTrips(PublisherIdType type)
         {
             byte raw = ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(type);
@@ -93,8 +92,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void ExtendedFlags1_PublisherIdType_RejectsUnsupportedValue()
         {
             bool ok = ExtendedFlags1EncodingMaskExtensions
-                .TryGetPublisherIdType(0x07, out _);
+                .TryGetPublisherIdType(0x05, out _);
             Assert.That(ok, Is.False);
+        }
+
+        [Test]
+        public void ExtendedFlags1PublisherIdTypeGuidThrows()
+        {
+            Assert.That(
+                () => ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(PublisherIdType.Guid),
+                Throws.InvalidOperationException);
         }
 
         [Test]

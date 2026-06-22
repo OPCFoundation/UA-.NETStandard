@@ -78,11 +78,51 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
-        public async Task PublisherId_Guid_RoundTrips()
+        public void PublisherIdGuidThrowsOnEncode()
         {
-            await RoundTripAsync(PublisherId.FromGuid(
-                new Guid("12345678-1234-1234-1234-1234567890AB")))
-                .ConfigureAwait(false);
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId,
+                PublisherId = PublisherId.FromGuid(
+                    new Guid("12345678-1234-1234-1234-1234567890AB")),
+                DataSetMessages =
+                [
+                    new UadpDataSetMessage
+                    {
+                        DataSetWriterId = 1,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant((uint)42) }]
+                    }
+                ]
+            };
+            var encoder = new UadpEncoder();
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+
+            Assert.That(async () => await encoder.EncodeAsync(message, context).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task PublisherIdWireTypeFiveIsSkippedOnDecode()
+        {
+            byte[] frame =
+            [
+                0x91,
+                0x05,
+                0x78, 0x56, 0x34, 0x12,
+                0x34, 0x12,
+                0x34, 0x12,
+                0x34, 0x12,
+                0x34, 0x12, 0x56, 0x78, 0x90, 0xAB
+            ];
+            var decoder = new UadpDecoder();
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+
+            PubSubNetworkMessage? decoded =
+                await decoder.TryDecodeAsync(frame, context).ConfigureAwait(false);
+
+            Assert.That(decoded, Is.Null,
+                "Part 14 v1.05.07 Table 154 reserves PublisherId type value 5.");
         }
 
         private static async Task RoundTripAsync(PublisherId publisherId)
@@ -142,11 +182,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     publisherId.TryGetString(out string? sa);
                     decodedUadp.PublisherId.TryGetString(out string? sb);
                     Assert.That(sb, Is.EqualTo(sa));
-                    break;
-                case PublisherIdType.Guid:
-                    publisherId.TryGetGuid(out Guid ga);
-                    decodedUadp.PublisherId.TryGetGuid(out Guid gb);
-                    Assert.That(gb, Is.EqualTo(ga));
                     break;
             }
         }

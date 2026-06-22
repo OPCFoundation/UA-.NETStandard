@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
@@ -75,6 +76,11 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
+            using (JsonDocument document = JsonDocument.Parse(bytes))
+            {
+                Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
+                    Is.EqualTo(JsonDiscoveryMessage.MessageTypeApplication));
+            }
 
             var decoder = new JsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
@@ -114,6 +120,11 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
+            using (JsonDocument document = JsonDocument.Parse(bytes))
+            {
+                Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
+                    Is.EqualTo(JsonDiscoveryMessage.MessageTypeConnection));
+            }
 
             var decoder = new JsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
@@ -147,17 +158,19 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
 
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
+                Is.EqualTo(Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage.MessageTypeMetaData));
+
             var decoder = new JsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
                 .ConfigureAwait(false);
 
-            var disc = decoded as JsonDiscoveryMessage;
-            Assert.That(disc, Is.Not.Null);
-            Assert.That(disc!.DiscoveryType,
-                Is.EqualTo(UadpDiscoveryType.DataSetMetaData));
-            Assert.That(disc.MetaData, Is.Not.Null);
-            Assert.That(disc.MetaData!.Name, Is.EqualTo("Disc-DSM"));
-            Assert.That(disc.DataSetWriterId, Is.EqualTo(5));
+            var metaDataMessage = decoded as Opc.Ua.PubSub.Encoding.Json.JsonMetaDataMessage;
+            Assert.That(metaDataMessage, Is.Not.Null);
+            Assert.That(metaDataMessage!.MetaDataPayload, Is.Not.Null);
+            Assert.That(metaDataMessage.MetaDataPayload!.Name, Is.EqualTo("Disc-DSM"));
+            Assert.That(metaDataMessage.DataSetWriterId, Is.EqualTo(5));
         }
 
         [Test]
@@ -182,6 +195,11 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
+            using (JsonDocument document = JsonDocument.Parse(bytes))
+            {
+                Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
+                    Is.EqualTo(JsonDiscoveryMessage.MessageTypeStatus));
+            }
 
             var decoder = new JsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
@@ -225,6 +243,11 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
+            using (JsonDocument document = JsonDocument.Parse(bytes))
+            {
+                Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
+                    Is.EqualTo(JsonDiscoveryMessage.MessageTypeEndpoints));
+            }
 
             var decoder = new JsonDecoder();
             PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)

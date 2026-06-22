@@ -54,6 +54,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
             | JsonDataSetMessageContentMask.MetaDataVersion;
 
         /// <summary>
+        /// Name of the DataSetWriter that created the DataSetMessage.
+        /// </summary>
+        public string DataSetWriterName { get; init; } = string.Empty;
+
+        /// <summary>
+        /// PublisherId carried at DataSetMessage level when the
+        /// NetworkMessage header is suppressed.
+        /// </summary>
+        public PublisherId PublisherId { get; init; }
+
+        /// <summary>
+        /// Name of the WriterGroup that created the DataSetMessage.
+        /// </summary>
+        public string WriterGroupName { get; init; } = string.Empty;
+
+        /// <summary>
         /// Wire-form discriminator (e.g. <c>ua-keyframe</c>) derived
         /// from <see cref="PubSubDataSetMessage.MessageType"/>. When
         /// non-empty this value wins over the enum-derived default,

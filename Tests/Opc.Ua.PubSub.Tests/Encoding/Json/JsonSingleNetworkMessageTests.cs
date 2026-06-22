@@ -87,12 +87,11 @@ namespace OpcUaPubSubJsonTests
 
             using JsonDocument doc = JsonDocument.Parse(bytes);
             JsonElement root = doc.RootElement;
-            Assert.That(root.TryGetProperty("Messages", out _), Is.False,
-                "Single-message mode MUST suppress the Messages array.");
-            Assert.That(root.TryGetProperty("Payload", out _), Is.True,
-                "DataSetMessage Payload must be merged into the document root.");
-            Assert.That(root.TryGetProperty("DataSetWriterId", out JsonElement w), Is.True,
-                "DataSetMessage DataSetWriterId must be present at root.");
+            Assert.That(root.TryGetProperty("Messages", out JsonElement messages), Is.True);
+            Assert.That(messages.ValueKind, Is.EqualTo(JsonValueKind.Object),
+                "Part 14 §7.2.5.3 SingleDataSetMessage uses an object instead of an array.");
+            Assert.That(messages.TryGetProperty("Payload", out _), Is.True);
+            Assert.That(messages.TryGetProperty("DataSetWriterId", out JsonElement w), Is.True);
             Assert.That(w.GetUInt16(), Is.EqualTo(1));
         }
 

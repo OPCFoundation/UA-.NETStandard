@@ -211,7 +211,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             };
             var response = new UadpDiscoveryResponseMessage
             {
-                PublisherId = PublisherId.FromGuid((Uuid)Guid.NewGuid()),
+                PublisherId = PublisherId.FromString("publisher-endpoints"),
                 SequenceNumber = 7,
                 DiscoveryType = UadpDiscoveryType.PublisherEndpoints,
                 PublisherEndpoints = new[] { endpoint },

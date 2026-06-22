@@ -80,14 +80,15 @@ namespace OpcUaPubSubJsonTests
                 .EncodeAsync(msg, ctx).ConfigureAwait(false);
             using JsonDocument document = JsonDocument.Parse(bytes);
             JsonElement root = document.RootElement;
-            Assert.That(root.TryGetProperty("Messages", out _), Is.False,
-                "Single-message layout MUST suppress the Messages array.");
+            Assert.That(root.TryGetProperty("Messages", out JsonElement messages), Is.True);
+            Assert.That(messages.ValueKind, Is.EqualTo(JsonValueKind.Object),
+                "Part 14 §7.2.5.3 SingleDataSetMessage uses an object instead of a Messages array.");
             Assert.That(root.GetProperty("MessageId").GetString(), Is.EqualTo("single-1"));
             Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo(
                 Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage.MessageTypeData));
-            Assert.That(root.TryGetProperty("DataSetWriterId", out JsonElement w), Is.True);
+            Assert.That(messages.TryGetProperty("DataSetWriterId", out JsonElement w), Is.True);
             Assert.That(w.GetUInt16(), Is.EqualTo(1));
-            Assert.That(root.TryGetProperty("Payload", out _), Is.True);
+            Assert.That(messages.TryGetProperty("Payload", out _), Is.True);
         }
 
         [Test]

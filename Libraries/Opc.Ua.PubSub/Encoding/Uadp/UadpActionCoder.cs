@@ -47,6 +47,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private const byte kActionRequest = 0x01;
         private const byte kResponseAddressEnabled = 0x02;
         private const byte kCorrelationDataEnabled = 0x04;
+        private const byte kRequestorIdEnabled = 0x08;
         private const byte kTimeoutHintEnabled = 0x10;
 
         /// <summary>
@@ -105,8 +106,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             bool isRequest = (actionFlags & kActionRequest) != 0;
             if (!TryReadActionHeader(
-                ref reader, actionFlags, out string responseAddress,
-                out ByteString correlationData, out double timeoutHint))
+                ref reader, actionFlags, context.MessageContext,
+                out string responseAddress, out ByteString correlationData,
+                out Variant requestorId, out double timeoutHint))
             {
                 return null;
             }
@@ -116,13 +118,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return null;
             }
-
-            uint statusCode = 0;
-            if (!isRequest && !reader.TryReadUInt32Le(out statusCode))
-            {
-                return null;
-            }
-            StatusCode status = new StatusCode(statusCode);
 
             ArrayOf<DataSetField>? decodedPayload = UadpFieldDecoder.DecodeFields(
                 ref reader,
@@ -148,6 +143,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     ActionState = (ActionState)stateByte,
                     ResponseAddress = responseAddress,
                     CorrelationData = correlationData,
+                    RequestorId = requestorId,
                     TimeoutHint = timeoutHint,
                     Payload = payload
                 }
@@ -160,8 +156,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     ActionTargetId = actionTargetId,
                     RequestId = requestId,
                     ActionState = (ActionState)stateByte,
-                    Status = status,
                     CorrelationData = correlationData,
+                    RequestorId = requestorId,
                     TimeoutHint = timeoutHint,
                     Payload = payload
                 };
@@ -187,10 +183,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 actionFlags |= kCorrelationDataEnabled;
             }
+            if (!message.RequestorId.IsNull)
+            {
+                actionFlags |= kRequestorIdEnabled;
+            }
 
             writer.WriteByte(actionFlags);
             WriteActionHeader(ref writer, actionFlags, message.ResponseAddress,
-                message.CorrelationData, message.TimeoutHint);
+                message.CorrelationData, message.RequestorId, message.TimeoutHint,
+                context.MessageContext);
             WriteActionPayloadHeader(ref writer, message.ActionTargetId,
                 message.RequestId, message.ActionState);
             UadpFieldEncoder.EncodeFields(
@@ -216,13 +217,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 actionFlags |= kCorrelationDataEnabled;
             }
+            if (!message.RequestorId.IsNull)
+            {
+                actionFlags |= kRequestorIdEnabled;
+            }
 
             writer.WriteByte(actionFlags);
             WriteActionHeader(ref writer, actionFlags, message.ResponseAddress,
-                message.CorrelationData, message.TimeoutHint);
+                message.CorrelationData, message.RequestorId, message.TimeoutHint,
+                context.MessageContext);
             WriteActionPayloadHeader(ref writer, message.ActionTargetId,
                 message.RequestId, message.ActionState);
-            writer.WriteUInt32Le((uint)message.Status.Code);
             UadpFieldEncoder.EncodeFields(
                 ref writer, message.Payload, message.FieldEncoding,
                 PubSubDataSetMessageType.KeyFrame, message.MetaData,
@@ -271,7 +276,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             byte actionFlags,
             string responseAddress,
             ByteString correlationData,
-            double timeoutHint)
+            Variant requestorId,
+            double timeoutHint,
+            IServiceMessageContext context)
         {
             if ((actionFlags & kResponseAddressEnabled) != 0)
             {
@@ -281,8 +288,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 WriteByteString(ref writer, correlationData);
             }
+            if ((actionFlags & kRequestorIdEnabled) != 0)
+            {
+                writer.WriteVariant(requestorId, context);
+            }
             if ((actionFlags & kTimeoutHintEnabled) != 0)
             {
+                // Duration is an OPC UA Double in Binary Encoding; writing
+                // the IEEE-754 bits little-endian matches Part 14 Table 154.
                 writer.WriteInt64Le(BitConverter.DoubleToInt64Bits(timeoutHint));
             }
         }
@@ -301,12 +314,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private static bool TryReadActionHeader(
             ref UadpBinaryReader reader,
             byte actionFlags,
+            IServiceMessageContext context,
             out string responseAddress,
             out ByteString correlationData,
+            out Variant requestorId,
             out double timeoutHint)
         {
             responseAddress = string.Empty;
             correlationData = default;
+            requestorId = Variant.Null;
             timeoutHint = 0;
 
             if ((actionFlags & kResponseAddressEnabled) != 0)
@@ -321,6 +337,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 !TryReadByteString(ref reader, out correlationData))
             {
                 return false;
+            }
+            if ((actionFlags & kRequestorIdEnabled) != 0)
+            {
+                try
+                {
+                    requestorId = reader.ReadVariant(context);
+                }
+                catch (ServiceResultException)
+                {
+                    return false;
+                }
             }
             if ((actionFlags & kTimeoutHintEnabled) != 0)
             {

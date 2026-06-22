@@ -397,11 +397,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     DataSetWriterId = 1,
                     FieldEncoding = PubSubFieldEncoding.Variant,
                     MessageType = PubSubDataSetMessageType.DeltaFrame,
-                    Fields = [ new DataSetField { Value = new Variant(42) } ]
+                    Fields = [ new DataSetField { FieldIndex = 7, Value = new Variant(42) } ]
                 }).ConfigureAwait(false);
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
             Assert.That(((DataSetField[]?)decoded.Fields) ?? [], Has.Length.EqualTo(1));
+            Assert.That(decoded.Fields[0].FieldIndex, Is.EqualTo(7),
+                "Part 14 Table 164 FieldIndex is the DataSetMetaData field position.");
         }
 
         [Test]
@@ -438,6 +440,31 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.Event));
             Assert.That(((DataSetField[]?)decoded.Fields) ?? [], Has.Length.EqualTo(2));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.7")]
+        public void DataSetMessageEventDataValueEncodingThrows()
+        {
+            var message = new UadpNetworkMessage
+            {
+                DataSetMessages =
+                [
+                    new UadpDataSetMessage
+                    {
+                        DataSetWriterId = 1,
+                        FieldEncoding = PubSubFieldEncoding.DataValue,
+                        MessageType = PubSubDataSetMessageType.Event,
+                        Fields = [new DataSetField { Value = new Variant("EventTrigger") }]
+                    }
+                ]
+            };
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+
+            Assert.That(
+                async () => await new UadpEncoder().EncodeAsync(message, context).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("Event DataSetMessages"),
+                "Part 14 Table 165 requires Event fields encoded as Variant with field-encoding bits false.");
         }
 
         [Test]

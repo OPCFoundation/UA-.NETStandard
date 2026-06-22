@@ -58,6 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 ActionState = ActionState.Executing,
                 ResponseAddress = "opc.udp://response",
                 CorrelationData = ByteString.From(new byte[] { 1, 2, 3 }),
+                RequestorId = new Variant("requestor-1"),
                 TimeoutHint = 2500,
                 Payload =
                 [
@@ -83,6 +84,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decodedRequest.ActionState, Is.EqualTo(ActionState.Executing));
             Assert.That(decodedRequest.ResponseAddress, Is.EqualTo("opc.udp://response"));
             Assert.That(decodedRequest.CorrelationData.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            Assert.That(decodedRequest.RequestorId.TryGetValue(out string? requestorId), Is.True);
+            Assert.That(requestorId, Is.EqualTo("requestor-1"));
             Assert.That(decodedRequest.TimeoutHint, Is.EqualTo(2500));
             Assert.That(decodedRequest.Payload.Count, Is.EqualTo(1));
             Assert.That(decodedRequest.Payload[0].Value.TryGetValue(out int value), Is.True);
@@ -100,8 +103,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 ActionTargetId = 0x20,
                 RequestId = 0x1002,
                 ActionState = ActionState.Done,
-                Status = StatusCodes.Good,
+                Status = StatusCodes.BadTimeout,
                 CorrelationData = ByteString.From(new byte[] { 9, 8 }),
+                RequestorId = new Variant("requestor-2"),
                 Payload =
                 [
                     new DataSetField
@@ -123,8 +127,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decodedResponse.ActionTargetId, Is.EqualTo(0x20));
             Assert.That(decodedResponse.RequestId, Is.EqualTo(0x1002));
             Assert.That(decodedResponse.ActionState, Is.EqualTo(ActionState.Done));
-            Assert.That(decodedResponse.Status.Code, Is.EqualTo(StatusCodes.Good));
+            Assert.That(decodedResponse.Status.Code, Is.EqualTo(StatusCodes.Good),
+                "Part 14 v1.05.07 Table 167 has no UADP Status field in the response payload.");
             Assert.That(decodedResponse.CorrelationData.Span.ToArray(), Is.EqualTo(new byte[] { 9, 8 }));
+            Assert.That(decodedResponse.RequestorId.TryGetValue(out string? requestorId), Is.True);
+            Assert.That(requestorId, Is.EqualTo("requestor-2"));
             Assert.That(decodedResponse.Payload[0].Value.TryGetValue(out string? value), Is.True);
             Assert.That(value, Is.EqualTo("done"));
         }

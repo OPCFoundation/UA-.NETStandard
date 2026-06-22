@@ -35,11 +35,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// <remarks>
     /// Implements the UADP action header and Action response DataSetMessage
     /// structure defined by Part 14 v1.05 §7.2.4.4.2 and §7.2.4.5.10.
-    /// Part 14 §6.2.11.2.2 requires a response Status; Table 85 says the
-    /// UADP DataSetMessage Status content-mask bit is always enabled but
-    /// not sent in requests. This coder serializes that Status before the
-    /// response field block because the action tables omit the regular
-    /// DataSetMessage flags header. TODO: verify the final 1.05.07 table.
+    /// Part 14 v1.05.07 Table 167 has no UADP Status field between
+    /// ActionState and FieldCount; the JSON mapping carries ActionResponse
+    /// Status separately.
     /// </remarks>
     public sealed record UadpActionResponseMessage : PubSubNetworkMessage
     {
@@ -89,6 +87,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Optional correlation data copied from the request.
         /// </summary>
         public ByteString CorrelationData { get; init; }
+
+        /// <summary>
+        /// PublisherId of the requestor encoded as BaseDataType in the
+        /// UADP ActionHeader.
+        /// </summary>
+        public Variant RequestorId { get; init; }
 
         /// <summary>
         /// Response address is not encoded for responses by Part 14

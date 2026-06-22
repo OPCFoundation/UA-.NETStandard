@@ -66,13 +66,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// when a field is emitted via the <c>DataValue</c> envelope.
         /// Defaults to <see cref="DataSetFieldContentMask.None"/> for
         /// backward compatibility (every member emitted).</param>
+        /// <param name="writePayloadWrapper">When <see langword="true"/>,
+        /// writes the fields under a <c>Payload</c> property; otherwise
+        /// writes fields directly into the current object.</param>
         public static void EncodeFields(
             Utf8JsonWriter writer,
             ArrayOf<DataSetField> fields,
             DataSetMetaDataType? metaData,
             JsonEncodingMode mode,
             IServiceMessageContext context,
-            DataSetFieldContentMask fieldContentMask = DataSetFieldContentMask.None)
+            DataSetFieldContentMask fieldContentMask = DataSetFieldContentMask.None,
+            bool writePayloadWrapper = true)
         {
             if (writer is null)
             {
@@ -82,15 +86,21 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            writer.WritePropertyName("Payload");
-            writer.WriteStartObject();
+            if (writePayloadWrapper)
+            {
+                writer.WritePropertyName("Payload");
+                writer.WriteStartObject();
+            }
             for (int i = 0; i < fields.Count; i++)
             {
                 DataSetField field = fields[i];
                 string name = ResolveFieldName(field, metaData, i);
                 WriteOneField(writer, name, field, mode, context, fieldContentMask);
             }
-            writer.WriteEndObject();
+            if (writePayloadWrapper)
+            {
+                writer.WriteEndObject();
+            }
         }
 
         /// <summary>
