@@ -30,6 +30,8 @@
 extern alias publishersample;
 extern alias subscribersample;
 
+#nullable enable
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub;
@@ -40,6 +42,7 @@ using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
+using Opc.Ua.PubSub.Udp.Security.Dtls;
 using DataSetField = Opc.Ua.PubSub.Encoding.DataSetField;
 using PubSubFieldEncoding = Opc.Ua.PubSub.Encoding.PubSubFieldEncoding;
 using PubSubDataSetMessageType = Opc.Ua.PubSub.Encoding.PubSubDataSetMessageType;
@@ -136,6 +139,35 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(app.Connections[0].Configuration.TransportProfileUri)
                 .IsEqualTo(Profiles.PubSubMqttJsonTransport);
             await app.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ProtectsDtlsRecord_AotSafe()
+        {
+            var registry = new DtlsProfileRegistry(new DtlsPrimitiveSupport(
+                HasAesGcm: true,
+                HasAes128Gcm: true,
+                HasAes256Gcm: true,
+                HasChaCha20Poly1305: false,
+                HasHkdf: true,
+                HasNistP256: true,
+                HasNistP384: false,
+                HasBrainpoolP256r1: false,
+                HasBrainpoolP384r1: false));
+            DtlsProfile profile = registry.Resolve("ECC_nistP256_AesGcm");
+            byte[] trafficSecret = new byte[32];
+            byte[] payload = [0x55, 0x41, 0x44, 0x50];
+            using var writer = new DtlsRecordProtection(profile, trafficSecret, epoch: 3);
+            using var reader = new DtlsRecordProtection(profile, trafficSecret, epoch: 3);
+
+            byte[] record = writer.Seal(payload);
+            byte[] plaintext = reader.Open(record);
+
+            await Assert.That(plaintext.Length).IsEqualTo(payload.Length);
+            for (int ii = 0; ii < plaintext.Length; ii++)
+            {
+                await Assert.That(plaintext[ii]).IsEqualTo(payload[ii]);
+            }
         }
 
         [Test]
