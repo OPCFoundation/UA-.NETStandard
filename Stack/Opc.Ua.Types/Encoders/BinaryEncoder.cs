@@ -744,7 +744,13 @@ namespace Opc.Ua
         {
             // Scalar values cannot nest, so skip the nesting-level bookkeeping
             // (and the try/finally) for the common scalar fast path.
-            if (value.TypeInfo.IsScalar)
+            // DataValue and ExtensionObject are excluded because they can recurse:
+            // DataValue via WrappedValue (Variant -> DataValue -> Variant -> ...)
+            // and ExtensionObject via IEncodeable.
+            var builtInType = value.TypeInfo.BuiltInType;
+            if (value.TypeInfo.IsScalar &&
+                builtInType != BuiltInType.DataValue &&
+                builtInType != BuiltInType.ExtensionObject)
             {
                 WriteVariantValue(in value, false);
                 return;
