@@ -38,14 +38,17 @@ paths.
 | JSON encode, in-memory (`JsonEncoderTests`) | **0.97×** | **0.60×** |
 | Binary decode (`BinaryDecoderBenchmarks`) | ~1.14× | **0.69×** |
 | JSON encode, external stream (`JsonEncoderBenchmarks`) | 1.33× | 1.29×² |
-| Binary encode (`BinaryEncoderBenchmarks`) | ~1.8×¹ | ~1.8×¹ |
+| Binary encode (`BinaryEncoderBenchmarks`) | still slower¹ | ~parity¹ |
 | Session establishment (`SecurityPolicyBenchmarks`) | still slower³ | — |
 
-¹ Binary-encode geomean over the matched stream-wrapper benchmark variants. The encoder
-still trails 1.5.378 on time (intrinsic value-type struct cost) and currently allocates
-more on the external-stream variants — a known tradeoff of the per-primitive scratch
-write that is tracked under [Future work](#future-work). The default (no-stream) encoder
-uses a pooled buffer and is not represented by these external-stream benchmarks.
+¹ The encoder still trails 1.5.378 on **time** (intrinsic value-type struct cost — see
+below). Its **allocation** is unchanged by the codec work: a ground-truth
+`GC.GetAllocatedBytesForCurrentThread` A/B over the benchmark payload shows identical
+per-op allocation before/after the `BinaryPrimitives` change (e.g. `ArraySegmentStream`
+76,808 B/op in both). The `Allocated` column that BenchmarkDotNet reports for the
+`ArrayPool`/`BufferManager`-backed stream variants is a pooled-buffer **accounting
+artifact** (pool rentals/returns attributed differently across separate runs) and is not a
+reliable per-op figure for those variants.
 ² External-stream JSON allocation improved from ~1.44× to ~1.29× once the
 `Utf8JsonWriter` is pooled/reused (below); the residual is inherent UTF-8 transcoding.
 ³ Session establishment remains the largest single regression vs 1.5.378; this is
@@ -127,10 +130,12 @@ to parity is tracked under [Future work](#future-work).
 
 The encoder writes scalar primitives via `BinaryPrimitives` into the destination span
 (`IBufferWriter<byte>`) and bulk-blits primitive numeric arrays. The default
-(no-stream) encoder uses a pooled `ArrayPool<byte>` buffer. **Known tradeoff:** the
-external-stream encoder constructors currently allocate more than 1.5.378 on the
-synthetic stream-wrapper benchmarks (the per-primitive write goes through a small
-scratch buffer); reducing that is tracked under [Future work](#future-work).
+(no-stream) encoder uses a pooled `ArrayPool<byte>` buffer. This change is **allocation-
+neutral**: a ground-truth `GC.GetAllocatedBytesForCurrentThread` A/B over the benchmark
+payload shows identical per-op allocation before and after it (the `Allocated` column
+BenchmarkDotNet reports for the `ArrayPool`/`BufferManager`-backed stream variants is a
+pooled-buffer accounting artifact, not a real per-op delta). The remaining encoder gap is
+**time**, not allocation.
 
 **Impact:** encode CPU on the send path, absolute cost a few microseconds per
 message. The bulk-array fast-path materially helps realistic large-array payloads
@@ -206,21 +211,18 @@ work above. Low priority.
 
 ## Future work
 
-1. **Binary encoder — fix external-stream allocation, then drive to parity.** Scalar
-   writes already go through `BinaryPrimitives` and numeric arrays bulk-blit, but the
-   external-stream constructors currently allocate more than 1.5.378 because each
-   primitive is written through a small scratch buffer to the stream. Write primitives
-   straight to the stream's / `IBufferWriter`'s own span (or batch them) to remove that
-   allocation, then re-measure. The deeper remaining gap is the per-element readonly-struct
-   accessor cost in `WriteVariantValue` / `WriteDataValueArray`; target 1.5.378 parity by
-   specialising the scalar built-in-type writes (and vectorised/SIMD writes for bulk
-   payloads).
-2. **Session establishment — apples-to-apples + discovery materialization.** Add a
-   benchmark restricted to the security policies common to both 1.5.378 and 2.0 to
-   measure the true like-for-like change, and reduce the
-   endpoint/user-token/app-description materialization and XML reader/writer
-   allocation in `GetEndpointsAsync` on the connect path (optionally caching
-   `ConfiguredEndpoint` so repeat connects skip discovery).
+1. **Binary encoder — drive time to 1.5.378 parity.** Scalar writes already go through
+   `BinaryPrimitives` and numeric arrays bulk-blit (allocation is at parity). The remaining
+   gap is **time**: the per-element readonly-struct accessor cost in `WriteVariantValue` /
+   `WriteDataValueArray`. Target parity by specialising the scalar built-in-type writes and
+   using vectorised/SIMD writes for bulk payloads.
+2. **Session establishment — discovery materialization.** An apples-to-apples session
+   benchmark restricted to the security policies common to both 1.5.378 and 2.0 exists
+   (`SecurityPolicySessionCommonWithV15378Benchmarks`). The remaining work is to further
+   reduce the endpoint/user-token/app-description materialization and XML reader/writer
+   allocation in `GetEndpointsAsync` on the connect path (a first low-risk reduction has
+   landed; the bulk of the cost is intrinsic description materialization), and optionally
+   cache `ConfiguredEndpoint` so repeat connects skip discovery.
 
 ## Scope: legacy target frameworks
 
