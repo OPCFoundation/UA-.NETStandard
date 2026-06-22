@@ -601,6 +601,52 @@ builder.Services.AddOpcUa()
 timer. Use it for tests, single-process scenarios, and any deployment
 where a dedicated GDS-hosted SKS is overkill.
 
+## Actions (request/response)
+
+OPC UA Part 14 **Actions** add a request/response interaction over PubSub (the
+PubSub analogue of a Client/Server `Call`). A *requester* publishes an action
+request to an *action target*; one or more *responders* execute it and publish a
+correlated action response.
+
+The stack implements Actions over both encodings and transports:
+
+- **Messages** — JSON (`ua-action` NetworkMessage carrying the generated
+  `Opc.Ua.JsonActionRequestMessage` / `JsonActionResponseMessage` /
+  `JsonActionMetaDataMessage`) and UADP (`UadpActionRequestMessage` /
+  `UadpActionResponseMessage` via `UadpActionCoder`, ExtendedFlags2 action
+  discriminator). UADP action payloads flow through the normal UADP message
+  security (Aes-CTR + SKS); JSON confidentiality is the MQTT TLS transport.
+- **Published actions** — `PublishedActionDataType` /
+  `PublishedActionMethodDataType` (RequestDataSetMetaData + ActionTargets [+
+  ActionMethods]) are modelled as an `IPublishedDataSetSource`; add them with
+  `builder.AddPublishedAction(...)`.
+- **Runtime** — `IPubSubApplication.InvokeActionAsync(PubSubActionRequest,
+  timeout)` (requester, awaits the correlated `PubSubActionResponse` by
+  RequestId + CorrelationData) and `RegisterActionHandler(target, handler)` /
+  fluent `AddActionResponder(...)` (responder, with the `ActionState`
+  Idle→Executing→Done lifecycle).
+- **Server method binding** — `Opc.Ua.PubSub.Server`'s `ServerMethodActionHandler`
+  binds an action to a real OPC UA method via `ActionMethodDataType`
+  (ObjectId/MethodId), invoked through `IMasterNodeManager.CallAsync`; register
+  with `WithActionMethodHandlers(dataSetWriterId, publishedActionMethod, ...)`.
+
+```csharp
+var target = new PubSubActionTarget { DataSetWriterId = 1, ActionTargetId = 1 };
+
+// Responder: echo handler bound to an action target.
+builder.AddActionResponder(target, (invocation, ct) =>
+    new ValueTask<PubSubActionHandlerResult>(
+        new PubSubActionHandlerResult { OutputFields = invocation.InputFields }));
+
+// Requester: invoke and await the correlated response.
+PubSubActionResponse response = await app.InvokeActionAsync(
+    new PubSubActionRequest { Target = target, InputFields = inputFields },
+    timeout: TimeSpan.FromSeconds(5));
+```
+
+Cites [Part 14 §7.2.5.6](https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6)
+(Action NetworkMessage) and the Annex B Action data types.
+
 ## Server-side address space
 
 `Opc.Ua.PubSub.Server` mounts the standard `PublishSubscribe` Object

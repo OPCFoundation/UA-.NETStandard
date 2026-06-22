@@ -362,6 +362,15 @@ runtime and collect publisher responses):
 | `pubsub_discover_writer_config` | Request DataSetWriterConfiguration from publishers |
 | `pubsub_discover_publisher_endpoints` | Request PublisherEndpoints from publishers |
 
+**Actions** (Part 14 §7.2.5.6 &mdash; request/response over PubSub):
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_invoke_action` | Invoke an action target and await the correlated response |
+| `pubsub_register_action_responder` | Register a demo/echo responder for round-trip testing |
+| `pubsub_bind_action_method` | Bind an action to a server method (ObjectId/MethodId) |
+| `pubsub_list_action_targets` / `pubsub_list_action_responders` | List known targets / registered responders |
+
 **Capture and dissection:**
 
 | Tool | Purpose |

@@ -1,5 +1,16 @@
 # Part 14 PubSub Actions (request/response over PubSub)
 
+> **Status: IMPLEMENTED** (branch `marcschier/pubsub-diagnostics`). The full
+> spec-compliant Actions feature shipped across stages S1–S8: JSON + UADP action
+> messages (using the source-generated `Opc.Ua` action types), the
+> `PublishedActionDataType` source, the requester/responder runtime with
+> RequestId/CorrelationData correlation, server method binding
+> (`ServerMethodActionHandler` via `IMasterNodeManager.CallAsync`), DI/fluent
+> `AddActionResponder`, and the MCP `PubSubActionTools`. See
+> [Docs/PubSub.md §Actions](../Docs/PubSub.md#actions-requestresponse) and
+> [Docs/McpServer.md](../Docs/McpServer.md#pubsub-tools). The design below is
+> retained for reference.
+
 ## Problem & goal
 
 OPC UA 1.05 Part 14 defines **Actions** — a request/response interaction pattern
@@ -79,8 +90,6 @@ the design + staging.
 - `ArrayOf<T>` / `ByteString` / `Variant` in public API, never `object`;
   `INullable` via `.IsNull`; TAP only; sealed; multi-TFM
   (net472;net48;netstandard2.1;net8/9/10); NativeAOT-clean.
-- Maintain 1.5.378 source compatibility where applicable; mark superseded API
-  `[Obsolete]` rather than removing.
 
 ## Risks / open questions
 - Confirm the exact 1.05.07 Action wire layout (Annex B
