@@ -65,6 +65,7 @@ namespace Opc.Ua.Mcp
         private IPubSubApplication? m_application;
         private MutablePublishedDataSetSource? m_source;
         private BufferedSubscribedDataSetSink? m_sink;
+        private readonly List<PubSubActionResponderRegistration> m_actionResponders = [];
         private PubSubRuntimeMode m_mode = PubSubRuntimeMode.Stopped;
         private string m_endpoint = string.Empty;
         private ushort m_publisherId;
@@ -245,6 +246,128 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
+        /// Sends a PubSub Action request from the active runtime and awaits the correlated response.
+        /// </summary>
+        /// <param name="request">The Action request.</param>
+        /// <param name="timeout">How long to wait for the response.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The correlated Action response.</returns>
+        public async ValueTask<PubSubActionResponse> InvokeActionAsync(
+            PubSubActionRequest request,
+            TimeSpan timeout,
+            CancellationToken ct = default)
+        {
+            IPubSubApplication app;
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                app = m_application ?? throw new InvalidOperationException(
+                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+            return await app.InvokeActionAsync(request, timeout, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Registers a responder-side Action handler on the active runtime.
+        /// </summary>
+        /// <param name="target">The Action target.</param>
+        /// <param name="handler">The Action handler.</param>
+        /// <param name="responderKind">The JSON-friendly responder kind.</param>
+        /// <param name="details">The JSON-friendly responder details.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The registered responder information.</returns>
+        public async ValueTask<PubSubActionResponderRegistration> RegisterActionResponderAsync(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler,
+            string responderKind,
+            string details,
+            CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(target);
+            ArgumentNullException.ThrowIfNull(handler);
+            ArgumentException.ThrowIfNullOrWhiteSpace(responderKind);
+
+            var registration = new PubSubActionResponderRegistration(
+                target.ConnectionName,
+                target.DataSetWriterId,
+                target.ActionTargetId,
+                target.ActionName,
+                responderKind,
+                details ?? string.Empty);
+
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                IPubSubApplication app = m_application ?? throw new InvalidOperationException(
+                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                app.RegisterActionHandler(target, handler);
+                m_actionResponders.RemoveAll(item => item.MatchesTarget(registration));
+                m_actionResponders.Add(registration);
+                return registration;
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Lists Action targets known from the active configuration and registered responders.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The JSON-friendly Action target list.</returns>
+        public async ValueTask<ArrayOf<PubSubActionTargetInfo>> ListActionTargetsAsync(
+            CancellationToken ct = default)
+        {
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var targets = new List<PubSubActionTargetInfo>();
+                if (m_application is not null)
+                {
+                    AddConfiguredActionTargets(m_application.GetConfiguration(), targets);
+                }
+
+                foreach (PubSubActionResponderRegistration registration in m_actionResponders)
+                {
+                    if (!targets.Any(registration.MatchesTarget))
+                    {
+                        targets.Add(registration.ToTargetInfo("registered-responder", string.Empty, string.Empty));
+                    }
+                }
+
+                return [.. targets];
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Lists Action responders registered through MCP.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The JSON-friendly responder list.</returns>
+        public async ValueTask<ArrayOf<PubSubActionResponderRegistration>> ListActionRespondersAsync(
+            CancellationToken ct = default)
+        {
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return [.. m_actionResponders];
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <summary>
         /// Stops and disposes the active PubSub application.
         /// </summary>
         public async ValueTask<PubSubRuntimeStatus> StopAsync(CancellationToken ct = default)
@@ -325,6 +448,7 @@ namespace Opc.Ua.Mcp
             m_endpoint = string.Empty;
             m_publisherId = 0;
             m_writerGroupId = 0;
+            m_actionResponders.Clear();
 
             if (app is null)
             {
@@ -356,6 +480,101 @@ namespace Opc.Ua.Mcp
                 WriterGroupId = m_writerGroupId,
                 BufferedDataSetCount = m_sink?.Count ?? 0
             };
+        }
+
+        private static void AddConfiguredActionTargets(
+            PubSubConfigurationDataType configuration,
+            List<PubSubActionTargetInfo> targets)
+        {
+            var actionDataSets = new Dictionary<string, PublishedActionDataType>(StringComparer.Ordinal);
+            if (!configuration.PublishedDataSets.IsNull)
+            {
+                foreach (PublishedDataSetDataType publishedDataSet in configuration.PublishedDataSets)
+                {
+                    if (publishedDataSet is not null
+                        && TryGetPublishedAction(publishedDataSet, out PublishedActionDataType? action))
+                    {
+                        actionDataSets[publishedDataSet.Name ?? string.Empty] = action!;
+                    }
+                }
+            }
+
+            if (configuration.Connections.IsNull)
+            {
+                return;
+            }
+
+            foreach (PubSubConnectionDataType connection in configuration.Connections)
+            {
+                if (connection?.WriterGroups.IsNull != false)
+                {
+                    continue;
+                }
+
+                foreach (WriterGroupDataType writerGroup in connection.WriterGroups)
+                {
+                    if (writerGroup?.DataSetWriters.IsNull != false)
+                    {
+                        continue;
+                    }
+
+                    foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)
+                    {
+                        string dataSetName = writer?.DataSetName ?? string.Empty;
+                        if (writer is null
+                            || !actionDataSets.TryGetValue(dataSetName, out PublishedActionDataType? action)
+                            || action.ActionTargets.IsNull)
+                        {
+                            continue;
+                        }
+
+                        foreach (ActionTargetDataType actionTarget in action.ActionTargets)
+                        {
+                            if (actionTarget is null)
+                            {
+                                continue;
+                            }
+
+                            targets.Add(new PubSubActionTargetInfo(
+                                connection.Name ?? string.Empty,
+                                writer.DataSetWriterId,
+                                actionTarget.ActionTargetId,
+                                actionTarget.Name ?? string.Empty,
+                                writer.Name ?? string.Empty,
+                                dataSetName,
+                                actionTarget.Description.IsNull
+                                    ? string.Empty
+                                    : actionTarget.Description.Text ?? string.Empty,
+                                "configuration"));
+                        }
+                    }
+                }
+            }
+        }
+
+        private static bool TryGetPublishedAction(
+            PublishedDataSetDataType publishedDataSet,
+            out PublishedActionDataType? action)
+        {
+            action = null;
+            if (publishedDataSet.DataSetSource.IsNull)
+            {
+                return false;
+            }
+
+            if (publishedDataSet.DataSetSource.TryGetValue(out PublishedActionMethodDataType? methodAction))
+            {
+                action = methodAction;
+                return true;
+            }
+
+            if (publishedDataSet.DataSetSource.TryGetValue(out PublishedActionDataType? publishedAction))
+            {
+                action = publishedAction;
+                return true;
+            }
+
+            return false;
         }
 
         private static PubSubConfigurationDataType BuildPublisherConfiguration(
@@ -949,5 +1168,71 @@ namespace Opc.Ua.Mcp
         /// Gets the received fields.
         /// </summary>
         public ArrayOf<PubSubRuntimeFieldValue> Fields { get; init; } = [];
+    }
+
+    /// <summary>
+    /// A JSON-friendly PubSub Action target.
+    /// </summary>
+    public sealed record PubSubActionTargetInfo(
+        string ConnectionName,
+        ushort DataSetWriterId,
+        ushort ActionTargetId,
+        string ActionName,
+        string DataSetWriterName,
+        string PublishedDataSetName,
+        string Description,
+        string Source);
+
+    /// <summary>
+    /// A JSON-friendly PubSub Action responder registration.
+    /// </summary>
+    public sealed record PubSubActionResponderRegistration(
+        string ConnectionName,
+        ushort DataSetWriterId,
+        ushort ActionTargetId,
+        string ActionName,
+        string ResponderKind,
+        string Details)
+    {
+        /// <summary>
+        /// Gets whether the responder target matches a target info.
+        /// </summary>
+        public bool MatchesTarget(PubSubActionTargetInfo target)
+        {
+            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal)
+                && DataSetWriterId == target.DataSetWriterId
+                && ActionTargetId == target.ActionTargetId
+                && string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Gets whether the responder target matches another responder registration.
+        /// </summary>
+        public bool MatchesTarget(PubSubActionResponderRegistration target)
+        {
+            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal)
+                && DataSetWriterId == target.DataSetWriterId
+                && ActionTargetId == target.ActionTargetId
+                && string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Converts the registration to a target info entry.
+        /// </summary>
+        public PubSubActionTargetInfo ToTargetInfo(
+            string source,
+            string dataSetWriterName,
+            string publishedDataSetName)
+        {
+            return new PubSubActionTargetInfo(
+                ConnectionName,
+                DataSetWriterId,
+                ActionTargetId,
+                ActionName,
+                dataSetWriterName,
+                publishedDataSetName,
+                Details,
+                source);
+        }
     }
 }

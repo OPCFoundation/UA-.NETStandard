@@ -198,6 +198,7 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
         .WithTools<PacketCaptureTools>()
         .WithTools<PkiTools>()
         .WithTools<PubSubCaptureTools>()
+        .WithTools<PubSubActionTools>()
         .WithTools<PubSubDiscoveryTools>()
         .WithTools<PubSubRuntimeTools>()
         .WithTools<SubscriptionServiceTools>()
@@ -239,4 +240,3 @@ static void ConfigureLogging(ILoggingBuilder logging)
         options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     });
 }
-
