@@ -37,10 +37,12 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Sks;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {
@@ -203,6 +205,32 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 Assert.That(pubsub.OpcUaBuilder, Is.SameAs(root));
             });
             Assert.That(captured, Is.SameAs(services));
+        }
+
+        [Test]
+        [Description("OPC 10000-14 §9.1.6: HA deployments can replace PubSub state providers.")]
+        public void AddPubSubFluent_WithProviders_RegistersProviderInstances()
+        {
+            var configurationStore = new InMemoryPubSubConfigurationStore();
+            var idAllocator = new InMemoryPubSubIdAllocator();
+            var runtimeStateStore = new InMemoryPubSubRuntimeStateStore();
+            var securityKeyStore = new InMemoryPubSubSecurityKeyStore();
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .WithConfigurationStore(configurationStore)
+                .WithIdAllocator(idAllocator)
+                .WithRuntimeStateStore(runtimeStateStore)
+                .WithSecurityKeyStore(securityKeyStore));
+
+            ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(sp.GetRequiredService<IPubSubConfigurationStore>(), Is.SameAs(configurationStore));
+            Assert.That(sp.GetRequiredService<IPubSubIdAllocator>(), Is.SameAs(idAllocator));
+            Assert.That(sp.GetRequiredService<IPubSubRuntimeStateStore>(), Is.SameAs(runtimeStateStore));
+            Assert.That(sp.GetRequiredService<IPubSubSecurityKeyStore>(), Is.SameAs(securityKeyStore));
         }
     }
 }
