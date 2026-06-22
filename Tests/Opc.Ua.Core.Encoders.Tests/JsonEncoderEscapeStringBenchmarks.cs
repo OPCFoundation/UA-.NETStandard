@@ -37,7 +37,6 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
-using Microsoft.IO;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Encoders.Tests
@@ -264,7 +263,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         [NonParallelizable]
         public void EscapeStringValidation(string name, int index)
         {
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_memoryStream = new MemoryStream();
             m_streamWriter = new StreamWriter(
                 m_memoryStream,
                 new UTF8Encoding(false),
@@ -330,7 +329,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanDict));
 
 #if NET6_0_OR_GREATER
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_memoryStream = new MemoryStream();
             EscapeStringSystemTextJson(s_testString);
             byte[] resultSystemTextJson = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSystemTextJson));
@@ -350,8 +349,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            m_memoryManager = new RecyclableMemoryStreamManager();
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_memoryStream = new MemoryStream();
             m_streamWriter = new StreamWriter(
                 m_memoryStream,
                 new UTF8Encoding(false),
@@ -366,17 +364,15 @@ namespace Opc.Ua.Core.Encoders.Tests
             m_streamWriter = null;
             m_memoryStream?.Dispose();
             m_memoryStream = null;
-            m_memoryManager = null;
         }
 
-        /// <summary>4
+        /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_memoryManager = new RecyclableMemoryStreamManager();
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_memoryStream = new MemoryStream();
             m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
             s_testString = EscapeTestStrings[StringVariantIndex - 1];
         }
@@ -388,7 +384,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             m_streamWriter = null;
             m_memoryStream?.Dispose();
             m_memoryStream = null;
-            m_memoryManager = null;
         }
 
         /// <summary>
@@ -804,9 +799,8 @@ namespace Opc.Ua.Core.Encoders.Tests
         }
 
         private static string s_testString;
-        private RecyclableMemoryStreamManager m_memoryManager;
 #pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
-        private RecyclableMemoryStream m_memoryStream;
+        private MemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
 #pragma warning restore NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private readonly int m_streamSize = 1024;
