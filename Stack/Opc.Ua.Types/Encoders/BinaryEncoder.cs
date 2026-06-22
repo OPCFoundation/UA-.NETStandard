@@ -600,6 +600,7 @@ namespace Opc.Ua
                 return;
             }
 
+            IdType idType = value.IdType;
             ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
@@ -608,13 +609,13 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(idType, in value, namespaceIndex);
 
             // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
-            WriteNodeIdBody(encoding, value, namespaceIndex);
+            WriteNodeIdBody(encoding, in value, namespaceIndex);
         }
 
         /// <inheritdoc/>
@@ -627,6 +628,10 @@ namespace Opc.Ua
                 return;
             }
 
+            NodeId innerNodeId = value.InnerNodeId;
+            string? namespaceUri = value.NamespaceUri;
+            uint serverIndex = value.ServerIndex;
+
             ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
@@ -634,18 +639,16 @@ namespace Opc.Ua
                 namespaceIndex = m_namespaceMappings[namespaceIndex];
             }
 
-            uint serverIndex = value.ServerIndex;
-
             if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
             {
                 serverIndex = m_serverMappings[serverIndex];
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value.InnerNodeId, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(innerNodeId.IdType, in innerNodeId, namespaceIndex);
 
             // add the bit indicating a uri string is encoded as well.
-            if (!string.IsNullOrEmpty(value.NamespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 encoding |= 0x80;
             }
@@ -660,12 +663,12 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write the node id.
-            WriteNodeIdBody(encoding, value.InnerNodeId, namespaceIndex);
+            WriteNodeIdBody(encoding, in innerNodeId, namespaceIndex);
 
             // write the namespace uri.
             if ((encoding & 0x80) != 0)
             {
-                WriteString(null, value.NamespaceUri);
+                WriteString(null, namespaceUri);
             }
 
             // write the server index.
@@ -2136,10 +2139,10 @@ namespace Opc.Ua
         /// Returns the node id encoding byte for a node id value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static byte GetNodeIdEncoding(NodeId nodeId, int namespaceIndex)
+        private static byte GetNodeIdEncoding(IdType idType, in NodeId nodeId, int namespaceIndex)
         {
             NodeIdEncodingBits encoding;
-            switch (nodeId.IdType)
+            switch (idType)
             {
                 case IdType.String:
                     encoding = NodeIdEncodingBits.String;
@@ -2176,7 +2179,7 @@ namespace Opc.Ua
         /// Writes the body of a node id to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteNodeIdBody(byte encoding, NodeId nodeId, ushort namespaceIndex)
+        private void WriteNodeIdBody(byte encoding, in NodeId nodeId, ushort namespaceIndex)
         {
             // write the node id.
             switch ((NodeIdEncodingBits)(0x3F & encoding))
@@ -2202,7 +2205,7 @@ namespace Opc.Ua
                     break;
                 case NodeIdEncodingBits.ByteString:
                     WriteUInt16(null, namespaceIndex);
-                    WriteByteString(null, nodeId.OpaqueIdentifer);
+                    WriteByteString(null, nodeId.OpaqueIdentifier);
                     break;
             }
         }

@@ -537,7 +537,7 @@ namespace Opc.Ua
                     break;
                 case IdType.Opaque:
                     buffer.Append("b=")
-                        .Append(OpaqueIdentifer.ToBase64());
+                        .Append(OpaqueIdentifier.ToBase64());
                     break;
                 case IdType.String:
                     buffer.Append("s=")
@@ -1218,7 +1218,7 @@ namespace Opc.Ua
                 // TODO: avoid recalculation of hashcode
                 IdType.String => new NodeId(StringIdentifier, value),
                 IdType.Guid => new NodeId(GuidIdentifier, value),
-                IdType.Opaque => new NodeId(OpaqueIdentifer, value),
+                IdType.Opaque => new NodeId(OpaqueIdentifier, value),
                 _ => new NodeId(NumericIdentifier, value)
             };
         }
@@ -1318,7 +1318,7 @@ namespace Opc.Ua
                 IdType.Guid =>
                     GuidIdentifier.CompareTo(nodeId.GuidIdentifier),
                 IdType.Opaque =>
-                    OpaqueIdentifer.CompareTo(nodeId.OpaqueIdentifer),
+                    OpaqueIdentifier.CompareTo(nodeId.OpaqueIdentifier),
                 _ => -1
             };
         }
@@ -1386,7 +1386,7 @@ namespace Opc.Ua
             {
                 return -1;
             }
-            return OpaqueIdentifer.CompareTo(obj);
+            return OpaqueIdentifier.CompareTo(obj);
         }
 
         /// <inheritdoc/>
@@ -1493,7 +1493,7 @@ namespace Opc.Ua
                 case IdType.Guid:
                     return GuidIdentifier == other.GuidIdentifier;
                 case IdType.Opaque:
-                    return OpaqueIdentifer == other.OpaqueIdentifer;
+                    return OpaqueIdentifier == other.OpaqueIdentifier;
             }
             return false;
         }
@@ -1535,7 +1535,7 @@ namespace Opc.Ua
             {
                 return false;
             }
-            return OpaqueIdentifer == other;
+            return OpaqueIdentifier == other;
         }
 
         /// <inheritdoc/>
@@ -1577,9 +1577,9 @@ namespace Opc.Ua
                     break;
                 case IdType.Opaque:
 #if NET6_0_OR_GREATER
-                    hashCode.AddBytes(OpaqueIdentifer);
+                    hashCode.AddBytes(OpaqueIdentifier);
 #else
-                    foreach (byte id in OpaqueIdentifer)
+                    foreach (byte id in OpaqueIdentifier)
                     {
                         hashCode.Add(id);
                     }
@@ -1682,7 +1682,7 @@ namespace Opc.Ua
         /// <summary>
         /// Identifier as bytes
         /// </summary>
-        internal ByteString OpaqueIdentifer =>
+        internal ByteString OpaqueIdentifier =>
             m_identifier == null ? ByteString.Empty : (ByteString)m_identifier;
 
         /// <summary>
@@ -1717,7 +1717,7 @@ namespace Opc.Ua
             IdType.Numeric => NumericIdentifier,
             IdType.String => StringIdentifier,
             IdType.Guid => GuidIdentifier,
-            IdType.Opaque => OpaqueIdentifer,
+            IdType.Opaque => OpaqueIdentifier,
             _ => throw ServiceResultException.Unexpected(
                 $"Unexpected IdType value {IdType}.")
         };
@@ -1731,7 +1731,7 @@ namespace Opc.Ua
             IdType.Numeric => NumericIdentifier.ToString(CultureInfo.InvariantCulture),
             IdType.String => StringIdentifier,
             IdType.Guid => GuidIdentifier.ToString(),
-            IdType.Opaque => OpaqueIdentifer.ToBase64(),
+            IdType.Opaque => OpaqueIdentifier.ToBase64(),
             _ => throw ServiceResultException.Unexpected(
                 $"Unexpected IdType value {IdType}.")
         };
@@ -1757,7 +1757,7 @@ namespace Opc.Ua
         {
             if (IdType == IdType.Opaque)
             {
-                identifier = OpaqueIdentifer;
+                identifier = OpaqueIdentifier;
                 return true;
             }
             identifier = default;
@@ -1803,7 +1803,7 @@ namespace Opc.Ua
             IdType.Numeric => NumericIdentifier == 0,
             IdType.String => string.IsNullOrEmpty(StringIdentifier),
             IdType.Guid => GuidIdentifier == Guid.Empty,
-            IdType.Opaque => OpaqueIdentifer.Length == 0,
+            IdType.Opaque => OpaqueIdentifier.Length == 0,
             _ => false
         };
 
