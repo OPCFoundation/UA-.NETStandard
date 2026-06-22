@@ -287,14 +287,21 @@ namespace Opc.Ua.PubSub.Tests
 
             // The first loop iteration runs synchronously (sleepCycle == 0)
             // and queues the action on the thread pool.
-            await WaitForAsync(() => Volatile.Read(ref executionCount) >= 1)
+            // Use a generous 30 s timeout: on loaded net48 Windows CI runners
+            // the thread pool can be saturated by parallel tests, delaying the
+            // Task.Run(action) continuation well beyond the default 5 s.
+            await WaitForAsync(
+                    () => Volatile.Read(ref executionCount) >= 1,
+                    TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
             int afterStart = Volatile.Read(ref executionCount);
 
             // Advance the fake clock by one interval; the awaited Delay completes
             // deterministically and the next action fires.
             fake.Advance(TimeSpan.FromMilliseconds(100));
-            await WaitForAsync(() => Volatile.Read(ref executionCount) >= afterStart + 1)
+            await WaitForAsync(
+                    () => Volatile.Read(ref executionCount) >= afterStart + 1,
+                    TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
 
             // Advance three intervals (one at a time) and wait for the runner
@@ -309,19 +316,21 @@ namespace Opc.Ua.PubSub.Tests
             // Framework 4.8 the thread pool can schedule the action Task before
             // the runner's continuation completes its current iteration, so a
             // subsequent Advance finds no pending timer and the runner stalls.
-            // The 50 ms real-time pause is ample for the runner to finish the
-            // few synchronous steps between firing the action and registering
-            // the next Delay, while adding negligible wall-clock time to the test.
+            // The 500 ms real-time pause gives the runner ample time on a loaded
+            // net48 CI host where thread pool scheduling latency can be hundreds
+            // of milliseconds under heavy parallel-test load.
             int afterFirstAdvance = Volatile.Read(ref executionCount);
             for (int i = 0; i < 3; i++)
             {
                 int before = Volatile.Read(ref executionCount);
-                fake.Advance(TimeSpan.FromMilliseconds(100));
-                await WaitForAsync(() => Volatile.Read(ref executionCount) >= before + 1)
-                    .ConfigureAwait(false);
                 // Give the runner time to complete its current loop iteration and
-                // re-register the next Delay before we advance the clock again.
-                await Task.Delay(50).ConfigureAwait(false);
+                // re-register the next Delay before advancing the clock.
+                await Task.Delay(500).ConfigureAwait(false);
+                fake.Advance(TimeSpan.FromMilliseconds(100));
+                await WaitForAsync(
+                        () => Volatile.Read(ref executionCount) >= before + 1,
+                        TimeSpan.FromSeconds(30))
+                    .ConfigureAwait(false);
             }
             Assert.That(
                 Volatile.Read(ref executionCount),
