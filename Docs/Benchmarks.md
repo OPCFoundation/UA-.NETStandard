@@ -36,15 +36,16 @@ paths.
 |---|--:|--:|
 | Client read / browse (`ClientTest`, `RequestHeaderTest`) | **0.67–0.79×** | **0.5–0.65×** |
 | JSON encode, in-memory (`JsonEncoderTests`) | **0.97×** | **0.60×** |
-| Binary decode (`BinaryDecoderBenchmarks`) | 1.16× | **0.64×** |
+| Binary decode (`BinaryDecoderBenchmarks`) | ~1.14× | **0.69×** |
 | JSON encode, external stream (`JsonEncoderBenchmarks`) | 1.33× | 1.29×² |
-| Binary encode (`BinaryEncoderBenchmarks`) | ~1.6× | ~1.04× core¹ |
+| Binary encode (`BinaryEncoderBenchmarks`) | ~1.8×¹ | ~1.8×¹ |
 | Session establishment (`SecurityPolicyBenchmarks`) | still slower³ | — |
 
-¹ The plain `MemoryStream` binary-encode variant allocates ~1.04× vs 1.5.378 (core
-encoder near parity); the `ArraySegmentStream` / `RecyclableMemoryStream` wrapper
-variants are ~1.33–1.63× due to those stream types' own buffer management, not the
-encoder.
+¹ Binary-encode geomean over the matched stream-wrapper benchmark variants. The encoder
+still trails 1.5.378 on time (intrinsic value-type struct cost) and currently allocates
+more on the external-stream variants — a known tradeoff of the per-primitive scratch
+write that is tracked under [Future work](#future-work). The default (no-stream) encoder
+uses a pooled buffer and is not represented by these external-stream benchmarks.
 ² External-stream JSON allocation improved from ~1.44× to ~1.29× once the
 `Utf8JsonWriter` is pooled/reused (below); the residual is inherent UTF-8 transcoding.
 ³ Session establishment remains the largest single regression vs 1.5.378; this is
@@ -90,11 +91,15 @@ vs 1.5.378 — i.e. 2.0 both runs faster and allocates ~40% less. Two changes:
 JSON is the PubSub and REST/gateway encoding path; the LOH-growth fix in particular
 removes large, bursty Gen2 allocations for big messages.
 
-### Binary decoding: 36% less garbage, CPU close to parity
+### Binary decoding: ~31% less garbage, CPU near parity
 
-Binary decode allocates **0.64×** vs 1.5.378 (the value-type `DataValue` removes the
-per-field heap object) while staying close on CPU at **1.16×**. Decoding is on the hot
-receive path of every client and server, so the allocation win applies broadly.
+Binary decode allocates **~0.69×** vs 1.5.378 (the value-type `DataValue` removes the
+per-field heap object) while staying close on CPU at **~1.14×**. The decoder reads
+primitives directly from the buffer span via `System.Buffers.Binary.BinaryPrimitives`
+and bulk-copies fixed-width numeric arrays (`Int16/UInt16/Int32/UInt32/Int64/UInt64/
+Float/Double`) in a single blit (little-endian) rather than element-by-element. Decoding
+is on the hot receive path of every client and server, so the allocation win applies
+broadly.
 
 > **Target-framework note:** the quoted decode allocation (0.64×) is a **.NET 10**
 > number. On legacy target frameworks the figure is higher — see
@@ -109,7 +114,7 @@ receive path of every client and server, so the allocation win applies broadly.
 
 ## What is still slower in 2.0 vs 1.5.378 (and why)
 
-### Binary encoder — ~1.5× CPU (the main remaining regression)
+### Binary encoder — still slower (the main remaining regression)
 
 Encoding a `Variant`/`DataValue` walks the 2.0 `readonly struct` accessor chain in
 `WriteVariantValue` / `WriteDataValue`. Each property read can copy the large struct
@@ -120,16 +125,22 @@ reference-type `DataValue`/`Variant` whose accessors were plain field reads, so 
 is the direct CPU cost of the allocation-reducing value-type design. Closing this gap
 to parity is tracked under [Future work](#future-work).
 
+The encoder writes scalar primitives via `BinaryPrimitives` into the destination span
+(`IBufferWriter<byte>`) and bulk-blits primitive numeric arrays. The default
+(no-stream) encoder uses a pooled `ArrayPool<byte>` buffer. **Known tradeoff:** the
+external-stream encoder constructors currently allocate more than 1.5.378 on the
+synthetic stream-wrapper benchmarks (the per-primitive write goes through a small
+scratch buffer); reducing that is tracked under [Future work](#future-work).
+
 **Impact:** encode CPU on the send path, absolute cost a few microseconds per
 message. The bulk-array fast-path materially helps realistic large-array payloads
 (PubSub datasets, historical values); the residual mostly shows up in synthetic
-array-heavy micro-benchmarks. Core-path allocation is near parity (~1.04× on the
-plain `MemoryStream` variant).
+array-heavy micro-benchmarks.
 
-### Binary decoder — 1.16× CPU
+### Binary decoder — ~1.14× CPU, ~0.69× allocation
 
-Same value-type struct-accessor cost as the encoder, much smaller. Offset by the
-0.64× allocation win above.
+Near time parity with a clear allocation win, via the `BinaryPrimitives` span reads and
+bulk numeric-array copies described under [what improved](#binary-decoding-31-less-garbage-cpu-near-parity).
 
 ### JSON encoder, external-stream — improved by `Utf8JsonWriter` pooling
 
@@ -195,12 +206,15 @@ work above. Low priority.
 
 ## Future work
 
-1. **Binary encoder — drive to parity or better.** The remaining encoder gap is the
-   per-element readonly-struct accessor cost in `WriteVariantValue` /
-   `WriteDataValueArray`. Target 1.5.378 parity (or better) by specialising the scalar
-   built-in-type writes and using `System.Buffers.Binary.BinaryPrimitives` /
-   vectorised (SIMD) writes for bulk numeric and array payloads, rather than the
-   per-element accessor chain.
+1. **Binary encoder — fix external-stream allocation, then drive to parity.** Scalar
+   writes already go through `BinaryPrimitives` and numeric arrays bulk-blit, but the
+   external-stream constructors currently allocate more than 1.5.378 because each
+   primitive is written through a small scratch buffer to the stream. Write primitives
+   straight to the stream's / `IBufferWriter`'s own span (or batch them) to remove that
+   allocation, then re-measure. The deeper remaining gap is the per-element readonly-struct
+   accessor cost in `WriteVariantValue` / `WriteDataValueArray`; target 1.5.378 parity by
+   specialising the scalar built-in-type writes (and vectorised/SIMD writes for bulk
+   payloads).
 2. **Session establishment — apples-to-apples + discovery materialization.** Add a
    benchmark restricted to the security policies common to both 1.5.378 and 2.0 to
    measure the true like-for-like change, and reduce the
