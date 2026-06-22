@@ -92,6 +92,7 @@ namespace Opc.Ua
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? JsonEncoderOptions.Verbose;
             m_stream = null;
+            m_pooledBufferWriter = null;
             m_writer = writer;
 
             StartObject();
@@ -110,21 +111,26 @@ namespace Opc.Ua
 
             if (stream == null)
             {
-                // TODO: Use pooledBufferWriter instead
-                m_stream = new MemoryStream();
+                m_stream = null;
+                m_pooledBufferWriter = new PooledBufferWriter();
                 m_leaveOpen = false;
+                m_writer = new Utf8JsonWriter(m_pooledBufferWriter, new JsonWriterOptions
+                {
+                    SkipValidation = true,
+                    Indented = m_options.Indented
+                });
             }
             else
             {
                 m_stream = stream;
+                m_pooledBufferWriter = null;
                 m_leaveOpen = true;
+                m_writer = new Utf8JsonWriter(m_stream, new JsonWriterOptions
+                {
+                    SkipValidation = true,
+                    Indented = m_options.Indented
+                });
             }
-
-            m_writer = new Utf8JsonWriter(m_stream, new JsonWriterOptions
-            {
-                SkipValidation = true,
-                Indented = m_options.Indented
-            });
 
             StartObject();
         }
@@ -159,17 +165,7 @@ namespace Opc.Ua
             m_writer.Flush();
             int length = (int)m_writer.BytesCommitted;
 
-            // If a stream was passed and we should not leave it open dispose it.
-            if (m_stream != null && !m_leaveOpen)
-            {
-                m_stream.Dispose();
-            }
-            // if a stream was passed and we created a writer - or -
-            // if a writer was passed and we should not leve it open, dispose writer
-            if (m_stream != null || !m_leaveOpen)
-            {
-                m_writer.Dispose();
-            }
+            DisposeWriterAndBuffer();
             m_disposed = true;
             return length;
         }
@@ -183,28 +179,22 @@ namespace Opc.Ua
             }
             try
             {
-                if (m_stream is not MemoryStream memory)
+                if (m_pooledBufferWriter == null && m_stream is not MemoryStream)
                 {
                     throw new NotSupportedException(
                         "Cannot get text from encoder created with external stream.");
                 }
                 EndObject();
                 m_writer.Flush();
-                return Encoding.UTF8.GetString(memory.ToArray());
+                if (m_pooledBufferWriter != null)
+                {
+                    return m_pooledBufferWriter.GetText();
+                }
+                return Encoding.UTF8.GetString(((MemoryStream)m_stream!).ToArray());
             }
             finally
             {
-                // If a stream was passed and we should not leave it open dispose it.
-                if (m_stream != null && !m_leaveOpen)
-                {
-                    m_stream.Dispose();
-                }
-                // if a stream was passed and we created a writer - or -
-                // if a writer was passed and we should not leve it open, dispose writer
-                if (m_stream != null || !m_leaveOpen)
-                {
-                    m_writer.Dispose();
-                }
+                DisposeWriterAndBuffer();
                 m_disposed = true;
             }
         }
@@ -2344,7 +2334,124 @@ namespace Opc.Ua
 
         private const int kFlushThreshold = 16 * 1024;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<JsonEncoder>();
+
+        private void DisposeWriterAndBuffer()
+        {
+            try
+            {
+                // If a stream was passed and we should not leave it open dispose it.
+                if (m_stream != null && !m_leaveOpen)
+                {
+                    m_stream.Dispose();
+                }
+                // if a stream was passed and we created a writer - or -
+                // if a writer was passed and we should not leve it open, dispose writer
+                if (m_stream != null || !m_leaveOpen)
+                {
+                    m_writer.Dispose();
+                }
+            }
+            finally
+            {
+                m_pooledBufferWriter?.ReturnBuffer();
+            }
+        }
+
+        private sealed class PooledBufferWriter : IBufferWriter<byte>
+        {
+            public PooledBufferWriter()
+            {
+                m_buffer = ArrayPool<byte>.Shared.Rent(kDefaultInitialBufferSize);
+            }
+
+            public void Advance(int count)
+            {
+                if (count < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(count));
+                }
+
+                byte[] buffer = m_buffer ?? throw new ObjectDisposedException(nameof(PooledBufferWriter));
+                if (m_index > buffer.Length - count)
+                {
+                    throw new InvalidOperationException("Cannot advance past the end of the buffer.");
+                }
+
+                m_index += count;
+            }
+
+            public Memory<byte> GetMemory(int sizeHint = 0)
+            {
+                Ensure(sizeHint);
+                return m_buffer!.AsMemory(m_index);
+            }
+
+            public Span<byte> GetSpan(int sizeHint = 0)
+            {
+                Ensure(sizeHint);
+                return m_buffer!.AsSpan(m_index);
+            }
+
+            public string GetText()
+            {
+                byte[] buffer = m_buffer ?? throw new ObjectDisposedException(nameof(PooledBufferWriter));
+                return Encoding.UTF8.GetString(buffer, 0, m_index);
+            }
+
+            public void ReturnBuffer()
+            {
+                byte[]? buffer = m_buffer;
+                if (buffer == null)
+                {
+                    return;
+                }
+
+                m_buffer = null;
+                m_index = 0;
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            }
+
+            private void Ensure(int sizeHint)
+            {
+                if (sizeHint < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(sizeHint));
+                }
+
+                byte[] buffer = m_buffer ?? throw new ObjectDisposedException(nameof(PooledBufferWriter));
+                if (sizeHint == 0)
+                {
+                    sizeHint = 1;
+                }
+
+                if (sizeHint <= buffer.Length - m_index)
+                {
+                    return;
+                }
+
+                Grow(sizeHint);
+            }
+
+            private void Grow(int sizeHint)
+            {
+                byte[] buffer = m_buffer!;
+                int growBy = Math.Max(sizeHint, buffer.Length);
+                int newSize = checked(buffer.Length + growBy);
+                byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newSize);
+
+                Buffer.BlockCopy(buffer, 0, newBuffer, 0, m_index);
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+                m_buffer = newBuffer;
+            }
+
+            private const int kDefaultInitialBufferSize = 256;
+
+            private byte[]? m_buffer;
+            private int m_index;
+        }
+
         private readonly Stream? m_stream;
+        private readonly PooledBufferWriter? m_pooledBufferWriter;
         private readonly bool m_leaveOpen;
         private ILogger? m_logger;
         private readonly JsonEncoderOptions m_options;

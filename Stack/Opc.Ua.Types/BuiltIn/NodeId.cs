@@ -663,7 +663,7 @@ namespace Opc.Ua
                     }
                     pos += 2;
                     if (!Convert.TryToBase64Chars(
-                        OpaqueIdentifer.Span, destination[pos..], out int b64Written))
+                        OpaqueIdentifier.Span, destination[pos..], out int b64Written))
                     {
                         return false;
                     }
