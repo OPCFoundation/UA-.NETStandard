@@ -13,6 +13,7 @@ Here is a list of available documentation for different topics:
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
+* [Performance Benchmarks](Benchmarks.md) — BenchmarkDotNet methodology, the 2.0 (`master`) vs 1.5.378 (`master378`) comparison, root-cause analysis of the encoder/decoder/session regressions and their real-world impact, and planned future work.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
