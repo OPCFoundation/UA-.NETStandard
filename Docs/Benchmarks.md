@@ -32,6 +32,13 @@ paths.
   two areas only: the **binary encoder** and **session establishment**. Everything
   else is at parity or faster.
 
+> The two aggregate geomeans above are from the **baseline full-job** 2.0-vs-1.5.378
+> sweep (409 matched benchmarks). Several areas have since improved further (binary
+> decode allocation, in-memory and external-stream JSON — see the per-area rows below);
+> the full sweep was not re-run on the final tree, so the per-area table reflects the
+> current state while the aggregate is the documented baseline (the improvements only
+> move it further in 2.0's favour).
+
 | Area | time | alloc |
 |---|--:|--:|
 | Client read / browse (`ClientTest`, `RequestHeaderTest`) | **0.67–0.79×** | **0.5–0.65×** |
@@ -104,7 +111,7 @@ Float/Double`) in a single blit (little-endian) rather than element-by-element. 
 is on the hot receive path of every client and server, so the allocation win applies
 broadly.
 
-> **Target-framework note:** the quoted decode allocation (0.64×) is a **.NET 10**
+> **Target-framework note:** the quoted decode allocation (0.69×) is a **.NET 10**
 > number. On legacy target frameworks the figure is higher — see
 > [Scope: legacy target frameworks](#scope-legacy-target-frameworks).
 
@@ -117,7 +124,7 @@ broadly.
 
 ## What is still slower in 2.0 vs 1.5.378 (and why)
 
-### Binary encoder — still slower (the main remaining regression)
+### Binary encoder — still slower (the main remaining encode regression)
 
 Encoding a `Variant`/`DataValue` walks the 2.0 `readonly struct` accessor chain in
 `WriteVariantValue` / `WriteDataValue`. Each property read can copy the large struct
@@ -169,13 +176,14 @@ an encoder path.
 2.0 also supports **additional security policies** (e.g. the ECC AES-GCM /
 ChaCha20-Poly1305 suites) that 1.5.378 does not. Each configured policy adds per-session
 cost on the server side, so a benchmark run that includes the new policies is not a
-like-for-like comparison. **A benchmark restricted to the security policies common to
-both 1.5.378 and 2.0 is needed to measure the true apples-to-apples change**; the
-geomeans above are inflated by the extra policies.
+like-for-like comparison and inflates the all-policy geomean. A benchmark restricted to
+the security policies common to both 1.5.378 and 2.0 — for the true apples-to-apples
+change — **now exists** (`SecurityPolicySessionCommonWithV15378Benchmarks`, covering
+Basic128Rsa15, Basic256, Basic256Sha256, Aes128_Sha256_RsaOaep, Aes256_Sha256_RsaPss).
 
-An allocation profile of one connect (Basic256Sha256) shows the ~3.2 MB/op is
-dominated by **per-connect endpoint discovery** (`ConnectAsync` runs `GetEndpointsAsync`
-every iteration) plus strings / `Char[]` / XML / `Byte[]` materialization:
+An allocation profile of one **full connect including discovery** (Basic256Sha256) shows
+~3.2 MB/op dominated by **per-connect endpoint discovery** (`GetEndpointsAsync`) plus
+strings / `Char[]` / XML / `Byte[]` materialization:
 
 | Allocator (Basic256Sha256 connect) | ~bytes/op |
 |---|--:|
@@ -197,9 +205,10 @@ churn.
 > `SessionLifecycleWithReadAsync` pass the cached `Endpoints` into `ConnectAsync`, so
 > they measure pure session **create / activate / close** rather than re-running
 > `GetEndpointsAsync` on every iteration. A separate `DiscoverEndpointsAsync`
-> benchmark tracks endpoint discovery in isolation. Reducing the discovery
-> materialization itself (strings / `UserTokenPolicy` / XML) remains future work on
-> the discovery path.
+> benchmark tracks endpoint discovery in isolation. A first low-risk discovery
+> reduction has landed (`DiscoveryClient.PatchEndpointUrls` skips redundant endpoint-URL
+> rewrites, ~22 KB/op); the bulk of the remaining discovery cost is intrinsic
+> endpoint / user-token / application-description materialization and stays future work.
 
 ### `JsonEncoderTests.ServiceMessageContext` — ~2× on a tiny absolute
 
@@ -273,3 +282,9 @@ across every security policy.
 - The 1.5.378 baseline is a full-job run; the per-class encoder refresh on 2.0 is a
   faster, higher-variance ShortRun, so treat those ratios as directional. Non-encoder
   classes carry run-to-run variance.
+- **Pooled-stream allocation columns are unreliable:** for the `ArrayPool`/`BufferManager`-
+  backed stream variants (`ArraySegmentStream`, etc.), BenchmarkDotNet's `Allocated`
+  column attributes pool rentals/returns differently across separate runs, so it is **not**
+  a reliable per-op figure and must not be compared across two independent runs. Use a
+  ground-truth `GC.GetAllocatedBytesForCurrentThread` A/B for those (as was done to confirm
+  the binary-encoder allocation is unchanged by the `BinaryPrimitives` work).
