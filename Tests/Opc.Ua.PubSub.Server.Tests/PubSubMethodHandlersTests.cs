@@ -379,6 +379,66 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
         }
 
+
+        [Test]
+        [TestSpec("9.1.3.3", Part = 14, Summary = "SetSecurityKeys push target")]
+        public async Task OnSetSecurityKeysPushesKeysToProvider()
+        {
+            var provider = new PushSecurityKeyProvider("push-grp", NUnitTelemetryContext.Create());
+            PubSubMethodHandlers handlers = CreateHandlers(out _, out _, pushProvider: provider);
+            ByteString currentKey = await CreatePackedKeyAsync().ConfigureAwait(false);
+
+            ServiceResult result = handlers.OnSetSecurityKeys(
+                BuildContext("sks"),
+                method: null!,
+                inputArguments: BuildArray(
+                    Variant.From("push-grp"),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(42U),
+                    Variant.From(currentKey),
+                    Variant.From((ArrayOf<ByteString>)Array.Empty<ByteString>()),
+                    Variant.From(1_000.0),
+                    Variant.From(60_000.0)),
+                outputArguments: new List<Variant>());
+
+            PubSubSecurityKey pushed = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(pushed.TokenId, Is.EqualTo(42U));
+        }
+
+        [Test]
+        [TestSpec("8.3.3", Part = 14, Summary = "GetSecurityGroup remote lookup")]
+        public async Task OnGetSecurityGroupReturnsNodeIdForRegisteredGroup()
+        {
+            PubSubMethodHandlers handlers = CreateHandlers(
+                out _,
+                out InMemoryPubSubKeyServiceServer sks,
+                opt => opt.ExposeSecurityKeyService = true);
+            await sks.AddSecurityGroupAsync(new SksSecurityGroup(
+                "lookup",
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                TimeSpan.FromMinutes(1),
+                2,
+                1,
+                Array.Empty<PubSubSecurityKey>(),
+                rolePermissions: [new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)PermissionType.Call
+                }])).ConfigureAwait(false);
+            var outputs = new List<Variant>();
+
+            ServiceResult result = handlers.OnGetSecurityGroup(
+                BuildContext("admin"),
+                method: null!,
+                inputArguments: BuildArray(Variant.From("lookup")),
+                outputArguments: outputs);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(outputs[0].TryGetValue(out NodeId nodeId), Is.True);
+            Assert.That(nodeId.IsNull, Is.False);
+        }
+
         [Test]
         public void Constructor_NullArgs_Throw()
         {
@@ -425,7 +485,8 @@ namespace Opc.Ua.PubSub.Server.Tests
         private static PubSubMethodHandlers CreateHandlers(
             out IPubSubApplication application,
             out InMemoryPubSubKeyServiceServer sksServer,
-            Action<PubSubServerOptions>? configureOptions = null)
+            Action<PubSubServerOptions>? configureOptions = null,
+            PushSecurityKeyProvider? pushProvider = null)
         {
             application = CreateApplication();
             sksServer = new InMemoryPubSubKeyServiceServer();
@@ -436,7 +497,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 application,
                 options.ExposeSecurityKeyService ? sksServer : null,
                 options,
-                telemetry);
+                telemetry,
+                pushProvider is null ? null : new[] { pushProvider });
         }
 
         private static IPubSubApplication CreateApplication()
@@ -451,6 +513,23 @@ namespace Opc.Ua.PubSub.Server.Tests
                 .UseAllStandardEncoders()
                 .AddTransportFactory(new StubTransportFactory())
                 .Build();
+        }
+
+        private static async Task<ByteString> CreatePackedKeyAsync()
+        {
+            var server = new InMemoryPubSubKeyServiceServer();
+            await server.AddSecurityGroupAsync(new SksSecurityGroup(
+                "source",
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                TimeSpan.FromMinutes(1),
+                1,
+                0,
+                Array.Empty<PubSubSecurityKey>(),
+                ["caller"])).ConfigureAwait(false);
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                "caller",
+                new SksKeyRequest("source", 0U, 1U)).ConfigureAwait(false);
+            return ByteString.Create(response.Keys[0]);
         }
 
         private static SystemContext BuildContext(string? userId = null)

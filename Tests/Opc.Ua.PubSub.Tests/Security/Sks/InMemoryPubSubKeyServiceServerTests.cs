@@ -232,6 +232,83 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(((byte[][]?)subset.Keys) ?? [], Has.Length.EqualTo(2));
         }
 
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "RolePermissions grant GetSecurityKeys Call access")]
+        public async Task RolePermissionsGrantAuthenticatedCallerAccess()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(new SksSecurityGroup(
+                "role-group",
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                TimeSpan.FromMinutes(5),
+                2,
+                1,
+                Array.Empty<PubSubSecurityKey>(),
+                rolePermissions: [new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)PermissionType.Call
+                }])).ConfigureAwait(false);
+
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("role-group", 0U, 1U)).ConfigureAwait(false);
+
+            Assert.That(response.Keys, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        [TestSpec("8.4.2", Part = 14, Summary = "InvalidateKeys revokes current and future keys")]
+        public async Task InvalidateKeysAdvancesBeyondInvalidatedFutureKeys()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(BuildGroup(maxFuture: 3));
+            SksKeyResponse before = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0U, 4U));
+
+            await server.InvalidateKeysAsync("group-1").ConfigureAwait(false);
+            SksKeyResponse after = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0U, 1U));
+
+            Assert.That(after.FirstTokenId, Is.GreaterThan(before.FirstTokenId + 3U));
+        }
+
+        [Test]
+        [TestSpec("8.4.3", Part = 14, Summary = "ForceKeyRotation promotes the next key")]
+        public async Task ForceKeyRotationPromotesNextFutureKey()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(BuildGroup(maxFuture: 3));
+            SksKeyResponse before = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0U, 2U));
+
+            await server.ForceKeyRotationAsync("group-1").ConfigureAwait(false);
+            SksKeyResponse after = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0U, 1U));
+
+            Assert.That(after.FirstTokenId, Is.EqualTo(before.FirstTokenId + 1U));
+        }
+
+        [Test]
+        [TestSpec("8.4.1", Part = 14, Summary = "MaxPastKeyCount bounds retained past keys")]
+        public async Task ForceKeyRotationPrunesPastKeysToMaxPastKeyCount()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(BuildGroup(maxFuture: 4, maxPast: 1));
+
+            await server.ForceKeyRotationAsync("group-1").ConfigureAwait(false);
+            await server.ForceKeyRotationAsync("group-1").ConfigureAwait(false);
+            SksSecurityGroup? group = await server.GetSecurityGroupAsync("group-1").ConfigureAwait(false);
+
+            Assert.That(group, Is.Not.Null);
+            Assert.That(group!.Keys.Count, Is.LessThanOrEqualTo(group.MaxFutureKeyCount + group.MaxPastKeyCount + 1));
+        }
+
         [Test]
         public void Constructor_AcceptsNullDependencies()
         {

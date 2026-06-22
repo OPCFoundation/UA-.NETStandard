@@ -209,7 +209,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 IEnumerable<PubSubActionMethodRegistration> registrations =
                     sp.GetServices<PubSubActionMethodRegistration>();
-                return new PubSubNodeManagerFactory(application, keyService, options, telemetry, registrations);
+                IEnumerable<PushSecurityKeyProvider> pushProviders = sp.GetServices<PushSecurityKeyProvider>();
+                return new PubSubNodeManagerFactory(
+                    application,
+                    keyService,
+                    options,
+                    telemetry,
+                    registrations,
+                    pushProviders);
             });
 
             services.AddSingleton(sp =>

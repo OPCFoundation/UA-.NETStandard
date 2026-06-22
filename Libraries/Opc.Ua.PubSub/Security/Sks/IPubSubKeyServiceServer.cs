@@ -114,5 +114,23 @@ namespace Opc.Ua.PubSub.Security.Sks
         ValueTask<SksSecurityGroup?> GetSecurityGroupAsync(
             string securityGroupId,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Invalidates the current and future keys for a SecurityGroup.
+        /// </summary>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask InvalidateKeysAsync(
+            string securityGroupId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Forces an unplanned key rotation for a SecurityGroup.
+        /// </summary>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask ForceKeyRotationAsync(
+            string securityGroupId,
+            CancellationToken cancellationToken = default);
     }
 }

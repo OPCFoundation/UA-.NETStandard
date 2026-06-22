@@ -70,6 +70,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(harness.Manager.StatusBinding!.StateBound, Is.True);
             Assert.That(harness.EnableMethod.OnCallMethod, Is.Not.Null);
             Assert.That(harness.DisableMethod.OnCallMethod, Is.Not.Null);
+            Assert.That(harness.SetSecurityKeysMethod.OnCallMethod, Is.Not.Null);
             Assert.That(harness.AddConnectionMethod.OnCallMethod, Is.Not.Null);
             Assert.That(harness.RemoveConnectionMethod.OnCallMethod, Is.Not.Null);
         }
@@ -88,6 +89,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(harness.GetSecurityKeysMethod.OnCallMethod2, Is.Not.Null);
+                Assert.That(harness.GetSecurityGroupMethod.OnCallMethod, Is.Not.Null);
                 Assert.That(harness.AddSecurityGroupMethod.OnCallMethod, Is.Not.Null);
                 Assert.That(harness.RemoveSecurityGroupMethod.OnCallMethod, Is.Not.Null);
             });
@@ -104,6 +106,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
+            Assert.That(harness.SetSecurityKeysMethod.OnCallMethod, Is.Null);
             Assert.That(harness.AddConnectionMethod.OnCallMethod, Is.Null);
             Assert.That(harness.RemoveConnectionMethod.OnCallMethod, Is.Null);
             // Enable/Disable on PubSubStatusType is always bound — those
@@ -408,9 +411,11 @@ namespace Opc.Ua.PubSub.Server.Tests
 
                 EnableMethod = NewMethod(17407);
                 DisableMethod = NewMethod(17408);
+                SetSecurityKeysMethod = NewMethod(17364);
                 AddConnectionMethod = NewMethod(17366);
                 RemoveConnectionMethod = NewMethod(17369);
                 GetSecurityKeysMethod = NewMethod(15215);
+                GetSecurityGroupMethod = NewMethod(15440);
                 AddSecurityGroupMethod = NewMethod(15444);
                 RemoveSecurityGroupMethod = NewMethod(15447);
                 AddDataSetFolderMethod = NewMethod(16884);
@@ -434,9 +439,11 @@ namespace Opc.Ua.PubSub.Server.Tests
                 var diagnosticsNm = new Mock<IDiagnosticsNodeManager>();
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17407u))).Returns(EnableMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17408u))).Returns(DisableMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17364u))).Returns(SetSecurityKeysMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17366u))).Returns(AddConnectionMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17369u))).Returns(RemoveConnectionMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15215u))).Returns(GetSecurityKeysMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15440u))).Returns(GetSecurityGroupMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15444u))).Returns(AddSecurityGroupMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15447u))).Returns(RemoveSecurityGroupMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(16884u))).Returns(AddDataSetFolderMethod);
@@ -484,9 +491,11 @@ namespace Opc.Ua.PubSub.Server.Tests
             public PubSubNodeManager Manager { get; }
             public MethodState EnableMethod { get; }
             public MethodState DisableMethod { get; }
+            public MethodState SetSecurityKeysMethod { get; }
             public MethodState AddConnectionMethod { get; }
             public MethodState RemoveConnectionMethod { get; }
             public MethodState GetSecurityKeysMethod { get; }
+            public MethodState GetSecurityGroupMethod { get; }
             public MethodState AddSecurityGroupMethod { get; }
             public MethodState RemoveSecurityGroupMethod { get; }
             public MethodState AddDataSetFolderMethod { get; }

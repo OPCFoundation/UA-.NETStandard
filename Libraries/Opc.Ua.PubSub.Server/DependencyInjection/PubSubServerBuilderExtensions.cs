@@ -90,6 +90,34 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a push-side key provider populated by SetSecurityKeys for one SecurityGroup.
+        /// </summary>
+        /// <param name="builder">PubSub server builder.</param>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <returns>The same builder for chaining.</returns>
+        public static IPubSubServerBuilder WithSecurityKeyPushTarget(
+            this IPubSubServerBuilder builder,
+            string securityGroupId)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (string.IsNullOrEmpty(securityGroupId))
+            {
+                throw new ArgumentException("SecurityGroupId must be non-empty.", nameof(securityGroupId));
+            }
+
+            builder.Services.TryAddSingleton<ITelemetryContext>(
+                sp => new ServiceProviderTelemetryContext(sp));
+            builder.Services.AddSingleton(sp => new PushSecurityKeyProvider(
+                securityGroupId,
+                sp.GetRequiredService<ITelemetryContext>(),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers server Method handlers for every target in a PublishedActionMethod.
         /// </summary>
         /// <param name="builder">PubSub server builder.</param>

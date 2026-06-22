@@ -77,9 +77,11 @@ namespace Opc.Ua.PubSub.Server
 
         private const uint StatusEnableNodeId = 17407;
         private const uint StatusDisableNodeId = 17408;
+        private const uint SetSecurityKeysNodeId = 17364;
         private const uint AddConnectionNodeId = 17366;
         private const uint RemoveConnectionNodeId = 17369;
         private const uint GetSecurityKeysNodeId = 15215;
+        private const uint GetSecurityGroupNodeId = 15440;
         private const uint AddSecurityGroupNodeId = 15444;
         private const uint RemoveSecurityGroupNodeId = 15447;
         private const uint AddPublishedDataItemsNodeId = 14479;
@@ -120,6 +122,7 @@ namespace Opc.Ua.PubSub.Server
         /// <param name="options">Server options.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="actionMethodRegistrations">Optional PublishedActionMethod bindings.</param>
+        /// <param name="pushKeyProviders">Optional SetSecurityKeys push providers.</param>
         public PubSubNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -127,7 +130,8 @@ namespace Opc.Ua.PubSub.Server
             IPubSubKeyServiceServer? sksServer,
             PubSubServerOptions options,
             ITelemetryContext telemetry,
-            IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null)
+            IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null,
+            IEnumerable<PushSecurityKeyProvider>? pushKeyProviders = null)
             : base(
                   server,
                   configuration,
@@ -153,7 +157,8 @@ namespace Opc.Ua.PubSub.Server
                 pubSubApplication,
                 options.ExposeSecurityKeyService ? sksServer : null,
                 options,
-                telemetry);
+                telemetry,
+                pushKeyProviders);
         }
 
         /// <summary>
@@ -241,6 +246,8 @@ namespace Opc.Ua.PubSub.Server
                 .FindPredefinedNode<MethodState>(new NodeId(StatusEnableNodeId));
             MethodState? disable = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(StatusDisableNodeId));
+            MethodState? setKeys = diagnosticsNodeManager
+                .FindPredefinedNode<MethodState>(new NodeId(SetSecurityKeysNodeId));
             MethodState? addConn = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(AddConnectionNodeId));
             MethodState? removeConn = diagnosticsNodeManager
@@ -256,6 +263,10 @@ namespace Opc.Ua.PubSub.Server
             }
             if (m_options.ExposeConfigurationMethods)
             {
+                if (setKeys is not null)
+                {
+                    setKeys.OnCallMethod = m_methodHandlers.OnSetSecurityKeys;
+                }
                 if (addConn is not null)
                 {
                     addConn.OnCallMethod = m_methodHandlers.OnAddConnection;
@@ -271,6 +282,8 @@ namespace Opc.Ua.PubSub.Server
             {
                 MethodState? getKeys = diagnosticsNodeManager
                     .FindPredefinedNode<MethodState>(new NodeId(GetSecurityKeysNodeId));
+                MethodState? getGroup = diagnosticsNodeManager
+                    .FindPredefinedNode<MethodState>(new NodeId(GetSecurityGroupNodeId));
                 MethodState? addGroup = diagnosticsNodeManager
                     .FindPredefinedNode<MethodState>(new NodeId(AddSecurityGroupNodeId));
                 MethodState? removeGroup = diagnosticsNodeManager
@@ -278,6 +291,10 @@ namespace Opc.Ua.PubSub.Server
                 if (getKeys is not null)
                 {
                     getKeys.OnCallMethod2 = m_methodHandlers.OnGetSecurityKeys;
+                }
+                if (getGroup is not null)
+                {
+                    getGroup.OnCallMethod = m_methodHandlers.OnGetSecurityGroup;
                 }
                 if (addGroup is not null)
                 {
@@ -1073,7 +1090,9 @@ namespace Opc.Ua.PubSub.Server
                     keyLifetime: TimeSpan.FromMilliseconds(m_options.DefaultKeyLifetimeMs),
                     maxFutureKeyCount: 4,
                     maxPastKeyCount: 4,
-                    keys: Array.Empty<PubSubSecurityKey>());
+                    keys: Array.Empty<PubSubSecurityKey>(),
+                    authorizedCallerIdentities: m_options.DefaultAuthorizedCallerIdentities ?? [],
+                    rolePermissions: m_options.DefaultSecurityGroupRolePermissions ?? []);
                 await m_keyService.AddSecurityGroupAsync(seed, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)

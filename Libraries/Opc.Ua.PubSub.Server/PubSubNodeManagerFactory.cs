@@ -54,6 +54,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly PubSubServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly IEnumerable<PubSubActionMethodRegistration> m_actionMethodRegistrations;
+        private readonly IEnumerable<PushSecurityKeyProvider> m_pushKeyProviders;
 
         /// <summary>
         /// Creates a new factory with explicit dependencies.
@@ -63,12 +64,14 @@ namespace Opc.Ua.PubSub.Server
         /// <param name="options">Server options.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="actionMethodRegistrations">Optional PublishedActionMethod bindings.</param>
+        /// <param name="pushKeyProviders">Optional SetSecurityKeys push providers.</param>
         public PubSubNodeManagerFactory(
             IPubSubApplication application,
             IPubSubKeyServiceServer? keyService,
             PubSubServerOptions options,
             ITelemetryContext telemetry,
-            IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null)
+            IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null,
+            IEnumerable<PushSecurityKeyProvider>? pushKeyProviders = null)
         {
             if (application is null)
             {
@@ -88,6 +91,7 @@ namespace Opc.Ua.PubSub.Server
             m_telemetry = telemetry;
             m_actionMethodRegistrations =
                 actionMethodRegistrations ?? Array.Empty<PubSubActionMethodRegistration>();
+            m_pushKeyProviders = pushKeyProviders ?? Array.Empty<PushSecurityKeyProvider>();
         }
 
         /// <inheritdoc/>
@@ -106,7 +110,8 @@ namespace Opc.Ua.PubSub.Server
                     m_keyService,
                     m_options,
                     m_telemetry,
-                    m_actionMethodRegistrations)
+                    m_actionMethodRegistrations,
+                    m_pushKeyProviders)
                 .SyncNodeManager;
 #pragma warning restore CA2000 // Dispose objects before losing scope
         }

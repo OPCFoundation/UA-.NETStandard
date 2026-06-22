@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -79,6 +80,33 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.Services.AddOptions<PullSecurityKeyProviderOptions>().Configure(configure);
             }
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a SetSecurityKeys push target provider for one SecurityGroup.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        public static IOpcUaBuilder AddPubSubSecurityKeyPushTarget(
+            this IOpcUaBuilder builder,
+            string securityGroupId)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (string.IsNullOrEmpty(securityGroupId))
+            {
+                throw new ArgumentException("SecurityGroupId must be non-empty.", nameof(securityGroupId));
+            }
+
+            builder.Services.AddSingleton(sp => new PushSecurityKeyProvider(
+                securityGroupId,
+                sp.GetService<ITelemetryContext>(),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            builder.Services.AddSingleton<IPubSubSecurityKeyProvider>(
+                sp => sp.GetRequiredService<PushSecurityKeyProvider>());
             return builder;
         }
 

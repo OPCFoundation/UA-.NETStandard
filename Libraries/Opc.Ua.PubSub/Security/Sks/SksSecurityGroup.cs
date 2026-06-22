@@ -68,7 +68,10 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </param>
         /// <param name="authorizedCallerIdentities">
         /// Caller identities authorized to retrieve keys for this group.
-        /// An empty list fails closed and denies all key requests.
+        /// An empty list fails closed unless <paramref name="rolePermissions"/> grants Call.
+        /// </param>
+        /// <param name="rolePermissions">
+        /// RolePermissions that control GetSecurityKeys Call access for this group.
         /// </param>
         public SksSecurityGroup(
             string securityGroupId,
@@ -77,7 +80,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             int maxFutureKeyCount,
             int maxPastKeyCount,
             ArrayOf<PubSubSecurityKey> keys,
-            ArrayOf<string> authorizedCallerIdentities = default)
+            ArrayOf<string> authorizedCallerIdentities = default,
+            ArrayOf<RolePermissionType> rolePermissions = default)
         {
             if (string.IsNullOrEmpty(securityGroupId))
             {
@@ -135,6 +139,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             MaxPastKeyCount = maxPastKeyCount;
             Keys = keys;
             AuthorizedCallerIdentities = callers;
+            RolePermissions = rolePermissions.IsNull ? [] : [.. rolePermissions];
         }
 
         /// <summary>
@@ -175,6 +180,11 @@ namespace Opc.Ua.PubSub.Security.Sks
         public ArrayOf<string> AuthorizedCallerIdentities { get; private init; }
 
         /// <summary>
+        /// RolePermissions controlling GetSecurityKeys Call access.
+        /// </summary>
+        public ArrayOf<RolePermissionType> RolePermissions { get; private init; }
+
+        /// <summary>
         /// Returns a copy of this group with the supplied caller authorized.
         /// </summary>
         /// <param name="callerIdentity">Authenticated caller identity.</param>
@@ -211,7 +221,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </summary>
         /// <param name="callerIdentity">Authenticated caller identity.</param>
         /// <returns>
-        /// <see langword="true"/> when the caller is explicitly authorized.
+        /// <see langword="true"/> when RolePermissions grant Call or the caller is explicitly authorized.
         /// </returns>
         public bool IsCallerAuthorized(string callerIdentity)
         {
@@ -220,12 +230,49 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return false;
             }
 
+            if (RolePermissionsGrantCall())
+            {
+                return true;
+            }
+
             for (int i = 0; i < AuthorizedCallerIdentities.Count; i++)
             {
                 if (string.Equals(
                     AuthorizedCallerIdentities[i],
                     callerIdentity,
                     StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns a copy of this group with RolePermissions assigned.
+        /// </summary>
+        /// <param name="rolePermissions">RolePermissions to apply.</param>
+        /// <returns>Updated group configuration.</returns>
+        public SksSecurityGroup WithRolePermissions(ArrayOf<RolePermissionType> rolePermissions)
+        {
+            return this with
+            {
+                RolePermissions = rolePermissions.IsNull ? [] : [.. rolePermissions]
+            };
+        }
+
+        private bool RolePermissionsGrantCall()
+        {
+            for (int i = 0; i < RolePermissions.Count; i++)
+            {
+                RolePermissionType permission = RolePermissions[i];
+                if ((permission.Permissions & (uint)PermissionType.Call) == 0)
+                {
+                    continue;
+                }
+                if (permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser ||
+                    permission.RoleId == ObjectIds.WellKnownRole_Anonymous)
                 {
                     return true;
                 }
