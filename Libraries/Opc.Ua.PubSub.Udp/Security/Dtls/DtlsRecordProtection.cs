@@ -263,7 +263,7 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
                 case DtlsCipherSuite.TlsAes256GcmSha384:
-                    using (var aesGcm = new AesGcm(m_key, AeadTagLength))
+                    using (var aesGcm = new AesGcm(m_key, 16))
                     {
                         aesGcm.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
                     }
@@ -304,7 +304,7 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
                 case DtlsCipherSuite.TlsAes256GcmSha384:
-                    using (var aesGcm = new AesGcm(m_key, AeadTagLength))
+                    using (var aesGcm = new AesGcm(m_key, 16))
                     {
                         aesGcm.Decrypt(nonce, ciphertext, tag, plaintext, associatedData);
                     }
@@ -413,7 +413,6 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         private const byte SequenceNumberLengthBits = 0x01;
         private const byte ApplicationDataContentType = 0x17;
         private const int NonceLength = 12;
-        private const int AeadTagLength = 16;
 
         private readonly HashAlgorithmName m_hashAlgorithmName;
         private readonly byte[] m_key;
@@ -426,4 +425,5 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         private bool m_disposed;
     }
 }
+
 
