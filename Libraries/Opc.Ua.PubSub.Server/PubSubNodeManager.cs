@@ -86,8 +86,8 @@ namespace Opc.Ua.PubSub.Server
         private const uint GetSecurityGroupNodeId = 15440;
         private const uint AddSecurityGroupNodeId = 15444;
         private const uint RemoveSecurityGroupNodeId = 15447;
-        // TODO(RD3-securitygroup-nodes): Part 14 §8.3/§9.1 materialize SecurityGroupType instance nodes.
-        // TODO(RD4-sks-push-targets): Part 14 §8.4 materialize SKS KeyPushTargets and push-target methods.
+        private const uint AddPushTargetNodeId = 25441;
+        private const uint RemovePushTargetNodeId = 25444;
         private const uint AddPublishedDataItemsNodeId = 14479;
         private const uint AddPublishedEventsNodeId = 14482;
         private const uint AddPublishedDataItemsTemplateNodeId = 16842;
@@ -95,6 +95,8 @@ namespace Opc.Ua.PubSub.Server
         private const uint AddDataSetFolderNodeId = 16884;
         private const uint RemoveDataSetFolderNodeId = 16923;
         private static readonly NodeId s_publishedDataSetsNodeId = new(14478u);
+        private static readonly NodeId s_securityGroupsNodeId = new(15443u);
+        private static readonly NodeId s_keyPushTargetsNodeId = new(25440u);
 
         private readonly IPubSubApplication m_application;
         private readonly IPubSubKeyServiceServer? m_keyService;
@@ -102,10 +104,14 @@ namespace Opc.Ua.PubSub.Server
         private readonly ITelemetryContext m_telemetry;
         private readonly PubSubMethodHandlers m_methodHandlers;
         private readonly PubSubActionMethodRegistration[] m_actionMethodRegistrations;
+        private readonly PushSecurityKeyProvider[] m_pushKeyProviders;
         private readonly System.Threading.Lock m_addressSpaceGate = new();
         private readonly List<NodeState> m_dynamicRoots = [];
+        private readonly List<NodeState> m_securityGroupRoots = [];
+        private readonly List<NodeState> m_keyPushTargetRoots = [];
         private readonly SortedSet<string> m_dataSetFolders = new(StringComparer.Ordinal);
         private readonly Dictionary<uint, PubSubConfigurationFileHandle> m_fileHandles = [];
+        private readonly Dictionary<NodeId, PubSubKeyPushTargetRegistration> m_keyPushTargets = [];
         private IDiagnosticsNodeManager? m_diagnosticsNodeManager;
         private PubSubStatusBinding? m_statusBinding;
         private bool m_methodsBound;
@@ -157,12 +163,13 @@ namespace Opc.Ua.PubSub.Server
             m_telemetry = telemetry;
             m_actionMethodRegistrations = actionMethodRegistrations?.ToArray()
                 ?? Array.Empty<PubSubActionMethodRegistration>();
+            m_pushKeyProviders = pushKeyProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
             m_methodHandlers = new PubSubMethodHandlers(
                 pubSubApplication,
                 options.ExposeSecurityKeyService ? sksServer : null,
                 options,
                 telemetry,
-                pushKeyProviders);
+                m_pushKeyProviders);
         }
 
         /// <summary>
@@ -190,6 +197,15 @@ namespace Opc.Ua.PubSub.Server
         /// </summary>
         internal ushort AddressSpaceNamespaceIndex => NamespaceIndexes[0];
 
+        /// <summary>
+        /// Rebuilds SKS dynamic nodes. Test-only.
+        /// </summary>
+        internal async ValueTask RebuildSksAddressSpaceForTestsAsync()
+        {
+            await RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+            await RebuildKeyPushTargetAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -210,6 +226,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 concreteApplication.SetAddressSpaceNamespaceIndex(NamespaceIndexes[0]);
             }
+            m_methodHandlers.SetSecurityGroupNamespaceIndex(NamespaceIndexes[0]);
 
             BindMethods(diagnosticsNodeManager);
             RegisterActionMethodHandlers();
@@ -240,6 +257,8 @@ namespace Opc.Ua.PubSub.Server
             {
                 await SeedDefaultSecurityGroupAsync(cancellationToken).ConfigureAwait(false);
             }
+            await RebuildSecurityGroupAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            await RebuildKeyPushTargetAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -310,21 +329,33 @@ namespace Opc.Ua.PubSub.Server
                     .FindPredefinedNode<MethodState>(new NodeId(AddSecurityGroupNodeId));
                 MethodState? removeGroup = diagnosticsNodeManager
                     .FindPredefinedNode<MethodState>(new NodeId(RemoveSecurityGroupNodeId));
+                MethodState? addPushTarget = diagnosticsNodeManager
+                    .FindPredefinedNode<MethodState>(new NodeId(AddPushTargetNodeId));
+                MethodState? removePushTarget = diagnosticsNodeManager
+                    .FindPredefinedNode<MethodState>(new NodeId(RemovePushTargetNodeId));
                 if (getKeys is not null)
                 {
                     getKeys.OnCallMethod2 = m_methodHandlers.OnGetSecurityKeys;
                 }
                 if (getGroup is not null)
                 {
-                    getGroup.OnCallMethod = m_methodHandlers.OnGetSecurityGroup;
+                    getGroup.OnCallMethod = OnGetSecurityGroup;
                 }
                 if (addGroup is not null)
                 {
-                    addGroup.OnCallMethod = m_methodHandlers.OnAddSecurityGroup;
+                    addGroup.OnCallMethod = OnAddSecurityGroup;
                 }
                 if (removeGroup is not null)
                 {
-                    removeGroup.OnCallMethod = m_methodHandlers.OnRemoveSecurityGroup;
+                    removeGroup.OnCallMethod = OnRemoveSecurityGroup;
+                }
+                if (addPushTarget is not null)
+                {
+                    addPushTarget.OnCallMethod = OnAddPushTarget;
+                }
+                if (removePushTarget is not null)
+                {
+                    removePushTarget.OnCallMethod = OnRemovePushTarget;
                 }
             }
 
@@ -537,6 +568,120 @@ namespace Opc.Ua.PubSub.Server
             lock (m_addressSpaceGate)
             {
                 m_dynamicRoots.AddRange(newRoots);
+            }
+        }
+
+        private async ValueTask RebuildSecurityGroupAddressSpaceAsync(CancellationToken cancellationToken)
+        {
+            if (!m_options.ExposeSecurityKeyService || m_keyService is null || m_diagnosticsNodeManager is null)
+            {
+                return;
+            }
+
+            BaseObjectState? securityGroups = m_diagnosticsNodeManager
+                .FindPredefinedNode<BaseObjectState>(s_securityGroupsNodeId);
+            if (securityGroups is null)
+            {
+                return;
+            }
+
+            List<NodeState> oldRoots;
+            lock (m_addressSpaceGate)
+            {
+                oldRoots = [.. m_securityGroupRoots];
+                m_securityGroupRoots.Clear();
+            }
+
+            foreach (NodeState oldRoot in oldRoots)
+            {
+                await RemovePredefinedNodeAsync(SystemContext, oldRoot, [], cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            var newRoots = new List<NodeState>();
+            string[] securityGroupIds = [.. m_keyService.SecurityGroupIds];
+            foreach (string securityGroupId in securityGroupIds)
+            {
+                SksSecurityGroup? group = await m_keyService
+                    .GetSecurityGroupAsync(securityGroupId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (group is null)
+                {
+                    continue;
+                }
+
+                NodeId groupNodeId = CreateSecurityGroupNodeId(securityGroupId);
+                BaseObjectState groupNode = CreateObject(
+                    securityGroups,
+                    groupNodeId,
+                    securityGroupId,
+                    new NodeId(15471u));
+                groupNode.RolePermissions = group.RolePermissions;
+                BindSecurityGroupMethods(groupNode);
+                m_methodHandlers.RegisterSecurityGroupNodeId(securityGroupId, groupNodeId);
+                newRoots.Add(groupNode);
+            }
+
+            foreach (NodeState root in newRoots)
+            {
+                await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
+            }
+
+            lock (m_addressSpaceGate)
+            {
+                m_securityGroupRoots.AddRange(newRoots);
+            }
+        }
+
+        private async ValueTask RebuildKeyPushTargetAddressSpaceAsync(CancellationToken cancellationToken)
+        {
+            if (!m_options.ExposeSecurityKeyService || m_diagnosticsNodeManager is null)
+            {
+                return;
+            }
+
+            BaseObjectState? keyPushTargets = m_diagnosticsNodeManager
+                .FindPredefinedNode<BaseObjectState>(s_keyPushTargetsNodeId);
+            if (keyPushTargets is null)
+            {
+                return;
+            }
+
+            List<NodeState> oldRoots;
+            PubSubKeyPushTargetRegistration[] targets;
+            lock (m_addressSpaceGate)
+            {
+                oldRoots = [.. m_keyPushTargetRoots];
+                m_keyPushTargetRoots.Clear();
+                targets = [.. m_keyPushTargets.Values];
+            }
+
+            foreach (NodeState oldRoot in oldRoots)
+            {
+                await RemovePredefinedNodeAsync(SystemContext, oldRoot, [], cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            var newRoots = new List<NodeState>();
+            foreach (PubSubKeyPushTargetRegistration target in targets)
+            {
+                BaseObjectState targetNode = CreateObject(
+                    keyPushTargets,
+                    target.NodeId,
+                    target.Name,
+                    new NodeId(25337u));
+                BindKeyPushTargetMethods(targetNode);
+                newRoots.Add(targetNode);
+            }
+
+            foreach (NodeState root in newRoots)
+            {
+                await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
+            }
+
+            lock (m_addressSpaceGate)
+            {
+                m_keyPushTargetRoots.AddRange(newRoots);
             }
         }
 
@@ -937,6 +1082,91 @@ namespace Opc.Ua.PubSub.Server
             return componentId.IdentifierAsString?.Split(':') ?? [];
         }
 
+        private NodeId CreateSecurityGroupNodeId(string securityGroupId)
+        {
+            return new($"pubsub:security-group:{securityGroupId}", NamespaceIndexes[0]);
+        }
+
+        private NodeId CreateKeyPushTargetNodeId(string targetName)
+        {
+            return new($"pubsub:key-push-target:{targetName}", NamespaceIndexes[0]);
+        }
+
+        private PubSubKeyPushTargetRegistration? GetKeyPushTarget(NodeId targetNodeId)
+        {
+            lock (m_addressSpaceGate)
+            {
+                return m_keyPushTargets.TryGetValue(targetNodeId, out PubSubKeyPushTargetRegistration? target)
+                    ? target
+                    : null;
+            }
+        }
+
+        private ServiceResult PushKeysToTarget(PubSubKeyPushTargetRegistration target)
+        {
+            if (m_keyService is null)
+            {
+                return new ServiceResult(StatusCodes.BadServiceUnsupported);
+            }
+
+            PushSecurityKeyProvider? provider = FindPushProvider(target.EndpointUrl);
+            if (provider is null)
+            {
+                return new ServiceResult(StatusCodes.BadNotFound);
+            }
+
+            string? securityGroupId = target.SecurityGroupIds.FirstOrDefault();
+            if (string.IsNullOrEmpty(securityGroupId))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
+
+            try
+            {
+                SksKeyResponse response = m_keyService.GetSecurityKeysAsync(
+                    "sks",
+                    new SksKeyRequest(securityGroupId, 0, Math.Max(target.RequestedKeyCount, (ushort)1)),
+                    [ObjectIds.WellKnownRole_SecurityAdmin])
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                var futureKeys = new List<ByteString>();
+                for (int i = 1; i < response.Keys.Count; i++)
+                {
+                    futureKeys.Add(ByteString.Create(response.Keys[i]));
+                }
+
+                provider.SetSecurityKeysAsync(
+                    response.SecurityPolicyUri,
+                    response.FirstTokenId,
+                    ByteString.Create(response.Keys[0]),
+                    [.. futureKeys],
+                    response.TimeToNextKey,
+                    response.KeyLifetime)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                return ServiceResult.Good;
+            }
+            catch (OpcUaSksException ex)
+            {
+                return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
+            }
+        }
+
+        private PushSecurityKeyProvider? FindPushProvider(string endpointUrl)
+        {
+            for (int i = 0; i < m_pushKeyProviders.Length; i++)
+            {
+                if (StringComparer.Ordinal.Equals(m_pushKeyProviders[i].SecurityGroupId, endpointUrl))
+                {
+                    return m_pushKeyProviders[i];
+                }
+            }
+
+            return null;
+        }
+
         private void BindConnectionMethods(BaseObjectState connectionNode)
         {
             AddInjectedMethod(connectionNode, "AddWriterGroup", m_methodHandlers.OnAddWriterGroup, connectionNode.NodeId);
@@ -970,6 +1200,21 @@ namespace Opc.Ua.PubSub.Server
             AddPlainMethod(fileNode, "Close", OnClosePubSubConfigurationFile);
             AddPlainMethod(fileNode, "ReserveIds", OnReservePubSubConfigurationIds);
             AddPlainMethod(fileNode, "CloseAndUpdate", OnCloseAndUpdatePubSubConfigurationFile);
+        }
+
+        private void BindSecurityGroupMethods(BaseObjectState securityGroupNode)
+        {
+            AddPlainMethod(securityGroupNode, "InvalidateKeys", (context, method, inputs, outputs) =>
+                m_methodHandlers.OnInvalidateKeys(context, method, securityGroupNode.NodeId, inputs, outputs));
+            AddPlainMethod(securityGroupNode, "ForceKeyRotation", (context, method, inputs, outputs) =>
+                m_methodHandlers.OnForceKeyRotation(context, method, securityGroupNode.NodeId, inputs, outputs));
+        }
+
+        private void BindKeyPushTargetMethods(BaseObjectState targetNode)
+        {
+            AddPlainMethod(targetNode, "ConnectSecurityGroups", OnConnectSecurityGroups);
+            AddPlainMethod(targetNode, "DisconnectSecurityGroups", OnDisconnectSecurityGroups);
+            AddPlainMethod(targetNode, "TriggerKeyUpdate", OnTriggerKeyUpdate);
         }
 
         private void BindWriterGroupMethods(BaseObjectState writerGroupNode)
@@ -1027,6 +1272,237 @@ namespace Opc.Ua.PubSub.Server
                 OnCallMethod = handler
             };
             parent.AddChild(method);
+        }
+
+        private ServiceResult OnGetSecurityGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            ServiceResult result = m_methodHandlers.OnGetSecurityGroup(context, method, inputArguments, outputArguments);
+            if (StatusCode.IsGood(result.StatusCode))
+            {
+                RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+            }
+
+            return result;
+        }
+
+        private ServiceResult OnAddSecurityGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            ServiceResult result = m_methodHandlers.OnAddSecurityGroup(context, method, inputArguments, outputArguments);
+            if (StatusCode.IsGood(result.StatusCode))
+            {
+                RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+            }
+
+            return result;
+        }
+
+        private ServiceResult OnRemoveSecurityGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            ServiceResult result = m_methodHandlers.OnRemoveSecurityGroup(context, method, inputArguments, outputArguments);
+            if (StatusCode.IsGood(result.StatusCode))
+            {
+                RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+            }
+
+            return result;
+        }
+
+        private ServiceResult OnAddPushTarget(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (inputArguments.Count < 6 ||
+                !inputArguments[0].TryGetValue(out string? applicationUri) ||
+                string.IsNullOrEmpty(applicationUri) ||
+                !inputArguments[1].TryGetValue(out string? endpointUrl) ||
+                string.IsNullOrEmpty(endpointUrl) ||
+                !inputArguments[2].TryGetValue(out string? securityPolicyUri) ||
+                string.IsNullOrEmpty(securityPolicyUri) ||
+                !inputArguments[3].TryGetValue(out UserTokenType userTokenType) ||
+                !inputArguments[4].TryGetValue(out ushort requestedKeyCount) ||
+                !inputArguments[5].TryGetValue(out double retryIntervalMs))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            string targetName = applicationUri;
+            NodeId targetNodeId = CreateKeyPushTargetNodeId(targetName);
+            var target = new PubSubKeyPushTargetRegistration(
+                targetName,
+                targetNodeId,
+                applicationUri,
+                endpointUrl,
+                securityPolicyUri,
+                userTokenType,
+                requestedKeyCount,
+                TimeSpan.FromMilliseconds(retryIntervalMs));
+            lock (m_addressSpaceGate)
+            {
+                m_keyPushTargets[targetNodeId] = target;
+            }
+
+            outputArguments.Add(Variant.From(targetNodeId));
+            RebuildKeyPushTargetAddressSpaceAsync(CancellationToken.None)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnRemovePushTarget(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (inputArguments.Count < 1 ||
+                !inputArguments[0].TryGetValue(out NodeId targetNodeId) ||
+                targetNodeId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            bool removed;
+            lock (m_addressSpaceGate)
+            {
+                removed = m_keyPushTargets.Remove(targetNodeId);
+            }
+            if (!removed)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+
+            RebuildKeyPushTargetAddressSpaceAsync(CancellationToken.None)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnConnectSecurityGroups(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            if (method.Parent?.NodeId is not NodeId targetNodeId ||
+                inputArguments.Count < 1 ||
+                !inputArguments[0].TryGetValue(out ArrayOf<NodeId> securityGroupIds))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            PubSubKeyPushTargetRegistration? target = GetKeyPushTarget(targetNodeId);
+            if (target is null)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+
+            var results = new StatusCode[securityGroupIds.Count];
+            for (int i = 0; i < securityGroupIds.Count; i++)
+            {
+                string? securityGroupId = m_methodHandlers.LookupSecurityGroupIdForNode(securityGroupIds[i]);
+                if (securityGroupId is null)
+                {
+                    results[i] = StatusCodes.BadNodeIdUnknown;
+                    continue;
+                }
+
+                target.SecurityGroupIds.Add(securityGroupId);
+                results[i] = StatusCodes.Good;
+            }
+
+            outputArguments.Add(Variant.From(new ArrayOf<StatusCode>(results)));
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnDisconnectSecurityGroups(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            if (method.Parent?.NodeId is not NodeId targetNodeId ||
+                inputArguments.Count < 1 ||
+                !inputArguments[0].TryGetValue(out ArrayOf<NodeId> securityGroupIds))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            PubSubKeyPushTargetRegistration? target = GetKeyPushTarget(targetNodeId);
+            if (target is null)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+
+            var results = new StatusCode[securityGroupIds.Count];
+            for (int i = 0; i < securityGroupIds.Count; i++)
+            {
+                string? securityGroupId = m_methodHandlers.LookupSecurityGroupIdForNode(securityGroupIds[i]);
+                if (securityGroupId is null || !target.SecurityGroupIds.Remove(securityGroupId))
+                {
+                    results[i] = StatusCodes.BadNotFound;
+                    continue;
+                }
+
+                results[i] = StatusCodes.Good;
+            }
+
+            outputArguments.Add(Variant.From(new ArrayOf<StatusCode>(results)));
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnTriggerKeyUpdate(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = inputArguments;
+            _ = outputArguments;
+            if (method.Parent?.NodeId is not NodeId targetNodeId)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            PubSubKeyPushTargetRegistration? target = GetKeyPushTarget(targetNodeId);
+            if (target is null)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+
+            return PushKeysToTarget(target);
         }
 
         private ServiceResult OnAddDataSetFolder(
@@ -1385,6 +1861,47 @@ namespace Opc.Ua.PubSub.Server
             {
                 m_logger.LogWarning(ex, "Seeding default SecurityGroup {Id} failed.", id);
             }
+        }
+
+        private sealed class PubSubKeyPushTargetRegistration
+        {
+            public PubSubKeyPushTargetRegistration(
+                string name,
+                NodeId nodeId,
+                string applicationUri,
+                string endpointUrl,
+                string securityPolicyUri,
+                UserTokenType userTokenType,
+                ushort requestedKeyCount,
+                TimeSpan retryInterval)
+            {
+                Name = name;
+                NodeId = nodeId;
+                ApplicationUri = applicationUri;
+                EndpointUrl = endpointUrl;
+                SecurityPolicyUri = securityPolicyUri;
+                UserTokenType = userTokenType;
+                RequestedKeyCount = requestedKeyCount;
+                RetryInterval = retryInterval;
+            }
+
+            public string Name { get; }
+
+            public NodeId NodeId { get; }
+
+            public string ApplicationUri { get; }
+
+            public string EndpointUrl { get; }
+
+            public string SecurityPolicyUri { get; }
+
+            public UserTokenType UserTokenType { get; }
+
+            public ushort RequestedKeyCount { get; }
+
+            public TimeSpan RetryInterval { get; }
+
+            public SortedSet<string> SecurityGroupIds { get; } = new(StringComparer.Ordinal);
         }
 
         private sealed class PubSubConfigurationFileHandle

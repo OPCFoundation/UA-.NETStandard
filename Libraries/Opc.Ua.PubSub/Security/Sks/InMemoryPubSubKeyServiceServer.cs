@@ -210,14 +210,9 @@ namespace Opc.Ua.PubSub.Security.Sks
         public ValueTask<SksKeyResponse> GetSecurityKeysAsync(
             string callerIdentity,
             SksKeyRequest request,
+            ArrayOf<NodeId> callerRoleIds = default,
             CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrEmpty(callerIdentity))
-            {
-                throw new OpcUaSksException(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    "Caller identity must be authenticated.");
-            }
             if (string.IsNullOrEmpty(request.SecurityGroupId))
             {
                 throw new OpcUaSksException(
@@ -242,7 +237,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 RotateExpiredCurrentLocked(state);
                 PrunePastKeysLocked(state);
-                if (!state.Group.IsCallerAuthorized(callerIdentity))
+                if (!state.Group.IsCallerAuthorized(callerIdentity, callerRoleIds))
                 {
                     EmitSecurityEvent(new PubSubSecurityEvent(
                         PubSubSecurityEventKind.SksKeyRequestDenied,

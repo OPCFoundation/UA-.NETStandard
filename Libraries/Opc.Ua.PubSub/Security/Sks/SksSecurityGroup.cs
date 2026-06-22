@@ -220,17 +220,18 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Determines whether a caller may retrieve keys for this group.
         /// </summary>
         /// <param name="callerIdentity">Authenticated caller identity.</param>
+        /// <param name="callerRoleIds">RoleIds granted to the caller.</param>
         /// <returns>
         /// <see langword="true"/> when RolePermissions grant Call or the caller is explicitly authorized.
         /// </returns>
-        public bool IsCallerAuthorized(string callerIdentity)
+        public bool IsCallerAuthorized(string callerIdentity, ArrayOf<NodeId> callerRoleIds = default)
         {
             if (string.IsNullOrEmpty(callerIdentity))
             {
-                return false;
+                return RolePermissionsGrantCall(callerRoleIds);
             }
 
-            if (RolePermissionsGrantCall())
+            if (RolePermissionsGrantCall(callerRoleIds))
             {
                 return true;
             }
@@ -262,10 +263,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             };
         }
 
-        private bool RolePermissionsGrantCall()
+        private bool RolePermissionsGrantCall(ArrayOf<NodeId> callerRoleIds)
         {
-            // TODO(RD5-rolepermissions-roles): Part 14 §8.3 with Part 18 roles should evaluate the caller's
-            // granted role set instead of treating AuthenticatedUser as sufficient for every authenticated caller.
             for (int i = 0; i < RolePermissions.Count; i++)
             {
                 RolePermissionType permission = RolePermissions[i];
@@ -273,8 +272,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                 {
                     continue;
                 }
-                if (permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser ||
-                    permission.RoleId == ObjectIds.WellKnownRole_Anonymous)
+                if (permission.RoleId == ObjectIds.WellKnownRole_Anonymous ||
+                    callerRoleIds.Contains(permission.RoleId))
                 {
                     return true;
                 }

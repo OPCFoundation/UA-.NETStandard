@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public async Task HandleGetSecurityKeys_SurfacesUnknownGroupAsBadUserAccessDenied()
+        public async Task HandleGetSecurityKeys_SurfacesUnknownGroupAsBadNotFound()
         {
             var server = new InMemoryPubSubKeyServiceServer();
             SksMethodHandler handler = CreateHandler(server);
@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new List<Variant>());
             Assert.That(
                 (uint)result.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public async Task HandleGetSecurityKeys_RejectsAnonymousCallerWithBadIdentityTokenInvalid()
+        public async Task HandleGetSecurityKeys_RejectsAnonymousCallerWithBadUserAccessDenied()
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
             SksMethodHandler handler = CreateHandler(server);
@@ -231,7 +231,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new List<Variant>());
             Assert.That(
                 (uint)result.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
