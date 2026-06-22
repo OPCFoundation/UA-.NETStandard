@@ -38,7 +38,7 @@
   `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
-- Transports: **UDP** (uni/multi/broadcast) and **MQTT** (3.1.1 + 5.0).
+- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), and **MQTT** (3.1.1 + 5.0).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5))
   with `Verbose` / `Compact` / `RawData` modes.
@@ -425,6 +425,71 @@ broadcast. The transport honours the
 | `MessageRepeatCount`       | How many times the publisher re-sends the same NetworkMessage.       |
 | `MessageRepeatDelay`       | Delay between repeats; receivers deduplicate using `SequenceNumber`. |
 
+
+### DTLS / UADP (`opc.dtls://`)
+
+`Opc.Ua.PubSub.Udp` also implements the Part 14 §7.3.2.4 DTLS transport for
+unicast UADP PubSub endpoints. Use `opc.dtls://host:4843` (default port 4843).
+Multicast and broadcast DTLS endpoints are rejected fail-closed.
+
+Register DTLS with the UDP transport fluent/DI extension:
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddSubscriber()
+        .AddUdpTransport()
+        .WithDtls(options =>
+        {
+            options.ProfileName = "ECC_nistP256_AesGcm";
+            options.LocalCertificate = publisherOrSubscriberEccCertificate;
+            options.PeerCertificateValidator = certificateValidator;
+        }));
+```
+
+A publisher and subscriber use the normal PubSub connection model; only the
+network address changes to `opc.dtls://` and the configured DTLS profile must be
+supported by the current BCL/runtime:
+
+```csharp
+var publisher = new PubSubConnectionDataType
+{
+    Name = "dtls-publisher",
+    Address = new ExtensionObject(new NetworkAddressUrlDataType
+    {
+        Url = "opc.dtls://127.0.0.1:4843"
+    }),
+    WriterGroups = [writerGroup]
+};
+
+var subscriber = new PubSubConnectionDataType
+{
+    Name = "dtls-subscriber",
+    Address = new ExtensionObject(new NetworkAddressUrlDataType
+    {
+        Url = "opc.dtls://127.0.0.1:4843"
+    }),
+    ReaderGroups = [readerGroup]
+};
+```
+
+DTLS uses .NET BCL cryptography only. Unsupported primitives are never
+substituted or downgraded: the profile is not registered and `Resolve(...)` /
+transport open throws a clear `NotSupportedException`.
+
+| Profile family | net8/net9/net10 status | netstandard2.1 status | net48 status |
+| -------------- | ---------------------- | --------------------- | ------------ |
+| NIST P-256/P-384 + AES-128/256-GCM | Implemented when `AesGcm` and the named curve are available. | No AEAD profile registered. | None. |
+| NIST P-256/P-384 + ChaCha20-Poly1305 | Implemented when `ChaCha20Poly1305.IsSupported` and the named curve are available. | Not registered. | None. |
+| NIST P-256/P-384 integrity-only (`TLS_SHA256_SHA256` / `TLS_SHA384_SHA384`) | Implemented. | Compiles; profiles are not registered because raw ECDHE is unavailable below net8. | None. |
+| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Not registered. | None. |
+| Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. | Unsupported. |
+
+Peer authentication reuses the injected stack `CertificateValidator` /
+certificate stores. Certificates must be ECC/ECDSA and match the selected profile
+hash strength. DTLS records enforce sequence-number protection and anti-replay
+per RFC 9147.
 ### MQTT (3.1.1 / 5.0)
 
 Implemented in `Opc.Ua.PubSub.Mqtt` on top of MQTTnet. Wire profiles
@@ -903,3 +968,4 @@ below maps Part 14 sections to the type / file that implements them.
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.
 - [Reference Publisher (`Applications/ConsoleReferencePublisher/README.md`)](../Applications/ConsoleReferencePublisher/README.md)
 - [Reference Subscriber (`Applications/ConsoleReferenceSubscriber/README.md`)](../Applications/ConsoleReferenceSubscriber/README.md)
+

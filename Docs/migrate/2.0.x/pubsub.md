@@ -22,6 +22,7 @@ required for existing consumers.
 8. [Part 14 v1.05.07 conformance changes](#8-part-14-v10507-conformance-changes-breaking)
 9. [Compatibility matrix](#9-compatibility-matrix)
 10. [Transport extensions moved to `IPubSubBuilder`](#10-transport-extensions-moved-to-ipubsubbuilder)
+11. [`opc.dtls://` UDP transport implemented](#11-opcdtls-udp-transport-implemented)
 
 ## 1. PubSub assemblies and NuGet packages renamed and split
 
@@ -223,6 +224,7 @@ who tested or deployed against earlier 2.0 preview PubSub builds:
 | JSON discovery `ua-discovery` envelope                       | **Wire break.** Use `ua-application` / `ua-endpoints` / `ua-status` / `ua-connection` / `ua-metadata`; keep-alive has no `Payload`. |
 | Discovery array length prefixes                              | **Wire break.** NetworkMessage arrays are Int32-prefixed; DataSetWriterConfiguration responses include `statusCodes[]`. |
 | MQTT default prefix and KeepAlive topic                      | **Wire break.** Default prefix is `opcua`; publish on `data`; no `keepalive` topic segment. |
+| `opc.dtls://` PubSub UDP endpoints                           | **Implemented.** No longer rejected; requires `.WithDtls(...)`, a supported BCL DTLS profile, and ECC certificates. Unsupported Curve25519/Curve448 profiles fail closed. |
 
 ## 10. Transport extensions moved to `IPubSubBuilder`
 
@@ -257,6 +259,29 @@ builder.Services.AddOpcUa()
 | ------------------------------------------------ | ---------------------------------------------------------------------- |
 | `IOpcUaBuilder.AddUdpTransport(...)`             | Compiles + `[Obsolete]`. Move into `AddPubSub(pubsub => pubsub.AddUdpTransport())`. |
 | `IOpcUaBuilder.AddMqttTransport(...)`            | Compiles + `[Obsolete]`. Move into `AddPubSub(pubsub => pubsub.AddMqttTransport())`. |
+
+## 11. `opc.dtls://` UDP transport implemented
+
+The Part 14 §7.3.2.4 DTLS transport for unicast UADP is implemented in
+`Opc.Ua.PubSub.Udp`. Existing configurations that used `opc.dtls://` are no
+longer rejected by the endpoint parser, but they must now provide DTLS options:
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddUdpTransport()
+        .WithDtls(options =>
+        {
+            options.ProfileName = "ECC_nistP256_AesGcm";
+            options.LocalCertificate = eccCertificateWithPrivateKey;
+            options.PeerCertificateValidator = certificateValidator;
+        }));
+```
+
+Only profiles whose cipher suite and curve are available through .NET BCL
+cryptography are registered. Curve25519/Curve448 profiles remain unsupported
+because the BCL does not expose a portable X25519/X448 API; they fail closed
+instead of falling back to a different curve or cipher.
 
 ## See also
 
