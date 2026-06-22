@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -50,15 +50,22 @@ namespace Opc.Ua.PubSub.Configuration
             ITelemetryContext telemetry)
         {
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
-                ServiceMessageContext.CreateEmpty(telemetry);
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-            settings.CloseOutput = true;
-            using var writer = XmlWriter.Create(ostrm, settings);
-            using var encoder = new XmlEncoder(typeof(PubSubConfigurationDataType), writer, context);
-            pubSubConfiguration.Encode(encoder);
-            encoder.Close();
+            SaveConfiguration(pubSubConfiguration, ostrm, telemetry, closeOutput: true);
+        }
+
+        /// <summary>
+        /// Save a <see cref="PubSubConfigurationDataType"/> instance as XML
+        /// to a stream.
+        /// </summary>
+        /// <param name="pubSubConfiguration">The configuration object that shall be saved.</param>
+        /// <param name="stream">The stream where the configuration shall be saved.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        public static void SaveConfiguration(
+            PubSubConfigurationDataType pubSubConfiguration,
+            Stream stream,
+            ITelemetryContext telemetry)
+        {
+            SaveConfiguration(pubSubConfiguration, stream, telemetry, closeOutput: false);
         }
 
         /// <summary>
@@ -73,14 +80,8 @@ namespace Opc.Ua.PubSub.Configuration
         {
             try
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
-                    ServiceMessageContext.CreateEmpty(telemetry);
                 using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-                using var parser = new XmlParser(typeof(PubSubConfigurationDataType), stream, context);
-                var config = new PubSubConfigurationDataType { Enabled = true };
-                config.Decode(parser);
-                return config;
+                return LoadConfiguration(stream, telemetry);
             }
             catch (Exception e)
             {
@@ -90,6 +91,41 @@ namespace Opc.Ua.PubSub.Configuration
                     filePath,
                     e.Message);
             }
+        }
+
+        /// <summary>
+        /// Load a <see cref="PubSubConfigurationDataType"/> instance from an XML stream.
+        /// </summary>
+        /// <param name="stream">The stream from where the configuration shall be loaded.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        public static PubSubConfigurationDataType LoadConfiguration(
+            Stream stream,
+            ITelemetryContext telemetry)
+        {
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(telemetry);
+            using var parser = new XmlParser(typeof(PubSubConfigurationDataType), stream, context);
+            var config = new PubSubConfigurationDataType { Enabled = true };
+            config.Decode(parser);
+            return config;
+        }
+
+        private static void SaveConfiguration(
+            PubSubConfigurationDataType pubSubConfiguration,
+            Stream stream,
+            ITelemetryContext telemetry,
+            bool closeOutput)
+        {
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(telemetry);
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            settings.CloseOutput = closeOutput;
+            using var writer = XmlWriter.Create(stream, settings);
+            using var encoder = new XmlEncoder(typeof(PubSubConfigurationDataType), writer, context);
+            pubSubConfiguration.Encode(encoder);
+            encoder.Close();
         }
     }
 }

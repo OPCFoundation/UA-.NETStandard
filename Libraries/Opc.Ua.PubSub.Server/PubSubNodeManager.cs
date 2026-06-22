@@ -29,11 +29,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
@@ -80,6 +82,12 @@ namespace Opc.Ua.PubSub.Server
         private const uint GetSecurityKeysNodeId = 15215;
         private const uint AddSecurityGroupNodeId = 15444;
         private const uint RemoveSecurityGroupNodeId = 15447;
+        private const uint AddPublishedDataItemsNodeId = 14479;
+        private const uint AddPublishedEventsNodeId = 14482;
+        private const uint AddPublishedDataItemsTemplateNodeId = 16842;
+        private const uint RemovePublishedDataSetNodeId = 14485;
+        private const uint AddDataSetFolderNodeId = 16884;
+        private const uint RemoveDataSetFolderNodeId = 16923;
         private static readonly NodeId s_publishedDataSetsNodeId = new(14478u);
 
         private readonly IPubSubApplication m_application;
@@ -90,9 +98,13 @@ namespace Opc.Ua.PubSub.Server
         private readonly PubSubActionMethodRegistration[] m_actionMethodRegistrations;
         private readonly System.Threading.Lock m_addressSpaceGate = new();
         private readonly List<NodeState> m_dynamicRoots = [];
+        private readonly SortedSet<string> m_dataSetFolders = new(StringComparer.Ordinal);
+        private readonly Dictionary<uint, PubSubConfigurationFileHandle> m_fileHandles = [];
         private IDiagnosticsNodeManager? m_diagnosticsNodeManager;
         private PubSubStatusBinding? m_statusBinding;
         private bool m_methodsBound;
+        private uint m_nextFileHandle;
+        private uint m_nextReservedId;
 
         /// <summary>
         /// Creates a new <see cref="PubSubNodeManager"/>.
@@ -252,6 +264,7 @@ namespace Opc.Ua.PubSub.Server
                 {
                     removeConn.OnCallMethod = m_methodHandlers.OnRemoveConnection;
                 }
+                BindPublishedDataSetFolderMethods(diagnosticsNodeManager);
             }
 
             if (m_options.ExposeSecurityKeyService && m_keyService is not null)
@@ -277,6 +290,32 @@ namespace Opc.Ua.PubSub.Server
             }
 
             m_methodsBound = enable is not null || disable is not null;
+        }
+
+        private void BindPublishedDataSetFolderMethods(IDiagnosticsNodeManager diagnosticsNodeManager)
+        {
+            BindStandardMethod(diagnosticsNodeManager, AddPublishedDataItemsNodeId, m_methodHandlers.OnAddPublishedDataItems);
+            BindStandardMethod(diagnosticsNodeManager, AddPublishedEventsNodeId, m_methodHandlers.OnAddPublishedEvents);
+            BindStandardMethod(
+                diagnosticsNodeManager,
+                AddPublishedDataItemsTemplateNodeId,
+                m_methodHandlers.OnAddPublishedDataItemsTemplate);
+            BindStandardMethod(diagnosticsNodeManager, RemovePublishedDataSetNodeId, m_methodHandlers.OnRemovePublishedDataSet);
+            BindStandardMethod(diagnosticsNodeManager, AddDataSetFolderNodeId, OnAddDataSetFolder);
+            BindStandardMethod(diagnosticsNodeManager, RemoveDataSetFolderNodeId, OnRemoveDataSetFolder);
+        }
+
+        private static void BindStandardMethod(
+            IDiagnosticsNodeManager diagnosticsNodeManager,
+            uint nodeId,
+            GenericMethodCalledEventHandler handler)
+        {
+            MethodState? method = diagnosticsNodeManager
+                .FindPredefinedNode<MethodState>(new NodeId(nodeId));
+            if (method is not null)
+            {
+                method.OnCallMethod = handler;
+            }
         }
 
         private void OnConfigurationChanged(
@@ -404,22 +443,48 @@ namespace Opc.Ua.PubSub.Server
                 }
             }
 
-            if (publishedDataSets is not null && !configuration.PublishedDataSets.IsNull)
+            BaseObjectState configurationFile = CreateObject(
+                publishSubscribe,
+                new NodeId("pubsub:configuration", 0),
+                "PubSubConfiguration",
+                new NodeId(25482u));
+            BindPubSubConfigurationFileMethods(configurationFile);
+            newRoots.Add(configurationFile);
+
+            if (publishedDataSets is not null)
             {
-                foreach (PublishedDataSetDataType dataSet in configuration.PublishedDataSets)
+                foreach (string folderName in m_dataSetFolders)
                 {
-                    // TODO(C4): Materialize PublishedDataItemsType AddVariables/RemoveVariables under this instance.
-                    // TODO(C6): Expose PubSubConfigurationType FileType Open/Read/Write/Close/CloseAndUpdate here.
-                    BaseObjectState dataSetNode = CreateObject(
+                    BaseObjectState folderNode = CreateObject(
                         publishedDataSets,
-                        CreatePublishedDataSetNodeId(dataSet.Name ?? string.Empty),
-                        dataSet.Name ?? "PublishedDataSet",
-                        new NodeId(14509u));
-                    AddStatusObject(dataSetNode);
-                    AddConfigurationVersion(
-                        dataSetNode,
-                        dataSet.DataSetMetaData?.ConfigurationVersion ?? m_application.ConfigurationVersion);
-                    newRoots.Add(dataSetNode);
+                        CreateDataSetFolderNodeId(folderName),
+                        folderName,
+                        new NodeId(14477u));
+                    BindDataSetFolderMethods(folderNode);
+                    newRoots.Add(folderNode);
+                }
+
+                if (!configuration.PublishedDataSets.IsNull)
+                {
+                    foreach (PublishedDataSetDataType dataSet in configuration.PublishedDataSets)
+                    {
+                        NodeId typeDefinitionId = GetPublishedDataSetTypeDefinition(dataSet);
+                        BaseObjectState dataSetNode = CreateObject(
+                            publishedDataSets,
+                            CreatePublishedDataSetNodeId(dataSet.Name ?? string.Empty),
+                            dataSet.Name ?? "PublishedDataSet",
+                            typeDefinitionId);
+                        AddStatusObject(dataSetNode);
+                        AddConfigurationVersion(
+                            dataSetNode,
+                            dataSet.DataSetMetaData?.ConfigurationVersion ?? m_application.ConfigurationVersion);
+                        if (typeDefinitionId == new NodeId(14534u))
+                        {
+                            BindPublishedDataItemsMethods(dataSetNode);
+                            AddPublishedDataProperty(dataSetNode, dataSet);
+                        }
+                        newRoots.Add(dataSetNode);
+                    }
                 }
             }
 
@@ -503,6 +568,51 @@ namespace Opc.Ua.PubSub.Server
             parent.AddChild(variable);
         }
 
+        private static void AddPublishedDataProperty(
+            BaseObjectState parent,
+            PublishedDataSetDataType dataSet)
+        {
+            if (dataSet.DataSetSource.IsNull ||
+                !dataSet.DataSetSource.TryGetValue(out PublishedDataItemsDataType? items) ||
+                items is null)
+            {
+                return;
+            }
+            string parentId = parent.NodeId.IdentifierAsString;
+            var variable = new BaseDataVariableState(parent)
+            {
+                NodeId = new NodeId($"{parentId}:PublishedData", parent.NodeId.NamespaceIndex),
+                BrowseName = new QualifiedName("PublishedData", parent.NodeId.NamespaceIndex),
+                DisplayName = new LocalizedText("PublishedData"),
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                DataType = DataTypeIds.PublishedVariableDataType,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = new Variant(CreateExtensionObjects(items.PublishedData)),
+                StatusCode = StatusCodes.Good,
+                Timestamp = DateTime.UtcNow
+            };
+            parent.AddChild(variable);
+        }
+
+        private static NodeId GetPublishedDataSetTypeDefinition(PublishedDataSetDataType dataSet)
+        {
+            if (!dataSet.DataSetSource.IsNull &&
+                dataSet.DataSetSource.TryGetValue(out PublishedDataItemsDataType? items) &&
+                items is not null)
+            {
+                return new NodeId(14534u);
+            }
+            if (!dataSet.DataSetSource.IsNull &&
+                dataSet.DataSetSource.TryGetValue(out PublishedEventsDataType? events) &&
+                events is not null)
+            {
+                return new NodeId(14572u);
+            }
+            return new NodeId(14509u);
+        }
+
         private void AddStatusMethod(
             BaseObjectState status,
             string browseName,
@@ -532,6 +642,32 @@ namespace Opc.Ua.PubSub.Server
             AddInjectedMethod(connectionNode, "AddWriterGroup", m_methodHandlers.OnAddWriterGroup, connectionNode.NodeId);
             AddInjectedMethod(connectionNode, "AddReaderGroup", m_methodHandlers.OnAddReaderGroup, connectionNode.NodeId);
             AddPlainMethod(connectionNode, "RemoveGroup", m_methodHandlers.OnRemoveGroup);
+        }
+
+        private void BindDataSetFolderMethods(BaseObjectState folderNode)
+        {
+            AddPlainMethod(folderNode, "AddPublishedDataItems", m_methodHandlers.OnAddPublishedDataItems);
+            AddPlainMethod(folderNode, "AddPublishedEvents", m_methodHandlers.OnAddPublishedEvents);
+            AddPlainMethod(folderNode, "AddPublishedDataItemsTemplate", m_methodHandlers.OnAddPublishedDataItemsTemplate);
+            AddPlainMethod(folderNode, "RemovePublishedDataSet", m_methodHandlers.OnRemovePublishedDataSet);
+            AddPlainMethod(folderNode, "AddDataSetFolder", OnAddDataSetFolder);
+            AddPlainMethod(folderNode, "RemoveDataSetFolder", OnRemoveDataSetFolder);
+        }
+
+        private void BindPublishedDataItemsMethods(BaseObjectState dataSetNode)
+        {
+            AddPlainMethod(dataSetNode, "AddVariables", m_methodHandlers.OnAddVariables);
+            AddPlainMethod(dataSetNode, "RemoveVariables", m_methodHandlers.OnRemoveVariables);
+        }
+
+        private void BindPubSubConfigurationFileMethods(BaseObjectState fileNode)
+        {
+            AddPlainMethod(fileNode, "Open", OnOpenPubSubConfigurationFile);
+            AddPlainMethod(fileNode, "Read", OnReadPubSubConfigurationFile);
+            AddPlainMethod(fileNode, "Write", OnWritePubSubConfigurationFile);
+            AddPlainMethod(fileNode, "Close", OnClosePubSubConfigurationFile);
+            AddPlainMethod(fileNode, "ReserveIds", OnReservePubSubConfigurationIds);
+            AddPlainMethod(fileNode, "CloseAndUpdate", OnCloseAndUpdatePubSubConfigurationFile);
         }
 
         private void BindWriterGroupMethods(BaseObjectState writerGroupNode)
@@ -591,6 +727,276 @@ namespace Opc.Ua.PubSub.Server
             parent.AddChild(method);
         }
 
+        private ServiceResult OnAddDataSetFolder(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1 ||
+                !inputArguments[0].TryGetValue(out string? folderName) ||
+                string.IsNullOrEmpty(folderName))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("AddDataSetFolder argument 0 (Name) is missing or empty."));
+            }
+            NodeId nodeId = CreateDataSetFolderNodeId(folderName);
+            lock (m_addressSpaceGate)
+            {
+                _ = m_dataSetFolders.Add(folderName);
+            }
+            RebuildConfigurationAddressSpaceAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            outputArguments.Add(Variant.From(nodeId));
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnRemoveDataSetFolder(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 1 ||
+                !inputArguments[0].TryGetValue(out NodeId folderNodeId) ||
+                folderNodeId.IsNull)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RemoveDataSetFolder argument 0 is not a valid NodeId."));
+            }
+            string identifier = folderNodeId.IdentifierAsString;
+            const string prefix = "pubsub:folder:";
+            if (!identifier.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+            lock (m_addressSpaceGate)
+            {
+                _ = m_dataSetFolders.Remove(identifier[prefix.Length..]);
+            }
+            RebuildConfigurationAddressSpaceAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnReservePubSubConfigurationIds(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (inputArguments.Count < 3 ||
+                !inputArguments[1].TryGetValue(out ushort writerGroupCount) ||
+                !inputArguments[2].TryGetValue(out ushort dataSetWriterCount))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            outputArguments.Add(Variant.Null);
+            outputArguments.Add(Variant.From(ReserveIds(writerGroupCount)));
+            outputArguments.Add(Variant.From(ReserveIds(dataSetWriterCount)));
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnOpenPubSubConfigurationFile(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            byte mode = 1;
+            if (inputArguments.Count > 0)
+            {
+                _ = inputArguments[0].TryGetValue(out mode);
+            }
+            uint handle = ++m_nextFileHandle;
+            byte[] buffer = IsWriteMode(mode) ? [] : EncodeConfiguration(m_application.GetConfiguration());
+            lock (m_addressSpaceGate)
+            {
+                m_fileHandles[handle] = new PubSubConfigurationFileHandle(IsWriteMode(mode), buffer);
+            }
+            outputArguments.Add(Variant.From(handle));
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnReadPubSubConfigurationFile(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (inputArguments.Count < 2 ||
+                !inputArguments[0].TryGetValue(out uint handle) ||
+                !inputArguments[1].TryGetValue(out int length))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            PubSubConfigurationFileHandle? file = GetFileHandle(handle);
+            if (file is null)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            outputArguments.Add(Variant.From(file.Read(length)));
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnWritePubSubConfigurationFile(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (inputArguments.Count < 2 ||
+                !inputArguments[0].TryGetValue(out uint handle) ||
+                !inputArguments[1].TryGetValue(out ArrayOf<byte> data) ||
+                data.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            PubSubConfigurationFileHandle? file = GetFileHandle(handle);
+            if (file is null || !file.Writable)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
+            file.Write([.. data]);
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnClosePubSubConfigurationFile(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (inputArguments.Count < 1 || !inputArguments[0].TryGetValue(out uint handle))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            PubSubConfigurationFileHandle? file;
+            lock (m_addressSpaceGate)
+            {
+                _ = m_fileHandles.Remove(handle, out file);
+            }
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnCloseAndUpdatePubSubConfigurationFile(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (inputArguments.Count < 1 || !inputArguments[0].TryGetValue(out uint handle))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            PubSubConfigurationFileHandle? file;
+            lock (m_addressSpaceGate)
+            {
+                _ = m_fileHandles.Remove(handle, out file);
+            }
+            if (file is null)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            try
+            {
+                PubSubConfigurationDataType configuration = DecodeConfiguration(file.ToArray());
+                _ = m_application.ReplaceConfigurationAsync(configuration)
+                    .AsTask().GetAwaiter().GetResult();
+                outputArguments.Add(Variant.From(true));
+                outputArguments.Add(Variant.From(Array.Empty<StatusCode>()));
+                outputArguments.Add(Variant.From(Array.Empty<ExtensionObject>()));
+                outputArguments.Add(Variant.From(Array.Empty<NodeId>()));
+                return ServiceResult.Good;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "PubSubConfiguration CloseAndUpdate failed.");
+                return new ServiceResult(StatusCodes.BadConfigurationError, new LocalizedText(ex.Message));
+            }
+        }
+
+        private PubSubConfigurationFileHandle? GetFileHandle(uint handle)
+        {
+            lock (m_addressSpaceGate)
+            {
+                return m_fileHandles.TryGetValue(handle, out PubSubConfigurationFileHandle? file) ? file : null;
+            }
+        }
+
+        private byte[] EncodeConfiguration(PubSubConfigurationDataType configuration)
+        {
+            using var stream = new MemoryStream();
+            UaPubSubConfigurationHelper.SaveConfiguration(configuration, stream, m_telemetry);
+            return stream.ToArray();
+        }
+
+        private PubSubConfigurationDataType DecodeConfiguration(byte[] payload)
+        {
+            using var stream = new MemoryStream(payload);
+            return UaPubSubConfigurationHelper.LoadConfiguration(stream, m_telemetry);
+        }
+
+        private static bool IsWriteMode(byte mode)
+        {
+            return (mode & 0x2) != 0 || (mode & 0x4) != 0;
+        }
+
+        private ArrayOf<uint> ReserveIds(ushort count)
+        {
+            var ids = new uint[count];
+            lock (m_addressSpaceGate)
+            {
+                for (int i = 0; i < ids.Length; i++)
+                {
+                    ids[i] = ++m_nextReservedId;
+                }
+            }
+            return new ArrayOf<uint>(ids);
+        }
+
+        private static ArrayOf<ExtensionObject> CreateExtensionObjects(
+            ArrayOf<PublishedVariableDataType> publishedData)
+        {
+            if (publishedData.IsNull)
+            {
+                return [];
+            }
+            var values = new ExtensionObject[publishedData.Count];
+            for (int i = 0; i < values.Length; i++)
+            {
+                values[i] = new ExtensionObject(publishedData[i]);
+            }
+            return [.. values];
+        }
+
         private static NodeId CreateConnectionNodeId(string connectionName)
         {
             return new($"pubsub:connection:{connectionName}", 0);
@@ -619,6 +1025,11 @@ namespace Opc.Ua.PubSub.Server
         private static NodeId CreatePublishedDataSetNodeId(string publishedDataSetName)
         {
             return new($"pubsub:published-data-set:{publishedDataSetName}", 0);
+        }
+
+        private static NodeId CreateDataSetFolderNodeId(string folderName)
+        {
+            return new($"pubsub:folder:{folderName}", 0);
         }
 
         private void RegisterActionMethodHandlers()
@@ -668,6 +1079,53 @@ namespace Opc.Ua.PubSub.Server
             catch (Exception ex)
             {
                 m_logger.LogWarning(ex, "Seeding default SecurityGroup {Id} failed.", id);
+            }
+        }
+
+        private sealed class PubSubConfigurationFileHandle
+        {
+            private byte[] m_buffer;
+            private int m_position;
+            private int m_length;
+
+            public PubSubConfigurationFileHandle(bool writable, byte[] initialContent)
+            {
+                Writable = writable;
+                m_buffer = [.. initialContent];
+                m_length = m_buffer.Length;
+            }
+
+            public bool Writable { get; }
+
+            public byte[] Read(int length)
+            {
+                if (length < 0)
+                {
+                    length = 0;
+                }
+                var buffer = new byte[Math.Min(length, m_length - m_position)];
+                Array.Copy(m_buffer, m_position, buffer, 0, buffer.Length);
+                m_position += buffer.Length;
+                return buffer;
+            }
+
+            public void Write(byte[] data)
+            {
+                int requiredLength = m_position + data.Length;
+                if (requiredLength > m_buffer.Length)
+                {
+                    Array.Resize(ref m_buffer, requiredLength);
+                }
+                Array.Copy(data, 0, m_buffer, m_position, data.Length);
+                m_position += data.Length;
+                m_length = Math.Max(m_length, m_position);
+            }
+
+            public byte[] ToArray()
+            {
+                var result = new byte[m_length];
+                Array.Copy(m_buffer, 0, result, 0, result.Length);
+                return result;
             }
         }
     }
