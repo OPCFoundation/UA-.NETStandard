@@ -1154,6 +1154,42 @@ namespace Opc.Ua.Core.Encoders.Tests
         }
 
         /// <summary>
+        /// Use an external stream across multiple dispose cycles and keep output stable.
+        /// </summary>
+        [Test]
+        public void ConstructorExternalStreamProducesSameJsonAcrossDisposeCycles()
+        {
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
+            using var memoryStream = new MemoryStream();
+            string expected = null;
+
+            for (int ii = 0; ii < 4; ii++)
+            {
+                memoryStream.SetLength(0);
+                memoryStream.Position = 0;
+
+                var jsonEncoder = new JsonEncoder(memoryStream, context, JsonEncoderOptions.Compact);
+                TestEncoding(jsonEncoder);
+                jsonEncoder.Dispose();
+                jsonEncoder.Dispose();
+
+                string encoded = Encoding.UTF8.GetString(memoryStream.ToArray());
+                Assert.That(encoded, Is.Not.Empty);
+                Assert.That(memoryStream.CanWrite, Is.True);
+                _ = PrettifyAndValidateJson(encoded);
+
+                if (expected == null)
+                {
+                    expected = encoded;
+                }
+                else
+                {
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
         /// Use a ArraySegmentStream constructor with external Stream,
         /// keep the stream open for more encodings.
         /// </summary>
