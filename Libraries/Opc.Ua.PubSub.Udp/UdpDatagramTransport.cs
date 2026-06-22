@@ -211,8 +211,10 @@ namespace Opc.Ua.PubSub.Udp
         // PubSubConnection announcements on 224.0.2.14:4840 per Part 14 §7.3.2.1.
         // TODO(B14): add subscriber probe jitter/backoff and publisher probe
         // throttling for Part 14 §7.2.4.6.12.2.
-        // TODO(B15): add opc.dtls:// unicast transport on port 4843 for
-        // DTLS 1.3 per Part 14 §7.3.2.4.
+        // TODO(B15): add DTLS 1.3 handshake/record protection for opc.dtls://
+        // unicast per Part 14 §7.3.2.4. The current target TFMs do not expose a
+        // DTLS client/server API in System.Net.Security, so the parser accepts the
+        // URL and defaults port 4843 but payload protection needs a DTLS provider.
 
         /// <summary>
         /// DiscoveryMaxMessageSize cap (bytes) honoured from the
@@ -936,18 +938,26 @@ namespace Opc.Ua.PubSub.Udp
         {
             if (connection.TransportSettings.IsNull)
             {
-                return default;
+                return new DatagramV2Settings
+                {
+                    DiscoveryMaxMessageSize = 4096
+                };
             }
             if (!connection.TransportSettings.TryGetValue(
                     out DatagramConnectionTransport2DataType? v2)
                 || v2 is null)
             {
-                return default;
+                return new DatagramV2Settings
+                {
+                    DiscoveryMaxMessageSize = 4096
+                };
             }
             return new DatagramV2Settings
             {
                 DiscoveryAnnounceRate = v2.DiscoveryAnnounceRate,
-                DiscoveryMaxMessageSize = v2.DiscoveryMaxMessageSize,
+                DiscoveryMaxMessageSize = v2.DiscoveryMaxMessageSize == 0
+                    ? 4096
+                    : v2.DiscoveryMaxMessageSize,
                 QosCategory = v2.QosCategory ?? string.Empty
             };
         }

@@ -78,5 +78,16 @@ namespace Opc.Ua.PubSub.Transports
             PublisherId publisherId,
             WriterGroupDataType writerGroup,
             ushort? dataSetWriterId);
+
+        /// <summary>
+        /// Builds a publisher-level discovery topic for MQTT message types such as
+        /// status, connection, application, and endpoints.
+        /// </summary>
+        /// <param name="publisherId">Publisher identity.</param>
+        /// <param name="messageTypeSegment">MQTT message type segment.</param>
+        /// <returns>The constructed discovery topic string.</returns>
+        string BuildDiscoveryTopic(
+            PublisherId publisherId,
+            string messageTypeSegment);
     }
 }

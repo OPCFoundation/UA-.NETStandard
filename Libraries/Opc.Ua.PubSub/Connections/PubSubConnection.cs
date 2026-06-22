@@ -275,6 +275,11 @@ namespace Opc.Ua.PubSub.Connections
             m_requiredSecurityMode is MessageSecurityMode.Sign
                 or MessageSecurityMode.SignAndEncrypt;
 
+        private const string MqttApplicationSegment = "application";
+        private const string MqttConnectionSegment = "connection";
+        private const string MqttEndpointsSegment = "endpoints";
+        private const string MqttStatusSegment = "status";
+
         /// <summary>
         /// Currently bound transport, or <see langword="null"/> when
         /// the connection has not yet been enabled. Exposed only to
@@ -294,6 +299,45 @@ namespace Opc.Ua.PubSub.Connections
                     return m_transport;
                 }
             }
+        }
+
+        private async ValueTask ConfigureLastWillAsync(
+            IPubSubTransport transport,
+            CancellationToken cancellationToken)
+        {
+            if (transport is not IPubSubLastWillConfigurator willConfigurator
+                || transport is not IPubSubTopicProvider topicProvider)
+            {
+                return;
+            }
+            INetworkMessageEncoder? encoder = ResolveEncoder();
+            if (encoder is null)
+            {
+                return;
+            }
+            string topic = topicProvider.BuildDiscoveryTopic(PublisherId, MqttStatusSegment);
+            UadpDiscoveryResponseMessage willMessage = CreateStatusDiscoveryMessage(PubSubState.Error, isCyclic: false);
+            PubSubNetworkMessage networkMessage = ConvertDiscoveryMessageForTransport(willMessage);
+            ReadOnlyMemory<byte> payload = await EncodeNetworkMessageAsync(
+                networkMessage, encoder, cancellationToken).ConfigureAwait(false);
+            willConfigurator.ConfigureLastWill(topic, payload, retain: true);
+        }
+
+        private async ValueTask PublishStartupDiscoveryAnnouncementsAsync(CancellationToken cancellationToken)
+        {
+            if (CurrentTransport is not IPubSubTopicProvider)
+            {
+                return;
+            }
+            await SendDiscoveryResponseAsync(CreateApplicationInformationDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+            await SendDiscoveryResponseAsync(CreatePublisherEndpointsDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+            await SendDiscoveryResponseAsync(CreatePubSubConnectionDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+            await SendDiscoveryResponseAsync(
+                CreateStatusDiscoveryMessage(PubSubState.Operational, isCyclic: false),
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -322,6 +366,7 @@ namespace Opc.Ua.PubSub.Connections
 
             try
             {
+                await ConfigureLastWillAsync(transport, cancellationToken).ConfigureAwait(false);
                 await transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             }
             catch
@@ -337,6 +382,7 @@ namespace Opc.Ua.PubSub.Connections
             }
 
             _ = State.TryMarkOperational();
+            await PublishStartupDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
 
             // Start receive pump.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -1246,8 +1292,6 @@ namespace Opc.Ua.PubSub.Connections
             UadpDiscoveryRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // TODO(B9): add PubSubConnection, ApplicationInformation, generic Probe,
-            // and WriterGroupId responders required by Part 14 §7.2.4.6.12.4.
             // TODO(B14): throttle duplicate discovery probes and aggregate
             // WriterGroup responses per Part 14 §7.2.4.6.12.2.
             switch (request.DiscoveryType)
@@ -1264,7 +1308,97 @@ namespace Opc.Ua.PubSub.Connections
                     await SendPublisherEndpointsDiscoveryResponseAsync(cancellationToken)
                         .ConfigureAwait(false);
                     break;
+                case UadpDiscoveryType.ApplicationInformation:
+                    await SendDiscoveryResponseAsync(
+                        CreateApplicationInformationDiscoveryMessage(),
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                case UadpDiscoveryType.PubSubConnection:
+                    await SendPubSubConnectionDiscoveryResponseAsync(
+                        request.ProbeFilter,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                case UadpDiscoveryType.Probe:
+                    await RespondToGenericProbeAsync(request, cancellationToken).ConfigureAwait(false);
+                    break;
             }
+        }
+
+        private async ValueTask RespondToGenericProbeAsync(
+            UadpDiscoveryRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            UadpDiscoveryProbeFilter? filter = request.ProbeFilter;
+            if (filter?.WriterGroupId is ushort writerGroupId)
+            {
+                await SendWriterGroupConfigurationDiscoveryResponseAsync(
+                    writerGroupId,
+                    includeDataSetWriters: filter.IncludeDataSetWriters,
+                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            await SendDiscoveryResponseAsync(CreateApplicationInformationDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+            await SendPublisherEndpointsDiscoveryResponseAsync(cancellationToken).ConfigureAwait(false);
+            await SendPubSubConnectionDiscoveryResponseAsync(filter, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask SendDiscoveryResponseAsync(
+            UadpDiscoveryResponseMessage response,
+            CancellationToken cancellationToken)
+        {
+            string? topic = ResolveDiscoveryTopic(response);
+            PubSubNetworkMessage networkMessage = ConvertDiscoveryMessageForTransport(response);
+            await SendNetworkMessageAsync(networkMessage, topic, cancellationToken).ConfigureAwait(false);
+        }
+
+        private PubSubNetworkMessage ConvertDiscoveryMessageForTransport(
+            UadpDiscoveryResponseMessage response)
+        {
+            if (TransportProfileFamily(TransportProfileUri) != "Json")
+            {
+                return response;
+            }
+            return new JsonDiscoveryMessage
+            {
+                PublisherId = response.PublisherId,
+                MessageId = response.SequenceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                DiscoveryType = response.DiscoveryType,
+                ApplicationInformation = response.ApplicationInformation,
+                ApplicationStatus = response.ApplicationStatus,
+                Connection = response.Connection,
+                DataSetWriterId = response.DataSetWriterId,
+                WriterConfiguration = response.WriterConfiguration,
+                DataSetWriterIds = [.. response.DataSetWriterIds],
+                MetaData = response.MetaData,
+                PublisherEndpoints = [.. response.PublisherEndpoints],
+                Status = response.StatusCode
+            };
+        }
+
+        private string? ResolveDiscoveryTopic(UadpDiscoveryResponseMessage response)
+        {
+            IPubSubTransport? transport;
+            lock (m_gate)
+            {
+                transport = m_transport;
+            }
+            if (transport is not IPubSubTopicProvider provider)
+            {
+                return null;
+            }
+            return response.DiscoveryType switch
+            {
+                UadpDiscoveryType.ApplicationInformation when response.ApplicationStatus is not null =>
+                    provider.BuildDiscoveryTopic(PublisherId, MqttStatusSegment),
+                UadpDiscoveryType.ApplicationInformation =>
+                    provider.BuildDiscoveryTopic(PublisherId, MqttApplicationSegment),
+                UadpDiscoveryType.PublisherEndpoints =>
+                    provider.BuildDiscoveryTopic(PublisherId, MqttEndpointsSegment),
+                UadpDiscoveryType.PubSubConnection =>
+                    provider.BuildDiscoveryTopic(PublisherId, MqttConnectionSegment),
+                _ => null
+            };
         }
 
         private async ValueTask SendDataSetMetaDataDiscoveryResponsesAsync(
@@ -1299,7 +1433,7 @@ namespace Opc.Ua.PubSub.Connections
                         SequenceNumber = NewDiscoverySequenceNumber(),
                         StatusCode = StatusCodes.Good
                     };
-                    await SendNetworkMessageAsync(response, cancellationToken).ConfigureAwait(false);
+                    await SendDiscoveryResponseAsync(response, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -1340,23 +1474,164 @@ namespace Opc.Ua.PubSub.Connections
                     SequenceNumber = NewDiscoverySequenceNumber(),
                     StatusCode = StatusCodes.Good
                 };
-                await SendNetworkMessageAsync(response, cancellationToken).ConfigureAwait(false);
+                await SendDiscoveryResponseAsync(response, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask SendWriterGroupConfigurationDiscoveryResponseAsync(
+            ushort writerGroupId,
+            bool includeDataSetWriters,
+            CancellationToken cancellationToken)
+        {
+            for (int groupIndex = 0; groupIndex < m_writerGroups.Count; groupIndex++)
+            {
+                WriterGroup group = m_writerGroups[groupIndex];
+                if (group.WriterGroupId != writerGroupId)
+                {
+                    continue;
+                }
+                var groupConfiguration = (WriterGroupDataType)group.Configuration.Clone();
+                var writerIds = new List<ushort>();
+                if (includeDataSetWriters)
+                {
+                    var writerConfigs = new List<DataSetWriterDataType>();
+                    for (int writerIndex = 0; writerIndex < group.DataSetWriters.Count; writerIndex++)
+                    {
+                        IDataSetWriter writer = group.DataSetWriters[writerIndex];
+                        writerIds.Add(writer.DataSetWriterId);
+                        writerConfigs.Add((DataSetWriterDataType)writer.Configuration.Clone());
+                    }
+                    groupConfiguration.DataSetWriters = [.. writerConfigs];
+                }
+                else
+                {
+                    groupConfiguration.DataSetWriters = [];
+                }
+                var response = new UadpDiscoveryResponseMessage
+                {
+                    PublisherId = PublisherId,
+                    WriterGroupId = group.WriterGroupId,
+                    DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
+                    DataSetWriterIds = [.. writerIds],
+                    WriterConfiguration = groupConfiguration,
+                    SequenceNumber = NewDiscoverySequenceNumber(),
+                    StatusCode = StatusCodes.Good
+                };
+                await SendDiscoveryResponseAsync(response, cancellationToken).ConfigureAwait(false);
+                return;
             }
         }
 
         private async ValueTask SendPublisherEndpointsDiscoveryResponseAsync(
             CancellationToken cancellationToken)
         {
-            ArrayOf<EndpointDescription> endpoints = BuildPublisherEndpoints();
-            var response = new UadpDiscoveryResponseMessage
+            await SendDiscoveryResponseAsync(CreatePublisherEndpointsDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private UadpDiscoveryResponseMessage CreatePublisherEndpointsDiscoveryMessage()
+        {
+            return new UadpDiscoveryResponseMessage
             {
                 PublisherId = PublisherId,
                 DiscoveryType = UadpDiscoveryType.PublisherEndpoints,
-                PublisherEndpoints = endpoints,
+                PublisherEndpoints = BuildPublisherEndpoints(),
                 SequenceNumber = NewDiscoverySequenceNumber(),
                 StatusCode = StatusCodes.Good
             };
-            await SendNetworkMessageAsync(response, cancellationToken).ConfigureAwait(false);
+        }
+
+        private UadpDiscoveryResponseMessage CreateApplicationInformationDiscoveryMessage()
+        {
+            return new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId,
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationInformation = new UadpApplicationInformation
+                {
+                    ApplicationName = new LocalizedText(Name),
+                    ApplicationUri = string.IsNullOrEmpty(Name) ? "urn:opcua:pubsub" : $"urn:opcua:pubsub:{Name}",
+                    ProductUri = "urn:opcfoundation:ua-netstandard:pubsub",
+                    ApplicationType = ApplicationType.ClientAndServer,
+                    SupportedTransportProfiles = [TransportProfileUri]
+                },
+                SequenceNumber = NewDiscoverySequenceNumber(),
+                StatusCode = StatusCodes.Good
+            };
+        }
+
+        private async ValueTask SendPubSubConnectionDiscoveryResponseAsync(
+            UadpDiscoveryProbeFilter? filter,
+            CancellationToken cancellationToken)
+        {
+            if (!MatchesTransportProfileFilter(filter))
+            {
+                return;
+            }
+            await SendDiscoveryResponseAsync(
+                CreatePubSubConnectionDiscoveryMessage(filter),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private UadpDiscoveryResponseMessage CreatePubSubConnectionDiscoveryMessage(
+            UadpDiscoveryProbeFilter? filter = null)
+        {
+            var connection = (PubSubConnectionDataType)Configuration.Clone();
+            connection.ReaderGroups = [];
+            if (filter is null || !filter.IncludeWriterGroups)
+            {
+                connection.WriterGroups = [];
+            }
+            else if (!filter.IncludeDataSetWriters && !connection.WriterGroups.IsNull)
+            {
+                foreach (WriterGroupDataType group in connection.WriterGroups)
+                {
+                    group.DataSetWriters = [];
+                }
+            }
+            return new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId,
+                DiscoveryType = UadpDiscoveryType.PubSubConnection,
+                Connection = connection,
+                SequenceNumber = NewDiscoverySequenceNumber(),
+                StatusCode = StatusCodes.Good
+            };
+        }
+
+        private bool MatchesTransportProfileFilter(UadpDiscoveryProbeFilter? filter)
+        {
+            if (filter is null || filter.TransportProfileUris.IsNull || filter.TransportProfileUris.Count == 0)
+            {
+                return true;
+            }
+            for (int i = 0; i < filter.TransportProfileUris.Count; i++)
+            {
+                if (string.Equals(filter.TransportProfileUris[i], TransportProfileUri, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private UadpDiscoveryResponseMessage CreateStatusDiscoveryMessage(PubSubState state, bool isCyclic)
+        {
+            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            return new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId,
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus
+                {
+                    IsCyclic = isCyclic,
+                    Status = state,
+                    NextReportTime = now,
+                    Timestamp = now
+                },
+                SequenceNumber = NewDiscoverySequenceNumber(),
+                StatusCode = StatusCodes.Good
+            };
         }
 
         private ArrayOf<EndpointDescription> BuildPublisherEndpoints()
@@ -1510,6 +1785,19 @@ namespace Opc.Ua.PubSub.Connections
 
             await transport.SendAsync(payload, topic, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        private ValueTask<ReadOnlyMemory<byte>> EncodeNetworkMessageAsync(
+            PubSubNetworkMessage networkMessage,
+            INetworkMessageEncoder encoder,
+            CancellationToken cancellationToken)
+        {
+            var context = new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(m_telemetry),
+                m_metaDataRegistry,
+                m_diagnostics,
+                m_timeProvider);
+            return encoder.EncodeAsync(networkMessage, context, cancellationToken);
         }
 
         private async ValueTask SendChunkedAsync(

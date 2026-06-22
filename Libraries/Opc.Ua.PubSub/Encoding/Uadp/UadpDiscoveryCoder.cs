@@ -487,8 +487,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpDiscoveryResponseMessage message,
             IServiceMessageContext context)
         {
-            // TODO(B12): add ApplicationInformationType=2 status body
-            // (IsCyclic/Status/NextReportTime/Timestamp) per Part 14 §7.2.4.6.7.
+            if (message.ApplicationStatus is not null)
+            {
+                WriteApplicationStatus(ref writer, message.ApplicationStatus);
+                return;
+            }
             UadpApplicationInformation info = message.ApplicationInformation
                 ?? new UadpApplicationInformation();
             writer.WriteUInt16Le(1);
@@ -512,6 +515,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 throw new InvalidOperationException("Failed reading ApplicationInformationType.");
             }
+            if (applicationInformationType == 2)
+            {
+                return ReadApplicationStatus(ref reader, message);
+            }
             if (applicationInformationType != 1)
             {
                 throw new InvalidOperationException("Unsupported ApplicationInformationType.");
@@ -528,6 +535,57 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     ProductUri = description.ProductUri ?? string.Empty,
                     ApplicationType = description.ApplicationType,
                     Capabilities = capabilities
+                }
+            };
+        }
+
+        private static void WriteApplicationStatus(
+            ref UadpBinaryWriter writer,
+            UadpApplicationStatus status)
+        {
+            writer.WriteUInt16Le(2);
+            writer.WriteByte(status.IsCyclic ? (byte)1 : (byte)0);
+            writer.WriteUInt32Le((uint)status.Status);
+            if (status.IsCyclic)
+            {
+                writer.WriteInt64Le(status.NextReportTime.Value);
+                writer.WriteInt64Le(status.Timestamp.Value);
+            }
+        }
+
+        private static UadpDiscoveryResponseMessage ReadApplicationStatus(
+            ref UadpBinaryReader reader,
+            UadpDiscoveryResponseMessage message)
+        {
+            if (!reader.TryReadByte(out byte isCyclicByte))
+            {
+                throw new InvalidOperationException("Failed reading IsCyclic.");
+            }
+            if (!reader.TryReadUInt32Le(out uint statusValue))
+            {
+                throw new InvalidOperationException("Failed reading PubSubState.");
+            }
+            bool isCyclic = isCyclicByte != 0;
+            DateTimeUtc nextReportTime = DateTimeUtc.MinValue;
+            DateTimeUtc timestamp = DateTimeUtc.MinValue;
+            if (isCyclic)
+            {
+                if (!reader.TryReadInt64Le(out long nextReportTimeValue)
+                    || !reader.TryReadInt64Le(out long timestampValue))
+                {
+                    throw new InvalidOperationException("Failed reading cyclic status timestamps.");
+                }
+                nextReportTime = new DateTimeUtc(nextReportTimeValue);
+                timestamp = new DateTimeUtc(timestampValue);
+            }
+            return message with
+            {
+                ApplicationStatus = new UadpApplicationStatus
+                {
+                    IsCyclic = isCyclic,
+                    Status = (PubSubState)statusValue,
+                    NextReportTime = nextReportTime,
+                    Timestamp = timestamp
                 }
             };
         }
@@ -754,8 +812,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             bool payloadHeaderEnabled,
             ushort? writerGroupId)
         {
-            // TODO(B17): add byte-level assertions for Part 14 §7.2.4.6.3 and
-            // §7.2.4.6.12.3 in addition to round-trip coverage.
             UadpFlagsEncodingMask uadpFlags =
                 UadpFlagsEncodingMask.PublisherIdEnabled |
                 UadpFlagsEncodingMask.ExtendedFlags1Enabled;

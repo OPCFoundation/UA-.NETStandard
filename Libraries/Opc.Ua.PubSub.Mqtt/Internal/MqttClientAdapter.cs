@@ -126,8 +126,6 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 byte[] passwordBytes = options.PasswordBytes ?? Array.Empty<byte>();
                 builder = builder.WithCredentials(options.UserName, passwordBytes);
             }
-            // TODO(B4): apply MQTT Last-Will status payload once the multi-target
-            // MQTTnet adapter exposes a stable builder API for Part 14 §7.3.4.7.7.
             // TODO(B11): map AuthenticationProfileUri/ResourceUri to MQTT v5 AUTH
             // packets for Part 14 §7.3.4.3; current implementation preserves the
             // existing UserName/PasswordSecretId path.
@@ -138,6 +136,13 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
 
             var mqttOptions = builder.Build();
+            if (!string.IsNullOrEmpty(options.WillTopic))
+            {
+                mqttOptions.WillTopic = options.WillTopic;
+                mqttOptions.WillPayload = options.WillPayload ?? Array.Empty<byte>();
+                mqttOptions.WillQualityOfServiceLevel = MapQos(options.WillQos);
+                mqttOptions.WillRetain = options.WillRetain;
+            }
             m_logger.LogDebug(
                 "MQTT connecting to {Host}:{Port} (TLS={UseTls}, version={Version}).",
                 endpoint.Host,

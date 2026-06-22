@@ -77,6 +77,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
         public UadpApplicationInformation? ApplicationInformation { get; init; }
 
         /// <summary>
+        /// Application status payload when <see cref="DiscoveryType"/> is
+        /// <see cref="UadpDiscoveryType.ApplicationInformation"/> with the
+        /// status discriminator from Part 14 §7.2.4.6.7.
+        /// </summary>
+        public UadpApplicationStatus? ApplicationStatus { get; init; }
+
+        /// <summary>
         /// PubSubConnection payload when <see cref="DiscoveryType"/>
         /// is <see cref="UadpDiscoveryType.PubSubConnection"/>
         /// (Part 14 §7.2.4.6.8).

@@ -60,11 +60,23 @@ namespace Opc.Ua.PubSub.Udp
         public const int DefaultPort = 4840;
 
         /// <summary>
+        /// Default DTLS PubSub port assigned when the URL omits the
+        /// <c>:port</c> component.
+        /// </summary>
+        public const int DefaultDtlsPort = 4843;
+
+        /// <summary>
         /// URL scheme handled by this parser.
         /// </summary>
         public const string Scheme = "opc.udp";
 
+        /// <summary>
+        /// DTLS URL scheme accepted for Part 14 §7.3.2.4 unicast endpoints.
+        /// </summary>
+        public const string DtlsScheme = "opc.dtls";
+
         private const string SchemePrefix = "opc.udp://";
+        private const string DtlsSchemePrefix = "opc.dtls://";
 
         /// <summary>
         /// Parses the supplied URL into a <see cref="UdpEndpoint"/>.
@@ -94,12 +106,14 @@ namespace Opc.Ua.PubSub.Udp
             {
                 throw new FormatException("PubSub UDP URL must not be empty.");
             }
-            if (!url.StartsWith(SchemePrefix, StringComparison.OrdinalIgnoreCase))
+            bool isDtls = url.StartsWith(DtlsSchemePrefix, StringComparison.OrdinalIgnoreCase);
+            bool isUdp = url.StartsWith(SchemePrefix, StringComparison.OrdinalIgnoreCase);
+            if (!isUdp && !isDtls)
             {
                 throw new FormatException(
-                    "PubSub UDP URL must start with 'opc.udp://'.");
+                    "PubSub UDP URL must start with 'opc.udp://' or 'opc.dtls://'.");
             }
-            string remainder = url[SchemePrefix.Length..];
+            string remainder = isDtls ? url[DtlsSchemePrefix.Length..] : url[SchemePrefix.Length..];
             if (remainder.Length == 0)
             {
                 throw new FormatException("PubSub UDP URL is missing the host component.");
@@ -114,7 +128,7 @@ namespace Opc.Ua.PubSub.Udp
                 throw new FormatException("PubSub UDP URL is missing the host component.");
             }
             string host;
-            int port = DefaultPort;
+            int port = isDtls ? DefaultDtlsPort : DefaultPort;
             if (remainder[0] == '[')
             {
                 int hostEnd = remainder.IndexOf(']', StringComparison.Ordinal);

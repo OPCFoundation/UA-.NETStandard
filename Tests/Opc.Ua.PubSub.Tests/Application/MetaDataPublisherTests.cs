@@ -128,7 +128,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
             Assert.That(factory.Transport!.Sends, Is.Not.Empty);
-            string? topic = factory.Transport.Sends[0].Topic;
+            string? topic = factory.Transport.Sends
+                .Find(send => send.Topic?.Contains("/metadata/", StringComparison.Ordinal) == true)
+                .Topic;
             Assert.That(topic, Is.Not.Null);
             Assert.That(topic, Does.Contain("/metadata/"),
                 "MQTT metadata topic must contain '/metadata/' so the broker " +
@@ -424,6 +426,12 @@ namespace Opc.Ua.PubSub.Tests.Application
                 return dataSetWriterId.HasValue
                     ? $"opcua/json/data/p17/{writerGroup.WriterGroupId}/{dataSetWriterId.Value}"
                     : $"opcua/json/data/p17/{writerGroup.WriterGroupId}";
+            }
+
+            public string BuildDiscoveryTopic(PublisherId publisherId, string messageTypeSegment)
+            {
+                _ = publisherId;
+                return $"opcua/json/{messageTypeSegment}/p17";
             }
         }
 

@@ -108,6 +108,26 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        [TestSpec("7.3.4.7.7")]
+        public async Task OpenAsync_WithConfiguredLastWill_PassesWillToAdapter()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883"
+            };
+            await using MqttBrokerTransport transport = NewTransport(factory, options: options);
+            byte[] payload = [1, 2, 3];
+
+            transport.ConfigureLastWill("opcua/json/status/publisher", payload, retain: true);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(options.WillTopic, Is.EqualTo("opcua/json/status/publisher"));
+            Assert.That(options.WillPayload, Is.EqualTo(payload));
+            Assert.That(options.WillRetain, Is.True);
+        }
+
+        [Test]
         public async Task Open_OnAlreadyOpenedTransport_IsIdempotent()
         {
             var factory = new FakeMqttClientFactory();

@@ -179,6 +179,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
             MqttEndpoint endpoint = MqttEndpointParser.Parse(url);
             MqttConnectionOptions options = CloneOptionsWithEndpoint(m_defaultOptions, url);
+            ApplyAuthenticationSettings(connection, options);
             ResolvePassword(options);
 
             PubSubTransportDirection direction = DetermineDirection(connection);
@@ -206,11 +207,100 @@ namespace Opc.Ua.PubSub.Mqtt
                 KeepAlivePeriod = source.KeepAlivePeriod,
                 UserName = source.UserName,
                 PasswordSecretId = source.PasswordSecretId,
+                AuthenticationProfileUri = source.AuthenticationProfileUri,
+                ResourceUri = source.ResourceUri,
+                AllowCredentialsOverPlaintext = source.AllowCredentialsOverPlaintext,
+                WillTopic = source.WillTopic,
+                WillQos = source.WillQos,
+                WillRetain = source.WillRetain,
                 Tls = source.Tls,
                 Topics = source.Topics,
                 ConnectTimeout = source.ConnectTimeout,
-                MaxConcurrentSubscriptions = source.MaxConcurrentSubscriptions
+                MaxConcurrentSubscriptions = source.MaxConcurrentSubscriptions,
+                MaxNetworkMessageSize = source.MaxNetworkMessageSize
             };
+        }
+
+        private static void ApplyAuthenticationSettings(
+            PubSubConnectionDataType connection,
+            MqttConnectionOptions options)
+        {
+            if (!string.IsNullOrEmpty(options.AuthenticationProfileUri))
+            {
+                return;
+            }
+            if (TryApplyBrokerAuthentication(connection.TransportSettings, options))
+            {
+                return;
+            }
+            if (!connection.WriterGroups.IsNull)
+            {
+                foreach (WriterGroupDataType group in connection.WriterGroups)
+                {
+                    if (TryApplyBrokerAuthentication(group.TransportSettings, options))
+                    {
+                        return;
+                    }
+                    if (group.DataSetWriters.IsNull)
+                    {
+                        continue;
+                    }
+                    foreach (DataSetWriterDataType writer in group.DataSetWriters)
+                    {
+                        if (TryApplyBrokerAuthentication(writer.TransportSettings, options))
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+            if (!connection.ReaderGroups.IsNull)
+            {
+                foreach (ReaderGroupDataType group in connection.ReaderGroups)
+                {
+                    if (group.DataSetReaders.IsNull)
+                    {
+                        continue;
+                    }
+                    foreach (DataSetReaderDataType reader in group.DataSetReaders)
+                    {
+                        if (TryApplyBrokerAuthentication(reader.TransportSettings, options))
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static bool TryApplyBrokerAuthentication(
+            ExtensionObject settings,
+            MqttConnectionOptions options)
+        {
+            if (settings.TryGetValue(out BrokerWriterGroupTransportDataType? group) && group is not null)
+            {
+                options.AuthenticationProfileUri = group.AuthenticationProfileUri;
+                options.ResourceUri = group.ResourceUri;
+            }
+            else if (settings.TryGetValue(out BrokerDataSetWriterTransportDataType? writer) && writer is not null)
+            {
+                options.AuthenticationProfileUri = writer.AuthenticationProfileUri;
+                options.ResourceUri = writer.ResourceUri;
+            }
+            else if (settings.TryGetValue(out BrokerDataSetReaderTransportDataType? reader) && reader is not null)
+            {
+                options.AuthenticationProfileUri = reader.AuthenticationProfileUri;
+                options.ResourceUri = reader.ResourceUri;
+            }
+            else
+            {
+                return false;
+            }
+            if (string.IsNullOrEmpty(options.UserName) && !string.IsNullOrEmpty(options.ResourceUri))
+            {
+                options.UserName = options.ResourceUri;
+            }
+            return true;
         }
 
         private void ResolvePassword(MqttConnectionOptions options)

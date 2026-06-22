@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Mqtt
     /// <see cref="MqttTopicOptions.RetainMetaDataMessages"/> is on.
     /// </para>
     /// </remarks>
-    public sealed class MqttBrokerTransport : IPubSubTransport, IPubSubTopicProvider
+    public sealed class MqttBrokerTransport : IPubSubTransport, IPubSubTopicProvider, IPubSubLastWillConfigurator
     {
         private const string MetaDataTopicSegment = "/metadata/";
         private const string ApplicationTopicSegment = "/application/";
@@ -550,6 +550,26 @@ namespace Opc.Ua.PubSub.Mqtt
                 publisherId.ToVariant(),
                 writerGroup.WriterGroupId,
                 dataSetWriterId);
+        }
+
+        /// <inheritdoc/>
+        public string BuildDiscoveryTopic(PublisherId publisherId, string messageTypeSegment)
+        {
+            return MqttTopicBuilder.BuildPublisherTopic(
+                m_options.Topics.Prefix,
+                ResolveEncoding(m_transportProfileUri),
+                messageTypeSegment,
+                publisherId.ToVariant());
+        }
+
+        /// <inheritdoc/>
+        public void ConfigureLastWill(string topic, ReadOnlyMemory<byte> payload, bool retain)
+        {
+            ValidateTopic(topic, allowWildcards: false);
+            m_options.WillTopic = topic;
+            m_options.WillPayload = payload.ToArray();
+            m_options.WillRetain = retain;
+            m_options.WillQos = m_options.Topics.DefaultQos;
         }
 
         private void AddDefaultSubscriptions()

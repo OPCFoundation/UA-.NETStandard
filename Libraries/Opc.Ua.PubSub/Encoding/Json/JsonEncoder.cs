@@ -381,10 +381,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 switch (message.DiscoveryType)
                 {
                     case Uadp.UadpDiscoveryType.ApplicationInformation:
-                        WriteApplicationInformation(
-                            writer,
-                            message.ApplicationInformation
-                                ?? new Uadp.UadpApplicationInformation());
+                        if (message.ApplicationStatus is not null)
+                        {
+                            WriteApplicationStatus(writer, message.ApplicationStatus);
+                        }
+                        else
+                        {
+                            WriteApplicationInformation(
+                                writer,
+                                message.ApplicationInformation
+                                    ?? new Uadp.UadpApplicationInformation());
+                        }
                         break;
                     case Uadp.UadpDiscoveryType.PubSubConnection:
                         WriteEncodeableProperty(
@@ -447,6 +454,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
             WriteStringArray(writer, info.SupportedTransportProfiles);
             writer.WritePropertyName("SupportedSecurityPolicies");
             WriteStringArray(writer, info.SupportedSecurityPolicies);
+            writer.WriteEndObject();
+        }
+
+        private static void WriteApplicationStatus(
+            Utf8JsonWriter writer,
+            Uadp.UadpApplicationStatus status)
+        {
+            writer.WritePropertyName("ApplicationStatus");
+            writer.WriteStartObject();
+            writer.WriteBoolean("IsCyclic", status.IsCyclic);
+            writer.WriteNumber("Status", (uint)status.Status);
+            if (status.IsCyclic)
+            {
+                writer.WriteString("NextReportTime", status.NextReportTime.ToDateTime());
+                writer.WriteString("Timestamp", status.Timestamp.ToDateTime());
+            }
             writer.WriteEndObject();
         }
 
