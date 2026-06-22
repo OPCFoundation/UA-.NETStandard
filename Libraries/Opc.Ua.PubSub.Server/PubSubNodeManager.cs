@@ -112,6 +112,8 @@ namespace Opc.Ua.PubSub.Server
         private readonly SortedSet<string> m_dataSetFolders = new(StringComparer.Ordinal);
         private readonly Dictionary<uint, PubSubConfigurationFileHandle> m_fileHandles = [];
         private readonly Dictionary<NodeId, PubSubKeyPushTargetRegistration> m_keyPushTargets = [];
+        // TODO(RE3-refactor-to-providers): Route dynamic roots, folders, file handles, and push targets through
+        // the HA provider stores so a second server instance can reconstruct the same address space.
         private IDiagnosticsNodeManager? m_diagnosticsNodeManager;
         private PubSubStatusBinding? m_statusBinding;
         private bool m_methodsBound;

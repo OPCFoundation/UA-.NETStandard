@@ -20,6 +20,7 @@
 - [Security](#security)
 - [Security Key Service (SKS)](#security-key-service-sks)
 - [Server-side address space](#server-side-address-space)
+- [High availability state providers](#high-availability-state-providers)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
@@ -801,6 +802,36 @@ The `IPubSubServerBuilder` returned by `AddPubSub()` lets you
 register optional companion features
 (`WithSecurityKeyPushTarget`, `WithSecurityKeyServiceServer`, etc.).
 See `Libraries/Opc.Ua.PubSub.Server/Hosting/IPubSubServerBuilder.cs`.
+
+## High availability state providers
+
+Part 14 deployments that run multiple server instances should externalize the
+state that otherwise lives in one process. The PubSub DI surface provides
+replaceable provider contracts with in-memory defaults:
+
+- `IPubSubConfigurationStore` persists the `PubSubConfigurationDataType` and
+  per-`PublishedDataSet` `ConfigurationVersion`.
+- `IPubSubIdAllocator` allocates reserved ids and configuration-file handles.
+- `IPubSubRuntimeStateStore` stores component `PubSubState` values for
+  connections, groups, writers, and readers.
+- `IPubSubSecurityKeyStore` stores SKS SecurityGroup key material and token ids.
+
+Use the fluent builder to inject external stores:
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub()
+    .WithConfigurationStore(configurationStore)
+    .WithIdAllocator(idAllocator)
+    .WithRuntimeStateStore(runtimeStateStore)
+    .WithSecurityKeyStore(securityKeyStore);
+```
+
+The default registrations preserve the existing process-local behavior. A
+distributed provider must make allocation atomic and persist configuration
+before a peer rebuilds its address space. TODO(RE3-refactor-to-providers):
+complete the runtime refactor so all mutable PubSub server state is read and
+written through these providers.
 
 ## Diagnostics
 

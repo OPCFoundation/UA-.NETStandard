@@ -27,66 +27,47 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.PubSub.Configuration
+namespace Opc.Ua.PubSub.Security.Sks
 {
     /// <summary>
-    /// Async store for the PubSub configuration document. Backed by
-    /// a file, an address-space resource, an in-memory snapshot or
-    /// a remote configuration source. Notifies subscribers when the
-    /// configuration changes so the runtime can apply the delta.
+    /// Persists SecurityGroup key material for an SKS.
     /// </summary>
-    /// <remarks>
-    /// Implements the configuration-storage contract derived from
-    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.6">
-    /// Part 14 §9.1.6 PubSub configuration model</see>. A default
-    /// file-backed implementation is provided.
-    /// </remarks>
-    public interface IPubSubConfigurationStore
+    public interface IPubSubSecurityKeyStore
     {
         /// <summary>
-        /// Raised whenever the persisted configuration changes.
+        /// Gets all known SecurityGroup identifiers.
         /// </summary>
-        event EventHandler<PubSubConfigurationChangedEventArgs>? Changed;
-
-        /// <summary>
-        /// Loads the current configuration.
-        /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask<PubSubConfigurationDataType> LoadAsync(
+        ValueTask<ArrayOf<string>> GetSecurityGroupIdsAsync(
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Persists <paramref name="configuration"/>. Raises
-        /// <see cref="Changed"/> on success.
+        /// Gets a SecurityGroup, including current and future keys.
         /// </summary>
-        /// <param name="configuration">Configuration to save.</param>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask SaveAsync(
-            PubSubConfigurationDataType configuration,
+        ValueTask<SksSecurityGroup?> GetSecurityGroupAsync(
+            string securityGroupId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets the persisted ConfigurationVersion for a PublishedDataSet.
+        /// Saves a SecurityGroup.
         /// </summary>
-        /// <param name="publishedDataSetName">PublishedDataSet name.</param>
+        /// <param name="group">SecurityGroup to save.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
-            string publishedDataSetName,
+        ValueTask SaveSecurityGroupAsync(
+            SksSecurityGroup group,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Persists the ConfigurationVersion for a PublishedDataSet.
+        /// Removes a SecurityGroup.
         /// </summary>
-        /// <param name="publishedDataSetName">PublishedDataSet name.</param>
-        /// <param name="configurationVersion">ConfigurationVersion to persist.</param>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask SetPublishedDataSetConfigurationVersionAsync(
-            string publishedDataSetName,
-            ConfigurationVersionDataType configurationVersion,
+        ValueTask<bool> RemoveSecurityGroupAsync(
+            string securityGroupId,
             CancellationToken cancellationToken = default);
     }
 }

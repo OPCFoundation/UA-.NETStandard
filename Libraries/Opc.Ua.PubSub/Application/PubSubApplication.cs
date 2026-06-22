@@ -99,8 +99,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
             m_actionHandlers = [];
-        // TODO(RE1-provider-abstractions): Part 14 HA remediation requires pluggable PubSub configuration, id,
-        // runtime-state, and security-key stores while preserving the current in-memory default semantics.
+        // TODO(RE3-refactor-to-providers): Route mutable maps and ConfigurationVersion through the HA providers.
 
         private bool m_started;
         private bool m_disposed;

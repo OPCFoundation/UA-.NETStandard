@@ -46,6 +46,7 @@ using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -262,6 +263,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 return new InlinePubSubConfigurationStore(
                     opts.InlineConfiguration ?? new PubSubConfigurationDataType());
             });
+            services.TryAddSingleton<IPubSubIdAllocator, InMemoryPubSubIdAllocator>();
+            services.TryAddSingleton<IPubSubRuntimeStateStore, InMemoryPubSubRuntimeStateStore>();
+            services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
 
             services.TryAddSingleton<IPubSubApplication>(sp =>
             {
@@ -328,6 +332,54 @@ namespace Microsoft.Extensions.DependencyInjection
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default)
         {
+            return default;
+        }
+
+        public ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
+            string publishedDataSetName,
+            CancellationToken cancellationToken = default)
+        {
+            if (m_configuration.PublishedDataSets.IsNull)
+            {
+                return new ValueTask<ConfigurationVersionDataType?>((ConfigurationVersionDataType?)null);
+            }
+
+            foreach (PublishedDataSetDataType dataSet in m_configuration.PublishedDataSets)
+            {
+                if (StringComparer.Ordinal.Equals(dataSet.Name, publishedDataSetName))
+                {
+                    return new ValueTask<ConfigurationVersionDataType?>(
+                        dataSet.DataSetMetaData?.ConfigurationVersion);
+                }
+            }
+
+            return new ValueTask<ConfigurationVersionDataType?>((ConfigurationVersionDataType?)null);
+        }
+
+        public ValueTask SetPublishedDataSetConfigurationVersionAsync(
+            string publishedDataSetName,
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default)
+        {
+            if (configurationVersion is null)
+            {
+                throw new ArgumentNullException(nameof(configurationVersion));
+            }
+            if (m_configuration.PublishedDataSets.IsNull)
+            {
+                return default;
+            }
+
+            foreach (PublishedDataSetDataType dataSet in m_configuration.PublishedDataSets)
+            {
+                if (StringComparer.Ordinal.Equals(dataSet.Name, publishedDataSetName) &&
+                    dataSet.DataSetMetaData is not null)
+                {
+                    dataSet.DataSetMetaData.ConfigurationVersion = configurationVersion;
+                    break;
+                }
+            }
+
             return default;
         }
     }

@@ -32,8 +32,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Sks;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -73,6 +75,30 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="keyProvider">The security key provider.</param>
         IPubSubBuilder AddSecurityKeyProvider(IPubSubSecurityKeyProvider keyProvider);
+
+        /// <summary>
+        /// Uses a custom PubSub configuration store.
+        /// </summary>
+        /// <param name="store">Configuration store.</param>
+        IPubSubBuilder WithConfigurationStore(IPubSubConfigurationStore store);
+
+        /// <summary>
+        /// Uses a custom PubSub id allocator.
+        /// </summary>
+        /// <param name="allocator">Id allocator.</param>
+        IPubSubBuilder WithIdAllocator(IPubSubIdAllocator allocator);
+
+        /// <summary>
+        /// Uses a custom PubSub runtime-state store.
+        /// </summary>
+        /// <param name="store">Runtime-state store.</param>
+        IPubSubBuilder WithRuntimeStateStore(IPubSubRuntimeStateStore store);
+
+        /// <summary>
+        /// Uses a custom PubSub security-key store.
+        /// </summary>
+        /// <param name="store">Security-key store.</param>
+        IPubSubBuilder WithSecurityKeyStore(IPubSubSecurityKeyStore store);
 
         /// <summary>
         /// Adds a responder-side PubSub Action handler.
