@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,7 +54,7 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
     /// <summary>
     /// Per-endpoint DTLS record-protection context.
     /// </summary>
-    public interface IDtlsContext
+    public interface IDtlsContext : IDisposable
     {
         /// <summary>
         /// Negotiated DTLS profile.
@@ -63,7 +64,7 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         /// <summary>
         /// Runs the DTLS handshake before application datagrams flow.
         /// </summary>
-        ValueTask OpenAsync(CancellationToken cancellationToken = default);
+        ValueTask OpenAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Protects a UADP NetworkMessage into a DTLS record.
@@ -79,5 +80,25 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             ReadOnlyMemory<byte> record,
             CancellationToken cancellationToken = default);
     }
-}
 
+    /// <summary>
+    /// Raw datagram I/O used by the DTLS 1.3 handshake before application records are protected.
+    /// </summary>
+    public interface IDtlsDatagramChannel
+    {
+        /// <summary>
+        /// Remote peer endpoint if it is known for cookie binding diagnostics.
+        /// </summary>
+        IPEndPoint? RemoteEndpoint { get; }
+
+        /// <summary>
+        /// Sends one raw DTLS datagram.
+        /// </summary>
+        ValueTask SendAsync(ReadOnlyMemory<byte> datagram, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Receives one raw DTLS datagram.
+        /// </summary>
+        ValueTask<ReadOnlyMemory<byte>> ReceiveAsync(CancellationToken cancellationToken = default);
+    }
+}

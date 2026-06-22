@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Security.Dtls
 {
@@ -65,5 +68,20 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         /// Enables DTLS 1.3 stateless HelloRetryRequest cookies for listeners.
         /// </summary>
         public bool RequireHelloRetryRequestCookie { get; set; } = true;
+
+        /// <summary>
+        /// Local ECC certificate with private key used for CertificateVerify.
+        /// </summary>
+        public X509Certificate2? LocalCertificate { get; set; }
+
+        /// <summary>
+        /// Optional local certificate chain sent in the TLS Certificate message.
+        /// </summary>
+        public IList<X509Certificate2> LocalCertificateChain { get; } = [];
+
+        /// <summary>
+        /// Optional direct-construction peer certificate validator.
+        /// </summary>
+        public ICertificateValidatorEx? PeerCertificateValidator { get; set; }
     }
 }

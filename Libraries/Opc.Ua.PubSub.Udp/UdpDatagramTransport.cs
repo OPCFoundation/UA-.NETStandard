@@ -96,6 +96,7 @@ namespace Opc.Ua.PubSub.Udp
         private bool m_disposed;
         private IPEndPoint? m_sendDestination;
         private bool m_socketIsConnected;
+        private bool m_useConnectedUnicastClient;
 
         /// <summary>
         /// Initializes a new <see cref="UdpDatagramTransport"/>.
@@ -139,6 +140,20 @@ namespace Opc.Ua.PubSub.Udp
             TimeProvider timeProvider,
             UdpTransportOptions options,
             IPubSubDiagnostics? diagnostics = null)
+            : this(connection, endpoint, direction, networkInterface, telemetry, timeProvider, options, diagnostics, false)
+        {
+        }
+
+        internal UdpDatagramTransport(
+            PubSubConnectionDataType connection,
+            UdpEndpoint endpoint,
+            PubSubTransportDirection direction,
+            NetworkInterface? networkInterface,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            UdpTransportOptions options,
+            IPubSubDiagnostics? diagnostics,
+            bool useConnectedUnicastClient)
         {
             if (connection is null)
             {
@@ -169,6 +184,7 @@ namespace Opc.Ua.PubSub.Udp
             m_timeProvider = timeProvider;
             m_options = options;
             m_diagnostics = diagnostics;
+            m_useConnectedUnicastClient = useConnectedUnicastClient;
             m_logger = telemetry.CreateLogger<UdpDatagramTransport>();
             m_repeater = new UdpMessageRepeater(
                 options.MessageRepeatCount,
@@ -201,6 +217,17 @@ namespace Opc.Ua.PubSub.Udp
         /// re-parsing.
         /// </summary>
         public UdpEndpoint Endpoint => m_endpoint;
+
+        internal IPEndPoint? RemoteEndpoint
+        {
+            get
+            {
+                lock (m_sync)
+                {
+                    return m_sendDestination;
+                }
+            }
+        }
 
         /// <summary>
         /// DiscoveryAnnounceRate value (milliseconds) honoured from the
@@ -637,6 +664,15 @@ namespace Opc.Ua.PubSub.Udp
                         new ReadOnlyMemory<byte>(copy),
                         topic: null,
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime));
+                    if (m_endpoint.AddressType == UdpAddressType.Unicast
+                        && result.RemoteEndPoint is IPEndPoint remoteEndPoint)
+                    {
+                        lock (m_sync)
+                        {
+                            m_sendDestination = remoteEndPoint;
+                        }
+                    }
+
                     m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
                     try
                     {
@@ -833,7 +869,7 @@ namespace Opc.Ua.PubSub.Udp
 
         private void BindForUnicast(Socket socket)
         {
-            if (HasSendDirection && !HasReceiveDirection)
+            if ((HasSendDirection && !HasReceiveDirection) || (m_useConnectedUnicastClient && HasSendDirection))
             {
                 EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
                     ? new IPEndPoint(IPAddress.IPv6Any, 0)

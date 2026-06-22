@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Security.Dtls
 {
@@ -45,7 +46,8 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         /// </summary>
         public DefaultDtlsContextFactory(
             IOptions<DtlsTransportOptions> options,
-            DtlsProfileRegistry profileRegistry)
+            DtlsProfileRegistry profileRegistry,
+            ICertificateValidatorEx? certificateValidator = null)
         {
             if (options is null)
             {
@@ -59,6 +61,7 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
 
             Options = options.Value ?? new DtlsTransportOptions();
             ProfileRegistry = profileRegistry;
+            CertificateValidator = certificateValidator;
         }
 
         /// <summary>
@@ -70,6 +73,11 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         /// Runtime DTLS profile registry.
         /// </summary>
         public DtlsProfileRegistry ProfileRegistry { get; }
+
+        /// <summary>
+        /// Injected stack certificate validator used for DTLS peer authentication.
+        /// </summary>
+        public ICertificateValidatorEx? CertificateValidator { get; }
 
         /// <inheritdoc/>
         public ValueTask<IDtlsContext> CreateAsync(
@@ -112,47 +120,31 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
                 connection.Name,
                 endpoint,
                 profile.Name);
-            IDtlsContext context = new PendingDtlsContext(profile);
+            // CA2000: ownership is transferred to DtlsDatagramTransport, which disposes the context on close.
+            // TODO(CA2000): introduce an owned-context result type if this factory gains additional disposable contexts.
+#pragma warning disable CA2000
+            IDtlsContext context = new DtlsHandshakeContext(
+                profile,
+                Options,
+                CertificateValidator ?? Options.PeerCertificateValidator,
+                DetermineRole(connection),
+                endpoint,
+                timeProvider);
+#pragma warning restore CA2000
             return new ValueTask<IDtlsContext>(context);
         }
+
+        private static DtlsEndpointRole DetermineRole(PubSubConnectionDataType connection)
+        {
+            bool hasWriters = !connection.WriterGroups.IsNull && connection.WriterGroups.Count > 0;
+            bool hasReaders = !connection.ReaderGroups.IsNull && connection.ReaderGroups.Count > 0;
+            return hasWriters && !hasReaders ? DtlsEndpointRole.Client : DtlsEndpointRole.Server;
+        }
     }
 
-    internal sealed class PendingDtlsContext : IDtlsContext
+    internal enum DtlsEndpointRole
     {
-        public PendingDtlsContext(DtlsProfile profile)
-        {
-            Profile = profile ?? throw new ArgumentNullException(nameof(profile));
-        }
-
-        public DtlsProfile Profile { get; }
-
-        public ValueTask OpenAsync(CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new NotSupportedException(
-                "TODO(S3): DTLS 1.3 handshake and record protection per RFC 9147/RFC 8446 are not implemented yet.");
-        }
-
-        public ValueTask<ReadOnlyMemory<byte>> ProtectAsync(
-            ReadOnlyMemory<byte> payload,
-            CancellationToken cancellationToken = default)
-        {
-            _ = payload;
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new NotSupportedException(
-                "TODO(S3): DTLS 1.3 record protection per RFC 9147/RFC 8446 is not implemented yet.");
-        }
-
-        public ValueTask<ReadOnlyMemory<byte>> UnprotectAsync(
-            ReadOnlyMemory<byte> record,
-            CancellationToken cancellationToken = default)
-        {
-            _ = record;
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new NotSupportedException(
-                "TODO(S3): DTLS 1.3 record protection per RFC 9147/RFC 8446 is not implemented yet.");
-        }
+        Client,
+        Server
     }
 }
-
-
