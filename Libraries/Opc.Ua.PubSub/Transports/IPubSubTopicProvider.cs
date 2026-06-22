@@ -29,6 +29,7 @@
 
 using Opc.Ua.PubSub.Encoding;
 
+
 namespace Opc.Ua.PubSub.Transports
 {
     /// <summary>
@@ -65,5 +66,28 @@ namespace Opc.Ua.PubSub.Transports
             PublisherId publisherId,
             ushort writerGroupId,
             ushort dataSetWriterId);
+
+        /// <summary>
+        /// Builds the data topic for a writer-group publication.
+        /// </summary>
+        /// <param name="publisherId">Publisher identity.</param>
+        /// <param name="writerGroup">WriterGroup configuration.</param>
+        /// <param name="dataSetWriterId">Optional DataSetWriterId for single-message topics.</param>
+        /// <returns>The constructed topic string.</returns>
+        string BuildDataTopic(
+            PublisherId publisherId,
+            WriterGroupDataType writerGroup,
+            ushort? dataSetWriterId);
+
+        /// <summary>
+        /// Builds a publisher-level discovery topic for MQTT message types such as
+        /// status, connection, application, and endpoints.
+        /// </summary>
+        /// <param name="publisherId">Publisher identity.</param>
+        /// <param name="messageTypeSegment">MQTT message type segment.</param>
+        /// <returns>The constructed discovery topic string.</returns>
+        string BuildDiscoveryTopic(
+            PublisherId publisherId,
+            string messageTypeSegment);
     }
 }

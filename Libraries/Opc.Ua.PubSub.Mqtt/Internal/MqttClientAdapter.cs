@@ -126,13 +126,20 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 byte[] passwordBytes = options.PasswordBytes ?? Array.Empty<byte>();
                 builder = builder.WithCredentials(options.UserName, passwordBytes);
             }
-
             if (useTls)
             {
                 builder = ConfigureTls(builder, options.Tls);
             }
 
             var mqttOptions = builder.Build();
+            ApplyEnhancedAuthentication(mqttOptions, options);
+            if (!string.IsNullOrEmpty(options.WillTopic))
+            {
+                mqttOptions.WillTopic = options.WillTopic;
+                mqttOptions.WillPayload = options.WillPayload ?? Array.Empty<byte>();
+                mqttOptions.WillQualityOfServiceLevel = MapQos(options.WillQos);
+                mqttOptions.WillRetain = options.WillRetain;
+            }
             m_logger.LogDebug(
                 "MQTT connecting to {Host}:{Port} (TLS={UseTls}, version={Version}).",
                 endpoint.Host,
@@ -140,6 +147,35 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 useTls,
                 options.ProtocolVersion);
             await m_client.ConnectAsync(mqttOptions, ct).ConfigureAwait(false);
+        }
+
+        internal static void ApplyEnhancedAuthentication(
+            MqttClientOptions mqttOptions,
+            MqttConnectionOptions options)
+        {
+            if (string.IsNullOrEmpty(options.AuthenticationProfileUri))
+            {
+                return;
+            }
+            if (options.ProtocolVersion != MqttProtocolVersion.V500)
+            {
+                throw new InvalidOperationException(
+                    "MQTT AuthenticationProfileUri requires MQTT 5.0 enhanced authentication.");
+            }
+#if NET8_0_OR_GREATER
+            mqttOptions.AuthenticationMethod = options.AuthenticationProfileUri;
+            mqttOptions.AuthenticationData = string.IsNullOrEmpty(options.ResourceUri)
+                ? null
+                : System.Text.Encoding.UTF8.GetBytes(options.ResourceUri);
+#else
+            // TODO(B11): MQTTnet 4.x (used by the netstandard/net48 target TFMs)
+            // exposes no MqttClientOptions AuthenticationMethod,
+            // AuthenticationData, or EnhancedAuthenticationHandler API. Enhanced
+            // AUTH/SASL is wired for MQTTnet 5.x TFMs above; older TFMs require a
+            // client-library upgrade or adapter-specific extension point.
+            throw new NotSupportedException(
+                "MQTT enhanced authentication is not available with MQTTnet 4.x target TFMs.");
+#endif
         }
 
         internal static void ValidateCredentialTransport(

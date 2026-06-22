@@ -57,6 +57,27 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [TestSpec("7.3.2.4")]
+        public void Parse_DtlsScheme_DefaultPortIs4843()
+        {
+            UdpEndpoint endpoint = UdpEndpointParser.Parse("opc.dtls://127.0.0.1");
+            Assert.That(endpoint.Port, Is.EqualTo(UdpEndpointParser.DefaultDtlsPort));
+            Assert.That(endpoint.AddressType, Is.EqualTo(UdpAddressType.Unicast));
+            Assert.That(endpoint.IsValid, Is.True);
+        }
+
+        [Test]
+        [TestSpec("7.3.2.1")]
+        public void StandardDiscoveryEndpoint_UsesSpecMulticastAddress()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(UdpDatagramTransport.StandardDiscoveryEndpoint.Address, Is.EqualTo(IPAddress.Parse("224.0.2.14")));
+                Assert.That(UdpDatagramTransport.StandardDiscoveryEndpoint.Port, Is.EqualTo(4840));
+            });
+        }
+
+        [Test]
         public void Parse_Ipv4Multicast_ClassifiedAsMulticast()
         {
             UdpEndpoint endpoint = UdpEndpointParser.Parse("opc.udp://239.255.0.1:5000");

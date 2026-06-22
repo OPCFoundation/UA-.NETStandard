@@ -47,10 +47,10 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Topic prefix used as the first segment of every published
         /// data / metadata topic. Must not contain MQTT wildcard
         /// characters (<c>#</c> or <c>+</c>) and must not start or end
-        /// with a <c>/</c>. Defaults to the
-        /// <c>opcua/pubsub</c> example used throughout Part 14 §7.3.4.7.
+        /// with a <c>/</c>. Defaults to <c>opcua</c> per Part 14
+        /// §7.3.4.4 Table 201.
         /// </summary>
-        public string Prefix { get; set; } = "opcua/pubsub";
+        public string Prefix { get; set; } = "opcua";
 
         /// <summary>
         /// Sets the <c>Retain</c> flag on metadata publications so

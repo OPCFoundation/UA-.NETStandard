@@ -110,6 +110,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public UadpApplicationInformation? ApplicationInformation { get; init; }
 
         /// <summary>
+        /// Publisher status payload for ApplicationInformationType 2.
+        /// </summary>
+        public UadpApplicationStatus? ApplicationStatus { get; init; }
+
+        /// <summary>
         /// PubSubConnection announcement payload (Part 14 §7.2.4.6.8).
         /// Set only when <see cref="DiscoveryType"/> is
         /// <see cref="UadpDiscoveryType.PubSubConnection"/>.

@@ -74,12 +74,13 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
-        public async Task V2Settings_NoExtensionObject_DefaultsToZero()
+        [TestSpec("7.3.2.1")]
+        public async Task V2Settings_NoExtensionObject_DefaultsDiscoveryMaxMessageSizeTo4096()
         {
             await using UdpDatagramTransport transport = NewTransport(v2: null);
 
             Assert.That(transport.DiscoveryAnnounceRate, Is.Zero);
-            Assert.That(transport.DiscoveryMaxMessageSize, Is.Zero);
+            Assert.That(transport.DiscoveryMaxMessageSize, Is.EqualTo(4096u));
             Assert.That(transport.QosCategory, Is.EqualTo(string.Empty));
         }
 
@@ -117,13 +118,15 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
-        public async Task Send_DiscoveryLimit_NoCapWhenZero()
+        [TestSpec("7.3.2.1")]
+        public async Task Send_DiscoveryLimit_DefaultCapWhenZero()
         {
             await using UdpDatagramTransport transport = NewTransport(
                 new DatagramConnectionTransport2DataType());
 
-            Assert.DoesNotThrow(
-                () => transport.EnforceDiscoveryLimit(new byte[1024 * 64]));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => transport.EnforceDiscoveryLimit(new byte[4097]))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]

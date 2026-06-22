@@ -64,9 +64,24 @@ namespace Opc.Ua.PubSub.Mqtt
         public const string MetaDataSegment = "metadata";
 
         /// <summary>
-        /// Topic level segment for keep-alive publications.
+        /// Topic level segment for application information publications.
         /// </summary>
-        public const string KeepAliveSegment = "keepalive";
+        public const string ApplicationSegment = "application";
+
+        /// <summary>
+        /// Topic level segment for publisher endpoint publications.
+        /// </summary>
+        public const string EndpointsSegment = "endpoints";
+
+        /// <summary>
+        /// Topic level segment for publisher status publications.
+        /// </summary>
+        public const string StatusSegment = "status";
+
+        /// <summary>
+        /// Topic level segment for PubSubConnection publications.
+        /// </summary>
+        public const string ConnectionSegment = "connection";
 
         /// <summary>
         /// Builds the writer-group or writer-specific data topic for a
@@ -139,28 +154,27 @@ namespace Opc.Ua.PubSub.Mqtt
         }
 
         /// <summary>
-        /// Builds the writer-group keep-alive topic carried alongside
-        /// the data topic (research §4 — KeepAlive).
+        /// Builds a publisher-level discovery topic.
         /// </summary>
         /// <param name="prefix">Topic prefix.</param>
         /// <param name="encoding">Encoding flavour.</param>
+        /// <param name="messageTypeSegment">MQTT message-type segment.</param>
         /// <param name="publisherId">PublisherId.</param>
-        /// <param name="writerGroupId">WriterGroup identifier.</param>
-        /// <returns>The constructed keep-alive topic string.</returns>
-        public static string BuildKeepAliveTopic(
+        /// <returns>The constructed discovery topic string.</returns>
+        public static string BuildPublisherTopic(
             string prefix,
             MqttEncoding encoding,
-            Variant publisherId,
-            ushort writerGroupId)
+            string messageTypeSegment,
+            Variant publisherId)
         {
             ValidatePrefix(prefix);
+            ValidateTopicSegment(messageTypeSegment, nameof(messageTypeSegment));
             string publisherToken = ToPublisherIdToken(publisherId);
             var sb = new StringBuilder(prefix.Length + 64);
             sb.Append(prefix);
             sb.Append('/').Append(encoding.ToTopicSegment());
-            sb.Append('/').Append(KeepAliveSegment);
+            sb.Append('/').Append(messageTypeSegment);
             sb.Append('/').Append(publisherToken);
-            sb.Append('/').Append(writerGroupId.ToString(CultureInfo.InvariantCulture));
             return sb.ToString();
         }
 
@@ -253,6 +267,16 @@ namespace Opc.Ua.PubSub.Mqtt
                         paramName);
                 }
             }
+        }
+
+        private static void ValidateTopicSegment(string value, string paramName)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                throw new ArgumentException("Topic segment cannot be empty.", paramName);
+            }
+            ValidateNoWildcards(value, paramName);
+            ValidateNoTopicSeparator(value, paramName);
         }
 
         private static void ValidateNoTopicSeparator(string value, string paramName)

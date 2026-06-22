@@ -86,10 +86,41 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Length.EqualTo(2));
             Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Member("UA"));
             Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Member("UAMA"));
-            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [], Has.Length.EqualTo(1));
-            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [],
-                Has.Member(Profiles.PubSubUdpUadpTransport));
-            Assert.That(((string[]?)rt.SupportedSecurityPolicies) ?? [], Has.Length.EqualTo(1));
+            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [], Is.Empty);
+            Assert.That(((string[]?)rt.SupportedSecurityPolicies) ?? [], Is.Empty);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.6.7")]
+        public void Encode_StatusApplicationInformation_RoundTrips()
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            var now = DateTimeUtc.Now;
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt16(0x4242),
+                SequenceNumber = 8,
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus
+                {
+                    IsCyclic = true,
+                    Status = PubSubState.Operational,
+                    NextReportTime = now,
+                    Timestamp = now
+                },
+                StatusCode = StatusCodes.Good
+            };
+
+            byte[] encoded = UadpDiscoveryCoder.Encode(response, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            Assert.That(decoded, Is.InstanceOf<UadpDiscoveryResponseMessage>());
+            var decRes = (UadpDiscoveryResponseMessage)decoded!;
+            Assert.That(decRes.ApplicationStatus, Is.Not.Null);
+            Assert.That(decRes.ApplicationStatus!.IsCyclic, Is.True);
+            Assert.That(decRes.ApplicationStatus!.Status, Is.EqualTo(PubSubState.Operational));
+            Assert.That(decRes.ApplicationStatus!.NextReportTime, Is.EqualTo(now));
+            Assert.That(decRes.ApplicationStatus!.Timestamp, Is.EqualTo(now));
         }
 
         [Test]
@@ -204,6 +235,46 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decReq.DiscoveryType, Is.EqualTo(UadpDiscoveryType.Probe));
             Assert.That(decReq.ProbeFilter, Is.Not.Null);
             Assert.That(decReq.ProbeFilter!.ApplicationUri, Is.Empty);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.6.3")]
+        public void Encode_DiscoveryResponse_WritesSpecHeaderBytes()
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromByte(1),
+                SequenceNumber = 1,
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationInformation = new UadpApplicationInformation(),
+                StatusCode = StatusCodes.Good
+            };
+
+            byte[] encoded = UadpDiscoveryCoder.Encode(response, context);
+
+            Assert.That(encoded[..4], Is.EqualTo(new byte[] { 0x91, 0x80, 0x08, 0x01 }),
+                "Part 14 §7.2.4.6.3 requires UADP flags, ExtendedFlags1, " +
+                "DiscoveryResponse ExtendedFlags2, then PublisherId.");
+        }
+
+        [Test]
+        [TestSpec("7.2.4.6.12.3")]
+        public void Encode_DiscoveryProbeRequest_WritesSpecHeaderBytes()
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            var request = new UadpDiscoveryRequestMessage
+            {
+                PublisherId = PublisherId.FromByte(1),
+                DiscoveryType = UadpDiscoveryType.Probe,
+                DataSetWriterIds = []
+            };
+
+            byte[] encoded = UadpDiscoveryCoder.Encode(request, context);
+
+            Assert.That(encoded[..4], Is.EqualTo(new byte[] { 0x91, 0x80, 0x04, 0x01 }),
+                "Part 14 §7.2.4.6.12.3 requires UADP flags, ExtendedFlags1, " +
+                "DiscoveryRequest ExtendedFlags2, then PublisherId.");
         }
     }
 }
