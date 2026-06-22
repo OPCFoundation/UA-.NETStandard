@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public void TopicOptions_DefaultsMatchPart14()
         {
             var topics = new MqttTopicOptions();
-            Assert.That(topics.Prefix, Is.EqualTo("opcua/pubsub"));
+            Assert.That(topics.Prefix, Is.EqualTo("opcua"));
             Assert.That(topics.RetainMetaDataMessages, Is.True);
             Assert.That(topics.RetainDiscoveryMessages, Is.True);
             Assert.That(topics.DefaultQos, Is.EqualTo(MqttQualityOfService.AtLeastOnce));

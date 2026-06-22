@@ -99,17 +99,17 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
-        public void BuildKeepAliveTopic_ContainsKeepAliveSegment()
+        public void BuildPublisherTopic_BuildsStatusTopic()
         {
-            string topic = MqttTopicBuilder.BuildKeepAliveTopic(
-                "opcua/pubsub",
+            string topic = MqttTopicBuilder.BuildPublisherTopic(
+                "opcua",
                 MqttEncoding.Json,
-                new Variant("PubOne"),
-                writerGroupId: 22);
+                MqttTopicBuilder.StatusSegment,
+                new Variant("PubOne"));
 
             Assert.That(
                 topic,
-                Is.EqualTo($"opcua/pubsub/json/{MqttTopicBuilder.KeepAliveSegment}/PubOne/22"));
+                Is.EqualTo("opcua/json/status/PubOne"));
         }
 
         [Test]

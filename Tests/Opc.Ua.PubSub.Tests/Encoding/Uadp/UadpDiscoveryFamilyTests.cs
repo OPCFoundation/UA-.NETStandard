@@ -86,10 +86,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Length.EqualTo(2));
             Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Member("UA"));
             Assert.That(((string[]?)rt.Capabilities) ?? [], Has.Member("UAMA"));
-            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [], Has.Length.EqualTo(1));
-            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [],
-                Has.Member(Profiles.PubSubUdpUadpTransport));
-            Assert.That(((string[]?)rt.SupportedSecurityPolicies) ?? [], Has.Length.EqualTo(1));
+            Assert.That(((string[]?)rt.SupportedTransportProfiles) ?? [], Is.Empty);
+            Assert.That(((string[]?)rt.SupportedSecurityPolicies) ?? [], Is.Empty);
         }
 
         [Test]

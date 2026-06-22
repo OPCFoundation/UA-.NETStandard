@@ -239,7 +239,10 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     PublisherId = PublisherId
                 };
-                wg.PublishSink = SendNetworkMessageAsync;
+                // TODO(B8): publish DataSetWriterConfiguration announcements on
+                // WriterGroup/DataSetWriter configuration changes per Part 14 §7.2.4.6.9.
+                wg.PublishSink = (message, ct) =>
+                    SendWriterGroupNetworkMessageAsync(wg, message, ct);
             }
             foreach (ReaderGroup rg in m_readerGroups)
             {
@@ -1243,6 +1246,10 @@ namespace Opc.Ua.PubSub.Connections
             UadpDiscoveryRequestMessage request,
             CancellationToken cancellationToken)
         {
+            // TODO(B9): add PubSubConnection, ApplicationInformation, generic Probe,
+            // and WriterGroupId responders required by Part 14 §7.2.4.6.12.4.
+            // TODO(B14): throttle duplicate discovery probes and aggregate
+            // WriterGroup responses per Part 14 §7.2.4.6.12.2.
             switch (request.DiscoveryType)
             {
                 case UadpDiscoveryType.DataSetMetaData:
@@ -1398,6 +1405,35 @@ namespace Opc.Ua.PubSub.Connections
         {
             await SendNetworkMessageAsync(networkMessage, topic: null, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        private async ValueTask SendWriterGroupNetworkMessageAsync(
+            WriterGroup writerGroup,
+            PubSubNetworkMessage networkMessage,
+            CancellationToken cancellationToken)
+        {
+            string? topic = ResolveDataTopic(writerGroup, networkMessage);
+            await SendNetworkMessageAsync(networkMessage, topic, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private string? ResolveDataTopic(WriterGroup writerGroup, PubSubNetworkMessage networkMessage)
+        {
+            IPubSubTransport? transport;
+            lock (m_gate)
+            {
+                transport = m_transport;
+            }
+            if (transport is not IPubSubTopicProvider provider)
+            {
+                return null;
+            }
+            ushort? dataSetWriterId = null;
+            if (networkMessage.DataSetMessages.Count == 1)
+            {
+                dataSetWriterId = networkMessage.DataSetMessages[0].DataSetWriterId;
+            }
+            return provider.BuildDataTopic(PublisherId, writerGroup.Configuration, dataSetWriterId);
         }
 
         private async ValueTask SendNetworkMessageAsync(

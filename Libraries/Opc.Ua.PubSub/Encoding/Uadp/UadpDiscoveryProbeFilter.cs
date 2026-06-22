@@ -57,5 +57,25 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// constraint.
         /// </summary>
         public string Capability { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Optional WriterGroupId for WriterGroup configuration probes.
+        /// </summary>
+        public ushort? WriterGroupId { get; init; }
+
+        /// <summary>
+        /// Requests WriterGroups in PubSubConnection announcements.
+        /// </summary>
+        public bool IncludeWriterGroups { get; init; }
+
+        /// <summary>
+        /// Requests DataSetWriters in WriterGroup or PubSubConnection announcements.
+        /// </summary>
+        public bool IncludeDataSetWriters { get; init; }
+
+        /// <summary>
+        /// Optional TransportProfileUri filters for PubSubConnection announcements.
+        /// </summary>
+        public ArrayOf<string> TransportProfileUris { get; init; } = [];
     }
 }

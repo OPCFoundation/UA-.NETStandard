@@ -59,6 +59,11 @@ namespace Opc.Ua.PubSub.Mqtt
         public const string MqttsScheme = "mqtts";
 
         /// <summary>
+        /// MQTT scheme for secure WebSocket transport.
+        /// </summary>
+        public const string WssScheme = "wss";
+
+        /// <summary>
         /// Default MQTT plaintext port.
         /// </summary>
         public const int DefaultPlaintextPort = 1883;
@@ -67,6 +72,11 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Default MQTT TLS port.
         /// </summary>
         public const int DefaultTlsPort = 8883;
+
+        /// <summary>
+        /// Default secure WebSocket MQTT port.
+        /// </summary>
+        public const int DefaultWebSocketTlsPort = 443;
 
         /// <summary>
         /// Parses <paramref name="url"/> into a strongly-typed
@@ -111,10 +121,15 @@ namespace Opc.Ua.PubSub.Mqtt
                 useTls = true;
                 defaultPort = DefaultTlsPort;
             }
+            else if (string.Equals(scheme, WssScheme, StringComparison.OrdinalIgnoreCase))
+            {
+                useTls = true;
+                defaultPort = DefaultWebSocketTlsPort;
+            }
             else
             {
                 throw new FormatException(
-                    "MQTT endpoint scheme must be 'mqtt' or 'mqtts'.");
+                    "MQTT endpoint scheme must be 'mqtt', 'mqtts', or 'wss'.");
             }
 
             string authority = url.Substring(schemeEnd + 3);
@@ -177,7 +192,8 @@ namespace Opc.Ua.PubSub.Mqtt
             }
 
             string canonical = string.Concat(
-                useTls ? MqttsScheme : MqttScheme,
+                string.Equals(scheme, WssScheme, StringComparison.OrdinalIgnoreCase) ? WssScheme :
+                    useTls ? MqttsScheme : MqttScheme,
                 "://",
                 host.Contains(':', StringComparison.Ordinal) ? string.Concat("[", host, "]") : host,
                 ":",

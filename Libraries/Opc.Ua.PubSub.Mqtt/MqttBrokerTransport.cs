@@ -81,6 +81,10 @@ namespace Opc.Ua.PubSub.Mqtt
     public sealed class MqttBrokerTransport : IPubSubTransport, IPubSubTopicProvider
     {
         private const string MetaDataTopicSegment = "/metadata/";
+        private const string ApplicationTopicSegment = "/application/";
+        private const string EndpointsTopicSegment = "/endpoints/";
+        private const string StatusTopicSegment = "/status/";
+        private const string ConnectionTopicSegment = "/connection/";
 
         private readonly PubSubConnectionDataType m_connection;
         private readonly MqttEndpoint m_endpoint;
@@ -93,6 +97,7 @@ namespace Opc.Ua.PubSub.Mqtt
         private readonly ILogger m_logger;
         private readonly System.Threading.Lock m_sync = new();
         private readonly string m_transportProfileUri;
+        private readonly Dictionary<string, MqttQualityOfService> m_topicQos;
 
         private IMqttClientAdapter? m_adapter;
         private Channel<PubSubTransportFrame>? m_channel;
@@ -170,6 +175,8 @@ namespace Opc.Ua.PubSub.Mqtt
             m_diagnostics = diagnostics;
             m_logger = telemetry.CreateLogger<MqttBrokerTransport>();
             m_transportProfileUri = DetermineTransportProfileUri(connection);
+            m_topicQos = BuildTopicQosMap(connection, m_options, m_transportProfileUri);
+            AddDefaultSubscriptions();
         }
 
         /// <inheritdoc/>
@@ -365,12 +372,14 @@ namespace Opc.Ua.PubSub.Mqtt
             }
 
             bool isMetaData = IsMetaDataTopic(topic);
-            bool retain = isMetaData && m_options.Topics.RetainMetaDataMessages;
+            bool isDiscovery = IsDiscoveryTopic(topic);
+            bool retain = isMetaData && m_options.Topics.RetainMetaDataMessages
+                || isDiscovery && m_options.Topics.RetainDiscoveryMessages;
             string? contentType = MapContentType(m_transportProfileUri);
             var message = new MqttMessage(
                 topic,
                 payload,
-                m_options.Topics.DefaultQos,
+                ResolveQos(topic),
                 retain,
                 contentType,
                 ResponseTopic: null);
@@ -495,12 +504,15 @@ namespace Opc.Ua.PubSub.Mqtt
             ushort writerGroupId,
             ushort dataSetWriterId)
         {
-            MqttEncoding encoding = string.Equals(
-                m_transportProfileUri,
-                Profiles.PubSubMqttUadpTransport,
-                StringComparison.Ordinal)
-                ? MqttEncoding.Uadp
-                : MqttEncoding.Json;
+            MqttEncoding encoding = ResolveEncoding(m_transportProfileUri);
+            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer)
+                && writer is not null
+                && TryReadBrokerWriterSettings(
+                    writer.TransportSettings, out _, out string? metadataQueue, out _)
+                && !string.IsNullOrEmpty(metadataQueue))
+            {
+                return metadataQueue;
+            }
             return MqttTopicBuilder.BuildMetaDataTopic(
                 m_options.Topics.Prefix,
                 encoding,
@@ -509,9 +521,232 @@ namespace Opc.Ua.PubSub.Mqtt
                 dataSetWriterId);
         }
 
+        /// <inheritdoc/>
+        public string BuildDataTopic(
+            PublisherId publisherId,
+            WriterGroupDataType writerGroup,
+            ushort? dataSetWriterId)
+        {
+            if (writerGroup is null)
+            {
+                throw new ArgumentNullException(nameof(writerGroup));
+            }
+            if (dataSetWriterId.HasValue
+                && TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer)
+                && writer is not null
+                && TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _, out _)
+                && !string.IsNullOrEmpty(queue))
+            {
+                return queue;
+            }
+            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue, out _)
+                && !string.IsNullOrEmpty(groupQueue))
+            {
+                return groupQueue;
+            }
+            return MqttTopicBuilder.BuildDataTopic(
+                m_options.Topics.Prefix,
+                ResolveEncoding(m_transportProfileUri),
+                publisherId.ToVariant(),
+                writerGroup.WriterGroupId,
+                dataSetWriterId);
+        }
+
+        private void AddDefaultSubscriptions()
+        {
+            if (!HasReceiveDirection)
+            {
+                return;
+            }
+            MqttEncoding encoding = ResolveEncoding(m_transportProfileUri);
+            string prefix = m_options.Topics.Prefix;
+            MqttQualityOfService qos = m_options.Topics.DefaultQos;
+            AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/metadata/#", qos);
+            AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/application/#", qos);
+            AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/endpoints/#", qos);
+            AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/status/#", qos);
+            AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/connection/#", qos);
+        }
+
+        private void AddSubscription(string topic, MqttQualityOfService qos)
+        {
+            foreach (MqttTopicFilter existing in Subscriptions)
+            {
+                if (string.Equals(existing.Topic, topic, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+            Subscriptions.Add(new MqttTopicFilter(topic, qos));
+        }
+
+        private MqttQualityOfService ResolveQos(string topic)
+        {
+            return m_topicQos.TryGetValue(topic, out MqttQualityOfService qos)
+                ? qos
+                : m_options.Topics.DefaultQos;
+        }
+
+        private bool TryFindWriter(
+            ushort writerGroupId,
+            ushort dataSetWriterId,
+            out DataSetWriterDataType? writer)
+        {
+            writer = null;
+            if (m_connection.WriterGroups.IsNull)
+            {
+                return false;
+            }
+            foreach (WriterGroupDataType group in m_connection.WriterGroups)
+            {
+                if (group.WriterGroupId != writerGroupId || group.DataSetWriters.IsNull)
+                {
+                    continue;
+                }
+                foreach (DataSetWriterDataType candidate in group.DataSetWriters)
+                {
+                    if (candidate.DataSetWriterId == dataSetWriterId)
+                    {
+                        writer = candidate;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private static bool IsMetaDataTopic(string topic)
         {
             return topic.Contains(MetaDataTopicSegment, StringComparison.Ordinal);
+        }
+
+        private static bool IsDiscoveryTopic(string topic)
+        {
+            return topic.Contains(ApplicationTopicSegment, StringComparison.Ordinal)
+                || topic.Contains(EndpointsTopicSegment, StringComparison.Ordinal)
+                || topic.Contains(StatusTopicSegment, StringComparison.Ordinal)
+                || topic.Contains(ConnectionTopicSegment, StringComparison.Ordinal);
+        }
+
+        private static Dictionary<string, MqttQualityOfService> BuildTopicQosMap(
+            PubSubConnectionDataType connection,
+            MqttConnectionOptions options,
+            string transportProfileUri)
+        {
+            var result = new Dictionary<string, MqttQualityOfService>(StringComparer.Ordinal);
+            if (connection.WriterGroups.IsNull)
+            {
+                return result;
+            }
+            var publisherId = connection.PublisherId.IsNull
+                ? PublisherId.Null
+                : PublisherId.From(connection.PublisherId);
+            MqttEncoding encoding = ResolveEncoding(transportProfileUri);
+            foreach (WriterGroupDataType group in connection.WriterGroups)
+            {
+                MqttQualityOfService groupQos = options.Topics.DefaultQos;
+                if (TryReadBrokerGroupSettings(
+                    group.TransportSettings,
+                    out string? groupQueue,
+                    out BrokerTransportQualityOfService groupGuarantee))
+                {
+                    groupQos = MapQos(groupGuarantee, groupQos);
+                }
+                string groupTopic = string.IsNullOrEmpty(groupQueue)
+                    ? MqttTopicBuilder.BuildDataTopic(
+                        options.Topics.Prefix, encoding, publisherId.ToVariant(), group.WriterGroupId, null)
+                    : groupQueue;
+                result[groupTopic] = groupQos;
+                if (group.DataSetWriters.IsNull)
+                {
+                    continue;
+                }
+                foreach (DataSetWriterDataType writer in group.DataSetWriters)
+                {
+                    MqttQualityOfService writerQos = groupQos;
+                    if (TryReadBrokerWriterSettings(
+                            writer.TransportSettings,
+                            out string? queue,
+                            out string? metadataQueue,
+                            out BrokerTransportQualityOfService guarantee))
+                    {
+                        writerQos = MapQos(guarantee, writerQos);
+                        if (!string.IsNullOrEmpty(metadataQueue))
+                        {
+                            result[metadataQueue] = writerQos;
+                        }
+                    }
+                    string writerTopic = string.IsNullOrEmpty(queue)
+                        ? MqttTopicBuilder.BuildDataTopic(
+                            options.Topics.Prefix,
+                            encoding,
+                            publisherId.ToVariant(),
+                            group.WriterGroupId,
+                            writer.DataSetWriterId)
+                        : queue;
+                    result[writerTopic] = writerQos;
+                }
+            }
+            return result;
+        }
+
+        private static MqttQualityOfService MapQos(
+            BrokerTransportQualityOfService guarantee,
+            MqttQualityOfService fallback)
+        {
+            return guarantee switch
+            {
+                BrokerTransportQualityOfService.BestEffort => MqttQualityOfService.AtMostOnce,
+                BrokerTransportQualityOfService.AtMostOnce => MqttQualityOfService.AtMostOnce,
+                BrokerTransportQualityOfService.AtLeastOnce => MqttQualityOfService.AtLeastOnce,
+                BrokerTransportQualityOfService.ExactlyOnce => MqttQualityOfService.ExactlyOnce,
+                _ => fallback
+            };
+        }
+
+        private static bool TryReadBrokerGroupSettings(
+            ExtensionObject settings,
+            out string? queueName,
+            out BrokerTransportQualityOfService guarantee)
+        {
+            queueName = null;
+            guarantee = BrokerTransportQualityOfService.NotSpecified;
+            if (!settings.TryGetValue(out BrokerWriterGroupTransportDataType? broker) || broker is null)
+            {
+                return false;
+            }
+            queueName = broker.QueueName;
+            guarantee = broker.RequestedDeliveryGuarantee;
+            return true;
+        }
+
+        private static bool TryReadBrokerWriterSettings(
+            ExtensionObject settings,
+            out string? queueName,
+            out string? metaDataQueueName,
+            out BrokerTransportQualityOfService guarantee)
+        {
+            queueName = null;
+            metaDataQueueName = null;
+            guarantee = BrokerTransportQualityOfService.NotSpecified;
+            if (!settings.TryGetValue(out BrokerDataSetWriterTransportDataType? broker) || broker is null)
+            {
+                return false;
+            }
+            queueName = broker.QueueName;
+            metaDataQueueName = broker.MetaDataQueueName;
+            guarantee = broker.RequestedDeliveryGuarantee;
+            return true;
+        }
+
+        private static MqttEncoding ResolveEncoding(string transportProfileUri)
+        {
+            return string.Equals(
+                transportProfileUri,
+                Profiles.PubSubMqttUadpTransport,
+                StringComparison.Ordinal)
+                ? MqttEncoding.Uadp
+                : MqttEncoding.Json;
         }
 
         private static string? MapContentType(string transportProfileUri)

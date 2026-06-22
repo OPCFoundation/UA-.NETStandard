@@ -103,6 +103,31 @@ namespace Opc.Ua.PubSub.Mqtt
         public string? PasswordSecretId { get; set; }
 
         /// <summary>
+        /// Authentication profile URI used to select SASL authentication per Part 14 §7.3.4.3.
+        /// </summary>
+        public string? AuthenticationProfileUri { get; set; }
+
+        /// <summary>
+        /// Resource URI associated with <see cref="AuthenticationProfileUri"/>.
+        /// </summary>
+        public string? ResourceUri { get; set; }
+
+        /// <summary>
+        /// MQTT Last-Will topic for publisher status presence messages.
+        /// </summary>
+        public string? WillTopic { get; set; }
+
+        /// <summary>
+        /// MQTT Last-Will QoS for publisher status presence messages.
+        /// </summary>
+        public MqttQualityOfService WillQos { get; set; } = MqttQualityOfService.AtLeastOnce;
+
+        /// <summary>
+        /// MQTT Last-Will retain flag for publisher status presence messages.
+        /// </summary>
+        public bool WillRetain { get; set; } = true;
+
+        /// <summary>
         /// TLS options. <see langword="null"/> picks up scheme-derived
         /// defaults (TLS off for <c>mqtt://</c>, on for
         /// <c>mqtts://</c>).
@@ -155,5 +180,10 @@ namespace Opc.Ua.PubSub.Mqtt
         /// when issuing the MQTT CONNECT packet.
         /// </summary>
         internal byte[]? PasswordBytes { get; set; }
+
+        /// <summary>
+        /// Encoded Last-Will payload populated by publisher presence scheduling.
+        /// </summary>
+        internal byte[]? WillPayload { get; set; }
     }
 }

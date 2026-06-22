@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest);
 
             writer.WriteByte((byte)message.DiscoveryType);
-            writer.WriteUInt16Le((ushort)message.DataSetWriterIds.Count);
+            writer.WriteUInt32Le((uint)message.DataSetWriterIds.Count);
             foreach (ushort id in message.DataSetWriterIds)
             {
                 writer.WriteUInt16Le(id);
@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     WritePublisherEndpoints(ref writer, message, context.MessageContext);
                     break;
                 case UadpDiscoveryType.ApplicationInformation:
-                    WriteApplicationInformation(ref writer, message);
+                    WriteApplicationInformation(ref writer, message, context.MessageContext);
                     break;
                 case UadpDiscoveryType.PubSubConnection:
                     WriteConnection(ref writer, message, context.MessageContext);
@@ -244,12 +244,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return null;
             }
-            if (!reader.TryReadUInt16Le(out ushort count))
+            if (!reader.TryReadUInt32Le(out uint count))
             {
                 return null;
             }
-            var ids = new ushort[count];
-            for (int i = 0; i < count; i++)
+            if (count > int.MaxValue)
+            {
+                return null;
+            }
+            int countInt = (int)count;
+            var ids = new ushort[countInt];
+            for (int i = 0; i < countInt; i++)
             {
                 if (!reader.TryReadUInt16Le(out ushort id))
                 {
@@ -315,7 +320,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     UadpDiscoveryType.PublisherEndpoints =>
                         ReadPublisherEndpoints(ref reader, response, context.MessageContext),
                     UadpDiscoveryType.ApplicationInformation =>
-                        ReadApplicationInformation(ref reader, response),
+                        ReadApplicationInformation(ref reader, response, context.MessageContext),
                     UadpDiscoveryType.PubSubConnection =>
                         ReadConnection(ref reader, response, context.MessageContext),
                     _ => response
@@ -343,13 +348,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpDiscoveryResponseMessage message,
             IServiceMessageContext context)
         {
-            writer.WriteUInt16Le((ushort)message.DataSetWriterIds.Count);
+            writer.WriteUInt32Le((uint)message.DataSetWriterIds.Count);
             foreach (ushort id in message.DataSetWriterIds)
             {
                 writer.WriteUInt16Le(id);
             }
             UadpDiscoveryWire.WriteEncodeable(ref writer, message.WriterConfiguration, context);
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le((uint)message.DataSetWriterIds.Count);
+            foreach (ushort _ in message.DataSetWriterIds)
+            {
+                writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            }
         }
 
         private static void WritePublisherEndpoints(
@@ -357,7 +366,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpDiscoveryResponseMessage message,
             IServiceMessageContext context)
         {
-            writer.WriteUInt16Le((ushort)message.PublisherEndpoints.Count);
+            writer.WriteUInt32Le((uint)message.PublisherEndpoints.Count);
             foreach (EndpointDescription endpoint in message.PublisherEndpoints)
             {
                 UadpDiscoveryWire.WriteEncodeable(ref writer, endpoint, context);
@@ -393,12 +402,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpDiscoveryResponseMessage message,
             IServiceMessageContext context)
         {
-            if (!reader.TryReadUInt16Le(out ushort count))
+            if (!reader.TryReadUInt32Le(out uint count))
             {
                 throw new InvalidOperationException("Failed reading writer-id count.");
             }
-            var ids = new ushort[count];
-            for (int i = 0; i < count; i++)
+            if (count > int.MaxValue)
+            {
+                throw new InvalidOperationException("Writer-id count is too large.");
+            }
+            int countInt = (int)count;
+            var ids = new ushort[countInt];
+            for (int i = 0; i < countInt; i++)
             {
                 if (!reader.TryReadUInt16Le(out ushort id))
                 {
@@ -408,9 +422,26 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
             WriterGroupDataType cfg = UadpDiscoveryWire.ReadEncodeable<WriterGroupDataType>(
                 ref reader, context);
-            if (!reader.TryReadUInt32Le(out uint statusCode))
+            if (!reader.TryReadUInt32Le(out uint statusCount))
             {
-                throw new InvalidOperationException("Failed reading StatusCode.");
+                throw new InvalidOperationException("Failed reading StatusCode count.");
+            }
+            if (statusCount != count)
+            {
+                throw new InvalidOperationException("StatusCode count does not match writer-id count.");
+            }
+            uint statusCode = 0;
+            int statusCountInt = (int)statusCount;
+            for (int i = 0; i < statusCountInt; i++)
+            {
+                if (!reader.TryReadUInt32Le(out uint code))
+                {
+                    throw new InvalidOperationException("Failed reading StatusCode.");
+                }
+                if (i == 0)
+                {
+                    statusCode = code;
+                }
             }
             return message with
             {
@@ -425,12 +456,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpDiscoveryResponseMessage message,
             IServiceMessageContext context)
         {
-            if (!reader.TryReadUInt16Le(out ushort count))
+            if (!reader.TryReadUInt32Le(out uint count))
             {
                 throw new InvalidOperationException("Failed reading endpoint count.");
             }
-            var list = new EndpointDescription[count];
-            for (int i = 0; i < count; i++)
+            if (count > int.MaxValue)
+            {
+                throw new InvalidOperationException("Endpoint count is too large.");
+            }
+            int countInt = (int)count;
+            var list = new EndpointDescription[countInt];
+            for (int i = 0; i < countInt; i++)
             {
                 list[i] = UadpDiscoveryWire.ReadEncodeable<EndpointDescription>(
                     ref reader, context);
@@ -448,65 +484,51 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static void WriteApplicationInformation(
             ref UadpBinaryWriter writer,
-            UadpDiscoveryResponseMessage message)
+            UadpDiscoveryResponseMessage message,
+            IServiceMessageContext context)
         {
+            // TODO(B12): add ApplicationInformationType=2 status body
+            // (IsCyclic/Status/NextReportTime/Timestamp) per Part 14 §7.2.4.6.7.
             UadpApplicationInformation info = message.ApplicationInformation
                 ?? new UadpApplicationInformation();
-            writer.WriteString(info.ApplicationName.Locale ?? string.Empty);
-            writer.WriteString(info.ApplicationName.Text ?? string.Empty);
-            writer.WriteString(info.ApplicationUri);
-            writer.WriteString(info.ProductUri);
-            writer.WriteUInt32Le((uint)info.ApplicationType);
+            writer.WriteUInt16Le(1);
+            var description = new ApplicationDescription
+            {
+                ApplicationUri = info.ApplicationUri,
+                ProductUri = info.ProductUri,
+                ApplicationName = info.ApplicationName,
+                ApplicationType = info.ApplicationType
+            };
+            UadpDiscoveryWire.WriteEncodeable(ref writer, description, context);
             WriteStringArray(ref writer, info.Capabilities);
-            WriteStringArray(ref writer, info.SupportedTransportProfiles);
-            WriteStringArray(ref writer, info.SupportedSecurityPolicies);
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
         }
 
         private static UadpDiscoveryResponseMessage ReadApplicationInformation(
             ref UadpBinaryReader reader,
-            UadpDiscoveryResponseMessage message)
+            UadpDiscoveryResponseMessage message,
+            IServiceMessageContext context)
         {
-            if (!reader.TryReadString(out string? locale))
+            if (!reader.TryReadUInt16Le(out ushort applicationInformationType))
             {
-                throw new InvalidOperationException("Failed reading ApplicationName locale.");
+                throw new InvalidOperationException("Failed reading ApplicationInformationType.");
             }
-            if (!reader.TryReadString(out string? text))
+            if (applicationInformationType != 1)
             {
-                throw new InvalidOperationException("Failed reading ApplicationName text.");
+                throw new InvalidOperationException("Unsupported ApplicationInformationType.");
             }
-            if (!reader.TryReadString(out string? appUri))
-            {
-                throw new InvalidOperationException("Failed reading ApplicationUri.");
-            }
-            if (!reader.TryReadString(out string? productUri))
-            {
-                throw new InvalidOperationException("Failed reading ProductUri.");
-            }
-            if (!reader.TryReadUInt32Le(out uint appType))
-            {
-                throw new InvalidOperationException("Failed reading ApplicationType.");
-            }
+            ApplicationDescription description =
+                UadpDiscoveryWire.ReadEncodeable<ApplicationDescription>(ref reader, context);
             string[] capabilities = ReadStringArray(ref reader);
-            string[] profiles = ReadStringArray(ref reader);
-            string[] policies = ReadStringArray(ref reader);
-            if (!reader.TryReadUInt32Le(out uint statusCode))
-            {
-                throw new InvalidOperationException("Failed reading StatusCode.");
-            }
             return message with
             {
                 ApplicationInformation = new UadpApplicationInformation
                 {
-                    ApplicationName = new LocalizedText(locale ?? string.Empty, text ?? string.Empty),
-                    ApplicationUri = appUri ?? string.Empty,
-                    ProductUri = productUri ?? string.Empty,
-                    ApplicationType = (ApplicationType)appType,
-                    Capabilities = capabilities,
-                    SupportedTransportProfiles = profiles,
-                    SupportedSecurityPolicies = policies
-                },
-                StatusCode = new StatusCode(statusCode)
+                    ApplicationName = description.ApplicationName,
+                    ApplicationUri = description.ApplicationUri ?? string.Empty,
+                    ProductUri = description.ProductUri ?? string.Empty,
+                    ApplicationType = description.ApplicationType,
+                    Capabilities = capabilities
+                }
             };
         }
 
@@ -545,6 +567,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             writer.WriteString(f.ApplicationUri);
             writer.WriteString(f.ProductUri);
             writer.WriteString(f.Capability);
+            writer.WriteByte(f.WriterGroupId.HasValue ? (byte)1 : (byte)0);
+            if (f.WriterGroupId.HasValue)
+            {
+                writer.WriteUInt16Le(f.WriterGroupId.Value);
+            }
+            writer.WriteByte(f.IncludeWriterGroups ? (byte)1 : (byte)0);
+            writer.WriteByte(f.IncludeDataSetWriters ? (byte)1 : (byte)0);
+            WriteStringArray(ref writer, f.TransportProfileUris);
         }
 
         private static UadpDiscoveryProbeFilter? TryReadProbeFilter(
@@ -562,11 +592,42 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return null;
             }
+            ushort? writerGroupId = null;
+            bool includeWriterGroups = false;
+            bool includeDataSetWriters = false;
+            string[] transportProfileUris = [];
+            if (reader.Remaining > 0)
+            {
+                if (!reader.TryReadByte(out byte hasWriterGroupId))
+                {
+                    return null;
+                }
+                if (hasWriterGroupId != 0)
+                {
+                    if (!reader.TryReadUInt16Le(out ushort id))
+                    {
+                        return null;
+                    }
+                    writerGroupId = id;
+                }
+                if (!reader.TryReadByte(out byte includeGroupsByte)
+                    || !reader.TryReadByte(out byte includeWritersByte))
+                {
+                    return null;
+                }
+                includeWriterGroups = includeGroupsByte != 0;
+                includeDataSetWriters = includeWritersByte != 0;
+                transportProfileUris = ReadStringArray(ref reader);
+            }
             return new UadpDiscoveryProbeFilter
             {
                 ApplicationUri = appUri ?? string.Empty,
                 ProductUri = productUri ?? string.Empty,
-                Capability = capability ?? string.Empty
+                Capability = capability ?? string.Empty,
+                WriterGroupId = writerGroupId,
+                IncludeWriterGroups = includeWriterGroups,
+                IncludeDataSetWriters = includeDataSetWriters,
+                TransportProfileUris = transportProfileUris
             };
         }
 
@@ -574,7 +635,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             ref UadpBinaryWriter writer,
             ArrayOf<string> values)
         {
-            writer.WriteUInt16Le((ushort)values.Count);
+            writer.WriteUInt32Le((uint)values.Count);
             for (int i = 0; i < values.Count; i++)
             {
                 writer.WriteString(values[i] ?? string.Empty);
@@ -583,12 +644,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static string[] ReadStringArray(ref UadpBinaryReader reader)
         {
-            if (!reader.TryReadUInt16Le(out ushort count))
+            if (!reader.TryReadUInt32Le(out uint count))
             {
                 throw new InvalidOperationException("Failed reading string-array count.");
             }
-            var result = new string[count];
-            for (int i = 0; i < count; i++)
+            if (count > int.MaxValue)
+            {
+                throw new InvalidOperationException("String-array count is too large.");
+            }
+            int countInt = (int)count;
+            var result = new string[countInt];
+            for (int i = 0; i < countInt; i++)
             {
                 if (!reader.TryReadString(out string? entry))
                 {
@@ -688,6 +754,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             bool payloadHeaderEnabled,
             ushort? writerGroupId)
         {
+            // TODO(B17): add byte-level assertions for Part 14 §7.2.4.6.3 and
+            // §7.2.4.6.12.3 in addition to round-trip coverage.
             UadpFlagsEncodingMask uadpFlags =
                 UadpFlagsEncodingMask.PublisherIdEnabled |
                 UadpFlagsEncodingMask.ExtendedFlags1Enabled;

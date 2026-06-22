@@ -414,6 +414,17 @@ namespace Opc.Ua.PubSub.Tests.Application
                 _ = publisherId;
                 return $"opcua/json/metadata/p17/{writerGroupId}/{dataSetWriterId}";
             }
+
+            public string BuildDataTopic(
+                PublisherId publisherId,
+                WriterGroupDataType writerGroup,
+                ushort? dataSetWriterId)
+            {
+                _ = publisherId;
+                return dataSetWriterId.HasValue
+                    ? $"opcua/json/data/p17/{writerGroup.WriterGroupId}/{dataSetWriterId.Value}"
+                    : $"opcua/json/data/p17/{writerGroup.WriterGroupId}";
+            }
         }
 
         private sealed class MetaDataOnlySource : IPublishedDataSetSource

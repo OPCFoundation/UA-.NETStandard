@@ -205,6 +205,14 @@ namespace Opc.Ua.PubSub.Udp
         /// Part 14 §6.4.1.2.7</see>. Zero means disabled.
         /// </summary>
         public uint DiscoveryAnnounceRate => m_v2Settings.DiscoveryAnnounceRate;
+        // TODO(B7): schedule periodic discovery announcements using this value
+        // per Part 14 §7.2.4.6.1.
+        // TODO(B13): send global ApplicationInformation, PublisherEndpoints, and
+        // PubSubConnection announcements on 224.0.2.14:4840 per Part 14 §7.3.2.1.
+        // TODO(B14): add subscriber probe jitter/backoff and publisher probe
+        // throttling for Part 14 §7.2.4.6.12.2.
+        // TODO(B15): add opc.dtls:// unicast transport on port 4843 for
+        // DTLS 1.3 per Part 14 §7.3.2.4.
 
         /// <summary>
         /// DiscoveryMaxMessageSize cap (bytes) honoured from the
