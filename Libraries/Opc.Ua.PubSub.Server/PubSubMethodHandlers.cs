@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
@@ -60,6 +62,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly IPubSubKeyServiceServer? m_keyService;
         private readonly PubSubServerOptions m_options;
         private readonly SksMethodHandler? m_sks;
+        private readonly PushSecurityKeyProvider[] m_pushProviders;
         private readonly ILogger m_logger;
         private readonly Dictionary<NodeId, string> m_securityGroupNodeIds = new();
         private readonly System.Threading.Lock m_gate = new();
@@ -75,11 +78,13 @@ namespace Opc.Ua.PubSub.Server
         /// </param>
         /// <param name="options">PubSub server options.</param>
         /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="pushProviders">Optional SetSecurityKeys push providers.</param>
         public PubSubMethodHandlers(
             IPubSubApplication application,
             IPubSubKeyServiceServer? keyService,
             PubSubServerOptions options,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IEnumerable<PushSecurityKeyProvider>? pushProviders = null)
         {
             if (application is null)
             {
@@ -97,6 +102,7 @@ namespace Opc.Ua.PubSub.Server
             m_keyService = keyService;
             m_options = options;
             m_sks = keyService is null ? null : new SksMethodHandler(keyService, telemetry);
+            m_pushProviders = pushProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
             m_logger = telemetry.CreateLogger<PubSubMethodHandlers>();
         }
 
@@ -1054,7 +1060,9 @@ namespace Opc.Ua.PubSub.Server
                 keyLifetime: TimeSpan.FromMilliseconds(keyLifetimeMs),
                 maxFutureKeyCount: (int)Math.Min(maxFuture, int.MaxValue),
                 maxPastKeyCount: (int)Math.Min(maxPast, int.MaxValue),
-                keys: Array.Empty<PubSubSecurityKey>());
+                keys: Array.Empty<PubSubSecurityKey>(),
+                rolePermissions: TryReadRolePermissions(inputArguments, 5),
+                authorizedCallerIdentities: TryReadAuthorizedCallers(inputArguments, 6));
 
             try
             {
@@ -1168,6 +1176,133 @@ namespace Opc.Ua.PubSub.Server
         }
 
         /// <summary>
+        /// Implements Part 14 §8.3.3 <c>GetSecurityGroup</c>.
+        /// </summary>
+        public ServiceResult OnGetSecurityGroup(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            if (m_keyService is null)
+            {
+                return new ServiceResult(StatusCodes.BadServiceUnsupported);
+            }
+            if (inputArguments.Count < 1 ||
+                !inputArguments[0].TryGetValue(out string? securityGroupId) ||
+                string.IsNullOrEmpty(securityGroupId))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            SksSecurityGroup? group = m_keyService
+                .GetSecurityGroupAsync(securityGroupId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+            if (group is null)
+            {
+                return new ServiceResult(StatusCodes.BadNoMatch);
+            }
+
+            outputArguments.Add(Variant.From(GetOrAllocateSecurityGroupNodeId(securityGroupId)));
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Implements Part 14 §9.1.3.3 <c>SetSecurityKeys</c>.
+        /// </summary>
+        public ServiceResult OnSetSecurityKeys(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = outputArguments;
+            if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (inputArguments.Count < 7)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            if (!inputArguments[0].TryGetValue(out string? securityGroupId) || string.IsNullOrEmpty(securityGroupId) ||
+                !inputArguments[1].TryGetValue(out string? policyUri) || string.IsNullOrEmpty(policyUri) ||
+                !inputArguments[2].TryGetValue(out uint currentTokenId) ||
+                !inputArguments[3].TryGetValue(out ByteString currentKey) ||
+                !inputArguments[4].TryGetValue(out ArrayOf<ByteString> futureKeys) ||
+                !inputArguments[5].TryGetValue(out double timeToNextKeyMs) ||
+                !inputArguments[6].TryGetValue(out double keyLifetimeMs))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            PushSecurityKeyProvider? provider = FindPushProvider(securityGroupId);
+            if (provider is null)
+            {
+                return new ServiceResult(StatusCodes.BadNotFound);
+            }
+
+            try
+            {
+                provider.SetSecurityKeysAsync(
+                    policyUri,
+                    currentTokenId,
+                    currentKey,
+                    futureKeys,
+                    TimeSpan.FromMilliseconds(timeToNextKeyMs),
+                    TimeSpan.FromMilliseconds(keyLifetimeMs))
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                return ServiceResult.Good;
+            }
+            catch (OpcUaSksException ex)
+            {
+                return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Implements Part 14 §8.4.2 <c>InvalidateKeys</c>.
+        /// </summary>
+        public ServiceResult OnInvalidateKeys(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = inputArguments;
+            _ = outputArguments;
+            return RotateOrInvalidateKeys(objectId, invalidate: true);
+        }
+
+        /// <summary>
+        /// Implements Part 14 §8.4.3 <c>ForceKeyRotation</c>.
+        /// </summary>
+        public ServiceResult OnForceKeyRotation(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            _ = context;
+            _ = method;
+            _ = inputArguments;
+            _ = outputArguments;
+            return RotateOrInvalidateKeys(objectId, invalidate: false);
+        }
+
+        /// <summary>
         /// Returns the NodeId previously allocated for the
         /// SecurityGroup identified by <paramref name="securityGroupId"/>,
         /// or <see langword="null"/> when the id is unknown to this
@@ -1191,6 +1326,83 @@ namespace Opc.Ua.PubSub.Server
                 }
                 return null;
             }
+        }
+
+        private ServiceResult RotateOrInvalidateKeys(NodeId groupNodeId, bool invalidate)
+        {
+            if (m_keyService is null)
+            {
+                return new ServiceResult(StatusCodes.BadServiceUnsupported);
+            }
+            string? id = LookupSecurityGroupId(groupNodeId);
+            if (id is null)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+            try
+            {
+                ValueTask task = invalidate
+                    ? m_keyService.InvalidateKeysAsync(id)
+                    : m_keyService.ForceKeyRotationAsync(id);
+                task.AsTask().GetAwaiter().GetResult();
+                return ServiceResult.Good;
+            }
+            catch (OpcUaSksException ex)
+            {
+                return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
+            }
+        }
+
+        private PushSecurityKeyProvider? FindPushProvider(string securityGroupId)
+        {
+            for (int i = 0; i < m_pushProviders.Length; i++)
+            {
+                if (string.Equals(m_pushProviders[i].SecurityGroupId, securityGroupId, StringComparison.Ordinal))
+                {
+                    return m_pushProviders[i];
+                }
+            }
+            return null;
+        }
+
+        private NodeId GetOrAllocateSecurityGroupNodeId(string securityGroupId)
+        {
+            NodeId? existing = TryGetSecurityGroupNodeId(securityGroupId);
+            return existing ?? AllocateSecurityGroupNodeId(securityGroupId);
+        }
+
+        private static ArrayOf<RolePermissionType> TryReadRolePermissions(
+            ArrayOf<Variant> inputArguments,
+            int index)
+        {
+            if (inputArguments.Count <= index)
+            {
+                return [];
+            }
+            if (!inputArguments[index].TryGetValue(out ArrayOf<ExtensionObject> rolePermissionsArray))
+            {
+                return [];
+            }
+
+            var rolePermissions = new List<RolePermissionType>(rolePermissionsArray.Count);
+            for (int i = 0; i < rolePermissionsArray.Count; i++)
+            {
+                if (rolePermissionsArray[i].TryGetValue(out RolePermissionType? rolePermission) &&
+                    rolePermission is not null)
+                {
+                    rolePermissions.Add(rolePermission);
+                }
+            }
+            return [.. rolePermissions];
+        }
+
+        private static ArrayOf<string> TryReadAuthorizedCallers(ArrayOf<Variant> inputArguments, int index)
+        {
+            if (inputArguments.Count <= index)
+            {
+                return [];
+            }
+            return inputArguments[index].TryGetValue(out ArrayOf<string> callers) ? callers : [];
         }
 
         private string? LookupSecurityGroupId(NodeId groupNodeId)

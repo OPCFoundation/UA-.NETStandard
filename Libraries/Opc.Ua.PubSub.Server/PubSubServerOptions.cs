@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
+
 namespace Opc.Ua.PubSub.Server
 {
     /// <summary>
@@ -48,16 +50,16 @@ namespace Opc.Ua.PubSub.Server
         /// When <see langword="true"/>, exposes the standard
         /// <c>PubSubKeyServiceType</c> Object (Part 14 §8.3.1) by
         /// binding the <c>GetSecurityKeys</c>,
-        /// <c>AddSecurityGroup</c>, <c>RemoveSecurityGroup</c> and
-        /// <c>GetSecurityGroup</c> methods to the registered
+        /// <c>GetSecurityGroup</c>, <c>AddSecurityGroup</c> and
+        /// <c>RemoveSecurityGroup</c> methods to the registered
         /// <see cref="Opc.Ua.PubSub.Security.Sks.IPubSubKeyServiceServer"/>.
         /// </summary>
         public bool ExposeSecurityKeyService { get; set; }
 
         /// <summary>
         /// When <see langword="true"/> (the default), binds the
-        /// configuration methods (<c>AddConnection</c>,
-        /// <c>RemoveConnection</c>, <c>SetSecurityKeys</c>) on the
+        /// configuration methods (<c>SetSecurityKeys</c>,
+        /// <c>AddConnection</c>, <c>RemoveConnection</c>) on the
         /// <c>PublishSubscribe</c> Object. Disable to expose a
         /// read-only PubSub model.
         /// </summary>
@@ -84,6 +86,16 @@ namespace Opc.Ua.PubSub.Server
         /// SecurityGroup. Defaults to one hour.
         /// </summary>
         public double DefaultKeyLifetimeMs { get; set; } = 3_600_000;
+
+        /// <summary>
+        /// Optional caller identities allowed to pull keys from the default SecurityGroup.
+        /// </summary>
+        public string[]? DefaultAuthorizedCallerIdentities { get; set; }
+
+        /// <summary>
+        /// Optional RolePermissions controlling GetSecurityKeys Call access for the default SecurityGroup.
+        /// </summary>
+        public RolePermissionType[]? DefaultSecurityGroupRolePermissions { get; set; }
 
         /// <summary>
         /// Controls how much of the standard

@@ -351,12 +351,21 @@ namespace Opc.Ua.PubSub.Security.Sks
                     : key.Span.ToArray();
             }
 
-            TimeSpan keyLifetime = keyLifetimeMs > 0
-                ? TimeSpan.FromMilliseconds(keyLifetimeMs)
-                : TimeSpan.FromSeconds(1);
-            TimeSpan timeToNextKey = timeToNextKeyMs > 0
-                ? TimeSpan.FromMilliseconds(timeToNextKeyMs)
-                : TimeSpan.Zero;
+            if (keyLifetimeMs <= 0)
+            {
+                throw new OpcUaSksException(
+                    StatusCodes.BadDecodingError,
+                    $"GetSecurityKeys KeyLifetime is malformed ({keyLifetimeMs} ms); expected a positive Duration.");
+            }
+            if (timeToNextKeyMs < 0)
+            {
+                throw new OpcUaSksException(
+                    StatusCodes.BadDecodingError,
+                    $"GetSecurityKeys TimeToNextKey is malformed ({timeToNextKeyMs} ms); expected a non-negative Duration.");
+            }
+
+            TimeSpan keyLifetime = TimeSpan.FromMilliseconds(keyLifetimeMs);
+            TimeSpan timeToNextKey = TimeSpan.FromMilliseconds(timeToNextKeyMs);
             return new SksKeyResponse(
                 securityPolicyUri,
                 firstTokenId,

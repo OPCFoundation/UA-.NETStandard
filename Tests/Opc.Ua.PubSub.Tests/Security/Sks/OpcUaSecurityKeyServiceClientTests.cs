@@ -339,6 +339,34 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(client, Is.Not.Null);
         }
 
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "Malformed SKS durations are rejected")]
+        public void GetSecurityKeysAsyncRejectsMalformedKeyLifetime()
+        {
+            CallResponse response = BuildSuccessfulResponse();
+            ArrayOf<Variant> original = response.Results[0].OutputArguments;
+            response.Results[0].OutputArguments = new Variant[]
+            {
+                original[0],
+                original[1],
+                original[2],
+                original[3],
+                Variant.From(0.0)
+            };
+            (Mock<ISession> session, _) = BuildSessionMock(response);
+            var client = new OpcUaSecurityKeyServiceClient(
+                _ => new ValueTask<ISession>(session.Object),
+                NUnitTelemetryContext.Create(),
+                new FakeTimeProvider());
+
+            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)))!;
+
+            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("KeyLifetime"));
+        }
+
         [Test]
         public void Constructor_RejectsNullTelemetry()
         {
