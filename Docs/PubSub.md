@@ -200,6 +200,13 @@ on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
 KeyFrame arrives.
 
+Subscribers can also **actively** request discovery information with
+`IPubSubApplication.RequestDiscoveryAsync(...)` (Part 14 §7.2.4.6): it sends a
+`UadpDiscoveryRequestMessage` for `DataSetMetaData`,
+`DataSetWriterConfiguration`, or `PublisherEndpoints` and collects the publisher
+responses within a timeout into a typed `PubSubDiscoveryResult`. Publisher
+connections answer inbound discovery requests for all three types.
+
 ### `IPubSubSecurityPolicy` / `IPubSubSecurityKeyProvider`
 
 `IPubSubSecurityPolicy` describes a Part 14 §8 cipher bundle (signing

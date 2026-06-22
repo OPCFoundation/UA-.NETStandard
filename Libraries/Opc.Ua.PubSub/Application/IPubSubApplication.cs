@@ -109,6 +109,15 @@ namespace Opc.Ua.PubSub.Application
         PubSubConfigurationDataType GetConfiguration();
 
         /// <summary>
+        /// Sends a PubSub discovery request on the application's active
+        /// connections and collects responses until the timeout elapses.
+        /// </summary>
+        ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
+            PubSubDiscoveryRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Replaces the entire configuration.
         /// </summary>
         ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(

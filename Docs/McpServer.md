@@ -333,22 +333,16 @@ In addition to the client services above, the server exposes OPC UA PubSub
 [Diagnostics.md §5](Diagnostics.md#5-pubsub-packet-capture-and-dissection) for
 the capture / dissection details.
 
-**Configuration "Action" methods** (call the server-side `PublishSubscribe`
-object methods via the active session):
-
-| Tool | Purpose |
-| --- | --- |
-| `pubsub_add_connection` / `pubsub_remove_connection` | Add / remove a PubSub connection |
-| `pubsub_add_writer_group` / `pubsub_add_reader_group` | Add a writer / reader group |
-| `pubsub_add_dataset_writer` / `pubsub_add_dataset_reader` | Add a DataSet writer / reader |
-| `pubsub_enable` / `pubsub_disable` | Enable / disable PubSub |
-
-**Security Key Service (SKS):**
-
-| Tool | Purpose |
-| --- | --- |
-| `pubsub_get_security_keys` | Call `PublishSubscribe.GetSecurityKeys` (Part 14 §8.2) |
-| `pubsub_add_security_group` / `pubsub_remove_security_group` | Manage SKS security groups |
+**Configuration and Security Key Service methods.** PubSub configuration
+(`AddConnection`, `AddWriterGroup`, `AddReaderGroup`, `AddDataSetWriter`,
+`AddDataSetReader`, `Status.Enable` / `Disable`) and the Security Key Service
+(`GetSecurityKeys`, `AddSecurityGroup` / `RemoveSecurityGroup`) are standard
+server-side `PublishSubscribe` object methods, so they are invoked with the
+generic [`Call`](#usage) tool rather than dedicated wrappers — pass the
+`PublishSubscribe` object NodeId (or the target connection / group NodeId) and
+the corresponding method NodeId (e.g. `i=14443` for
+`PublishSubscribe_AddConnection`, `i=15215` for
+`PublishSubscribe_GetSecurityKeys`).
 
 **In-process publish/subscribe runtime:**
 
@@ -358,6 +352,15 @@ object methods via the active session):
 | `pubsub_runtime_publish` | Publish a DataSet update |
 | `pubsub_runtime_read_received` | Read DataSets received by the subscriber |
 | `pubsub_runtime_status` / `pubsub_runtime_stop` | Status / stop the runtime |
+
+**Discovery** (Part 14 §7.2.4.6 &mdash; send a discovery request from the active
+runtime and collect publisher responses):
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_discover_metadata` | Request DataSetMetaData from publishers |
+| `pubsub_discover_writer_config` | Request DataSetWriterConfiguration from publishers |
+| `pubsub_discover_publisher_endpoints` | Request PublisherEndpoints from publishers |
 
 **Capture and dissection:**
 

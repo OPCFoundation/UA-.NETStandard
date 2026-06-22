@@ -197,9 +197,8 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
         .WithTools<NodeSetExportTools>()
         .WithTools<PacketCaptureTools>()
         .WithTools<PkiTools>()
-        .WithTools<PubSubActionTools>()
         .WithTools<PubSubCaptureTools>()
-        .WithTools<PubSubKeyServiceTools>()
+        .WithTools<PubSubDiscoveryTools>()
         .WithTools<PubSubRuntimeTools>()
         .WithTools<SubscriptionServiceTools>()
         .WithTools<ViewServiceTools>();

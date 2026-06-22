@@ -576,6 +576,60 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <summary>
+        /// Sends a PubSub discovery request on all active runtime connections.
+        /// </summary>
+        public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
+            PubSubDiscoveryRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            if (timeout < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+
+            PubSubConnection[] connections;
+            lock (m_gate)
+            {
+                connections = [.. m_connections];
+            }
+            if (connections.Length == 0)
+            {
+                return new PubSubDiscoveryResult();
+            }
+
+            var tasks = new Task<PubSubDiscoveryResult>[connections.Length];
+            for (int i = 0; i < connections.Length; i++)
+            {
+                tasks[i] = connections[i]
+                    .RequestDiscoveryAsync(request, timeout, cancellationToken)
+                    .AsTask();
+            }
+            PubSubDiscoveryResult[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            var metaData = new List<PubSubDataSetMetaDataDiscoveryResult>();
+            var writerConfigurations =
+                new List<PubSubDataSetWriterConfigurationDiscoveryResult>();
+            var endpoints = new List<EndpointDescription>();
+            for (int i = 0; i < results.Length; i++)
+            {
+                metaData.AddRange(results[i].DataSetMetaDataEntries);
+                writerConfigurations.AddRange(results[i].WriterConfigurations);
+                endpoints.AddRange(results[i].PublisherEndpoints);
+            }
+            return new PubSubDiscoveryResult
+            {
+                DataSetMetaDataEntries = [.. metaData],
+                WriterConfigurations = [.. writerConfigurations],
+                PublisherEndpoints = [.. endpoints]
+            };
+        }
+
+        /// <summary>
         /// Replaces the entire runtime configuration.
         /// </summary>
         public ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(

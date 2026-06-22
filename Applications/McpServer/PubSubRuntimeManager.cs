@@ -218,6 +218,33 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
+        /// Sends a PubSub discovery request from the active runtime and
+        /// collects the publisher responses within the timeout.
+        /// </summary>
+        /// <param name="request">The discovery request.</param>
+        /// <param name="timeout">How long to collect responses.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The collected discovery result.</returns>
+        public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
+            PubSubDiscoveryRequest request,
+            TimeSpan timeout,
+            CancellationToken ct = default)
+        {
+            IPubSubApplication app;
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                app = m_application ?? throw new InvalidOperationException(
+                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+            return await app.RequestDiscoveryAsync(request, timeout, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Stops and disposes the active PubSub application.
         /// </summary>
         public async ValueTask<PubSubRuntimeStatus> StopAsync(CancellationToken ct = default)

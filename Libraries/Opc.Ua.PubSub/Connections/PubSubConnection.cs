@@ -29,9 +29,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
@@ -71,7 +73,9 @@ namespace Opc.Ua.PubSub.Connections
         private readonly MessageSecurityMode m_requiredSecurityMode;
         private readonly int m_maxNetworkMessageSize;
         private readonly UadpReassembler m_reassembler;
+        private readonly List<PubSubDiscoveryCollector> m_discoveryCollectors = [];
         private int m_chunkSequenceNumber;
+        private int m_discoverySequenceNumber;
         private readonly ILogger<PubSubConnection> m_logger;
         private readonly System.Threading.Lock m_gate = new();
         private IPubSubTransport? m_transport;
@@ -326,15 +330,12 @@ namespace Opc.Ua.PubSub.Connections
             _ = State.TryMarkOperational();
 
             // Start receive pump.
-            if (m_readerGroups.Count > 0)
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            lock (m_gate)
             {
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                lock (m_gate)
-                {
-                    m_receiveCts = cts;
-                }
-                m_receiveLoop = Task.Run(() => ReceiveLoopAsync(cts.Token), cts.Token);
+                m_receiveCts = cts;
             }
+            m_receiveLoop = Task.Run(() => ReceiveLoopAsync(cts.Token), cts.Token);
 
             for (int i = 0; i < m_readerGroups.Count; i++)
             {
@@ -409,6 +410,60 @@ namespace Opc.Ua.PubSub.Connections
                 await transport.DisposeAsync().ConfigureAwait(false);
             }
             _ = State.TryDisable();
+        }
+
+        /// <summary>
+        /// Sends a subscriber-side discovery request and collects
+        /// responses received before <paramref name="timeout"/> elapses.
+        /// </summary>
+        /// <param name="request">Discovery request options.</param>
+        /// <param name="timeout">Response collection timeout.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
+            PubSubDiscoveryRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            if (timeout < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
+            IPubSubTransport? transport;
+            lock (m_gate)
+            {
+                transport = m_transport;
+            }
+            if (transport is null)
+            {
+                throw new InvalidOperationException(
+                    "The PubSub connection must be enabled before discovery can be requested.");
+            }
+
+            var collector = new PubSubDiscoveryCollector(request);
+            RegisterDiscoveryCollector(collector);
+            try
+            {
+                var message = new UadpDiscoveryRequestMessage
+                {
+                    PublisherId = PublisherId,
+                    DiscoveryType = request.DiscoveryType,
+                    DataSetWriterIds = request.DataSetWriterIds,
+                    ProbeFilter = request.ProbeFilter
+                };
+                await SendNetworkMessageAsync(message, cancellationToken).ConfigureAwait(false);
+                return await collector.CollectAsync(timeout, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                UnregisterDiscoveryCollector(collector);
+                collector.Dispose();
+            }
         }
 
         private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
@@ -535,6 +590,18 @@ namespace Opc.Ua.PubSub.Connections
                     }
                     if (message is null)
                     {
+                        continue;
+                    }
+                    if (message is UadpDiscoveryRequestMessage discoveryRequest)
+                    {
+                        await TryRespondToDiscoveryRequestAsync(discoveryRequest, cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+                    if (message is UadpDiscoveryResponseMessage discoveryResponse)
+                    {
+                        RouteInboundDiscoveryResponse(discoveryResponse);
+                        _ = TryRouteInboundMetaData(message);
                         continue;
                     }
                     if (TryRouteInboundMetaData(message))
@@ -676,6 +743,187 @@ namespace Opc.Ua.PubSub.Connections
             return true;
         }
 
+        private void RegisterDiscoveryCollector(PubSubDiscoveryCollector collector)
+        {
+            lock (m_gate)
+            {
+                m_discoveryCollectors.Add(collector);
+            }
+        }
+
+        private void UnregisterDiscoveryCollector(PubSubDiscoveryCollector collector)
+        {
+            lock (m_gate)
+            {
+                _ = m_discoveryCollectors.Remove(collector);
+            }
+        }
+
+        private void RouteInboundDiscoveryResponse(UadpDiscoveryResponseMessage response)
+        {
+            PubSubDiscoveryCollector[] collectors;
+            lock (m_gate)
+            {
+                collectors = [.. m_discoveryCollectors];
+            }
+            for (int i = 0; i < collectors.Length; i++)
+            {
+                collectors[i].TryAdd(response);
+            }
+        }
+
+        private async ValueTask TryRespondToDiscoveryRequestAsync(
+            UadpDiscoveryRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            switch (request.DiscoveryType)
+            {
+                case UadpDiscoveryType.DataSetMetaData:
+                    await SendDataSetMetaDataDiscoveryResponsesAsync(request, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+                case UadpDiscoveryType.DataSetWriterConfiguration:
+                    await SendWriterConfigurationDiscoveryResponsesAsync(request, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+                case UadpDiscoveryType.PublisherEndpoints:
+                    await SendPublisherEndpointsDiscoveryResponseAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+            }
+        }
+
+        private async ValueTask SendDataSetMetaDataDiscoveryResponsesAsync(
+            UadpDiscoveryRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            for (int groupIndex = 0; groupIndex < m_writerGroups.Count; groupIndex++)
+            {
+                WriterGroup group = m_writerGroups[groupIndex];
+                for (int writerIndex = 0; writerIndex < group.DataSetWriters.Count; writerIndex++)
+                {
+                    IDataSetWriter writer = group.DataSetWriters[writerIndex];
+                    if (!MatchesWriterId(request.DataSetWriterIds, writer.DataSetWriterId))
+                    {
+                        continue;
+                    }
+                    DataSetMetaDataType? metaData = writer.PublishedDataSet.MetaData;
+                    if (metaData is null)
+                    {
+                        continue;
+                    }
+                    var response = new UadpDiscoveryResponseMessage
+                    {
+                        PublisherId = PublisherId,
+                        WriterGroupId = group.WriterGroupId,
+                        DataSetWriterId = writer.DataSetWriterId,
+                        DataSetClassId = metaData.DataSetClassId == Guid.Empty
+                            ? Uuid.Empty
+                            : new Uuid(metaData.DataSetClassId),
+                        DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                        DataSetMetaData = metaData,
+                        SequenceNumber = NewDiscoverySequenceNumber(),
+                        StatusCode = StatusCodes.Good
+                    };
+                    await SendNetworkMessageAsync(response, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async ValueTask SendWriterConfigurationDiscoveryResponsesAsync(
+            UadpDiscoveryRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            for (int groupIndex = 0; groupIndex < m_writerGroups.Count; groupIndex++)
+            {
+                WriterGroup group = m_writerGroups[groupIndex];
+                var writerIds = new List<ushort>();
+                var writerConfigs = new List<DataSetWriterDataType>();
+                for (int writerIndex = 0; writerIndex < group.DataSetWriters.Count; writerIndex++)
+                {
+                    IDataSetWriter writer = group.DataSetWriters[writerIndex];
+                    if (!MatchesWriterId(request.DataSetWriterIds, writer.DataSetWriterId))
+                    {
+                        continue;
+                    }
+                    writerIds.Add(writer.DataSetWriterId);
+                    writerConfigs.Add((DataSetWriterDataType)writer.Configuration.Clone());
+                }
+                if (writerIds.Count == 0)
+                {
+                    continue;
+                }
+
+                var groupConfiguration = (WriterGroupDataType)group.Configuration.Clone();
+                groupConfiguration.DataSetWriters = [.. writerConfigs];
+                var response = new UadpDiscoveryResponseMessage
+                {
+                    PublisherId = PublisherId,
+                    WriterGroupId = group.WriterGroupId,
+                    DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
+                    DataSetWriterIds = [.. writerIds],
+                    WriterConfiguration = groupConfiguration,
+                    SequenceNumber = NewDiscoverySequenceNumber(),
+                    StatusCode = StatusCodes.Good
+                };
+                await SendNetworkMessageAsync(response, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask SendPublisherEndpointsDiscoveryResponseAsync(
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<EndpointDescription> endpoints = BuildPublisherEndpoints();
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId,
+                DiscoveryType = UadpDiscoveryType.PublisherEndpoints,
+                PublisherEndpoints = endpoints,
+                SequenceNumber = NewDiscoverySequenceNumber(),
+                StatusCode = StatusCodes.Good
+            };
+            await SendNetworkMessageAsync(response, cancellationToken).ConfigureAwait(false);
+        }
+
+        private ArrayOf<EndpointDescription> BuildPublisherEndpoints()
+        {
+            if (Configuration.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress)
+                && !string.IsNullOrEmpty(networkAddress.Url))
+            {
+                return
+                [
+                    new EndpointDescription
+                    {
+                        EndpointUrl = networkAddress.Url,
+                        TransportProfileUri = TransportProfileUri,
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                ];
+            }
+            return [];
+        }
+
+        private ushort NewDiscoverySequenceNumber()
+        {
+            return unchecked((ushort)Interlocked.Increment(ref m_discoverySequenceNumber));
+        }
+
+        private static bool MatchesWriterId(ArrayOf<ushort> requested, ushort writerId)
+        {
+            if (requested.IsNull || requested.Count == 0)
+            {
+                return true;
+            }
+            for (int i = 0; i < requested.Count; i++)
+            {
+                if (requested[i] == writerId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private async ValueTask SendNetworkMessageAsync(
             PubSubNetworkMessage networkMessage,
@@ -1002,6 +1250,141 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ReplayErrors);
             }
             m_diagnostics.RecordError(status, message);
+        }
+
+        private sealed class PubSubDiscoveryCollector : IDisposable
+        {
+            private readonly PubSubDiscoveryRequest m_request;
+            private readonly List<UadpDiscoveryResponseMessage> m_responses = [];
+            private readonly SemaphoreSlim m_signal = new(0, int.MaxValue);
+            private readonly System.Threading.Lock m_gate = new();
+            private int m_disposed;
+
+            public PubSubDiscoveryCollector(PubSubDiscoveryRequest request)
+            {
+                m_request = request;
+            }
+
+            public bool TryAdd(UadpDiscoveryResponseMessage response)
+            {
+                if (response.DiscoveryType != m_request.DiscoveryType)
+                {
+                    return false;
+                }
+                if (!MatchesResponseWriterIds(response))
+                {
+                    return false;
+                }
+                lock (m_gate)
+                {
+                    if (Volatile.Read(ref m_disposed) != 0)
+                    {
+                        return false;
+                    }
+                    m_responses.Add(response);
+                    m_signal.Release();
+                }
+                return true;
+            }
+
+            public async ValueTask<PubSubDiscoveryResult> CollectAsync(
+                TimeSpan timeout,
+                CancellationToken cancellationToken)
+            {
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                while (stopwatch.Elapsed < timeout)
+                {
+                    TimeSpan remaining = timeout - stopwatch.Elapsed;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        break;
+                    }
+                    _ = await m_signal.WaitAsync(remaining, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                return ToResult();
+            }
+
+            public void Dispose()
+            {
+                _ = Interlocked.Exchange(ref m_disposed, 1);
+                m_signal.Dispose();
+            }
+
+            private PubSubDiscoveryResult ToResult()
+            {
+                UadpDiscoveryResponseMessage[] responses;
+                lock (m_gate)
+                {
+                    responses = [.. m_responses];
+                }
+
+                var metaData = new List<PubSubDataSetMetaDataDiscoveryResult>();
+                var writerConfigurations =
+                    new List<PubSubDataSetWriterConfigurationDiscoveryResult>();
+                var endpoints = new List<EndpointDescription>();
+                for (int i = 0; i < responses.Length; i++)
+                {
+                    UadpDiscoveryResponseMessage response = responses[i];
+                    switch (response.DiscoveryType)
+                    {
+                        case UadpDiscoveryType.DataSetMetaData:
+                            metaData.Add(new PubSubDataSetMetaDataDiscoveryResult
+                            {
+                                PublisherId = response.PublisherId,
+                                WriterGroupId = response.WriterGroupId ?? 0,
+                                DataSetWriterId = response.DataSetWriterId,
+                                StatusCode = response.StatusCode,
+                                DataSetMetaData = response.DataSetMetaData
+                            });
+                            break;
+                        case UadpDiscoveryType.DataSetWriterConfiguration:
+                            writerConfigurations.Add(
+                                new PubSubDataSetWriterConfigurationDiscoveryResult
+                                {
+                                    PublisherId = response.PublisherId,
+                                    WriterGroupId = response.WriterGroupId ?? 0,
+                                    DataSetWriterIds = response.DataSetWriterIds,
+                                    StatusCode = response.StatusCode,
+                                    WriterConfiguration = response.WriterConfiguration
+                                });
+                            break;
+                        case UadpDiscoveryType.PublisherEndpoints:
+                            endpoints.AddRange(response.PublisherEndpoints);
+                            break;
+                    }
+                }
+                return new PubSubDiscoveryResult
+                {
+                    DataSetMetaDataEntries = [.. metaData],
+                    WriterConfigurations = [.. writerConfigurations],
+                    PublisherEndpoints = [.. endpoints]
+                };
+            }
+
+            private bool MatchesResponseWriterIds(UadpDiscoveryResponseMessage response)
+            {
+                if (m_request.DataSetWriterIds.IsNull || m_request.DataSetWriterIds.Count == 0)
+                {
+                    return true;
+                }
+                if (response.DiscoveryType == UadpDiscoveryType.DataSetMetaData)
+                {
+                    return MatchesWriterId(m_request.DataSetWriterIds, response.DataSetWriterId);
+                }
+                if (response.DiscoveryType == UadpDiscoveryType.DataSetWriterConfiguration)
+                {
+                    for (int i = 0; i < response.DataSetWriterIds.Count; i++)
+                    {
+                        if (MatchesWriterId(m_request.DataSetWriterIds, response.DataSetWriterIds[i]))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                return true;
+            }
         }
 
         /// <inheritdoc/>
