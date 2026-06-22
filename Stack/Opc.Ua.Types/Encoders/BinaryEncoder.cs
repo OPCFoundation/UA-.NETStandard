@@ -595,14 +595,16 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteNodeId(string? fieldName, NodeId value)
         {
+            var nodeId = new NodeIdSnapshot(value);
+
             // write a null node id.
-            if (value.IsNull)
+            if (nodeId.IsNull)
             {
                 WriteUInt16(null, 0);
                 return;
             }
 
-            ushort namespaceIndex = value.NamespaceIndex;
+            ushort namespaceIndex = nodeId.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
             {
@@ -610,33 +612,36 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(in nodeId, namespaceIndex);
 
             // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
-            WriteNodeIdBody(encoding, value, namespaceIndex);
+            WriteNodeIdBody(encoding, in nodeId, namespaceIndex);
         }
 
         /// <inheritdoc/>
         public void WriteExpandedNodeId(string? fieldName, ExpandedNodeId value)
         {
+            NodeId innerNodeId = value.InnerNodeId;
+            var nodeId = new NodeIdSnapshot(innerNodeId);
+            string? namespaceUri = value.NamespaceUri;
+            uint serverIndex = value.ServerIndex;
+
             // write a null node id.
-            if (value.IsNull)
+            if (string.IsNullOrEmpty(namespaceUri) && serverIndex == 0 && nodeId.IsNull)
             {
                 WriteUInt16(null, 0);
                 return;
             }
 
-            ushort namespaceIndex = value.NamespaceIndex;
+            ushort namespaceIndex = nodeId.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
             {
                 namespaceIndex = m_namespaceMappings[namespaceIndex];
             }
-
-            uint serverIndex = value.ServerIndex;
 
             if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
             {
@@ -644,10 +649,10 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value.InnerNodeId, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(in nodeId, namespaceIndex);
 
             // add the bit indicating a uri string is encoded as well.
-            if (!string.IsNullOrEmpty(value.NamespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 encoding |= 0x80;
             }
@@ -662,12 +667,12 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write the node id.
-            WriteNodeIdBody(encoding, value.InnerNodeId, namespaceIndex);
+            WriteNodeIdBody(encoding, in nodeId, namespaceIndex);
 
             // write the namespace uri.
             if ((encoding & 0x80) != 0)
             {
-                WriteString(null, value.NamespaceUri);
+                WriteString(null, namespaceUri);
             }
 
             // write the server index.
@@ -2101,7 +2106,7 @@ namespace Opc.Ua
         /// Returns the node id encoding byte for a node id value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static byte GetNodeIdEncoding(NodeId nodeId, int namespaceIndex)
+        private static byte GetNodeIdEncoding(in NodeIdSnapshot nodeId, int namespaceIndex)
         {
             NodeIdEncodingBits encoding;
             switch (nodeId.IdType)
@@ -2141,7 +2146,7 @@ namespace Opc.Ua
         /// Writes the body of a node id to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteNodeIdBody(byte encoding, NodeId nodeId, ushort namespaceIndex)
+        private void WriteNodeIdBody(byte encoding, in NodeIdSnapshot nodeId, ushort namespaceIndex)
         {
             // write the node id.
             switch ((NodeIdEncodingBits)(0x3F & encoding))
@@ -2167,7 +2172,7 @@ namespace Opc.Ua
                     break;
                 case NodeIdEncodingBits.ByteString:
                     WriteUInt16(null, namespaceIndex);
-                    WriteByteString(null, nodeId.OpaqueIdentifer);
+                    WriteByteString(null, nodeId.OpaqueIdentifier);
                     break;
             }
         }
@@ -2206,6 +2211,56 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
+        }
+
+        private readonly struct NodeIdSnapshot
+        {
+            public NodeIdSnapshot(NodeId nodeId)
+            {
+                IdType = nodeId.IdType;
+                NamespaceIndex = nodeId.NamespaceIndex;
+                NumericIdentifier = default;
+                StringIdentifier = string.Empty;
+                GuidIdentifier = default;
+                OpaqueIdentifier = default;
+
+                switch (IdType)
+                {
+                    case IdType.String:
+                        StringIdentifier = nodeId.StringIdentifier;
+                        break;
+                    case IdType.Guid:
+                        GuidIdentifier = nodeId.GuidIdentifier;
+                        break;
+                    case IdType.Opaque:
+                        OpaqueIdentifier = nodeId.OpaqueIdentifer;
+                        break;
+                    default:
+                        NumericIdentifier = nodeId.NumericIdentifier;
+                        break;
+                }
+            }
+
+            public IdType IdType { get; }
+
+            public ushort NamespaceIndex { get; }
+
+            public uint NumericIdentifier { get; }
+
+            public string StringIdentifier { get; }
+
+            public Guid GuidIdentifier { get; }
+
+            public ByteString OpaqueIdentifier { get; }
+
+            public bool IsNull => NamespaceIndex == 0 && IdType switch
+            {
+                IdType.Numeric => NumericIdentifier == 0,
+                IdType.String => string.IsNullOrEmpty(StringIdentifier),
+                IdType.Guid => GuidIdentifier == Guid.Empty,
+                IdType.Opaque => OpaqueIdentifier.Length == 0,
+                _ => false
+            };
         }
 
         private readonly ILogger m_logger;
