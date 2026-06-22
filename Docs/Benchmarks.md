@@ -213,9 +213,15 @@ work above. Low priority.
 
 1. **Binary encoder — drive time to 1.5.378 parity.** Scalar writes already go through
    `BinaryPrimitives` and numeric arrays bulk-blit (allocation is at parity). The remaining
-   gap is **time**: the per-element readonly-struct accessor cost in `WriteVariantValue` /
-   `WriteDataValueArray`. Target parity by specialising the scalar built-in-type writes and
-   using vectorised/SIMD writes for bulk payloads.
+   gap is **time**, and a micro-profile localises it to the `Variant` value-type access path:
+   inside `WriteVariantValue` the `builtInType` switch already knows the type, but the
+   `Variant.GetXxx()` accessors then call `TryGetValue`/`TryGetScalar`, which re-read
+   `TypeInfo` and re-check scalar/type before returning the union value (scalar writes are
+   ~60–160 ns/op vs ~5–7 ns/op for the raw primitive write; `StatusCode`/`LocalizedText`/
+   `Guid`/`NodeId` are slowest). A potential win is `internal` "already-validated" union
+   accessors the encoder switch can call to skip the re-check — but an initial snapshot attempt
+   showed no clear measured win, so this is genuinely close to the intrinsic value-type cost and
+   should be re-attempted only with a profile-proven gain.
 2. **Session establishment — discovery materialization.** An apples-to-apples session
    benchmark restricted to the security policies common to both 1.5.378 and 2.0 exists
    (`SecurityPolicySessionCommonWithV15378Benchmarks`). The remaining work is to further
