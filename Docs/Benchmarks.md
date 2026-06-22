@@ -38,15 +38,17 @@ paths.
 | Client read / browse (`ClientTest`, `RequestHeaderTest`) | **0.67–0.79×** | **0.5–0.65×** |
 | JSON encode, in-memory (`JsonEncoderTests`) | **0.97×** | **0.60×** |
 | Binary decode (`BinaryDecoderBenchmarks`) | 1.16× | **0.64×** |
-| JSON encode, external stream (`JsonEncoderBenchmarks`) | 1.30× | 1.44× |
-| Binary encode (`BinaryEncoderBenchmarks`) | 1.59× | ~1.04× core¹ |
-| Session establishment (`SecurityPolicyBenchmarks`) | still slower² | — |
+| JSON encode, external stream (`JsonEncoderBenchmarks`) | 1.33× | 1.29×² |
+| Binary encode (`BinaryEncoderBenchmarks`) | ~1.6× | ~1.04× core¹ |
+| Session establishment (`SecurityPolicyBenchmarks`) | still slower³ | — |
 
 ¹ The plain `MemoryStream` binary-encode variant allocates ~1.04× vs 1.5.378 (core
 encoder near parity); the `ArraySegmentStream` / `RecyclableMemoryStream` wrapper
 variants are ~1.33–1.63× due to those stream types' own buffer management, not the
 encoder.
-² Session establishment remains the largest single regression vs 1.5.378; this PR
+² External-stream JSON allocation improved from ~1.44× to ~1.29× once the
+`Utf8JsonWriter` is pooled/reused (below); the residual is inherent UTF-8 transcoding.
+³ Session establishment remains the largest single regression vs 1.5.378; this PR
 removed a server-side stall that recovered a large part of it (details below).
 
 ---
@@ -131,7 +133,7 @@ simultaneous session creations.
 
 ## What is still slower in 2.0 vs 1.5.378 (and why)
 
-### Binary encoder — 1.59× CPU (the main remaining regression)
+### Binary encoder — ~1.5× CPU (the main remaining regression)
 
 Encoding a `Variant`/`DataValue` walks the 2.0 `readonly struct` accessor chain in
 `WriteVariantValue` / `WriteDataValue`. Each property read can copy the large struct
@@ -141,12 +143,18 @@ iteration) because every element pays that struct cost. 1.5.378 used a
 reference-type `DataValue`/`Variant` whose accessors were plain field reads, so this
 is the direct CPU cost of the allocation-reducing value-type design.
 
-Mitigations already applied (these keep the gap at ~1.59× rather than higher):
+Mitigations applied (these keep the gap at ~1.5× rather than higher):
 
 - Pass `Variant`/`DataValue` by `in` through the whole write path (no per-call /
   per-element struct copies).
 - Snapshot `Variant.TypeInfo`/`BuiltInType` and `DataValue.WrappedValue` into locals
   once instead of re-reading the struct getters ~13×.
+- **Single-read `WriteDataValue`:** read each `DataValue` field
+  (`StatusCode`/`SourceTimestamp`/`SourcePicoseconds`/`ServerTimestamp`/
+  `ServerPicoseconds`) into a local **once** and reuse it for both the encoding-byte
+  computation and the field write (previously each was read twice). Measured ~5%
+  faster on the `DataValue[]` micro-benchmark (≈1.59× → ≈1.51×), wire output
+  unchanged.
 - **Bulk-write primitive numeric arrays** by blitting the backing span in a single
   `BinaryWriter.Write(ReadOnlySpan<byte>)` on modern TFMs (little-endian; byte-reversed
   fallback on big-endian) instead of looping the `ArrayOf<T>` indexer, which
@@ -167,13 +175,17 @@ plain `MemoryStream` variant).
 Same value-type struct-accessor cost as the encoder, much smaller. Offset by the
 0.64× allocation win above.
 
-### JSON encoder, external-stream — 1.30× time / 1.44× alloc
+### JSON encoder, external-stream — improved by `Utf8JsonWriter` pooling
 
 The external-stream JSON variants (`JsonEncoderBenchmarks`, which write to a caller
-stream) do **not** use the new pooled in-memory buffer, so they keep paying for a
-per-construct `Utf8JsonWriter` and `Utf8JsonWriter` UTF-8 transcoding (vs 1.5.378's
-`StreamWriter`). The in-memory path (above) is faster and leaner; this residual is
-specific to external-stream callers and is the target of planned writer-reuse work.
+stream) trailed 1.5.378 because each encoder allocated a fresh `Utf8JsonWriter` and
+pays `Utf8JsonWriter` UTF-8 transcoding (vs 1.5.378's `StreamWriter`). 2.0 now
+**pools and reuses `Utf8JsonWriter` instances** for the external-stream and
+external-`IBufferWriter` constructors: a writer is rented from a small pool (keyed by
+`Indented`, capped) and re-targeted with `Utf8JsonWriter.Reset(...)` instead of being
+allocated per encoder, then returned on dispose. This removes the per-encoder writer
+allocation; the residual is the inherent UTF-8 transcoding. The in-memory path
+remains pooled via the `ArrayPool<byte>` buffer described above.
 
 ### Session establishment — still slower; dominated by discovery + crypto
 
@@ -200,6 +212,15 @@ regression and was deliberately not pursued. Session establishment is a
 one-time-per-connection cost, so absolute throughput impact is bounded to connect
 churn.
 
+> **Benchmark fidelity:** because real applications cache the discovered endpoints,
+> `SecurityPolicyBenchmarks.CreateCloseSessionAsync` /
+> `SessionLifecycleWithReadAsync` now pass the cached `Endpoints` into `ConnectAsync`,
+> so they measure pure session **create / activate / close** rather than re-running
+> `GetEndpointsAsync` on every iteration. A separate `DiscoverEndpointsAsync`
+> benchmark tracks endpoint discovery in isolation. Reducing the discovery
+> materialization itself (strings / `UserTokenPolicy` / XML) remains future work on
+> the product discovery path.
+
 ### `JsonEncoderTests.ServiceMessageContext` — ~2× on a tiny absolute
 
 ~122 ns vs ~63 ns (~0.94× alloc). Namespace/node-id-heavy message-context encoding;
@@ -212,9 +233,9 @@ work above. Low priority.
 
 | Still slower vs 1.5.378 | Where it hits | Severity | Why / mitigation |
 |---|---|---|---|
-| Binary encode 1.59× CPU | Send path, array-heavy payloads | Low–moderate (µs/msg; bulk arrays mitigated) | Intrinsic readonly-struct cost; `in` + bulk-array blit + scalar skip applied |
-| JSON external-stream 1.30× / 1.44× | PubSub / gateway JSON encode | Low (in-memory path faster; LOH growth fixed) | External streams bypass the in-memory pool; writer-reuse pending |
-| Session establishment | Per-connection setup under load | Moderate for high-churn servers | Discovery + crypto materialization; sync-over-async stall already removed |
+| Binary encode ~1.6× CPU | Send path, array-heavy payloads | Low–moderate (µs/msg; bulk arrays mitigated) | Intrinsic readonly-struct cost; `in` + bulk-array blit + scalar skip + single-read `WriteDataValue` applied |
+| JSON external-stream | PubSub / gateway JSON encode | Low (in-memory path faster; LOH growth fixed; writer now pooled) | `Utf8JsonWriter` reuse landed; residual is inherent transcoding |
+| Session establishment | Per-connection setup under load | Moderate for high-churn servers | Discovery + crypto materialization; sync-over-async stall removed; benchmark now isolates establishment |
 | `ServiceMessageContext` ~2× | Tiny absolute (ns) | Negligible | Absorbed by NodeId work |
 
 Bottom line: **2.0 allocates less and is faster on the common client read/browse and
@@ -223,24 +244,23 @@ cost and session establishment (discovery + crypto), both bounded and understood
 
 ## Future work
 
-1. **Binary encoder scalar fast-paths.** Specialise `WriteVariantValue` for the
-   common scalar built-in types to avoid the readonly-struct accessor chain
-   (`WriteDataValueArray` is the prime target). Goal: bring `BinaryEncoderBenchmarks`
-   from 1.59× toward ~1.3×. Some residual is intrinsic to the value-type design and
-   will not fully recover without reverting it.
-2. **Session establishment — endpoint discovery.** Profile and reduce the
+1. **Binary encoder scalar fast-paths (continued).** The single-read `WriteDataValue`
+   landed (~5% faster on the `DataValue[]` micro-benchmark; the full
+   `BinaryEncoderBenchmarks` stays ~1.6× within ShortRun noise). Further specialise
+   `WriteVariantValue` / `WriteDataValueArray` for the common scalar built-in types to
+   avoid the readonly-struct accessor chain. Goal: toward ~1.3×. Some residual is
+   intrinsic to the value-type design and will not fully recover without reverting it.
+2. **Session establishment — discovery materialization.** The benchmark now isolates
+   establishment from discovery; the remaining product work is to reduce the
    endpoint/user-token/app-description materialization and XML reader/writer
-   allocation on the connect path; optionally cache `ConfiguredEndpoint` so repeat
-   connects skip `GetEndpointsAsync`.
-3. **JSON external-stream writer reuse.** Reuse a `Utf8JsonWriter` via `Reset(stream)`
-   and/or a pooled `IBufferWriter<byte>` on the external-stream path to close the
-   residual allocation gap (the in-memory path is already pooled).
-4. **Legacy-TFM decode allocation.** Extend the `NET6_0_OR_GREATER`
+   allocation in `GetEndpointsAsync` on the connect path, and optionally cache
+   `ConfiguredEndpoint` so repeat connects skip discovery.
+3. **Legacy-TFM decode allocation.** Extend the `NET6_0_OR_GREATER`
    `stackalloc` / `ArrayPool<byte>` `ReadString` path to **net48 / netstandard2.0**
    if those targets become allocation-sensitive (see the target-framework note in the
    binary-decoding section). Currently documented rather than changed — the .NET 10
    path is already non-allocating.
-5. **Clean-machine confirmation runs.** Re-run the full suite on dedicated
+4. **Clean-machine confirmation runs.** Re-run the full suite on dedicated
    (non-virtualized) hardware to remove VM noise before treating any sub-10% delta as
    real.
 
