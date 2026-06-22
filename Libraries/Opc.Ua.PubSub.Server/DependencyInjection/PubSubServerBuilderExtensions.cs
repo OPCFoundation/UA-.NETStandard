@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server;
 using Opc.Ua.PubSub.Server.Hosting;
@@ -114,6 +115,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 securityGroupId,
                 sp.GetRequiredService<ITelemetryContext>(),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            builder.Services.AddSingleton<IPubSubSecurityKeyProvider>(
+                sp => sp.GetRequiredService<PushSecurityKeyProvider>());
             return builder;
         }
 

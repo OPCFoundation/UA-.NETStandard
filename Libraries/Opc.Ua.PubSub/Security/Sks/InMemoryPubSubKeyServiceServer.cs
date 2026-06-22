@@ -237,8 +237,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                         securityGroupId: request.SecurityGroupId,
                         callerIdentity: callerIdentity));
                     throw new OpcUaSksException(
-                        StatusCodes.BadUserAccessDenied,
-                        "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
+                        StatusCodes.BadNotFound,
+                        "The requested SecurityGroup does not exist.");
                 }
                 RotateExpiredCurrentLocked(state);
                 PrunePastKeysLocked(state);

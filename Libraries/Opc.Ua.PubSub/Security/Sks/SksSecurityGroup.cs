@@ -264,6 +264,8 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private bool RolePermissionsGrantCall()
         {
+            // TODO(RD5-rolepermissions-roles): Part 14 §8.3 with Part 18 roles should evaluate the caller's
+            // granted role set instead of treating AuthenticatedUser as sufficient for every authenticated caller.
             for (int i = 0; i < RolePermissions.Count; i++)
             {
                 RolePermissionType permission = RolePermissions[i];

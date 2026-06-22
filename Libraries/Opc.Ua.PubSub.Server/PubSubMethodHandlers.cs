@@ -1741,10 +1741,13 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            _ = context;
             _ = method;
             _ = outputArguments;
             if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (!IsSecurityKeyPushAuthorized(context))
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
@@ -1787,6 +1790,22 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
             }
+        }
+
+        private static bool IsSecurityKeyPushAuthorized(ISystemContext context)
+        {
+            if (StringComparer.Ordinal.Equals(context.UserId, "sks"))
+            {
+                return true;
+            }
+
+            if (context is not ISessionOperationContext sessionContext)
+            {
+                return false;
+            }
+
+            ArrayOf<NodeId> grantedRoleIds = sessionContext.UserIdentity?.GrantedRoleIds ?? [];
+            return grantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         }
 
         /// <summary>
