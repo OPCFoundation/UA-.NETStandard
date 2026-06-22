@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
@@ -1016,14 +1017,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            sbyte[] values = new sbyte[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadSByte();
-            }
-
-            return values;
+            return ReadFixedWidthArray<sbyte>(length);
         }
 
         /// <inheritdoc/>
@@ -1036,12 +1030,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            byte[] values = new byte[length];
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadByte();
-            }
-            return values;
+            return ReadFixedWidthArray<byte>(length);
         }
 
         /// <inheritdoc/>
@@ -1054,14 +1043,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            short[] values = new short[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadInt16(null);
-            }
-
-            return values;
+            return ReadFixedWidthArray<short>(length);
         }
 
         /// <inheritdoc/>
@@ -1074,14 +1056,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            ushort[] values = new ushort[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadUInt16(null);
-            }
-
-            return values;
+            return ReadFixedWidthArray<ushort>(length);
         }
 
         /// <inheritdoc/>
@@ -1094,14 +1069,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            int[] values = new int[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadInt32();
-            }
-
-            return values;
+            return ReadFixedWidthArray<int>(length);
         }
 
         /// <inheritdoc/>
@@ -1114,14 +1082,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            uint[] values = new uint[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadUInt32();
-            }
-
-            return values;
+            return ReadFixedWidthArray<uint>(length);
         }
 
         /// <inheritdoc/>
@@ -1134,14 +1095,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            long[] values = new long[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadInt64();
-            }
-
-            return values;
+            return ReadFixedWidthArray<long>(length);
         }
 
         /// <inheritdoc/>
@@ -1154,14 +1108,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            ulong[] values = new ulong[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadUInt64();
-            }
-
-            return values;
+            return ReadFixedWidthArray<ulong>(length);
         }
 
         /// <inheritdoc/>
@@ -1174,14 +1121,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            float[] values = new float[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadFloat();
-            }
-
-            return values;
+            return ReadFixedWidthArray<float>(length);
         }
 
         /// <inheritdoc/>
@@ -1194,14 +1134,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            double[] values = new double[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadDouble();
-            }
-
-            return values;
+            return ReadFixedWidthArray<double>(length);
         }
 
         /// <inheritdoc/>
@@ -2029,6 +1962,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reads a fixed-width unmanaged numeric array from raw little-endian bytes.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged element type.</typeparam>
+        /// <param name="length">The number of elements to read.</param>
+        private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
+        {
+            T[] values = new T[length];
+            Span<byte> bytes = MemoryMarshal.AsBytes(values.AsSpan());
+            ReadRawBytes(bytes);
+
+            if (!BitConverter.IsLittleEndian)
+            {
+                ReverseFixedWidthElements(values);
+            }
+
+            return values;
+        }
+
+        private static void ReverseFixedWidthElements<T>(Span<T> values) where T : unmanaged
+        {
+            int size = Unsafe.SizeOf<T>();
+            Span<byte> bytes = MemoryMarshal.AsBytes(values);
+            for (int offset = 0; offset < bytes.Length; offset += size)
+            {
+                bytes.Slice(offset, size).Reverse();
+            }
+        }
+
+        /// <summary>
         /// Reads the body of a node id.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2090,6 +2052,46 @@ namespace Opc.Ua
 
             bytes = SafeReadSpan(length, functionName);
             return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ReadRawBytes(Span<byte> destination, [CallerMemberName] string? functionName = null)
+        {
+            if (destination.Length == 0)
+            {
+                return;
+            }
+
+            if (TryReadBufferBytes(destination.Length, out ReadOnlySpan<byte> source, functionName))
+            {
+                source.CopyTo(destination);
+                return;
+            }
+
+            int offset = 0;
+            while (offset < destination.Length)
+            {
+                int length;
+#if NET6_0_OR_GREATER
+                length = m_reader.Read(destination[offset..]);
+#else
+                byte[] buffer = m_reader.ReadBytes(destination.Length - offset);
+                length = buffer.Length;
+                buffer.AsSpan().CopyTo(destination.Slice(offset));
+#endif
+
+                if (length == 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                        destination.Length,
+                        functionName ?? string.Empty,
+                        offset);
+                }
+
+                offset += length;
+            }
         }
 
         /// <summary>
