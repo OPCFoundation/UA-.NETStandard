@@ -603,21 +603,21 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static T InvokePrivate<T>(object instance, string methodName, params object?[] arguments)
         {
-            MethodInfo method = GetMethod(instance.GetType(), methodName);
+            MethodInfo method = GetMethod(instance.GetType(), methodName, arguments.Length);
             object? result = method.Invoke(instance, arguments);
             return (T)result!;
         }
 
         private static async Task InvokePrivateAsync(object instance, string methodName, params object?[] arguments)
         {
-            MethodInfo method = GetMethod(instance.GetType(), methodName);
+            MethodInfo method = GetMethod(instance.GetType(), methodName, arguments.Length);
             object? result = method.Invoke(instance, arguments);
             await AwaitResultAsync(result).ConfigureAwait(false);
         }
 
         private static async Task<T> InvokePrivateAsync<T>(object instance, string methodName, params object?[] arguments)
         {
-            MethodInfo method = GetMethod(instance.GetType(), methodName);
+            MethodInfo method = GetMethod(instance.GetType(), methodName, arguments.Length);
             object? result = method.Invoke(instance, arguments);
             object? awaited = await AwaitResultAsync(result).ConfigureAwait(false);
             return awaited is null ? default! : (T)awaited;
@@ -656,10 +656,28 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static MethodInfo GetMethod(Type type, string methodName)
         {
-            return type.GetMethod(
-                methodName,
-                BindingFlags.Instance | BindingFlags.NonPublic)!
-                ?? throw new MissingMethodException(type.FullName, methodName);
+            return GetMethod(type, methodName, parameterCount: -1);
+        }
+
+        private static MethodInfo GetMethod(Type type, string methodName, int parameterCount)
+        {
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            if (parameterCount < 0)
+            {
+                return type.GetMethod(methodName, flags)
+                    ?? throw new MissingMethodException(type.FullName, methodName);
+            }
+
+            MethodInfo[] candidates = Array.FindAll(
+                type.GetMethods(flags),
+                m => m.Name == methodName && m.GetParameters().Length == parameterCount);
+            return candidates.Length switch
+            {
+                1 => candidates[0],
+                0 => throw new MissingMethodException(type.FullName, methodName),
+                _ => throw new AmbiguousMatchException(
+                    $"Multiple '{methodName}' overloads take {parameterCount} parameters.")
+            };
         }
 
         private static void SetPrivateField(object instance, string fieldName, object? value)
