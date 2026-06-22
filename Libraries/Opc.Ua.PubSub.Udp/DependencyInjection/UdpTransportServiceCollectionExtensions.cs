@@ -33,6 +33,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
+using Opc.Ua.PubSub.Udp.Security.Dtls;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -135,6 +136,35 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+
+        /// <summary>
+        /// Registers DTLS 1.3 support for <c>opc.dtls://</c> unicast PubSub endpoints.
+        /// </summary>
+        /// <param name="builder">PubSub builder.</param>
+        /// <param name="configure">Optional DTLS options callback.</param>
+        public static IPubSubBuilder WithDtls(
+            this IPubSubBuilder builder,
+            Action<DtlsTransportOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            if (configure is null)
+            {
+                builder.Services.AddOptions<DtlsTransportOptions>();
+            }
+            else
+            {
+                builder.Services.AddOptions<DtlsTransportOptions>().Configure(configure);
+            }
+
+            RegisterDtls(builder.Services);
+            RegisterFactory(builder.Services);
+            return builder;
+        }
+
         /// <summary>
         /// Obsolete forwarder kept for source compatibility. Add the UDP
         /// transport through the <see cref="IPubSubBuilder"/> returned by
@@ -168,6 +198,12 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
+        }
+
+        private static void RegisterDtls(IServiceCollection services)
+        {
+            services.TryAddSingleton<DtlsProfileRegistry>();
+            services.TryAddSingleton<IDtlsContextFactory, DefaultDtlsContextFactory>();
         }
     }
 }

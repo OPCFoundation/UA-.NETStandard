@@ -37,6 +37,7 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Udp.Security.Dtls;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Udp.Tests
@@ -85,6 +86,31 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.That(options.PreferredNetworkInterface, Is.EqualTo("Loopback Adapter"));
                 Assert.That(factories, Has.Length.EqualTo(1));
                 Assert.That(factories[0], Is.InstanceOf<UdpPubSubTransportFactory>());
+            });
+        }
+
+
+
+        [Test]
+        [TestSpec("7.3.2.4")]
+        public async Task WithDtlsRegistersOptionsRegistryAndFactoryAsync()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .AddUdpTransport()
+                .WithDtls(options => options.ProfileName = "ECC_nistP256"));
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            DtlsTransportOptions options =
+                serviceProvider.GetRequiredService<IOptions<DtlsTransportOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.ProfileName, Is.EqualTo("ECC_nistP256"));
+                Assert.That(serviceProvider.GetRequiredService<DtlsProfileRegistry>(), Is.Not.Null);
+                Assert.That(serviceProvider.GetRequiredService<IDtlsContextFactory>(),
+                    Is.InstanceOf<DefaultDtlsContextFactory>());
             });
         }
 
