@@ -1021,7 +1021,14 @@ namespace Opc.Ua
             }
 
             // write contents (single byte elements, endianness independent).
+#if NETSTANDARD2_0 || NETFRAMEWORK
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                WriteSByte(null, values[ii]);
+            }
+#else
             m_writer.Write(MemoryMarshal.AsBytes(values.Span));
+#endif
         }
 
         /// <inheritdoc/>
