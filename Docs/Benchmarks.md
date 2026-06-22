@@ -1,27 +1,238 @@
-# Performance Benchmarks and Regression Analysis
+# Performance Benchmarks: 2.0 vs 1.5.378
 
-This document records the performance benchmark methodology for the stack, the
-results of comparing the current `master` (2.0) line against the previous
-`master378` (1.5.378) release, an analysis of the **reasons** behind the observed
-regressions and their **real-world impact**, and the **future work** planned to
-close the remaining gaps.
+This document compares the **2.0** stack (this PR merged — i.e. the future
+`master`) against the previous **1.5.378** release on .NET 10, explains **what
+improved and why**, **what is still slower and why**, the **real-world impact**,
+and the **future work** planned to close the remaining gaps.
+
+All ratios below are **2.0 ÷ 1.5.378**. **< 1.0 means 2.0 is faster / allocates
+less; > 1.0 means 2.0 is slower / allocates more.**
 
 It is intended as living documentation: when a perf-sensitive change lands, update
 the relevant section and re-run the affected benchmark class (see
 [Running the benchmarks](#running-the-benchmarks)).
 
-## Why this comparison exists
+## Why 2.0 differs from 1.5.378
 
-The 2.0 line is a deliberate redesign that, among many other things, replaced
-several reference types with **`readonly struct` value types** (`Variant`,
-`DataValue`, `NodeId`, `ExpandedNodeId`, `ByteString`, `ArrayOf<T>`, `DateTimeUtc`)
-and moved the client/server onto a fully `async` (TAP) pipeline. That redesign
-**reduces allocations and GC pressure** (fewer heap objects, less Gen2 traffic) but
-trades some of that for **higher per-access CPU cost** — every property read on a
-large `readonly struct` may copy the struct or re-run a discriminated-union switch.
+2.0 is a deliberate redesign that, among many other things, replaced several
+reference types with **`readonly struct` value types** (`Variant`, `DataValue`,
+`NodeId`, `ExpandedNodeId`, `ByteString`, `ArrayOf<T>`, `DateTimeUtc`) and moved
+the client/server onto a fully `async` (TAP) pipeline. That redesign **reduces
+allocations and GC pressure** (fewer heap objects, less Gen2 traffic) but trades
+some of that for **higher per-access CPU cost** — every property read on a large
+`readonly struct` may copy the struct or re-run a discriminated-union switch.
 
-The benchmarks below quantify that trade-off so we can keep the allocation wins
-while clawing back the CPU regressions where they matter.
+The benchmarks below quantify that trade-off: 2.0 allocates less and is faster on
+most client paths, at the cost of some encode/decode CPU on the value-type hot
+paths.
+
+## Headline (2.0 vs 1.5.378, 409 matched benchmarks)
+
+- **Allocation geomean: 0.93×** — 2.0 allocates **less** than 1.5.378 overall.
+- **Time geomean: ~1.07×** — 2.0 is slightly slower on aggregate, concentrated in
+  two areas only: the **binary encoder** and **session establishment**. Everything
+  else is at parity or faster.
+
+| Area | time | alloc |
+|---|--:|--:|
+| Client read / browse (`ClientTest`, `RequestHeaderTest`) | **0.67–0.79×** | **0.5–0.65×** |
+| JSON encode, in-memory (`JsonEncoderTests`) | **0.97×** | **0.60×** |
+| Binary decode (`BinaryDecoderBenchmarks`) | 1.16× | **0.64×** |
+| JSON encode, external stream (`JsonEncoderBenchmarks`) | 1.30× | 1.44× |
+| Binary encode (`BinaryEncoderBenchmarks`) | 1.59× | ~1.04× core¹ |
+| Session establishment (`SecurityPolicyBenchmarks`) | still slower² | — |
+
+¹ The plain `MemoryStream` binary-encode variant allocates ~1.04× vs 1.5.378 (core
+encoder near parity); the `ArraySegmentStream` / `RecyclableMemoryStream` wrapper
+variants are ~1.33–1.63× due to those stream types' own buffer management, not the
+encoder.
+² Session establishment remains the largest single regression vs 1.5.378; this PR
+removed a server-side stall that recovered a large part of it (details below).
+
+---
+
+## What improved in 2.0 vs 1.5.378 (and why)
+
+### Lower allocation almost everywhere
+
+Aggregate allocation across the 409 matched benchmarks is **0.93×**. The value-type
+redesign means most messages, node ids, values, and byte strings no longer allocate
+individual heap objects. This is the headline win of 2.0 and shows up across client,
+server, and encode paths.
+
+### Client read / browse: ~20–33% faster, ~half the allocation
+
+- `ClientTest.BrowseFullAddressSpaceBenchmarkAsync`: **~30% faster** across every
+  security policy (e.g. ~315 ms → ~213 ms).
+- `RequestHeaderTest.ReadValues…`: **~20–25% faster**, **~0.5×** allocation.
+
+The async pipeline plus value-type request/response handling cut both CPU and
+garbage on the most common client operation (reading/browsing the address space).
+
+### In-memory JSON encoding: faster *and* ~40% leaner
+
+The in-memory JSON path (`JsonEncoderTests`) is **0.97× time / 0.60× allocation**
+vs 1.5.378 — i.e. 2.0 both runs faster and allocates ~40% less. Three changes:
+
+- **Flush at structural boundaries.** `Utf8JsonWriter` never flushes on its own, so
+  for a large/streamed payload its internal buffer grows by doubling onto the
+  **Large Object Heap** until it holds the entire message. 2.0 flushes buffered JSON
+  at object/array boundaries once ≥ 16 KB has accumulated. Flushing only writes
+  already-complete tokens and **never changes the output**. Large streamed payloads
+  allocate ~7.3 MB instead of ~15.7 MB (**−53%**) with **Gen2/op → 0**.
+- **Pooled in-memory buffer.** The default (no external stream) encoder writes
+  through a private `ArrayPool<byte>`-backed `IBufferWriter<byte>` instead of a
+  per-encoder `MemoryStream`, and reads the result text from the pooled span.
+  Buffers are returned with `clearArray: true` so encoded payloads (which may
+  contain user tokens or secrets) are not exposed to the next pool consumer.
+- **Span-based `NodeId.TryFormat`.** Writes the common node-id forms into a stack
+  buffer instead of allocating a string (~144 B per node id; node ids are ubiquitous
+  in OPC UA messages).
+
+JSON is the PubSub and REST/gateway encoding path; the LOH-growth fix in particular
+removes large, bursty Gen2 allocations for big messages.
+
+### Binary decoding: 36% less garbage, CPU close to parity
+
+Binary decode allocates **0.64×** vs 1.5.378 (value-type `DataValue` removes the
+per-field heap object) while staying close on CPU at **1.16×**. 2.0's
+`BinaryDecoder.ReadDataValue` constructs the `readonly struct DataValue` **once**
+from locals instead of through a chain of up to six `With…` calls that each copied
+the large struct. Decoding is on the hot receive path of every client and server,
+so the allocation win applies broadly.
+
+### Session establishment on the heavy ECC policies: large recovery
+
+Session establishment is still slower than 1.5.378 overall (see below), but this PR
+removed the biggest 2.0-specific offender: the server `Session` constructor created
+the session-diagnostics address-space node via
+`CreateSessionDiagnosticsAsync(...).AsTask().GetAwaiter().GetResult()` on **every**
+`CreateSession`. That **sync-over-async** block (it awaits a semaphore + async node
+creation) tied up the request thread and violated the repo's no-sync-over-async
+rule. Moving it into an awaited `Session.InitializeAsync` recovered **up to ~29% of
+the establishment time** on the expensive ECC AES-GCM / ChaCha20-Poly1305 policies
+(where the blocked thread mattered most) and removed a thread-pool stall under
+concurrent connects — a throughput / scalability win for servers handling many
+simultaneous session creations.
+
+### Faster low-level primitives
+
+`UtilsIsEqual*` and `HiResClock*` are faster on 2.0 (e.g. byte-array compares
+~25% faster), reflecting span-based and modern-API implementations.
+
+---
+
+## What is still slower in 2.0 vs 1.5.378 (and why)
+
+### Binary encoder — 1.59× CPU (the main remaining regression)
+
+Encoding a `Variant`/`DataValue` walks the 2.0 `readonly struct` accessor chain in
+`WriteVariantValue` / `WriteDataValue`. Each property read can copy the large struct
+and/or re-run the built-in-type switch. In the micro-benchmark,
+`WriteDataValueArray` (a 10-element `DataValue[]`) dominates (~65% of the payload
+iteration) because every element pays that struct cost. 1.5.378 used a
+reference-type `DataValue`/`Variant` whose accessors were plain field reads, so this
+is the direct CPU cost of the allocation-reducing value-type design.
+
+Mitigations already applied (these keep the gap at ~1.59× rather than higher):
+
+- Pass `Variant`/`DataValue` by `in` through the whole write path (no per-call /
+  per-element struct copies).
+- Snapshot `Variant.TypeInfo`/`BuiltInType` and `DataValue.WrappedValue` into locals
+  once instead of re-reading the struct getters ~13×.
+- **Bulk-write primitive numeric arrays** by blitting the backing span in a single
+  `BinaryWriter.Write(ReadOnlySpan<byte>)` on modern TFMs (little-endian; byte-reversed
+  fallback on big-endian) instead of looping the `ArrayOf<T>` indexer, which
+  materializes a `Span` per element.
+- Skip nesting-level bookkeeping for scalar built-in types that cannot recurse
+  (`DataValue` and `ExtensionObject` still go through the nesting guard).
+- Read `NodeId` accessors (`IdType`/`NamespaceIndex`) once into locals and pass them,
+  plus the `NodeId` by `in`, to the private encode helpers.
+
+**Impact:** encode CPU on the send path, absolute cost a few microseconds per
+message. The bulk-array fast-path materially helps realistic large-array payloads
+(PubSub datasets, historical values); the residual mostly shows up in synthetic
+array-heavy micro-benchmarks. Core-path allocation is near parity (~1.04× on the
+plain `MemoryStream` variant).
+
+### Binary decoder — 1.16× CPU
+
+Same value-type struct-accessor cost as the encoder, much smaller. Offset by the
+0.64× allocation win above.
+
+### JSON encoder, external-stream — 1.30× time / 1.44× alloc
+
+The external-stream JSON variants (`JsonEncoderBenchmarks`, which write to a caller
+stream) do **not** use the new pooled in-memory buffer, so they keep paying for a
+per-construct `Utf8JsonWriter` and `Utf8JsonWriter` UTF-8 transcoding (vs 1.5.378's
+`StreamWriter`). The in-memory path (above) is faster and leaner; this residual is
+specific to external-stream callers and is the target of planned writer-reuse work.
+
+### Session establishment — still slower; dominated by discovery + crypto
+
+`SecurityPolicyBenchmarks` (`'Create and close session'` / `'Session lifecycle with
+read'`) remains the largest single regression vs 1.5.378. These are **end-to-end**
+client+server benchmarks (channel + crypto handshake + server session setup), **not**
+an encoder path. After the sync-over-async fix above, an allocation profile of one
+connect (Basic256Sha256) shows the residual ~3.2 MB/op is dominated by **per-connect
+endpoint discovery** (`ClientFixture.ConnectAsync` runs `GetEndpointsAsync` every
+iteration) plus strings / `Char[]` / XML / `Byte[]` materialization:
+
+| Allocator (Basic256Sha256 connect) | ~bytes/op |
+|---|--:|
+| `System.String` | 605 KB |
+| `System.Char[]` | 581 KB |
+| `System.Byte[]` | 222 KB |
+| `UserTokenPolicy` | 176 KB |
+| `XmlWellFormedWriter` | 133 KB |
+| (isolated `NodeCache` ctor) | 39 KB |
+
+The eager per-session object graph (`NodeCache` + subscription engine) is only
+**~1.2% (~39 KB)** of the connect, so lazy-initialising it would **not** move the
+regression and was deliberately not pursued. Session establishment is a
+one-time-per-connection cost, so absolute throughput impact is bounded to connect
+churn.
+
+### `JsonEncoderTests.ServiceMessageContext` — ~2× on a tiny absolute
+
+~122 ns vs ~63 ns (~0.94× alloc). Namespace/node-id-heavy message-context encoding;
+the absolute cost is tens of nanoseconds and is partially absorbed by the `NodeId`
+work above. Low priority.
+
+---
+
+## Potential impact summary
+
+| Still slower vs 1.5.378 | Where it hits | Severity | Why / mitigation |
+|---|---|---|---|
+| Binary encode 1.59× CPU | Send path, array-heavy payloads | Low–moderate (µs/msg; bulk arrays mitigated) | Intrinsic readonly-struct cost; `in` + bulk-array blit + scalar skip applied |
+| JSON external-stream 1.30× / 1.44× | PubSub / gateway JSON encode | Low (in-memory path faster; LOH growth fixed) | External streams bypass the in-memory pool; writer-reuse pending |
+| Session establishment | Per-connection setup under load | Moderate for high-churn servers | Discovery + crypto materialization; sync-over-async stall already removed |
+| `ServiceMessageContext` ~2× | Tiny absolute (ns) | Negligible | Absorbed by NodeId work |
+
+Bottom line: **2.0 allocates less and is faster on the common client read/browse and
+in-memory JSON paths; the remaining slowdowns are the binary-encoder value-type CPU
+cost and session establishment (discovery + crypto), both bounded and understood.**
+
+## Future work
+
+1. **Binary encoder scalar fast-paths.** Specialise `WriteVariantValue` for the
+   common scalar built-in types to avoid the readonly-struct accessor chain
+   (`WriteDataValueArray` is the prime target). Goal: bring `BinaryEncoderBenchmarks`
+   from 1.59× toward ~1.3×. Some residual is intrinsic to the value-type design and
+   will not fully recover without reverting it.
+2. **Session establishment — endpoint discovery.** Profile and reduce the
+   endpoint/user-token/app-description materialization and XML reader/writer
+   allocation on the connect path; optionally cache `ConfiguredEndpoint` so repeat
+   connects skip `GetEndpointsAsync`.
+3. **JSON external-stream writer reuse.** Reuse a `Utf8JsonWriter` via `Reset(stream)`
+   and/or a pooled `IBufferWriter<byte>` on the external-stream path to close the
+   residual allocation gap (the in-memory path is already pooled).
+4. **`ReadString` span path (decoder).** Keep the 2.0 allocation win while shaving the
+   transcoding cost with a profile-driven span approach.
+5. **Clean-machine confirmation runs.** Re-run the full suite on dedicated
+   (non-virtualized) hardware to remove VM noise before treating any sub-10% delta as
+   real.
 
 ## Running the benchmarks
 
@@ -37,9 +248,9 @@ dotnet run -c Release -f net10.0 -- --filter "*BinaryEncoderBenchmarks*" --runti
 
 Encoder/decoder benchmark classes live in `Opc.Ua.Core.Encoders.Tests`
 (`BinaryEncoderBenchmarks`, `BinaryDecoderBenchmarks`, `JsonEncoderBenchmarks`,
-`JsonEncoderTests`). The end-to-end session benchmarks
-(`SecurityPolicyBenchmarks`) live in `Tests/Opc.Ua.Sessions.Tests` and spin up a
-real in-process client + server across every security policy.
+`JsonEncoderTests`). The end-to-end session benchmarks (`SecurityPolicyBenchmarks`)
+live in `Tests/Opc.Ua.Sessions.Tests` and spin up a real in-process client + server
+across every security policy.
 
 > Tip: the combined `--filter *` build is flaky on this repo — run **per class**.
 > A per-class build may need one or two retries (`dotnet build-server shutdown`
@@ -51,224 +262,8 @@ real in-process client + server across every security policy.
 - Host: BenchmarkDotNet v0.15.x, Windows 11 on a **shared Hyper-V VM**, Intel Xeon
   Platinum 8473C, 8 physical / 16 logical cores, .NET SDK 10.0.30x.
 - **Virtualization caveat:** BenchmarkDotNet warns that a shared/virtualized host
-  affects measurements. Treat absolute numbers as indicative and **sub-10% deltas
-  as noise**; focus on the direction and magnitude of large deltas.
-- Ratios below are `master ÷ master378`. **< 1.0 = master is faster / allocates
-  less.** The `master378` baseline is a full-job run; some `master` classes were
-  re-run on a different day, so non-encoder classes carry run-to-run variance
-  (their code is identical to the original).
-
-## Headline results (409 matched benchmarks, full job)
-
-- **Time geomean: ~1.07×** (master slightly slower on aggregate).
-- **Allocation geomean: ~0.93×** — master allocates **less** than master378 overall.
-
-The aggregate time gap is concentrated in exactly two areas: **session
-establishment** and the **binary encoder**. Everything else is at parity or faster
-on master (notably the client read/browse paths, which are **~30% faster** on 2.0).
-
-### Per-area refresh on the consolidated branch (2026-06-22)
-
-Re-ran the four encoder/decoder benchmark classes on the consolidated branch
-(PR #3899 = encoder + JSON buffer pooling + NodeId read-once + async session create)
-and recompared to the `master378` full-job baseline (merged numbers are a faster,
-higher-variance ShortRun — treat as directional):
-
-| Area | time | alloc | Status |
-|---|--:|--:|---|
-| Binary decode (`BinaryDecoderBenchmarks`) | **1.16×** | **0.64×** | Recovered to near-parity; alloc win kept |
-| Binary encode (`BinaryEncoderBenchmarks`) | **1.59×** | 1.41×¹ | CPU improved from ~1.71×; residual struct cost |
-| JSON encode, **external stream** (`JsonEncoderBenchmarks`) | 1.30× | 1.44×² | Residual — external streams bypass the new pool |
-| JSON encode, **in-memory** (`JsonEncoderTests`) | **0.97×** | **0.60×** | Faster **and** ~40% leaner (flush + pooling) |
-| Client read / browse (`ClientTest`, `RequestHeaderTest`) | **~0.67–0.79×** | ~0.5–0.65× | Faster on 2.0 |
-| Session establishment (`SecurityPolicyBenchmarks`) | heavy-policy 0.71–0.89× after fix | ~0.94× | Async fix landed; residual is discovery/crypto |
-
-¹ The binary-encoder allocation geomean is inflated by the
-`ArraySegmentStream` / `RecyclableMemoryStream` wrapper variants (~1.33–1.63×); the
-plain `MemoryStream` variant is ~1.04×, i.e. the **core encoder allocation is near
-parity** and the delta is in those stream wrappers' buffer management.
-² The `JsonEncoderBenchmarks` cases all write to an **external** stream and therefore
-do **not** use the new pooled in-memory buffer — which is why their allocation is
-unchanged while the in-memory `JsonEncoderTests` path improved to 0.60×.
-
-## Regression analysis by area
-
-### 1. Binary decoder — recovered
-
-**Was** ~1.60× time at the worst payloads. **Now** ~1.12× time and **0.64×
-allocation** (master decodes with far less garbage).
-
-- **Reason for the original regression:** `BinaryDecoder.ReadDataValue` built the
-  result through a chain of up to six `With…` calls, each copying the large
-  `readonly struct DataValue`.
-- **Fix:** read all fields into locals and construct the `DataValue` **once**.
-- **Impact:** recovers most of the decode CPU regression while keeping the lower
-  allocation that the 2.0 decoder introduced. Decoding is on the hot receive path
-  of every client and server, so this matters broadly.
-
-### 2. Binary encoder — residual CPU gap (the main remaining regression)
-
-**~1.59× time** (improved from ~1.71× before the consolidated changes), allocation
-near parity on the core path (the plain `MemoryStream` variant is ~1.04×; the
-~1.41× geomean is inflated by the `ArraySegmentStream` / `RecyclableMemoryStream`
-wrapper variants' buffer management, not the encoder itself).
-
-- **Reason:** encoding a `Variant`/`DataValue` walks the 2.0 `readonly struct`
-  accessor chain in `WriteVariantValue`/`WriteDataValue`. Each property read can
-  copy the large struct and/or re-run the built-in-type switch. In the
-  micro-benchmark, `WriteDataValueArray` (a 10-element `DataValue[]`) dominates
-  (~65% of the payload iteration) because every element pays that struct cost.
-- **What was done to reduce it:**
-  - Pass `Variant`/`DataValue` by `in` through the whole write path (no per-call /
-    per-element struct copies).
-  - Snapshot `Variant.TypeInfo`/`BuiltInType` and `DataValue.WrappedValue` into
-    locals once instead of re-reading the struct getters ~13×.
-  - **Bulk-write primitive numeric arrays** by blitting the backing span in a single
-    `BinaryWriter.Write(ReadOnlySpan<byte>)` (little-endian; byte-reversed fallback
-    on big-endian) instead of looping through the `ArrayOf<T>` indexer, which
-    materializes a `Span` per element.
-  - Skip the nesting-level bookkeeping / `try-finally` for scalar variants (which
-    cannot nest).
-  - Read `NodeId` accessors (`IdType`/`NamespaceIndex`) **once** into locals and pass
-    them, plus the `NodeId` by `in`, to the private encode helpers.
-- **Why it is not fully recovered:** the remaining cost is **intrinsic** to the 2.0
-  value-type design. master378 used a reference-type `DataValue`/`Variant` whose
-  accessors were plain field reads; the 2.0 structs trade that CPU for the
-  allocation reduction seen everywhere else. The 10-element-array micro-benchmark is
-  a worst case — real payloads with mixed scalar fields pay proportionally less.
-- **Impact:** encode CPU on the send path. Absolute cost is small per message
-  (microseconds), and the bulk-array fast-path materially helps the realistic
-  large-array cases (PubSub datasets, historical values). The residual mostly shows
-  up in synthetic array-heavy micro-benchmarks.
-
-### 3. JSON encoder — much improved (flush + buffer pooling)
-
-The in-memory JSON path is now **faster** than master378 (the `JsonEncoderTests`
-in-memory cases measure **0.97× time / 0.60× allocation** — faster *and* ~40%
-leaner; `JsonEncoderConstructor` alone is ~0.55× time / ~0.46× alloc). Two changes
-drove this:
-
-- **Flush at structural boundaries (Wave 1):** `Utf8JsonWriter` never flushes on its
-  own, so for a large/streamed payload its internal buffer grows by doubling onto the
-  **Large Object Heap** until it holds the entire message. The encoder now flushes
-  buffered JSON at object/array boundaries once ≥ 16 KB has accumulated. Flushing only
-  writes already-complete tokens and **never changes the output**. Measured: large
-  streamed payloads dropped from ~15.7 MB to ~7.3 MB allocated (**−53%**) with
-  **Gen2/op → 0**.
-- **Pool the in-memory buffer:** the default (no external stream) encoder no longer
-  allocates a per-encoder `MemoryStream`; it writes through a private
-  `ArrayPool<byte>`-backed `IBufferWriter<byte>` and reads the result text from the
-  pooled span. Buffers are returned with `clearArray: true` so encoded payloads
-  (which may contain user tokens or secrets) are not exposed to the next pool
-  consumer.
-- **Span-based `NodeId.TryFormat`:** writes the common node-id forms into a stack
-  buffer instead of allocating a string (~144 B saved per node id; node ids are
-  ubiquitous in OPC UA messages).
-- **Residual:** the external-stream variants still trail master378 on allocation
-  because of per-construct `Utf8JsonWriter` setup and `Utf8JsonWriter` UTF-8
-  transcoding (vs the old `StreamWriter`). Smaller now that the in-memory buffer is
-  pooled.
-- **Impact:** JSON is the PubSub and REST/gateway encoding path; the LOH-growth fix
-  in particular removes large, bursty Gen2 allocations for big messages.
-
-### 4. `JsonEncoderTests.ServiceMessageContext` — small absolute
-
-~1.94× time (122 ns vs 63 ns), ~0.94× alloc. Namespace/node-id-heavy
-message-context encoding. The absolute cost is tens of nanoseconds; partially
-absorbed by the `NodeId` improvements above. Tracked, low priority.
-
-### 5. Session establishment — async fix landed; residual is discovery/crypto
-
-`SecurityPolicyBenchmarks` `'Create and close session'` / `'Session lifecycle with
-read'` showed the largest headline regression (**~2.5–2.7× time, ~2.0–2.5×
-alloc**). These are **end-to-end** client+server benchmarks (channel + crypto
-handshake + server session setup), **not** an encoder path.
-
-- **Primary reason (fixed):** the server `Session` constructor created the
-  session-diagnostics address-space node via
-  `CreateSessionDiagnosticsAsync(...).AsTask().GetAwaiter().GetResult()` on **every**
-  `CreateSession` — a **sync-over-async** block (it awaits a semaphore + async node
-  creation) that ties up the request thread and violates the repo's no-sync-over-async
-  rule. It was moved into `Session.InitializeAsync`, awaited by the already-async
-  `SessionManager.CreateSessionAsync`.
-  - **Result (ShortRun, all policies):** geomean **0.94× time / 0.94× alloc**; the
-    heavy ECC AES-GCM / ChaCha20-Poly1305 policies are **0.71–0.89× time** (up to 29%
-    faster) where the blocked request thread mattered most. RSA policies are at parity
-    (dominated by RSA crypto).
-- **Secondary reasons (reduced):** per-activation client `RequestHeader` +
-  `AdditionalParametersType` allocation on the common path (now only allocated for
-  ephemeral-key policies), and a duplicated `ClientNonce.ToArray()` in server
-  signature validation (now hoisted to a single local).
-- **Allocation profile finding:** an allocation profile of one
-  `CreateCloseSessionAsync` iteration (Basic256Sha256) shows the residual ~3.2 MB/op
-  is dominated by **per-connect endpoint discovery** (`ConnectAsync` runs
-  `GetEndpointsAsync` every iteration) plus strings / `Char[]` / XML / `Byte[]`. The
-  eager per-session object graph (`NodeCache` + subscription engine) is only **~1.2%
-  (~38 KB)**, so lazy-initialising it would **not** move the regression and was
-  deliberately not pursued.
-
-  | Allocator (Basic256Sha256 connect) | ~bytes/op |
-  |---|--:|
-  | `System.String` | 605 KB |
-  | `System.Char[]` | 581 KB |
-  | `System.Byte[]` | 222 KB |
-  | `UserTokenPolicy` | 176 KB |
-  | `XmlWellFormedWriter` | 133 KB |
-  | (isolated `NodeCache` ctor) | 39 KB |
-
-- **Impact:** session establishment is a one-time-per-connection cost. The async fix
-  removes a thread-pool stall under concurrent connects (a throughput / scalability
-  win for servers handling many simultaneous session creations), most visible on the
-  expensive ECC policies.
-
-### Areas that got faster on 2.0
-
-Not everything regressed — the value-type + async redesign made several common paths
-faster and leaner:
-
-- `ClientTest.BrowseFullAddressSpaceBenchmarkAsync`: **~30% faster** across all
-  security policies.
-- `RequestHeaderTest.ReadValues…`: **~20–25% faster**, ~0.5× allocation.
-- `UtilsIsEqual*`, `HiResClock*`: faster low-level primitives.
-- Aggregate allocation across all 409 matched benchmarks: **0.93×**.
-
-## Potential impact summary
-
-| Regression | Where it hits | Severity | Mitigation |
-|---|---|---|---|
-| Binary encode ~1.6× CPU | Send path, array-heavy payloads | Low–moderate (µs/msg; bulk arrays mitigated) | Bulk-array blit, `in` passing, scalar fast-path (more below) |
-| JSON external-stream alloc | PubSub / gateway JSON encode | Low (in-memory path now faster; LOH growth fixed) | Buffer pooling landed; writer-reuse pending |
-| Session establishment ~2–2.7× | Per-connection setup under load | Moderate for high-churn servers | Async fix landed; discovery/crypto residual is structural |
-| `ServiceMessageContext` ~2× | Tiny absolute (ns) | Negligible | Absorbed by NodeId work |
-
-The headline takeaway: **2.0 trades a modest amount of encode/establishment CPU for
-broadly lower allocation and faster client read/browse**, and the largest
-regressions have either been recovered (decode), substantially reduced (JSON,
-session), or are bounded and well-understood (encode struct cost).
-
-## Future work
-
-1. **Binary encoder scalar fast-paths.** Specialise `WriteVariantValue` for the
-   common scalar built-in types to avoid the readonly-struct accessor chain
-   (`WriteDataValueArray` is the prime target). Goal: bring `BinaryEncoderBenchmarks`
-   from ~1.6× toward ~1.3×. Some residual is intrinsic to the value-type design and
-   will not fully recover without reverting it.
-2. **Session establishment — endpoint discovery.** The benchmark re-runs
-   `GetEndpointsAsync` on every connect; profile and reduce endpoint/user-token/app
-   description materialization and the XML reader/writer allocation on the connect
-   path. Optionally cache `ConfiguredEndpoint` so repeat connects skip discovery.
-3. **JSON external-stream writer reuse.** Reuse a `Utf8JsonWriter` via `Reset(stream)`
-   and/or a pooled `IBufferWriter<byte>` on the external-stream path to close the
-   residual allocation gap (the in-memory path is already pooled).
-4. **`ReadString` span path (decoder).** Keep the 2.0 allocation win while shaving the
-   transcoding cost with a profile-driven span approach.
-5. **Clean-machine confirmation runs.** Re-run the full suite on dedicated
-   (non-virtualized) hardware to remove VM noise before treating any sub-10% delta as
-   real.
-
-## References
-
-- Encoder/JSON/session perf changes: PR #3899 (consolidates the encoder, JSON buffer
-  pooling, NodeId read-once, and async-session-create work).
-- Session allocation profiling and the "1.2% object graph" finding are summarised in
-  section 5 above.
+  affects measurements. Treat absolute numbers as indicative and **sub-10% deltas as
+  noise**; focus on the direction and magnitude of large deltas.
+- The 1.5.378 baseline is a full-job run; the per-class encoder refresh on 2.0 (with
+  this PR) is a faster, higher-variance ShortRun, so treat those ratios as
+  directional. Non-encoder classes carry run-to-run variance.
