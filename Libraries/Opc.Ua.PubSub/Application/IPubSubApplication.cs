@@ -118,6 +118,21 @@ namespace Opc.Ua.PubSub.Application
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Sends a PubSub Action request and awaits the correlated response.
+        /// </summary>
+        ValueTask<PubSubActionResponse> InvokeActionAsync(
+            PubSubActionRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Registers a responder-side Action handler for a target.
+        /// </summary>
+        void RegisterActionHandler(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler);
+
+        /// <summary>
         /// Replaces the entire configuration.
         /// </summary>
         ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(

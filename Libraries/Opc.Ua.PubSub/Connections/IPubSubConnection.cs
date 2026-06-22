@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.StateMachine;
@@ -104,5 +106,21 @@ namespace Opc.Ua.PubSub.Connections
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         ValueTask DisableAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Invokes a PubSub Action through this connection and awaits the
+        /// correlated response.
+        /// </summary>
+        ValueTask<PubSubActionResponse> InvokeActionAsync(
+            PubSubActionRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Registers a responder-side Action handler for a target.
+        /// </summary>
+        void RegisterActionHandler(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler);
     }
 }

@@ -97,6 +97,8 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, (string ConnectionName,
             string GroupName, string ReaderName)> m_readerRefs = new();
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
+        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
+            m_actionHandlers = [];
 
         private bool m_started;
         private bool m_disposed;
@@ -381,7 +383,7 @@ namespace Opc.Ua.PubSub.Application
             }
             int maxMessageSize =
                 m_maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
-            return new PubSubConnection(
+            PubSubConnection connection = new(
                 connectionConfig,
                 factory,
                 m_encoderMap,
@@ -396,6 +398,16 @@ namespace Opc.Ua.PubSub.Application
                 securityContext?.WrapOptions ?? UadpSecurityWrapOptions.SignAndEncrypt,
                 maxMessageSize,
                 requiredSecurityMode);
+            lock (m_gate)
+            {
+                for (int i = 0; i < m_actionHandlers.Count; i++)
+                {
+                    connection.RegisterActionHandler(
+                        m_actionHandlers[i].Target,
+                        m_actionHandlers[i].Handler);
+                }
+            }
+            return connection;
         }
 
         /// <inheritdoc/>
@@ -627,6 +639,78 @@ namespace Opc.Ua.PubSub.Application
                 WriterConfigurations = [.. writerConfigurations],
                 PublisherEndpoints = [.. endpoints]
             };
+        }
+
+        /// <summary>
+        /// Sends a PubSub Action request on the selected runtime connection.
+        /// </summary>
+        public async ValueTask<PubSubActionResponse> InvokeActionAsync(
+            PubSubActionRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            if (timeout < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+
+            PubSubConnection[] connections;
+            lock (m_gate)
+            {
+                connections = [.. m_connections];
+            }
+            for (int i = 0; i < connections.Length; i++)
+            {
+                if (string.IsNullOrEmpty(request.Target.ConnectionName)
+                    || string.Equals(
+                        connections[i].Name,
+                        request.Target.ConnectionName,
+                        StringComparison.Ordinal))
+                {
+                    return await connections[i]
+                        .InvokeActionAsync(request, timeout, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            throw new InvalidOperationException(
+                "No PubSub connection is available for the requested Action target.");
+        }
+
+        /// <summary>
+        /// Registers a responder-side Action handler on matching connections.
+        /// </summary>
+        public void RegisterActionHandler(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+
+            PubSubConnection[] connections;
+            lock (m_gate)
+            {
+                m_actionHandlers.Add((target, handler));
+                connections = [.. m_connections];
+            }
+            for (int i = 0; i < connections.Length; i++)
+            {
+                if (string.IsNullOrEmpty(target.ConnectionName)
+                    || string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
+                {
+                    connections[i].RegisterActionHandler(target, handler);
+                }
+            }
         }
 
         /// <summary>

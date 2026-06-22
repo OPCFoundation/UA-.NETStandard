@@ -34,14 +34,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
+using PubSubJsonActionNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonActionNetworkMessage;
 
 namespace Opc.Ua.PubSub.Connections
 {
@@ -74,8 +77,11 @@ namespace Opc.Ua.PubSub.Connections
         private readonly int m_maxNetworkMessageSize;
         private readonly UadpReassembler m_reassembler;
         private readonly List<PubSubDiscoveryCollector> m_discoveryCollectors = [];
+        private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
+        private readonly Dictionary<ActionHandlerKey, IPubSubActionHandler> m_actionHandlers = [];
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
+        private int m_actionRequestId;
         private readonly ILogger<PubSubConnection> m_logger;
         private readonly System.Threading.Lock m_gate = new();
         private IPubSubTransport? m_transport;
@@ -466,6 +472,86 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
+        /// <summary>
+        /// Sends a requester-side Action request and waits for the correlated response.
+        /// </summary>
+        public async ValueTask<PubSubActionResponse> InvokeActionAsync(
+            PubSubActionRequest request,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            if (timeout < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
+            IPubSubTransport? transport;
+            lock (m_gate)
+            {
+                transport = m_transport;
+            }
+            if (transport is null)
+            {
+                throw new InvalidOperationException(
+                    "The PubSub connection must be enabled before an Action can be invoked.");
+            }
+
+            ushort requestId = NewActionRequestId();
+            ByteString correlationData = CreateCorrelationData(requestId);
+            ushort actionTargetId = ResolveActionTargetId(request.Target);
+            var target = request.Target with { ActionTargetId = actionTargetId };
+            var pending = new PendingActionRequest(requestId, correlationData, target);
+            RegisterPendingAction(pending);
+            try
+            {
+                PubSubNetworkMessage message = CreateActionRequestMessage(
+                    request,
+                    target,
+                    requestId,
+                    correlationData);
+                await SendNetworkMessageAsync(message, topic: null, cancellationToken)
+                    .ConfigureAwait(false);
+                return await pending.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                UnregisterPendingAction(pending.Key);
+                pending.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Registers a responder-side Action handler for this connection.
+        /// </summary>
+        public void RegisterActionHandler(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            ushort actionTargetId = ResolveActionTargetId(target);
+            var key = new ActionHandlerKey(target.DataSetWriterId, actionTargetId, target.ActionName);
+            lock (m_gate)
+            {
+                m_actionHandlers[key] = handler;
+                m_actionHandlers[new ActionHandlerKey(
+                    target.DataSetWriterId,
+                    actionTargetId,
+                    string.Empty)] = handler;
+            }
+        }
+
         private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
         {
             IPubSubTransport? transport;
@@ -602,6 +688,22 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         RouteInboundDiscoveryResponse(discoveryResponse);
                         _ = TryRouteInboundMetaData(message);
+                        continue;
+                    }
+                    if (message is UadpActionRequestMessage actionRequest)
+                    {
+                        await TryRespondToActionRequestAsync(actionRequest, cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+                    if (message is UadpActionResponseMessage actionResponse)
+                    {
+                        RouteInboundActionResponse(actionResponse);
+                        continue;
+                    }
+                    if (message is PubSubJsonActionNetworkMessage jsonAction
+                        && await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
+                    {
                         continue;
                     }
                     if (TryRouteInboundMetaData(message))
@@ -759,6 +861,147 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
+        private PubSubNetworkMessage CreateActionRequestMessage(
+            PubSubActionRequest request,
+            PubSubActionTarget target,
+            ushort requestId,
+            ByteString correlationData)
+        {
+            if (TransportProfileFamily(TransportProfileUri) == "Json")
+            {
+                return new PubSubJsonActionNetworkMessage
+                {
+                    MessageId = Guid.NewGuid().ToString("N"),
+                    PublisherId = PublisherId,
+                    ResponseAddress = request.ResponseAddress,
+                    CorrelationData = correlationData,
+                    TimeoutHint = request.TimeoutHint,
+                    Messages =
+                    [
+                        new ExtensionObject(new JsonActionRequestMessage
+                        {
+                            DataSetWriterId = target.DataSetWriterId,
+                            ActionTargetId = target.ActionTargetId,
+                            MessageType = "ua-action-request",
+                            RequestId = requestId,
+                            ActionState = ActionState.Executing
+                        })
+                    ]
+                };
+            }
+
+            return new UadpActionRequestMessage
+            {
+                PublisherId = PublisherId,
+                DataSetWriterId = target.DataSetWriterId,
+                ActionTargetId = target.ActionTargetId,
+                RequestId = requestId,
+                ActionState = ActionState.Executing,
+                ResponseAddress = request.ResponseAddress,
+                CorrelationData = correlationData,
+                TimeoutHint = request.TimeoutHint,
+                Payload = request.InputFields
+            };
+        }
+
+        private PubSubActionResponse ToActionResponse(UadpActionResponseMessage response)
+        {
+            return new PubSubActionResponse
+            {
+                Target = new PubSubActionTarget
+                {
+                    ConnectionName = Name,
+                    DataSetWriterId = response.DataSetWriterId,
+                    ActionTargetId = response.ActionTargetId
+                },
+                RequestId = response.RequestId,
+                CorrelationData = response.CorrelationData,
+                StatusCode = response.Status,
+                ActionState = response.ActionState,
+                OutputFields = response.Payload
+            };
+        }
+
+        private ushort ResolveActionTargetId(PubSubActionTarget target)
+        {
+            if (target.ActionTargetId != 0 || string.IsNullOrEmpty(target.ActionName))
+            {
+                return target.ActionTargetId;
+            }
+            for (int groupIndex = 0; groupIndex < m_writerGroups.Count; groupIndex++)
+            {
+                WriterGroup group = m_writerGroups[groupIndex];
+                for (int writerIndex = 0; writerIndex < group.DataSetWriters.Count; writerIndex++)
+                {
+                    IDataSetWriter writer = group.DataSetWriters[writerIndex];
+                    if (writer.DataSetWriterId != target.DataSetWriterId)
+                    {
+                        continue;
+                    }
+                    if (writer.PublishedDataSet is PublishedDataSet publishedDataSet
+                        && TryGetPublishedAction(
+                            publishedDataSet.Configuration,
+                            out PublishedActionDataType? action))
+                    {
+                        if (action!.ActionTargets.IsNull)
+                        {
+                            continue;
+                        }
+                        for (int i = 0; i < action.ActionTargets.Count; i++)
+                        {
+                            ActionTargetDataType actionTarget = action.ActionTargets[i];
+                            if (string.Equals(
+                                actionTarget.Name,
+                                target.ActionName,
+                                StringComparison.Ordinal))
+                            {
+                                return actionTarget.ActionTargetId;
+                            }
+                        }
+                    }
+                }
+            }
+            throw new InvalidOperationException(
+                "The requested Action target name could not be resolved.");
+        }
+
+        private static bool TryGetPublishedAction(
+            PublishedDataSetDataType publishedDataSet,
+            out PublishedActionDataType? action)
+        {
+            action = null;
+            if (publishedDataSet.DataSetSource.IsNull)
+            {
+                return false;
+            }
+            if (publishedDataSet.DataSetSource.TryGetValue(out PublishedActionMethodDataType? methodAction))
+            {
+                action = methodAction;
+                return true;
+            }
+            if (publishedDataSet.DataSetSource.TryGetValue(out PublishedActionDataType? publishedAction))
+            {
+                action = publishedAction;
+                return true;
+            }
+            return false;
+        }
+
+        private ushort NewActionRequestId()
+        {
+            return unchecked((ushort)Interlocked.Increment(ref m_actionRequestId));
+        }
+
+        private static ByteString CreateCorrelationData(ushort requestId)
+        {
+            var bytes = new byte[18];
+            byte[] guidBytes = Guid.NewGuid().ToByteArray();
+            Buffer.BlockCopy(guidBytes, 0, bytes, 0, guidBytes.Length);
+            bytes[16] = (byte)(requestId & 0xff);
+            bytes[17] = (byte)(requestId >> 8);
+            return new ByteString(bytes);
+        }
+
         private void RouteInboundDiscoveryResponse(UadpDiscoveryResponseMessage response)
         {
             PubSubDiscoveryCollector[] collectors;
@@ -770,6 +1013,230 @@ namespace Opc.Ua.PubSub.Connections
             {
                 collectors[i].TryAdd(response);
             }
+        }
+
+        private void RegisterPendingAction(PendingActionRequest pending)
+        {
+            lock (m_gate)
+            {
+                m_pendingActions[pending.Key] = pending;
+            }
+        }
+
+        private void UnregisterPendingAction(ActionCorrelationKey key)
+        {
+            lock (m_gate)
+            {
+                _ = m_pendingActions.Remove(key);
+            }
+        }
+
+        private void RouteInboundActionResponse(UadpActionResponseMessage response)
+        {
+            var key = new ActionCorrelationKey(response.RequestId, response.CorrelationData);
+            PendingActionRequest? pending;
+            lock (m_gate)
+            {
+                _ = m_pendingActions.TryGetValue(key, out pending);
+            }
+            pending?.TryComplete(ToActionResponse(response));
+        }
+
+        private async ValueTask<bool> TryRouteJsonActionAsync(
+            PubSubJsonActionNetworkMessage message,
+            CancellationToken cancellationToken)
+        {
+            bool handled = false;
+            for (int i = 0; i < message.Messages.Count; i++)
+            {
+                if (!message.Messages[i].TryGetValue(out IEncodeable? body))
+                {
+                    continue;
+                }
+                if (body is JsonActionResponseMessage response)
+                {
+                    RouteInboundJsonActionResponse(message, response);
+                    handled = true;
+                    continue;
+                }
+                if (body is JsonActionRequestMessage request)
+                {
+                    await TryRespondToJsonActionRequestAsync(message, request, cancellationToken)
+                        .ConfigureAwait(false);
+                    handled = true;
+                }
+            }
+            return handled;
+        }
+
+        private void RouteInboundJsonActionResponse(
+            PubSubJsonActionNetworkMessage message,
+            JsonActionResponseMessage response)
+        {
+            var key = new ActionCorrelationKey(response.RequestId, message.CorrelationData);
+            PendingActionRequest? pending;
+            lock (m_gate)
+            {
+                _ = m_pendingActions.TryGetValue(key, out pending);
+            }
+            pending?.TryComplete(new PubSubActionResponse
+            {
+                Target = new PubSubActionTarget
+                {
+                    DataSetWriterId = response.DataSetWriterId,
+                    ActionTargetId = response.ActionTargetId
+                },
+                RequestId = response.RequestId,
+                CorrelationData = message.CorrelationData,
+                StatusCode = response.Status,
+                ActionState = response.ActionState,
+                OutputFields = []
+            });
+        }
+
+        private async ValueTask TryRespondToActionRequestAsync(
+            UadpActionRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            IPubSubActionHandler? handler = ResolveActionHandler(
+                request.DataSetWriterId,
+                request.ActionTargetId,
+                actionName: string.Empty);
+            if (handler is null)
+            {
+                return;
+            }
+            PubSubActionHandlerResult result = await InvokeActionHandlerAsync(
+                handler,
+                new PubSubActionInvocation
+                {
+                    Target = new PubSubActionTarget
+                    {
+                        ConnectionName = Name,
+                        DataSetWriterId = request.DataSetWriterId,
+                        ActionTargetId = request.ActionTargetId
+                    },
+                    RequestId = request.RequestId,
+                    CorrelationData = request.CorrelationData,
+                    InputFields = request.Payload,
+                    ResponseAddress = request.ResponseAddress,
+                    TimeoutHint = request.TimeoutHint
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            var response = new UadpActionResponseMessage
+            {
+                PublisherId = PublisherId,
+                DataSetWriterId = request.DataSetWriterId,
+                ActionTargetId = request.ActionTargetId,
+                RequestId = request.RequestId,
+                CorrelationData = request.CorrelationData,
+                Status = result.StatusCode,
+                ActionState = ActionState.Done,
+                Payload = result.OutputFields
+            };
+            await SendNetworkMessageAsync(response, request.ResponseAddress, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask TryRespondToJsonActionRequestAsync(
+            PubSubJsonActionNetworkMessage message,
+            JsonActionRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            IPubSubActionHandler? handler = ResolveActionHandler(
+                request.DataSetWriterId,
+                request.ActionTargetId,
+                actionName: string.Empty);
+            if (handler is null)
+            {
+                return;
+            }
+            PubSubActionHandlerResult result = await InvokeActionHandlerAsync(
+                handler,
+                new PubSubActionInvocation
+                {
+                    Target = new PubSubActionTarget
+                    {
+                        ConnectionName = Name,
+                        DataSetWriterId = request.DataSetWriterId,
+                        ActionTargetId = request.ActionTargetId
+                    },
+                    RequestId = request.RequestId,
+                    CorrelationData = message.CorrelationData,
+                    InputFields = [],
+                    ResponseAddress = message.ResponseAddress,
+                    TimeoutHint = message.TimeoutHint
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            var responseBody = new JsonActionResponseMessage
+            {
+                DataSetWriterId = request.DataSetWriterId,
+                ActionTargetId = request.ActionTargetId,
+                MessageType = "ua-action-response",
+                RequestId = request.RequestId,
+                ActionState = ActionState.Done,
+                Status = result.StatusCode
+            };
+            var response = new PubSubJsonActionNetworkMessage
+            {
+                MessageId = Guid.NewGuid().ToString("N"),
+                PublisherId = PublisherId,
+                CorrelationData = message.CorrelationData,
+                Messages = [new ExtensionObject(responseBody)]
+            };
+            await SendNetworkMessageAsync(response, message.ResponseAddress, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask<PubSubActionHandlerResult> InvokeActionHandlerAsync(
+            IPubSubActionHandler handler,
+            PubSubActionInvocation invocation,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await handler.HandleAsync(invocation, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex,
+                    "Action handler for writer {WriterId}, target {TargetId} threw.",
+                    invocation.Target.DataSetWriterId,
+                    invocation.Target.ActionTargetId);
+                return new PubSubActionHandlerResult
+                {
+                    StatusCode = StatusCodes.BadUnexpectedError
+                };
+            }
+        }
+
+        private IPubSubActionHandler? ResolveActionHandler(
+            ushort dataSetWriterId,
+            ushort actionTargetId,
+            string actionName)
+        {
+            lock (m_gate)
+            {
+                if (m_actionHandlers.TryGetValue(
+                    new ActionHandlerKey(dataSetWriterId, actionTargetId, actionName),
+                    out IPubSubActionHandler? exact))
+                {
+                    return exact;
+                }
+                if (m_actionHandlers.TryGetValue(
+                    new ActionHandlerKey(dataSetWriterId, actionTargetId, string.Empty),
+                    out IPubSubActionHandler? byId))
+                {
+                    return byId;
+                }
+            }
+            return null;
         }
 
         private async ValueTask TryRespondToDiscoveryRequestAsync(
@@ -929,6 +1396,15 @@ namespace Opc.Ua.PubSub.Connections
             PubSubNetworkMessage networkMessage,
             CancellationToken cancellationToken)
         {
+            await SendNetworkMessageAsync(networkMessage, topic: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask SendNetworkMessageAsync(
+            PubSubNetworkMessage networkMessage,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
             IPubSubTransport? transport;
             lock (m_gate)
             {
@@ -996,7 +1472,7 @@ namespace Opc.Ua.PubSub.Connections
                 return;
             }
 
-            await transport.SendAsync(payload, topic: null, cancellationToken)
+            await transport.SendAsync(payload, topic, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -1384,6 +1860,143 @@ namespace Opc.Ua.PubSub.Connections
                     return false;
                 }
                 return true;
+            }
+        }
+
+        private readonly struct ActionCorrelationKey : IEquatable<ActionCorrelationKey>
+        {
+            private readonly ushort m_requestId;
+            private readonly string m_correlationData;
+
+            public ActionCorrelationKey(ushort requestId, ByteString correlationData)
+            {
+                m_requestId = requestId;
+                m_correlationData = ToCorrelationKey(correlationData);
+            }
+
+            public bool Equals(ActionCorrelationKey other)
+            {
+                return m_requestId == other.m_requestId
+                    && string.Equals(m_correlationData, other.m_correlationData, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is ActionCorrelationKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (m_requestId * 397) ^ StringComparer.Ordinal.GetHashCode(m_correlationData);
+                }
+            }
+
+            private static string ToCorrelationKey(ByteString value)
+            {
+                if (value.IsNull || value.Span.Length == 0)
+                {
+                    return string.Empty;
+                }
+                return Convert.ToBase64String(value.Span.ToArray());
+            }
+        }
+
+        private readonly struct ActionHandlerKey : IEquatable<ActionHandlerKey>
+        {
+            private readonly ushort m_dataSetWriterId;
+            private readonly ushort m_actionTargetId;
+            private readonly string m_actionName;
+
+            public ActionHandlerKey(
+                ushort dataSetWriterId,
+                ushort actionTargetId,
+                string actionName)
+            {
+                m_dataSetWriterId = dataSetWriterId;
+                m_actionTargetId = actionTargetId;
+                m_actionName = actionName ?? string.Empty;
+            }
+
+            public bool Equals(ActionHandlerKey other)
+            {
+                return m_dataSetWriterId == other.m_dataSetWriterId
+                    && m_actionTargetId == other.m_actionTargetId
+                    && string.Equals(m_actionName, other.m_actionName, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is ActionHandlerKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = m_dataSetWriterId;
+                    hash = (hash * 397) ^ m_actionTargetId;
+                    hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(m_actionName);
+                    return hash;
+                }
+            }
+        }
+
+        private sealed class PendingActionRequest : IDisposable
+        {
+            private readonly SemaphoreSlim m_signal = new(0, 1);
+            private readonly System.Threading.Lock m_gate = new();
+            private PubSubActionResponse? m_response;
+            private int m_disposed;
+
+            public PendingActionRequest(
+                ushort requestId,
+                ByteString correlationData,
+                PubSubActionTarget target)
+            {
+                Key = new ActionCorrelationKey(requestId, correlationData);
+                Target = target;
+            }
+
+            public ActionCorrelationKey Key { get; }
+
+            public PubSubActionTarget Target { get; }
+
+            public bool TryComplete(PubSubActionResponse response)
+            {
+                lock (m_gate)
+                {
+                    if (Volatile.Read(ref m_disposed) != 0 || m_response is not null)
+                    {
+                        return false;
+                    }
+                    m_response = response with { Target = response.Target with { ConnectionName = Target.ConnectionName } };
+                    m_signal.Release();
+                    return true;
+                }
+            }
+
+            public async ValueTask<PubSubActionResponse> WaitAsync(
+                TimeSpan timeout,
+                CancellationToken cancellationToken)
+            {
+                bool signaled = await m_signal.WaitAsync(timeout, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!signaled)
+                {
+                    throw new TimeoutException("The PubSub Action response was not received before the timeout.");
+                }
+                lock (m_gate)
+                {
+                    return m_response!;
+                }
+            }
+
+            public void Dispose()
+            {
+                _ = Interlocked.Exchange(ref m_disposed, 1);
+                m_signal.Dispose();
             }
         }
 
