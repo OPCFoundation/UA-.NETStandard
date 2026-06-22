@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Security.Cryptography;
 using NUnit.Framework;
@@ -118,7 +119,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Security.Dtls
         {
             int length = cipherSuite is DtlsCipherSuite.TlsAes256GcmSha384 or DtlsCipherSuite.TlsSha384Sha384 ? 48 : 32;
             byte[] secret = new byte[length];
-            RandomNumberGenerator.Fill(secret);
+            FillRandom(secret);
             return secret;
         }
 
@@ -131,5 +132,15 @@ namespace Opc.Ua.PubSub.Udp.Tests.Security.Dtls
                 DtlsNamedCurve.NistP256,
                 isMandatory: false);
         }
+        private static void FillRandom(byte[] buffer)
+        {
+#if NET8_0_OR_GREATER
+            RandomNumberGenerator.Fill(buffer);
+#else
+            using RandomNumberGenerator random = RandomNumberGenerator.Create();
+            random.GetBytes(buffer);
+#endif
+        }
     }
 }
+#endif

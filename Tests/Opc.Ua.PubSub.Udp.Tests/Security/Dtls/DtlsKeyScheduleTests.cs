@@ -29,6 +29,7 @@
 
 using System.Security.Cryptography;
 using NUnit.Framework;
+#if NET8_0_OR_GREATER
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Udp.Security.Dtls;
 
@@ -50,7 +51,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Security.Dtls
         public void BothPeersDeriveIdenticalTrafficSecrets(DtlsCipherSuite cipherSuite)
         {
             byte[] sharedSecret = new byte[32];
-            RandomNumberGenerator.Fill(sharedSecret);
+            FillRandom(sharedSecret);
             DtlsKeySchedule clientSchedule = new(cipherSuite);
             DtlsKeySchedule serverSchedule = new(cipherSuite);
             byte[] handshakeHash = BuildTranscriptHash(clientSchedule.HashAlgorithmName, 0x01, 0x02);
@@ -93,7 +94,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Security.Dtls
         {
             DtlsKeySchedule schedule = new(DtlsCipherSuite.TlsAes128GcmSha256);
             byte[] secret = new byte[32];
-            RandomNumberGenerator.Fill(secret);
+            FillRandom(secret);
             byte[] transcriptHash = BuildTranscriptHash(HashAlgorithmName.SHA256, 0x01, 0x02, 0x08);
             byte[] finishedKey = schedule.FinishedKey(secret);
             byte[] verifyData = schedule.ComputeFinished(finishedKey, transcriptHash);
@@ -108,6 +109,15 @@ namespace Opc.Ua.PubSub.Udp.Tests.Security.Dtls
             transcript.Append(bytes);
             return transcript.GetHash();
         }
+        private static void FillRandom(byte[] buffer)
+        {
+#if NET8_0_OR_GREATER
+            RandomNumberGenerator.Fill(buffer);
+#else
+            using RandomNumberGenerator random = RandomNumberGenerator.Create();
+            random.GetBytes(buffer);
+#endif
+        }
     }
 }
-
+#endif
