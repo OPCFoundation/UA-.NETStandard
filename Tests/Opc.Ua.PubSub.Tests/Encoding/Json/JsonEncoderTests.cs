@@ -222,6 +222,46 @@ namespace OpcUaPubSubJsonTests
             Assert.That(root.TryGetProperty("BoolField", out _), Is.True);
         }
 
+
+        [Test]
+        [TestSpec("7.2.5.3")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task NumericPublisherIdEmitsJsonStringAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                ContentMask = JsonDataSetMessageContentMask.PublisherId,
+                PublisherId = PublisherId.FromUInt16(5),
+                Fields = []
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                PublisherId = PublisherId.FromUInt32(5),
+                DataSetMessages = [dsm]
+            };
+            var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
+            ReadOnlyMemory<byte> bytes = await encoder
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            Assert.That(document.RootElement.GetProperty("PublisherId").ValueKind,
+                Is.EqualTo(JsonValueKind.String));
+            Assert.That(document.RootElement.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
+            var dataSetOnly = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
+                    | JsonNetworkMessageContentMask.SingleDataSetMessage,
+                SingleMessageMode = true,
+                DataSetMessages = [dsm]
+            };
+            bytes = await encoder.EncodeAsync(dataSetOnly, ctx).ConfigureAwait(false);
+            using JsonDocument nestedDocument = JsonDocument.Parse(bytes);
+            JsonElement nested = nestedDocument.RootElement;
+            Assert.That(nested.GetProperty("PublisherId").ValueKind, Is.EqualTo(JsonValueKind.String));
+            Assert.That(nested.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
+        }
+
         [Test]
         [TestSpec("7.2.5.3")]
         [TestSpec("7.2.5.4.1")]

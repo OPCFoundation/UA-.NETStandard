@@ -111,7 +111,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public PubSubFieldEncoding FieldEncoding { get; init; } = PubSubFieldEncoding.Variant;
 
         /// <summary>
-        /// Per-field content mask for DataValue encoding.
+        /// Per-field content mask. DataValue field encoding is not
+        /// allowed for UADP Action messages by Part 14 §7.2.4.5.9.
         /// </summary>
         public DataSetFieldContentMask FieldContentMask { get; init; }
 

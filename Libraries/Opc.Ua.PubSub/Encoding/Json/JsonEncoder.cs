@@ -765,10 +765,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Writes a <see cref="PublisherId"/> as the matching JSON
-        /// scalar. Numeric publisher ids round-trip as numbers; string,
-        /// Guid and Byte ids serialise as strings or numbers per
-        /// Part 14 §7.2.5.3.
+        /// Writes a <see cref="PublisherId"/> as the JSON String scalar
+        /// required by Part 14 §7.2.5.3 and §7.2.5.4.1.
         /// </summary>
         /// <param name="writer">Destination writer.</param>
         /// <param name="propertyName">Property name.</param>
@@ -784,22 +782,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             if (publisherId.TryGetByte(out byte b))
             {
-                writer.WriteNumber(propertyName, b);
+                writer.WriteString(propertyName, b.ToString(CultureInfo.InvariantCulture));
                 return;
             }
             if (publisherId.TryGetUInt16(out ushort u16))
             {
-                writer.WriteNumber(propertyName, u16);
+                writer.WriteString(propertyName, u16.ToString(CultureInfo.InvariantCulture));
                 return;
             }
             if (publisherId.TryGetUInt32(out uint u32))
             {
-                writer.WriteNumber(propertyName, u32);
+                writer.WriteString(propertyName, u32.ToString(CultureInfo.InvariantCulture));
                 return;
             }
             if (publisherId.TryGetUInt64(out ulong u64))
             {
-                writer.WriteNumber(propertyName, u64);
+                writer.WriteString(propertyName, u64.ToString(CultureInfo.InvariantCulture));
                 return;
             }
             if (publisherId.TryGetGuid(out Guid g))

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
@@ -119,11 +120,19 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return null;
             }
 
+            PubSubFieldEncoding fieldEncoding = context.UadpActionFieldEncoding;
+            if (fieldEncoding == PubSubFieldEncoding.DataValue)
+            {
+                return null;
+            }
+            DataSetMetaDataType? metaData = fieldEncoding == PubSubFieldEncoding.RawData
+                ? ResolveActionMetaData(header, dataSetWriterId, context)
+                : null;
             ArrayOf<DataSetField>? decodedPayload = UadpFieldDecoder.DecodeFields(
                 ref reader,
-                PubSubFieldEncoding.Variant,
+                fieldEncoding,
                 PubSubDataSetMessageType.KeyFrame,
-                metaData: null,
+                metaData,
                 context.MessageContext);
             if (decodedPayload is null)
             {
@@ -145,7 +154,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     CorrelationData = correlationData,
                     RequestorId = requestorId,
                     TimeoutHint = timeoutHint,
-                    Payload = payload
+                    Payload = payload,
+                    FieldEncoding = fieldEncoding
                 }
                 : new UadpActionResponseMessage
                 {
@@ -159,7 +169,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     CorrelationData = correlationData,
                     RequestorId = requestorId,
                     TimeoutHint = timeoutHint,
-                    Payload = payload
+                    Payload = payload,
+                    FieldEncoding = fieldEncoding
                 };
         }
 
@@ -194,6 +205,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 context.MessageContext);
             WriteActionPayloadHeader(ref writer, message.ActionTargetId,
                 message.RequestId, message.ActionState);
+            ValidateActionFieldEncoding(message.FieldEncoding);
             UadpFieldEncoder.EncodeFields(
                 ref writer, message.Payload, message.FieldEncoding,
                 PubSubDataSetMessageType.KeyFrame, message.MetaData,
@@ -228,11 +240,44 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 context.MessageContext);
             WriteActionPayloadHeader(ref writer, message.ActionTargetId,
                 message.RequestId, message.ActionState);
+            ValidateActionFieldEncoding(message.FieldEncoding);
             UadpFieldEncoder.EncodeFields(
                 ref writer, message.Payload, message.FieldEncoding,
                 PubSubDataSetMessageType.KeyFrame, message.MetaData,
                 context.MessageContext, message.FieldContentMask);
             return TrimToWritten(buffer, writer.Position);
+        }
+
+        private static DataSetMetaDataType? ResolveActionMetaData(
+            UadpDecodedHeader header,
+            ushort dataSetWriterId,
+            PubSubNetworkMessageContext context)
+        {
+            var key = new DataSetMetaDataKey(
+                header.PublisherId,
+                header.WriterGroupId ?? 0,
+                dataSetWriterId,
+                header.DataSetClassId,
+                0);
+            MetaDataMatchResult result = context.MetaDataRegistry.TryGet(
+                in key,
+                out DataSetMetaDataType? metaData);
+            return result is MetaDataMatchResult.Match
+                or MetaDataMatchResult.MinorVersionMismatch
+                or MetaDataMatchResult.MajorVersionMismatch
+                ? metaData
+                : null;
+        }
+
+        private static void ValidateActionFieldEncoding(PubSubFieldEncoding fieldEncoding)
+        {
+            if (fieldEncoding is PubSubFieldEncoding.Variant
+                or PubSubFieldEncoding.RawData)
+            {
+                return;
+            }
+            throw new InvalidOperationException(
+                "UADP Action request and response fields shall use Variant or RawData field encoding.");
         }
 
         private static void WriteCommon(

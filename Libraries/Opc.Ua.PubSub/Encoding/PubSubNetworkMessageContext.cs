@@ -70,11 +70,16 @@ namespace Opc.Ua.PubSub.Encoding
         /// Clock used to stamp received frames and to detect
         /// chunk-reassembly timeouts.
         /// </param>
+        /// <param name="uadpActionFieldEncoding">
+        /// Configured UADP Action payload field encoding used when
+        /// decoding Action messages.
+        /// </param>
         public PubSubNetworkMessageContext(
             IServiceMessageContext messageContext,
             IDataSetMetaDataRegistry metaDataRegistry,
             IPubSubDiagnostics diagnostics,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            PubSubFieldEncoding uadpActionFieldEncoding = PubSubFieldEncoding.Variant)
         {
             if (messageContext is null)
             {
@@ -96,6 +101,7 @@ namespace Opc.Ua.PubSub.Encoding
             MetaDataRegistry = metaDataRegistry;
             Diagnostics = diagnostics;
             TimeProvider = timeProvider;
+            UadpActionFieldEncoding = uadpActionFieldEncoding;
         }
 
         /// <summary>
@@ -121,5 +127,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// reassembly timeouts.
         /// </summary>
         public TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Configured UADP Action DataSetMessage field encoding. Part 14
+        /// §7.2.4.5.9 and §7.2.4.5.10 allow Action request and response
+        /// fields to use Variant or RawData encoding.
+        /// </summary>
+        public PubSubFieldEncoding UadpActionFieldEncoding { get; }
     }
 }

@@ -70,6 +70,8 @@ namespace OpcUaPubSubJsonTests
             Assert.That(root.GetProperty("MessageId").GetString(), Is.EqualTo("meta-1"));
             Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo(
                 Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage.MessageTypeMetaData));
+            Assert.That(root.GetProperty("PublisherId").ValueKind, Is.EqualTo(JsonValueKind.String));
+            Assert.That(root.GetProperty("PublisherId").GetString(), Is.EqualTo("7"));
             Assert.That(root.TryGetProperty("MetaData", out JsonElement md), Is.True);
             Assert.That(md.ValueKind, Is.Not.EqualTo(JsonValueKind.Null));
             Assert.That(root.TryGetProperty("DataSetWriterId", out JsonElement dw), Is.True);
