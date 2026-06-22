@@ -595,16 +595,15 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteNodeId(string? fieldName, NodeId value)
         {
-            var nodeId = new NodeIdSnapshot(value);
-
             // write a null node id.
-            if (nodeId.IsNull)
+            if (value.IsNull)
             {
                 WriteUInt16(null, 0);
                 return;
             }
 
-            ushort namespaceIndex = nodeId.NamespaceIndex;
+            IdType idType = value.IdType;
+            ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
             {
@@ -612,31 +611,30 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(in nodeId, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(idType, in value, namespaceIndex);
 
             // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
-            WriteNodeIdBody(encoding, in nodeId, namespaceIndex);
+            WriteNodeIdBody(encoding, in value, namespaceIndex);
         }
 
         /// <inheritdoc/>
         public void WriteExpandedNodeId(string? fieldName, ExpandedNodeId value)
         {
-            NodeId innerNodeId = value.InnerNodeId;
-            var nodeId = new NodeIdSnapshot(innerNodeId);
-            string? namespaceUri = value.NamespaceUri;
-            uint serverIndex = value.ServerIndex;
-
             // write a null node id.
-            if (string.IsNullOrEmpty(namespaceUri) && serverIndex == 0 && nodeId.IsNull)
+            if (value.IsNull)
             {
                 WriteUInt16(null, 0);
                 return;
             }
 
-            ushort namespaceIndex = nodeId.NamespaceIndex;
+            NodeId innerNodeId = value.InnerNodeId;
+            string? namespaceUri = value.NamespaceUri;
+            uint serverIndex = value.ServerIndex;
+
+            ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
             {
@@ -649,7 +647,7 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(in nodeId, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(innerNodeId.IdType, in innerNodeId, namespaceIndex);
 
             // add the bit indicating a uri string is encoded as well.
             if (!string.IsNullOrEmpty(namespaceUri))
@@ -667,7 +665,7 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write the node id.
-            WriteNodeIdBody(encoding, in nodeId, namespaceIndex);
+            WriteNodeIdBody(encoding, in innerNodeId, namespaceIndex);
 
             // write the namespace uri.
             if ((encoding & 0x80) != 0)
@@ -2106,10 +2104,10 @@ namespace Opc.Ua
         /// Returns the node id encoding byte for a node id value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static byte GetNodeIdEncoding(in NodeIdSnapshot nodeId, int namespaceIndex)
+        private static byte GetNodeIdEncoding(IdType idType, in NodeId nodeId, int namespaceIndex)
         {
             NodeIdEncodingBits encoding;
-            switch (nodeId.IdType)
+            switch (idType)
             {
                 case IdType.String:
                     encoding = NodeIdEncodingBits.String;
@@ -2146,7 +2144,7 @@ namespace Opc.Ua
         /// Writes the body of a node id to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteNodeIdBody(byte encoding, in NodeIdSnapshot nodeId, ushort namespaceIndex)
+        private void WriteNodeIdBody(byte encoding, in NodeId nodeId, ushort namespaceIndex)
         {
             // write the node id.
             switch ((NodeIdEncodingBits)(0x3F & encoding))
@@ -2211,56 +2209,6 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
-        }
-
-        private readonly struct NodeIdSnapshot
-        {
-            public NodeIdSnapshot(NodeId nodeId)
-            {
-                IdType = nodeId.IdType;
-                NamespaceIndex = nodeId.NamespaceIndex;
-                NumericIdentifier = default;
-                StringIdentifier = string.Empty;
-                GuidIdentifier = default;
-                OpaqueIdentifier = default;
-
-                switch (IdType)
-                {
-                    case IdType.String:
-                        StringIdentifier = nodeId.StringIdentifier;
-                        break;
-                    case IdType.Guid:
-                        GuidIdentifier = nodeId.GuidIdentifier;
-                        break;
-                    case IdType.Opaque:
-                        OpaqueIdentifier = nodeId.OpaqueIdentifer;
-                        break;
-                    default:
-                        NumericIdentifier = nodeId.NumericIdentifier;
-                        break;
-                }
-            }
-
-            public IdType IdType { get; }
-
-            public ushort NamespaceIndex { get; }
-
-            public uint NumericIdentifier { get; }
-
-            public string StringIdentifier { get; }
-
-            public Guid GuidIdentifier { get; }
-
-            public ByteString OpaqueIdentifier { get; }
-
-            public bool IsNull => NamespaceIndex == 0 && IdType switch
-            {
-                IdType.Numeric => NumericIdentifier == 0,
-                IdType.String => string.IsNullOrEmpty(StringIdentifier),
-                IdType.Guid => GuidIdentifier == Guid.Empty,
-                IdType.Opaque => OpaqueIdentifier.Length == 0,
-                _ => false
-            };
         }
 
         private readonly ILogger m_logger;
