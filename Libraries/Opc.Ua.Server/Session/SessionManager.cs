@@ -299,8 +299,17 @@ namespace Opc.Ua.Server
                 // (registers the session diagnostics node and sets Id).
                 if (session is Session createdSession)
                 {
-                    await createdSession.InitializeAsync(context, cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        await createdSession.InitializeAsync(context, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        serverNonceObject.Dispose();
+                        session.Dispose();
+                        throw;
+                    }
                 }
 
                 // get the session id.
