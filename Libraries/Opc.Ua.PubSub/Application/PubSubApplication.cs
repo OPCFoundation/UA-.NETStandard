@@ -397,7 +397,8 @@ namespace Opc.Ua.PubSub.Application
                 securityContext?.Wrapper,
                 securityContext?.WrapOptions ?? UadpSecurityWrapOptions.SignAndEncrypt,
                 maxMessageSize,
-                requiredSecurityMode);
+                requiredSecurityMode,
+                m_scheduler);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)
@@ -1537,6 +1538,11 @@ namespace Opc.Ua.PubSub.Application
                     await StartAsync(cancellationToken).ConfigureAwait(false);
                 }
 
+                await PublishWriterGroupConfigurationChangesAsync(
+                    previousConfiguration,
+                    GetConfiguration(),
+                    cancellationToken).ConfigureAwait(false);
+
                 try
                 {
                     ConfigurationChanged?.Invoke(
@@ -1558,6 +1564,84 @@ namespace Opc.Ua.PubSub.Application
             {
                 _ = m_mutationGate.Release();
             }
+        }
+
+        private async ValueTask PublishWriterGroupConfigurationChangesAsync(
+            PubSubConfigurationDataType previousConfiguration,
+            PubSubConfigurationDataType currentConfiguration,
+            CancellationToken cancellationToken)
+        {
+            List<PubSubConnectionDataType> previousConnections =
+                CloneConnections(previousConfiguration);
+            List<PubSubConnectionDataType> currentConnections =
+                CloneConnections(currentConfiguration);
+            foreach (PubSubConnectionDataType currentConnection in currentConnections)
+            {
+                string connectionName = currentConnection.Name ?? string.Empty;
+                PubSubConnectionDataType? previousConnection = previousConnections.Find(
+                    connection => string.Equals(
+                        connection.Name,
+                        connectionName,
+                        StringComparison.Ordinal));
+                List<WriterGroupDataType> currentWriterGroups = CloneWriterGroups(currentConnection);
+                List<WriterGroupDataType> previousWriterGroups = previousConnection is null
+                    ? []
+                    : CloneWriterGroups(previousConnection);
+                foreach (WriterGroupDataType currentWriterGroup in currentWriterGroups)
+                {
+                    WriterGroupDataType? previousWriterGroup = previousWriterGroups.Find(
+                        writerGroup => string.Equals(
+                            writerGroup.Name,
+                            currentWriterGroup.Name,
+                            StringComparison.Ordinal));
+                    if (previousWriterGroup is not null
+                        && Utils.IsEqual(previousWriterGroup, currentWriterGroup))
+                    {
+                        continue;
+                    }
+                    PubSubConnection? runtime = FindRuntimeConnection(connectionName);
+                    if (runtime is null)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        await runtime.AnnounceWriterGroupConfigurationAsync(
+                            currentWriterGroup.WriterGroupId,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogWarning(
+                            ex,
+                            "Failed to announce WriterGroup configuration change for {Connection}/{WriterGroup}.",
+                            connectionName,
+                            currentWriterGroup.Name);
+                    }
+                }
+            }
+        }
+
+        private PubSubConnection? FindRuntimeConnection(string connectionName)
+        {
+            lock (m_gate)
+            {
+                for (int i = 0; i < m_connections.Count; i++)
+                {
+                    if (string.Equals(
+                        m_connections[i].Name,
+                        connectionName,
+                        StringComparison.Ordinal))
+                    {
+                        return m_connections[i];
+                    }
+                }
+            }
+            return null;
         }
 
         private IEnumerable<IPubSubDiagnostics> EnumerateComponentDiagnostics()

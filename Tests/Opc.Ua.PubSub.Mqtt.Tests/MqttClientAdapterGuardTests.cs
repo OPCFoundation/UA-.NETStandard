@@ -31,7 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using MQTTnet;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Mqtt.Internal;
 using Opc.Ua.Tests;
 
@@ -128,6 +130,32 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                         useTls: false,
                         allowCredentialsOverPlaintext: true),
                     Throws.Nothing);
+            });
+        }
+
+        [Test]
+        [TestSpec("7.3.4.3")]
+        public void ApplyEnhancedAuthenticationSetsMqttV5AuthFields()
+        {
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtts://broker.example",
+                ProtocolVersion = MqttProtocolVersion.V500,
+                AuthenticationProfileUri = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json",
+                ResourceUri = "urn:broker:resource"
+            };
+            var mqttOptions = new MqttClientOptionsBuilder()
+                .WithTcpServer("broker.example", 8883)
+                .Build();
+
+            MqttClientAdapter.ApplyEnhancedAuthentication(mqttOptions, options);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(mqttOptions.AuthenticationMethod, Is.EqualTo(options.AuthenticationProfileUri));
+                Assert.That(
+                    System.Text.Encoding.UTF8.GetString(mqttOptions.AuthenticationData ?? []),
+                    Is.EqualTo(options.ResourceUri));
             });
         }
 

@@ -67,6 +67,17 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [TestSpec("7.3.2.1")]
+        public void StandardDiscoveryEndpoint_UsesSpecMulticastAddress()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(UdpDatagramTransport.StandardDiscoveryEndpoint.Address, Is.EqualTo(IPAddress.Parse("224.0.2.14")));
+                Assert.That(UdpDatagramTransport.StandardDiscoveryEndpoint.Port, Is.EqualTo(4840));
+            });
+        }
+
+        [Test]
         public void Parse_Ipv4Multicast_ClassifiedAsMulticast()
         {
             UdpEndpoint endpoint = UdpEndpointParser.Parse("opc.udp://239.255.0.1:5000");

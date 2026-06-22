@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -41,6 +42,7 @@ using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
@@ -69,6 +71,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly ArrayOf<IReaderGroup> m_readerGroupViews;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private readonly IPubSubScheduler m_scheduler;
         private readonly IDataSetMetaDataRegistry m_metaDataRegistry;
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly UadpSecurityWrapper? m_securityWrapper;
@@ -87,7 +90,10 @@ namespace Opc.Ua.PubSub.Connections
         private IPubSubTransport? m_transport;
         private CancellationTokenSource? m_receiveCts;
         private Task? m_receiveLoop;
+        private IAsyncDisposable? m_discoveryAnnouncementSchedule;
         private bool m_disposed;
+        private readonly Dictionary<DiscoveryThrottleKey, long> m_discoveryResponseThrottle = [];
+        private readonly Dictionary<DiscoveryThrottleKey, long> m_discoveryProbeDedup = [];
 
         /// <summary>
         /// Initializes a new <see cref="PubSubConnection"/>.
@@ -119,7 +125,8 @@ namespace Opc.Ua.PubSub.Connections
                   securityWrapper: null,
                   securityWrapOptions: UadpSecurityWrapOptions.SignAndEncrypt,
                   maxNetworkMessageSize: 0,
-                  requiredSecurityMode: MessageSecurityMode.None)
+                  requiredSecurityMode: MessageSecurityMode.None,
+                  scheduler: null)
         {
         }
 
@@ -160,6 +167,9 @@ namespace Opc.Ua.PubSub.Connections
         /// path rejects any inbound frame that is not secured to at
         /// least that level (fail-closed).
         /// </param>
+        /// <param name="scheduler">
+        /// Optional scheduler used for periodic discovery announcements.
+        /// </param>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -174,7 +184,8 @@ namespace Opc.Ua.PubSub.Connections
             UadpSecurityWrapper? securityWrapper,
             UadpSecurityWrapOptions securityWrapOptions,
             int maxNetworkMessageSize = 0,
-            MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None)
+            MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
+            IPubSubScheduler? scheduler = null)
         {
             if (configuration is null)
             {
@@ -216,6 +227,7 @@ namespace Opc.Ua.PubSub.Connections
             m_diagnostics = diagnostics;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
+            m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
             m_securityWrapper = securityWrapper;
             m_securityWrapOptions = securityWrapOptions;
             m_requiredSecurityMode = requiredSecurityMode;
@@ -239,8 +251,6 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     PublisherId = PublisherId
                 };
-                // TODO(B8): publish DataSetWriterConfiguration announcements on
-                // WriterGroup/DataSetWriter configuration changes per Part 14 §7.2.4.6.9.
                 wg.PublishSink = (message, ct) =>
                     SendWriterGroupNetworkMessageAsync(wg, message, ct);
             }
@@ -325,7 +335,8 @@ namespace Opc.Ua.PubSub.Connections
 
         private async ValueTask PublishStartupDiscoveryAnnouncementsAsync(CancellationToken cancellationToken)
         {
-            if (CurrentTransport is not IPubSubTopicProvider)
+            if (CurrentTransport is not IPubSubTopicProvider
+                and not IPubSubDiscoveryAnnouncementTransport)
             {
                 return;
             }
@@ -338,6 +349,39 @@ namespace Opc.Ua.PubSub.Connections
             await SendDiscoveryResponseAsync(
                 CreateStatusDiscoveryMessage(PubSubState.Operational, isCyclic: false),
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask StartPeriodicDiscoveryAnnouncementsAsync(CancellationToken cancellationToken)
+        {
+            IPubSubTransport? transport = CurrentTransport;
+            if (transport is not IPubSubDiscoveryAnnouncementTransport announcementTransport
+                || announcementTransport.DiscoveryAnnounceRate == 0)
+            {
+                return;
+            }
+            var schedule = new PubSubSchedule(
+                TimeSpan.FromMilliseconds(announcementTransport.DiscoveryAnnounceRate),
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                TimeSpan.Zero);
+            IAsyncDisposable registration = await m_scheduler.ScheduleAsync(
+                schedule,
+                PublishPeriodicDiscoveryAnnouncementsAsync,
+                cancellationToken).ConfigureAwait(false);
+            lock (m_gate)
+            {
+                m_discoveryAnnouncementSchedule = registration;
+            }
+        }
+
+        private async ValueTask PublishPeriodicDiscoveryAnnouncementsAsync(CancellationToken cancellationToken)
+        {
+            await SendDiscoveryResponseAsync(CreateApplicationInformationDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+            await SendDiscoveryResponseAsync(CreatePublisherEndpointsDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
+            await SendDiscoveryResponseAsync(CreatePubSubConnectionDiscoveryMessage(), cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -383,6 +427,7 @@ namespace Opc.Ua.PubSub.Connections
 
             _ = State.TryMarkOperational();
             await PublishStartupDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
+            await StartPeriodicDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
 
             // Start receive pump.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -422,14 +467,21 @@ namespace Opc.Ua.PubSub.Connections
             CancellationTokenSource? cts;
             Task? receiveLoop;
             IPubSubTransport? transport;
+            IAsyncDisposable? discoveryAnnouncementSchedule;
             lock (m_gate)
             {
                 cts = m_receiveCts;
                 m_receiveCts = null;
                 receiveLoop = m_receiveLoop;
                 m_receiveLoop = null;
+                discoveryAnnouncementSchedule = m_discoveryAnnouncementSchedule;
+                m_discoveryAnnouncementSchedule = null;
                 transport = m_transport;
                 m_transport = null;
+            }
+            if (discoveryAnnouncementSchedule is not null)
+            {
+                await discoveryAnnouncementSchedule.DisposeAsync().ConfigureAwait(false);
             }
             if (cts is not null)
             {
@@ -502,6 +554,9 @@ namespace Opc.Ua.PubSub.Connections
 
             var collector = new PubSubDiscoveryCollector(request);
             RegisterDiscoveryCollector(collector);
+            using CancellationTokenSource probeCts =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            Task? probeTask = null;
             try
             {
                 var message = new UadpDiscoveryRequestMessage
@@ -511,13 +566,64 @@ namespace Opc.Ua.PubSub.Connections
                     DataSetWriterIds = request.DataSetWriterIds,
                     ProbeFilter = request.ProbeFilter
                 };
-                await SendNetworkMessageAsync(message, cancellationToken).ConfigureAwait(false);
+                if (request.DiscoveryType == UadpDiscoveryType.Probe)
+                {
+                    probeTask = ProbeDiscoveryWithBackoffAsync(message, timeout, probeCts.Token);
+                }
+                else
+                {
+                    await SendNetworkMessageAsync(message, cancellationToken).ConfigureAwait(false);
+                }
                 return await collector.CollectAsync(timeout, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
+                try
+                {
+                    probeCts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+                if (probeTask is not null)
+                {
+                    try
+                    {
+                        await probeTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                }
                 UnregisterDiscoveryCollector(collector);
                 collector.Dispose();
+            }
+        }
+
+        private async Task ProbeDiscoveryWithBackoffAsync(
+            UadpDiscoveryRequestMessage message,
+            TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            TimeSpan initialDelay = TimeSpan.FromMilliseconds(RandomNumberGenerator.GetInt32(100, 501));
+            await Task.Delay(initialDelay, cancellationToken).ConfigureAwait(false);
+            TimeSpan backoff = TimeSpan.FromMilliseconds(500);
+            long start = m_timeProvider.GetTimestamp();
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await SendNetworkMessageAsync(message, cancellationToken).ConfigureAwait(false);
+                TimeSpan elapsed = m_timeProvider.GetElapsedTime(start);
+                TimeSpan remaining = timeout - elapsed;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    return;
+                }
+                TimeSpan delay = backoff < remaining ? backoff : remaining;
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                if (backoff < TimeSpan.FromSeconds(8))
+                {
+                    backoff += backoff;
+                }
             }
         }
 
@@ -1292,8 +1398,10 @@ namespace Opc.Ua.PubSub.Connections
             UadpDiscoveryRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // TODO(B14): throttle duplicate discovery probes and aggregate
-            // WriterGroup responses per Part 14 §7.2.4.6.12.2.
+            if (ShouldDiscardDuplicateProbe(request))
+            {
+                return;
+            }
             switch (request.DiscoveryType)
             {
                 case UadpDiscoveryType.DataSetMetaData:
@@ -1347,9 +1455,73 @@ namespace Opc.Ua.PubSub.Connections
             UadpDiscoveryResponseMessage response,
             CancellationToken cancellationToken)
         {
+            if (ShouldThrottleDiscoveryResponse(response))
+            {
+                return;
+            }
             string? topic = ResolveDiscoveryTopic(response);
             PubSubNetworkMessage networkMessage = ConvertDiscoveryMessageForTransport(response);
+            INetworkMessageEncoder? encoder = ResolveEncoder();
+            if (ShouldUseDiscoveryAnnouncementDestination(
+                    response,
+                    out IPubSubDiscoveryAnnouncementTransport? announcementTransport)
+                && encoder is not null)
+            {
+                ReadOnlyMemory<byte> payload = await EncodeNetworkMessageAsync(
+                    networkMessage,
+                    encoder,
+                    cancellationToken).ConfigureAwait(false);
+                await announcementTransport!.SendDiscoveryAnnouncementAsync(payload, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
             await SendNetworkMessageAsync(networkMessage, topic, cancellationToken).ConfigureAwait(false);
+        }
+
+        private bool ShouldDiscardDuplicateProbe(UadpDiscoveryRequestMessage request)
+        {
+            var key = CreateThrottleKey(request);
+            long now = m_timeProvider.GetTimestamp();
+            lock (m_gate)
+            {
+                if (m_discoveryProbeDedup.TryGetValue(key, out long last)
+                    && m_timeProvider.GetElapsedTime(last, now) < TimeSpan.FromMilliseconds(500))
+                {
+                    return true;
+                }
+                m_discoveryProbeDedup[key] = now;
+                return false;
+            }
+        }
+
+        private bool ShouldThrottleDiscoveryResponse(UadpDiscoveryResponseMessage response)
+        {
+            var key = CreateThrottleKey(response);
+            long now = m_timeProvider.GetTimestamp();
+            lock (m_gate)
+            {
+                if (m_discoveryResponseThrottle.TryGetValue(key, out long last)
+                    && m_timeProvider.GetElapsedTime(last, now) < TimeSpan.FromMilliseconds(500))
+                {
+                    return true;
+                }
+                m_discoveryResponseThrottle[key] = now;
+                return false;
+            }
+        }
+
+        private bool ShouldUseDiscoveryAnnouncementDestination(
+            UadpDiscoveryResponseMessage response,
+            out IPubSubDiscoveryAnnouncementTransport? transport)
+        {
+            transport = CurrentTransport as IPubSubDiscoveryAnnouncementTransport;
+            if (transport is null)
+            {
+                return false;
+            }
+            return response.DiscoveryType is UadpDiscoveryType.ApplicationInformation
+                or UadpDiscoveryType.PublisherEndpoints
+                or UadpDiscoveryType.PubSubConnection;
         }
 
         private PubSubNetworkMessage ConvertDiscoveryMessageForTransport(
@@ -1522,6 +1694,16 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
+        internal ValueTask AnnounceWriterGroupConfigurationAsync(
+            ushort writerGroupId,
+            CancellationToken cancellationToken = default)
+        {
+            return SendWriterGroupConfigurationDiscoveryResponseAsync(
+                writerGroupId,
+                includeDataSetWriters: true,
+                cancellationToken);
+        }
+
         private async ValueTask SendPublisherEndpointsDiscoveryResponseAsync(
             CancellationToken cancellationToken)
         {
@@ -1613,6 +1795,35 @@ namespace Opc.Ua.PubSub.Connections
                 }
             }
             return false;
+        }
+
+        private static DiscoveryThrottleKey CreateThrottleKey(
+            UadpDiscoveryRequestMessage request)
+        {
+            ushort id = 0;
+            if (request.ProbeFilter?.WriterGroupId is ushort writerGroupId)
+            {
+                id = writerGroupId;
+            }
+            else if (request.DataSetWriterIds.Count > 0)
+            {
+                id = request.DataSetWriterIds[0];
+            }
+            return new DiscoveryThrottleKey(request.DiscoveryType, id);
+        }
+
+        private static DiscoveryThrottleKey CreateThrottleKey(
+            UadpDiscoveryResponseMessage response)
+        {
+            if (response.ApplicationStatus is not null)
+            {
+                return new DiscoveryThrottleKey(response.DiscoveryType, ushort.MaxValue);
+            }
+            ushort writerGroupId = response.WriterGroupId.GetValueOrDefault();
+            ushort id = writerGroupId != 0
+                ? writerGroupId
+                : response.DataSetWriterId;
+            return new DiscoveryThrottleKey(response.DiscoveryType, id);
         }
 
         private UadpDiscoveryResponseMessage CreateStatusDiscoveryMessage(PubSubState state, bool isCyclic)
@@ -2051,6 +2262,10 @@ namespace Opc.Ua.PubSub.Connections
             }
             m_diagnostics.RecordError(status, message);
         }
+
+        private readonly record struct DiscoveryThrottleKey(
+            UadpDiscoveryType DiscoveryType,
+            ushort Id);
 
         private sealed class PubSubDiscoveryCollector : IDisposable
         {

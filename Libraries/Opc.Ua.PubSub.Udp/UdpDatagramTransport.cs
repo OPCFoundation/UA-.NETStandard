@@ -65,12 +65,16 @@ namespace Opc.Ua.PubSub.Udp
     /// buffers are rented from <see cref="ArrayPool{T}.Shared"/> so the
     /// steady-state receive loop is allocation-free.
     /// </remarks>
-    public sealed class UdpDatagramTransport : IPubSubTransport
+    public sealed class UdpDatagramTransport : IPubSubTransport, IPubSubDiscoveryAnnouncementTransport
     {
         private const int SIO_UDP_CONNRESET = unchecked((int)0x9800000C);
         private const string LocalSendStateLabel = "send-only";
+        private const int StandardDiscoveryPort = 4840;
 
         private static readonly byte[] s_disableConnReset = [0, 0, 0, 0];
+        private static readonly IPEndPoint s_standardDiscoveryEndpoint = new(
+            IPAddress.Parse("224.0.2.14"),
+            StandardDiscoveryPort);
 
         private readonly PubSubConnectionDataType m_connection;
         private readonly UdpEndpoint m_endpoint;
@@ -205,16 +209,15 @@ namespace Opc.Ua.PubSub.Udp
         /// Part 14 §6.4.1.2.7</see>. Zero means disabled.
         /// </summary>
         public uint DiscoveryAnnounceRate => m_v2Settings.DiscoveryAnnounceRate;
-        // TODO(B7): schedule periodic discovery announcements using this value
-        // per Part 14 §7.2.4.6.1.
-        // TODO(B13): send global ApplicationInformation, PublisherEndpoints, and
-        // PubSubConnection announcements on 224.0.2.14:4840 per Part 14 §7.3.2.1.
-        // TODO(B14): add subscriber probe jitter/backoff and publisher probe
-        // throttling for Part 14 §7.2.4.6.12.2.
         // TODO(B15): add DTLS 1.3 handshake/record protection for opc.dtls://
         // unicast per Part 14 §7.3.2.4. The current target TFMs do not expose a
         // DTLS client/server API in System.Net.Security, so the parser accepts the
         // URL and defaults port 4843 but payload protection needs a DTLS provider.
+
+        /// <summary>
+        /// Standard IPv4 discovery multicast destination from Part 14 §7.3.2.1.
+        /// </summary>
+        public static IPEndPoint StandardDiscoveryEndpoint => s_standardDiscoveryEndpoint;
 
         /// <summary>
         /// DiscoveryMaxMessageSize cap (bytes) honoured from the
@@ -408,6 +411,67 @@ namespace Opc.Ua.PubSub.Udp
             return m_repeater.SendWithRepeatsAsync(
                 ct => SendOnceAsync(socket, destination, isConnectedSocket, payload, ct),
                 cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SendDiscoveryAnnouncementAsync(
+            ReadOnlyMemory<byte> payload,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Socket? socket;
+            lock (m_sync)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(UdpDatagramTransport));
+                }
+                socket = m_socket;
+            }
+            if (socket is null)
+            {
+                throw new InvalidOperationException(
+                    "UDP transport must be opened before sending discovery announcements.");
+            }
+            if (payload.Length > m_options.MaxFrameSize)
+            {
+                throw new ArgumentException(
+                    $"Payload size {payload.Length} exceeds MaxFrameSize {m_options.MaxFrameSize}.",
+                    nameof(payload));
+            }
+            EnforceDiscoveryLimit(payload);
+            return m_repeater.SendWithRepeatsAsync(
+                ct => SendDiscoveryOnceAsync(socket, payload, ct),
+                cancellationToken);
+        }
+
+        private async ValueTask SendDiscoveryOnceAsync(
+            Socket socket,
+            ReadOnlyMemory<byte> payload,
+            CancellationToken cancellationToken)
+        {
+            if (socket.AddressFamily == AddressFamily.InterNetwork)
+            {
+                await SendOnceAsync(
+                    socket,
+                    s_standardDiscoveryEndpoint,
+                    isConnectedSocket: false,
+                    payload,
+                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            using Socket discoverySocket = new(
+                AddressFamily.InterNetwork,
+                SocketType.Dgram,
+                ProtocolType.Udp);
+            ConfigureSocket(discoverySocket);
+            discoverySocket.Bind(new IPEndPoint(IPAddress.Any, 0));
+            await SendOnceAsync(
+                discoverySocket,
+                s_standardDiscoveryEndpoint,
+                isConnectedSocket: false,
+                payload,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
