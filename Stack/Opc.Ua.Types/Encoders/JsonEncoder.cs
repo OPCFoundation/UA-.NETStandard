@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -62,13 +63,21 @@ namespace Opc.Ua
             IBufferWriter<byte> writer,
             IServiceMessageContext context,
             JsonEncoderOptions? options = null)
-            : this(new Utf8JsonWriter(writer, new JsonWriterOptions
-            {
-                SkipValidation = true,
-                Indented = options?.Indented ?? false
-            }), context, options)
         {
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_options = options ?? JsonEncoderOptions.Verbose;
+            m_stream = null;
+            m_pooledBufferWriter = null;
             m_leaveOpen = false;
+            m_writer = RentJsonWriter(writer, m_options.Indented);
+            m_writerIsPooled = true;
+
+            StartObject();
         }
 
         /// <summary>
@@ -125,11 +134,8 @@ namespace Opc.Ua
                 m_stream = stream;
                 m_pooledBufferWriter = null;
                 m_leaveOpen = true;
-                m_writer = new Utf8JsonWriter(m_stream, new JsonWriterOptions
-                {
-                    SkipValidation = true,
-                    Indented = m_options.Indented
-                });
+                m_writer = RentJsonWriter(m_stream, m_options.Indented);
+                m_writerIsPooled = true;
             }
 
             StartObject();
@@ -2339,22 +2345,96 @@ namespace Opc.Ua
         {
             try
             {
-                // If a stream was passed and we should not leave it open dispose it.
-                if (m_stream != null && !m_leaveOpen)
+                if (m_writerIsPooled)
                 {
-                    m_stream.Dispose();
+                    ReturnJsonWriter(m_writer, m_options.Indented);
                 }
-                // if a stream was passed and we created a writer - or -
-                // if a writer was passed and we should not leve it open, dispose writer
-                if (m_stream != null || !m_leaveOpen)
+                else
                 {
-                    m_writer.Dispose();
+                    // If a stream was passed and we should not leave it open dispose it.
+                    if (m_stream != null && !m_leaveOpen)
+                    {
+                        m_stream.Dispose();
+                    }
+                    // if a stream was passed and we created a writer - or -
+                    // if a writer was passed and we should not leve it open, dispose writer
+                    if (m_stream != null || !m_leaveOpen)
+                    {
+                        m_writer.Dispose();
+                    }
                 }
             }
             finally
             {
                 m_pooledBufferWriter?.ReturnBuffer();
             }
+        }
+
+        private static Utf8JsonWriter RentJsonWriter(Stream stream, bool indented)
+        {
+            Utf8JsonWriter writer = RentJsonWriter(indented);
+            writer.Reset(stream);
+            return writer;
+        }
+
+        private static Utf8JsonWriter RentJsonWriter(IBufferWriter<byte> bufferWriter, bool indented)
+        {
+            Utf8JsonWriter writer = RentJsonWriter(indented);
+            writer.Reset(bufferWriter);
+            return writer;
+        }
+
+        private static Utf8JsonWriter RentJsonWriter(bool indented)
+        {
+            ConcurrentQueue<Utf8JsonWriter> pool = GetJsonWriterPool(indented);
+            if (pool.TryDequeue(out Utf8JsonWriter? writer))
+            {
+                return writer;
+            }
+
+            return new Utf8JsonWriter(Stream.Null, new JsonWriterOptions
+            {
+                SkipValidation = true,
+                Indented = indented
+            });
+        }
+
+        private static void ReturnJsonWriter(Utf8JsonWriter writer, bool indented)
+        {
+            try
+            {
+                writer.Reset();
+            }
+            catch (InvalidOperationException)
+            {
+                DiscardJsonWriter(writer);
+                return;
+            }
+
+            ConcurrentQueue<Utf8JsonWriter> pool = GetJsonWriterPool(indented);
+            if (pool.Count < kMaxPooledJsonWriters)
+            {
+                pool.Enqueue(writer);
+            }
+        }
+
+        private static void DiscardJsonWriter(Utf8JsonWriter writer)
+        {
+            try
+            {
+                writer.Dispose();
+            }
+            catch (InvalidOperationException)
+            {
+                // Incomplete JSON can make Dispose throw; the writer is already being discarded.
+            }
+        }
+
+        private static ConcurrentQueue<Utf8JsonWriter> GetJsonWriterPool(bool indented)
+        {
+            // JsonWriterOptions are fixed at construction and Reset only changes
+            // the output target, so compact and indented writers use separate pools.
+            return indented ? s_indentedJsonWriterPool : s_compactJsonWriterPool;
         }
 
         private sealed class PooledBufferWriter : IBufferWriter<byte>
@@ -2453,6 +2533,7 @@ namespace Opc.Ua
         private readonly Stream? m_stream;
         private readonly PooledBufferWriter? m_pooledBufferWriter;
         private readonly bool m_leaveOpen;
+        private readonly bool m_writerIsPooled;
         private ILogger? m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
@@ -2461,5 +2542,8 @@ namespace Opc.Ua
         private ushort[]? m_serverMappings;
 #pragma warning restore IDE0052
         private bool m_disposed;
+        private const int kMaxPooledJsonWriters = 32;
+        private static readonly ConcurrentQueue<Utf8JsonWriter> s_compactJsonWriterPool = new();
+        private static readonly ConcurrentQueue<Utf8JsonWriter> s_indentedJsonWriterPool = new();
     }
 }
