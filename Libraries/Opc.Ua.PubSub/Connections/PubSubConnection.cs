@@ -608,7 +608,7 @@ namespace Opc.Ua.PubSub.Connections
             TimeSpan timeout,
             CancellationToken cancellationToken)
         {
-            TimeSpan initialDelay = TimeSpan.FromMilliseconds(RandomNumberGenerator.GetInt32(100, 501));
+            TimeSpan initialDelay = TimeSpan.FromMilliseconds(NextJitterMilliseconds(100, 501));
             await Task.Delay(initialDelay, cancellationToken).ConfigureAwait(false);
             TimeSpan backoff = TimeSpan.FromMilliseconds(500);
             long start = m_timeProvider.GetTimestamp();
@@ -628,6 +628,27 @@ namespace Opc.Ua.PubSub.Connections
                     backoff += backoff;
                 }
             }
+        }
+
+        private static int NextJitterMilliseconds(int minInclusive, int maxExclusive)
+        {
+            // Down-level-safe replacement for RandomNumberGenerator.GetInt32, which is
+            // unavailable on net472/net48/netstandard2.0. Used only for non-deterministic
+            // discovery probe jitter (Part 14 §7.2.4.6.12.2).
+            uint range = (uint)(maxExclusive - minInclusive);
+            byte[] buffer = new byte[4];
+            uint limit = uint.MaxValue - (uint.MaxValue % range);
+            uint value;
+            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            {
+                do
+                {
+                    rng.GetBytes(buffer);
+                    value = BitConverter.ToUInt32(buffer, 0);
+                }
+                while (value >= limit);
+            }
+            return minInclusive + (int)(value % range);
         }
 
         /// <summary>

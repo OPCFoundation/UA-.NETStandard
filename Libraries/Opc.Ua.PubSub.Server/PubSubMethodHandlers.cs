@@ -1430,7 +1430,10 @@ namespace Opc.Ua.PubSub.Server
         private static StatusCode[] CreateGoodResults(int count)
         {
             var results = new StatusCode[count];
-            Array.Fill(results, StatusCodes.Good);
+            for (int i = 0; i < results.Length; i++)
+            {
+                results[i] = StatusCodes.Good;
+            }
             return results;
         }
 
