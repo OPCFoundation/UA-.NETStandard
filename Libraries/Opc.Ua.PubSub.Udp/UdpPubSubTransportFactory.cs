@@ -32,6 +32,7 @@ using System.Net.NetworkInformation;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Udp.Security.Dtls;
 
 namespace Opc.Ua.PubSub.Udp
 {
@@ -68,7 +69,10 @@ namespace Opc.Ua.PubSub.Udp
         public const string NetworkInterfacePropertyKey = "NetworkInterface";
 
         private readonly UdpTransportOptions m_defaultOptions;
+        private readonly DtlsTransportOptions m_dtlsOptions;
         private readonly IPubSubDiagnostics? m_diagnostics;
+        private readonly DtlsProfileRegistry? m_dtlsProfileRegistry;
+        private readonly IDtlsContextFactory? m_dtlsContextFactory;
 
         /// <summary>
         /// Initializes a new <see cref="UdpPubSubTransportFactory"/>.
@@ -84,16 +88,25 @@ namespace Opc.Ua.PubSub.Udp
         /// per-component diagnostics container; tests and direct
         /// callers may pass <see langword="null"/>.
         /// </param>
+        /// <param name="dtlsOptions">Optional DTLS options for opc.dtls endpoints.</param>
+        /// <param name="dtlsProfileRegistry">Optional DTLS profile registry.</param>
+        /// <param name="dtlsContextFactory">Optional DTLS context factory.</param>
         public UdpPubSubTransportFactory(
             IOptions<UdpTransportOptions> options,
-            IPubSubDiagnostics? diagnostics = null)
+            IPubSubDiagnostics? diagnostics = null,
+            IOptions<DtlsTransportOptions>? dtlsOptions = null,
+            DtlsProfileRegistry? dtlsProfileRegistry = null,
+            IDtlsContextFactory? dtlsContextFactory = null)
         {
             if (options is null)
             {
                 throw new ArgumentNullException(nameof(options));
             }
             m_defaultOptions = options.Value ?? new UdpTransportOptions();
+            m_dtlsOptions = dtlsOptions?.Value ?? new DtlsTransportOptions();
             m_diagnostics = diagnostics;
+            m_dtlsProfileRegistry = dtlsProfileRegistry;
+            m_dtlsContextFactory = dtlsContextFactory;
         }
 
         /// <inheritdoc/>
@@ -135,6 +148,10 @@ namespace Opc.Ua.PubSub.Udp
                     "NetworkAddressUrlDataType.Url is required for UDP transport.");
             }
             UdpEndpoint endpoint = UdpEndpointParser.Parse(url);
+            if (endpoint.IsDtls && !string.IsNullOrEmpty(m_dtlsOptions.ProfileName))
+            {
+                endpoint = endpoint with { DtlsProfileName = m_dtlsOptions.ProfileName };
+            }
             string? preferredInterface = ResolveNetworkInterfaceName(
                 networkAddress.NetworkInterface,
                 connection.ConnectionProperties,
@@ -143,7 +160,54 @@ namespace Opc.Ua.PubSub.Udp
                 preferredInterface,
                 endpoint.Address.AddressFamily);
             PubSubTransportDirection direction = DetermineDirection(connection);
-            return new UdpDatagramTransport(
+            if (!endpoint.IsDtls)
+            {
+                return new UdpDatagramTransport(
+                    connection,
+                    endpoint,
+                    direction,
+                    networkInterface,
+                    telemetry,
+                    timeProvider,
+                    m_defaultOptions,
+                    m_diagnostics);
+            }
+
+            return CreateDtlsTransport(
+                connection,
+                endpoint,
+                direction,
+                networkInterface,
+                telemetry,
+                timeProvider);
+        }
+
+        private DtlsDatagramTransport CreateDtlsTransport(
+            PubSubConnectionDataType connection,
+            UdpEndpoint endpoint,
+            PubSubTransportDirection direction,
+            NetworkInterface? networkInterface,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider)
+        {
+            if (endpoint.AddressType != UdpAddressType.Unicast)
+            {
+                throw new NotSupportedException(
+                    "DTLS transport (opc.dtls://) is only supported for unicast PubSub endpoints per Part 14 §7.3.2.4.");
+            }
+
+            if (m_dtlsProfileRegistry is null || m_dtlsContextFactory is null)
+            {
+                throw new NotSupportedException(
+                    "DTLS transport requires AddUdpTransport().WithDtls(...) registration or direct DTLS dependencies.");
+            }
+
+            m_dtlsProfileRegistry.EmitStartupDiagnostic(telemetry);
+            string profileName = string.IsNullOrEmpty(endpoint.DtlsProfileName)
+                ? m_dtlsOptions.ProfileName
+                : endpoint.DtlsProfileName;
+            DtlsProfile profile = m_dtlsProfileRegistry.Resolve(profileName);
+            return new DtlsDatagramTransport(
                 connection,
                 endpoint,
                 direction,
@@ -151,7 +215,9 @@ namespace Opc.Ua.PubSub.Udp
                 telemetry,
                 timeProvider,
                 m_defaultOptions,
-                m_diagnostics);
+                m_diagnostics,
+                m_dtlsContextFactory,
+                profile);
         }
 
         private static PubSubTransportDirection DetermineDirection(
@@ -208,3 +274,5 @@ namespace Opc.Ua.PubSub.Udp
         }
     }
 }
+
+

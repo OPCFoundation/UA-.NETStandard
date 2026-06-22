@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Net;
+using Opc.Ua.PubSub.Udp.Security.Dtls;
 
 namespace Opc.Ua.PubSub.Udp
 {
@@ -55,11 +56,19 @@ namespace Opc.Ua.PubSub.Udp
     /// log / diagnostic output. May be <see langword="null"/> if the
     /// endpoint was constructed directly.
     /// </param>
+    /// <param name="IsDtls">
+    /// Indicates the endpoint was parsed from <c>opc.dtls://</c> and must use DTLS.
+    /// </param>
+    /// <param name="DtlsProfileName">
+    /// Selected DTLS profile name, or <see langword="null"/> for plain UDP.
+    /// </param>
     public readonly record struct UdpEndpoint(
         IPAddress Address,
         int Port,
         UdpAddressType AddressType,
-        string? OriginalUrl)
+        string? OriginalUrl,
+        bool IsDtls = false,
+        string? DtlsProfileName = null)
     {
         /// <summary>
         /// Indicates whether the endpoint carries the minimum fields

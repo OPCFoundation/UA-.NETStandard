@@ -480,12 +480,16 @@ var options = new MqttConnectionOptions
 };
 ```
 
-### DTLS transport limitation
+### DTLS transport status
 
-The `opc.dtls://` transport URI is scaffolded so configurations can be parsed and
-validated, but the DTLS handshake is not implemented. The supported target
-frameworks do not expose a usable .NET DTLS client API, so DTLS endpoints are not
-operational.
+The `opc.dtls://` transport URI is parsed for Part 14 §7.3.2.4 unicast endpoints
+and wired through the UDP transport factory when `.WithDtls(...)` is registered.
+The runtime profile registry is fail-closed: Curve25519 / Curve448 profiles are
+not registered because the portable .NET BCL does not expose RFC 7748 ECDH APIs,
+and optional NIST / Brainpool profiles are registered only when the required BCL
+cipher, HKDF, and ECDH curve probes succeed. The DTLS 1.3 handshake and record
+protection are still pending, so opening a registered DTLS endpoint throws a
+clear TODO(S3) error instead of sending unprotected PubSub payloads.
 
 ## Encodings
 

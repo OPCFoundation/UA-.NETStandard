@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.Net;
+using Opc.Ua.PubSub.Udp.Security.Dtls;
 using System.Net.Sockets;
 
 namespace Opc.Ua.PubSub.Udp
@@ -113,12 +114,6 @@ namespace Opc.Ua.PubSub.Udp
                 throw new FormatException(
                     "PubSub UDP URL must start with 'opc.udp://' or 'opc.dtls://'.");
             }
-            if (isDtls)
-            {
-                // TODO(B15): add an injectable DTLS provider before accepting opc.dtls:// endpoints.
-                throw new NotSupportedException(
-                    "DTLS transport (opc.dtls://) is not yet implemented; payload protection unavailable");
-            }
             string remainder = isDtls ? url[DtlsSchemePrefix.Length..] : url[SchemePrefix.Length..];
             if (remainder.Length == 0)
             {
@@ -183,7 +178,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             IPAddress address = ResolveHost(host);
             UdpAddressType type = ClassifyAddress(address);
-            return new UdpEndpoint(address, port, type, url);
+            return new UdpEndpoint(address, port, type, url, isDtls, isDtls ? DtlsTransportOptions.DefaultProfileName : null);
         }
 
         /// <summary>
