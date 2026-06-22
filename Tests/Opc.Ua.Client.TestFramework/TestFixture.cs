@@ -232,18 +232,35 @@ namespace Opc.Ua.Client.TestFramework
         [OneTimeTearDown]
         public async Task OneTimeTearDown()
         {
+            // Once any fixture's teardown exceeds a watchdog, set this flag so all
+            // subsequent fixtures skip their teardown entirely and just null out
+            // their references.  This converts the worst case from
+            //   N_fixtures × watchdog_timeout   (stacked)
+            // to a single watchdog timeout (the first hung fixture).
+            // Mirrors the same pattern in ServerFixture.StopAsync.
+            if (s_skipRemainingTeardowns)
+            {
+                m_logger.LogWarning(
+                    "TestFixture.OneTimeTearDown: a prior fixture teardown timed out; " +
+                    "skipping this teardown so the test host does not exceed the " +
+                    "--blame-hang-timeout. References will be released for finalization.");
+                Session = null;
+                ServerFixture = null;
+                ClientFixture = null;
+                return;
+            }
+
             if (Session != null)
             {
                 // Use a hard wall-clock ceiling via Task.WhenAny so that teardown is
                 // bounded even when Session.CloseAsync catches the CancellationToken
                 // internally and continues running (e.g., in Session.Dispose() /
                 // socket-cleanup paths that have no CancellationToken of their own).
-                // Without this, each fixture's CloseAsync can run 15-20 s on a slow
-                // macOS CI runner (10 s CTS fires → OCE caught → Dispose() called
-                // without CT → StopKeepAliveTimerAsync / transport teardown blocks),
-                // pushing 28 fixtures × ~20 s = ~560 s right against the 10-minute
-                // blame-hang watchdog.  Capping at 15 s keeps worst-case teardown to
-                // 28 × 15 s = 420 s = 7 min, safely under the watchdog.
+                // On macOS CI, each stuck CloseAsync can run 15-20 s (10 s CTS fires
+                // → OCE caught → Dispose() called without CT → StopKeepAliveTimerAsync
+                // / transport teardown blocks). When the 15 s watchdog fires we set
+                // s_skipRemainingTeardowns so subsequent fixtures skip their teardown
+                // entirely rather than stacking another 15 s each.
                 bool sessionCloseCompleted = false;
                 try
                 {
@@ -256,7 +273,9 @@ namespace Opc.Ua.Client.TestFramework
                         // cleanup). Signal remaining ops to give up and abandon the task.
                         sessionCloseCts.Cancel();
                         m_logger.LogWarning(
-                            "Session.CloseAsync exceeded the 15 s teardown watchdog; abandoning.");
+                            "Session.CloseAsync exceeded the 15 s teardown watchdog; " +
+                            "abandoning and enabling skip-remaining-teardowns for this process.");
+                        s_skipRemainingTeardowns = true;
                     }
                     else
                     {
@@ -283,6 +302,16 @@ namespace Opc.Ua.Client.TestFramework
                 // the OS will reclaim the socket when the test process exits.
 
                 Session = null;
+
+                if (s_skipRemainingTeardowns)
+                {
+                    // Skip all remaining teardown steps for this fixture too; they would
+                    // likely also block and there is no point in paying the cost since
+                    // the process is going to exit anyway.
+                    ServerFixture = null;
+                    ClientFixture = null;
+                    return;
+                }
             }
 
             if (ServerFixture != null)
@@ -329,6 +358,15 @@ namespace Opc.Ua.Client.TestFramework
         /// server. Reset between tests via <see cref="ResetServerLockoutState"/>.
         /// </summary>
         public MockResponseController MockController { get; private set; }
+
+        /// <summary>
+        /// Set by the first <see cref="OneTimeTearDown"/> that exceeds a watchdog
+        /// timeout. Subsequent fixtures' teardowns short-circuit to a no-op so
+        /// that N fixtures × watchdog_timeout cannot exceed the
+        /// --blame-hang-timeout.  Mirrors the same pattern in
+        /// <c>ServerFixture.StopAsync</c>.
+        /// </summary>
+        private static volatile bool s_skipRemainingTeardowns;
 
         private string m_pkiRoot;
 
