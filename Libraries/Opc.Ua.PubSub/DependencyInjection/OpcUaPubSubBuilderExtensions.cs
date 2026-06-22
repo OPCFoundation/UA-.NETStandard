@@ -208,7 +208,6 @@ namespace Microsoft.Extensions.DependencyInjection
         private static void RegisterCoreServices(IServiceCollection services)
         {
             services.TryAddSingleton(TimeProvider.System);
-            services.TryAddSingleton<IPubSubCaptureRegistry, PubSubCaptureRegistry>();
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
             services.TryAddSingleton<IDataSetMetaDataRegistry>(

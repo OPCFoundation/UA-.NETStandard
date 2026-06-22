@@ -278,13 +278,10 @@ namespace Opc.Ua.Mcp
         private PubSubApplicationBuilder CreateBuilder(string applicationId)
         {
             var telemetry = new ServiceProviderTelemetryContext(m_services);
-            IPubSubCaptureRegistry? captureRegistry = m_services.GetService<IPubSubCaptureRegistry>();
             return new PubSubApplicationBuilder(telemetry)
                 .WithApplicationId(applicationId)
                 .AddTransportFactory(new UdpPubSubTransportFactory(
-                    Options.Create(new UdpTransportOptions()),
-                    diagnostics: null,
-                    captureRegistry))
+                    Options.Create(new UdpTransportOptions())))
                 .AddEncoder(new UadpEncoder())
                 .AddDecoder(new UadpDecoder());
         }

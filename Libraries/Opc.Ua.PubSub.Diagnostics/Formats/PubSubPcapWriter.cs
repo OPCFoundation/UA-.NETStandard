@@ -37,7 +37,6 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Pcap.Frame;
-using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Pcap
 {

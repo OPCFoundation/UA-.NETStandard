@@ -38,7 +38,7 @@ Here is a list of available documentation for different topics:
   * [Migration sub-doc](migrate/2.0.x/pubsub.md) - 1.5.378 → 2.0 breaking API, transport, JSON, and field-encoding changes, plus the compatibility matrix.
   * [Dependency Injection extensions](DependencyInjection.md) - `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`, `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
   * [Profiles](Profiles.md#pubsub-transports) - Datagram-v2, SKS pull / push, AES-128/256-CTR security facets.
-  * [PubSub Diagnostics](PubSubDiagnostics.md) - packet capture, dissection and replay of UDP / MQTT PubSub traffic, including decryption of encrypted UADP messages.
+  * [PubSub Diagnostics](Diagnostics.md#5-pubsub-packet-capture-and-dissection) - packet capture, dissection and replay of UDP / MQTT PubSub traffic, including decryption of encrypted UADP messages.
 
 ## Reference application related
 

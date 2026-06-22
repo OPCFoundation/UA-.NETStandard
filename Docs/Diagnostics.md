@@ -12,7 +12,8 @@ It replaces the previous `Observability.md` and `PacketCapture.md` docs.
 - [2. OPC UA server audit events](#2-opc-ua-server-audit-events)
 - [3. OPC UA server built-in diagnostics nodes](#3-opc-ua-server-built-in-diagnostics-nodes)
 - [4. Packet capture, dissection, and replay](#4-packet-capture-dissection-and-replay)
-- [5. Related references](#5-related-references)
+- [5. PubSub packet capture and dissection](#5-pubsub-packet-capture-and-dissection)
+- [6. Related references](#6-related-references)
 
 ## 1. Telemetry context (`ITelemetryContext`)
 
@@ -1211,7 +1212,110 @@ your CI pipeline; the project does this as part of its release gate.
   capture before opening the secure channel so token activation is
   observed.
 
-## 5. Related references
+## 5. PubSub packet capture and dissection
+
+The `OPCFoundation.NetStandard.Opc.Ua.PubSub.Diagnostics` package is the PubSub
+(Part 14) counterpart of the UA-SC capture engine described in section 4. It
+captures the raw NetworkMessages exchanged over the UDP datagram and MQTT broker
+transports, writes them to `.pcap` / `.pcapng` for Wireshark, and dissects them
+back into structured DataSets &mdash; including **decryption of encrypted UADP
+messages** when the matching security keys are available. Targets `net8.0`,
+`net9.0`, `net10.0`.
+
+PubSub is connectionless and message-secured, so it uses its own frame and
+key-material abstractions rather than the UA-SC channel/token model, but reuses
+the section-4 `.pcap` / `.pcapng` writers.
+
+### Architecture &mdash; capturing transport decorator
+
+Capture is implemented as a **transport decorator**, not as code inside the UDP /
+MQTT transports. `AddPubSubPcap()` wraps every registered
+`IPubSubTransportFactory` in a `CapturingPubSubTransportFactory`, whose
+`CapturingPubSubTransport` decorates the real `IPubSubTransport`: on send and
+receive it taps the raw payload to the active observer and delegates everything
+else. This mirrors the UA-SC `CapturingMessageSocket` decorator &mdash; the UDP
+and MQTT transports contain **no** capture code, and the decorator is inserted
+only when the diagnostics package is configured via DI. When no capture session
+has installed an observer, the tap is a single volatile read.
+
+- `IPubSubCaptureObserver` receives each frame's bytes + a `PubSubCaptureContext`
+  (direction, transport profile, topic, timestamp).
+- `IPubSubCaptureRegistry` / `PubSubCaptureRegistry` is a lock-free holder for the
+  active observer, shared between the decorator and the capture tooling.
+
+> Call `AddPubSubPcap()` (or `AddPubSubPcapFromEnvironment()`) **after** the
+> transport registrations (`AddUdpTransport` / `AddMqttTransport`) so the
+> factories exist to be decorated.
+
+### Capturing and dissecting
+
+`PubSubCaptureSessionManager` owns a single in-process capture session;
+`InProcessPubSubCaptureSource` buffers frames for replay.
+`PubSubOfflineDissector` projects captured bytes into DataSets by reusing the
+standard `UadpDecoder` / `JsonDecoder`; malformed input yields an undecodable
+result rather than throwing. `PubSubPcapWriter` writes UDP frames to
+`.pcap` / `.pcapng` (synthesized Ethernet/IPv4/UDP framing); MQTT payloads go to
+the JSON / text formatters.
+
+```csharp
+IPubSubCaptureRegistry registry = serviceProvider
+    .GetRequiredService<IPubSubCaptureRegistry>();
+await using var manager = new PubSubCaptureSessionManager(registry);
+
+IPubSubCaptureSource source = await manager.StartAsync();
+// ... run the publisher / subscriber ...
+await manager.StopAsync();
+
+var dissector = new PubSubOfflineDissector();
+await foreach (PubSubCaptureFrame frame in source.ReadCapturedFramesAsync(null, ct))
+{
+    PubSubDissectionResult result = await dissector.DissectAsync(frame, ct);
+}
+```
+
+### Decrypting encrypted UADP
+
+Encrypted UADP NetworkMessages
+([Part 14 §8.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3),
+[Annex A.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.2.5))
+carry a `SecurityTokenId` in the UADP SecurityHeader. The dissector decrypts a
+secured frame when a key resolves for that token id &mdash; reusing the
+production `UadpSecurityWrapper` &mdash; then dissects the recovered cleartext.
+Keys come from an `IPubSubKeyResolver`: `CapturedKeyLogKeyResolver` (a captured
+key log via `PubSubKeyLogReader`, or the keys buffered during capture) or
+`SksKeyResolver` (a live `IPubSubSecurityKeyProvider`, e.g. a pull provider
+backed by `OpcUaSecurityKeyServiceClient.GetSecurityKeys`). When no key resolves,
+the result reports `Encrypted` + the token id ("key required"). JSON PubSub has
+no message-level security in Part 14 (confidentiality is the MQTT TLS transport),
+so JSON frames are always dissected as cleartext.
+
+### Environment-variable auto-capture
+
+`AddPubSubPcapFromEnvironment()` auto-starts an in-process capture and flushes it
+on host shutdown:
+
+| Variable | Effect |
+| --- | --- |
+| `OPCUA_PUBSUB_PCAP_FILE` | Auto-start capture; write to this `.pcap` / `.pcapng` on stop. |
+| `OPCUA_PUBSUB_KEYLOGFILE` | Path for the captured PubSub key log (for offline decryption). |
+
+### MCP tools
+
+The reference MCP server exposes the PubSub surface as tools &mdash; Action /
+configuration, Security Key Service, in-process publish/subscribe runtime, and
+capture / dissection. See [McpServer.md](McpServer.md#pubsub-tools) for the full
+catalogue.
+
+### Security considerations
+
+The captured key log contains **live security keys** in plaintext JSON-lines.
+`PubSubKeyMaterial` defensively copies and zeroizes key bytes on dispose, but the
+key-log file must be protected like a private key and deleted when no longer
+needed. Capture is opt-in and inert until an observer is registered; decryption
+is an offline diagnostic aid that reuses the production security primitives
+unchanged.
+
+## 6. Related references
 
 - [Dependency Injection](DependencyInjection.md) &mdash; how the
   stack composes its services, including telemetry, around

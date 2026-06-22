@@ -176,8 +176,7 @@ namespace Microsoft.Extensions.DependencyInjection
                         sp.GetRequiredService<IMqttClientFactory>(),
                         sp.GetRequiredService<IOptions<MqttConnectionOptions>>(),
                         sp.GetService<ISecretRegistry>(),
-                        sp.GetService<IPubSubDiagnostics>(),
-                        sp.GetService<IPubSubCaptureRegistry>())));
+                        sp.GetService<IPubSubDiagnostics>())));
             services.Add(
                 ServiceDescriptor.Singleton<IPubSubTransportFactory>(sp =>
                     new MqttPubSubTransportFactory(
@@ -185,8 +184,7 @@ namespace Microsoft.Extensions.DependencyInjection
                         sp.GetRequiredService<IMqttClientFactory>(),
                         sp.GetRequiredService<IOptions<MqttConnectionOptions>>(),
                         sp.GetService<ISecretRegistry>(),
-                        sp.GetService<IPubSubDiagnostics>(),
-                        sp.GetService<IPubSubCaptureRegistry>())));
+                        sp.GetService<IPubSubDiagnostics>())));
         }
     }
 }

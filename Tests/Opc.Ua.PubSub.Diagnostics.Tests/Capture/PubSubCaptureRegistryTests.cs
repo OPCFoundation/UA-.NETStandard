@@ -30,9 +30,8 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Transports;
 
-namespace Opc.Ua.PubSub.Tests.Transports
+namespace Opc.Ua.PubSub.Pcap.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="PubSubCaptureRegistry"/> and the capture

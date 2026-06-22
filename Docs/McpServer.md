@@ -325,6 +325,50 @@ This is normal behavior — not all servers support all services. Common status 
 | `BadMethodInvalid` | Method not found on the specified object |
 | `BadUserAccessDenied` | Insufficient permissions |
 
+## PubSub Tools
+
+In addition to the client services above, the server exposes OPC UA PubSub
+(Part 14) tools, backed by `Opc.Ua.PubSub` and
+`Opc.Ua.PubSub.Diagnostics`. See
+[Diagnostics.md §5](Diagnostics.md#5-pubsub-packet-capture-and-dissection) for
+the capture / dissection details.
+
+**Configuration "Action" methods** (call the server-side `PublishSubscribe`
+object methods via the active session):
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_add_connection` / `pubsub_remove_connection` | Add / remove a PubSub connection |
+| `pubsub_add_writer_group` / `pubsub_add_reader_group` | Add a writer / reader group |
+| `pubsub_add_dataset_writer` / `pubsub_add_dataset_reader` | Add a DataSet writer / reader |
+| `pubsub_enable` / `pubsub_disable` | Enable / disable PubSub |
+
+**Security Key Service (SKS):**
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_get_security_keys` | Call `PublishSubscribe.GetSecurityKeys` (Part 14 §8.2) |
+| `pubsub_add_security_group` / `pubsub_remove_security_group` | Manage SKS security groups |
+
+**In-process publish/subscribe runtime:**
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_runtime_start_publisher` / `pubsub_runtime_start_subscriber` | Start an in-process UDP publisher / subscriber |
+| `pubsub_runtime_publish` | Publish a DataSet update |
+| `pubsub_runtime_read_received` | Read DataSets received by the subscriber |
+| `pubsub_runtime_status` / `pubsub_runtime_stop` | Status / stop the runtime |
+
+**Capture and dissection:**
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_start_capture` / `pubsub_stop_capture` / `pubsub_capture_status` | Manage an in-process PubSub capture session |
+| `pubsub_write_pcap` | Flush captured frames to `.pcap` / `.pcapng` |
+| `pubsub_dissect_capture` | Dissect captured frames (decrypts encrypted UADP when a key log is supplied) |
+| `pubsub_decode_pcap` | Decode a libpcap file of UDP PubSub traffic |
+| `pubsub_load_keylog` | Load a PubSub key log for offline decryption |
+
 ## Architecture
 
 ```

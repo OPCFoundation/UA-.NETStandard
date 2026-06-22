@@ -67,7 +67,6 @@ namespace Opc.Ua.PubSub.Mqtt
         private readonly MqttConnectionOptions m_defaultOptions;
         private readonly ISecretRegistry? m_secretRegistry;
         private readonly IPubSubDiagnostics? m_diagnostics;
-        private readonly IPubSubCaptureRegistry? m_captureRegistry;
         private readonly string m_transportProfileUri;
 
         /// <summary>
@@ -98,18 +97,12 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Optional shared diagnostics sink. The DI container wires the
         /// per-component diagnostics container.
         /// </param>
-        /// <param name="captureRegistry">
-        /// Optional shared capture registry forwarded to every created
-        /// transport so an active diagnostics capture session can tap raw
-        /// payload bytes; <see langword="null"/> disables capture.
-        /// </param>
         public MqttPubSubTransportFactory(
             string transportProfileUri,
             IMqttClientFactory clientFactory,
             IOptions<MqttConnectionOptions> defaultOptions,
             ISecretRegistry? secretRegistry = null,
-            IPubSubDiagnostics? diagnostics = null,
-            IPubSubCaptureRegistry? captureRegistry = null)
+            IPubSubDiagnostics? diagnostics = null)
         {
             if (string.IsNullOrEmpty(transportProfileUri))
             {
@@ -143,7 +136,6 @@ namespace Opc.Ua.PubSub.Mqtt
             m_defaultOptions = defaultOptions.Value ?? new MqttConnectionOptions();
             m_secretRegistry = secretRegistry;
             m_diagnostics = diagnostics;
-            m_captureRegistry = captureRegistry;
         }
 
         /// <inheritdoc/>
@@ -198,8 +190,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 m_clientFactory,
                 telemetry,
                 timeProvider,
-                m_diagnostics,
-                m_captureRegistry);
+                m_diagnostics);
         }
 
         private static MqttConnectionOptions CloneOptionsWithEndpoint(

@@ -29,7 +29,6 @@
 
 using System;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Pcap
 {

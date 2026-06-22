@@ -27,45 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.PubSub.Transports
+namespace Opc.Ua.PubSub.Pcap
 {
     /// <summary>
-    /// Shared coordination point that holds the currently-active
-    /// <see cref="IPubSubCaptureObserver"/>. PubSub transports read
-    /// <see cref="CurrentObserver"/> on their hot send / receive path; a
-    /// diagnostics capture session installs and removes the observer.
+    /// Direction of a captured PubSub transport frame relative to the
+    /// local node.
     /// </summary>
-    /// <remarks>
-    /// A single registry instance is shared (typically as a DI singleton)
-    /// between the transports and the capture tooling. Reads on the
-    /// transport path are lock-free; at most one observer is active at a
-    /// time.
-    /// </remarks>
-    public interface IPubSubCaptureRegistry
+    public enum PubSubCaptureDirection
     {
         /// <summary>
-        /// The observer to notify of sent / received frames, or
-        /// <see langword="null"/> when capture is not active. Implementations
-        /// expose this as a lock-free volatile read.
+        /// Direction not determined.
         /// </summary>
-        IPubSubCaptureObserver? CurrentObserver { get; }
+        Unknown = 0,
 
         /// <summary>
-        /// Installs <paramref name="observer"/> as the active observer,
-        /// replacing any previous one.
+        /// The frame was sent by the local node (publisher / discovery
+        /// response).
         /// </summary>
-        /// <param name="observer">The observer to install.</param>
-        void SetObserver(IPubSubCaptureObserver observer);
+        Outbound = 1,
 
         /// <summary>
-        /// Clears the active observer if it is the same instance as
-        /// <paramref name="observer"/>.
+        /// The frame was received by the local node (subscriber /
+        /// discovery request).
         /// </summary>
-        /// <param name="observer">The observer expected to be active.</param>
-        /// <returns>
-        /// <see langword="true"/> if <paramref name="observer"/> was active
-        /// and has been cleared; otherwise <see langword="false"/>.
-        /// </returns>
-        bool TryClearObserver(IPubSubCaptureObserver observer);
+        Inbound = 2
     }
 }

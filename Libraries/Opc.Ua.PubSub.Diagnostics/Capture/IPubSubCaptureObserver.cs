@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.PubSub.Transports
+namespace Opc.Ua.PubSub.Pcap
 {
     /// <summary>
     /// An opt-in observer that receives the raw, wire-level bytes a PubSub

@@ -69,7 +69,6 @@ namespace Opc.Ua.PubSub.Udp
 
         private readonly UdpTransportOptions m_defaultOptions;
         private readonly IPubSubDiagnostics? m_diagnostics;
-        private readonly IPubSubCaptureRegistry? m_captureRegistry;
 
         /// <summary>
         /// Initializes a new <see cref="UdpPubSubTransportFactory"/>.
@@ -85,16 +84,9 @@ namespace Opc.Ua.PubSub.Udp
         /// per-component diagnostics container; tests and direct
         /// callers may pass <see langword="null"/>.
         /// </param>
-        /// <param name="captureRegistry">
-        /// Optional shared capture registry. When a diagnostics capture
-        /// session is active the transport taps its raw datagram bytes
-        /// through this registry; <see langword="null"/> disables capture
-        /// at zero runtime cost.
-        /// </param>
         public UdpPubSubTransportFactory(
             IOptions<UdpTransportOptions> options,
-            IPubSubDiagnostics? diagnostics = null,
-            IPubSubCaptureRegistry? captureRegistry = null)
+            IPubSubDiagnostics? diagnostics = null)
         {
             if (options is null)
             {
@@ -102,7 +94,6 @@ namespace Opc.Ua.PubSub.Udp
             }
             m_defaultOptions = options.Value ?? new UdpTransportOptions();
             m_diagnostics = diagnostics;
-            m_captureRegistry = captureRegistry;
         }
 
         /// <inheritdoc/>
@@ -160,8 +151,7 @@ namespace Opc.Ua.PubSub.Udp
                 telemetry,
                 timeProvider,
                 m_defaultOptions,
-                m_diagnostics,
-                m_captureRegistry);
+                m_diagnostics);
         }
 
         private static PubSubTransportDirection DetermineDirection(

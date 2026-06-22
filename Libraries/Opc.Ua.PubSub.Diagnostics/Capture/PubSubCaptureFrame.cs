@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Pcap
 {

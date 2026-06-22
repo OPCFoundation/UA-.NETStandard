@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Pcap.DependencyInjection;
 using Opc.Ua.PubSub.Transports;
 
@@ -37,16 +38,21 @@ namespace Opc.Ua.PubSub.Pcap
 {
     /// <summary>
     /// <see cref="IServiceCollection"/> extensions that register the PubSub
-    /// packet-capture diagnostics stack. The capture registry is shared with
-    /// the PubSub transports, so a capture session installed here taps the
-    /// live UDP / MQTT send and receive paths at zero cost when inactive.
+    /// packet-capture diagnostics stack. Capture is wired as a transport
+    /// decorator (<see cref="CapturingPubSubTransportFactory"/>) that wraps the
+    /// registered PubSub transport factories, so the UDP / MQTT transports
+    /// themselves carry no capture code; a capture session installed here taps
+    /// the decorated send / receive paths at zero cost when inactive.
     /// </summary>
     public static class PubSubPcapServiceCollectionExtensions
     {
         /// <summary>
         /// Registers the shared <see cref="IPubSubCaptureRegistry"/> and a
-        /// <see cref="PubSubCaptureSessionManager"/> so a PubSub capture
-        /// session can be started on demand.
+        /// <see cref="PubSubCaptureSessionManager"/>, and decorates every
+        /// already-registered <see cref="Opc.Ua.PubSub.Transports.IPubSubTransportFactory"/>
+        /// with a <see cref="CapturingPubSubTransportFactory"/> so capture is
+        /// injected only when this method is called. Call it AFTER the
+        /// transport registrations (<c>AddUdpTransport</c> / <c>AddMqttTransport</c>).
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <returns>The service collection for chaining.</returns>
@@ -55,6 +61,7 @@ namespace Opc.Ua.PubSub.Pcap
             ArgumentNullException.ThrowIfNull(services);
             services.TryAddSingleton<IPubSubCaptureRegistry, PubSubCaptureRegistry>();
             services.TryAddSingleton<PubSubCaptureSessionManager>();
+            DecorateTransportFactories(services);
             return services;
         }
 
@@ -94,6 +101,48 @@ namespace Opc.Ua.PubSub.Pcap
         private static string? Normalize(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        private static void DecorateTransportFactories(IServiceCollection services)
+        {
+            for (int i = 0; i < services.Count; i++)
+            {
+                ServiceDescriptor descriptor = services[i];
+                if (descriptor.ServiceType != typeof(IPubSubTransportFactory))
+                {
+                    continue;
+                }
+                if (descriptor.ImplementationType == typeof(CapturingPubSubTransportFactory))
+                {
+                    continue;
+                }
+                ServiceDescriptor original = descriptor;
+                services[i] = ServiceDescriptor.Describe(
+                    typeof(IPubSubTransportFactory),
+                    sp => new CapturingPubSubTransportFactory(
+                        (IPubSubTransportFactory)ResolveInner(sp, original),
+                        sp.GetRequiredService<IPubSubCaptureRegistry>(),
+                        sp.GetService<ILoggerFactory>()),
+                    descriptor.Lifetime);
+            }
+        }
+
+        private static object ResolveInner(IServiceProvider provider, ServiceDescriptor descriptor)
+        {
+            if (descriptor.ImplementationInstance is not null)
+            {
+                return descriptor.ImplementationInstance;
+            }
+            if (descriptor.ImplementationFactory is not null)
+            {
+                return descriptor.ImplementationFactory(provider);
+            }
+            if (descriptor.ImplementationType is not null)
+            {
+                return ActivatorUtilities.CreateInstance(provider, descriptor.ImplementationType);
+            }
+            throw new InvalidOperationException(
+                "Transport factory descriptor has no resolvable implementation.");
         }
     }
 }

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.PubSub.Transports
+namespace Opc.Ua.PubSub.Pcap
 {
     /// <summary>
     /// Non-payload context for a single captured PubSub transport frame.
