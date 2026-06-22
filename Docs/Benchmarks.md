@@ -101,6 +101,13 @@ from locals instead of through a chain of up to six `With…` calls that each co
 the large struct. Decoding is on the hot receive path of every client and server,
 so the allocation win applies broadly.
 
+> **Target-framework note:** the quoted decode allocation (0.64×) is measured on
+> **.NET 10**. `BinaryDecoder.ReadString` only uses the non-allocating
+> `stackalloc` / `ArrayPool<byte>` span path on `NET6_0_OR_GREATER`; on
+> **.NET Framework (net48)** and **netstandard2.0** it falls back to reading each
+> string into a transient `byte[]`. Decode allocation on those legacy target
+> frameworks is therefore higher than the .NET 10 figures here.
+
 ### Session establishment on the heavy ECC policies: large recovery
 
 Session establishment is still slower than 1.5.378 overall (see below), but this PR
@@ -228,8 +235,11 @@ cost and session establishment (discovery + crypto), both bounded and understood
 3. **JSON external-stream writer reuse.** Reuse a `Utf8JsonWriter` via `Reset(stream)`
    and/or a pooled `IBufferWriter<byte>` on the external-stream path to close the
    residual allocation gap (the in-memory path is already pooled).
-4. **`ReadString` span path (decoder).** Keep the 2.0 allocation win while shaving the
-   transcoding cost with a profile-driven span approach.
+4. **Legacy-TFM decode allocation.** Extend the `NET6_0_OR_GREATER`
+   `stackalloc` / `ArrayPool<byte>` `ReadString` path to **net48 / netstandard2.0**
+   if those targets become allocation-sensitive (see the target-framework note in the
+   binary-decoding section). Currently documented rather than changed — the .NET 10
+   path is already non-allocating.
 5. **Clean-machine confirmation runs.** Re-run the full suite on dedicated
    (non-virtualized) hardware to remove VM noise before treating any sub-10% delta as
    real.
