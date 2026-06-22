@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 
@@ -52,6 +53,21 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             m_key = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "key", ReadOnlySpan<byte>.Empty, keyLength);
             m_iv = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "iv", ReadOnlySpan<byte>.Empty, NonceLength);
             m_snKey = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "sn", ReadOnlySpan<byte>.Empty, keyLength);
+#if NET8_0_OR_GREATER
+            if (profile.CipherSuite is DtlsCipherSuite.TlsAes128GcmSha256 or DtlsCipherSuite.TlsAes256GcmSha384)
+            {
+                m_aesGcm = new AesGcm(m_key, 16);
+            }
+            else if (profile.CipherSuite == DtlsCipherSuite.TlsChaCha20Poly1305Sha256)
+            {
+                if (!ChaCha20Poly1305.IsSupported)
+                {
+                    throw new NotSupportedException("ChaCha20-Poly1305 is not supported by this platform.");
+                }
+
+                m_chacha20Poly1305 = new ChaCha20Poly1305(m_key);
+            }
+#endif
         }
 
         /// <summary>
@@ -76,16 +92,19 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         {
             ThrowIfDisposed();
             ulong sequenceNumber = m_writeSequenceNumber++;
-            byte[] innerPlaintext = new byte[plaintext.Length + 1];
-            plaintext.CopyTo(innerPlaintext);
-            innerPlaintext[^1] = ApplicationDataContentType;
-            int protectedLength = innerPlaintext.Length + m_tagLength;
+            int innerPlaintextLength = plaintext.Length + 1;
+            int protectedLength = innerPlaintextLength + m_tagLength;
             byte[] record = new byte[HeaderLength + protectedLength];
             WriteHeader(record.AsSpan(0, HeaderLength), Epoch, sequenceNumber, protectedLength);
+            byte[]? innerPlaintextBuffer = null;
             try
             {
                 if (m_isAead)
                 {
+                    innerPlaintextBuffer = ArrayPool<byte>.Shared.Rent(innerPlaintextLength);
+                    Span<byte> innerPlaintext = innerPlaintextBuffer.AsSpan(0, innerPlaintextLength);
+                    plaintext.CopyTo(innerPlaintext);
+                    innerPlaintext[^1] = ApplicationDataContentType;
                     Span<byte> nonce = stackalloc byte[NonceLength];
                     BuildNonce(sequenceNumber, nonce);
                     SealAead(
@@ -98,11 +117,12 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
                 }
                 else
                 {
-                    innerPlaintext.CopyTo(record.AsSpan(HeaderLength));
+                    plaintext.CopyTo(record.AsSpan(HeaderLength));
+                    record[HeaderLength + plaintext.Length] = ApplicationDataContentType;
                     ComputeHmac(
                         record.AsSpan(0, HeaderLength),
-                        record.AsSpan(HeaderLength, innerPlaintext.Length),
-                        record.AsSpan(HeaderLength + innerPlaintext.Length, m_tagLength));
+                        record.AsSpan(HeaderLength, innerPlaintextLength),
+                        record.AsSpan(HeaderLength + innerPlaintextLength, m_tagLength));
                 }
 
                 MaskSequenceNumber(record.AsSpan(0, HeaderLength));
@@ -110,7 +130,11 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(innerPlaintext);
+                if (innerPlaintextBuffer is not null)
+                {
+                    CryptographicOperations.ZeroMemory(innerPlaintextBuffer.AsSpan(0, innerPlaintextLength));
+                    ArrayPool<byte>.Shared.Return(innerPlaintextBuffer);
+                }
             }
         }
 
@@ -125,16 +149,17 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
                 throw new CryptographicException("DTLS record is too short.");
             }
 
-            byte[] working = record.ToArray();
-            MaskSequenceNumber(working.AsSpan(0, HeaderLength));
-            ulong sequenceNumber = BinaryPrimitives.ReadUInt16BigEndian(working.AsSpan(1, 2));
-            if (ReadEpoch(working.AsSpan(0, HeaderLength)) != Epoch)
+            Span<byte> header = stackalloc byte[HeaderLength];
+            record[..HeaderLength].CopyTo(header);
+            MaskSequenceNumber(header);
+            ulong sequenceNumber = BinaryPrimitives.ReadUInt16BigEndian(header[1..3]);
+            if (ReadEpoch(header) != Epoch)
             {
                 throw new CryptographicException("DTLS record epoch does not match the active read keys.");
             }
 
-            int protectedLength = BinaryPrimitives.ReadUInt16BigEndian(working.AsSpan(3, 2));
-            if (protectedLength != working.Length - HeaderLength || protectedLength <= m_tagLength)
+            int protectedLength = BinaryPrimitives.ReadUInt16BigEndian(header[3..5]);
+            if (protectedLength != record.Length - HeaderLength || protectedLength <= m_tagLength)
             {
                 throw new CryptographicException("DTLS record length is invalid.");
             }
@@ -145,7 +170,8 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             }
 
             int contentLength = protectedLength - m_tagLength;
-            byte[] plaintext = new byte[contentLength];
+            byte[] plaintextBuffer = ArrayPool<byte>.Shared.Rent(contentLength);
+            Span<byte> plaintext = plaintextBuffer.AsSpan(0, contentLength);
             try
             {
                 if (m_isAead)
@@ -154,9 +180,9 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
                     BuildNonce(sequenceNumber, nonce);
                     OpenAead(
                         nonce,
-                        working.AsSpan(0, HeaderLength),
-                        working.AsSpan(HeaderLength, contentLength),
-                        working.AsSpan(HeaderLength + contentLength, m_tagLength),
+                        header,
+                        record.Slice(HeaderLength, contentLength),
+                        record.Slice(HeaderLength + contentLength, m_tagLength),
                         plaintext);
                     CryptographicOperations.ZeroMemory(nonce);
                 }
@@ -164,33 +190,33 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
                 {
                     Span<byte> expectedTag = stackalloc byte[m_tagLength];
                     ComputeHmac(
-                        working.AsSpan(0, HeaderLength),
-                        working.AsSpan(HeaderLength, contentLength),
+                        header,
+                        record.Slice(HeaderLength, contentLength),
                         expectedTag);
                     if (!CryptographicOperations.FixedTimeEquals(
                         expectedTag,
-                        working.AsSpan(HeaderLength + contentLength, m_tagLength)))
+                        record.Slice(HeaderLength + contentLength, m_tagLength)))
                     {
                         throw new CryptographicException("DTLS integrity-only record tag validation failed.");
                     }
 
-                    working.AsSpan(HeaderLength, contentLength).CopyTo(plaintext);
+                    record.Slice(HeaderLength, contentLength).CopyTo(plaintext);
                     CryptographicOperations.ZeroMemory(expectedTag);
                 }
 
-                if (plaintext.Length == 0 || plaintext[^1] != ApplicationDataContentType)
+                if (plaintext.IsEmpty || plaintext[^1] != ApplicationDataContentType)
                 {
                     throw new CryptographicException("DTLS record inner content type is invalid.");
                 }
 
-                byte[] applicationData = new byte[plaintext.Length - 1];
-                Buffer.BlockCopy(plaintext, 0, applicationData, 0, applicationData.Length);
+                byte[] applicationData = plaintext[..^1].ToArray();
                 return applicationData;
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(working);
+                CryptographicOperations.ZeroMemory(header);
                 CryptographicOperations.ZeroMemory(plaintext);
+                ArrayPool<byte>.Shared.Return(plaintextBuffer);
             }
         }
 
@@ -205,6 +231,10 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             CryptographicOperations.ZeroMemory(m_key);
             CryptographicOperations.ZeroMemory(m_iv);
             CryptographicOperations.ZeroMemory(m_snKey);
+#if NET8_0_OR_GREATER
+            m_aesGcm?.Dispose();
+            m_chacha20Poly1305?.Dispose();
+#endif
             m_disposed = true;
         }
 
@@ -263,21 +293,13 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
                 case DtlsCipherSuite.TlsAes256GcmSha384:
-                    using (var aesGcm = new AesGcm(m_key, 16))
-                    {
-                        aesGcm.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
-                    }
+                    AesGcm aesGcm = m_aesGcm ?? throw new ObjectDisposedException(nameof(DtlsRecordProtection));
+                    aesGcm.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
                     break;
                 case DtlsCipherSuite.TlsChaCha20Poly1305Sha256:
-                    if (!ChaCha20Poly1305.IsSupported)
-                    {
-                        throw new NotSupportedException("ChaCha20-Poly1305 is not supported by this platform.");
-                    }
-
-                    using (var chacha = new ChaCha20Poly1305(m_key))
-                    {
-                        chacha.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
-                    }
+                    ChaCha20Poly1305 chacha = m_chacha20Poly1305
+                        ?? throw new ObjectDisposedException(nameof(DtlsRecordProtection));
+                    chacha.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
                     break;
                 default:
                     throw new NotSupportedException("Cipher suite is not AEAD-protected.");
@@ -304,21 +326,13 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
                 case DtlsCipherSuite.TlsAes256GcmSha384:
-                    using (var aesGcm = new AesGcm(m_key, 16))
-                    {
-                        aesGcm.Decrypt(nonce, ciphertext, tag, plaintext, associatedData);
-                    }
+                    AesGcm aesGcm = m_aesGcm ?? throw new ObjectDisposedException(nameof(DtlsRecordProtection));
+                    aesGcm.Decrypt(nonce, ciphertext, tag, plaintext, associatedData);
                     break;
                 case DtlsCipherSuite.TlsChaCha20Poly1305Sha256:
-                    if (!ChaCha20Poly1305.IsSupported)
-                    {
-                        throw new NotSupportedException("ChaCha20-Poly1305 is not supported by this platform.");
-                    }
-
-                    using (var chacha = new ChaCha20Poly1305(m_key))
-                    {
-                        chacha.Decrypt(nonce, ciphertext, tag, plaintext, associatedData);
-                    }
+                    ChaCha20Poly1305 chacha = m_chacha20Poly1305
+                        ?? throw new ObjectDisposedException(nameof(DtlsRecordProtection));
+                    chacha.Decrypt(nonce, ciphertext, tag, plaintext, associatedData);
                     break;
                 default:
                     throw new NotSupportedException("Cipher suite is not AEAD-protected.");
@@ -335,28 +349,38 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
 
         private void ComputeHmac(ReadOnlySpan<byte> header, ReadOnlySpan<byte> plaintext, Span<byte> tag)
         {
-            byte[] key = (byte[])m_key.Clone();
+            using HMAC hmac = DtlsHkdf.CreateHmac(m_hashAlgorithmName, m_key);
+            byte[] macInput = ArrayPool<byte>.Shared.Rent(header.Length + plaintext.Length);
             try
             {
-                using HMAC hmac = DtlsHkdf.CreateHmac(m_hashAlgorithmName, key);
-                byte[] headerBytes = header.ToArray();
-                byte[] plaintextBytes = plaintext.ToArray();
+                Span<byte> input = macInput.AsSpan(0, header.Length + plaintext.Length);
+                header.CopyTo(input);
+                plaintext.CopyTo(input[header.Length..]);
+#if NET8_0_OR_GREATER
+                Span<byte> hash = stackalloc byte[DtlsHkdf.GetHashLength(m_hashAlgorithmName)];
+                if (!hmac.TryComputeHash(input, hash, out int bytesWritten) || bytesWritten < tag.Length)
+                {
+                    throw new CryptographicException("HMAC did not produce a tag.");
+                }
+
+                hash[..tag.Length].CopyTo(tag);
+                CryptographicOperations.ZeroMemory(hash);
+#else
+                byte[] hash = hmac.ComputeHash(macInput, 0, input.Length);
                 try
                 {
-                    _ = hmac.TransformBlock(headerBytes, 0, headerBytes.Length, headerBytes, 0);
-                    _ = hmac.TransformFinalBlock(plaintextBytes, 0, plaintextBytes.Length);
-                    ReadOnlySpan<byte> hash = hmac.Hash ?? throw new CryptographicException("HMAC did not produce a tag.");
-                    hash[..tag.Length].CopyTo(tag);
+                    hash.AsSpan(0, tag.Length).CopyTo(tag);
                 }
                 finally
                 {
-                    CryptographicOperations.ZeroMemory(headerBytes);
-                    CryptographicOperations.ZeroMemory(plaintextBytes);
+                    CryptographicOperations.ZeroMemory(hash);
                 }
+#endif
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(key);
+                CryptographicOperations.ZeroMemory(macInput.AsSpan(0, header.Length + plaintext.Length));
+                ArrayPool<byte>.Shared.Return(macInput);
             }
         }
 
@@ -379,26 +403,30 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
             input[0] = header[0];
             input[1] = header[3];
             input[2] = header[4];
-            byte[] key = (byte[])m_snKey.Clone();
+            using HMAC hmac = new HMACSHA256(m_snKey);
+#if NET8_0_OR_GREATER
+            Span<byte> hash = stackalloc byte[32];
+            if (!hmac.TryComputeHash(input, hash, out int bytesWritten) || bytesWritten < 2)
+            {
+                throw new CryptographicException("Sequence-number mask HMAC did not produce a tag.");
+            }
+
+            header[1] ^= hash[0];
+            header[2] ^= hash[1];
+            CryptographicOperations.ZeroMemory(hash);
+#else
+            byte[] hash = hmac.ComputeHash(input.ToArray());
             try
             {
-                using HMAC hmac = new HMACSHA256(key);
-                byte[] hash = hmac.ComputeHash(input.ToArray());
-                try
-                {
-                    header[1] ^= hash[0];
-                    header[2] ^= hash[1];
-                }
-                finally
-                {
-                    CryptographicOperations.ZeroMemory(hash);
-                }
+                header[1] ^= hash[0];
+                header[2] ^= hash[1];
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(input);
-                CryptographicOperations.ZeroMemory(key);
+                CryptographicOperations.ZeroMemory(hash);
             }
+#endif
+            CryptographicOperations.ZeroMemory(input);
         }
 
         private void ThrowIfDisposed()
@@ -418,6 +446,10 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         private readonly byte[] m_key;
         private readonly byte[] m_iv;
         private readonly byte[] m_snKey;
+#if NET8_0_OR_GREATER
+        private readonly AesGcm? m_aesGcm;
+        private readonly ChaCha20Poly1305? m_chacha20Poly1305;
+#endif
         private readonly DtlsAntiReplayWindow m_replayWindow = new();
         private readonly int m_tagLength;
         private readonly bool m_isAead;
@@ -425,5 +457,3 @@ namespace Opc.Ua.PubSub.Udp.Security.Dtls
         private bool m_disposed;
     }
 }
-
-
