@@ -19,7 +19,9 @@ required for existing consumers.
 5. [`JsonEncodingMode` Reversible/Non-Reversible encodings removed](#5-jsonencodingmode-reversiblenon-reversible-encodings-removed)
 6. [UADP RawData field padding](#6-uadp-rawdata-field-padding)
 7. [`DataSetFieldContentMask` per-field timestamps and status](#7-datasetfieldcontentmask-per-field-timestamps-and-status)
-8. [Compatibility matrix](#8-compatibility-matrix)
+8. [Part 14 v1.05.07 conformance changes](#8-part-14-v10507-conformance-changes-breaking)
+9. [Compatibility matrix](#9-compatibility-matrix)
+10. [Transport extensions moved to `IPubSubBuilder`](#10-transport-extensions-moved-to-ipubsubbuilder)
 
 ## 1. PubSub assemblies and NuGet packages renamed and split
 
@@ -84,20 +86,20 @@ await app.StopAsync();
 ```
 
 See [`PubSub.md` §Fluent builder](../../PubSub.md#fluent-builder-walkthrough)
-for the in-code form. Cites [Part 14 §6.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2).
+for the in-code form. Cites [Part 14 §6.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2).
 
 ## 3. AMQP transport removed (breaking)
 
 `Opc.Ua.PubSub.PublisherInterfaces.TransportProtocol.AMQP` is removed. The
 1.5.378 enum value was a stub — no working AMQP transport ever shipped, and the
-[Part 14 §6.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4)
+[Part 14 §6.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.4)
 profile is unused outside that experiment. Configurations that name
 `http://opcfoundation.org/UA-Profile/Transport/pubsub-amqp-uadp` or
 `...-amqp-json` fail validation with `PSC0010` (`SpecClause = "6.4"`).
 
 Replacement: switch to MQTT (`Opc.Ua.PubSub.Mqtt`,
-[Part 14 §6.4.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2))
-or UDP (`Opc.Ua.PubSub.Udp`, [Part 14 §6.4.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1)).
+[Part 14 §6.4.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.4.2))
+or UDP (`Opc.Ua.PubSub.Udp`, [Part 14 §6.4.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.4.1)).
 The codemod is purely the transport profile URI plus the addition of
 `AddMqttConnection(...)` / `AddUdpConnection(...)`.
 
@@ -121,9 +123,9 @@ callers:
 
 `Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Reversible` and
 `Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.NonReversible` are removed in
-favour of the [Part 6 §5.4.1](https://reference.opcfoundation.org/specs/OPC-10000-6/v1.05.06/5.4.1)
-/ [Part 14 §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5)
-v1.05.06 names:
+favour of the [Part 6 §5.4.1](https://reference.opcfoundation.org/specs/OPC-10000-6/v1.05.07/5.4.1)
+/ [Part 14 §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5)
+v1.05.07 names:
 
 | Old                              | New                              |
 | -------------------------------- | -------------------------------- |
@@ -141,7 +143,7 @@ references at upgrade time. Background:
 
 ## 6. UADP RawData field padding
 
-Per [Part 14 §7.2.4.5.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.5.11),
+Per [Part 14 §7.2.4.5.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.5.11),
 `String`, `ByteString`, `XmlElement`, and array fields encoded via
 `DataSetFieldContentMask.RawData` are now padded to the maximum size declared in
 `FieldMetaData.MaxStringLength` or `FieldMetaData.ArrayDimensions`. The on-wire
@@ -158,7 +160,7 @@ time. Closes [#3566](https://github.com/OPCFoundation/UA-.NETStandard/issues/356
 ## 7. `DataSetFieldContentMask` per-field timestamps and status
 
 The encoder/decoder now honour every bit defined in the
-[Part 14 §6.2.4.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.4.2)
+[Part 14 §6.2.4.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.4.2)
 `DataSetFieldContentMask`:
 
 - `StatusCode`
@@ -169,7 +171,39 @@ The encoder/decoder now honour every bit defined in the
 In 1.5.378 the encoder produced bare values regardless of the mask; consumers
 that explicitly opted in to timestamps now actually receive them.
 
-## 8. Compatibility matrix
+## 8. Part 14 v1.05.07 conformance changes (breaking)
+
+The `part14pubsub` remediation aligned the in-progress 2.0 PubSub wire format
+with OPC UA Part 14 v1.05.07. These are **breaking on-wire changes** for anyone
+who tested or deployed against earlier 2.0 preview PubSub builds:
+
+- JSON Action NetworkMessage `MessageType` values now use the spec strings
+  `ua-action-request`, `ua-action-response`, `ua-action-metadata`, and
+  `ua-action-responder` (Part 14 §7.2.5.6). Earlier preview builds emitted
+  `ua-action`, `ua-actionmetadata`, and `ua-actionresponder`.
+- UADP delta-frame `FieldIndex` now carries the field position from
+  `DataSetMetaData`, not the loop index in the encoded sparse list. Sparse
+  delta frames therefore identify the original field ordinal required by
+  §7.2.4.5.8.
+- UADP PublisherId no longer accepts the reserved Guid type value 5. UADP maps
+  only Byte, UInt16, UInt32, UInt64, and String PublisherIds; Guid PublisherIds
+  remain valid for JSON only. Decoders reject or skip the reserved UADP value.
+- UADP Action response payloads no longer carry the non-spec `StatusCode` field.
+  `ActionHeader` now carries `RequestorId` when ActionFlags bit 3 is set.
+- UADP RawData field encoding is restricted to Data Key Frames. RawData is
+  rejected for delta and event frames.
+- JSON discovery now uses the Part 14 message types `ua-application`,
+  `ua-endpoints`, `ua-status`, `ua-connection`, and `ua-metadata`; the invented
+  `ua-discovery` envelope was removed. JSON keep-alive messages omit `Payload`.
+- Discovery NetworkMessage array lengths are now Int32-prefixed instead of
+  UInt16-prefixed. DataSetWriterConfiguration responses now include a
+  `statusCodes[]` array alongside the returned writer configurations.
+- MQTT topics follow the §7.3.4.7 spec layout. The default prefix changed from
+  `opcua/pubsub` to `opcua`, MQTT data is published on the `data` topic, and the
+  non-spec `keepalive` topic segment was removed. KeepAlive is represented as a
+  NetworkMessage with no DataSetMessages on the normal `data` topic.
+
+## 9. Compatibility matrix
 
 | Surface                                                      | 2.0 outcome                                                       |
 | ------------------------------------------------------------ | ----------------------------------------------------------------- |
@@ -181,8 +215,16 @@ that explicitly opted in to timestamps now actually receive them.
 | `JsonEncodingMode.Reversible` / `NonReversible`              | **Source break.** Rename to `Verbose` / `Compact`.                |
 | `DataSetFieldContentMask.RawData` with bounded strings/arrays | **Wire break.** Fields are padded and length prefixes suppressed per spec. |
 | `DataSetFieldContentMask.SourceTimestamp` etc.               | **Behavioural break.** Now actually emitted; consumers must read. |
+| JSON Action `MessageType` strings from early 2.0 previews     | **Wire break.** Use `ua-action-request` / `ua-action-response` / `ua-action-metadata` / `ua-action-responder`. |
+| UADP sparse delta-frame `FieldIndex`                         | **Wire break.** Index is the `DataSetMetaData` field position, not the sparse loop index. |
+| UADP Guid PublisherId                                        | **Wire break.** Reserved type 5 is rejected/skipped; use Byte/UInt16/UInt32/UInt64/String for UADP. |
+| UADP Action response `StatusCode` payload field              | **Wire break.** Removed; `RequestorId` is in `ActionHeader` with ActionFlags bit 3. |
+| UADP RawData on delta/event frames                           | **Wire break.** RawData is valid only for Data Key Frames. |
+| JSON discovery `ua-discovery` envelope                       | **Wire break.** Use `ua-application` / `ua-endpoints` / `ua-status` / `ua-connection` / `ua-metadata`; keep-alive has no `Payload`. |
+| Discovery array length prefixes                              | **Wire break.** NetworkMessage arrays are Int32-prefixed; DataSetWriterConfiguration responses include `statusCodes[]`. |
+| MQTT default prefix and KeepAlive topic                      | **Wire break.** Default prefix is `opcua`; publish on `data`; no `keepalive` topic segment. |
 
-## 9. Transport extensions moved to `IPubSubBuilder`
+## 10. Transport extensions moved to `IPubSubBuilder`
 
 The DI surface gained a fluent `AddPubSub(Action<IPubSubBuilder>)` overload.
 The `IPubSubBuilder` it hands to the callback exposes `AddPublisher` /
