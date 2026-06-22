@@ -234,25 +234,54 @@ namespace Opc.Ua.Client.TestFramework
         {
             if (Session != null)
             {
+                // Use a hard wall-clock ceiling via Task.WhenAny so that teardown is
+                // bounded even when Session.CloseAsync catches the CancellationToken
+                // internally and continues running (e.g., in Session.Dispose() /
+                // socket-cleanup paths that have no CancellationToken of their own).
+                // Without this, each fixture's CloseAsync can run 15-20 s on a slow
+                // macOS CI runner (10 s CTS fires → OCE caught → Dispose() called
+                // without CT → StopKeepAliveTimerAsync / transport teardown blocks),
+                // pushing 28 fixtures × ~20 s = ~560 s right against the 10-minute
+                // blame-hang watchdog.  Capping at 15 s keeps worst-case teardown to
+                // 28 × 15 s = 420 s = 7 min, safely under the watchdog.
+                bool sessionCloseCompleted = false;
                 try
                 {
-                    // Bound the close so that WaitForOrCancelOutstandingPublishRequestsAsync
-                    // and any CancelAsync calls inside CloseAsync cannot block indefinitely.
-                    // On slow macOS CI runners an orphaned publish request from
-                    // AlarmEventCollector.PublishLoopAsync can linger in m_outstandingRequests
-                    // for >5 s; without this cap every fixture would wait up to 90 s
-                    // (OperationTimeout) per pending Cancel service call, causing the
-                    // cumulative teardown time of 27+ fixtures to exceed the 10-minute
-                    // blame-hang watchdog.  10 s per fixture caps worst-case teardown at
-                    // ~4.5 min for the full suite.
                     using var sessionCloseCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    await Session.CloseAsync(5000, true, sessionCloseCts.Token).ConfigureAwait(false);
+                    Task<StatusCode> closeTask = Session.CloseAsync(5000, true, sessionCloseCts.Token);
+                    Task hardTimeoutTask = Task.Delay(TimeSpan.FromSeconds(15));
+                    if (await Task.WhenAny(closeTask, hardTimeoutTask).ConfigureAwait(false) == hardTimeoutTask)
+                    {
+                        // CloseAsync is still running after 15 s (stuck in Dispose/socket
+                        // cleanup). Signal remaining ops to give up and abandon the task.
+                        sessionCloseCts.Cancel();
+                        m_logger.LogWarning(
+                            "Session.CloseAsync exceeded the 15 s teardown watchdog; abandoning.");
+                    }
+                    else
+                    {
+                        // CloseAsync returned within budget; surface any exception.
+                        await closeTask.ConfigureAwait(false);
+                        sessionCloseCompleted = true;
+                    }
                 }
                 catch (Exception ex)
                 {
                     m_logger.LogError(ex, "Error closing session during teardown.");
+                    sessionCloseCompleted = true;
                 }
-                Session.Dispose();
+
+                if (sessionCloseCompleted)
+                {
+                    // CloseAsync(closeChannel: true) already called Dispose() internally,
+                    // so this is a fast no-op (m_disposeAsyncCalled guard), but call it
+                    // explicitly to satisfy any external IDisposable contracts.
+                    Session.Dispose();
+                }
+                // If CloseAsync was abandoned, skip Dispose() – it would hit the same
+                // blocking code path.  The abandoned task will finalize the session, or
+                // the OS will reclaim the socket when the test process exits.
+
                 Session = null;
             }
 
