@@ -58,13 +58,13 @@ namespace Opc.Ua.Sessions.Tests
     /// Benchmarks for measuring CPU, Memory, Latency, and Message Throughput across all Security Policies.
     /// These benchmarks help detect performance regressions when changes are made to security-related code.
     /// </para>
-    /// <para>Total: 162 benchmarks (18 methods × 9 security policies - None is excluded)</para>
+    /// <para>Total: 171 benchmarks (19 methods × 9 security policies - None is excluded)</para>
     /// <para>
     /// USAGE:
     ///   cd Tests/Opc.Ua.Client.Tests
     /// </para>
     /// <para>
-    /// Run all 126 benchmarks (takes ~30+ minutes):
+    /// Run all 171 benchmarks (takes ~30+ minutes):
     ///   dotnet run -c Release -f net10.0 -- --filter '*SecurityPolicyBenchmarks*' --job short
     /// </para>
     /// <para>
@@ -97,6 +97,7 @@ namespace Opc.Ua.Sessions.Tests
     ///   - BrowseAsync, BrowseMultipleNodesAsync
     ///   - CallMethodAsync
     ///   - CreateCloseSessionAsync, SessionLifecycleWithReadAsync
+    ///   - DiscoverEndpointsAsync
     ///   - MixedWorkloadAsync
     /// </para>
     /// <para>
@@ -177,6 +178,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             SupportsExternalServerUrl = true;
             await base.OneTimeSetUpAsync().ConfigureAwait(false);
+            await EnsureCachedEndpointsAsync().ConfigureAwait(false);
             await PrepareTestDataAsync().ConfigureAwait(false);
         }
 
@@ -215,6 +217,7 @@ namespace Opc.Ua.Sessions.Tests
         public override void GlobalSetup()
         {
             base.GlobalSetup();
+            EnsureCachedEndpointsAsync().GetAwaiter().GetResult();
             PrepareTestDataAsync().GetAwaiter().GetResult();
         }
 
@@ -280,6 +283,17 @@ namespace Opc.Ua.Sessions.Tests
                 m_smallReadValueIds,
                 CancellationToken.None
             ).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Ensures endpoint discovery is completed once during setup, outside measured session lifecycle iterations.
+        /// </summary>
+        private async Task EnsureCachedEndpointsAsync()
+        {
+            if (Endpoints.IsNull)
+            {
+                Endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -573,7 +587,8 @@ namespace Opc.Ua.Sessions.Tests
         {
             ISession session = await ClientFixture.ConnectAsync(
                 ServerUrl,
-                SecurityPolicy
+                SecurityPolicy,
+                Endpoints
             ).ConfigureAwait(false);
 
             Assert.That(session, Is.Not.Null);
@@ -592,7 +607,8 @@ namespace Opc.Ua.Sessions.Tests
         {
             ISession session = await ClientFixture.ConnectAsync(
                 ServerUrl,
-                SecurityPolicy
+                SecurityPolicy,
+                Endpoints
             ).ConfigureAwait(false);
 
             Assert.That(session, Is.Not.Null);
@@ -608,6 +624,19 @@ namespace Opc.Ua.Sessions.Tests
 
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             session.Dispose();
+        }
+
+        /// <summary>
+        /// Benchmark: Discover endpoints - tracks endpoint discovery cost independently from session establishment.
+        /// </summary>
+        [Test]
+        [Order(702)]
+        [Benchmark(Description = "Discover endpoints")]
+        public async Task DiscoverEndpointsAsync()
+        {
+            ArrayOf<EndpointDescription> endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+
+            Assert.That(endpoints.IsNull, Is.False);
         }
 
         /// <summary>
