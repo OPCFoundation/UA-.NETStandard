@@ -194,9 +194,11 @@ namespace Opc.Ua.PubSub.Groups
                 {
                     DataSetReader reader = m_readers[i];
                     _ = reader.State.TryEnable();
-                    _ = reader.State.TryMarkOperational();
                 }
-                _ = State.TryMarkOperational();
+                if (State.TryMarkOperational())
+                {
+                    _ = State.TryResumeCascade();
+                }
             }
             if (m_scheduler is not null && m_diagnostics is not null && m_timeoutWatcher is null)
             {

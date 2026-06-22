@@ -35,6 +35,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests;
@@ -163,6 +164,43 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        [TestSpec("9.1.3", Summary = "PubSubConnectionType instances are materialized under PublishSubscribe")]
+        [TestSpec("9.1.10", Summary = "Per-instance Status exposes Enable and Disable methods")]
+        public async Task ConfigurationMutation_MaterializesConnectionNodeAndStatusMethods()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            NodeId connectionId = await harness.Application.AddConnectionAsync(new PubSubConnectionDataType
+            {
+                Name = "conn-tree",
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = "opc.udp://224.0.0.22:4840"
+                })
+            }).ConfigureAwait(false);
+
+            BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(connectionId);
+            BaseObjectState statusNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:connection:conn-tree:Status", 0));
+            MethodState enable = harness.Manager.FindPredefinedNode<MethodState>(
+                new NodeId("pubsub:connection:conn-tree:Status:Enable", 0));
+            BaseDataVariableState version = harness.Manager.FindPredefinedNode<BaseDataVariableState>(
+                new NodeId("pubsub:connection:conn-tree:ConfigurationVersion", 0));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(connectionNode, Is.Not.Null);
+                Assert.That(connectionNode.TypeDefinitionId, Is.EqualTo(new NodeId(14209u)));
+                Assert.That(statusNode, Is.Not.Null);
+                Assert.That(enable.OnCallMethod, Is.Not.Null);
+                Assert.That(version, Is.Not.Null);
+            });
+        }
+
+        [Test]
         public void Constructor_NullArgs_Throw()
         {
             using var harness = new Harness();
@@ -270,6 +308,16 @@ namespace Opc.Ua.PubSub.Server.Tests
                     NodeId = new NodeId(17406u),
                     BrowseName = new QualifiedName("State")
                 };
+                PublishSubscribeObject = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.PublishSubscribe,
+                    BrowseName = new QualifiedName("PublishSubscribe")
+                };
+                PublishedDataSetsObject = new BaseObjectState(PublishSubscribeObject)
+                {
+                    NodeId = new NodeId(14478u),
+                    BrowseName = new QualifiedName("PublishedDataSets")
+                };
 
                 var diagnosticsNm = new Mock<IDiagnosticsNodeManager>();
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17407u))).Returns(EnableMethod);
@@ -282,6 +330,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(new NodeId(17406u))).Returns(StatusVariable);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(It.IsAny<NodeId>()))
                     .Returns((NodeId id) => id == new NodeId(17406u) ? StatusVariable : null!);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(ObjectIds.PublishSubscribe))
+                    .Returns(PublishSubscribeObject);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(14478u)))
+                    .Returns(PublishedDataSetsObject);
                 MockServer.Setup(s => s.DiagnosticsNodeManager).Returns(diagnosticsNm.Object);
 
                 Application = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
@@ -292,6 +344,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                         PublishedDataSets = []
                     })
                     .UseAllStandardEncoders()
+                    .AddTransportFactory(new StubTransportFactory())
                     .Build();
 
                 SksServer = new InMemoryPubSubKeyServiceServer();
@@ -323,6 +376,8 @@ namespace Opc.Ua.PubSub.Server.Tests
             public MethodState AddSecurityGroupMethod { get; }
             public MethodState RemoveSecurityGroupMethod { get; }
             public BaseDataVariableState StatusVariable { get; }
+            public BaseObjectState PublishSubscribeObject { get; }
+            public BaseObjectState PublishedDataSetsObject { get; }
 
             public void Dispose()
             {
@@ -343,6 +398,22 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             private readonly MonitoredItemQueueFactory m_queueFactory;
             private readonly ServerSystemContext m_serverSystemContext;
+
+            private sealed class StubTransportFactory : IPubSubTransportFactory
+            {
+                public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+                public IPubSubTransport Create(
+                    PubSubConnectionDataType connection,
+                    ITelemetryContext telemetry,
+                    TimeProvider timeProvider)
+                {
+                    _ = connection;
+                    _ = telemetry;
+                    _ = timeProvider;
+                    throw new NotSupportedException();
+                }
+            }
         }
     }
 }

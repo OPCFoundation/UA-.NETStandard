@@ -498,7 +498,10 @@ namespace Opc.Ua.PubSub.Application
                 m_logger.LogError(ex, "Failed to start metadata publisher.");
                 await metaDataPublisher.DisposeAsync().ConfigureAwait(false);
             }
-            _ = State.TryMarkOperational();
+            if (State.TryMarkOperational())
+            {
+                _ = State.TryResumeCascade();
+            }
         }
 
         /// <inheritdoc/>
@@ -1480,6 +1483,7 @@ namespace Opc.Ua.PubSub.Application
                     return result;
                 }
 
+                MaintainPublishedDataSetConfigurationVersions(previousConfiguration, configuration);
                 RebuiltState rebuilt = BuildRebuiltState(configuration);
                 bool restartRequired;
                 lock (m_gate)
@@ -1673,6 +1677,48 @@ namespace Opc.Ua.PubSub.Application
             }
 
             return publishedDataSets;
+        }
+
+        private static void MaintainPublishedDataSetConfigurationVersions(
+            PubSubConfigurationDataType previousConfiguration,
+            PubSubConfigurationDataType newConfiguration)
+        {
+            if (newConfiguration.PublishedDataSets.IsNull)
+            {
+                return;
+            }
+
+            Dictionary<string, DataSetMetaDataType> previousMetaDataByName = [];
+            if (!previousConfiguration.PublishedDataSets.IsNull)
+            {
+                foreach (PublishedDataSetDataType previous in previousConfiguration.PublishedDataSets)
+                {
+                    if (!string.IsNullOrEmpty(previous.Name) &&
+                        previous.DataSetMetaData is not null)
+                    {
+                        previousMetaDataByName[previous.Name] = previous.DataSetMetaData;
+                    }
+                }
+            }
+
+            foreach (PublishedDataSetDataType current in newConfiguration.PublishedDataSets)
+            {
+                if (current.DataSetMetaData is null)
+                {
+                    continue;
+                }
+
+                DataSetMetaDataType? previousMetaData = null;
+                if (!string.IsNullOrEmpty(current.Name))
+                {
+                    _ = previousMetaDataByName.TryGetValue(current.Name, out previousMetaData);
+                }
+
+                current.DataSetMetaData.ConfigurationVersion =
+                    ConfigurationVersionUtils.CalculateConfigurationVersion(
+                        previousMetaData!,
+                        current.DataSetMetaData);
+            }
         }
 
         private static int FindIndexByName<T>(

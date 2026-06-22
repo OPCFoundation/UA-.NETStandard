@@ -240,10 +240,9 @@ namespace Opc.Ua.PubSub.StateMachine
         }
 
         /// <summary>
-        /// Attempts to transition the machine to
-        /// <see cref="PubSubState.PreOperational"/> from
-        /// <see cref="PubSubState.Disabled"/>. This is the only valid
-        /// destination for the <c>Enable</c> method per Part 14 §9.1.10.2.
+        /// Attempts to transition the machine from
+        /// <see cref="PubSubState.Disabled"/> to <see cref="PubSubState.PreOperational"/>,
+        /// or to <see cref="PubSubState.Paused"/> if its parent is not operational.
         /// </summary>
         /// <returns>
         /// <see langword="true"/> if the transition succeeded;
@@ -252,10 +251,11 @@ namespace Opc.Ua.PubSub.StateMachine
         /// </returns>
         public bool TryEnable(PubSubStateTransitionReason reason = PubSubStateTransitionReason.ByMethod)
         {
+            PubSubState target = ParentCanRun() ? PubSubState.PreOperational : PubSubState.Paused;
             return TryTransition(
-                PubSubState.PreOperational,
+                target,
                 reason,
-                StatusCodes.GoodCallAgain,
+                DefaultStatusCodeFor(target),
                 allowed: from => from == PubSubState.Disabled);
         }
 
@@ -283,9 +283,8 @@ namespace Opc.Ua.PubSub.StateMachine
 
         /// <summary>
         /// Attempts to pause the machine. Valid from
-        /// <see cref="PubSubState.Operational"/> or
-        /// <see cref="PubSubState.PreOperational"/>; rejected from
-        /// <see cref="PubSubState.Error"/> and <see cref="PubSubState.Disabled"/>.
+        /// <see cref="PubSubState.Operational"/>, <see cref="PubSubState.PreOperational"/>
+        /// or <see cref="PubSubState.Error"/>; rejected from <see cref="PubSubState.Disabled"/>.
         /// </summary>
         public bool TryPause(PubSubStateTransitionReason reason = PubSubStateTransitionReason.ByMethod)
         {
@@ -293,18 +292,18 @@ namespace Opc.Ua.PubSub.StateMachine
                 PubSubState.Paused,
                 reason,
                 StatusCodes.GoodNoData,
-                allowed: from => from is PubSubState.Operational or PubSubState.PreOperational);
+                allowed: from => from is PubSubState.Operational or PubSubState.PreOperational or PubSubState.Error);
         }
 
         /// <summary>
-        /// Attempts to resume a paused machine back to <see cref="PubSubState.Operational"/>.
+        /// Attempts to resume a paused machine back to <see cref="PubSubState.PreOperational"/>.
         /// </summary>
         public bool TryResume(PubSubStateTransitionReason reason = PubSubStateTransitionReason.ByMethod)
         {
             return TryTransition(
-                PubSubState.Operational,
+                PubSubState.PreOperational,
                 reason,
-                StatusCodes.Good,
+                StatusCodes.GoodCallAgain,
                 allowed: from => from == PubSubState.Paused);
         }
 
@@ -323,7 +322,7 @@ namespace Opc.Ua.PubSub.StateMachine
                 PubSubState.Error,
                 reason,
                 errorStatus,
-                allowed: from => from != PubSubState.Disabled);
+                allowed: from => from is PubSubState.PreOperational or PubSubState.Operational or PubSubState.Error);
         }
 
         /// <summary>
@@ -378,6 +377,24 @@ namespace Opc.Ua.PubSub.StateMachine
                 _ = child.TryPauseCascade();
             }
             return TryPause(PubSubStateTransitionReason.ByParent);
+        }
+
+        /// <summary>
+        /// Cascades a parent-driven resume to all paused children recursively.
+        /// </summary>
+        public bool TryResumeCascade()
+        {
+            bool changed = TryResume(PubSubStateTransitionReason.ByParent);
+            PubSubStateMachine[] childSnapshot;
+            lock (m_lock)
+            {
+                childSnapshot = [.. m_children];
+            }
+            foreach (PubSubStateMachine child in childSnapshot)
+            {
+                _ = child.TryResumeCascade();
+            }
+            return changed;
         }
 
         /// <summary>
@@ -477,6 +494,16 @@ namespace Opc.Ua.PubSub.StateMachine
             }
 
             return true;
+        }
+
+        private bool ParentCanRun()
+        {
+            PubSubStateMachine? parent;
+            lock (m_lock)
+            {
+                parent = m_parent;
+            }
+            return parent is null || parent.State is not (PubSubState.Disabled or PubSubState.Paused);
         }
 
         private void ThrowIfDisposedLocked()

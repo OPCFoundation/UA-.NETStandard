@@ -381,6 +381,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
+            // TODO(C3): Implement Part 14 §9.1.4.5 AddPublishedDataItems as a real DataSetFolderType mutation.
             return new ServiceResult(
                 StatusCodes.BadNotSupported,
                 new LocalizedText(
@@ -408,6 +409,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
+            // TODO(C3): Implement Part 14 §9.1.4.5 AddPublishedEvents as a real DataSetFolderType mutation.
             return new ServiceResult(
                 StatusCodes.BadNotSupported,
                 new LocalizedText(
@@ -432,6 +434,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
+            // TODO(C5): Replace this Part 14 §9.1.4.5 DataSetFolderType stub with a materialized folder node.
             if (inputArguments.Count < 1)
             {
                 return new ServiceResult(
