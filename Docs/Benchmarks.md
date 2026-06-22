@@ -51,6 +51,42 @@ encoder.
 ³ Session establishment remains the largest single regression vs 1.5.378; this PR
 removed a server-side stall that recovered a large part of it (details below).
 
+## Optimizations delivered (2.0)
+
+The performance work in the 2.0 line (consolidated in this PR) lands the following
+concrete changes; each is detailed in the analysis sections below.
+
+**Encoding / decoding (`Stack/Opc.Ua.Types/Encoders`)**
+- `JsonEncoder` flushes at object/array boundaries (≥ 16 KB) so the writer buffer no
+  longer grows onto the Large Object Heap for big/streamed payloads (Gen2/op → 0).
+- In-memory `JsonEncoder` writes through a pooled `ArrayPool<byte>` `IBufferWriter`
+  (cleared on return) instead of a per-encoder `MemoryStream`.
+- External-stream / `IBufferWriter` `JsonEncoder` **pool and reuse `Utf8JsonWriter`**
+  via `Reset(...)` instead of allocating one per encoder (external-stream JSON
+  allocation ~1.44× → ~1.29×).
+- Span-based `NodeId.TryFormat` avoids a per-node-id string allocation in JSON encode.
+- `BinaryDecoder.ReadDataValue` constructs the `DataValue` once from locals (was a
+  chain of `With…` copies).
+- `BinaryEncoder`: pass `Variant`/`DataValue` by `in`; snapshot `Variant.TypeInfo`;
+  **single-read `WriteDataValue`** (each `DataValue` field read once); bulk-blit
+  primitive numeric arrays; skip the nesting guard for non-recursive scalars; read
+  `NodeId` accessors once.
+- Lazy encoder/decoder loggers (no `ILogger` allocation per construction).
+
+**Session / client (`Libraries/Opc.Ua.Server`, `Libraries/Opc.Ua.Client`)**
+- Server session creation is **async** — the session-diagnostics node is created via
+  an awaited `Session.InitializeAsync` instead of `…GetAwaiter().GetResult()`
+  (removes a sync-over-async request-thread stall).
+- Client `ActivateSession` skips the `RequestHeader`/`AdditionalParametersType`
+  allocation on the common non-ECDH path; server activation hoists a duplicated
+  `ClientNonce.ToArray()`.
+
+**Benchmarks / docs**
+- `SecurityPolicyBenchmarks` passes cached `Endpoints` (measures pure
+  create/activate/close) and adds an isolated `DiscoverEndpointsAsync` benchmark.
+- This document records the methodology, the 2.0-vs-1.5.378 results, and the
+  remaining future work.
+
 ---
 
 ## What improved in 2.0 vs 1.5.378 (and why)
