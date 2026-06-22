@@ -790,26 +790,33 @@ namespace Opc.Ua
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
 
-            if (value.StatusCode != StatusCodes.Good)
+            StatusCode statusCode = value.StatusCode;
+            if (statusCode != StatusCodes.Good)
             {
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
             }
 
-            if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            DateTimeUtc sourceTimestamp = value.SourceTimestamp;
+            ushort sourcePicoseconds = 0;
+            if (sourceTimestamp != DateTimeUtc.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.SourceTimestamp;
 
-                if (value.SourcePicoseconds != 0)
+                sourcePicoseconds = value.SourcePicoseconds;
+                if (sourcePicoseconds != 0)
                 {
                     encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
                 }
             }
 
-            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            DateTimeUtc serverTimestamp = value.ServerTimestamp;
+            ushort serverPicoseconds = 0;
+            if (serverTimestamp != DateTimeUtc.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.ServerTimestamp;
 
-                if (value.ServerPicoseconds != 0)
+                serverPicoseconds = value.ServerPicoseconds;
+                if (serverPicoseconds != 0)
                 {
                     encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
                 }
@@ -826,26 +833,26 @@ namespace Opc.Ua
 
             if ((encoding & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                WriteStatusCode(null, value.StatusCode);
+                WriteStatusCode(null, statusCode);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
-                WriteDateTime(null, value.SourceTimestamp);
+                WriteDateTime(null, sourceTimestamp);
 
                 if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
                 {
-                    WriteUInt16(null, value.SourcePicoseconds);
+                    WriteUInt16(null, sourcePicoseconds);
                 }
             }
 
             if ((encoding & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
-                WriteDateTime(null, value.ServerTimestamp);
+                WriteDateTime(null, serverTimestamp);
 
                 if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
                 {
-                    WriteUInt16(null, value.ServerPicoseconds);
+                    WriteUInt16(null, serverPicoseconds);
                 }
             }
         }
