@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
@@ -71,6 +73,41 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="keyProvider">The security key provider.</param>
         IPubSubBuilder AddSecurityKeyProvider(IPubSubSecurityKeyProvider keyProvider);
+
+        /// <summary>
+        /// Adds a responder-side PubSub Action handler.
+        /// </summary>
+        /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
+        /// <param name="handler">Action handler.</param>
+        IPubSubBuilder AddActionResponder(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler);
+
+        /// <summary>
+        /// Adds a responder-side PubSub Action handler factory.
+        /// </summary>
+        /// <param name="target">Action target handled by the resolved handler.</param>
+        /// <param name="handlerFactory">Action handler factory.</param>
+        IPubSubBuilder AddActionResponder(
+            PubSubActionTarget target,
+            Func<IServiceProvider, IPubSubActionHandler> handlerFactory);
+
+        /// <summary>
+        /// Adds a responder-side PubSub Action handler from DI.
+        /// </summary>
+        /// <typeparam name="THandler">Action handler type.</typeparam>
+        /// <param name="target">Action target handled by the resolved handler.</param>
+        IPubSubBuilder AddActionResponder<THandler>(PubSubActionTarget target)
+            where THandler : class, IPubSubActionHandler;
+
+        /// <summary>
+        /// Adds a delegate-backed responder-side PubSub Action handler.
+        /// </summary>
+        /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
+        /// <param name="handler">Delegate action handler.</param>
+        IPubSubBuilder AddActionResponder(
+            PubSubActionTarget target,
+            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler);
 
         /// <summary>
         /// Adds a published dataset source.

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.Server;
@@ -52,6 +53,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly IPubSubKeyServiceServer? m_keyService;
         private readonly PubSubServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
+        private readonly IEnumerable<PubSubActionMethodRegistration> m_actionMethodRegistrations;
 
         /// <summary>
         /// Creates a new factory with explicit dependencies.
@@ -60,11 +62,13 @@ namespace Opc.Ua.PubSub.Server
         /// <param name="keyService">Optional SKS server.</param>
         /// <param name="options">Server options.</param>
         /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="actionMethodRegistrations">Optional PublishedActionMethod bindings.</param>
         public PubSubNodeManagerFactory(
             IPubSubApplication application,
             IPubSubKeyServiceServer? keyService,
             PubSubServerOptions options,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null)
         {
             if (application is null)
             {
@@ -82,6 +86,8 @@ namespace Opc.Ua.PubSub.Server
             m_keyService = keyService;
             m_options = options;
             m_telemetry = telemetry;
+            m_actionMethodRegistrations =
+                actionMethodRegistrations ?? Array.Empty<PubSubActionMethodRegistration>();
         }
 
         /// <inheritdoc/>
@@ -99,7 +105,8 @@ namespace Opc.Ua.PubSub.Server
                     m_application,
                     m_keyService,
                     m_options,
-                    m_telemetry)
+                    m_telemetry,
+                    m_actionMethodRegistrations)
                 .SyncNodeManager;
 #pragma warning restore CA2000 // Dispose objects before losing scope
         }

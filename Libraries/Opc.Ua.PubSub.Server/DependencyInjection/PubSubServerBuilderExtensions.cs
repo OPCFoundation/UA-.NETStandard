@@ -88,5 +88,38 @@ namespace Microsoft.Extensions.DependencyInjection
 
             return builder.ExposeSecurityKeyService();
         }
+
+        /// <summary>
+        /// Registers server Method handlers for every target in a PublishedActionMethod.
+        /// </summary>
+        /// <param name="builder">PubSub server builder.</param>
+        /// <param name="dataSetWriterId">DataSetWriterId that owns the action metadata.</param>
+        /// <param name="publishedAction">PublishedActionMethod metadata to bind.</param>
+        /// <param name="connectionName">Optional PubSub connection name used for runtime routing.</param>
+        /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> or <paramref name="publishedAction"/> is <see langword="null"/>.
+        /// </exception>
+        public static IPubSubServerBuilder WithActionMethodHandlers(
+            this IPubSubServerBuilder builder,
+            ushort dataSetWriterId,
+            PublishedActionMethodDataType publishedAction,
+            string connectionName = "")
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (publishedAction is null)
+            {
+                throw new ArgumentNullException(nameof(publishedAction));
+            }
+
+            builder.Services.AddSingleton(new PubSubActionMethodRegistration(
+                dataSetWriterId,
+                publishedAction,
+                connectionName));
+            return builder;
+        }
     }
 }

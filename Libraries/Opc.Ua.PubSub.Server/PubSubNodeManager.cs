@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -85,6 +86,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly PubSubServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly PubSubMethodHandlers m_methodHandlers;
+        private readonly PubSubActionMethodRegistration[] m_actionMethodRegistrations;
         private PubSubStatusBinding? m_statusBinding;
         private bool m_methodsBound;
 
@@ -101,13 +103,15 @@ namespace Opc.Ua.PubSub.Server
         /// </param>
         /// <param name="options">Server options.</param>
         /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="actionMethodRegistrations">Optional PublishedActionMethod bindings.</param>
         public PubSubNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             IPubSubApplication pubSubApplication,
             IPubSubKeyServiceServer? sksServer,
             PubSubServerOptions options,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IEnumerable<PubSubActionMethodRegistration>? actionMethodRegistrations = null)
             : base(
                   server,
                   configuration,
@@ -127,6 +131,8 @@ namespace Opc.Ua.PubSub.Server
             m_keyService = sksServer;
             m_options = options;
             m_telemetry = telemetry;
+            m_actionMethodRegistrations = actionMethodRegistrations?.ToArray()
+                ?? Array.Empty<PubSubActionMethodRegistration>();
             m_methodHandlers = new PubSubMethodHandlers(
                 pubSubApplication,
                 options.ExposeSecurityKeyService ? sksServer : null,
@@ -171,6 +177,7 @@ namespace Opc.Ua.PubSub.Server
             }
 
             BindMethods(diagnosticsNodeManager);
+            RegisterActionMethodHandlers();
 
             if (m_application is PubSubApplication concrete &&
                 m_options.DiagnosticsExposure != PubSubDiagnosticsExposure.None)
@@ -262,6 +269,24 @@ namespace Opc.Ua.PubSub.Server
             }
 
             m_methodsBound = enable is not null || disable is not null;
+        }
+
+        private void RegisterActionMethodHandlers()
+        {
+            if (m_actionMethodRegistrations.Length == 0)
+            {
+                return;
+            }
+
+            IMasterNodeManager nodeManager = Server.NodeManager;
+            for (int i = 0; i < m_actionMethodRegistrations.Length; i++)
+            {
+                PubSubActionMethodRegistrar.Register(
+                    m_application,
+                    nodeManager,
+                    m_actionMethodRegistrations[i],
+                    m_telemetry);
+            }
         }
 
         private async ValueTask SeedDefaultSecurityGroupAsync(CancellationToken cancellationToken)

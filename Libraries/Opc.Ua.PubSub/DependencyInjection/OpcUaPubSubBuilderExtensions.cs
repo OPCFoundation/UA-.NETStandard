@@ -152,7 +152,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the OPC UA PubSub application and exposes a fluent
         /// <see cref="IPubSubBuilder"/> for composing publishers,
         /// subscribers, transports, security key providers, DataSet
-        /// sources / sinks and inline configuration. Replaces the need to
+        /// sources / sinks, Action responders and inline configuration. Replaces the need to
         /// pre-register a hand-rolled <see cref="IPubSubApplication"/>
         /// factory before adding the feature.
         /// </summary>

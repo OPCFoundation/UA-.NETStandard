@@ -316,6 +316,48 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task Builder_WithActionMethodHandlers_RegistersRegistration()
+        {
+            ServiceCollection services = BuildServicesWithRuntime();
+            var action = new PublishedActionMethodDataType
+            {
+                ActionTargets =
+                [
+                    new ActionTargetDataType
+                    {
+                        ActionTargetId = 1,
+                        Name = "Target"
+                    }
+                ],
+                ActionMethods =
+                [
+                    new ActionMethodDataType
+                    {
+                        ObjectId = ObjectIds.Server,
+                        MethodId = MethodIds.Server_GetMonitoredItems
+                    }
+                ]
+            };
+
+            services
+                .AddOpcUa()
+                .AddServer(opt => { })
+                .AddPubSub()
+                .WithActionMethodHandlers(12, action, "conn");
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            PubSubActionMethodRegistration registration =
+                sp.GetRequiredService<PubSubActionMethodRegistration>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(registration.DataSetWriterId, Is.EqualTo(12));
+                Assert.That(registration.ConnectionName, Is.EqualTo("conn"));
+                Assert.That(registration.PublishedAction, Is.SameAs(action));
+            });
+        }
+
+        [Test]
         public async Task Factory_CanBeResolved_AndProducesNamespace()
         {
             ServiceCollection services = BuildServicesWithRuntime();

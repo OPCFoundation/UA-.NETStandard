@@ -79,6 +79,8 @@ namespace Opc.Ua.PubSub.Application
             = new(StringComparer.Ordinal);
         private readonly Dictionary<string, ISubscribedDataSetSink> m_dataSetSinks
             = new(StringComparer.Ordinal);
+        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
+            m_actionResponders = [];
         private readonly PubSubApplicationOptions m_options = new();
         private IUaPubSubDataStore? m_dataStore;
         private TimeProvider m_timeProvider = TimeProvider.System;
@@ -410,6 +412,46 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <summary>
+        /// Registers a responder-side PubSub Action handler for the target.
+        /// </summary>
+        /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
+        /// <param name="handler">Action handler.</param>
+        public PubSubApplicationBuilder AddActionResponder(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+
+            m_actionResponders.Add((target, handler));
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a delegate-backed responder-side PubSub Action handler for the target.
+        /// </summary>
+        /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
+        /// <param name="handler">Delegate action handler.</param>
+        public PubSubApplicationBuilder AddActionResponder(
+            PubSubActionTarget target,
+            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler)
+        {
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+
+            return AddActionResponder(target, new DelegatePubSubActionHandler(handler));
+        }
+
+        /// <summary>
         /// Wires an <see cref="ISubscribedDataSetSink"/> for the
         /// DataSetReader named <paramref name="dataSetReaderName"/>.
         /// </summary>
@@ -461,7 +503,7 @@ namespace Opc.Ua.PubSub.Application
                 var scheduler = new PubSubScheduler(m_telemetry, m_timeProvider);
                 IPubSubSecurityWrapperResolver? resolver = ResolveSecurityWrapperResolver();
 
-                return new PubSubApplication(
+                var application = new PubSubApplication(
                     snapshot,
                     m_transportFactories,
                     m_encoders,
@@ -475,6 +517,14 @@ namespace Opc.Ua.PubSub.Application
                     sources,
                     m_dataSetSinks,
                     resolver);
+                for (int i = 0; i < m_actionResponders.Count; i++)
+                {
+                    application.RegisterActionHandler(
+                        m_actionResponders[i].Target,
+                        m_actionResponders[i].Handler);
+                }
+
+                return application;
             }
             catch (PubSubApplicationBuildException)
             {

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -206,7 +207,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 IPubSubApplication application = sp.GetRequiredService<IPubSubApplication>();
                 IPubSubKeyServiceServer? keyService = sp.GetService<IPubSubKeyServiceServer>();
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                return new PubSubNodeManagerFactory(application, keyService, options, telemetry);
+                IEnumerable<PubSubActionMethodRegistration> registrations =
+                    sp.GetServices<PubSubActionMethodRegistration>();
+                return new PubSubNodeManagerFactory(application, keyService, options, telemetry, registrations);
             });
 
             services.AddSingleton(sp =>

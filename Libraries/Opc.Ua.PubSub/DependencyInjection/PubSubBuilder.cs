@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
@@ -105,6 +107,61 @@ namespace Microsoft.Extensions.DependencyInjection
             Services.AddSingleton(keyProvider);
             m_steps.Add((_, pb) => pb.AddSecurityKeyProvider(keyProvider));
             return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder AddActionResponder(
+            PubSubActionTarget target,
+            IPubSubActionHandler handler)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            m_steps.Add((_, pb) => pb.AddActionResponder(target, handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder AddActionResponder(
+            PubSubActionTarget target,
+            Func<IServiceProvider, IPubSubActionHandler> handlerFactory)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (handlerFactory is null)
+            {
+                throw new ArgumentNullException(nameof(handlerFactory));
+            }
+            m_steps.Add((sp, pb) => pb.AddActionResponder(target, handlerFactory(sp)));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder AddActionResponder<THandler>(PubSubActionTarget target)
+            where THandler : class, IPubSubActionHandler
+        {
+            return AddActionResponder(
+                target,
+                sp => sp.GetRequiredService<THandler>());
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder AddActionResponder(
+            PubSubActionTarget target,
+            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler)
+        {
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            return AddActionResponder(target, new DelegatePubSubActionHandler(handler));
         }
 
         /// <inheritdoc/>
