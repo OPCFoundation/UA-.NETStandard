@@ -66,7 +66,8 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         return new ValueTask<PubSubActionHandlerResult>(CreateHandlerResult(invocation));
-                    })
+                    },
+                    allowUnsecured: true)
                 .Build();
 
             await app.StartAsync().ConfigureAwait(false);
@@ -88,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(new DiActionHandler());
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .UseConfiguration(CreateConfiguration())
-                .AddActionResponder<DiActionHandler>(CreateTarget()));
+                .AddActionResponder<DiActionHandler>(CreateTarget(), allowUnsecured: true));
             ServiceProvider sp = services.BuildServiceProvider();
             await using IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
 
@@ -99,6 +100,36 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(response.OutputFields, Has.Count.EqualTo(1));
             Assert.That(response.OutputFields[0].Value.TryGetValue(out int answer), Is.True);
             Assert.That(answer, Is.EqualTo(42));
+        }
+
+        [Test]
+        public async Task UnsecuredActionResponderWithoutOptInIsNotServedAsync()
+        {
+            // SA-ACT-01: on a connection that does not require message security,
+            // an Action responder registered WITHOUT the explicit unsecured opt-in
+            // must not be served, so the requester never receives a response.
+            var factory = new LoopbackTransportFactory();
+            await using IPubSubApplication app = new PubSubApplicationBuilder(
+                NUnitTelemetryContext.Create())
+                .UseConfiguration(CreateConfiguration())
+                .UseAllStandardEncoders()
+                .AddTransportFactory(factory)
+                .AddActionResponder(
+                    CreateTarget(),
+                    (invocation, cancellationToken) =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        return new ValueTask<PubSubActionHandlerResult>(CreateHandlerResult(invocation));
+                    })
+                .Build();
+
+            await app.StartAsync().ConfigureAwait(false);
+
+            Assert.That(
+                async () => await InvokeAsync(app).ConfigureAwait(false),
+                Throws.TypeOf<TimeoutException>(),
+                "An unsecured Action responder without opt-in must not answer, so the "
+                + "request must time out (SA-ACT-01).");
         }
 
         private static PubSubConfigurationDataType CreateConfiguration()

@@ -79,25 +79,30 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Action handler.</param>
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
         IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
-            IPubSubActionHandler handler);
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false);
 
         /// <summary>
         /// Adds a responder-side PubSub Action handler factory.
         /// </summary>
         /// <param name="target">Action target handled by the resolved handler.</param>
         /// <param name="handlerFactory">Action handler factory.</param>
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
         IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
-            Func<IServiceProvider, IPubSubActionHandler> handlerFactory);
+            Func<IServiceProvider, IPubSubActionHandler> handlerFactory,
+            bool allowUnsecured = false);
 
         /// <summary>
         /// Adds a responder-side PubSub Action handler from DI.
         /// </summary>
         /// <typeparam name="THandler">Action handler type.</typeparam>
         /// <param name="target">Action target handled by the resolved handler.</param>
-        IPubSubBuilder AddActionResponder<THandler>(PubSubActionTarget target)
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        IPubSubBuilder AddActionResponder<THandler>(PubSubActionTarget target, bool allowUnsecured = false)
             where THandler : class, IPubSubActionHandler;
 
         /// <summary>
@@ -105,9 +110,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Delegate action handler.</param>
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
         IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
-            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler);
+            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
+            bool allowUnsecured = false);
 
         /// <summary>
         /// Adds a published dataset source.

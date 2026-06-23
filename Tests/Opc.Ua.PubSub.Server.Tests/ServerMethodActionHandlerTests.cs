@@ -134,8 +134,9 @@ namespace Opc.Ua.PubSub.Server.Tests
             var application = new Mock<IPubSubApplication>(MockBehavior.Strict);
             application.Setup(a => a.RegisterActionHandler(
                     It.IsAny<PubSubActionTarget>(),
-                    It.IsAny<IPubSubActionHandler>()))
-                .Callback<PubSubActionTarget, IPubSubActionHandler>((target, handler) =>
+                    It.IsAny<IPubSubActionHandler>(),
+                    It.IsAny<bool>()))
+                .Callback<PubSubActionTarget, IPubSubActionHandler, bool>((target, handler, _) =>
                 {
                     registeredTarget = target;
                     registeredHandler = handler;

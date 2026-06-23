@@ -304,7 +304,12 @@ namespace Opc.Ua.Mcp
             {
                 IPubSubApplication app = m_application ?? throw new InvalidOperationException(
                     "No PubSub runtime is active. Start a publisher or subscriber first.");
-                app.RegisterActionHandler(target, handler);
+                // The MCP runtime is a local diagnostic surface that binds Action
+                // responders onto connections that are typically unsecured, so it
+                // opts in explicitly (SA-ACT-01). This makes serving Action requests
+                // without message security a deliberate, auditable choice rather than
+                // a silent default.
+                app.RegisterActionHandler(target, handler, allowUnsecured: true);
                 m_actionResponders.RemoveAll(item => item.MatchesTarget(registration));
                 m_actionResponders.Add(registration);
                 return registration;

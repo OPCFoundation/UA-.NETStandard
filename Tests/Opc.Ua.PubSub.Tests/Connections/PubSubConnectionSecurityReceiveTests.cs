@@ -136,6 +136,77 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 "Receive loop must continue past a malformed chunk frame.");
         }
 
+        [Test]
+        public async Task SecuredReaderRejectsForgedChunkedPlaintextFrameAsync()
+        {
+            // SA-REGR-01: a forged plaintext NetworkMessage delivered as UADP
+            // chunks must be rejected by the inbound security gate after
+            // reassembly, exactly like a non-chunked forged frame. Before the
+            // fix the chunk branch bypassed the gate and the forged payload
+            // reached the decoder.
+            (UadpSecurityWrapper _, UadpSecurityWrapper subscriber) =
+                CreateMatchingWrapperPair(tokenId: 1U);
+
+            byte[] forged = await BuildPlaintextFrameAsync().ConfigureAwait(false);
+            byte[][] chunks = ChunkFrames(forged);
+            var transport = new ProgrammableTransport(chunks);
+            var decoder = new RecordingDecoder();
+
+            await using PubSubConnection conn = NewConnection(
+                transport, decoder, subscriber,
+                MessageSecurityMode.SignAndEncrypt);
+
+            await conn.EnableAsync().ConfigureAwait(false);
+            await transport.WaitUntilDrainedAsync().ConfigureAwait(false);
+            await conn.DisableAsync().ConfigureAwait(false);
+
+            Assert.That(decoder.CallCount, Is.Zero,
+                "Forged plaintext delivered as UADP chunks must be dropped by the "
+                + "security gate after reassembly (SA-REGR-01).");
+        }
+
+        [Test]
+        public async Task SecuredReaderAcceptsSecuredChunkedFrameAsync()
+        {
+            // SA-REGR-01 (legit path): a correctly secured NetworkMessage that is
+            // split into chunks must reassemble, unwrap and decode. Before the fix
+            // the reassembled ciphertext was fed straight to the plaintext decoder.
+            (UadpSecurityWrapper publisher, UadpSecurityWrapper subscriber) =
+                CreateMatchingWrapperPair(tokenId: 1U);
+
+            byte[] secured = await BuildSecuredFrameAsync(publisher).ConfigureAwait(false);
+            byte[][] chunks = ChunkFrames(secured);
+            var transport = new ProgrammableTransport(chunks);
+            var decoder = new RecordingDecoder();
+
+            await using PubSubConnection conn = NewConnection(
+                transport, decoder, subscriber,
+                MessageSecurityMode.SignAndEncrypt);
+
+            await conn.EnableAsync().ConfigureAwait(false);
+            await transport.WaitUntilDrainedAsync().ConfigureAwait(false);
+            await conn.DisableAsync().ConfigureAwait(false);
+
+            Assert.That(decoder.CallCount, Is.GreaterThanOrEqualTo(1),
+                "A correctly secured message split into chunks must reassemble, "
+                + "unwrap and decode (SA-REGR-01 legit secured+chunked path).");
+        }
+
+        private static byte[][] ChunkFrames(byte[] message)
+        {
+            int maxFrameSize = UadpChunker.ChunkHeaderSize
+                + Math.Max(8, (message.Length + 1) / 2);
+            IReadOnlyList<byte[]> chunks = new UadpChunker().Split(
+                message, messageSequenceNumber: 1, maxFrameSize);
+            var frames = new byte[chunks.Count][];
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                frames[i] = UadpEncoder.WriteChunkEnvelope(
+                    chunks[i], PublisherId.FromByte(1), writerGroupId: 1).ToArray();
+            }
+            return frames;
+        }
+
         private static PubSubConnection NewConnection(
             ProgrammableTransport transport,
             INetworkMessageDecoder decoder,

@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, (string ConnectionName,
             string GroupName, string ReaderName)> m_readerRefs = new();
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
-        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
+        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler, bool AllowUnsecured)>
             m_actionHandlers = [];
 
         private bool m_started;
@@ -405,7 +405,8 @@ namespace Opc.Ua.PubSub.Application
                 {
                     connection.RegisterActionHandler(
                         m_actionHandlers[i].Target,
-                        m_actionHandlers[i].Handler);
+                        m_actionHandlers[i].Handler,
+                        m_actionHandlers[i].AllowUnsecured);
                 }
             }
             return connection;
@@ -690,7 +691,8 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         public void RegisterActionHandler(
             PubSubActionTarget target,
-            IPubSubActionHandler handler)
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false)
         {
             if (target is null)
             {
@@ -704,7 +706,7 @@ namespace Opc.Ua.PubSub.Application
             PubSubConnection[] connections;
             lock (m_gate)
             {
-                m_actionHandlers.Add((target, handler));
+                m_actionHandlers.Add((target, handler, allowUnsecured));
                 connections = [.. m_connections];
             }
             for (int i = 0; i < connections.Length; i++)
@@ -712,7 +714,7 @@ namespace Opc.Ua.PubSub.Application
                 if (string.IsNullOrEmpty(target.ConnectionName)
                     || string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
                 {
-                    connections[i].RegisterActionHandler(target, handler);
+                    connections[i].RegisterActionHandler(target, handler, allowUnsecured);
                 }
             }
         }

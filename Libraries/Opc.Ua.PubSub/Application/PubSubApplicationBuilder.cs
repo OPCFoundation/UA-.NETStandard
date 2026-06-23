@@ -79,7 +79,7 @@ namespace Opc.Ua.PubSub.Application
             = new(StringComparer.Ordinal);
         private readonly Dictionary<string, ISubscribedDataSetSink> m_dataSetSinks
             = new(StringComparer.Ordinal);
-        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler)>
+        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler, bool AllowUnsecured)>
             m_actionResponders = [];
         private readonly PubSubApplicationOptions m_options = new();
         private IUaPubSubDataStore? m_dataStore;
@@ -416,9 +416,11 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Action handler.</param>
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
         public PubSubApplicationBuilder AddActionResponder(
             PubSubActionTarget target,
-            IPubSubActionHandler handler)
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false)
         {
             if (target is null)
             {
@@ -430,7 +432,7 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(handler));
             }
 
-            m_actionResponders.Add((target, handler));
+            m_actionResponders.Add((target, handler, allowUnsecured));
             return this;
         }
 
@@ -439,16 +441,18 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Delegate action handler.</param>
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
         public PubSubApplicationBuilder AddActionResponder(
             PubSubActionTarget target,
-            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler)
+            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
+            bool allowUnsecured = false)
         {
             if (handler is null)
             {
                 throw new ArgumentNullException(nameof(handler));
             }
 
-            return AddActionResponder(target, new DelegatePubSubActionHandler(handler));
+            return AddActionResponder(target, new DelegatePubSubActionHandler(handler), allowUnsecured);
         }
 
         /// <summary>
@@ -521,7 +525,8 @@ namespace Opc.Ua.PubSub.Application
                 {
                     application.RegisterActionHandler(
                         m_actionResponders[i].Target,
-                        m_actionResponders[i].Handler);
+                        m_actionResponders[i].Handler,
+                        m_actionResponders[i].AllowUnsecured);
                 }
 
                 return application;

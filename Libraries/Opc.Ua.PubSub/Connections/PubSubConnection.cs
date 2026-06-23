@@ -85,6 +85,7 @@ namespace Opc.Ua.PubSub.Connections
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
+        private bool m_allowUnsecuredActions;
         private readonly ILogger<PubSubConnection> m_logger;
         private readonly System.Threading.Lock m_gate = new();
         private IPubSubTransport? m_transport;
@@ -707,9 +708,24 @@ namespace Opc.Ua.PubSub.Connections
         /// <summary>
         /// Registers a responder-side Action handler for this connection.
         /// </summary>
+        /// <param name="target">
+        /// Action target handled by <paramref name="handler"/>.
+        /// </param>
+        /// <param name="handler">
+        /// Action handler invoked for matching inbound Action requests.
+        /// </param>
+        /// <param name="allowUnsecured">
+        /// When <c>false</c> (the default) inbound Action requests are served
+        /// fail-closed: a request is only dispatched to a handler when it arrived
+        /// over a verified message-secured (<c>Sign</c>/<c>SignAndEncrypt</c>)
+        /// connection. Set to <c>true</c> only to deliberately accept Action
+        /// requests on an unsecured connection (e.g. diagnostics), which exposes
+        /// the handler to unauthenticated callers.
+        /// </param>
         public void RegisterActionHandler(
             PubSubActionTarget target,
-            IPubSubActionHandler handler)
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false)
         {
             if (target is null)
             {
@@ -723,6 +739,7 @@ namespace Opc.Ua.PubSub.Connections
             var key = new ActionHandlerKey(target.DataSetWriterId, actionTargetId, target.ActionName);
             lock (m_gate)
             {
+                m_allowUnsecuredActions |= allowUnsecured;
                 m_actionHandlers[key] = handler;
                 m_actionHandlers[new ActionHandlerKey(
                     target.DataSetWriterId,
@@ -794,8 +811,38 @@ namespace Opc.Ua.PubSub.Connections
                                 continue;
                             }
                             framePayload = reassembled.Value;
+
+                            // Re-read the reassembled message's own outer prefix so
+                            // the security gate below is applied to the inner UADP
+                            // NetworkMessage. The chunk envelope carries no message
+                            // security; messages are encoded and security-wrapped
+                            // before they are chunked, so the reassembled payload is
+                            // the complete (secured or plain) NetworkMessage. Without
+                            // this re-entry a chunked frame would bypass signature,
+                            // encryption and replay verification (SA-REGR-01).
+                            if (!UadpDecoder.TryReadOuterPrefix(framePayload,
+                                out prefixLength,
+                                out securityEnabled,
+                                out bool reassembledChunk,
+                                out _,
+                                out _)
+                                || reassembledChunk)
+                            {
+                                // Fail-soft: a reassembled payload that is not a
+                                // well-formed, non-chunk UADP message is dropped
+                                // without terminating the receive loop.
+                                m_diagnostics.Increment(
+                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                                m_logger.LogWarning(
+                                    "Reassembled UADP payload is not a valid "
+                                    + "non-chunk NetworkMessage; dropping frame.");
+                                continue;
+                            }
                         }
-                        else if (RequiresInboundSecurity)
+
+                        // Unified inbound message-security enforcement applied to
+                        // both single-datagram and reassembled-chunk frames.
+                        if (RequiresInboundSecurity)
                         {
                             // Fail-closed: a secured reader never accepts
                             // an unsecured frame and never trusts the
@@ -1277,6 +1324,19 @@ namespace Opc.Ua.PubSub.Connections
             UadpActionRequestMessage request,
             CancellationToken cancellationToken)
         {
+            // Fail-closed (SA-ACT-01): a UADP Action request reaches this point
+            // only after the inbound security gate. Serve it only when the
+            // connection requires (and therefore verified) message security, or
+            // when unsecured Action serving was explicitly opted in.
+            if (!RequiresInboundSecurity && !m_allowUnsecuredActions)
+            {
+                RecordSecurityFailure(
+                    StatusCodes.BadSecurityModeRejected,
+                    "Refusing to serve a PubSub Action request on a connection that "
+                    + "does not require message security. Configure Sign/SignAndEncrypt "
+                    + "or explicitly allow unsecured Action responders.");
+                return;
+            }
             IPubSubActionHandler? handler = ResolveActionHandler(
                 request.DataSetWriterId,
                 request.ActionTargetId,
@@ -1323,6 +1383,19 @@ namespace Opc.Ua.PubSub.Connections
             JsonActionRequestMessage request,
             CancellationToken cancellationToken)
         {
+            // Fail-closed (SA-ACT-01): JSON Action frames are not protected by the
+            // UADP message-security gate, so there is no message-level proof of the
+            // requestor's identity. Serve them only when unsecured Action serving
+            // was explicitly opted in (transport TLS is then the trust boundary).
+            if (!m_allowUnsecuredActions)
+            {
+                RecordSecurityFailure(
+                    StatusCodes.BadSecurityModeRejected,
+                    "Refusing to serve a JSON PubSub Action request: JSON Action frames "
+                    + "carry no UADP message security. Explicitly allow unsecured Action "
+                    + "responders (and secure the transport) to enable this.");
+                return;
+            }
             IPubSubActionHandler? handler = ResolveActionHandler(
                 request.DataSetWriterId,
                 request.ActionTargetId,

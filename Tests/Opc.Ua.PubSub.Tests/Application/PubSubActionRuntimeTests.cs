@@ -95,7 +95,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                                 }
                             ]
                         });
-                }));
+                }),
+                allowUnsecured: true);
 
             try
             {

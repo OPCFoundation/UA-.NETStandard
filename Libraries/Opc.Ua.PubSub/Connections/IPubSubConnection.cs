@@ -121,6 +121,7 @@ namespace Opc.Ua.PubSub.Connections
         /// </summary>
         void RegisterActionHandler(
             PubSubActionTarget target,
-            IPubSubActionHandler handler);
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false);
     }
 }

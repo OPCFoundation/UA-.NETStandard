@@ -112,7 +112,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <inheritdoc/>
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
-            IPubSubActionHandler handler)
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false)
         {
             if (target is null)
             {
@@ -122,14 +123,15 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            m_steps.Add((_, pb) => pb.AddActionResponder(target, handler));
+            m_steps.Add((_, pb) => pb.AddActionResponder(target, handler, allowUnsecured));
             return this;
         }
 
         /// <inheritdoc/>
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
-            Func<IServiceProvider, IPubSubActionHandler> handlerFactory)
+            Func<IServiceProvider, IPubSubActionHandler> handlerFactory,
+            bool allowUnsecured = false)
         {
             if (target is null)
             {
@@ -139,29 +141,33 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
-            m_steps.Add((sp, pb) => pb.AddActionResponder(target, handlerFactory(sp)));
+            m_steps.Add((sp, pb) => pb.AddActionResponder(target, handlerFactory(sp), allowUnsecured));
             return this;
         }
 
         /// <inheritdoc/>
-        public IPubSubBuilder AddActionResponder<THandler>(PubSubActionTarget target)
+        public IPubSubBuilder AddActionResponder<THandler>(
+            PubSubActionTarget target,
+            bool allowUnsecured = false)
             where THandler : class, IPubSubActionHandler
         {
             return AddActionResponder(
                 target,
-                sp => sp.GetRequiredService<THandler>());
+                sp => sp.GetRequiredService<THandler>(),
+                allowUnsecured);
         }
 
         /// <inheritdoc/>
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
-            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler)
+            Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
+            bool allowUnsecured = false)
         {
             if (handler is null)
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            return AddActionResponder(target, new DelegatePubSubActionHandler(handler));
+            return AddActionResponder(target, new DelegatePubSubActionHandler(handler), allowUnsecured);
         }
 
         /// <inheritdoc/>

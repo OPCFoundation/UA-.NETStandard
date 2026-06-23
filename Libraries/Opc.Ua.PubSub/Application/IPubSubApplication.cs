@@ -130,7 +130,8 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         void RegisterActionHandler(
             PubSubActionTarget target,
-            IPubSubActionHandler handler);
+            IPubSubActionHandler handler,
+            bool allowUnsecured = false);
 
         /// <summary>
         /// Replaces the entire configuration.
