@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Net.NetworkInformation;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Diagnostics;
@@ -148,10 +149,6 @@ namespace Opc.Ua.PubSub.Udp
                     "NetworkAddressUrlDataType.Url is required for UDP transport.");
             }
             UdpEndpoint endpoint = UdpEndpointParser.Parse(url);
-            if (endpoint.IsDtls && !string.IsNullOrEmpty(m_dtlsOptions.ProfileName))
-            {
-                endpoint = endpoint with { DtlsProfileName = m_dtlsOptions.ProfileName };
-            }
             string? preferredInterface = ResolveNetworkInterfaceName(
                 networkAddress.NetworkInterface,
                 connection.ConnectionProperties,
@@ -203,10 +200,7 @@ namespace Opc.Ua.PubSub.Udp
             }
 
             m_dtlsProfileRegistry.EmitStartupDiagnostic(telemetry);
-            string profileName = string.IsNullOrEmpty(endpoint.DtlsProfileName)
-                ? m_dtlsOptions.ProfileName
-                : endpoint.DtlsProfileName;
-            DtlsProfile profile = m_dtlsProfileRegistry.Resolve(profileName);
+            DtlsProfile profile = SelectDtlsProfile(endpoint);
             return new DtlsDatagramTransport(
                 connection,
                 endpoint,
@@ -218,6 +212,54 @@ namespace Opc.Ua.PubSub.Udp
                 m_diagnostics,
                 m_dtlsContextFactory,
                 profile);
+        }
+
+        /// <summary>
+        /// Selects the DTLS profile at runtime from the enabled and runtime-supported set. Cipher
+        /// suites/profiles are not pinned by configuration; the endpoint and
+        /// <see cref="DtlsTransportOptions.PreferredProfileName"/> only express a preference, while
+        /// <see cref="DtlsTransportOptions.DisabledProfiles"/> removes profiles from the candidate set
+        /// even when the runtime supports them. Fails closed when no candidate remains.
+        /// </summary>
+        // TODO: Full in-handshake cipher-suite negotiation (ClientHello offering multiple suites and
+        // ServerHello selecting one) is a future enhancement. For now a single profile is selected here
+        // at runtime and reused for the whole handshake.
+        private DtlsProfile SelectDtlsProfile(UdpEndpoint endpoint)
+        {
+            DtlsProfileRegistry registry = m_dtlsProfileRegistry!;
+            ISet<string> disabled = m_dtlsOptions.DisabledProfiles;
+
+            if (!string.IsNullOrEmpty(endpoint.DtlsProfileName)
+                && IsProfileEnabled(disabled, endpoint.DtlsProfileName!)
+                && registry.TryResolve(endpoint.DtlsProfileName, out DtlsProfile? endpointProfile))
+            {
+                return endpointProfile!;
+            }
+
+            if (!string.IsNullOrEmpty(m_dtlsOptions.PreferredProfileName)
+                && IsProfileEnabled(disabled, m_dtlsOptions.PreferredProfileName!)
+                && registry.TryResolve(m_dtlsOptions.PreferredProfileName, out DtlsProfile? preferredProfile))
+            {
+                return preferredProfile!;
+            }
+
+            foreach (DtlsProfile candidate in registry.SupportedProfiles)
+            {
+                if (IsProfileEnabled(disabled, candidate.Name))
+                {
+                    return candidate;
+                }
+            }
+
+            throw new NotSupportedException(
+                "No OPC UA PubSub DTLS profile is available: every runtime-supported profile is disabled by " +
+                "configuration (DtlsTransportOptions.DisabledProfiles) or no profile is supported by the current " +
+                ".NET BCL/runtime. Enable a supported profile to use opc.dtls:// transport.");
+        }
+
+        private static bool IsProfileEnabled(ISet<string> disabledProfiles, string profileName)
+        {
+            return disabledProfiles is null || !disabledProfiles.Contains(profileName);
         }
 
         private static PubSubTransportDirection DetermineDirection(

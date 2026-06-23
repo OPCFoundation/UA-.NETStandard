@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
 #if NET8_0_OR_GREATER
                 return builder.WithWebSocketServer(o => o.WithUri(endpoint.Uri.AbsoluteUri));
 #else
-                // TODO(RB2): enable MQTT-over-WebSocket when the legacy MQTTnet target TFMs expose it.
+                // TODO: enable MQTT-over-WebSocket when the legacy MQTTnet target TFMs expose it.
                 throw new NotSupportedException(
                     "MQTT over WebSocket is not available with MQTTnet 4.x target TFMs.");
 #endif

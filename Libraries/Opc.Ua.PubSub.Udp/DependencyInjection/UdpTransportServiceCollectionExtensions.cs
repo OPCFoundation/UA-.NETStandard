@@ -140,6 +140,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers DTLS 1.3 support for <c>opc.dtls://</c> unicast PubSub endpoints.
         /// </summary>
+        /// <remarks>
+        /// The <paramref name="configure"/> callback configures <see cref="DtlsTransportOptions"/>,
+        /// including one or more <see cref="DtlsTransportOptions.LocalCertificates"/> (selected per
+        /// negotiated profile certificate curve), an optional
+        /// <see cref="DtlsTransportOptions.PreferredProfileName"/>, configuration-time
+        /// <see cref="DtlsTransportOptions.DisabledProfiles"/>, and a
+        /// <see cref="DtlsTransportOptions.PeerCertificateValidator"/>. The cipher suite/profile is
+        /// selected at runtime from the enabled and runtime-supported set; profiles are never pinned
+        /// by configuration. Chains on the <see cref="IPubSubBuilder"/> returned by
+        /// <c>AddUdpTransport()</c>.
+        /// </remarks>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional DTLS options callback.</param>
         public static IPubSubBuilder WithDtls(

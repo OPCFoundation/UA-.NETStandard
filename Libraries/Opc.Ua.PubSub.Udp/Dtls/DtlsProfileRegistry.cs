@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             PrimitiveSupport = primitiveSupport;
             KnownProfiles = new ReadOnlyCollection<DtlsProfile>(CreateKnownProfiles());
-            DtlsProfile[] supported = KnownProfiles.Where(primitiveSupport.Supports).ToArray();
+            DtlsProfile[] supported = [.. KnownProfiles.Where(primitiveSupport.Supports)];
             SupportedProfiles = new ReadOnlyCollection<DtlsProfile>(supported);
             m_supportedByName = supported.ToDictionary(profile => profile.Name, StringComparer.OrdinalIgnoreCase);
             m_knownByName = KnownProfiles.ToDictionary(profile => profile.Name, StringComparer.OrdinalIgnoreCase);
@@ -235,10 +235,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new ArgumentNullException(nameof(profile));
             }
 
-            return HasHkdf
-                && SupportsCipher(profile.CipherSuite)
-                && SupportsCurve(profile.KeyExchangeCurve)
-                && SupportsCurve(profile.CertificateCurve);
+            return HasHkdf &&
+                SupportsCipher(profile.CipherSuite) &&
+                SupportsCurve(profile.KeyExchangeCurve) &&
+                SupportsCurve(profile.CertificateCurve);
         }
 
         private bool SupportsCipher(DtlsCipherSuite cipherSuite)
@@ -273,7 +273,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             try
             {
-                using ECDiffieHellman ecdh = ECDiffieHellman.Create(curve);
+                using var ecdh = ECDiffieHellman.Create(curve);
                 return true;
             }
             catch (Exception ex) when (ex is PlatformNotSupportedException
@@ -289,20 +289,18 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             Span<byte> output = stackalloc byte[32];
             try
             {
-                HKDF.Extract(HashAlgorithmName.SHA256, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, output);
-                CryptographicOperations.ZeroMemory(output);
+                HKDF.Extract(HashAlgorithmName.SHA256, [], [], output);
+                DtlsCryptographicOperations.ZeroMemory(output);
                 return true;
             }
             catch (Exception ex) when (ex is PlatformNotSupportedException
                 or CryptographicException
                 or NotSupportedException)
             {
-                CryptographicOperations.ZeroMemory(output);
+                DtlsCryptographicOperations.ZeroMemory(output);
                 return false;
             }
         }
 #endif
     }
 }
-
-

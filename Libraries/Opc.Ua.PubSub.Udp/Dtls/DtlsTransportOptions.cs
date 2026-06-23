@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
@@ -40,14 +39,24 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     public sealed class DtlsTransportOptions
     {
         /// <summary>
-        /// Default profile chosen when the endpoint does not carry an explicit profile.
+        /// Default profile preferred when neither the endpoint nor configuration name a profile and
+        /// no other enabled profile is selected at runtime.
         /// </summary>
         public const string DefaultProfileName = "ECC_nistP256_AesGcm";
 
         /// <summary>
-        /// DTLS profile name from the Part 14 DTLS profile matrix.
+        /// Optional preferred DTLS profile name from the Part 14 DTLS profile matrix. When set and the
+        /// profile is enabled and supported by the runtime it is selected; otherwise the first
+        /// enabled and supported profile is chosen at runtime. Cipher suites/profiles are never pinned
+        /// by configuration: this is only a preference, not a hard requirement.
         /// </summary>
-        public string ProfileName { get; set; } = DefaultProfileName;
+        public string? PreferredProfileName { get; set; }
+
+        /// <summary>
+        /// Profile names disabled at configuration time even if the runtime supports them. Matching is
+        /// case-insensitive and selection fails closed when all supported profiles are disabled.
+        /// </summary>
+        public ISet<string> DisabledProfiles { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Maximum DTLS handshake datagram size before RFC 9147 handshake fragmentation is required.
@@ -70,14 +79,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public bool RequireHelloRetryRequestCookie { get; set; } = true;
 
         /// <summary>
-        /// Local ECC certificate with private key used for CertificateVerify.
+        /// Local ECC certificates with private keys used for CertificateVerify. Multiple certificates
+        /// may be registered; the handshake selects the certificate whose ECDsa named curve matches the
+        /// negotiated profile certificate curve, similar to how secure channels register an application
+        /// certificate per certificate type.
         /// </summary>
-        public X509Certificate2? LocalCertificate { get; set; }
-
-        /// <summary>
-        /// Optional local certificate chain sent in the TLS Certificate message.
-        /// </summary>
-        public IList<X509Certificate2> LocalCertificateChain { get; } = [];
+        public IList<Certificate> LocalCertificates { get; } = [];
 
         /// <summary>
         /// Optional direct-construction peer certificate validator.

@@ -2,13 +2,34 @@
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -20,7 +41,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// </summary>
     internal static class DtlsCertificateAuthenticator
     {
-        public static byte[] EncodeCertificate(IReadOnlyList<X509Certificate2> chain)
+        /// <summary>
+        /// Encodes a certificate chain into a TLS 1.3 Certificate message body.
+        /// </summary>
+        public static byte[] EncodeCertificate(IReadOnlyList<Certificate> chain)
         {
             if (chain is null || chain.Count == 0)
             {
@@ -28,21 +52,24 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             var entries = new DtlsHandshakeWriter();
-            foreach (X509Certificate2 certificate in chain)
+            foreach (Certificate certificate in chain)
             {
                 byte[] rawData = certificate.RawData;
                 WriteOpaque24(entries, rawData);
-                entries.WriteOpaque16(ReadOnlySpan<byte>.Empty);
+                entries.WriteOpaque16([]);
             }
 
             byte[] entryBytes = entries.ToArray();
             var writer = new DtlsHandshakeWriter();
-            writer.WriteOpaque8(ReadOnlySpan<byte>.Empty);
+            writer.WriteOpaque8([]);
             WriteOpaque24(writer, entryBytes);
             return writer.ToArray();
         }
 
-        public static IReadOnlyList<X509Certificate2> DecodeCertificate(ReadOnlySpan<byte> body)
+        /// <summary>
+        /// Decodes a TLS 1.3 Certificate message body into the peer certificate chain.
+        /// </summary>
+        public static IReadOnlyList<Certificate> DecodeCertificate(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
             if (reader.ReadOpaque8().Length != 0)
@@ -52,7 +79,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             byte[] certificateList = ReadOpaque24(ref reader);
             var entryReader = new DtlsHandshakeReader(certificateList);
-            var certificates = new List<X509Certificate2>();
+            var certificates = new List<Certificate>();
             while (!entryReader.EndOfData)
             {
                 byte[] rawData = ReadOpaque24(ref entryReader);
@@ -61,11 +88,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     throw new DtlsHandshakeException("CertificateEntry extensions are not supported for PubSub DTLS.");
                 }
 
-                #if NET9_0_OR_GREATER
-                certificates.Add(X509CertificateLoader.LoadCertificate(rawData));
-#else
-                certificates.Add(new X509Certificate2(rawData));
-#endif
+                certificates.Add(new Certificate(rawData));
             }
 
             reader.EnsureComplete();
@@ -77,8 +100,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return certificates;
         }
 
+        /// <summary>
+        /// Signs the CertificateVerify content over the transcript hash with the local ECDSA key.
+        /// </summary>
         public static byte[] SignCertificateVerify(
-            X509Certificate2 certificate,
+            Certificate certificate,
             DtlsCipherSuite cipherSuite,
             ReadOnlySpan<byte> transcriptHash)
         {
@@ -87,11 +113,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            using ECDsa? ecdsa = certificate.GetECDsaPrivateKey();
-            if (ecdsa is null)
-            {
-                throw new DtlsHandshakeException("DTLS CertificateVerify requires an ECC certificate with ECDSA key.");
-            }
+            using ECDsa? ecdsa = certificate.GetECDsaPrivateKey()
+                ?? throw new DtlsHandshakeException(
+                    "DTLS CertificateVerify requires an ECC certificate with ECDSA key.");
 
             DtlsSignatureScheme scheme = GetSignatureScheme(cipherSuite);
             byte[] signedContent = BuildCertificateVerifyContent(isServer: true, transcriptHash);
@@ -102,18 +126,21 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(signedContent);
+                DtlsCryptographicOperations.ZeroMemory(signedContent);
             }
 
             var writer = new DtlsHandshakeWriter();
             writer.WriteUInt16((ushort)scheme);
             writer.WriteOpaque16(signature);
-            CryptographicOperations.ZeroMemory(signature);
+            DtlsCryptographicOperations.ZeroMemory(signature);
             return writer.ToArray();
         }
 
+        /// <summary>
+        /// Verifies a peer CertificateVerify signature against the transcript hash.
+        /// </summary>
         public static void VerifyCertificateVerify(
-            X509Certificate2 certificate,
+            Certificate certificate,
             DtlsCipherSuite cipherSuite,
             ReadOnlySpan<byte> transcriptHash,
             ReadOnlySpan<byte> certificateVerifyBody,
@@ -124,11 +151,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            using ECDsa? ecdsa = certificate.GetECDsaPublicKey();
-            if (ecdsa is null)
-            {
-                throw new DtlsHandshakeException("DTLS peer certificate is not an ECC ECDSA certificate.");
-            }
+            using ECDsa? ecdsa = certificate.GetECDsaPublicKey() ?? throw new DtlsHandshakeException("DTLS peer certificate is not an ECC ECDSA certificate.");
 
             var reader = new DtlsHandshakeReader(certificateVerifyBody);
             ushort scheme = reader.ReadUInt16();
@@ -149,14 +172,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(signedContent);
-                CryptographicOperations.ZeroMemory(signature);
+                DtlsCryptographicOperations.ZeroMemory(signedContent);
+                DtlsCryptographicOperations.ZeroMemory(signature);
             }
         }
 
+        /// <summary>
+        /// Validates the peer certificate chain through the supplied certificate validator.
+        /// </summary>
         public static async ValueTask ValidatePeerCertificateAsync(
             ICertificateValidatorEx validator,
-            IReadOnlyList<X509Certificate2> chain,
+            IReadOnlyList<Certificate> chain,
             CancellationToken cancellationToken)
         {
             if (validator is null)
@@ -169,7 +195,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new DtlsHandshakeException("DTLS peer certificate chain is empty.");
             }
 
-            using var peerCertificate = new Certificate(chain[0].RawData);
+            using Certificate peerCertificate = chain[0].AddRef();
             CertificateValidationResult result = await validator
                 .ValidateAsync(peerCertificate, ct: cancellationToken)
                 .ConfigureAwait(false);
@@ -186,7 +212,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             content.AsSpan(0, 64).Fill(0x20);
             Buffer.BlockCopy(contextBytes, 0, content, 64, contextBytes.Length);
             transcriptHash.CopyTo(content.AsSpan(65 + contextBytes.Length));
-            CryptographicOperations.ZeroMemory(contextBytes);
+            DtlsCryptographicOperations.ZeroMemory(contextBytes);
             return content;
         }
 
@@ -225,5 +251,3 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
     }
 }
-
-

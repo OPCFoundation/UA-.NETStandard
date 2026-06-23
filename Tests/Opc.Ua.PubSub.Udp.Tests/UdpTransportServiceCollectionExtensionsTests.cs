@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .AddUdpTransport()
-                .WithDtls(options => options.ProfileName = "ECC_nistP256"));
+                .WithDtls(options => options.PreferredProfileName = "ECC_nistP256"));
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             DtlsTransportOptions options =
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(options.ProfileName, Is.EqualTo("ECC_nistP256"));
+                Assert.That(options.PreferredProfileName, Is.EqualTo("ECC_nistP256"));
                 Assert.That(serviceProvider.GetRequiredService<DtlsProfileRegistry>(), Is.Not.Null);
                 Assert.That(serviceProvider.GetRequiredService<IDtlsContextFactory>(),
                     Is.InstanceOf<DefaultDtlsContextFactory>());

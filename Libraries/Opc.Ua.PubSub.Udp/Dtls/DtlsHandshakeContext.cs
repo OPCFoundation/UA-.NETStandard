@@ -2,6 +2,29 @@
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
 using System;
@@ -9,7 +32,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -21,6 +43,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// </summary>
     internal sealed class DtlsHandshakeContext : IDtlsContext, IDisposable
     {
+        /// <summary>
+        /// Initializes a new <see cref="DtlsHandshakeContext"/> for the supplied profile,
+        /// transport options, endpoint role and certificate validator.
+        /// </summary>
         public DtlsHandshakeContext(
             DtlsProfile profile,
             DtlsTransportOptions options,
@@ -30,15 +56,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             TimeProvider timeProvider)
         {
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
-            Options = options ?? throw new ArgumentNullException(nameof(options));
-            CertificateValidator = certificateValidator;
-            Role = role;
-            Endpoint = endpoint;
-            TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_certificateValidator = certificateValidator;
+            m_role = role;
+            m_endpoint = endpoint;
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         }
 
+        /// <inheritdoc/>
         public DtlsProfile Profile { get; }
 
+        /// <inheritdoc/>
         public async ValueTask OpenAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken = default)
         {
 #if NET8_0_OR_GREATER
@@ -48,7 +76,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (Role == DtlsEndpointRole.Client)
+            if (m_role == DtlsEndpointRole.Client)
             {
                 await ConnectAsync(channel, cancellationToken).ConfigureAwait(false);
             }
@@ -66,6 +94,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 #endif
         }
 
+        /// <inheritdoc/>
         public ValueTask<ReadOnlyMemory<byte>> ProtectAsync(
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken = default)
@@ -76,6 +105,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return new ValueTask<ReadOnlyMemory<byte>>(protection.Seal(payload.Span));
         }
 
+        /// <inheritdoc/>
         public ValueTask<ReadOnlyMemory<byte>> UnprotectAsync(
             ReadOnlyMemory<byte> record,
             CancellationToken cancellationToken = default)
@@ -86,6 +116,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return new ValueTask<ReadOnlyMemory<byte>>(protection.Open(record.Span));
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (m_disposed)
@@ -145,20 +176,30 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     transcript,
                     DtlsHandshakeType.Certificate,
                     cancellationToken).ConfigureAwait(false);
-                IReadOnlyList<X509Certificate2> peerChain =
+                IReadOnlyList<Certificate> peerChain =
                     DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
-                await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
-                byte[] certificateVerifyTranscriptHash = transcript.GetHash();
-                DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
-                    .ConfigureAwait(false);
-                RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
-                DtlsCertificateAuthenticator.VerifyCertificateVerify(
-                    peerChain[0],
-                    Profile.CipherSuite,
-                    certificateVerifyTranscriptHash,
-                    certificateVerifyFrame.Fragment,
-                    isServer: true);
-                transcript.Append(ToCompleteFrame(certificateVerifyFrame));
+                try
+                {
+                    await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
+                    byte[] certificateVerifyTranscriptHash = transcript.GetHash();
+                    DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
+                        .ConfigureAwait(false);
+                    RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
+                    DtlsCertificateAuthenticator.VerifyCertificateVerify(
+                        peerChain[0],
+                        Profile.CipherSuite,
+                        certificateVerifyTranscriptHash,
+                        certificateVerifyFrame.Fragment,
+                        isServer: true);
+                    transcript.Append(ToCompleteFrame(certificateVerifyFrame));
+                }
+                finally
+                {
+                    foreach (Certificate peerCertificate in peerChain)
+                    {
+                        peerCertificate.Dispose();
+                    }
+                }
                 byte[] finishedTranscriptHash = transcript.GetHash();
                 DtlsHandshakeFrame serverFinishedFrame = await ReceiveFrameAsync(channel, cancellationToken)
                     .ConfigureAwait(false);
@@ -171,8 +212,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    CryptographicOperations.ZeroMemory(expectedServerFinished);
-                    CryptographicOperations.ZeroMemory(actualServerFinished);
+                    DtlsCryptographicOperations.ZeroMemory(expectedServerFinished);
+                    DtlsCryptographicOperations.ZeroMemory(actualServerFinished);
                 }
 
                 transcript.Append(ToCompleteFrame(serverFinishedFrame));
@@ -186,13 +227,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(clientHelloBody);
-                CryptographicOperations.ZeroMemory(sharedSecret);
+                DtlsCryptographicOperations.ZeroMemory(clientHelloBody);
+                DtlsCryptographicOperations.ZeroMemory(sharedSecret);
             }
         }
         private async ValueTask AcceptAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken)
         {
-            X509Certificate2 localCertificate = GetLocalCertificate();
+            using Certificate localCertificate = GetLocalCertificate();
             using DtlsEcdheKeyExchange ecdhe = new(Profile.KeyExchangeCurve);
             var transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
             byte[] cookieKey = CreateRandom(32);
@@ -209,13 +250,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     ValidateClientHello(clientHello);
                     using var cookieProtector = new DtlsHelloRetryCookieProtector(cookieKey);
                     IPEndPoint remoteEndpoint = GetCookieEndpoint(channel);
-                    if (Options.RequireHelloRetryRequestCookie
-                        && !cookieProtector.ValidateCookie(
+                    if (m_options.RequireHelloRetryRequestCookie &&
+                        !cookieProtector.ValidateCookie(
                             remoteEndpoint,
-                            ReadOnlySpan<byte>.Empty,
+                            [],
                             clientHello.Extensions.Cookie))
                     {
-                        byte[] retryCookie = cookieProtector.CreateCookie(remoteEndpoint, ReadOnlySpan<byte>.Empty);
+                        byte[] retryCookie = cookieProtector.CreateCookie(remoteEndpoint, []);
                         byte[] retryFrame = BuildHelloRetryRequest(clientHello.SessionId, retryCookie);
                         await SendFlightAsync(channel, retryFrame, cancellationToken).ConfigureAwait(false);
                         transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
@@ -247,7 +288,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 byte[] certificateFrame = DtlsHandshakeCodec.EncodeFrame(
                     DtlsHandshakeType.Certificate,
                     m_nextSendSequence++,
-                    DtlsCertificateAuthenticator.EncodeCertificate(GetCertificateChain(localCertificate)));
+                    DtlsCertificateAuthenticator.EncodeCertificate([localCertificate]));
                 await SendFlightAsync(channel, certificateFrame, cancellationToken).ConfigureAwait(false);
                 transcript.Append(certificateFrame);
                 byte[] certificateVerifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
@@ -279,16 +320,16 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    CryptographicOperations.ZeroMemory(expectedClientFinished);
-                    CryptographicOperations.ZeroMemory(actualClientFinished);
+                    DtlsCryptographicOperations.ZeroMemory(expectedClientFinished);
+                    DtlsCryptographicOperations.ZeroMemory(actualClientFinished);
                 }
 
                 InstallApplicationKeys(isClient: false);
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(cookieKey);
-                CryptographicOperations.ZeroMemory(sharedSecret);
+                DtlsCryptographicOperations.ZeroMemory(cookieKey);
+                DtlsCryptographicOperations.ZeroMemory(sharedSecret);
             }
         }
 
@@ -339,8 +380,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             CancellationToken cancellationToken)
         {
             var timer = new DtlsRetransmissionTimer(
-                Options.InitialRetransmissionTimeout,
-                Options.MaxRetransmissionTimeout);
+                m_options.InitialRetransmissionTimeout,
+                m_options.MaxRetransmissionTimeout);
             await channel.SendAsync(flight, cancellationToken).ConfigureAwait(false);
             _ = timer;
         }
@@ -384,8 +425,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new DtlsHandshakeException("DTLS cipher suite downgrade is rejected.");
             }
 
-            if (!hello.Extensions.SupportedGroups.Contains(Profile.KeyExchangeCurve)
-                || !hello.Extensions.KeyShares.Any(k => k.Group == Profile.KeyExchangeCurve))
+            if (!hello.Extensions.SupportedGroups.Contains(Profile.KeyExchangeCurve) ||
+                !hello.Extensions.KeyShares.Any(k => k.Group == Profile.KeyExchangeCurve))
             {
                 throw new DtlsHandshakeException("DTLS key_share group is unsupported by the selected profile.");
             }
@@ -405,46 +446,84 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 
         private async ValueTask ValidatePeerCertificateAsync(
-            IReadOnlyList<X509Certificate2> peerChain,
+            IReadOnlyList<Certificate> peerChain,
             CancellationToken cancellationToken)
         {
-            if (CertificateValidator is null)
+            if (m_certificateValidator is null)
             {
                 throw new DtlsHandshakeException(
                     "DTLS peer certificate validation requires an injected CertificateValidator.");
             }
 
             await DtlsCertificateAuthenticator.ValidatePeerCertificateAsync(
-                CertificateValidator,
+                m_certificateValidator,
                 peerChain,
                 cancellationToken).ConfigureAwait(false);
         }
 
-        private X509Certificate2 GetLocalCertificate()
+        private Certificate GetLocalCertificate()
         {
-            X509Certificate2? certificate = Options.LocalCertificate;
-            if (certificate is null)
+            foreach (Certificate candidate in m_options.LocalCertificates)
             {
-                throw new DtlsHandshakeException("DTLS server authentication requires a configured local ECC certificate.");
+                if (candidate is null)
+                {
+                    continue;
+                }
+
+                using ECDsa? key = candidate.GetECDsaPrivateKey();
+                if (key is null)
+                {
+                    continue;
+                }
+
+                if (MatchesCertificateCurve(key, Profile.CertificateCurve))
+                {
+                    return candidate.AddRef();
+                }
             }
 
-            using ECDsa? key = certificate.GetECDsaPrivateKey();
-            if (key is null)
-            {
-                throw new DtlsHandshakeException("DTLS local certificate must be ECC and include an ECDSA private key.");
-            }
-
-            return certificate;
+            throw new DtlsHandshakeException(
+                "DTLS server authentication requires a configured local ECC certificate with an ECDSA private key " +
+                "matching the negotiated profile certificate curve.");
         }
 
-        private X509Certificate2[] GetCertificateChain(X509Certificate2 localCertificate)
+        private static bool MatchesCertificateCurve(ECDsa key, DtlsNamedCurve expected)
         {
-            if (Options.LocalCertificateChain.Count == 0)
+            ECParameters parameters = key.ExportParameters(includePrivateParameters: false);
+            ECCurve curve = parameters.Curve;
+            if (!curve.IsNamed)
             {
-                return [localCertificate];
+                return false;
             }
 
-            return Options.LocalCertificateChain.ToArray();
+            string? oid = curve.Oid?.Value;
+            string? friendlyName = curve.Oid?.FriendlyName;
+            return expected switch
+            {
+                DtlsNamedCurve.NistP256 => MatchesCurveIdentifier(
+                    oid, friendlyName, "1.2.840.10045.3.1.7", "nistP256", "ECDSA_P256", "secp256r1"),
+                DtlsNamedCurve.NistP384 => MatchesCurveIdentifier(
+                    oid, friendlyName, "1.3.132.0.34", "nistP384", "ECDSA_P384", "secp384r1"),
+                DtlsNamedCurve.BrainpoolP256r1 => MatchesCurveIdentifier(
+                    oid, friendlyName, "1.3.36.3.3.2.8.1.1.7", "brainpoolP256r1"),
+                DtlsNamedCurve.BrainpoolP384r1 => MatchesCurveIdentifier(
+                    oid, friendlyName, "1.3.36.3.3.2.8.1.1.11", "brainpoolP384r1"),
+                _ => false
+            };
+        }
+
+        private static bool MatchesCurveIdentifier(string? oid, string? friendlyName, params string[] candidates)
+        {
+            foreach (string candidate in candidates)
+            {
+                if (string.Equals(oid, candidate, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(friendlyName, candidate, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void InstallApplicationKeys(bool isClient)
@@ -480,20 +559,15 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
         private IPEndPoint GetCookieEndpoint(IDtlsDatagramChannel channel)
         {
-            return channel.RemoteEndpoint ?? new IPEndPoint(Endpoint.Address, Endpoint.Port);
+            return channel.RemoteEndpoint ?? new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
         }
 #endif
 
-        private DtlsTransportOptions Options { get; }
-
-        private ICertificateValidatorEx? CertificateValidator { get; }
-
-        private DtlsEndpointRole Role { get; }
-
-        private UdpEndpoint Endpoint { get; }
-
-        private TimeProvider TimeProvider { get; }
-
+        private readonly DtlsTransportOptions m_options;
+        private readonly ICertificateValidatorEx? m_certificateValidator;
+        private readonly DtlsEndpointRole m_role;
+        private readonly UdpEndpoint m_endpoint;
+        private readonly TimeProvider m_timeProvider;
         private DtlsRecordProtection? m_writeProtection;
         private DtlsRecordProtection? m_readProtection;
         private DtlsHandshakeKeyingContext? m_keyingContext;

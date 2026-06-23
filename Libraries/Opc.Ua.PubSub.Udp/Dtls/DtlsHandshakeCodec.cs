@@ -43,6 +43,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public const ushort LegacyDtls12Version = 0xfefd;
         public const int HandshakeHeaderLength = 12;
 
+        /// <summary>
+        /// Encodes a single unfragmented DTLS handshake frame with its RFC 9147 §5 header.
+        /// </summary>
         public static byte[] EncodeFrame(DtlsHandshakeType messageType, ushort messageSequence, ReadOnlySpan<byte> body)
         {
             byte[] output = new byte[HandshakeHeaderLength + body.Length];
@@ -55,6 +58,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return output;
         }
 
+        /// <summary>
+        /// Decodes a DTLS handshake frame header and fragment payload.
+        /// </summary>
         public static DtlsHandshakeFrame DecodeFrame(ReadOnlySpan<byte> frame)
         {
             if (frame.Length < HandshakeHeaderLength)
@@ -78,6 +84,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 frame.Slice(HandshakeHeaderLength, fragmentLength).ToArray());
         }
 
+        /// <summary>
+        /// Encodes a TLS 1.3 ClientHello message body.
+        /// </summary>
         public static byte[] EncodeClientHello(DtlsClientHello hello)
         {
             if (hello is null)
@@ -100,6 +109,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             writer.WriteOpaque16(EncodeExtensions(hello.Extensions));
             return writer.ToArray();
         }
+
+        /// <summary>
+        /// Decodes a TLS 1.3 ClientHello message body.
+        /// </summary>
         public static DtlsClientHello DecodeClientHello(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -134,6 +147,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return new DtlsClientHello(random, sessionId, cipherSuites, extensions);
         }
 
+        /// <summary>
+        /// Encodes a TLS 1.3 ServerHello message body.
+        /// </summary>
         public static byte[] EncodeServerHello(DtlsServerHello hello)
         {
             if (hello is null)
@@ -151,6 +167,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return writer.ToArray();
         }
 
+        /// <summary>
+        /// Decodes a TLS 1.3 ServerHello message body.
+        /// </summary>
         public static DtlsServerHello DecodeServerHello(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -173,11 +192,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return new DtlsServerHello(random, sessionId, cipherSuite, extensions);
         }
 
+        /// <summary>
+        /// Encodes an empty TLS 1.3 EncryptedExtensions message body.
+        /// </summary>
         public static byte[] EncodeEncryptedExtensions()
         {
             return [0, 0];
         }
 
+        /// <summary>
+        /// Validates that an EncryptedExtensions message body carries no unsupported extensions.
+        /// </summary>
         public static void DecodeEncryptedExtensions(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -189,15 +214,25 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             reader.EnsureComplete();
         }
 
+        /// <summary>
+        /// Encodes a TLS 1.3 Finished message body from the verify_data.
+        /// </summary>
         public static byte[] EncodeFinished(ReadOnlySpan<byte> verifyData)
         {
             return verifyData.ToArray();
         }
 
+        /// <summary>
+        /// Decodes a TLS 1.3 Finished message body into the verify_data.
+        /// </summary>
         public static byte[] DecodeFinished(ReadOnlySpan<byte> body)
         {
             return body.ToArray();
         }
+
+        /// <summary>
+        /// Maps a named curve to its TLS wire code point, rejecting unsupported curves.
+        /// </summary>
         public static ushort ToWireNamedGroup(DtlsNamedCurve curve)
         {
             return curve switch
@@ -214,6 +249,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             };
         }
 
+        /// <summary>
+        /// Maps a TLS wire code point to its named curve, rejecting unsupported curves.
+        /// </summary>
         public static DtlsNamedCurve FromWireNamedGroup(ushort wireGroup)
         {
             return wireGroup switch
@@ -230,6 +268,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             };
         }
 
+        /// <summary>
+        /// Maps a cipher suite to its TLS wire code point.
+        /// </summary>
         public static ushort ToWireCipherSuite(DtlsCipherSuite cipherSuite)
         {
             return cipherSuite switch
@@ -243,6 +284,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             };
         }
 
+        /// <summary>
+        /// Maps a TLS wire code point to its cipher suite.
+        /// </summary>
         public static DtlsCipherSuite FromWireCipherSuite(ushort cipherSuite)
         {
             return cipherSuite switch
@@ -272,6 +316,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             destination[1] = (byte)(value >> 8);
             destination[2] = (byte)value;
         }
+
         private static byte[] EncodeExtensions(DtlsHelloExtensions extensions)
         {
             var extensionsWriter = new DtlsHandshakeWriter();
@@ -388,6 +433,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             reader.EnsureComplete();
             return result;
         }
+
         private static byte[] EncodeKeyShares(IReadOnlyList<DtlsKeyShareEntry> keyShares)
         {
             var body = new DtlsHandshakeWriter();
@@ -469,5 +515,4 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return value;
         }
     }
-
 }

@@ -32,7 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
 {
@@ -142,6 +141,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
     }
 
+    /// <summary>
+    /// Identifies whether a DTLS endpoint drives the handshake as client or server.
+    /// </summary>
     internal enum DtlsEndpointRole
     {
         Client,

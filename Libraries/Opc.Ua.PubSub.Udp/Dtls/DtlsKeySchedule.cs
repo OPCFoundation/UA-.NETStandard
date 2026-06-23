@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             ReadOnlySpan<byte> applicationTranscriptHash)
         {
             byte[] zero = new byte[HashLength];
-            byte[] emptyHash = DtlsHkdf.HashData(HashAlgorithmName, ReadOnlySpan<byte>.Empty);
+            byte[] emptyHash = DtlsHkdf.HashData(HashAlgorithmName, []);
             byte[] earlySecret = [];
             byte[] derivedEarlySecret = [];
             byte[] handshakeSecret = [];
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     "s hs traffic",
                     handshakeTranscriptHash);
                 derivedHandshakeSecret = DeriveSecret(handshakeSecret, "derived", emptyHash);
-                masterSecret = DtlsHkdf.Extract(HashAlgorithmName, derivedHandshakeSecret, ReadOnlySpan<byte>.Empty);
+                masterSecret = DtlsHkdf.Extract(HashAlgorithmName, derivedHandshakeSecret, []);
                 byte[] clientApplicationTrafficSecret = DeriveSecret(
                     masterSecret,
                     "c ap traffic",
@@ -113,13 +113,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(zero);
-                CryptographicOperations.ZeroMemory(emptyHash);
-                CryptographicOperations.ZeroMemory(earlySecret);
-                CryptographicOperations.ZeroMemory(derivedEarlySecret);
-                CryptographicOperations.ZeroMemory(handshakeSecret);
-                CryptographicOperations.ZeroMemory(derivedHandshakeSecret);
-                CryptographicOperations.ZeroMemory(masterSecret);
+                DtlsCryptographicOperations.ZeroMemory(zero);
+                DtlsCryptographicOperations.ZeroMemory(emptyHash);
+                DtlsCryptographicOperations.ZeroMemory(earlySecret);
+                DtlsCryptographicOperations.ZeroMemory(derivedEarlySecret);
+                DtlsCryptographicOperations.ZeroMemory(handshakeSecret);
+                DtlsCryptographicOperations.ZeroMemory(derivedHandshakeSecret);
+                DtlsCryptographicOperations.ZeroMemory(masterSecret);
             }
         }
 
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         public byte[] FinishedKey(ReadOnlySpan<byte> baseKey)
         {
-            return DtlsHkdf.ExpandLabel(HashAlgorithmName, baseKey, "finished", ReadOnlySpan<byte>.Empty, HashLength);
+            return DtlsHkdf.ExpandLabel(HashAlgorithmName, baseKey, "finished", [], HashLength);
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(key);
+                DtlsCryptographicOperations.ZeroMemory(key);
             }
         }
     }

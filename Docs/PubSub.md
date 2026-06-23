@@ -442,11 +442,28 @@ services.AddOpcUa()
         .AddUdpTransport()
         .WithDtls(options =>
         {
-            options.ProfileName = "ECC_nistP256_AesGcm";
-            options.LocalCertificate = publisherOrSubscriberEccCertificate;
+            // Register one or more local ECC certificates (with private keys). The handshake
+            // selects the certificate whose ECDsa named curve matches the negotiated profile
+            // certificate curve, similar to how secure channels register an application
+            // certificate per certificate type.
+            options.LocalCertificates.Add(nistP256EccCertificate);
+            options.LocalCertificates.Add(nistP384EccCertificate);
+
+            // Optional: express a preferred profile. This is only a preference, not a hard pin.
+            options.PreferredProfileName = "ECC_nistP256_AesGcm";
+
+            // Optional: disable profiles at configuration time even when the runtime supports them.
+            options.DisabledProfiles.Add("ECC_brainpoolP256r1_ChaChaPoly");
+
             options.PeerCertificateValidator = certificateValidator;
         }));
 ```
+
+The cipher suite/profile is selected at runtime from the enabled and runtime-supported set: the
+endpoint and `PreferredProfileName` only express a preference, while `DisabledProfiles` removes
+profiles from the candidate set even when the runtime supports them. Selection fails closed with a
+`NotSupportedException` when every supported profile is disabled or no profile is available on the
+current BCL/runtime.
 
 A publisher and subscriber use the normal PubSub connection model; only the
 network address changes to `opc.dtls://` and the configured DTLS profile must be

@@ -63,7 +63,7 @@ This release ships the following Part 11 capabilities:
 | -------------------------------------- | ---------- |
 | Read raw history                       | ✅ Shipped |
 | Read modified history                  | ✅ Shipped |
-| Read processed (aggregates)            | ✅ Shipped — streaming `AggregateManager` fallback (paginated via buffered output) or provider push-down. All 37 Part 13 v1.05.06 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
+| Read processed (aggregates)            | ✅ Shipped — streaming `AggregateManager` fallback (paginated via buffered output) or provider push-down. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
 | Insert / Replace / Update raw values   | ✅ Shipped — per-value best-effort by default, atomic via `IHistorianTransactionalProvider` |
 | Delete raw / Delete at-time            | ✅ Shipped |

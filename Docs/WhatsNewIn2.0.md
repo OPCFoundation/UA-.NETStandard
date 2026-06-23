@@ -147,7 +147,7 @@ server- and client-side implementations:
 - **Part 11 — Historical Access** + **Part 13 — Aggregates**: a provider
   model with an in-memory historian and a `HistoryClient` for raw,
   modified, at-time, processed, and annotation reads/updates. All 37
-  standard v1.05.06 aggregate functions, with native push-down where
+  standard v1.05.07 aggregate functions, with native push-down where
   available and a framework fallback otherwise. See
   [Historical Access](HistoricalAccess.md) and
   [Aggregates](Aggregates.md).

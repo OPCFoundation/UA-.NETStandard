@@ -28,9 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Udp.Dtls;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Udp.Tests
@@ -278,6 +282,97 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
             Assert.That(transport, Is.InstanceOf<UdpDatagramTransport>());
+        }
+
+        private static UdpPubSubTransportFactory NewDtlsFactory(DtlsTransportOptions dtlsOptions)
+        {
+            var udpOptions = new UdpTransportOptions { MulticastLoopback = true };
+            var registry = new DtlsProfileRegistry();
+            var contextFactory = new DefaultDtlsContextFactory(Options.Create(dtlsOptions), registry);
+            return new UdpPubSubTransportFactory(
+                Options.Create(udpOptions),
+                diagnostics: null,
+                dtlsOptions: Options.Create(dtlsOptions),
+                dtlsProfileRegistry: registry,
+                dtlsContextFactory: contextFactory);
+        }
+
+        [Test]
+        [TestSpec("7.3.2.4")]
+        public async Task Create_DtlsProfileDisabled_SelectsAnotherSupportedProfileAsync()
+        {
+            var registry = new DtlsProfileRegistry();
+            const string endpointDefault = "ECC_nistP256_AesGcm";
+            if (!registry.TryResolve(endpointDefault, out _))
+            {
+                Assert.Ignore("Endpoint default DTLS profile is not supported by this platform BCL.");
+                return;
+            }
+
+            var dtlsOptions = new DtlsTransportOptions();
+            dtlsOptions.DisabledProfiles.Add(endpointDefault);
+            UdpPubSubTransportFactory factory = NewDtlsFactory(dtlsOptions);
+            PubSubConnectionDataType connection = NewConnection("opc.dtls://127.0.0.1:4843");
+
+            await using var transport = (DtlsDatagramTransport)factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.Profile.Name, Is.Not.EqualTo(endpointDefault));
+                Assert.That(
+                    registry.SupportedProfiles.Select(profile => profile.Name),
+                    Does.Contain(transport.Profile.Name));
+            });
+        }
+
+        [Test]
+        [TestSpec("7.3.2.4")]
+        public async Task Create_DtlsPreferredProfileSelectedAtRuntimeAsync()
+        {
+            var registry = new DtlsProfileRegistry();
+            const string endpointDefault = "ECC_nistP256_AesGcm";
+            const string preferred = "ECC_nistP384_AesGcm";
+            if (!registry.TryResolve(endpointDefault, out _) || !registry.TryResolve(preferred, out _))
+            {
+                Assert.Ignore("Required DTLS profiles are not supported by this platform BCL.");
+                return;
+            }
+
+            var dtlsOptions = new DtlsTransportOptions { PreferredProfileName = preferred };
+            dtlsOptions.DisabledProfiles.Add(endpointDefault);
+            UdpPubSubTransportFactory factory = NewDtlsFactory(dtlsOptions);
+            PubSubConnectionDataType connection = NewConnection("opc.dtls://127.0.0.1:4843");
+
+            await using var transport = (DtlsDatagramTransport)factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+
+            Assert.That(transport.Profile.Name, Is.EqualTo(preferred));
+        }
+
+        [Test]
+        [TestSpec("7.3.2.4")]
+        public void Create_AllDtlsProfilesDisabled_FailsClosed()
+        {
+            var registry = new DtlsProfileRegistry();
+            if (registry.SupportedProfiles.Count == 0)
+            {
+                Assert.Ignore("No DTLS profiles are supported by this platform BCL.");
+                return;
+            }
+
+            var dtlsOptions = new DtlsTransportOptions();
+            foreach (DtlsProfile profile in registry.SupportedProfiles)
+            {
+                dtlsOptions.DisabledProfiles.Add(profile.Name);
+            }
+
+            UdpPubSubTransportFactory factory = NewDtlsFactory(dtlsOptions);
+            PubSubConnectionDataType connection = NewConnection("opc.dtls://127.0.0.1:4843");
+
+            Assert.That(
+                () => factory.Create(connection, NUnitTelemetryContext.Create(), TimeProvider.System),
+                Throws.TypeOf<NotSupportedException>());
         }
     }
 }

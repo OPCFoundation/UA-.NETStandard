@@ -64,16 +64,16 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new ArgumentNullException(nameof(udpOptions));
             }
 
-            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
             Direction = direction;
-            Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
-            TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-            ContextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
             PubSubTransportDirection innerDirection = direction == PubSubTransportDirection.Send
                 ? PubSubTransportDirection.SendReceive
                 : direction | PubSubTransportDirection.Send;
-            InnerTransport = new UdpDatagramTransport(
+            m_innerTransport = new UdpDatagramTransport(
                 connection,
                 endpoint,
                 innerDirection,
@@ -86,21 +86,21 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => InnerTransport.TransportProfileUri;
+        public string TransportProfileUri => m_innerTransport.TransportProfileUri;
 
         /// <inheritdoc/>
         public PubSubTransportDirection Direction { get; }
 
         /// <inheritdoc/>
-        public bool IsConnected => InnerTransport.IsConnected;
+        public bool IsConnected => m_innerTransport.IsConnected;
 
         /// <summary>
         /// Parsed DTLS endpoint.
         /// </summary>
-        public UdpEndpoint Endpoint => InnerTransport.Endpoint;
+        public UdpEndpoint Endpoint => m_innerTransport.Endpoint;
 
         /// <inheritdoc/>
-        public IPEndPoint? RemoteEndpoint => InnerTransport.RemoteEndpoint;
+        public IPEndPoint? RemoteEndpoint => m_innerTransport.RemoteEndpoint;
 
         /// <summary>
         /// Resolved DTLS profile.
@@ -110,23 +110,23 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <inheritdoc/>
         public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
         {
-            add => InnerTransport.StateChanged += value;
-            remove => InnerTransport.StateChanged -= value;
+            add => m_innerTransport.StateChanged += value;
+            remove => m_innerTransport.StateChanged -= value;
         }
 
         /// <inheritdoc/>
         public async ValueTask OpenAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            IDtlsContext context = await ContextFactory.CreateAsync(
-                Connection,
+            IDtlsContext context = await m_contextFactory.CreateAsync(
+                m_connection,
                 Endpoint,
                 Profile,
-                Telemetry,
-                TimeProvider,
+                m_telemetry,
+                m_timeProvider,
                 cancellationToken).ConfigureAwait(false);
             m_context = context;
-            await InnerTransport.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await m_innerTransport.OpenAsync(cancellationToken).ConfigureAwait(false);
             await context.OpenAsync(this, cancellationToken).ConfigureAwait(false);
         }
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             IDtlsContext? context = m_context;
             m_context = null;
             context?.Dispose();
-            await InnerTransport.CloseAsync(cancellationToken).ConfigureAwait(false);
+            await m_innerTransport.CloseAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             IDtlsContext context = GetContext();
             ReadOnlyMemory<byte> record = await context.ProtectAsync(payload, cancellationToken).ConfigureAwait(false);
-            await InnerTransport.SendAsync(record, topic, cancellationToken).ConfigureAwait(false);
+            await m_innerTransport.SendAsync(record, topic, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             IDtlsContext context = GetContext();
-            await foreach (PubSubTransportFrame frame in InnerTransport.ReceiveAsync(cancellationToken)
+            await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
                 ReadOnlyMemory<byte> payload = await context.UnprotectAsync(frame.Payload, cancellationToken)
@@ -196,25 +196,28 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             IDtlsContext? context = m_context;
             m_context = null;
             context?.Dispose();
-            await InnerTransport.DisposeAsync().ConfigureAwait(false);
+            await m_innerTransport.DisposeAsync().ConfigureAwait(false);
         }
 
         private IDtlsContext GetContext()
         {
-            return m_context ?? throw new InvalidOperationException(
-                "DTLS transport must be opened before protected datagrams can flow.");
+            return m_context ??
+                throw new InvalidOperationException(
+                    "DTLS transport must be opened before protected datagrams can flow.");
         }
 
+        /// <inheritdoc/>
         async ValueTask IDtlsDatagramChannel.SendAsync(
             ReadOnlyMemory<byte> datagram,
             CancellationToken cancellationToken)
         {
-            await InnerTransport.SendAsync(datagram, topic: null, cancellationToken).ConfigureAwait(false);
+            await m_innerTransport.SendAsync(datagram, topic: null, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         async ValueTask<ReadOnlyMemory<byte>> IDtlsDatagramChannel.ReceiveAsync(CancellationToken cancellationToken)
         {
-            await foreach (PubSubTransportFrame frame in InnerTransport.ReceiveAsync(cancellationToken)
+            await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
                 return frame.Payload;
@@ -223,16 +226,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             throw new InvalidOperationException("DTLS datagram channel closed while waiting for a handshake datagram.");
         }
 
-        private UdpDatagramTransport InnerTransport { get; }
-
-        private IDtlsContextFactory ContextFactory { get; }
-
-        private PubSubConnectionDataType Connection { get; }
-
-        private ITelemetryContext Telemetry { get; }
-
-        private TimeProvider TimeProvider { get; }
-
+        /// <summary>
+        /// PubSub connection descriptor backing the DTLS transport.
+        /// </summary>
+        private readonly PubSubConnectionDataType m_connection;
+        private readonly UdpDatagramTransport m_innerTransport;
+        private readonly IDtlsContextFactory m_contextFactory;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly TimeProvider m_timeProvider;
         private IDtlsContext? m_context;
     }
 }

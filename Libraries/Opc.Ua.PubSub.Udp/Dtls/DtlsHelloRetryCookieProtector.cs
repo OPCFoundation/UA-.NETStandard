@@ -2,6 +2,29 @@
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
 using System;
@@ -15,6 +38,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// </summary>
     internal sealed class DtlsHelloRetryCookieProtector : IDisposable
     {
+        /// <summary>
+        /// Initializes a new <see cref="DtlsHelloRetryCookieProtector"/> with the MAC key
+        /// used to authenticate stateless HelloRetryRequest cookies.
+        /// </summary>
         public DtlsHelloRetryCookieProtector(ReadOnlySpan<byte> key)
         {
             if (key.IsEmpty)
@@ -25,16 +52,22 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             m_key = key.ToArray();
         }
 
+        /// <summary>
+        /// Creates a stateless cookie binding the remote endpoint to the initial ClientHello.
+        /// </summary>
         public byte[] CreateCookie(EndPoint remoteEndPoint, ReadOnlySpan<byte> clientHello)
         {
             byte[] mac = ComputeMac(remoteEndPoint, clientHello);
             byte[] cookie = new byte[1 + mac.Length];
             cookie[0] = Version;
             Buffer.BlockCopy(mac, 0, cookie, 1, mac.Length);
-            CryptographicOperations.ZeroMemory(mac);
+            DtlsCryptographicOperations.ZeroMemory(mac);
             return cookie;
         }
 
+        /// <summary>
+        /// Validates a cookie returned by the client against the remote endpoint and ClientHello.
+        /// </summary>
         public bool ValidateCookie(EndPoint remoteEndPoint, ReadOnlySpan<byte> clientHello, ReadOnlySpan<byte> cookie)
         {
             if (cookie.Length != 1 + MacLength || cookie[0] != Version)
@@ -45,14 +78,15 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             byte[] expected = CreateCookie(remoteEndPoint, clientHello);
             try
             {
-                return CryptographicOperations.FixedTimeEquals(expected, cookie);
+                return DtlsCryptographicOperations.FixedTimeEquals(expected, cookie);
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(expected);
+                DtlsCryptographicOperations.ZeroMemory(expected);
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (m_disposed)
@@ -60,7 +94,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 return;
             }
 
-            CryptographicOperations.ZeroMemory(m_key);
+            DtlsCryptographicOperations.ZeroMemory(m_key);
             m_disposed = true;
         }
 
@@ -82,13 +116,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    CryptographicOperations.ZeroMemory(endpointBytes);
-                    CryptographicOperations.ZeroMemory(helloBytes);
+                    DtlsCryptographicOperations.ZeroMemory(endpointBytes);
+                    DtlsCryptographicOperations.ZeroMemory(helloBytes);
                 }
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(key);
+                DtlsCryptographicOperations.ZeroMemory(key);
             }
         }
 

@@ -50,9 +50,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             m_isAead = IsAead(profile.CipherSuite);
             m_tagLength = GetTagLength(profile.CipherSuite);
             int keyLength = GetKeyLength(profile.CipherSuite);
-            m_key = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "key", ReadOnlySpan<byte>.Empty, keyLength);
-            m_iv = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "iv", ReadOnlySpan<byte>.Empty, NonceLength);
-            m_snKey = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "sn", ReadOnlySpan<byte>.Empty, keyLength);
+            m_key = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "key", [], keyLength);
+            m_iv = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "iv", [], NonceLength);
+            m_snKey = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "sn", [], keyLength);
 #if NET8_0_OR_GREATER
             if (profile.CipherSuite is DtlsCipherSuite.TlsAes128GcmSha256 or DtlsCipherSuite.TlsAes256GcmSha384)
             {
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         innerPlaintext,
                         record.AsSpan(HeaderLength, innerPlaintext.Length),
                         record.AsSpan(HeaderLength + innerPlaintext.Length, m_tagLength));
-                    CryptographicOperations.ZeroMemory(nonce);
+                    DtlsCryptographicOperations.ZeroMemory(nonce);
 #else
                     throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
 #endif
@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             {
                 if (innerPlaintextBuffer is not null)
                 {
-                    CryptographicOperations.ZeroMemory(innerPlaintextBuffer.AsSpan(0, innerPlaintextLength));
+                    DtlsCryptographicOperations.ZeroMemory(innerPlaintextBuffer.AsSpan(0, innerPlaintextLength));
                     ArrayPool<byte>.Shared.Return(innerPlaintextBuffer);
                 }
             }
@@ -189,7 +189,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         record.Slice(HeaderLength, contentLength),
                         record.Slice(HeaderLength + contentLength, m_tagLength),
                         plaintext);
-                    CryptographicOperations.ZeroMemory(nonce);
+                    DtlsCryptographicOperations.ZeroMemory(nonce);
 #else
                     throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
 #endif
@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         header,
                         record.Slice(HeaderLength, contentLength),
                         expectedTag);
-                    if (!CryptographicOperations.FixedTimeEquals(
+                    if (!DtlsCryptographicOperations.FixedTimeEquals(
                         expectedTag,
                         record.Slice(HeaderLength + contentLength, m_tagLength)))
                     {
@@ -209,7 +209,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     }
 
                     record.Slice(HeaderLength, contentLength).CopyTo(plaintext);
-                    CryptographicOperations.ZeroMemory(expectedTag);
+                    DtlsCryptographicOperations.ZeroMemory(expectedTag);
                 }
 
                 if (plaintext.IsEmpty || plaintext[^1] != ApplicationDataContentType)
@@ -222,8 +222,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(header);
-                CryptographicOperations.ZeroMemory(plaintext);
+                DtlsCryptographicOperations.ZeroMemory(header);
+                DtlsCryptographicOperations.ZeroMemory(plaintext);
                 ArrayPool<byte>.Shared.Return(plaintextBuffer);
             }
         }
@@ -236,9 +236,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 return;
             }
 
-            CryptographicOperations.ZeroMemory(m_key);
-            CryptographicOperations.ZeroMemory(m_iv);
-            CryptographicOperations.ZeroMemory(m_snKey);
+            DtlsCryptographicOperations.ZeroMemory(m_key);
+            DtlsCryptographicOperations.ZeroMemory(m_iv);
+            DtlsCryptographicOperations.ZeroMemory(m_snKey);
 #if NET8_0_OR_GREATER
             m_aesGcm?.Dispose();
             m_chacha20Poly1305?.Dispose();
@@ -271,6 +271,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 or DtlsCipherSuite.TlsAes256GcmSha384
                 or DtlsCipherSuite.TlsChaCha20Poly1305Sha256;
         }
+
         private static int GetKeyLength(DtlsCipherSuite cipherSuite)
         {
             return cipherSuite switch
@@ -358,7 +359,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
 
                 hash[..tag.Length].CopyTo(tag);
-                CryptographicOperations.ZeroMemory(hash);
+                DtlsCryptographicOperations.ZeroMemory(hash);
 #else
                 byte[] hash = hmac.ComputeHash(macInput, 0, input.Length);
                 try
@@ -367,13 +368,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    CryptographicOperations.ZeroMemory(hash);
+                    DtlsCryptographicOperations.ZeroMemory(hash);
                 }
 #endif
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(macInput.AsSpan(0, header.Length + plaintext.Length));
+                DtlsCryptographicOperations.ZeroMemory(macInput.AsSpan(0, header.Length + plaintext.Length));
                 ArrayPool<byte>.Shared.Return(macInput);
             }
         }
@@ -388,15 +389,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 nonce[ii] ^= encoded[ii];
             }
 
-            CryptographicOperations.ZeroMemory(encoded);
+            DtlsCryptographicOperations.ZeroMemory(encoded);
         }
 
         private void MaskSequenceNumber(Span<byte> header)
         {
-            Span<byte> input = stackalloc byte[3];
-            input[0] = header[0];
-            input[1] = header[3];
-            input[2] = header[4];
+            Span<byte> input = [header[0], header[3], header[4]];
             using HMAC hmac = new HMACSHA256(m_snKey);
 #if NET8_0_OR_GREATER
             Span<byte> hash = stackalloc byte[32];
@@ -407,7 +405,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             header[1] ^= hash[0];
             header[2] ^= hash[1];
-            CryptographicOperations.ZeroMemory(hash);
+            DtlsCryptographicOperations.ZeroMemory(hash);
 #else
             byte[] hash = hmac.ComputeHash(input.ToArray());
             try
@@ -417,10 +415,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(hash);
+                DtlsCryptographicOperations.ZeroMemory(hash);
             }
 #endif
-            CryptographicOperations.ZeroMemory(input);
+            DtlsCryptographicOperations.ZeroMemory(input);
         }
 
         private void ThrowIfDisposed()

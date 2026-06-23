@@ -34,7 +34,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// <summary>
     /// Small compatibility wrapper for constant-time comparison and zeroization.
     /// </summary>
-    internal static class CryptographicOperations
+    internal static class DtlsCryptographicOperations
     {
         /// <summary>
         /// Zeros a buffer before it leaves scope.

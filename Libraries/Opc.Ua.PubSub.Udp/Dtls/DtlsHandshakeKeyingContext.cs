@@ -2,10 +2,32 @@
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
 {
@@ -14,6 +36,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// </summary>
     internal sealed class DtlsHandshakeKeyingContext : IDisposable
     {
+        /// <summary>
+        /// Initializes a new <see cref="DtlsHandshakeKeyingContext"/> by deriving the TLS 1.3
+        /// handshake and application traffic secrets from the negotiated shared secret.
+        /// </summary>
         public DtlsHandshakeKeyingContext(DtlsProfile profile, ReadOnlySpan<byte> sharedSecret,
             ReadOnlySpan<byte> handshakeTranscriptHash, ReadOnlySpan<byte> applicationTranscriptHash)
         {
@@ -22,58 +48,83 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             Secrets = m_schedule.DeriveTrafficSecrets(sharedSecret, handshakeTranscriptHash, applicationTranscriptHash);
         }
 
+        /// <summary>
+        /// Negotiated DTLS profile whose cipher suite drives key derivation.
+        /// </summary>
         public DtlsProfile Profile { get; }
 
+        /// <summary>
+        /// Current TLS 1.3 traffic secrets derived for the connection.
+        /// </summary>
         public DtlsTrafficSecrets Secrets { get; private set; }
 
+        /// <summary>
+        /// Creates record protection for the client application traffic epoch.
+        /// </summary>
         public DtlsRecordProtection CreateClientApplicationWriteProtection()
         {
             return new DtlsRecordProtection(Profile, Secrets.ClientApplicationTrafficSecret, epoch: 3);
         }
 
+        /// <summary>
+        /// Creates record protection for the server application traffic epoch.
+        /// </summary>
         public DtlsRecordProtection CreateServerApplicationWriteProtection()
         {
             return new DtlsRecordProtection(Profile, Secrets.ServerApplicationTrafficSecret, epoch: 3);
         }
 
+        /// <summary>
+        /// Computes the client Finished verify_data over the supplied transcript hash.
+        /// </summary>
         public byte[] ComputeClientFinished(ReadOnlySpan<byte> transcriptHash)
         {
             return m_schedule.ComputeFinished(Secrets.ClientFinishedKey, transcriptHash);
         }
 
+        /// <summary>
+        /// Computes the server Finished verify_data over the supplied transcript hash.
+        /// </summary>
         public byte[] ComputeServerFinished(ReadOnlySpan<byte> transcriptHash)
         {
             return m_schedule.ComputeFinished(Secrets.ServerFinishedKey, transcriptHash);
         }
 
+        /// <summary>
+        /// Verifies a received Finished verify_data against the expected value in constant time.
+        /// </summary>
         public void VerifyFinished(ReadOnlySpan<byte> expected, ReadOnlySpan<byte> actual)
         {
-            if (!CryptographicOperations.FixedTimeEquals(expected, actual))
+            if (!DtlsCryptographicOperations.FixedTimeEquals(expected, actual))
             {
                 throw new DtlsHandshakeException("DTLS Finished verify_data mismatch.");
             }
         }
 
+        /// <summary>
+        /// Advances the client or server application traffic secret for a KeyUpdate.
+        /// </summary>
         public void UpdateApplicationTrafficSecret(bool client)
         {
             byte[] next = DtlsHkdf.ExpandLabel(
                 m_schedule.HashAlgorithmName,
                 client ? Secrets.ClientApplicationTrafficSecret : Secrets.ServerApplicationTrafficSecret,
                 "traffic upd",
-                ReadOnlySpan<byte>.Empty,
+                [],
                 m_schedule.HashLength);
             if (client)
             {
-                CryptographicOperations.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
+                DtlsCryptographicOperations.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
                 Secrets = Secrets with { ClientApplicationTrafficSecret = next };
             }
             else
             {
-                CryptographicOperations.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
+                DtlsCryptographicOperations.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
                 Secrets = Secrets with { ServerApplicationTrafficSecret = next };
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (m_disposed)
@@ -81,12 +132,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 return;
             }
 
-            CryptographicOperations.ZeroMemory(Secrets.ClientHandshakeTrafficSecret);
-            CryptographicOperations.ZeroMemory(Secrets.ServerHandshakeTrafficSecret);
-            CryptographicOperations.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
-            CryptographicOperations.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
-            CryptographicOperations.ZeroMemory(Secrets.ClientFinishedKey);
-            CryptographicOperations.ZeroMemory(Secrets.ServerFinishedKey);
+            DtlsCryptographicOperations.ZeroMemory(Secrets.ClientHandshakeTrafficSecret);
+            DtlsCryptographicOperations.ZeroMemory(Secrets.ServerHandshakeTrafficSecret);
+            DtlsCryptographicOperations.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
+            DtlsCryptographicOperations.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
+            DtlsCryptographicOperations.ZeroMemory(Secrets.ClientFinishedKey);
+            DtlsCryptographicOperations.ZeroMemory(Secrets.ServerFinishedKey);
             m_disposed = true;
         }
 
