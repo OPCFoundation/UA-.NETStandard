@@ -817,6 +817,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 reference.Certificate.Dispose();
             }
 
+            // The validator reuses (caches) the trust-list store across
+            // validations, so the parsed trust material it materialises is
+            // owned by the store cache and released when the manager (and the
+            // underlying validation core) is disposed. Dispose the manager
+            // before the leak assertion so the check still verifies that no
+            // Certificate instance is orphaned once everything is torn down.
+            manager.Dispose();
+
             long createdDelta = Certificate.InstancesCreated - createdBefore;
             long disposedDelta = Certificate.InstancesDisposed - disposedBefore;
             Assert.That(disposedDelta, Is.EqualTo(createdDelta),
@@ -1057,6 +1065,104 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // Manager must now serve from the new path.
             using ICertificateStore newStore = manager.OpenTrustedStore(TrustListIdentifier.Peers);
             Assert.That(newStore.StorePath, Is.EqualTo(newPath));
+        }
+
+        [Test]
+        public async Task ConcurrentValidationsReturnConsistentResultsAsync()
+        {
+            // Part A regression: the validator no longer serializes validations
+            // behind a shared lock, so many concurrent validations must still
+            // produce results identical to serial validation.
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using Certificate trusted = CertificateBuilder
+                .Create("CN=ConcurrentTrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate untrusted = CertificateBuilder
+                .Create("CN=ConcurrentUntrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(trusted).ConfigureAwait(false);
+            }
+
+            const int parallelism = 64;
+            var tasks = new Task[parallelism];
+            int trustedValid = 0;
+            int untrustedInvalid = 0;
+
+            for (int i = 0; i < parallelism; i++)
+            {
+                bool useTrusted = (i % 2) == 0;
+                tasks[i] = Task.Run(async () =>
+                {
+                    Certificate subject = useTrusted ? trusted : untrusted;
+                    using var chain = new CertificateCollection { subject };
+                    CertificateValidationResult result = await manager
+                        .ValidateAsync(chain, TrustListIdentifier.Peers)
+                        .ConfigureAwait(false);
+
+                    if (useTrusted && result.IsValid)
+                    {
+                        Interlocked.Increment(ref trustedValid);
+                    }
+                    else if (!useTrusted && !result.IsValid)
+                    {
+                        Interlocked.Increment(ref untrustedInvalid);
+                    }
+                });
+            }
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            Assert.That(trustedValid, Is.EqualTo(parallelism / 2),
+                "Every concurrent validation of the trusted certificate must succeed.");
+            Assert.That(untrustedInvalid, Is.EqualTo(parallelism / 2),
+                "Every concurrent validation of the untrusted certificate must fail.");
+        }
+
+        [Test]
+        public async Task TrustedCertificateAddedAfterWarmupIsObservedAsync()
+        {
+            // Part B regression: the validator caches and reuses the trust-list
+            // store across validations. A certificate added to the store after
+            // the cache is warmed must still be observed on the next validation
+            // (the store's freshness check detects the new file).
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=LateTrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var chain = new CertificateCollection { cert };
+
+            // Warm the cache while the certificate is NOT trusted.
+            CertificateValidationResult before = await manager
+                .ValidateAsync(chain, TrustListIdentifier.Peers)
+                .ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            // Add the certificate to the trusted store out of band.
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            // The next validation must observe the newly trusted certificate.
+            CertificateValidationResult after = await manager
+                .ValidateAsync(chain, TrustListIdentifier.Peers)
+                .ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.True,
+                "A certificate added to the trusted store after the cache was " +
+                "warmed must be observed on the next validation.");
         }
 
         private string CreateTempDir()
