@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(transcript);
+                CryptoUtils.ZeroMemory(transcript);
             }
         }
 

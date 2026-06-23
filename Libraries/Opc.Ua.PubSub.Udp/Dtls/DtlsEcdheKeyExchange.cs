@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             m_ecdh.Dispose();
-            DtlsCryptographicOperations.ZeroMemory(PublicKey);
+            CryptoUtils.ZeroMemory(PublicKey);
             m_disposed = true;
         }
 
@@ -174,12 +174,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             if (point.X is not null)
             {
-                DtlsCryptographicOperations.ZeroMemory(point.X);
+                CryptoUtils.ZeroMemory(point.X);
             }
 
             if (point.Y is not null)
             {
-                DtlsCryptographicOperations.ZeroMemory(point.Y);
+                CryptoUtils.ZeroMemory(point.Y);
             }
         }
 

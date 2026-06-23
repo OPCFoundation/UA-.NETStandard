@@ -113,13 +113,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(zero);
-                DtlsCryptographicOperations.ZeroMemory(emptyHash);
-                DtlsCryptographicOperations.ZeroMemory(earlySecret);
-                DtlsCryptographicOperations.ZeroMemory(derivedEarlySecret);
-                DtlsCryptographicOperations.ZeroMemory(handshakeSecret);
-                DtlsCryptographicOperations.ZeroMemory(derivedHandshakeSecret);
-                DtlsCryptographicOperations.ZeroMemory(masterSecret);
+                CryptoUtils.ZeroMemory(zero);
+                CryptoUtils.ZeroMemory(emptyHash);
+                CryptoUtils.ZeroMemory(earlySecret);
+                CryptoUtils.ZeroMemory(derivedEarlySecret);
+                CryptoUtils.ZeroMemory(handshakeSecret);
+                CryptoUtils.ZeroMemory(derivedHandshakeSecret);
+                CryptoUtils.ZeroMemory(masterSecret);
             }
         }
 
@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(key);
+                CryptoUtils.ZeroMemory(key);
             }
         }
     }

@@ -212,8 +212,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    DtlsCryptographicOperations.ZeroMemory(expectedServerFinished);
-                    DtlsCryptographicOperations.ZeroMemory(actualServerFinished);
+                    CryptoUtils.ZeroMemory(expectedServerFinished);
+                    CryptoUtils.ZeroMemory(actualServerFinished);
                 }
 
                 transcript.Append(ToCompleteFrame(serverFinishedFrame));
@@ -227,8 +227,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(clientHelloBody);
-                DtlsCryptographicOperations.ZeroMemory(sharedSecret);
+                CryptoUtils.ZeroMemory(clientHelloBody);
+                CryptoUtils.ZeroMemory(sharedSecret);
             }
         }
         private async ValueTask AcceptAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken)
@@ -320,16 +320,16 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    DtlsCryptographicOperations.ZeroMemory(expectedClientFinished);
-                    DtlsCryptographicOperations.ZeroMemory(actualClientFinished);
+                    CryptoUtils.ZeroMemory(expectedClientFinished);
+                    CryptoUtils.ZeroMemory(actualClientFinished);
                 }
 
                 InstallApplicationKeys(isClient: false);
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(cookieKey);
-                DtlsCryptographicOperations.ZeroMemory(sharedSecret);
+                CryptoUtils.ZeroMemory(cookieKey);
+                CryptoUtils.ZeroMemory(sharedSecret);
             }
         }
 

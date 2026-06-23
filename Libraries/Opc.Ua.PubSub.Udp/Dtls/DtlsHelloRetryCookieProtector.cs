@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             byte[] cookie = new byte[1 + mac.Length];
             cookie[0] = Version;
             Buffer.BlockCopy(mac, 0, cookie, 1, mac.Length);
-            DtlsCryptographicOperations.ZeroMemory(mac);
+            CryptoUtils.ZeroMemory(mac);
             return cookie;
         }
 
@@ -78,11 +78,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             byte[] expected = CreateCookie(remoteEndPoint, clientHello);
             try
             {
-                return DtlsCryptographicOperations.FixedTimeEquals(expected, cookie);
+                return CryptoUtils.FixedTimeEquals(expected, cookie);
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(expected);
+                CryptoUtils.ZeroMemory(expected);
             }
         }
 
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 return;
             }
 
-            DtlsCryptographicOperations.ZeroMemory(m_key);
+            CryptoUtils.ZeroMemory(m_key);
             m_disposed = true;
         }
 
@@ -116,13 +116,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    DtlsCryptographicOperations.ZeroMemory(endpointBytes);
-                    DtlsCryptographicOperations.ZeroMemory(helloBytes);
+                    CryptoUtils.ZeroMemory(endpointBytes);
+                    CryptoUtils.ZeroMemory(helloBytes);
                 }
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(key);
+                CryptoUtils.ZeroMemory(key);
             }
         }
 

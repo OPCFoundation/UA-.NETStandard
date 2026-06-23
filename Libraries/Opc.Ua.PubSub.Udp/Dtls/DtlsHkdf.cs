@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(actualSalt);
+                CryptoUtils.ZeroMemory(actualSalt);
             }
         }
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     }
                     finally
                     {
-                        DtlsCryptographicOperations.ZeroMemory(infoBytes);
+                        CryptoUtils.ZeroMemory(infoBytes);
                     }
 
                     previous = hmac.Hash ?? throw new CryptographicException("HKDF HMAC did not produce a hash.");
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(previous);
+                CryptoUtils.ZeroMemory(previous);
             }
 
             return output;
@@ -150,8 +150,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(labelBytes);
-                DtlsCryptographicOperations.ZeroMemory(info);
+                CryptoUtils.ZeroMemory(labelBytes);
+                CryptoUtils.ZeroMemory(info);
             }
         }
 

@@ -126,13 +126,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(signedContent);
+                CryptoUtils.ZeroMemory(signedContent);
             }
 
             var writer = new DtlsHandshakeWriter();
             writer.WriteUInt16((ushort)scheme);
             writer.WriteOpaque16(signature);
-            DtlsCryptographicOperations.ZeroMemory(signature);
+            CryptoUtils.ZeroMemory(signature);
             return writer.ToArray();
         }
 
@@ -172,8 +172,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                DtlsCryptographicOperations.ZeroMemory(signedContent);
-                DtlsCryptographicOperations.ZeroMemory(signature);
+                CryptoUtils.ZeroMemory(signedContent);
+                CryptoUtils.ZeroMemory(signature);
             }
         }
 
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             content.AsSpan(0, 64).Fill(0x20);
             Buffer.BlockCopy(contextBytes, 0, content, 64, contextBytes.Length);
             transcriptHash.CopyTo(content.AsSpan(65 + contextBytes.Length));
-            DtlsCryptographicOperations.ZeroMemory(contextBytes);
+            CryptoUtils.ZeroMemory(contextBytes);
             return content;
         }
 

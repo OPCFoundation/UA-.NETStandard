@@ -290,14 +290,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             try
             {
                 HKDF.Extract(HashAlgorithmName.SHA256, [], [], output);
-                DtlsCryptographicOperations.ZeroMemory(output);
+                CryptoUtils.ZeroMemory(output);
                 return true;
             }
             catch (Exception ex) when (ex is PlatformNotSupportedException
                 or CryptographicException
                 or NotSupportedException)
             {
-                DtlsCryptographicOperations.ZeroMemory(output);
+                CryptoUtils.ZeroMemory(output);
                 return false;
             }
         }

@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         public void VerifyFinished(ReadOnlySpan<byte> expected, ReadOnlySpan<byte> actual)
         {
-            if (!DtlsCryptographicOperations.FixedTimeEquals(expected, actual))
+            if (!CryptoUtils.FixedTimeEquals(expected, actual))
             {
                 throw new DtlsHandshakeException("DTLS Finished verify_data mismatch.");
             }
@@ -114,12 +114,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 m_schedule.HashLength);
             if (client)
             {
-                DtlsCryptographicOperations.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
+                CryptoUtils.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
                 Secrets = Secrets with { ClientApplicationTrafficSecret = next };
             }
             else
             {
-                DtlsCryptographicOperations.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
+                CryptoUtils.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
                 Secrets = Secrets with { ServerApplicationTrafficSecret = next };
             }
         }
@@ -132,12 +132,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 return;
             }
 
-            DtlsCryptographicOperations.ZeroMemory(Secrets.ClientHandshakeTrafficSecret);
-            DtlsCryptographicOperations.ZeroMemory(Secrets.ServerHandshakeTrafficSecret);
-            DtlsCryptographicOperations.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
-            DtlsCryptographicOperations.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
-            DtlsCryptographicOperations.ZeroMemory(Secrets.ClientFinishedKey);
-            DtlsCryptographicOperations.ZeroMemory(Secrets.ServerFinishedKey);
+            CryptoUtils.ZeroMemory(Secrets.ClientHandshakeTrafficSecret);
+            CryptoUtils.ZeroMemory(Secrets.ServerHandshakeTrafficSecret);
+            CryptoUtils.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
+            CryptoUtils.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
+            CryptoUtils.ZeroMemory(Secrets.ClientFinishedKey);
+            CryptoUtils.ZeroMemory(Secrets.ServerFinishedKey);
             m_disposed = true;
         }
 
