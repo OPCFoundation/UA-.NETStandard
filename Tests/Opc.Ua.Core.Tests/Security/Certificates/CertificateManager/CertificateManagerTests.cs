@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -1163,6 +1164,96 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(after.IsValid, Is.True,
                 "A certificate added to the trusted store after the cache was " +
                 "warmed must be observed on the next validation.");
+        }
+
+        [Test]
+        public async Task TrustedCertificateInjectedViaIndependentStoreIsObservedAsync()
+        {
+            // Part B: a certificate injected into the trusted directory by a
+            // store instance NOT associated with the CertificateManager (e.g.
+            // another process writing the PKI) must be observed by the validator
+            // once the cache has been warmed.
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=IndependentlyTrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var chain = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager
+                .ValidateAsync(chain, TrustListIdentifier.Peers)
+                .ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            // Inject the certificate through a separate DirectoryCertificateStore
+            // instance the manager knows nothing about.
+            using (var independentStore = new DirectoryCertificateStore(m_telemetry))
+            {
+                independentStore.Open(trustedPath);
+                await independentStore.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            CertificateValidationResult after = await manager
+                .ValidateAsync(chain, TrustListIdentifier.Peers)
+                .ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.True,
+                "A certificate injected via an independent store instance must " +
+                "be observed by the validator.");
+        }
+
+        [Test]
+        public async Task TrustedCertificateInjectedViaIndependentX509StoreIsObservedAsync()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Assert.Ignore("X509 store tests are not run on macOS.");
+            }
+
+            // Part B (X509 variant): a certificate injected into an X509 (OS)
+            // trusted store out of band must be observed by the validator.
+            // X509CertificateStore re-reads the OS store on every enumeration,
+            // so reuse never serves a stale view.
+            const string x509StorePath = "CurrentUser\\My";
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, x509StorePath);
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=IndependentlyTrustedX509")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+
+            using var chain = new CertificateCollection { publicKey };
+            try
+            {
+                CertificateValidationResult before = await manager
+                    .ValidateAsync(chain, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+                Assert.That(before.IsValid, Is.False);
+
+                // Inject the certificate directly into the OS X509 store.
+                await publicKey.AddToStoreAsync(
+                    CertificateStoreType.X509Store,
+                    x509StorePath,
+                    telemetry: m_telemetry).ConfigureAwait(false);
+
+                CertificateValidationResult after = await manager
+                    .ValidateAsync(chain, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+                Assert.That(after.IsValid, Is.True,
+                    "A certificate injected into the X509 store must be observed " +
+                    "by the validator.");
+            }
+            finally
+            {
+                using var cleanup = new X509CertificateStore(m_telemetry);
+                cleanup.Open(x509StorePath);
+                await cleanup.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
+            }
         }
 
         private string CreateTempDir()

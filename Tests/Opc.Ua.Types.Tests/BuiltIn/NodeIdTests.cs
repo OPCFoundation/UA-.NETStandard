@@ -512,9 +512,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new NodeId(ByteString.From(1, 2, 3, 4), 7),
             ];
 
+            Span<char> buffer = stackalloc char[256];
             foreach (NodeId nodeId in cases)
             {
-                Span<char> buffer = stackalloc char[256];
                 bool ok = nodeId.TryFormat(buffer, out int charsWritten, useNamespaceUri);
 
                 // The namespace-uri form is only unsupported when the node id is

@@ -4990,7 +4990,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            m_logger.LogWarning("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
+            m_logger.LogInformation("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
 
             var parameters = new AdditionalParametersType
             {
