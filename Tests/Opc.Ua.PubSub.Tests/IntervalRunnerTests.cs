@@ -296,6 +296,13 @@ namespace Opc.Ua.PubSub.Tests
                 .ConfigureAwait(false);
             int afterStart = Volatile.Read(ref executionCount);
 
+            // Give the runner time to complete its current loop iteration and
+            // re-register the next Delay on the fake provider before advancing
+            // the clock. Without this pause, fake.Advance can race ahead of
+            // the runner's Delay registration and the action never fires.
+            // See the loop below for the same pattern.
+            await Task.Delay(500).ConfigureAwait(false);
+
             // Advance the fake clock by one interval; the awaited Delay completes
             // deterministically and the next action fires.
             fake.Advance(TimeSpan.FromMilliseconds(100));
