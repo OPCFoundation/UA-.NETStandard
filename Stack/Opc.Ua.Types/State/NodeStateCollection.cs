@@ -178,7 +178,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm)
         {
-            SaveAsNodeSet2(context, ostrm, null);
+            SaveAsNodeSet2(context, ostrm, null, null);
         }
 
         /// <summary>
@@ -186,9 +186,21 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
+            SaveAsNodeSet2(context, ostrm, version, null);
+        }
+
+        /// <summary>
+        /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="ostrm">The output stream.</param>
+        /// <param name="version">The version string to embed in the NodeSet2 XML, or <c>null</c>.</param>
+        /// <param name="lastModified">The last-modified timestamp to embed, or <c>null</c> to use <see cref="DateTime.UtcNow"/>.</param>
+        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version, DateTime? lastModified)
+        {
             var nodeSet = new Export.UANodeSet
             {
-                LastModified = DateTime.UtcNow,
+                LastModified = lastModified ?? DateTime.UtcNow,
                 LastModifiedSpecified = true
             };
 

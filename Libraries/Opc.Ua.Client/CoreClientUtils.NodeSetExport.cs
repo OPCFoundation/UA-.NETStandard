@@ -109,12 +109,14 @@ namespace Opc.Ua.Client
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
         /// <param name="options">Options controlling the export behavior.</param>
+        /// <param name="lastModified">The last-modified timestamp to embed, or <c>null</c> to use the current time.</param>
         /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
             Stream outputStream,
-            NodeSetExportOptions options)
+            NodeSetExportOptions options,
+            DateTime? lastModified = null)
         {
             if (context == null)
             {
@@ -148,7 +150,7 @@ namespace Opc.Ua.Client
             }
 
             // Use the existing export functionality
-            nodeStates.SaveAsNodeSet2(context, outputStream);
+            nodeStates.SaveAsNodeSet2(context, outputStream, null, lastModified);
         }
 
         /// <summary>
