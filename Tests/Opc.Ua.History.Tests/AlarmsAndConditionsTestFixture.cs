@@ -175,6 +175,43 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
+        /// Polls a TwoStateVariable's boolean Id until it matches the
+        /// expected value or the timeout elapses. Returns the last
+        /// DataValue read. Used to bridge the race between an
+        /// asynchronous Acknowledge/Confirm method call on the server
+        /// and the subsequent committed state change becoming visible
+        /// to a Read on slow CI runners.
+        /// </summary>
+        protected async Task<DataValue> WaitForStateIdAsync(
+            NodeId conditionId,
+            string stateName,
+            bool expected,
+            TimeSpan? timeout = null,
+            TimeSpan? pollInterval = null)
+        {
+            TimeSpan budget = timeout ?? TimeSpan.FromSeconds(5);
+            TimeSpan interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+            DateTime deadline = DateTime.UtcNow + budget;
+            DataValue last = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+            while (true)
+            {
+                last = await ReadStateIdAsync(conditionId, stateName)
+                    .ConfigureAwait(false);
+                if (StatusCode.IsGood(last.StatusCode) &&
+                    last.WrappedValue.TryGetValue(out bool current) &&
+                    current == expected)
+                {
+                    return last;
+                }
+                if (DateTime.UtcNow >= deadline)
+                {
+                    return last;
+                }
+                await Task.Delay(interval).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Reads a child variable's value by relative browse name path.
         /// </summary>
         protected async Task<DataValue> ReadChildValueAsync(

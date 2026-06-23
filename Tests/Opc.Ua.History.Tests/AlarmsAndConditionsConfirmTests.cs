@@ -314,8 +314,8 @@ namespace Opc.Ua.History.Tests
                 Is.True,
                 $"Confirm should succeed or report already-confirmed: {callResult.StatusCode}");
 
-            DataValue confirmedState = await ReadStateIdAsync(alarmId, "ConfirmedState")
-                .ConfigureAwait(false);
+            DataValue confirmedState = await WaitForStateIdAsync(
+                alarmId, "ConfirmedState", expected: true).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(confirmedState.StatusCode), Is.True,
                 "Should be able to read ConfirmedState/Id.");
             Assert.That(
