@@ -693,18 +693,7 @@ namespace Opc.Ua
             ChannelEntry entry = lease.Entry;
             if (entry.State is ChannelState.Closed or ChannelState.Faulted)
             {
-                try
-                {
-                    entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
-                }
-                catch when (!throwOnReconnectFailure && !ct.IsCancellationRequested)
-                {
-                    // The non-throwing ReconnectAsync(channel, ct) overload must
-                    // not surface transient transport failures (e.g. the server
-                    // is still down). Leave the lease's entry in its Faulted
-                    // state; the next ReconnectAsync call will retry the swap.
-                    return;
-                }
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
 
             Task<bool> reconnectTask = entry.RequestReconnectAsync(budget, ct);

@@ -32,6 +32,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -148,7 +149,23 @@ namespace Opc.Ua.Sessions.Tests
                 await ServerFixture.StopAsync().ConfigureAwait(false);
                 serverStopped = true;
 
-                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                // The channel's background monitor races StopAsync; by the time
+                // we call ReconnectAsync the lease's entry may already be Faulted
+                // and SwapFaultedEntryAsync will attempt OpenInitial on a fresh
+                // entry — which throws because the server is down. That is the
+                // expected exhaustion path; swallow the transport-level
+                // SocketException and let the assertions below verify the
+                // Faulted state and the manager's eventual recovery.
+                try
+                {
+                    await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                }
+                catch (SocketException)
+                {
+                }
+                catch (ServiceResultException sre) when (sre.InnerException is SocketException)
+                {
+                }
 
                 Assert.That(
                     await WaitForAsync(
