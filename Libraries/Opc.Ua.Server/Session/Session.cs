@@ -220,6 +220,14 @@ namespace Opc.Ua.Server
             OperationContext context,
             CancellationToken cancellationToken = default)
         {
+            // One-shot: session creation completes exactly once. Guard against a
+            // second invocation (InitializeAsync is on the public ISession
+            // interface) re-registering the diagnostics node and overwriting Id.
+            if (!Id.IsNull)
+            {
+                throw new InvalidOperationException("The session has already been initialized.");
+            }
+
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
 
             // create diagnostics object.

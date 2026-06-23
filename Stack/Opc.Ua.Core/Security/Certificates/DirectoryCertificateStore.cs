@@ -1002,9 +1002,20 @@ namespace Opc.Ua
             // cache signature comparison is order-independent.
             Array.Sort(files, static (a, b) => string.CompareOrdinal(a.Name, b.Name));
 
-            // Lock-free fast path: reuse the cache when the files are unchanged.
+            // Bound the staleness window: even when the (name, length, mtime)
+            // signature is unchanged, re-read from disk once the snapshot is
+            // older than kCrlCacheMaxAge. This defends revocation freshness
+            // against an out-of-band CRL replacement that preserves all three
+            // signature fields (e.g. a timestamp-preserving sync).
+            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+            long maxAgeTicks = kCacheMaxAge.Ticks;
+
+            // Lock-free fast path: reuse the cache when the files are unchanged
+            // and the snapshot is still within its max age.
             CrlCacheEntry? cache = m_crlCache;
-            if (cache != null && cache.Matches(files))
+            if (cache != null &&
+                nowTicks - cache.BuiltTicks <= maxAgeTicks &&
+                cache.Matches(files))
             {
                 return cache.Crls;
             }
@@ -1013,7 +1024,9 @@ namespace Opc.Ua
             {
                 // Re-check under the lock in case another thread just rebuilt.
                 cache = m_crlCache;
-                if (cache != null && cache.Matches(files))
+                if (cache != null &&
+                    nowTicks - cache.BuiltTicks <= maxAgeTicks &&
+                    cache.Matches(files))
                 {
                     return cache.Crls;
                 }
@@ -1044,7 +1057,7 @@ namespace Opc.Ua
                     }
                 }
 
-                var entry = new CrlCacheEntry(crls.ToArray(), names, lengths, ticks);
+                var entry = new CrlCacheEntry(crls.ToArray(), names, lengths, ticks, nowTicks);
                 m_crlCache = entry;
                 return entry.Crls;
             }
@@ -1226,6 +1239,7 @@ namespace Opc.Ua
 
             // check if cache is still good.
             if ((certSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
+                (now - m_lastDirectoryCheck) <= kCacheMaxAge &&
                 (
                     NoPrivateKeys ||
                     m_privateKeySubdir == null ||
@@ -1238,7 +1252,9 @@ namespace Opc.Ua
                 // the directory, so a successful Refresh() does not guarantee a
                 // current value. Comparing the cached entry count to the
                 // current file count detects external changes without re-parsing
-                // every certificate file in the common (unchanged) case.
+                // every certificate file in the common (unchanged) case. The
+                // kCacheMaxAge bound above additionally caps how long a stale
+                // same-count snapshot can be served against an in-place edit.
                 int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length +
                     certSubdir.GetFiles(kPemCertSearchString).Length;
                 if (onDiskCount == m_certificates.Count)
@@ -1544,15 +1560,23 @@ namespace Opc.Ua
                 X509CRL[] crls,
                 string[] names,
                 long[] lengths,
-                long[] ticks)
+                long[] ticks,
+                long builtTicks)
             {
                 Crls = crls;
+                BuiltTicks = builtTicks;
                 m_names = names;
                 m_lengths = lengths;
                 m_ticks = ticks;
             }
 
             public X509CRL[] Crls { get; }
+
+            /// <summary>
+            /// UTC tick count (from the store's TimeProvider) at which this
+            /// snapshot was built; used to bound the cache max age.
+            /// </summary>
+            public long BuiltTicks { get; }
 
             /// <summary>
             /// Returns true when the supplied (name-sorted) CRL files match the
@@ -1600,6 +1624,15 @@ namespace Opc.Ua
         private DirectoryInfo? m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
+
+        /// <summary>
+        /// Upper bound on how long a cached certificate or CRL snapshot is
+        /// served before it is re-read from disk, even when the directory /
+        /// per-file freshness signature is unchanged. Bounds the staleness
+        /// window against an out-of-band, same-signature in-place replacement
+        /// of a trusted certificate or CRL (e.g. a timestamp-preserving sync).
+        /// </summary>
+        private static readonly TimeSpan kCacheMaxAge = TimeSpan.FromSeconds(30);
         private readonly Lock m_crlCacheLock = new();
         private volatile CrlCacheEntry? m_crlCache;
     }

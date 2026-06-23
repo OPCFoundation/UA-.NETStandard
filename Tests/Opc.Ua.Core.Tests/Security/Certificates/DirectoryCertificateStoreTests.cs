@@ -33,6 +33,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -523,6 +524,70 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             StatusCode afterRemove = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
             Assert.That(afterRemove.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown),
                 "A CRL removed from the file system must no longer be observed.");
+        }
+
+        [Test]
+        public async Task IsRevokedAsyncCrlCacheIsBoundedByMaxAgeAsync()
+        {
+            // Security (F2): even when the CRL file's (name, length, last-write-
+            // time) signature is unchanged, the cache must re-read from disk
+            // once the snapshot exceeds its max age, so an out-of-band, same-
+            // signature in-place CRL replacement cannot keep serving a stale
+            // revocation result indefinitely.
+            var time = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            using var store = new DirectoryCertificateStore(noSubDirs: false, m_telemetry, time);
+            store.Open(m_tempDir);
+
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=CrlTtlIssuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CrlTtlLeaf")
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            await store.AddAsync(issuer).ConfigureAwait(false);
+
+            // Write a CRL that revokes the leaf, directly on disk.
+            var crl = new X509CRL(CrlBuilder
+                .Create(issuer.SubjectName)
+                .AddRevokedCertificate(leaf)
+                .CreateForRSA(issuer));
+            string crlDir = Path.Combine(m_tempDir, "crl");
+            Directory.CreateDirectory(crlDir);
+            string crlFile = Path.Combine(crlDir, "ttl.crl");
+            File.WriteAllBytes(crlFile, crl.RawData);
+            var fileInfo = new FileInfo(crlFile);
+            long length = fileInfo.Length;
+            DateTime writeTimeUtc = fileInfo.LastWriteTimeUtc;
+
+            // Warm the cache: the leaf is revoked.
+            StatusCode warm = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(warm.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked));
+
+            // Replace the CRL content in place with same-length bytes and reset
+            // the last-write-time so the (name, length, mtime) signature is
+            // unchanged. The new content is not a valid CRL.
+            var sameLengthGarbage = new byte[length];
+            Array.Fill(sameLengthGarbage, (byte)0xEE);
+            File.WriteAllBytes(crlFile, sameLengthGarbage);
+            File.SetLastWriteTimeUtc(crlFile, writeTimeUtc);
+
+            // Within the max age the unchanged signature keeps serving the
+            // cached (stale) CRL.
+            StatusCode stale = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(stale.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked),
+                "within the max age, the unchanged signature serves the cached CRL");
+
+            // After the max age the cache re-reads: the now-invalid CRL no
+            // longer revokes the leaf.
+            time.Advance(TimeSpan.FromSeconds(31));
+            StatusCode refreshed = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(refreshed.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown),
+                "after the max age the cache must re-read the CRL from disk");
         }
     }
 }

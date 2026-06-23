@@ -53,7 +53,11 @@ namespace Opc.Ua
         public BinaryEncoder(IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_ownedBufferWriter = new ArrayPoolBufferWriter<byte>();
+            // Use a clearing buffer so any sensitive data written during
+            // encoding (e.g. encoded secrets / credentials via EncryptedSecret)
+            // is zeroed when the pooled buffer is returned to the shared
+            // ArrayPool, instead of being exposed to the next pool consumer.
+            m_ownedBufferWriter = new ArrayPoolBufferWriter<byte>(clearArray: true);
             m_bufferWriter = m_ownedBufferWriter;
             m_leaveOpen = false;
             m_nestingLevel = 0;
