@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System.Net;
-using Opc.Ua.PubSub.Udp.Security.Dtls;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Opc.Ua.PubSub.Udp
 {

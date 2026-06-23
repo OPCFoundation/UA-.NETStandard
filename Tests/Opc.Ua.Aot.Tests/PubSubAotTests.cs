@@ -42,7 +42,7 @@ using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
-using Opc.Ua.PubSub.Udp.Security.Dtls;
+using Opc.Ua.PubSub.Udp.Dtls;
 using DataSetField = Opc.Ua.PubSub.Encoding.DataSetField;
 using PubSubFieldEncoding = Opc.Ua.PubSub.Encoding.PubSubFieldEncoding;
 using PubSubDataSetMessageType = Opc.Ua.PubSub.Encoding.PubSubDataSetMessageType;

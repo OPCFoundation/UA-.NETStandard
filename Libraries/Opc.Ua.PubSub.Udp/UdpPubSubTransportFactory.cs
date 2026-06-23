@@ -32,7 +32,7 @@ using System.Net.NetworkInformation;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Transports;
-using Opc.Ua.PubSub.Udp.Security.Dtls;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Opc.Ua.PubSub.Udp
 {

@@ -7,7 +7,7 @@
 using System;
 using System.Diagnostics;
 using System.Security.Cryptography;
-using Opc.Ua.PubSub.Udp.Security.Dtls;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Opc.Ua.PubSub.Bench
 {

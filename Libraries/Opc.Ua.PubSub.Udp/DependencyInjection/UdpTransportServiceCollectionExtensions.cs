@@ -33,7 +33,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
-using Opc.Ua.PubSub.Udp.Security.Dtls;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

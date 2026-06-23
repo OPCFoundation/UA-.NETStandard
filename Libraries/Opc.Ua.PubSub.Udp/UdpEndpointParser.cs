@@ -30,7 +30,7 @@
 using System;
 using System.Globalization;
 using System.Net;
-using Opc.Ua.PubSub.Udp.Security.Dtls;
+using Opc.Ua.PubSub.Udp.Dtls;
 using System.Net.Sockets;
 
 namespace Opc.Ua.PubSub.Udp
