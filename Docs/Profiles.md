@@ -5,7 +5,7 @@ This document describes which [OPC UA Profiles and Facets](https://profiles.opcf
 ## Overview
 
 The OPC UA .NET Standard Stack is a reference implementation that targets
-**OPC UA specification version 1.05.07**. The stack has been certified for
+**OPC UA specification version 1.05.06**. The stack has been certified for
 compliance through an OPC Foundation Certification Test Lab and is
 continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
@@ -72,7 +72,7 @@ canonical URI string before claiming a facet):
   See [Historical Access](HistoricalAccess.md).
 - **Aggregates** (Part 13) — `AggregateManager` and the
   `AggregateCalculator` family in `Libraries/Opc.Ua.Server/Aggregates/`.
-  All **37 standard aggregate functions** of v1.05.07 are implemented;
+  All **37 standard aggregate functions** of v1.05.06 are implemented;
   servers can additionally push down aggregation by implementing
   `IHistorianProcessedProvider`. See [Aggregates](Aggregates.md).
 - **Alarms and Conditions** (Part 9) — Full server-side implementation
@@ -403,7 +403,7 @@ server-defined types.
 
 ## Specification Compliance
 
-- **OPC UA Specification:** Version 1.05.07.
+- **OPC UA Specification:** Version 1.05.06.
 - **Certification:** The reference server has been certified for
   compliance through an OPC Foundation Certification Test Lab.
 - **Testing:** All releases are verified for compliance using the latest

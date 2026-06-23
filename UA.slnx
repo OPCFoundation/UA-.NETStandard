@@ -215,7 +215,6 @@
     <Project Path="Tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.PubSub.Bench/Opc.Ua.PubSub.Bench.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Mqtt.Tests/Opc.Ua.PubSub.Mqtt.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />

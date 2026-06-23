@@ -2,7 +2,7 @@
 
 ## Overview
 
-The .NET Standard stack implements **OPC UA Part 13 (OPC 10000-13) v1.05.07 Aggregates** on the server
+The .NET Standard stack implements **OPC UA Part 13 (OPC 10000-13) v1.05.06 Aggregates** on the server
 side, computed over historical data retrieved through [Historical Access](HistoricalAccess.md) (Part 11).
 All **37 standard aggregate functions** are supported and advertised through the address space.
 
@@ -133,6 +133,6 @@ browsing `Server.ServerCapabilities.AggregateFunctions`.
 
 ## References
 
-- OPC 10000-13 (Aggregates) v1.05.07: https://reference.opcfoundation.org/Core/Part13/v105/docs/
+- OPC 10000-13 (Aggregates) v1.05.06: https://reference.opcfoundation.org/Core/Part13/v105/docs/
 - [Historical Access (Part 11)](HistoricalAccess.md)
 - [Migration Guide](MigrationGuide.md)

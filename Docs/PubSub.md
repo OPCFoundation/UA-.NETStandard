@@ -1,10 +1,10 @@
 # Part 14 PubSub
 
 > **OPC UA Part 14 PubSub for .NET Standard 2.0.x.** This document
-> describes the v1.05.07 PubSub library shipped under the
+> describes the v1.05.06 PubSub library shipped under the
 > `Opc.Ua.PubSub.*` namespaces. It assumes the reader already
 > understands the OPC UA PubSub model
-> ([Part 14 §4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/4))
+> ([Part 14 §4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/4))
 > and focuses on **how to use the library**.
 
 ## Table of contents
@@ -28,7 +28,7 @@
 
 ## At a glance
 
-- Targets **OPC UA Part 14 v1.05.07** conformance for the implemented UDP,
+- Targets **OPC UA Part 14 v1.05.06** conformance for the implemented UDP,
   MQTT, UADP, JSON, discovery, Action, SKS, and address-space surfaces.
 - Four library packages
   ([NuGet](https://www.nuget.org/packages?q=OPCFoundation.NetStandard.Opc.Ua.PubSub)):
@@ -39,12 +39,12 @@
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
 - Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), and **MQTT** (3.1.1 + 5.0).
-- Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4))
-  and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5))
+- Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
+  and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
   with `Verbose` / `Compact` / `RawData` modes.
 - Security: AES-128-CTR / AES-256-CTR + HMAC-SHA-256 with replay-window
-  enforcement ([§7.2.4.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.4.3),
-  [§8](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/8));
+  enforcement ([§7.2.4.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3),
+  [§8](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8));
   pull/push **SKS** client + in-memory SKS server.
 - Fluent `PubSubApplicationBuilder` and full DI surface
   (`services.AddOpcUa().AddPubSub(...)` etc.).
@@ -100,12 +100,12 @@ space.
 ```
 
 The **state machine** (`PubSubStateMachine`,
-[Part 14 §6.2.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.1))
+[Part 14 §6.2.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.1))
 is the spine: every primitive (application, connection, group,
 writer, reader) owns an instance, parents cascade enable / disable into
 their children, and the sub-tree refuses to start unless its
 configuration validates clean
-(`PubSubConfigurationValidator`, [Part 14 §6.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.5)).
+(`PubSubConfigurationValidator`, [Part 14 §6.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.5)).
 
 ## Core abstractions
 
@@ -113,7 +113,7 @@ configuration validates clean
 
 The runtime root. Holds the connections, the metadata registry, the
 diagnostics aggregator and the state machine.
-([Part 14 §9.1.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/9.1.2)).
+([Part 14 §9.1.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.2)).
 
 ```csharp
 public interface IPubSubApplication : IAsyncDisposable
@@ -160,7 +160,7 @@ public interface IPubSubApplication : IAsyncDisposable
 ```
 
 The mutation methods implement the
-[Part 14 §9.1.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/9.1.6)
+[Part 14 §9.1.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.6)
 runtime configuration model — every method is the runtime counterpart of
 a `PublishSubscribe` Object Method and raises
 `ConfigurationChanged` so the optional address-space layer can mirror
@@ -170,9 +170,9 @@ the change.
 
 `IPubSubConnection` owns one `IPubSubTransport` plus 0..N
 `WriterGroup` and 0..N `ReaderGroup` children
-([Part 14 §6.2.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.6)).
+([Part 14 §6.2.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.6)).
 Groups own writers / readers and drive the publishing / receive
-schedule via `IPubSubScheduler` ([§6.4.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.4.1)).
+schedule via `IPubSubScheduler` ([§6.4.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1)).
 When a `WriterGroup` has `KeepAliveTime > 0`, the scheduler emits a
 KeepAlive NetworkMessage whenever the group has not sent a
 DataSetMessage during that interval.
@@ -181,9 +181,9 @@ DataSetMessage during that interval.
 
 `DataSetWriter` projects a published DataSet into a NetworkMessage
 stream
-([§6.2.6.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.6.1)).
+([§6.2.6.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.6.1)).
 `DataSetReader` consumes one and writes to its target sink
-([§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.7)).
+([§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.7)).
 Filters honoured: `PublisherId`, `WriterGroupId`, `DataSetWriterId`,
 `DataSetClassId`, `MessageReceiveTimeout`.
 `DataSetClassId` mismatches are rejected before the message reaches the
@@ -195,8 +195,8 @@ when no matching message arrives within the configured idle window.
 Pub/sub-shared registry keyed by
 `(PublisherId, WriterGroupId, DataSetWriterId, DataSetClassId,
 MajorVersion)`
-([§6.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.2.4)).
-The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.2.5))
+([§6.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.2.4)).
+The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.2.5))
 emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
@@ -218,7 +218,7 @@ length, encrypting length, nonce length, `Sign` / `Encrypt` /
 per-`SecurityGroupId` source of `PubSubSecurityKey`s the wrapper
 uses; `StaticSecurityKeyProvider` keeps a fixed ring,
 `PullSecurityKeyProvider` calls an SKS endpoint
-([§8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/8.4)).
+([§8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4)).
 
 ### `IPubSubKeyServiceServer`
 
@@ -302,7 +302,7 @@ await using IPubSubApplication application = await pb.BuildAndStartAsync();
 
 ### XML configuration mode
 
-Both the publisher and subscriber accept a Part 14 v1.05.07
+Both the publisher and subscriber accept a Part 14 v1.05.06
 configuration file via `UseConfigurationFile(path)`; the file is
 loaded by `XmlPubSubConfigurationStore`, validated, and watched for
 hot-reload changes:
@@ -415,7 +415,7 @@ Implemented in `Opc.Ua.PubSub.Udp`. Wire profile
 Supports unicast, IPv4 multicast, IPv6 multicast and limited
 broadcast. The transport honours the
 `DatagramConnectionTransport2DataType` v2 fields
-([Part 14 §6.4.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.4.2)):
+([Part 14 §6.4.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2)):
 
 | Field                      | Meaning                                                              |
 | -------------------------- | -------------------------------------------------------------------- |
@@ -520,11 +520,11 @@ Highlights:
 - `mqtt://`, `mqtts://`, and secure WebSocket `wss://` endpoint schemes are
   accepted. `AuthenticationProfileUri` selects MQTT 5 enhanced authentication.
 - Retained messages are used for metadata and discovery-on-startup
-  ([Part 14 §6.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/6.2.2.5)).
+  ([Part 14 §6.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.2.5)).
 - `JsonNetworkMessageContentMask.SingleNetworkMessage` lifts the JSON
   array wrapper so each MQTT publish carries exactly one
   `JsonNetworkMessage`
-  ([§7.2.5.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.3)).
+  ([§7.2.5.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.3)).
 - TLS, Anonymous, Username/Password, X.509-cert authentication.
 - Reconnect with exponential back-off honoured at the connection
   state-machine level (no message loss on a re-subscribe at QoS ≥ 1).
@@ -560,7 +560,7 @@ clear TODO(S3) error instead of sending unprotected PubSub payloads.
 
 ### UADP — `Opc.Ua.PubSub.Encoding.Uadp`
 
-Implements [Part 14 §7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4)
+Implements [Part 14 §7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4)
 in full:
 
 - All `UadpNetworkMessageContentMask` flags (`PublisherId`,
@@ -572,43 +572,43 @@ in full:
   `Status`, `MajorVersion`, `MinorVersion`, `SequenceNumber`,
   `Timestamp`, `PicoSeconds`.
 - `Variant`, `RawData`, `DataValue` per-field encoding
-  ([§7.2.4.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.5.4)).
+  ([§7.2.4.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.5.4)).
 - KeyFrame / DeltaFrame / Event / KeepAlive `MessageType`s.
 - Discovery NetworkMessages
-  ([§7.2.4.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.7)) —
+  ([§7.2.4.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.7)) —
   Request / Response / DataSetMessage variants.
-- **Chunking** ([§7.2.4.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.6))
+- **Chunking** ([§7.2.4.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.6))
   splits NetworkMessages whose encoded length exceeds the
   configured `MaxNetworkMessageSize` into ChunkData /
   ChunkData-Final fragments at the byte level; the receive side
   reassembles via `UadpReassembler`.
 - **RawData padding**
-  ([§7.2.4.5.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.5.11))
+  ([§7.2.4.5.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.5.11))
   pads strings, byte-strings, XML elements and arrays to the
   declared `MaxStringLength` / `ArrayDimensions`; the on-wire length
   prefix is suppressed; decoders trim the trailing NUL fill on read.
 
 ### JSON — `Opc.Ua.PubSub.Encoding.Json`
 
-Implements [Part 14 §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5)
+Implements [Part 14 §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5)
 on top of `System.Text.Json`. The encoder is allocation-friendly
-(no Newtonsoft.Json dependency) and supports the v1.05.07 modes:
+(no Newtonsoft.Json dependency) and supports the v1.05.06 modes:
 
 | Mode      | Spec                                                  | Wire shape                    |
 | --------- | ----------------------------------------------------- | ----------------------------- |
-| `Verbose` | [§7.2.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.4) | Field is a Variant envelope.   |
-| `Compact` | [§7.2.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.4) | Bare value; metadata required. |
-| `RawData` | [§7.2.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.4) | Bare bytes-as-base64 / numeric.|
+| `Verbose` | [§7.2.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.4) | Field is a Variant envelope.   |
+| `Compact` | [§7.2.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.4) | Bare value; metadata required. |
+| `RawData` | [§7.2.5.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.4) | Bare bytes-as-base64 / numeric.|
 
-Additional v1.05.07 flavours:
+Additional v1.05.06 flavours:
 
 - `JsonActionNetworkMessage`
-  ([§7.2.5.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.6)) —
+  ([§7.2.5.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.6)) —
   side-channel Actions using the spec `MessageType` strings
   `ua-action-request`, `ua-action-response`, `ua-action-metadata`, and
   `ua-action-responder`.
 - `JsonDiscoveryMessage`
-  ([§7.2.5.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.7)) —
+  ([§7.2.5.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.7)) —
   application, endpoint, status, connection, and metadata discovery messages using
   `ua-application`, `ua-endpoints`, `ua-status`, `ua-connection`, and
   `ua-metadata`.
@@ -646,9 +646,9 @@ PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(
 ## Security
 
 Implemented in `Opc.Ua.PubSub.Security`. Implements
-[Part 14 §7.2.4.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.4.4.3)
+[Part 14 §7.2.4.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3)
 (send / receive flow) and
-[Annex A.2.1.6 / A.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/A.2.1.6)
+[Annex A.2.1.6 / A.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.1.6)
 (byte layout).
 
 ### `UadpSecurityWrapper`
@@ -677,20 +677,20 @@ public enum UadpSecurityWrapOptions
 
 Lookup uses
 `PubSubSecurityPolicyRegistry.Find(policyUri)` — the URIs match
-[Part 7 §6.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/8).
+[Part 7 §6.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
 
 ### Key ring
 
 `PubSubSecurityKeyRing` keeps a current key plus a sliding window of
 past + future keys per `SecurityGroupId`. Replay protection is
-enforced via `SecurityTokenWindow` ([§8.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/8.2));
+enforced via `SecurityTokenWindow` ([§8.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.2));
 nonce reuse is detected by `RandomNonceProvider` /
-`AesCtrNonceLayout` ([§A.2.1.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/A.2.1.6)).
+`AesCtrNonceLayout` ([§A.2.1.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.1.6)).
 
 ## Security Key Service (SKS)
 
 `Opc.Ua.PubSub.Security.Sks` implements both sides of
-[Part 14 §8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/8.4)
+[Part 14 §8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4)
 for PubSub symmetric group-key distribution. This is intentionally
 separate from the OPC 10000-12 KeyCredential services used by GDS and
 resource-server credential push: SKS rotates and serves
@@ -801,13 +801,13 @@ PubSubActionResponse response = await app.InvokeActionAsync(
     timeout: TimeSpan.FromSeconds(5));
 ```
 
-Cites [Part 14 §7.2.5.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/7.2.5.6)
+Cites [Part 14 §7.2.5.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.6)
 (Action NetworkMessage) and the Annex B Action data types.
 
 ## Server-side address space
 
 `Opc.Ua.PubSub.Server` mounts the standard `PublishSubscribe` Object
-([Part 14 §9.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/9.1))
+([Part 14 §9.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1))
 onto a hosted OPC UA server. Wiring is one chain:
 
 ```csharp
@@ -829,7 +829,7 @@ What the server side adds:
      `DataSetWriter`, `DataSetReader`, `PublishedDataSet`, and DataSet folder.
    - Per-instance `Status` / `State` and `ConfigurationVersion` Variables so a
      client can observe the same runtime state the scheduler uses.
-2. Method bindings ([§9.1.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/9.1.5)):
+2. Method bindings ([§9.1.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.5)):
    `AddConnection`, `RemoveConnection`, per-instance `AddWriterGroup`,
    `AddReaderGroup`, `AddDataSetWriter`, `AddDataSetReader`, `Remove*`,
    `Enable`, and `Disable`, plus `AddPublishedDataItems`,
@@ -843,7 +843,7 @@ What the server side adds:
    `GetSecurityKeys`, `SetSecurityKeys`, `GetSecurityGroup`, `InvalidateKeys`,
    and `ForceKeyRotation`, protected by the server `RolePermissions`.
 5. Per-component diagnostics
-   ([§9.1.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/9.1.11)):
+   ([§9.1.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.11)):
    `IPubSubDiagnostics` for the application, every connection, every
    group, every writer / reader. Counters surfaced as Variables under
    each Object: `TotalInformation`, `TotalError`, `Reset`, plus the
@@ -879,7 +879,7 @@ application aggregates them. Counters available:
 
 | Counter                       | Notes                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------ |
-| `TotalInformation`            | Live-state counter ([§9.1.11.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.07/9.1.11.5)). |
+| `TotalInformation`            | Live-state counter ([§9.1.11.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.11.5)). |
 | `TotalError`                  | Live-state counter.                                                             |
 | `Reset`                       | Resets the counters under the component.                                        |
 | `SentNetworkMessages`         | Per-component send counter.                                                     |
@@ -921,7 +921,7 @@ PubSub is AOT-clean across all four assemblies.
 
 ## Spec coverage
 
-The library implements every clause of Part 14 v1.05.07 the
+The library implements every clause of Part 14 v1.05.06 the
 reference servers / publishers / subscribers exercise. The table
 below maps Part 14 sections to the type / file that implements them.
 

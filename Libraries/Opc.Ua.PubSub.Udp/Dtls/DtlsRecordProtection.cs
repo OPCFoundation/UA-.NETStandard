@@ -107,6 +107,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     innerPlaintext[^1] = ApplicationDataContentType;
                     Span<byte> nonce = stackalloc byte[NonceLength];
                     BuildNonce(sequenceNumber, nonce);
+#if NET8_0_OR_GREATER
                     SealAead(
                         nonce,
                         record.AsSpan(0, HeaderLength),
@@ -114,6 +115,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         record.AsSpan(HeaderLength, innerPlaintext.Length),
                         record.AsSpan(HeaderLength + innerPlaintext.Length, m_tagLength));
                     CryptographicOperations.ZeroMemory(nonce);
+#else
+                    throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
+#endif
                 }
                 else
                 {
@@ -178,6 +182,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 {
                     Span<byte> nonce = stackalloc byte[NonceLength];
                     BuildNonce(sequenceNumber, nonce);
+#if NET8_0_OR_GREATER
                     OpenAead(
                         nonce,
                         header,
@@ -185,6 +190,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         record.Slice(HeaderLength + contentLength, m_tagLength),
                         plaintext);
                     CryptographicOperations.ZeroMemory(nonce);
+#else
+                    throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
+#endif
                 }
                 else
                 {
@@ -281,6 +289,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return cipherSuite is DtlsCipherSuite.TlsSha384Sha384 ? 48 : 16;
         }
 
+#if NET8_0_OR_GREATER
         private void SealAead(
             ReadOnlySpan<byte> nonce,
             ReadOnlySpan<byte> associatedData,
@@ -288,7 +297,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             Span<byte> ciphertext,
             Span<byte> tag)
         {
-#if NET8_0_OR_GREATER
             switch (Profile.CipherSuite)
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
@@ -304,16 +312,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 default:
                     throw new NotSupportedException("Cipher suite is not AEAD-protected.");
             }
-#else
-            _ = nonce;
-            _ = associatedData;
-            _ = plaintext;
-            _ = ciphertext;
-            _ = tag;
-            throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
         }
+#endif
 
+#if NET8_0_OR_GREATER
         private void OpenAead(
             ReadOnlySpan<byte> nonce,
             ReadOnlySpan<byte> associatedData,
@@ -321,7 +323,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             ReadOnlySpan<byte> tag,
             Span<byte> plaintext)
         {
-#if NET8_0_OR_GREATER
             switch (Profile.CipherSuite)
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
@@ -337,15 +338,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 default:
                     throw new NotSupportedException("Cipher suite is not AEAD-protected.");
             }
-#else
-            _ = nonce;
-            _ = associatedData;
-            _ = ciphertext;
-            _ = tag;
-            _ = plaintext;
-            throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
         }
+#endif
 
         private void ComputeHmac(ReadOnlySpan<byte> header, ReadOnlySpan<byte> plaintext, Span<byte> tag)
         {
