@@ -79,7 +79,8 @@ namespace Opc.Ua.PubSub.Application
             = new(StringComparer.Ordinal);
         private readonly Dictionary<string, ISubscribedDataSetSink> m_dataSetSinks
             = new(StringComparer.Ordinal);
-        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler, bool AllowUnsecured)>
+        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
+            bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionResponders = [];
         private readonly PubSubApplicationOptions m_options = new();
         private IUaPubSubDataStore? m_dataStore;
@@ -417,10 +418,15 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Action handler.</param>
         /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        /// <param name="responseAddressPolicy">
+        /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
+        /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
+        /// </param>
         public PubSubApplicationBuilder AddActionResponder(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (target is null)
             {
@@ -432,7 +438,7 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(handler));
             }
 
-            m_actionResponders.Add((target, handler, allowUnsecured));
+            m_actionResponders.Add((target, handler, allowUnsecured, responseAddressPolicy));
             return this;
         }
 
@@ -442,17 +448,23 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Delegate action handler.</param>
         /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        /// <param name="responseAddressPolicy">
+        /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
+        /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
+        /// </param>
         public PubSubApplicationBuilder AddActionResponder(
             PubSubActionTarget target,
             Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (handler is null)
             {
                 throw new ArgumentNullException(nameof(handler));
             }
 
-            return AddActionResponder(target, new DelegatePubSubActionHandler(handler), allowUnsecured);
+            return AddActionResponder(
+                target, new DelegatePubSubActionHandler(handler), allowUnsecured, responseAddressPolicy);
         }
 
         /// <summary>
@@ -526,7 +538,8 @@ namespace Opc.Ua.PubSub.Application
                     application.RegisterActionHandler(
                         m_actionResponders[i].Target,
                         m_actionResponders[i].Handler,
-                        m_actionResponders[i].AllowUnsecured);
+                        m_actionResponders[i].AllowUnsecured,
+                        m_actionResponders[i].ResponseAddressPolicy);
                 }
 
                 return application;

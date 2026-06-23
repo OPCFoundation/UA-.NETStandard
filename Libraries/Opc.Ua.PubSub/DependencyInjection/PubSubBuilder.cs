@@ -113,7 +113,8 @@ namespace Microsoft.Extensions.DependencyInjection
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (target is null)
             {
@@ -123,7 +124,8 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            m_steps.Add((_, pb) => pb.AddActionResponder(target, handler, allowUnsecured));
+            m_steps.Add((_, pb) => pb.AddActionResponder(
+                target, handler, allowUnsecured, responseAddressPolicy));
             return this;
         }
 
@@ -131,7 +133,8 @@ namespace Microsoft.Extensions.DependencyInjection
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             Func<IServiceProvider, IPubSubActionHandler> handlerFactory,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (target is null)
             {
@@ -141,33 +144,38 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
-            m_steps.Add((sp, pb) => pb.AddActionResponder(target, handlerFactory(sp), allowUnsecured));
+            m_steps.Add((sp, pb) => pb.AddActionResponder(
+                target, handlerFactory(sp), allowUnsecured, responseAddressPolicy));
             return this;
         }
 
         /// <inheritdoc/>
         public IPubSubBuilder AddActionResponder<THandler>(
             PubSubActionTarget target,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
             where THandler : class, IPubSubActionHandler
         {
             return AddActionResponder(
                 target,
                 sp => sp.GetRequiredService<THandler>(),
-                allowUnsecured);
+                allowUnsecured,
+                responseAddressPolicy);
         }
 
         /// <inheritdoc/>
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (handler is null)
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            return AddActionResponder(target, new DelegatePubSubActionHandler(handler), allowUnsecured);
+            return AddActionResponder(
+                target, new DelegatePubSubActionHandler(handler), allowUnsecured, responseAddressPolicy);
         }
 
         /// <inheritdoc/>

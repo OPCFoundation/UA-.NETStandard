@@ -56,6 +56,11 @@ namespace Opc.Ua.PubSub.Pcap.KeyLog
                 FileShare.Read,
                 bufferSize: 4096,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+
             m_fileStream.Seek(0, SeekOrigin.End);
             m_writer = new StreamWriter(m_fileStream, System.Text.Encoding.UTF8, bufferSize: 1024, leaveOpen: true);
         }

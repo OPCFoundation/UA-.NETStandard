@@ -82,12 +82,9 @@ namespace Opc.Ua.PubSub.Pcap
 
             string? pcapFile = Environment.GetEnvironmentVariable(
                 PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile);
-            string? keyLogFile = Environment.GetEnvironmentVariable(
-                PubSubPcapEnvironmentVariableNames.OpcuaPubSubKeyLogFile);
 
             var options = new PubSubPcapEnvironmentOptions(
-                Normalize(pcapFile),
-                Normalize(keyLogFile));
+                Normalize(pcapFile));
             if (!options.IsEnabled)
             {
                 return services;

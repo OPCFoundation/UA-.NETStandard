@@ -115,6 +115,49 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             });
         }
 
+        [Test]
+        public void ForgedRecordDoesNotPoisonReplayWindow()
+        {
+            byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
+            byte[] payload = [0x01, 0x02, 0x03, 0x04];
+            using var writer = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+            using var reader = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+
+            byte[] genuine = writer.Seal(payload);
+            byte[] forged = (byte[])genuine.Clone();
+            forged[^1] ^= 0xff;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => reader.Open(forged), Throws.TypeOf<CryptographicException>(),
+                    "SA-DTLS-CRYPTO-04: a forged record must fail authentication.");
+                Assert.That(reader.Open(genuine), Is.EqualTo(payload),
+                    "SA-DTLS-CRYPTO-04: the anti-replay window must not be advanced by the forged record, " +
+                    "so the genuine record at the same sequence number is still accepted.");
+            });
+        }
+
+        [TestCase(DtlsCipherSuite.TlsAes128GcmSha256)]
+        [TestCase(DtlsCipherSuite.TlsAes256GcmSha384)]
+        [TestCase(DtlsCipherSuite.TlsSha256Sha256)]
+        [TestCase(DtlsCipherSuite.TlsSha384Sha384)]
+        public void SequenceNumberMaskRoundTripsAcrossRecords(DtlsCipherSuite cipherSuite)
+        {
+            byte[] secret = CreateSecret(cipherSuite);
+            using var writer = new DtlsRecordProtection(CreateProfile(cipherSuite), secret, epoch: 1);
+            using var reader = new DtlsRecordProtection(CreateProfile(cipherSuite), secret, epoch: 1);
+
+            for (int i = 0; i < 6; i++)
+            {
+                byte[] payload = [(byte)i, (byte)(i + 1), (byte)(i + 2)];
+                byte[] record = writer.Seal(payload);
+                Assert.That(reader.Open(record), Is.EqualTo(payload),
+                    "SA-DTLS-CRYPTO-01: the ciphertext-derived sequence-number mask must round-trip per record.");
+            }
+        }
+
         private static byte[] CreateSecret(DtlsCipherSuite cipherSuite)
         {
             int length = cipherSuite is DtlsCipherSuite.TlsAes256GcmSha384 or DtlsCipherSuite.TlsSha384Sha384 ? 48 : 32;

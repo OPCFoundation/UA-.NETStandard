@@ -90,5 +90,19 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Optional direct-construction peer certificate validator.
         /// </summary>
         public ICertificateValidatorEx? PeerCertificateValidator { get; set; }
+
+        /// <summary>
+        /// Requests DTLS 1.3 mutual authentication. When <see langword="false"/> (the default) the
+        /// transport uses the one-way authentication model in which only the server presents a
+        /// certificate; for Part 14 PubSub the publisher is normally authenticated at the message
+        /// layer through SKS-managed security keys, so client certificates are not required at the
+        /// DTLS layer. When <see langword="true"/> the server includes a CertificateRequest in its
+        /// flight, the client answers with its Certificate and CertificateVerify, and the server
+        /// validates the client chain through the same fail-closed certificate validator used for the
+        /// server certificate. Enabling mutual authentication requires a configured peer certificate
+        /// validator on the server and a local certificate on the client; otherwise the handshake
+        /// fails closed.
+        /// </summary>
+        public bool RequireClientCertificate { get; set; }
     }
 }

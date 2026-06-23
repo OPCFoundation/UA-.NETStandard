@@ -1297,7 +1297,6 @@ on host shutdown:
 | Variable | Effect |
 | --- | --- |
 | `OPCUA_PUBSUB_PCAP_FILE` | Auto-start capture; write to this `.pcap` / `.pcapng` on stop. |
-| `OPCUA_PUBSUB_KEYLOGFILE` | Path for the captured PubSub key log (for offline decryption). |
 
 ### MCP tools
 

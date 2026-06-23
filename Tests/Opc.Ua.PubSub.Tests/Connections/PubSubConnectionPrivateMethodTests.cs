@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
@@ -617,6 +618,154 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Assert.That(
                 diagnostics.Read(PubSubDiagnosticsCounterKind.EncryptionErrors),
                 Is.EqualTo(1));
+        }
+
+        [Test]
+        [TestSpec("SA-ACT-03", Summary = "Out-of-policy Action response address is rejected on topic transports")]
+        public async Task TryRespondToActionRequest_WithOutOfPolicyResponseAddress_DropsResponseAsync()
+        {
+            var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubUdpUadpTransport,
+                new Dictionary<string, INetworkMessageEncoder>
+                {
+                    [Profiles.PubSubUdpUadpTransport] = encoder
+                },
+                new Dictionary<string, INetworkMessageDecoder>(),
+                diagnostics: diagnostics);
+            var transport = new SpyTopicTransport();
+            SetPrivateField(connection, "m_transport", transport);
+
+            bool handlerInvoked = false;
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                {
+                    handlerInvoked = true;
+                    return new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
+                }),
+                allowUnsecured: true);
+
+            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 1,
+                ResponseAddress = "attacker/evil/topic"
+            };
+
+            await InvokePrivateAsync(
+                connection,
+                "TryRespondToActionRequestAsync",
+                request,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(handlerInvoked, Is.False);
+                Assert.That(transport.SentPayloads, Is.Empty);
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors),
+                    Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        [TestSpec("SA-ACT-03", Summary = "In-policy Action response address is honored on topic transports")]
+        public async Task TryRespondToActionRequest_WithInPolicyResponseAddress_SendsResponseAsync()
+        {
+            var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubUdpUadpTransport,
+                new Dictionary<string, INetworkMessageEncoder>
+                {
+                    [Profiles.PubSubUdpUadpTransport] = encoder
+                },
+                new Dictionary<string, INetworkMessageDecoder>(),
+                diagnostics: diagnostics);
+            var transport = new SpyTopicTransport();
+            SetPrivateField(connection, "m_transport", transport);
+
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                    new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good })),
+                allowUnsecured: true,
+                responseAddressPolicy: PubSubResponseAddressPolicy.Matching("responses/*"));
+
+            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 1,
+                ResponseAddress = "responses/writer5"
+            };
+
+            await InvokePrivateAsync(
+                connection,
+                "TryRespondToActionRequestAsync",
+                request,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.SentTopics, Has.Count.EqualTo(1));
+                Assert.That(transport.SentTopics[0], Is.EqualTo("responses/writer5"));
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors),
+                    Is.Zero);
+            });
+        }
+
+        [Test]
+        [TestSpec("SA-ACT-03", Summary = "Datagram Action round-trips ignore the response address policy")]
+        public async Task TryRespondToActionRequest_OnDatagramTransport_SendsRegardlessOfAddressAsync()
+        {
+            var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubUdpUadpTransport,
+                new Dictionary<string, INetworkMessageEncoder>
+                {
+                    [Profiles.PubSubUdpUadpTransport] = encoder
+                },
+                new Dictionary<string, INetworkMessageDecoder>(),
+                diagnostics: diagnostics);
+            var transport = new SpyTransport();
+            SetPrivateField(connection, "m_transport", transport);
+
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                    new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good })),
+                allowUnsecured: true);
+
+            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 1,
+                ResponseAddress = "any/address/ignored-by-udp"
+            };
+
+            await InvokePrivateAsync(
+                connection,
+                "TryRespondToActionRequestAsync",
+                request,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.SentPayloads, Has.Count.EqualTo(1));
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors),
+                    Is.Zero);
+            });
         }
 
         private static PubSubConnection CreateConnection(

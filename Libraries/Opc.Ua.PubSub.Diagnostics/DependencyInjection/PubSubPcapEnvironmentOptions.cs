@@ -38,12 +38,8 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
     /// Destination pcap / pcapng path, or <see langword="null"/> when no
     /// capture file is configured.
     /// </param>
-    /// <param name="KeyLogFilePath">
-    /// Destination key-log path, or <see langword="null"/>.
-    /// </param>
     public sealed record PubSubPcapEnvironmentOptions(
-        string? PcapFilePath,
-        string? KeyLogFilePath)
+        string? PcapFilePath)
     {
         /// <summary>
         /// Whether an env-var driven capture should be auto-started.

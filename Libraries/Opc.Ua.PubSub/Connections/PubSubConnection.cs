@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly UadpReassembler m_reassembler;
         private readonly List<PubSubDiscoveryCollector> m_discoveryCollectors = [];
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
-        private readonly Dictionary<ActionHandlerKey, IPubSubActionHandler> m_actionHandlers = [];
+        private readonly Dictionary<ActionHandlerKey, ActionResponder> m_actionHandlers = [];
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
@@ -722,10 +722,18 @@ namespace Opc.Ua.PubSub.Connections
         /// requests on an unsecured connection (e.g. diagnostics), which exposes
         /// the handler to unauthenticated callers.
         /// </param>
+        /// <param name="responseAddressPolicy">
+        /// Validates the requestor-supplied response address before the response
+        /// is published (SA-ACT-03). When <see langword="null"/> the safe default
+        /// (<see cref="PubSubResponseAddressPolicy.Default"/>) is applied, which
+        /// rejects arbitrary requestor topics on topic-based transports (MQTT/JSON)
+        /// while still allowing datagram (UDP) round-trips that ignore the address.
+        /// </param>
         public void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (target is null)
             {
@@ -735,16 +743,19 @@ namespace Opc.Ua.PubSub.Connections
             {
                 throw new ArgumentNullException(nameof(handler));
             }
+            var responder = new ActionResponder(
+                handler,
+                responseAddressPolicy ?? PubSubResponseAddressPolicy.Default);
             ushort actionTargetId = ResolveActionTargetId(target);
             var key = new ActionHandlerKey(target.DataSetWriterId, actionTargetId, target.ActionName);
             lock (m_gate)
             {
                 m_allowUnsecuredActions |= allowUnsecured;
-                m_actionHandlers[key] = handler;
+                m_actionHandlers[key] = responder;
                 m_actionHandlers[new ActionHandlerKey(
                     target.DataSetWriterId,
                     actionTargetId,
-                    string.Empty)] = handler;
+                    string.Empty)] = responder;
             }
         }
 
@@ -1337,16 +1348,27 @@ namespace Opc.Ua.PubSub.Connections
                     + "or explicitly allow unsecured Action responders.");
                 return;
             }
-            IPubSubActionHandler? handler = ResolveActionHandler(
+            ActionResponder? responder = ResolveActionHandler(
                 request.DataSetWriterId,
                 request.ActionTargetId,
                 actionName: string.Empty);
-            if (handler is null)
+            if (responder is null)
+            {
+                return;
+            }
+            // Validate the requestor-supplied response topic before the handler
+            // runs (SA-ACT-03): never execute the action when the response would
+            // be reflected to an out-of-policy address.
+            if (!IsResponseAddressAllowed(
+                responder,
+                request.DataSetWriterId,
+                request.ActionTargetId,
+                request.ResponseAddress))
             {
                 return;
             }
             PubSubActionHandlerResult result = await InvokeActionHandlerAsync(
-                handler,
+                responder.Handler,
                 new PubSubActionInvocation
                 {
                     Target = new PubSubActionTarget
@@ -1396,16 +1418,27 @@ namespace Opc.Ua.PubSub.Connections
                     + "responders (and secure the transport) to enable this.");
                 return;
             }
-            IPubSubActionHandler? handler = ResolveActionHandler(
+            ActionResponder? responder = ResolveActionHandler(
                 request.DataSetWriterId,
                 request.ActionTargetId,
                 actionName: string.Empty);
-            if (handler is null)
+            if (responder is null)
+            {
+                return;
+            }
+            // Validate the requestor-supplied response topic before the handler
+            // runs (SA-ACT-03). JSON Action frames travel over topic-based
+            // transports (MQTT), so the response address is attacker-controlled.
+            if (!IsResponseAddressAllowed(
+                responder,
+                request.DataSetWriterId,
+                request.ActionTargetId,
+                message.ResponseAddress))
             {
                 return;
             }
             PubSubActionHandlerResult result = await InvokeActionHandlerAsync(
-                handler,
+                responder.Handler,
                 new PubSubActionInvocation
                 {
                     Target = new PubSubActionTarget
@@ -1468,7 +1501,7 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
-        private IPubSubActionHandler? ResolveActionHandler(
+        private ActionResponder? ResolveActionHandler(
             ushort dataSetWriterId,
             ushort actionTargetId,
             string actionName)
@@ -1477,18 +1510,54 @@ namespace Opc.Ua.PubSub.Connections
             {
                 if (m_actionHandlers.TryGetValue(
                     new ActionHandlerKey(dataSetWriterId, actionTargetId, actionName),
-                    out IPubSubActionHandler? exact))
+                    out ActionResponder? exact))
                 {
                     return exact;
                 }
                 if (m_actionHandlers.TryGetValue(
                     new ActionHandlerKey(dataSetWriterId, actionTargetId, string.Empty),
-                    out IPubSubActionHandler? byId))
+                    out ActionResponder? byId))
                 {
                     return byId;
                 }
             }
             return null;
+        }
+
+        private bool IsResponseAddressAllowed(
+            ActionResponder responder,
+            ushort dataSetWriterId,
+            ushort actionTargetId,
+            string? responseAddress)
+        {
+            bool transportUsesTopics;
+            lock (m_gate)
+            {
+                transportUsesTopics = m_transport is IPubSubTopicProvider;
+            }
+            var context = new PubSubResponseAddressContext
+            {
+                ConnectionName = Name,
+                DataSetWriterId = dataSetWriterId,
+                ActionTargetId = actionTargetId,
+                ResponseAddress = responseAddress,
+                TransportUsesTopics = transportUsesTopics
+            };
+            if (responder.ResponseAddressPolicy.IsAllowed(in context))
+            {
+                return true;
+            }
+            RecordSecurityFailure(
+                StatusCodes.BadSecurityModeRejected,
+                "Refusing to publish a PubSub Action response to the "
+                + "requestor-supplied address '" + (responseAddress ?? string.Empty)
+                + "' for writer " + dataSetWriterId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + ", target " + actionTargetId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + ": it does not match the configured response-address policy ("
+                + responder.ResponseAddressPolicy.Description
+                + "). An attacker can otherwise turn the responder into a publishing "
+                + "proxy by choosing an arbitrary topic.");
+            return false;
         }
 
         private async ValueTask TryRespondToDiscoveryRequestAsync(
@@ -2564,6 +2633,10 @@ namespace Opc.Ua.PubSub.Connections
                 return Convert.ToBase64String(value.Span.ToArray());
             }
         }
+
+        private sealed record ActionResponder(
+            IPubSubActionHandler Handler,
+            PubSubResponseAddressPolicy ResponseAddressPolicy);
 
         private readonly struct ActionHandlerKey : IEquatable<ActionHandlerKey>
         {

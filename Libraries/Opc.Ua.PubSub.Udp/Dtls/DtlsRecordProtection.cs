@@ -129,7 +129,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         record.AsSpan(HeaderLength + innerPlaintextLength, m_tagLength));
                 }
 
-                MaskSequenceNumber(record.AsSpan(0, HeaderLength));
+                ApplySequenceNumberMask(
+                    record.AsSpan(0, HeaderLength),
+                    record.AsSpan(HeaderLength, SequenceNumberSampleLength));
                 return record;
             }
             finally
@@ -143,88 +145,134 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 
         /// <summary>
-        /// Authenticates and unprotects one record, rejecting replayed sequence numbers.
+        /// Authenticates and unprotects one record, rejecting replayed sequence numbers, throwing a
+        /// <see cref="CryptographicException"/> if the record is malformed, forged or replayed.
         /// </summary>
         public byte[] Open(ReadOnlySpan<byte> record)
         {
-            ThrowIfDisposed();
-            if (record.Length < HeaderLength + 1 + m_tagLength)
+            if (!TryOpen(record, out byte[]? applicationData))
             {
-                throw new CryptographicException("DTLS record is too short.");
+                throw new CryptographicException(
+                    "DTLS record is malformed, failed authentication, or was replayed.");
+            }
+
+            return applicationData!;
+        }
+
+        /// <summary>
+        /// Attempts to authenticate and unprotect one record. The record is fully authenticated
+        /// (AEAD decrypt or integrity-only HMAC) BEFORE the anti-replay window is advanced so that
+        /// malformed, forged or replayed datagrams cannot poison the replay window. RFC 9147 §4.5.2
+        /// callers silently drop a record when this returns <see langword="false"/>.
+        /// </summary>
+        public bool TryOpen(ReadOnlySpan<byte> record, out byte[]? applicationData)
+        {
+            ThrowIfDisposed();
+            applicationData = null;
+            if (record.Length < HeaderLength + 1 + m_tagLength
+                || record.Length < HeaderLength + SequenceNumberSampleLength)
+            {
+                return false;
             }
 
             Span<byte> header = stackalloc byte[HeaderLength];
             record[..HeaderLength].CopyTo(header);
-            MaskSequenceNumber(header);
-            ulong sequenceNumber = BinaryPrimitives.ReadUInt16BigEndian(header[1..3]);
-            if (ReadEpoch(header) != Epoch)
-            {
-                throw new CryptographicException("DTLS record epoch does not match the active read keys.");
-            }
-
-            int protectedLength = BinaryPrimitives.ReadUInt16BigEndian(header[3..5]);
-            if (protectedLength != record.Length - HeaderLength || protectedLength <= m_tagLength)
-            {
-                throw new CryptographicException("DTLS record length is invalid.");
-            }
-
-            if (!m_replayWindow.TryAccept(sequenceNumber))
-            {
-                throw new CryptographicException("DTLS record replay detected.");
-            }
-
-            int contentLength = protectedLength - m_tagLength;
-            byte[] plaintextBuffer = ArrayPool<byte>.Shared.Rent(contentLength);
-            Span<byte> plaintext = plaintextBuffer.AsSpan(0, contentLength);
             try
             {
-                if (m_isAead)
+                ApplySequenceNumberMask(header, record.Slice(HeaderLength, SequenceNumberSampleLength));
+                ulong sequenceNumber = BinaryPrimitives.ReadUInt16BigEndian(header[1..3]);
+                if (ReadEpoch(header) != Epoch)
                 {
-                    Span<byte> nonce = stackalloc byte[NonceLength];
-                    BuildNonce(sequenceNumber, nonce);
-#if NET8_0_OR_GREATER
-                    OpenAead(
-                        nonce,
-                        header,
-                        record.Slice(HeaderLength, contentLength),
-                        record.Slice(HeaderLength + contentLength, m_tagLength),
-                        plaintext);
-                    CryptoUtils.ZeroMemory(nonce);
-#else
-                    throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
+                    return false;
                 }
-                else
+
+                int protectedLength = BinaryPrimitives.ReadUInt16BigEndian(header[3..5]);
+                if (protectedLength != record.Length - HeaderLength || protectedLength <= m_tagLength)
                 {
-                    Span<byte> expectedTag = stackalloc byte[m_tagLength];
-                    ComputeHmac(
-                        header,
-                        record.Slice(HeaderLength, contentLength),
-                        expectedTag);
-                    if (!CryptoUtils.FixedTimeEquals(
-                        expectedTag,
-                        record.Slice(HeaderLength + contentLength, m_tagLength)))
+                    return false;
+                }
+
+                // Non-mutating replay peek before authentication: a still-needed early replay check
+                // that must not advance the window. The window is only committed after the record is
+                // proven authentic (CRYPTO-04 / HS-01).
+                if (m_replayWindow.IsReplay(sequenceNumber))
+                {
+                    return false;
+                }
+
+                int contentLength = protectedLength - m_tagLength;
+                byte[] plaintextBuffer = ArrayPool<byte>.Shared.Rent(contentLength);
+                Span<byte> plaintext = plaintextBuffer.AsSpan(0, contentLength);
+                try
+                {
+                    if (m_isAead)
                     {
-                        throw new CryptographicException("DTLS integrity-only record tag validation failed.");
+#if NET8_0_OR_GREATER
+                        Span<byte> nonce = stackalloc byte[NonceLength];
+                        BuildNonce(sequenceNumber, nonce);
+                        try
+                        {
+                            OpenAead(
+                                nonce,
+                                header,
+                                record.Slice(HeaderLength, contentLength),
+                                record.Slice(HeaderLength + contentLength, m_tagLength),
+                                plaintext);
+                        }
+                        catch (CryptographicException)
+                        {
+                            CryptoUtils.ZeroMemory(nonce);
+                            return false;
+                        }
+
+                        CryptoUtils.ZeroMemory(nonce);
+#else
+                        throw new NotSupportedException(
+                            "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
+#endif
+                    }
+                    else
+                    {
+                        Span<byte> expectedTag = stackalloc byte[m_tagLength];
+                        ComputeHmac(
+                            header,
+                            record.Slice(HeaderLength, contentLength),
+                            expectedTag);
+                        bool authenticated = CryptoUtils.FixedTimeEquals(
+                            expectedTag,
+                            record.Slice(HeaderLength + contentLength, m_tagLength));
+                        CryptoUtils.ZeroMemory(expectedTag);
+                        if (!authenticated)
+                        {
+                            return false;
+                        }
+
+                        record.Slice(HeaderLength, contentLength).CopyTo(plaintext);
                     }
 
-                    record.Slice(HeaderLength, contentLength).CopyTo(plaintext);
-                    CryptoUtils.ZeroMemory(expectedTag);
-                }
+                    if (plaintext.IsEmpty || plaintext[^1] != ApplicationDataContentType)
+                    {
+                        return false;
+                    }
 
-                if (plaintext.IsEmpty || plaintext[^1] != ApplicationDataContentType)
+                    // Record is authenticated: now (and only now) advance the anti-replay window.
+                    if (!m_replayWindow.TryAccept(sequenceNumber))
+                    {
+                        return false;
+                    }
+
+                    applicationData = plaintext[..^1].ToArray();
+                    return true;
+                }
+                finally
                 {
-                    throw new CryptographicException("DTLS record inner content type is invalid.");
+                    CryptoUtils.ZeroMemory(plaintext);
+                    ArrayPool<byte>.Shared.Return(plaintextBuffer);
                 }
-
-                byte[] applicationData = plaintext[..^1].ToArray();
-                return applicationData;
             }
             finally
             {
                 CryptoUtils.ZeroMemory(header);
-                CryptoUtils.ZeroMemory(plaintext);
-                ArrayPool<byte>.Shared.Return(plaintextBuffer);
             }
         }
 
@@ -392,34 +440,149 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             CryptoUtils.ZeroMemory(encoded);
         }
 
-        private void MaskSequenceNumber(Span<byte> header)
+        /// <summary>
+        /// Applies the RFC 9147 §4.2.3 record sequence-number mask to the encoded header. The mask
+        /// is derived from a sample of the record ciphertext (not the near-constant header bytes):
+        /// AES suites use AES-ECB over the ciphertext sample, ChaCha20 suites use the ChaCha20 block
+        /// keystream (RFC 8446 §5.4), and integrity-only suites derive it from an HMAC over the
+        /// ciphertext sample. XOR masking is symmetric, so the same routine seals and opens.
+        /// </summary>
+        private void ApplySequenceNumberMask(Span<byte> header, ReadOnlySpan<byte> ciphertextSample)
         {
-            Span<byte> input = [header[0], header[3], header[4]];
-            using HMAC hmac = new HMACSHA256(m_snKey);
-#if NET8_0_OR_GREATER
-            Span<byte> hash = stackalloc byte[32];
-            if (!hmac.TryComputeHash(input, hash, out int bytesWritten) || bytesWritten < 2)
+            Span<byte> mask = stackalloc byte[2];
+            ComputeSequenceNumberMask(ciphertextSample, mask);
+            header[1] ^= mask[0];
+            header[2] ^= mask[1];
+            CryptoUtils.ZeroMemory(mask);
+        }
+
+        private void ComputeSequenceNumberMask(ReadOnlySpan<byte> ciphertextSample, Span<byte> mask)
+        {
+            ReadOnlySpan<byte> sample = ciphertextSample[..SequenceNumberSampleLength];
+            switch (Profile.CipherSuite)
             {
-                throw new CryptographicException("Sequence-number mask HMAC did not produce a tag.");
+                case DtlsCipherSuite.TlsAes128GcmSha256:
+                case DtlsCipherSuite.TlsAes256GcmSha384:
+#if NET8_0_OR_GREATER
+                {
+                    Span<byte> block = stackalloc byte[SequenceNumberSampleLength];
+                    using (Aes aes = Aes.Create())
+                    {
+                        aes.Key = m_snKey;
+                        aes.EncryptEcb(sample, block, PaddingMode.None);
+                    }
+
+                    block[..2].CopyTo(mask);
+                    CryptoUtils.ZeroMemory(block);
+                    break;
+                }
+#else
+                    throw new NotSupportedException(
+                        "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
+#endif
+                case DtlsCipherSuite.TlsChaCha20Poly1305Sha256:
+#if NET8_0_OR_GREATER
+                    ChaCha20Mask(m_snKey, sample[..4], sample.Slice(4, 12), mask);
+                    break;
+#else
+                    throw new NotSupportedException(
+                        "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
+#endif
+                case DtlsCipherSuite.TlsSha256Sha256:
+                case DtlsCipherSuite.TlsSha384Sha384:
+                {
+                    using HMAC hmac = new HMACSHA256(m_snKey);
+#if NET8_0_OR_GREATER
+                    Span<byte> hash = stackalloc byte[32];
+                    if (!hmac.TryComputeHash(sample, hash, out int bytesWritten) || bytesWritten < 2)
+                    {
+                        throw new CryptographicException("Sequence-number mask HMAC did not produce a tag.");
+                    }
+
+                    mask[0] = hash[0];
+                    mask[1] = hash[1];
+                    CryptoUtils.ZeroMemory(hash);
+#else
+                    byte[] hash = hmac.ComputeHash(sample.ToArray());
+                    try
+                    {
+                        mask[0] = hash[0];
+                        mask[1] = hash[1];
+                    }
+                    finally
+                    {
+                        CryptoUtils.ZeroMemory(hash);
+                    }
+#endif
+                    break;
+                }
+                default:
+                    throw new NotSupportedException("Unsupported DTLS cipher suite for sequence-number masking.");
+            }
+        }
+
+#if NET8_0_OR_GREATER
+        private static void ChaCha20Mask(
+            ReadOnlySpan<byte> key,
+            ReadOnlySpan<byte> counter,
+            ReadOnlySpan<byte> nonce,
+            Span<byte> mask)
+        {
+            Span<uint> state = stackalloc uint[16];
+            state[0] = 0x61707865;
+            state[1] = 0x3320646e;
+            state[2] = 0x79622d32;
+            state[3] = 0x6b206574;
+            for (int ii = 0; ii < 8; ii++)
+            {
+                state[4 + ii] = BinaryPrimitives.ReadUInt32LittleEndian(key.Slice(ii * 4, 4));
             }
 
-            header[1] ^= hash[0];
-            header[2] ^= hash[1];
-            CryptoUtils.ZeroMemory(hash);
-#else
-            byte[] hash = hmac.ComputeHash(input.ToArray());
-            try
+            state[12] = BinaryPrimitives.ReadUInt32LittleEndian(counter);
+            state[13] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(0, 4));
+            state[14] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(4, 4));
+            state[15] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(8, 4));
+            Span<uint> working = stackalloc uint[16];
+            state.CopyTo(working);
+            for (int round = 0; round < 10; round++)
             {
-                header[1] ^= hash[0];
-                header[2] ^= hash[1];
+                QuarterRound(working, 0, 4, 8, 12);
+                QuarterRound(working, 1, 5, 9, 13);
+                QuarterRound(working, 2, 6, 10, 14);
+                QuarterRound(working, 3, 7, 11, 15);
+                QuarterRound(working, 0, 5, 10, 15);
+                QuarterRound(working, 1, 6, 11, 12);
+                QuarterRound(working, 2, 7, 8, 13);
+                QuarterRound(working, 3, 4, 9, 14);
             }
-            finally
-            {
-                CryptoUtils.ZeroMemory(hash);
-            }
-#endif
-            CryptoUtils.ZeroMemory(input);
+
+            uint firstWord = working[0] + state[0];
+            Span<byte> keystream = stackalloc byte[4];
+            BinaryPrimitives.WriteUInt32LittleEndian(keystream, firstWord);
+            mask[0] = keystream[0];
+            mask[1] = keystream[1];
+            state.Clear();
+            working.Clear();
+            CryptoUtils.ZeroMemory(keystream);
         }
+
+        private static void QuarterRound(Span<uint> state, int a, int b, int c, int d)
+        {
+            state[a] += state[b];
+            state[d] = RotateLeft(state[d] ^ state[a], 16);
+            state[c] += state[d];
+            state[b] = RotateLeft(state[b] ^ state[c], 12);
+            state[a] += state[b];
+            state[d] = RotateLeft(state[d] ^ state[a], 8);
+            state[c] += state[d];
+            state[b] = RotateLeft(state[b] ^ state[c], 7);
+        }
+
+        private static uint RotateLeft(uint value, int bits)
+        {
+            return (value << bits) | (value >> (32 - bits));
+        }
+#endif
 
         private void ThrowIfDisposed()
         {
@@ -433,6 +596,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private const byte SequenceNumberLengthBits = 0x01;
         private const byte ApplicationDataContentType = 0x17;
         private const int NonceLength = 12;
+        private const int SequenceNumberSampleLength = 16;
 
         private readonly HashAlgorithmName m_hashAlgorithmName;
         private readonly byte[] m_key;

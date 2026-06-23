@@ -374,5 +374,42 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 () => factory.Create(connection, NUnitTelemetryContext.Create(), TimeProvider.System),
                 Throws.TypeOf<NotSupportedException>());
         }
+
+        [Test]
+        [TestSpec("7.3.2.4")]
+        public async Task Create_DtlsAutomaticFallbackPrefersAeadOverIntegrityOnlyAsync()
+        {
+            var registry = new DtlsProfileRegistry();
+            const string endpointDefault = "ECC_nistP256_AesGcm";
+            bool hasOtherAead = registry.SupportedProfiles
+                .Any(p => p.Name != endpointDefault && IsAeadCipherSuite(p.CipherSuite));
+            bool hasIntegrityOnly = registry.SupportedProfiles
+                .Any(p => !IsAeadCipherSuite(p.CipherSuite));
+            if (!registry.TryResolve(endpointDefault, out _) || !hasOtherAead || !hasIntegrityOnly)
+            {
+                Assert.Ignore("Platform BCL does not expose both AEAD and integrity-only DTLS profiles for this test.");
+                return;
+            }
+
+            var dtlsOptions = new DtlsTransportOptions();
+            dtlsOptions.DisabledProfiles.Add(endpointDefault);
+            UdpPubSubTransportFactory factory = NewDtlsFactory(dtlsOptions);
+            PubSubConnectionDataType connection = NewConnection("opc.dtls://127.0.0.1:4843");
+
+            await using var transport = (DtlsDatagramTransport)factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+
+            Assert.That(
+                IsAeadCipherSuite(transport.Profile.CipherSuite), Is.True,
+                "SA-DTLS-HS-06: the automatic fallback must prefer confidentiality-providing AEAD profiles and " +
+                "never silently select an integrity-only profile while an AEAD profile is available.");
+        }
+
+        private static bool IsAeadCipherSuite(DtlsCipherSuite cipherSuite)
+        {
+            return cipherSuite is DtlsCipherSuite.TlsAes128GcmSha256
+                or DtlsCipherSuite.TlsAes256GcmSha384
+                or DtlsCipherSuite.TlsChaCha20Poly1305Sha256;
+        }
     }
 }

@@ -115,6 +115,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(capturedContext, Is.Not.Null);
                 Assert.That(capturedContext!.RequestType, Is.EqualTo(RequestType.Call));
                 Assert.That(capturedContext.ClientHandle, Is.EqualTo(77));
+                Assert.That(capturedContext.UserIdentity, Is.Not.Null);
+                Assert.That(
+                    capturedContext.UserIdentity.TokenType,
+                    Is.EqualTo(UserTokenType.Anonymous));
                 Assert.That(capturedRequest, Is.Not.Null);
                 Assert.That(capturedRequest!.ObjectId, Is.EqualTo(objectId));
                 Assert.That(capturedRequest.MethodId, Is.EqualTo(methodId));
@@ -127,6 +131,52 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task HandleAsync_WithConfiguredServiceIdentity_InvokesMethodUnderThatIdentity()
+        {
+            OperationContext? capturedContext = null;
+            var nodeManager = new Mock<IMasterNodeManager>(MockBehavior.Strict);
+            nodeManager
+                .Setup(m => m.CallAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, ArrayOf<CallMethodRequest>, CancellationToken>((context, _, _) =>
+                {
+                    capturedContext = context;
+                })
+                .Returns(new ValueTask<(ArrayOf<CallMethodResult>, ArrayOf<DiagnosticInfo>)>((
+                    [
+                        new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] }
+                    ],
+                    [])));
+            var serviceIdentity = new UserIdentity("svc", System.Text.Encoding.UTF8.GetBytes("pw"));
+            var handler = new ServerMethodActionHandler(
+                nodeManager.Object,
+                new ActionMethodDataType
+                {
+                    ObjectId = new NodeId("DemoObject", 2),
+                    MethodId = new NodeId("DemoMethod", 2)
+                },
+                NUnitTelemetryContext.Create(),
+                serviceIdentity);
+
+            await handler.HandleAsync(new PubSubActionInvocation
+            {
+                Target = new PubSubActionTarget { ActionName = "Demo" },
+                InputFields = []
+            }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(capturedContext, Is.Not.Null);
+                Assert.That(capturedContext!.UserIdentity, Is.SameAs(serviceIdentity));
+                Assert.That(
+                    capturedContext.UserIdentity.TokenType,
+                    Is.EqualTo(UserTokenType.UserName));
+            });
+        }
+
+        [Test]
         public async Task Register_WithPublishedActionMethod_InvokingRegisteredHandlerRunsServerMethod()
         {
             IPubSubActionHandler? registeredHandler = null;
@@ -135,8 +185,10 @@ namespace Opc.Ua.PubSub.Server.Tests
             application.Setup(a => a.RegisterActionHandler(
                     It.IsAny<PubSubActionTarget>(),
                     It.IsAny<IPubSubActionHandler>(),
-                    It.IsAny<bool>()))
-                .Callback<PubSubActionTarget, IPubSubActionHandler, bool>((target, handler, _) =>
+                    It.IsAny<bool>(),
+                    It.IsAny<PubSubResponseAddressPolicy?>()))
+                .Callback<PubSubActionTarget, IPubSubActionHandler, bool, PubSubResponseAddressPolicy?>(
+                    (target, handler, _, _) =>
                 {
                     registeredTarget = target;
                     registeredHandler = handler;
@@ -200,6 +252,76 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(result.OutputFields, Has.Count.EqualTo(1));
                 Assert.That(result.OutputFields[0].Value.TryGetValue(out string? value), Is.True);
                 Assert.That(value, Is.EqualTo("method-output"));
+            });
+        }
+
+        [Test]
+        public async Task Register_WithServiceIdentity_RegisteredHandlerRunsMethodUnderThatIdentity()
+        {
+            IPubSubActionHandler? registeredHandler = null;
+            PubSubActionTarget? registeredTarget = null;
+            var application = new Mock<IPubSubApplication>(MockBehavior.Strict);
+            application.Setup(a => a.RegisterActionHandler(
+                    It.IsAny<PubSubActionTarget>(),
+                    It.IsAny<IPubSubActionHandler>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<PubSubResponseAddressPolicy?>()))
+                .Callback<PubSubActionTarget, IPubSubActionHandler, bool, PubSubResponseAddressPolicy?>(
+                    (target, handler, _, _) =>
+                {
+                    registeredTarget = target;
+                    registeredHandler = handler;
+                });
+            OperationContext? capturedContext = null;
+            var nodeManager = new Mock<IMasterNodeManager>(MockBehavior.Strict);
+            nodeManager
+                .Setup(m => m.CallAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, ArrayOf<CallMethodRequest>, CancellationToken>((context, _, _) =>
+                {
+                    capturedContext = context;
+                })
+                .Returns(new ValueTask<(ArrayOf<CallMethodResult>, ArrayOf<DiagnosticInfo>)>((
+                    [
+                        new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] }
+                    ],
+                    [])));
+            var action = new PublishedActionMethodDataType
+            {
+                ActionTargets = [new ActionTargetDataType { ActionTargetId = 4, Name = "CallDemo" }],
+                ActionMethods =
+                [
+                    new ActionMethodDataType
+                    {
+                        ObjectId = new NodeId("DemoObject", 2),
+                        MethodId = new NodeId("DemoMethod", 2)
+                    }
+                ]
+            };
+            var serviceIdentity = new UserIdentity("svc", System.Text.Encoding.UTF8.GetBytes("pw"));
+
+            PubSubActionMethodRegistrar.Register(
+                application.Object,
+                nodeManager.Object,
+                new PubSubActionMethodRegistration(22, action, "conn", serviceIdentity),
+                NUnitTelemetryContext.Create());
+
+            Assert.That(registeredHandler, Is.Not.Null);
+            await registeredHandler!.HandleAsync(new PubSubActionInvocation
+            {
+                Target = registeredTarget!,
+                InputFields = []
+            }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(capturedContext, Is.Not.Null);
+                Assert.That(capturedContext!.UserIdentity, Is.SameAs(serviceIdentity));
+                Assert.That(
+                    capturedContext.UserIdentity.TokenType,
+                    Is.EqualTo(UserTokenType.UserName));
             });
         }
     }

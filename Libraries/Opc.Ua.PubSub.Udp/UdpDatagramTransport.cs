@@ -439,6 +439,46 @@ namespace Opc.Ua.PubSub.Udp
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Sends one datagram to an explicit destination endpoint, falling back to the last-seen
+        /// unicast peer when none is supplied. Used by the DTLS transport to route a handshake reply
+        /// to the specific source that sent the corresponding ClientHello.
+        /// </summary>
+        internal ValueTask SendToAsync(
+            ReadOnlyMemory<byte> payload,
+            IPEndPoint? destination,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Socket? socket;
+            IPEndPoint? target;
+            bool isConnectedSocket;
+            lock (m_sync)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(UdpDatagramTransport));
+                }
+                socket = m_socket;
+                target = destination ?? m_sendDestination;
+                isConnectedSocket = m_socketIsConnected;
+            }
+            if (socket is null)
+            {
+                throw new InvalidOperationException(
+                    "UDP transport must be opened before sending.");
+            }
+            if (payload.Length > m_options.MaxFrameSize)
+            {
+                throw new ArgumentException(
+                    $"Payload size {payload.Length} exceeds MaxFrameSize {m_options.MaxFrameSize}.",
+                    nameof(payload));
+            }
+            return m_repeater.SendWithRepeatsAsync(
+                ct => SendOnceAsync(socket, target, isConnectedSocket, payload, ct),
+                cancellationToken);
+        }
+
         /// <inheritdoc/>
         public ValueTask SendDiscoveryAnnouncementAsync(
             ReadOnlyMemory<byte> payload,
@@ -660,16 +700,18 @@ namespace Opc.Ua.PubSub.Udp
                     }
                     byte[] copy = new byte[result.ReceivedBytes];
                     Buffer.BlockCopy(receiveBuffer, 0, copy, 0, result.ReceivedBytes);
+                    IPEndPoint? sourceEndpoint = result.RemoteEndPoint as IPEndPoint;
                     var frame = new PubSubTransportFrame(
                         new ReadOnlyMemory<byte>(copy),
                         topic: null,
-                        receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime));
+                        receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
+                        sourceEndpoint: sourceEndpoint);
                     if (m_endpoint.AddressType == UdpAddressType.Unicast
-                        && result.RemoteEndPoint is IPEndPoint remoteEndPoint)
+                        && sourceEndpoint is not null)
                     {
                         lock (m_sync)
                         {
-                            m_sendDestination = remoteEndPoint;
+                            m_sendDestination = sourceEndpoint;
                         }
                     }
 

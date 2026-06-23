@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 
 namespace Opc.Ua.PubSub.Transports
 {
@@ -62,6 +63,32 @@ namespace Opc.Ua.PubSub.Transports
             Payload = payload;
             Topic = topic;
             ReceivedAt = receivedAt;
+            SourceEndpoint = null;
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="PubSubTransportFrame"/> carrying the datagram source endpoint.
+        /// </summary>
+        /// <param name="payload">The raw frame bytes as received.</param>
+        /// <param name="topic">
+        /// The MQTT topic the frame was delivered on, or
+        /// <see langword="null"/> for UDP datagrams.
+        /// </param>
+        /// <param name="receivedAt">Receive-time stamp from the transport clock.</param>
+        /// <param name="sourceEndpoint">
+        /// The remote source endpoint the datagram was received from, or
+        /// <see langword="null"/> when the transport does not expose it.
+        /// </param>
+        public PubSubTransportFrame(
+            ReadOnlyMemory<byte> payload,
+            string? topic,
+            DateTimeUtc receivedAt,
+            IPEndPoint? sourceEndpoint)
+        {
+            Payload = payload;
+            Topic = topic;
+            ReceivedAt = receivedAt;
+            SourceEndpoint = sourceEndpoint;
         }
 
         /// <summary>
@@ -82,5 +109,14 @@ namespace Opc.Ua.PubSub.Transports
         /// moment the frame entered the receive queue.
         /// </summary>
         public DateTimeUtc ReceivedAt { get; init; }
+
+        /// <summary>
+        /// Remote source endpoint the datagram was received from, or
+        /// <see langword="null"/> when the transport does not expose it
+        /// (for example broker transports). Used by the DTLS transport to
+        /// bind a handshake flight and HelloRetryRequest cookie to the
+        /// specific peer that sent each ClientHello.
+        /// </summary>
+        public IPEndPoint? SourceEndpoint { get; init; }
     }
 }

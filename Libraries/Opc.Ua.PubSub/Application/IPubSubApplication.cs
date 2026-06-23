@@ -128,10 +128,20 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Registers a responder-side Action handler for a target.
         /// </summary>
+        /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
+        /// <param name="handler">Action handler invoked for matching requests.</param>
+        /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        /// <param name="responseAddressPolicy">
+        /// Optional policy that validates the requestor-supplied response address
+        /// before a response is published (SA-ACT-03). When <see langword="null"/>
+        /// the safe default (<see cref="PubSubResponseAddressPolicy.Default"/>) is
+        /// used, which rejects arbitrary requestor topics on MQTT/JSON transports.
+        /// </param>
         void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
-            bool allowUnsecured = false);
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null);
 
         /// <summary>
         /// Replaces the entire configuration.

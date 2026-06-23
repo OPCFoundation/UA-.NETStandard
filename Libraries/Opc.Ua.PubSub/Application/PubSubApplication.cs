@@ -97,7 +97,8 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, (string ConnectionName,
             string GroupName, string ReaderName)> m_readerRefs = new();
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
-        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler, bool AllowUnsecured)>
+        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
+            bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionHandlers = [];
 
         private bool m_started;
@@ -406,7 +407,8 @@ namespace Opc.Ua.PubSub.Application
                     connection.RegisterActionHandler(
                         m_actionHandlers[i].Target,
                         m_actionHandlers[i].Handler,
-                        m_actionHandlers[i].AllowUnsecured);
+                        m_actionHandlers[i].AllowUnsecured,
+                        m_actionHandlers[i].ResponseAddressPolicy);
                 }
             }
             return connection;
@@ -692,7 +694,8 @@ namespace Opc.Ua.PubSub.Application
         public void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
-            bool allowUnsecured = false)
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
         {
             if (target is null)
             {
@@ -706,7 +709,7 @@ namespace Opc.Ua.PubSub.Application
             PubSubConnection[] connections;
             lock (m_gate)
             {
-                m_actionHandlers.Add((target, handler, allowUnsecured));
+                m_actionHandlers.Add((target, handler, allowUnsecured, responseAddressPolicy));
                 connections = [.. m_connections];
             }
             for (int i = 0; i < connections.Length; i++)
@@ -714,7 +717,8 @@ namespace Opc.Ua.PubSub.Application
                 if (string.IsNullOrEmpty(target.ConnectionName)
                     || string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
                 {
-                    connections[i].RegisterActionHandler(target, handler, allowUnsecured);
+                    connections[i].RegisterActionHandler(
+                        target, handler, allowUnsecured, responseAddressPolicy);
                 }
             }
         }

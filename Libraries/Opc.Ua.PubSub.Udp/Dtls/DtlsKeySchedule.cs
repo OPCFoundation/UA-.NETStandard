@@ -73,18 +73,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             ReadOnlySpan<byte> handshakeTranscriptHash,
             ReadOnlySpan<byte> applicationTranscriptHash)
         {
-            byte[] zero = new byte[HashLength];
-            byte[] emptyHash = DtlsHkdf.HashData(HashAlgorithmName, []);
-            byte[] earlySecret = [];
-            byte[] derivedEarlySecret = [];
             byte[] handshakeSecret = [];
-            byte[] derivedHandshakeSecret = [];
             byte[] masterSecret = [];
             try
             {
-                earlySecret = DtlsHkdf.Extract(HashAlgorithmName, zero, zero);
-                derivedEarlySecret = DeriveSecret(earlySecret, "derived", emptyHash);
-                handshakeSecret = DtlsHkdf.Extract(HashAlgorithmName, derivedEarlySecret, sharedSecret);
+                handshakeSecret = DeriveHandshakeSecret(sharedSecret);
                 byte[] clientHandshakeTrafficSecret = DeriveSecret(
                     handshakeSecret,
                     "c hs traffic",
@@ -93,8 +86,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     handshakeSecret,
                     "s hs traffic",
                     handshakeTranscriptHash);
-                derivedHandshakeSecret = DeriveSecret(handshakeSecret, "derived", emptyHash);
-                masterSecret = DtlsHkdf.Extract(HashAlgorithmName, derivedHandshakeSecret, []);
+                masterSecret = DeriveMasterSecret(handshakeSecret);
                 byte[] clientApplicationTrafficSecret = DeriveSecret(
                     masterSecret,
                     "c ap traffic",
@@ -113,13 +105,53 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
+                CryptoUtils.ZeroMemory(handshakeSecret);
+                CryptoUtils.ZeroMemory(masterSecret);
+            }
+        }
+
+        /// <summary>
+        /// Derives the TLS 1.3 Handshake Secret from the ECDHE shared secret (RFC 8446 §7.1). The
+        /// caller owns the returned buffer and must zeroize it.
+        /// </summary>
+        internal byte[] DeriveHandshakeSecret(ReadOnlySpan<byte> sharedSecret)
+        {
+            byte[] zero = new byte[HashLength];
+            byte[] emptyHash = DtlsHkdf.HashData(HashAlgorithmName, []);
+            byte[] earlySecret = [];
+            byte[] derivedEarlySecret = [];
+            try
+            {
+                earlySecret = DtlsHkdf.Extract(HashAlgorithmName, zero, zero);
+                derivedEarlySecret = DeriveSecret(earlySecret, "derived", emptyHash);
+                return DtlsHkdf.Extract(HashAlgorithmName, derivedEarlySecret, sharedSecret);
+            }
+            finally
+            {
                 CryptoUtils.ZeroMemory(zero);
                 CryptoUtils.ZeroMemory(emptyHash);
                 CryptoUtils.ZeroMemory(earlySecret);
                 CryptoUtils.ZeroMemory(derivedEarlySecret);
-                CryptoUtils.ZeroMemory(handshakeSecret);
+            }
+        }
+
+        /// <summary>
+        /// Derives the TLS 1.3 Master Secret from the Handshake Secret (RFC 8446 §7.1). The caller
+        /// owns the returned buffer and must zeroize it.
+        /// </summary>
+        internal byte[] DeriveMasterSecret(ReadOnlySpan<byte> handshakeSecret)
+        {
+            byte[] emptyHash = DtlsHkdf.HashData(HashAlgorithmName, []);
+            byte[] derivedHandshakeSecret = [];
+            try
+            {
+                derivedHandshakeSecret = DeriveSecret(handshakeSecret, "derived", emptyHash);
+                return DtlsHkdf.Extract(HashAlgorithmName, derivedHandshakeSecret, []);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(emptyHash);
                 CryptoUtils.ZeroMemory(derivedHandshakeSecret);
-                CryptoUtils.ZeroMemory(masterSecret);
             }
         }
 

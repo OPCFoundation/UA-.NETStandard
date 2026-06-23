@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -64,17 +65,23 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
             {
                 return;
             }
+            m_resolvedPcapPath = ResolveAndValidatePcapPath(m_options.PcapFilePath!);
             m_source = await m_manager.StartAsync(cancellationToken).ConfigureAwait(false);
-            m_logger?.LogInformation(
-                "PubSub capture auto-started; frames will be written to {PcapFile} on shutdown.",
-                m_options.PcapFilePath);
+            m_logger?.LogWarning(
+                "PubSub pcap auto-capture is ENABLED via {PcapEnvVar}. Frames will be " +
+                "written to '{PcapFile}' on shutdown. Treat the resulting file as a " +
+                "secret; it may expose recorded PubSub traffic and is intended for " +
+                "diagnostics only.",
+                PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile,
+                m_resolvedPcapPath);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             IPubSubCaptureSource? source = m_source;
             m_source = null;
-            if (source is null || m_options.PcapFilePath is null)
+            string? pcapFilePath = m_resolvedPcapPath;
+            if (source is null || pcapFilePath is null)
             {
                 return;
             }
@@ -82,27 +89,27 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
             try
             {
                 var writer = new PubSubPcapWriter();
-                bool pcapNg = m_options.PcapFilePath.EndsWith(
+                bool pcapNg = pcapFilePath.EndsWith(
                     ".pcapng", StringComparison.OrdinalIgnoreCase);
                 long written = pcapNg
                     ? await writer.WritePcapNgAsync(
                         source.ReadCapturedFramesAsync(null, cancellationToken),
-                        m_options.PcapFilePath,
+                        pcapFilePath,
                         cancellationToken).ConfigureAwait(false)
                     : await writer.WritePcapAsync(
                         source.ReadCapturedFramesAsync(null, cancellationToken),
-                        m_options.PcapFilePath,
+                        pcapFilePath,
                         cancellationToken).ConfigureAwait(false);
                 m_logger?.LogInformation(
                     "Wrote {Count} PubSub frames to {PcapFile}.",
                     written,
-                    m_options.PcapFilePath);
+                    pcapFilePath);
             }
             catch (Exception ex)
             {
                 m_logger?.LogError(ex,
                     "Failed to write PubSub capture to {PcapFile}.",
-                    m_options.PcapFilePath);
+                    pcapFilePath);
             }
         }
 
@@ -111,10 +118,49 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
             await m_manager.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Canonicalizes the configured pcap path and constrains it to the
+        /// current working directory. Defends against path-traversal in the
+        /// operator-supplied environment variable that could otherwise write
+        /// capture artifacts to arbitrary filesystem locations.
+        /// </summary>
+        /// <param name="pcapFilePath">Configured pcap / pcapng path.</param>
+        /// <returns>The canonicalized, contained path.</returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="pcapFilePath"/> resolves outside the
+        /// current working directory.
+        /// </exception>
+        private static string ResolveAndValidatePcapPath(string pcapFilePath)
+        {
+            string baseFolder = Path.GetFullPath(Directory.GetCurrentDirectory());
+            string rooted = Path.IsPathRooted(pcapFilePath)
+                ? pcapFilePath
+                : Path.Combine(baseFolder, pcapFilePath);
+            string fullPath = Path.GetFullPath(rooted);
+
+            string fullBase = baseFolder;
+            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullBase += Path.DirectorySeparatorChar;
+            }
+
+            if (!fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"The pcap path '{pcapFilePath}' resolves to '{fullPath}', which is " +
+                    $"outside the base directory '{baseFolder}'. Capture artifacts must " +
+                    "remain inside the base directory.",
+                    nameof(pcapFilePath));
+            }
+
+            return fullPath;
+        }
+
         private readonly PubSubPcapEnvironmentOptions m_options;
         private readonly ILoggerFactory? m_loggerFactory;
         private readonly ILogger? m_logger;
         private readonly PubSubCaptureSessionManager m_manager;
         private IPubSubCaptureSource? m_source;
+        private string? m_resolvedPcapPath;
     }
 }

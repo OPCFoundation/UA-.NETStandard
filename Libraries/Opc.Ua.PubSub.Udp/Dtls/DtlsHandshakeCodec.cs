@@ -42,6 +42,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public const ushort Dtls13Version = 0xfefd;
         public const ushort LegacyDtls12Version = 0xfefd;
         public const int HandshakeHeaderLength = 12;
+        private const ushort SignatureAlgorithmsExtension = 13;
 
         /// <summary>
         /// Encodes a single unfragmented DTLS handshake frame with its RFC 9147 §5 header.
@@ -228,6 +229,56 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public static byte[] DecodeFinished(ReadOnlySpan<byte> body)
         {
             return body.ToArray();
+        }
+
+        /// <summary>
+        /// Encodes a TLS 1.3 CertificateRequest message body advertising the supported ECDSA
+        /// signature schemes with an empty certificate_request_context (RFC 8446 §4.3.2).
+        /// </summary>
+        public static byte[] EncodeCertificateRequest()
+        {
+            var writer = new DtlsHandshakeWriter();
+            writer.WriteOpaque8([]);
+            byte[] signatureAlgorithms = EncodeSignatureAlgorithms(
+                [DtlsSignatureScheme.EcdsaSecp256r1Sha256, DtlsSignatureScheme.EcdsaSecp384r1Sha384]);
+            var extensions = new DtlsHandshakeWriter();
+            WriteExtension(extensions, SignatureAlgorithmsExtension, signatureAlgorithms);
+            writer.WriteOpaque16(extensions.ToArray());
+            return writer.ToArray();
+        }
+
+        /// <summary>
+        /// Validates a TLS 1.3 CertificateRequest message body, requiring an empty
+        /// certificate_request_context and a signature_algorithms extension (RFC 8446 §4.3.2).
+        /// </summary>
+        public static void DecodeCertificateRequest(ReadOnlySpan<byte> body)
+        {
+            var reader = new DtlsHandshakeReader(body);
+            if (reader.ReadOpaque8().Length != 0)
+            {
+                throw new DtlsHandshakeException("DTLS certificate_request_context must be empty for PubSub.");
+            }
+
+            byte[] extensions = reader.ReadOpaque16();
+            reader.EnsureComplete();
+            var extensionReader = new DtlsHandshakeReader(extensions);
+            bool sawSignatureAlgorithms = false;
+            while (!extensionReader.EndOfData)
+            {
+                ushort extensionType = extensionReader.ReadUInt16();
+                byte[] extensionBody = extensionReader.ReadOpaque16();
+                if (extensionType == SignatureAlgorithmsExtension)
+                {
+                    DecodeSignatureAlgorithms(extensionBody);
+                    sawSignatureAlgorithms = true;
+                }
+            }
+
+            if (!sawSignatureAlgorithms)
+            {
+                throw new DtlsHandshakeException(
+                    "DTLS CertificateRequest must carry a signature_algorithms extension.");
+            }
         }
 
         /// <summary>

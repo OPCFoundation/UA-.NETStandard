@@ -76,13 +76,22 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (m_role == DtlsEndpointRole.Client)
+            using CancellationTokenSource handshakeCts = CreateHandshakeTimeoutCts(cancellationToken);
+            try
             {
-                await ConnectAsync(channel, cancellationToken).ConfigureAwait(false);
+                if (m_role == DtlsEndpointRole.Client)
+                {
+                    await ConnectAsync(channel, handshakeCts.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await AcceptAsync(channel, handshakeCts.Token).ConfigureAwait(false);
+                }
             }
-            else
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                await AcceptAsync(channel, cancellationToken).ConfigureAwait(false);
+                throw new DtlsHandshakeException(
+                    "DTLS handshake exceeded the overall handshake timeout before completion.");
             }
 #else
             _ = channel;
@@ -139,6 +148,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             byte[] cookie = [];
             byte[] clientHelloBody = [];
             byte[] sharedSecret = [];
+            int helloRetryRequests = 0;
             try
             {
                 while (true)
@@ -156,6 +166,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     DtlsServerHello serverHello = DtlsHandshakeCodec.DecodeServerHello(firstFrame.Fragment);
                     if (serverHello.Extensions.Cookie.Length > 0 && serverHello.Extensions.KeyShares.Count == 0)
                     {
+                        if (++helloRetryRequests > 1)
+                        {
+                            throw new DtlsHandshakeException(
+                                "DTLS server sent more than one HelloRetryRequest; RFC 8446 §4.1.4 permits only one.");
+                        }
+
                         cookie = serverHello.Extensions.Cookie;
                         transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
                         continue;
@@ -168,14 +184,22 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
 
                 byte[] serverHelloHash = transcript.GetHash();
-                m_keyingContext = new DtlsHandshakeKeyingContext(Profile, sharedSecret, serverHelloHash, serverHelloHash);
+                m_keyingContext = new DtlsHandshakeKeyingContext(Profile, sharedSecret, serverHelloHash);
                 await ReceiveAndAppendAsync(channel, transcript, DtlsHandshakeType.EncryptedExtensions, cancellationToken)
                     .ConfigureAwait(false);
-                DtlsHandshakeFrame certificateFrame = await ReceiveAndAppendAsync(
-                    channel,
-                    transcript,
-                    DtlsHandshakeType.Certificate,
-                    cancellationToken).ConfigureAwait(false);
+                DtlsHandshakeFrame certificateFrame = await ReceiveFrameAsync(channel, cancellationToken)
+                    .ConfigureAwait(false);
+                bool clientCertificateRequested = false;
+                if (certificateFrame.MessageType == DtlsHandshakeType.CertificateRequest)
+                {
+                    DtlsHandshakeCodec.DecodeCertificateRequest(certificateFrame.Fragment);
+                    transcript.Append(ToCompleteFrame(certificateFrame));
+                    clientCertificateRequested = true;
+                    certificateFrame = await ReceiveFrameAsync(channel, cancellationToken).ConfigureAwait(false);
+                }
+
+                RequireMessage(certificateFrame, DtlsHandshakeType.Certificate);
+                transcript.Append(ToCompleteFrame(certificateFrame));
                 IReadOnlyList<Certificate> peerChain =
                     DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
                 try
@@ -217,12 +241,19 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
 
                 transcript.Append(ToCompleteFrame(serverFinishedFrame));
+                m_keyingContext.InstallApplicationSecrets(transcript.GetHash());
+                if (clientCertificateRequested)
+                {
+                    await SendClientAuthenticationAsync(channel, transcript, cancellationToken).ConfigureAwait(false);
+                }
+
                 byte[] clientFinished = m_keyingContext.ComputeClientFinished(transcript.GetHash());
                 byte[] clientFinishedFrame = DtlsHandshakeCodec.EncodeFrame(
                     DtlsHandshakeType.Finished,
                     m_nextSendSequence++,
                     DtlsHandshakeCodec.EncodeFinished(clientFinished));
                 await SendFlightAsync(channel, clientFinishedFrame, cancellationToken).ConfigureAwait(false);
+                CryptoUtils.ZeroMemory(clientFinished);
                 InstallApplicationKeys(isClient: true);
             }
             finally
@@ -241,24 +272,26 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             try
             {
                 DtlsClientHello clientHello;
+                IPEndPoint? clientSource = null;
                 while (true)
                 {
-                    DtlsHandshakeFrame clientHelloFrame = await ReceiveFrameAsync(channel, cancellationToken)
-                        .ConfigureAwait(false);
+                    (DtlsHandshakeFrame clientHelloFrame, IPEndPoint? source) =
+                        await ReceiveSourcedFrameAsync(channel, cancellationToken).ConfigureAwait(false);
                     RequireMessage(clientHelloFrame, DtlsHandshakeType.ClientHello);
                     clientHello = DtlsHandshakeCodec.DecodeClientHello(clientHelloFrame.Fragment);
                     ValidateClientHello(clientHello);
+                    clientSource = source ?? GetCookieEndpoint(channel);
                     using var cookieProtector = new DtlsHelloRetryCookieProtector(cookieKey);
-                    IPEndPoint remoteEndpoint = GetCookieEndpoint(channel);
                     if (m_options.RequireHelloRetryRequestCookie &&
                         !cookieProtector.ValidateCookie(
-                            remoteEndpoint,
+                            clientSource,
                             [],
                             clientHello.Extensions.Cookie))
                     {
-                        byte[] retryCookie = cookieProtector.CreateCookie(remoteEndpoint, []);
+                        byte[] retryCookie = cookieProtector.CreateCookie(clientSource, []);
                         byte[] retryFrame = BuildHelloRetryRequest(clientHello.SessionId, retryCookie);
-                        await SendFlightAsync(channel, retryFrame, cancellationToken).ConfigureAwait(false);
+                        await SendFlightAsync(channel, retryFrame, cancellationToken, clientSource)
+                            .ConfigureAwait(false);
                         transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
                         continue;
                     }
@@ -268,13 +301,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         .First(k => k.Group == Profile.KeyExchangeCurve);
                     sharedSecret = ecdhe.DeriveSharedSecret(clientKeyShare.KeyExchange);
                     byte[] serverHelloFrame = BuildServerHello(clientHello.SessionId, ecdhe.PublicKey);
-                    await SendFlightAsync(channel, serverHelloFrame, cancellationToken).ConfigureAwait(false);
+                    await SendFlightAsync(channel, serverHelloFrame, cancellationToken, clientSource)
+                        .ConfigureAwait(false);
                     transcript.Append(serverHelloFrame);
                     byte[] serverHelloHash = transcript.GetHash();
                     m_keyingContext = new DtlsHandshakeKeyingContext(
                         Profile,
                         sharedSecret,
-                        serverHelloHash,
                         serverHelloHash);
                     break;
                 }
@@ -283,13 +316,26 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     DtlsHandshakeType.EncryptedExtensions,
                     m_nextSendSequence++,
                     DtlsHandshakeCodec.EncodeEncryptedExtensions());
-                await SendFlightAsync(channel, encryptedExtensionsFrame, cancellationToken).ConfigureAwait(false);
+                await SendFlightAsync(channel, encryptedExtensionsFrame, cancellationToken, clientSource)
+                    .ConfigureAwait(false);
                 transcript.Append(encryptedExtensionsFrame);
+                if (m_options.RequireClientCertificate)
+                {
+                    byte[] certificateRequestFrame = DtlsHandshakeCodec.EncodeFrame(
+                        DtlsHandshakeType.CertificateRequest,
+                        m_nextSendSequence++,
+                        DtlsHandshakeCodec.EncodeCertificateRequest());
+                    await SendFlightAsync(channel, certificateRequestFrame, cancellationToken, clientSource)
+                        .ConfigureAwait(false);
+                    transcript.Append(certificateRequestFrame);
+                }
+
                 byte[] certificateFrame = DtlsHandshakeCodec.EncodeFrame(
                     DtlsHandshakeType.Certificate,
                     m_nextSendSequence++,
                     DtlsCertificateAuthenticator.EncodeCertificate([localCertificate]));
-                await SendFlightAsync(channel, certificateFrame, cancellationToken).ConfigureAwait(false);
+                await SendFlightAsync(channel, certificateFrame, cancellationToken, clientSource)
+                    .ConfigureAwait(false);
                 transcript.Append(certificateFrame);
                 byte[] certificateVerifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
                     localCertificate,
@@ -299,7 +345,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     DtlsHandshakeType.CertificateVerify,
                     m_nextSendSequence++,
                     certificateVerifyBody);
-                await SendFlightAsync(channel, certificateVerifyFrame, cancellationToken).ConfigureAwait(false);
+                await SendFlightAsync(channel, certificateVerifyFrame, cancellationToken, clientSource)
+                    .ConfigureAwait(false);
                 transcript.Append(certificateVerifyFrame);
                 byte[] serverFinishedBody = DtlsHandshakeCodec.EncodeFinished(
                     m_keyingContext!.ComputeServerFinished(transcript.GetHash()));
@@ -307,8 +354,16 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     DtlsHandshakeType.Finished,
                     m_nextSendSequence++,
                     serverFinishedBody);
-                await SendFlightAsync(channel, serverFinishedFrame, cancellationToken).ConfigureAwait(false);
+                await SendFlightAsync(channel, serverFinishedFrame, cancellationToken, clientSource)
+                    .ConfigureAwait(false);
                 transcript.Append(serverFinishedFrame);
+                m_keyingContext.InstallApplicationSecrets(transcript.GetHash());
+                if (m_options.RequireClientCertificate)
+                {
+                    await ReceiveClientAuthenticationAsync(channel, transcript, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 DtlsHandshakeFrame clientFinishedFrame = await ReceiveFrameAsync(channel, cancellationToken)
                     .ConfigureAwait(false);
                 RequireMessage(clientFinishedFrame, DtlsHandshakeType.Finished);
@@ -374,24 +429,114 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 DtlsHandshakeCodec.EncodeServerHello(retry));
         }
 
-        private async ValueTask SendFlightAsync(
+        private static async ValueTask SendFlightAsync(
             IDtlsDatagramChannel channel,
             ReadOnlyMemory<byte> flight,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IPEndPoint? destination = null)
         {
-            var timer = new DtlsRetransmissionTimer(
-                m_options.InitialRetransmissionTimeout,
-                m_options.MaxRetransmissionTimeout);
-            await channel.SendAsync(flight, cancellationToken).ConfigureAwait(false);
-            _ = timer;
+            await channel.SendAsync(flight, destination, cancellationToken).ConfigureAwait(false);
         }
 
         private static async ValueTask<DtlsHandshakeFrame> ReceiveFrameAsync(
             IDtlsDatagramChannel channel,
             CancellationToken cancellationToken)
         {
-            ReadOnlyMemory<byte> datagram = await channel.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-            return DtlsHandshakeCodec.DecodeFrame(datagram.Span);
+            DtlsDatagram datagram = await channel.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+            return DtlsHandshakeCodec.DecodeFrame(datagram.Payload.Span);
+        }
+
+        private static async ValueTask<(DtlsHandshakeFrame Frame, IPEndPoint? Source)> ReceiveSourcedFrameAsync(
+            IDtlsDatagramChannel channel,
+            CancellationToken cancellationToken)
+        {
+            DtlsDatagram datagram = await channel.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+            return (DtlsHandshakeCodec.DecodeFrame(datagram.Payload.Span), datagram.Source);
+        }
+
+        private async ValueTask SendClientAuthenticationAsync(
+            IDtlsDatagramChannel channel,
+            DtlsTranscriptHash transcript,
+            CancellationToken cancellationToken)
+        {
+            using Certificate localCertificate = GetLocalCertificate();
+            byte[] certificateFrame = DtlsHandshakeCodec.EncodeFrame(
+                DtlsHandshakeType.Certificate,
+                m_nextSendSequence++,
+                DtlsCertificateAuthenticator.EncodeCertificate([localCertificate]));
+            await SendFlightAsync(channel, certificateFrame, cancellationToken).ConfigureAwait(false);
+            transcript.Append(certificateFrame);
+            byte[] certificateVerifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
+                localCertificate,
+                Profile.CipherSuite,
+                transcript.GetHash(),
+                isServer: false);
+            byte[] certificateVerifyFrame = DtlsHandshakeCodec.EncodeFrame(
+                DtlsHandshakeType.CertificateVerify,
+                m_nextSendSequence++,
+                certificateVerifyBody);
+            await SendFlightAsync(channel, certificateVerifyFrame, cancellationToken).ConfigureAwait(false);
+            transcript.Append(certificateVerifyFrame);
+        }
+
+        private async ValueTask ReceiveClientAuthenticationAsync(
+            IDtlsDatagramChannel channel,
+            DtlsTranscriptHash transcript,
+            CancellationToken cancellationToken)
+        {
+            DtlsHandshakeFrame certificateFrame = await ReceiveFrameAsync(channel, cancellationToken)
+                .ConfigureAwait(false);
+            RequireMessage(certificateFrame, DtlsHandshakeType.Certificate);
+            transcript.Append(ToCompleteFrame(certificateFrame));
+            IReadOnlyList<Certificate> peerChain =
+                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
+            try
+            {
+                await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
+                byte[] certificateVerifyTranscriptHash = transcript.GetHash();
+                DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
+                    .ConfigureAwait(false);
+                RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
+                DtlsCertificateAuthenticator.VerifyCertificateVerify(
+                    peerChain[0],
+                    Profile.CipherSuite,
+                    certificateVerifyTranscriptHash,
+                    certificateVerifyFrame.Fragment,
+                    isServer: false);
+                transcript.Append(ToCompleteFrame(certificateVerifyFrame));
+            }
+            finally
+            {
+                foreach (Certificate peerCertificate in peerChain)
+                {
+                    peerCertificate.Dispose();
+                }
+            }
+        }
+
+        private CancellationTokenSource CreateHandshakeTimeoutCts(CancellationToken cancellationToken)
+        {
+            CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            TimeSpan timeout = ComputeHandshakeTimeout();
+            if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+            {
+                linked.CancelAfter(timeout);
+            }
+
+            return linked;
+        }
+
+        private TimeSpan ComputeHandshakeTimeout()
+        {
+            TimeSpan initial = m_options.InitialRetransmissionTimeout;
+            TimeSpan max = m_options.MaxRetransmissionTimeout;
+            TimeSpan unit = max > initial ? max : initial;
+            if (unit <= TimeSpan.Zero)
+            {
+                return Timeout.InfiniteTimeSpan;
+            }
+
+            return TimeSpan.FromTicks(unit.Ticks * HandshakeFlightBudget);
         }
         private static async ValueTask<DtlsHandshakeFrame> ReceiveAndAppendAsync(
             IDtlsDatagramChannel channel,
@@ -572,6 +717,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private DtlsRecordProtection? m_readProtection;
         private DtlsHandshakeKeyingContext? m_keyingContext;
 #if NET8_0_OR_GREATER
+        private const int HandshakeFlightBudget = 4;
         private ushort m_nextSendSequence;
 #endif
         private bool m_disposed;

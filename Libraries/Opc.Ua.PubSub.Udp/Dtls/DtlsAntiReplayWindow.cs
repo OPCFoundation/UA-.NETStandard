@@ -91,6 +91,33 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return true;
         }
 
+        /// <summary>
+        /// Non-mutating check that reports whether the sequence number would be rejected as a
+        /// replay or as a too-old record. Used to peek before a record is authenticated so that
+        /// forged or duplicate datagrams cannot mutate the window state ahead of authentication.
+        /// </summary>
+        public bool IsReplay(ulong sequenceNumber)
+        {
+            if (!m_hasHighest)
+            {
+                return false;
+            }
+
+            if (sequenceNumber > m_highestSequenceNumber)
+            {
+                return false;
+            }
+
+            ulong offset = m_highestSequenceNumber - sequenceNumber;
+            if (offset >= (ulong)WindowSize)
+            {
+                return true;
+            }
+
+            ulong mask = 1UL << (int)offset;
+            return (m_bitmap & mask) != 0;
+        }
+
         private void TrimBitmap()
         {
             if (WindowSize < 64)

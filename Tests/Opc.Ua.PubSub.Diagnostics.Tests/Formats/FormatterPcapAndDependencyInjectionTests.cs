@@ -37,6 +37,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Pcap.DependencyInjection;
+using Opc.Ua.PubSub.Pcap.KeyLog;
 using Opc.Ua.PubSub.Transports;
 using TextEncoding = System.Text.Encoding;
 
@@ -183,9 +184,6 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
                 Environment.SetEnvironmentVariable(
                     PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile,
                     "  " + filePath + "  ");
-                Environment.SetEnvironmentVariable(
-                    PubSubPcapEnvironmentVariableNames.OpcuaPubSubKeyLogFile,
-                    " keylog.jsonl ");
                 IServiceCollection services = new ServiceCollection();
 
                 services.AddPubSubPcapFromEnvironment();
@@ -197,14 +195,13 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
                     Assert.That(services, Has.Some.Matches<ServiceDescriptor>(
                         d => d.ImplementationInstance is PubSubPcapEnvironmentOptions
                         {
-                            KeyLogFilePath: "keylog.jsonl"
+                            PcapFilePath: not null
                         }));
                 });
             }
             finally
             {
                 Environment.SetEnvironmentVariable(PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile, null);
-                Environment.SetEnvironmentVariable(PubSubPcapEnvironmentVariableNames.OpcuaPubSubKeyLogFile, null);
                 TryDelete(filePath);
             }
         }
@@ -213,7 +210,6 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
         public void AddPubSubPcapFromEnvironmentDoesNotRegisterHostedServiceWhenDisabled()
         {
             Environment.SetEnvironmentVariable(PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile, null);
-            Environment.SetEnvironmentVariable(PubSubPcapEnvironmentVariableNames.OpcuaPubSubKeyLogFile, null);
             IServiceCollection services = new ServiceCollection();
 
             services.AddPubSubPcapFromEnvironment();
@@ -225,11 +221,11 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
         [Test]
         public async Task EnvironmentHostedServiceStartsAndFlushesCaptureAsync()
         {
-            string filePath = Path.GetTempFileName();
+            string filePath = CreateTempFileUnderCurrentDirectory(".pcap");
             try
             {
                 PubSubCaptureRegistry registry = new();
-                PubSubPcapEnvironmentOptions options = new(filePath, null);
+                PubSubPcapEnvironmentOptions options = new(filePath);
                 await using var service = new PubSubPcapEnvironmentAutoStartHostedService(registry, options);
 
                 await service.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -254,10 +250,27 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
         }
 
         [Test]
+        public async Task EnvironmentHostedServiceRejectsTraversalPathAsync()
+        {
+            PubSubCaptureRegistry registry = new();
+            PubSubPcapEnvironmentOptions options =
+                new(Path.Combine("..", "..", "escaped-capture.pcap"));
+            await using var service = new PubSubPcapEnvironmentAutoStartHostedService(registry, options);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    async () => await service.StartAsync(CancellationToken.None).ConfigureAwait(false),
+                    Throws.ArgumentException);
+                Assert.That(registry.CurrentObserver, Is.Null);
+            });
+        }
+
+        [Test]
         public async Task EnvironmentHostedServiceIgnoresDisabledOptionsAsync()
         {
             PubSubCaptureRegistry registry = new();
-            PubSubPcapEnvironmentOptions options = new(null, "keylog");
+            PubSubPcapEnvironmentOptions options = new(null);
             await using var service = new PubSubPcapEnvironmentAutoStartHostedService(registry, options);
 
             await service.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -269,21 +282,63 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
         [Test]
         public void EnvironmentOptionsAndVariableNamesExposeExpectedValues()
         {
-            PubSubPcapEnvironmentOptions enabled = new("capture.pcap", "keys.jsonl");
-            PubSubPcapEnvironmentOptions disabled = new(null, null);
+            PubSubPcapEnvironmentOptions enabled = new("capture.pcap");
+            PubSubPcapEnvironmentOptions disabled = new(null);
 
             Assert.Multiple(() =>
             {
                 Assert.That(enabled.IsEnabled, Is.True);
-                Assert.That(enabled.KeyLogFilePath, Is.EqualTo("keys.jsonl"));
+                Assert.That(enabled.PcapFilePath, Is.EqualTo("capture.pcap"));
                 Assert.That(disabled.IsEnabled, Is.False);
                 Assert.That(
                     PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile,
                     Is.EqualTo("OPCUA_PUBSUB_PCAP_FILE"));
-                Assert.That(
-                    PubSubPcapEnvironmentVariableNames.OpcuaPubSubKeyLogFile,
-                    Is.EqualTo("OPCUA_PUBSUB_KEYLOGFILE"));
             });
+        }
+
+        [Test]
+        public void EnvironmentVariableNamesDoesNotExposeKeyLogVariable()
+        {
+            Assert.That(
+                typeof(PubSubPcapEnvironmentVariableNames).GetField("OpcuaPubSubKeyLogFile"),
+                Is.Null);
+        }
+
+        [Test]
+        public async Task KeyLogWriterCreatesFileWithOwnerOnlyPermissionsAsync()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Ignore("Unix file permissions only apply off Windows.");
+                return;
+            }
+
+            string filePath = CreateTempFileUnderCurrentDirectory(".uakeys.json");
+            TryDelete(filePath);
+            try
+            {
+                await using (var writer = new PubSubKeyLogWriter(filePath))
+                {
+                    await writer.AppendAsync(
+                        new PubSubKeyMaterial(
+                            "group-1",
+                            tokenId: 7,
+                            "http://opcfoundation.org/UA/SecurityPolicy#PubSub-Aes256-CTR",
+                            signingKey: [1, 2, 3, 4],
+                            encryptingKey: [5, 6, 7, 8],
+                            keyNonce: [9, 10]))
+                        .ConfigureAwait(false);
+                }
+
+                UnixFileMode mode = File.GetUnixFileMode(filePath);
+                Assert.That(
+                    mode,
+                    Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite));
+            }
+            finally
+            {
+                TryDelete(filePath);
+            }
         }
 
         private static PubSubCaptureFrame CreateFrame(
@@ -328,6 +383,13 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
             {
                 File.Delete(filePath);
             }
+        }
+
+        private static string CreateTempFileUnderCurrentDirectory(string extension)
+        {
+            string fileName = "pubsub-pcap-test-" +
+                Guid.NewGuid().ToString("N") + extension;
+            return Path.Combine(Directory.GetCurrentDirectory(), fileName);
         }
 
         private static readonly DateTimeOffset Timestamp =

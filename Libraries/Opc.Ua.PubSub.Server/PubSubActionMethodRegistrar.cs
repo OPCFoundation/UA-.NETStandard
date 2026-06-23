@@ -64,6 +64,14 @@ namespace Opc.Ua.PubSub.Server
 
             ILogger logger = telemetry.CreateLogger<PubSubActionMethodRegistration>();
             PublishedActionMethodDataType action = registration.PublishedAction;
+
+            // SA-ACT-02: bound Methods run under an explicitly configured service
+            // identity instead of a silent Anonymous. Default to an explicit
+            // Anonymous so behavior is unchanged unless an operator opts in, but
+            // surface the choice so a privileged Method is not exposed unknowingly.
+            IUserIdentity serviceIdentity = registration.ServiceIdentity ?? new UserIdentity();
+            bool isAnonymous = serviceIdentity.TokenType == UserTokenType.Anonymous;
+
             if (action.ActionTargets.IsNull || action.ActionMethods.IsNull)
             {
                 logger.LogWarning("PublishedActionMethod binding skipped because targets or methods are null.");
@@ -97,9 +105,27 @@ namespace Opc.Ua.PubSub.Server
                     ActionName = actionTarget.Name ?? string.Empty
                 };
 
+                // Warn so an operator cannot unknowingly expose a privileged
+                // Method anonymously over PubSub (SA-ACT-02). The Method executes
+                // under the configured identity; node RolePermissions for that
+                // identity (Anonymous here) govern whether the call is allowed.
+                if (isAnonymous)
+                {
+                    logger.LogWarning(
+                        "PubSub Action target '{ActionName}' (writer {WriterId}, target {TargetId}) "
+                        + "binds server Method {MethodId} on object {ObjectId} and will be invoked as "
+                        + "Anonymous over PubSub. Configure a service identity if the Method requires "
+                        + "user authentication or role-restricted RolePermissions.",
+                        target.ActionName,
+                        registration.DataSetWriterId,
+                        actionTarget.ActionTargetId,
+                        actionMethod.MethodId,
+                        actionMethod.ObjectId);
+                }
+
                 application.RegisterActionHandler(
                     target,
-                    new ServerMethodActionHandler(nodeManager, actionMethod, telemetry));
+                    new ServerMethodActionHandler(nodeManager, actionMethod, telemetry, serviceIdentity));
             }
         }
     }

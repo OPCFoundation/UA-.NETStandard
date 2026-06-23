@@ -102,6 +102,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         ServerHello = 2,
         EncryptedExtensions = 8,
         Certificate = 11,
+        CertificateRequest = 13,
         CertificateVerify = 15,
         Finished = 20,
         MessageHash = 254

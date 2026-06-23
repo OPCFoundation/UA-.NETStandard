@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Transports;
@@ -200,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp
             }
 
             m_dtlsProfileRegistry.EmitStartupDiagnostic(telemetry);
-            DtlsProfile profile = SelectDtlsProfile(endpoint);
+            DtlsProfile profile = SelectDtlsProfile(endpoint, telemetry);
             return new DtlsDatagramTransport(
                 connection,
                 endpoint,
@@ -219,12 +220,17 @@ namespace Opc.Ua.PubSub.Udp
         /// suites/profiles are not pinned by configuration; the endpoint and
         /// <see cref="DtlsTransportOptions.PreferredProfileName"/> only express a preference, while
         /// <see cref="DtlsTransportOptions.DisabledProfiles"/> removes profiles from the candidate set
-        /// even when the runtime supports them. Fails closed when no candidate remains.
+        /// even when the runtime supports them. The silent automatic fallback PREFERS
+        /// confidentiality-providing AEAD profiles (AES-GCM / ChaCha20-Poly1305) and never selects an
+        /// integrity-only (cleartext + HMAC) profile unless it is explicitly requested by the endpoint
+        /// or by <see cref="DtlsTransportOptions.PreferredProfileName"/>; if only integrity-only
+        /// profiles remain available a prominent warning is logged before one is selected. Fails closed
+        /// when no candidate remains.
         /// </summary>
         // TODO: Full in-handshake cipher-suite negotiation (ClientHello offering multiple suites and
         // ServerHello selecting one) is a future enhancement. For now a single profile is selected here
         // at runtime and reused for the whole handshake.
-        private DtlsProfile SelectDtlsProfile(UdpEndpoint endpoint)
+        private DtlsProfile SelectDtlsProfile(UdpEndpoint endpoint, ITelemetryContext telemetry)
         {
             DtlsProfileRegistry registry = m_dtlsProfileRegistry!;
             ISet<string> disabled = m_dtlsOptions.DisabledProfiles;
@@ -243,10 +249,27 @@ namespace Opc.Ua.PubSub.Udp
                 return preferredProfile!;
             }
 
+            // Automatic fallback prefers confidentiality (AEAD) and never silently downgrades to an
+            // integrity-only profile (SA-DTLS-HS-06).
+            foreach (DtlsProfile candidate in registry.SupportedProfiles)
+            {
+                if (IsProfileEnabled(disabled, candidate.Name) && IsConfidentialityProviding(candidate.CipherSuite))
+                {
+                    return candidate;
+                }
+            }
+
             foreach (DtlsProfile candidate in registry.SupportedProfiles)
             {
                 if (IsProfileEnabled(disabled, candidate.Name))
                 {
+                    ILogger logger = telemetry.CreateLogger<UdpPubSubTransportFactory>();
+                    logger.LogWarning(
+                        "OPC UA PubSub DTLS: no confidentiality-providing (AEAD) profile is available; " +
+                        "automatically selecting integrity-only profile '{Profile}'. DTLS payloads will be " +
+                        "authenticated but NOT encrypted. Enable an AES-GCM or ChaCha20-Poly1305 profile to " +
+                        "restore confidentiality.",
+                        candidate.Name);
                     return candidate;
                 }
             }
@@ -255,6 +278,13 @@ namespace Opc.Ua.PubSub.Udp
                 "No OPC UA PubSub DTLS profile is available: every runtime-supported profile is disabled by " +
                 "configuration (DtlsTransportOptions.DisabledProfiles) or no profile is supported by the current " +
                 ".NET BCL/runtime. Enable a supported profile to use opc.dtls:// transport.");
+        }
+
+        private static bool IsConfidentialityProviding(DtlsCipherSuite cipherSuite)
+        {
+            return cipherSuite is DtlsCipherSuite.TlsAes128GcmSha256
+                or DtlsCipherSuite.TlsAes256GcmSha384
+                or DtlsCipherSuite.TlsChaCha20Poly1305Sha256;
         }
 
         private static bool IsProfileEnabled(ISet<string> disabledProfiles, string profileName)

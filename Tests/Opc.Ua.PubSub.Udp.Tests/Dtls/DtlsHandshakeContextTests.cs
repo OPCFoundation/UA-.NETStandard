@@ -202,6 +202,96 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Throws.TypeOf<DtlsHandshakeException>());
         }
 
+        [Test]
+        [TestSpec("RFC 8446 §4.1.4")]
+        public void ClientAbortsAfterSecondHelloRetryRequest()
+        {
+            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            var validator = CreateSuccessfulValidator();
+            using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            var channel = new AlwaysHelloRetryRequestChannel(profile);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            Assert.That(
+                async () => await client.OpenAsync(channel, cts.Token).ConfigureAwait(false),
+                Throws.TypeOf<DtlsHandshakeException>().With.Message.Contains("HelloRetryRequest"));
+        }
+
+        [Test]
+        [TestSpec("RFC 8446 §4.3.2")]
+        public async Task MutualAuthenticationHandshakeSucceedsWhenClientCertificateRequiredAsync()
+        {
+            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            var validator = CreateSuccessfulValidator();
+            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+
+            var clientOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireHelloRetryRequestCookie = true
+            };
+            clientOptions.LocalCertificates.Add(clientCertificate);
+            var serverOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireHelloRetryRequestCookie = true,
+                RequireClientCertificate = true
+            };
+            serverOptions.LocalCertificates.Add(serverCertificate);
+
+            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
+            using var server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+
+            await Task.WhenAll(
+                client.OpenAsync(pair.Client, CancellationToken.None).AsTask(),
+                server.OpenAsync(pair.Server, CancellationToken.None).AsTask()).ConfigureAwait(false);
+
+            byte[] payload = [0x4d, 0x41];
+            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, CancellationToken.None)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
+        [TestSpec("RFC 8446 §4.3.2")]
+        public async Task MutualAuthenticationFailsClosedWhenClientHasNoCertificateAsync()
+        {
+            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            var validator = CreateSuccessfulValidator();
+            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+
+            var clientOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireHelloRetryRequestCookie = true
+            };
+            var serverOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireHelloRetryRequestCookie = true,
+                RequireClientCertificate = true
+            };
+            serverOptions.LocalCertificates.Add(serverCertificate);
+
+            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
+            using var server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
+            Task serverTask = server.OpenAsync(pair.Server, cts.Token).AsTask();
+
+            Assert.That(async () => await clientTask.ConfigureAwait(false), Throws.TypeOf<DtlsHandshakeException>());
+            await cts.CancelAsync().ConfigureAwait(false);
+            Assert.That(async () => await serverTask.ConfigureAwait(false), Throws.Exception);
+        }
+
         private static async Task RunHandshakeAndApplicationRoundTripAsync(DtlsProfile profile)
         {
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
@@ -360,8 +450,12 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             }
 
             /// <inheritdoc/>
-            public ValueTask SendAsync(ReadOnlyMemory<byte> datagram, CancellationToken cancellationToken = default)
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> datagram,
+                IPEndPoint? destination = null,
+                CancellationToken cancellationToken = default)
             {
+                _ = destination;
                 byte[] copy = datagram.ToArray();
                 if (m_outboundTransform is not null)
                 {
@@ -372,14 +466,58 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             }
 
             /// <inheritdoc/>
-            public ValueTask<ReadOnlyMemory<byte>> ReceiveAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
             {
-                return m_inbound.Reader.ReadAsync(cancellationToken);
+                ReadOnlyMemory<byte> payload = await m_inbound.Reader.ReadAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return new DtlsDatagram(payload, RemoteEndpoint);
             }
 
             private readonly Channel<ReadOnlyMemory<byte>> m_inbound;
             private readonly Channel<ReadOnlyMemory<byte>> m_outbound;
             private readonly Func<byte[], byte[]>? m_outboundTransform;
+        }
+
+        /// <summary>
+        /// Test channel that answers every ClientHello with a HelloRetryRequest so the client HRR cap
+        /// (RFC 8446 §4.1.4 — at most one HelloRetryRequest) can be exercised.
+        /// </summary>
+        private sealed class AlwaysHelloRetryRequestChannel : IDtlsDatagramChannel
+        {
+            public AlwaysHelloRetryRequestChannel(DtlsProfile profile)
+            {
+                m_helloRetryRequest = DtlsHandshakeCodec.EncodeFrame(
+                    DtlsHandshakeType.ServerHello,
+                    0,
+                    DtlsHandshakeCodec.EncodeServerHello(new DtlsServerHello(
+                        new byte[32],
+                        new byte[32],
+                        profile.CipherSuite,
+                        DtlsHelloExtensions.CreateDefault([profile.KeyExchangeCurve], [], new byte[16]))));
+            }
+
+            /// <inheritdoc/>
+            public IPEndPoint? RemoteEndpoint => new IPEndPoint(IPAddress.Loopback, 4843);
+
+            /// <inheritdoc/>
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> datagram,
+                IPEndPoint? destination = null,
+                CancellationToken cancellationToken = default)
+            {
+                _ = datagram;
+                _ = destination;
+                return ValueTask.CompletedTask;
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<DtlsDatagram>(new DtlsDatagram(m_helloRetryRequest, RemoteEndpoint));
+            }
+
+            private readonly byte[] m_helloRetryRequest;
         }
     }
 }

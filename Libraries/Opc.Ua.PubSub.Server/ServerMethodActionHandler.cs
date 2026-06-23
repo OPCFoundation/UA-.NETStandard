@@ -45,15 +45,29 @@ namespace Opc.Ua.PubSub.Server
         private readonly IMasterNodeManager m_nodeManager;
         private readonly NodeId m_objectId;
         private readonly NodeId m_methodId;
+        private readonly IUserIdentity m_serviceIdentity;
         private readonly ILogger m_logger;
 
         /// <summary>
         /// Initializes a new <see cref="ServerMethodActionHandler"/>.
         /// </summary>
+        /// <param name="nodeManager">Master node manager used to call the Method.</param>
+        /// <param name="method">PublishedActionMethod metadata to bind.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="serviceIdentity">
+        /// Identity the bound Method executes under (SA-ACT-02). PubSub Action
+        /// requests do not arrive over an OPC UA session, so there is no
+        /// session-derived user. When <see langword="null"/> an explicit
+        /// <em>Anonymous</em> identity is used and the Method is invoked as
+        /// Anonymous; node <c>RolePermissions</c> for the Anonymous role then
+        /// apply. Supply a configured service identity to run the Method under a
+        /// specific principal instead of bypassing user-auth/role mapping.
+        /// </param>
         public ServerMethodActionHandler(
             IMasterNodeManager nodeManager,
             ActionMethodDataType method,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IUserIdentity? serviceIdentity = null)
         {
             if (nodeManager is null)
             {
@@ -79,6 +93,7 @@ namespace Opc.Ua.PubSub.Server
             m_nodeManager = nodeManager;
             m_objectId = method.ObjectId;
             m_methodId = method.MethodId;
+            m_serviceIdentity = serviceIdentity ?? new UserIdentity();
             m_logger = telemetry.CreateLogger<ServerMethodActionHandler>();
         }
 
@@ -94,7 +109,7 @@ namespace Opc.Ua.PubSub.Server
 
             try
             {
-                OperationContext context = CreateOperationContext(invocation);
+                OperationContext context = CreateOperationContext(invocation, m_serviceIdentity);
                 var methodToCall = new CallMethodRequest
                 {
                     ObjectId = m_objectId,
@@ -139,7 +154,9 @@ namespace Opc.Ua.PubSub.Server
             }
         }
 
-        private static OperationContext CreateOperationContext(PubSubActionInvocation invocation)
+        private static OperationContext CreateOperationContext(
+            PubSubActionInvocation invocation,
+            IUserIdentity serviceIdentity)
         {
             var header = new RequestHeader
             {
@@ -149,12 +166,17 @@ namespace Opc.Ua.PubSub.Server
                 AuditEntryId = invocation.Target.ActionName
             };
 
+            // SA-ACT-02: PubSub Action requests do not arrive over an OPC UA
+            // secure channel / session, so there is no secure-channel context to
+            // attach. Permission evaluation therefore relies on the explicitly
+            // configured service identity and the node RolePermissions that apply
+            // to it, rather than a session-mapped user.
             return new OperationContext(
                 header,
                 secureChannelContext: null,
                 RequestType.Call,
                 RequestLifetime.None,
-                new UserIdentity());
+                serviceIdentity);
         }
 
         private static uint ToTimeoutHint(double timeoutHint)

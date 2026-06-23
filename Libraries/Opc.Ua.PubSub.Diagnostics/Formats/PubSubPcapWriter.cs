@@ -92,6 +92,11 @@ namespace Opc.Ua.PubSub.Pcap
                 FileShare.Read,
                 bufferSize: 4096,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+
             PcapNgFileWriter writer = new(stream, PcapFileWriter.LinkTypeEthernet);
             try
             {

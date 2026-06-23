@@ -106,7 +106,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public static byte[] SignCertificateVerify(
             Certificate certificate,
             DtlsCipherSuite cipherSuite,
-            ReadOnlySpan<byte> transcriptHash)
+            ReadOnlySpan<byte> transcriptHash,
+            bool isServer = true)
         {
             if (certificate is null)
             {
@@ -118,7 +119,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     "DTLS CertificateVerify requires an ECC certificate with ECDSA key.");
 
             DtlsSignatureScheme scheme = GetSignatureScheme(cipherSuite);
-            byte[] signedContent = BuildCertificateVerifyContent(isServer: true, transcriptHash);
+            byte[] signedContent = BuildCertificateVerifyContent(isServer, transcriptHash);
             byte[] signature;
             try
             {

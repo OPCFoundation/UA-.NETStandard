@@ -44,14 +44,16 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             int hashLength = GetHashLength(hashAlgorithmName);
             byte[] actualSalt = salt.IsEmpty ? new byte[hashLength] : salt.ToArray();
+            byte[] keyingMaterial = inputKeyingMaterial.ToArray();
             try
             {
                 using HMAC hmac = CreateHmac(hashAlgorithmName, actualSalt);
-                return hmac.ComputeHash(inputKeyingMaterial.ToArray());
+                return hmac.ComputeHash(keyingMaterial);
             }
             finally
             {
                 CryptoUtils.ZeroMemory(actualSalt);
+                CryptoUtils.ZeroMemory(keyingMaterial);
             }
         }
 
@@ -77,11 +79,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             byte[] output = new byte[length];
             byte[] previous = [];
+            byte[] pseudoRandomKeyCopy = pseudoRandomKey.ToArray();
             int offset = 0;
             byte counter = 1;
             try
             {
-                using HMAC hmac = CreateHmac(hashAlgorithmName, pseudoRandomKey.ToArray());
+                using HMAC hmac = CreateHmac(hashAlgorithmName, pseudoRandomKeyCopy);
                 while (offset < length)
                 {
                     hmac.Initialize();
@@ -106,7 +109,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         CryptoUtils.ZeroMemory(infoBytes);
                     }
 
-                    previous = hmac.Hash ?? throw new CryptographicException("HKDF HMAC did not produce a hash.");
+                    byte[] block = hmac.Hash ?? throw new CryptographicException("HKDF HMAC did not produce a hash.");
+                    CryptoUtils.ZeroMemory(previous);
+                    previous = block;
                     int toCopy = Math.Min(previous.Length, length - offset);
                     Buffer.BlockCopy(previous, 0, output, offset, toCopy);
                     offset += toCopy;
@@ -116,6 +121,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             finally
             {
                 CryptoUtils.ZeroMemory(previous);
+                CryptoUtils.ZeroMemory(pseudoRandomKeyCopy);
             }
 
             return output;

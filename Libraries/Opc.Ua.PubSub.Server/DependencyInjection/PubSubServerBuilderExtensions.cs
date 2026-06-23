@@ -124,6 +124,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="dataSetWriterId">DataSetWriterId that owns the action metadata.</param>
         /// <param name="publishedAction">PublishedActionMethod metadata to bind.</param>
         /// <param name="connectionName">Optional PubSub connection name used for runtime routing.</param>
+        /// <param name="serviceIdentity">
+        /// Optional identity the bound Methods execute under (SA-ACT-02). When
+        /// <see langword="null"/> the Methods run as an explicit <em>Anonymous</em>
+        /// identity and a warning is logged at bind time.
+        /// </param>
         /// <returns>The same builder for chaining.</returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="builder"/> or <paramref name="publishedAction"/> is <see langword="null"/>.
@@ -132,7 +137,8 @@ namespace Microsoft.Extensions.DependencyInjection
             this IPubSubServerBuilder builder,
             ushort dataSetWriterId,
             PublishedActionMethodDataType publishedAction,
-            string connectionName = "")
+            string connectionName = "",
+            IUserIdentity? serviceIdentity = null)
         {
             if (builder is null)
             {
@@ -146,7 +152,8 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddSingleton(new PubSubActionMethodRegistration(
                 dataSetWriterId,
                 publishedAction,
-                connectionName));
+                connectionName,
+                serviceIdentity));
             return builder;
         }
     }

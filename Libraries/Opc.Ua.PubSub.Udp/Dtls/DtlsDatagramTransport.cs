@@ -184,8 +184,18 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
-                ReadOnlyMemory<byte> payload = await context.UnprotectAsync(frame.Payload, cancellationToken)
-                    .ConfigureAwait(false);
+                ReadOnlyMemory<byte> payload;
+                try
+                {
+                    payload = await context.UnprotectAsync(frame.Payload, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (System.Security.Cryptography.CryptographicException)
+                {
+                    // RFC 9147 §4.5.2: malformed, forged or replayed application records are
+                    // silently dropped so a forged datagram cannot tear down the transport.
+                    continue;
+                }
                 yield return new PubSubTransportFrame(payload, frame.Topic, frame.ReceivedAt);
             }
         }
@@ -209,18 +219,19 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <inheritdoc/>
         async ValueTask IDtlsDatagramChannel.SendAsync(
             ReadOnlyMemory<byte> datagram,
+            IPEndPoint? destination,
             CancellationToken cancellationToken)
         {
-            await m_innerTransport.SendAsync(datagram, topic: null, cancellationToken).ConfigureAwait(false);
+            await m_innerTransport.SendToAsync(datagram, destination, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        async ValueTask<ReadOnlyMemory<byte>> IDtlsDatagramChannel.ReceiveAsync(CancellationToken cancellationToken)
+        async ValueTask<DtlsDatagram> IDtlsDatagramChannel.ReceiveAsync(CancellationToken cancellationToken)
         {
             await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
-                return frame.Payload;
+                return new DtlsDatagram(frame.Payload, frame.SourceEndpoint);
             }
 
             throw new InvalidOperationException("DTLS datagram channel closed while waiting for a handshake datagram.");

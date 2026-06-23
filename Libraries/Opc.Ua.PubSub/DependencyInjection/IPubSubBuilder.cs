@@ -80,10 +80,15 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Action handler.</param>
         /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        /// <param name="responseAddressPolicy">
+        /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
+        /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
+        /// </param>
         IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
-            bool allowUnsecured = false);
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null);
 
         /// <summary>
         /// Adds a responder-side PubSub Action handler factory.
@@ -91,10 +96,15 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="target">Action target handled by the resolved handler.</param>
         /// <param name="handlerFactory">Action handler factory.</param>
         /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        /// <param name="responseAddressPolicy">
+        /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
+        /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
+        /// </param>
         IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             Func<IServiceProvider, IPubSubActionHandler> handlerFactory,
-            bool allowUnsecured = false);
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null);
 
         /// <summary>
         /// Adds a responder-side PubSub Action handler from DI.
@@ -102,7 +112,14 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="THandler">Action handler type.</typeparam>
         /// <param name="target">Action target handled by the resolved handler.</param>
         /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
-        IPubSubBuilder AddActionResponder<THandler>(PubSubActionTarget target, bool allowUnsecured = false)
+        /// <param name="responseAddressPolicy">
+        /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
+        /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
+        /// </param>
+        IPubSubBuilder AddActionResponder<THandler>(
+            PubSubActionTarget target,
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null)
             where THandler : class, IPubSubActionHandler;
 
         /// <summary>
@@ -111,10 +128,15 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="target">Action target handled by <paramref name="handler"/>.</param>
         /// <param name="handler">Delegate action handler.</param>
         /// <param name="allowUnsecured">Allow serving the Action on an unsecured connection.</param>
+        /// <param name="responseAddressPolicy">
+        /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
+        /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
+        /// </param>
         IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
-            bool allowUnsecured = false);
+            bool allowUnsecured = false,
+            PubSubResponseAddressPolicy? responseAddressPolicy = null);
 
         /// <summary>
         /// Adds a published dataset source.

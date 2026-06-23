@@ -50,14 +50,5 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
         /// working directory at host-start time.
         /// </summary>
         public const string OpcuaPubSubPcapFile = "OPCUA_PUBSUB_PCAP_FILE";
-
-        /// <summary>
-        /// Path of the key-log file the env-var driven registration writes
-        /// captured PubSub security key material to, so encrypted UADP
-        /// captures can be decrypted offline. Reserved for the key-capture
-        /// path; honored together with
-        /// <see cref="OpcuaPubSubPcapFile"/>.
-        /// </summary>
-        public const string OpcuaPubSubKeyLogFile = "OPCUA_PUBSUB_KEYLOGFILE";
     }
 }

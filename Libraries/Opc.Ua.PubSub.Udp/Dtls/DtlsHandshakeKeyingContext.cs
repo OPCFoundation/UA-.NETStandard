@@ -38,14 +38,48 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     {
         /// <summary>
         /// Initializes a new <see cref="DtlsHandshakeKeyingContext"/> by deriving the TLS 1.3
-        /// handshake and application traffic secrets from the negotiated shared secret.
+        /// handshake traffic secrets and Finished keys from the negotiated shared secret and the
+        /// handshake transcript hash. Application traffic secrets are derived separately via
+        /// <see cref="InstallApplicationSecrets"/> once the full handshake transcript (through the
+        /// server Finished) is available (RFC 8446 §7.1).
         /// </summary>
         public DtlsHandshakeKeyingContext(DtlsProfile profile, ReadOnlySpan<byte> sharedSecret,
-            ReadOnlySpan<byte> handshakeTranscriptHash, ReadOnlySpan<byte> applicationTranscriptHash)
+            ReadOnlySpan<byte> handshakeTranscriptHash)
         {
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
             m_schedule = new DtlsKeySchedule(profile.CipherSuite);
-            Secrets = m_schedule.DeriveTrafficSecrets(sharedSecret, handshakeTranscriptHash, applicationTranscriptHash);
+            byte[] handshakeSecret = m_schedule.DeriveHandshakeSecret(sharedSecret);
+            try
+            {
+                byte[] clientHandshakeTrafficSecret = m_schedule.DeriveSecret(
+                    handshakeSecret, "c hs traffic", handshakeTranscriptHash);
+                byte[] serverHandshakeTrafficSecret = m_schedule.DeriveSecret(
+                    handshakeSecret, "s hs traffic", handshakeTranscriptHash);
+                m_masterSecret = m_schedule.DeriveMasterSecret(handshakeSecret);
+                Secrets = new DtlsTrafficSecrets(
+                    clientHandshakeTrafficSecret,
+                    serverHandshakeTrafficSecret,
+                    [],
+                    [],
+                    m_schedule.FinishedKey(clientHandshakeTrafficSecret),
+                    m_schedule.FinishedKey(serverHandshakeTrafficSecret));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(handshakeSecret);
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="DtlsHandshakeKeyingContext"/> deriving both the handshake
+        /// traffic secrets (over <paramref name="handshakeTranscriptHash"/>) and the application
+        /// traffic secrets (over <paramref name="applicationTranscriptHash"/>) up front.
+        /// </summary>
+        public DtlsHandshakeKeyingContext(DtlsProfile profile, ReadOnlySpan<byte> sharedSecret,
+            ReadOnlySpan<byte> handshakeTranscriptHash, ReadOnlySpan<byte> applicationTranscriptHash)
+            : this(profile, sharedSecret, handshakeTranscriptHash)
+        {
+            InstallApplicationSecrets(applicationTranscriptHash);
         }
 
         /// <summary>
@@ -57,6 +91,26 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Current TLS 1.3 traffic secrets derived for the connection.
         /// </summary>
         public DtlsTrafficSecrets Secrets { get; private set; }
+
+        /// <summary>
+        /// Derives the TLS 1.3 client/server application traffic secrets from the master secret over
+        /// the supplied application transcript hash (Hash(ClientHello…server Finished) per RFC 8446
+        /// §7.1) and installs them so application record protection can be created.
+        /// </summary>
+        public void InstallApplicationSecrets(ReadOnlySpan<byte> applicationTranscriptHash)
+        {
+            byte[] clientApplicationTrafficSecret = m_schedule.DeriveSecret(
+                m_masterSecret, "c ap traffic", applicationTranscriptHash);
+            byte[] serverApplicationTrafficSecret = m_schedule.DeriveSecret(
+                m_masterSecret, "s ap traffic", applicationTranscriptHash);
+            CryptoUtils.ZeroMemory(Secrets.ClientApplicationTrafficSecret);
+            CryptoUtils.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
+            Secrets = Secrets with
+            {
+                ClientApplicationTrafficSecret = clientApplicationTrafficSecret,
+                ServerApplicationTrafficSecret = serverApplicationTrafficSecret
+            };
+        }
 
         /// <summary>
         /// Creates record protection for the client application traffic epoch.
@@ -138,10 +192,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             CryptoUtils.ZeroMemory(Secrets.ServerApplicationTrafficSecret);
             CryptoUtils.ZeroMemory(Secrets.ClientFinishedKey);
             CryptoUtils.ZeroMemory(Secrets.ServerFinishedKey);
+            CryptoUtils.ZeroMemory(m_masterSecret);
             m_disposed = true;
         }
 
         private readonly DtlsKeySchedule m_schedule;
+        private readonly byte[] m_masterSecret;
         private bool m_disposed;
     }
 }

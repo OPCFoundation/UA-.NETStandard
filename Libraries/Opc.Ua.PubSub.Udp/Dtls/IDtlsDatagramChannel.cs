@@ -35,6 +35,32 @@ using System.Threading.Tasks;
 namespace Opc.Ua.PubSub.Udp.Dtls
 {
     /// <summary>
+    /// One raw inbound DTLS datagram together with the source endpoint it was received from.
+    /// </summary>
+    public readonly record struct DtlsDatagram
+    {
+        /// <summary>
+        /// Initializes a new <see cref="DtlsDatagram"/>.
+        /// </summary>
+        public DtlsDatagram(ReadOnlyMemory<byte> payload, IPEndPoint? source)
+        {
+            Payload = payload;
+            Source = source;
+        }
+
+        /// <summary>
+        /// Raw datagram bytes as received.
+        /// </summary>
+        public ReadOnlyMemory<byte> Payload { get; init; }
+
+        /// <summary>
+        /// Source endpoint the datagram was received from, or <see langword="null"/> when the
+        /// transport does not expose it.
+        /// </summary>
+        public IPEndPoint? Source { get; init; }
+    }
+
+    /// <summary>
     /// Raw datagram I/O used by the DTLS 1.3 handshake before application records are protected.
     /// </summary>
     public interface IDtlsDatagramChannel
@@ -45,13 +71,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         IPEndPoint? RemoteEndpoint { get; }
 
         /// <summary>
-        /// Sends one raw DTLS datagram.
+        /// Sends one raw DTLS datagram, optionally routed to an explicit destination endpoint
+        /// (the per-ClientHello source) rather than the last-seen peer.
         /// </summary>
-        ValueTask SendAsync(ReadOnlyMemory<byte> datagram, CancellationToken cancellationToken = default);
+        ValueTask SendAsync(
+            ReadOnlyMemory<byte> datagram,
+            IPEndPoint? destination = null,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Receives one raw DTLS datagram.
+        /// Receives one raw DTLS datagram together with its source endpoint.
         /// </summary>
-        ValueTask<ReadOnlyMemory<byte>> ReceiveAsync(CancellationToken cancellationToken = default);
+        ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default);
     }
 }
