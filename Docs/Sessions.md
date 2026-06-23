@@ -50,6 +50,25 @@ from the caller's perspective:
 keep-alive callback raises a bad status, the caller decides whether to
 reconnect, recreate, or abandon the session.
 
+### Operation limits and `MaxArrayLength`
+
+`Session.FetchOperationLimitsAsync()` reads the server's `OperationLimits`
+(`MaxNodesPerRead`, `MaxNodesPerBrowse`, `MaxMonitoredItemsPerCall`, ...) along
+with the `MaxArrayLength` server capability. Each operation limit governs the
+length of the *operations array* of its corresponding request, and the server
+also rejects any request whose array is longer than `MaxArrayLength`. The client
+therefore caps every operation limit to the **effective** array length —
+`min(server MaxArrayLength, client TransportQuotas.MaxArrayLength)` — treating a
+value of `0` as *unlimited* on either side:
+
+- an operation limit of `0` (unlimited) becomes the effective array length;
+- an operation limit larger than the effective array length is reduced to it;
+- if both the server and the client report `0` (unlimited), the limits are left
+  unchanged.
+
+`SessionClientBatched` then batches Read/Write/Browse/… calls using these capped
+limits, so a single request never exceeds what the server will accept.
+
 ### Plugging in a subscription engine
 
 `Session` accepts an optional `ISubscriptionEngineFactory` at
