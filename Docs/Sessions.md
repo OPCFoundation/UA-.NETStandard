@@ -57,14 +57,19 @@ reconnect, recreate, or abandon the session.
 with the `MaxArrayLength` server capability. Each operation limit governs the
 length of the *operations array* of its corresponding request, and the server
 also rejects any request whose array is longer than `MaxArrayLength`. The client
-therefore caps every operation limit to the **effective** array length —
-`min(server MaxArrayLength, client TransportQuotas.MaxArrayLength)` — treating a
-value of `0` as *unlimited* on either side:
+therefore caps every operation limit to the **effective** `MaxArrayLength`, which
+is `min(server MaxArrayLength, client TransportQuotas.MaxArrayLength)` where `0`
+means *no limit* (a `0` side does not constrain). Each server-reported operation
+limit is then adjusted against that effective `MaxArrayLength`:
 
-- an operation limit of `0` (unlimited) becomes the effective array length;
-- an operation limit larger than the effective array length is reduced to it;
-- if both the server and the client report `0` (unlimited), the limits are left
-  unchanged.
+- if the server reports `0` (unlimited), the operation limit becomes the effective
+  `MaxArrayLength`;
+- if the server reports a value larger than the effective `MaxArrayLength`, the
+  operation limit becomes the effective `MaxArrayLength`;
+- otherwise the operation limit is honored.
+
+If there is no effective `MaxArrayLength` (both the server capability and the
+client transport quota are `0`), the operation limits are left unchanged.
 
 `SessionClientBatched` then batches Read/Write/Browse/… calls using these capped
 limits, so a single request never exceeds what the server will accept.

@@ -2422,8 +2422,9 @@ namespace Opc.Ua.Client
             // Clamp the server's reported max array length by the client's configured
             // array length quota. The smaller value is the effective array length the
             // client can exchange with the server (mirrors the MaxByteStringLength
-            // handling above). A value of 0 on either side means no limit.
-            uint maxArrayLength = (uint?)m_configuration.TransportQuotas?.MaxArrayLength ?? 0u;
+            // handling above). A value of 0 on either side means no limit. The cast is
+            // required because TransportQuotas.MaxArrayLength is an int.
+            uint maxArrayLength = (uint)(m_configuration.TransportQuotas?.MaxArrayLength ?? 0);
             if (maxArrayLength != 0 &&
                 (ServerCapabilities.MaxArrayLength == 0 ||
                     ServerCapabilities.MaxArrayLength > maxArrayLength))
