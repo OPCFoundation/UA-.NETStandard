@@ -347,7 +347,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         }
 
         private const string ChannelManagerName = "Opc.Ua.ChannelManager";
-        private const string ChannelMetricPrefix = "opcua.channel.";
+        private const string ChannelMetricPrefix = "opc.ua.channel.";
         private readonly Lock m_lock = new();
         private readonly MeterListener m_meterListener;
         private readonly ChannelManagerEventListener m_eventListener;

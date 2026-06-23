@@ -28,7 +28,7 @@
  * ======================================================================*/
 using System;
 using System.IO;
-using Opc.Ua.Bindings.Pcap.Frame;
+using Opc.Ua.Pcap.Frame;
 
 namespace Opc.Ua.Fuzzing
 {

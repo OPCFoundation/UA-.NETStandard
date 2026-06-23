@@ -25,6 +25,6 @@
     <PackageReference Include="SharpFuzz" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Pcap\Opc.Ua.Bindings.Pcap.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
   </ItemGroup>
 </Project>

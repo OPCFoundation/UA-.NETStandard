@@ -717,33 +717,33 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // asynchronous teardown.
                 await WaitForMeasurementAsync(
                     metrics,
-                    "opcua.channel.close",
+                    "opc.ua.channel.close",
                     Tag("endpoint", endpointUrl),
                     Tag("reverse", false),
                     Tag("reason", "lease-released")).ConfigureAwait(false);
 
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.open",
+                    "opc.ua.channel.open",
                     Tag("endpoint", endpointUrl),
                     Tag("reverse", false)), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.active",
+                    "opc.ua.channel.active",
                     1,
                     Tag("endpoint", endpointUrl)), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.active",
+                    "opc.ua.channel.active",
                     -1,
                     Tag("endpoint", endpointUrl)), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.refcount",
+                    "opc.ua.channel.refcount",
                     2,
                     Tag("endpoint", endpointUrl)), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.participants",
+                    "opc.ua.channel.participants",
                     2,
                     Tag("endpoint", endpointUrl)), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.close",
+                    "opc.ua.channel.close",
                     Tag("endpoint", endpointUrl),
                     Tag("reverse", false),
                     Tag("reason", "lease-released")), Is.True, metrics.FormatMeasurements());
@@ -803,21 +803,21 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // measurement lands. Poll briefly for the histogram measurement.
                 await WaitForMeasurementAsync(
                     metrics,
-                    "opcua.channel.reconnect.duration",
+                    "opc.ua.channel.reconnect.duration",
                     Tag("endpoint", endpointUrl),
                     Tag("outcome", "success"))
                     .ConfigureAwait(false);
 
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.reconnect.attempts",
+                    "opc.ua.channel.reconnect.attempts",
                     Tag("endpoint", endpointUrl),
                     Tag("outcome", "success")), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.reconnect.duration",
+                    "opc.ua.channel.reconnect.duration",
                     Tag("endpoint", endpointUrl),
                     Tag("outcome", "success")), Is.True, metrics.FormatMeasurements());
                 Assert.That(metrics.HasMeasurement(
-                    "opcua.channel.gate.wait",
+                    "opc.ua.channel.gate.wait",
                     Tag("endpoint", endpointUrl)), Is.True, metrics.FormatMeasurements());
                 ch.Dispose();
             }
@@ -1756,7 +1756,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 {
                     InstrumentPublished = (instrument, listener) =>
                     {
-                        if (instrument.Name.StartsWith("opcua.channel.", StringComparison.Ordinal))
+                        if (instrument.Name.StartsWith("opc.ua.channel.", StringComparison.Ordinal))
                         {
                             listener.EnableMeasurementEvents(instrument);
                         }

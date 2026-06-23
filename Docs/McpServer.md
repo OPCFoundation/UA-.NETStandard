@@ -24,7 +24,7 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 
 All OPC UA types (NodeId, DataValue, Variant, StatusCode, etc.) are represented as JSON for LLM-friendly interaction.
 
-The packet-capture tools are described in detail in [Packet Capture](PacketCapture.md). For convenience the per-tool surface is:
+The packet-capture tools are described in detail in [Diagnostics](Diagnostics.md#4-packet-capture-dissection-and-replay). For convenience the per-tool surface is:
 
 | Tool | Description | Parameters |
 |---|---|---|
