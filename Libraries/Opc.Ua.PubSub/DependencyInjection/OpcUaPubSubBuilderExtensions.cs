@@ -38,6 +38,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
@@ -266,6 +267,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IPubSubIdAllocator, InMemoryPubSubIdAllocator>();
             services.TryAddSingleton<IPubSubRuntimeStateStore, InMemoryPubSubRuntimeStateStore>();
             services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
+            services.TryAddSingleton<IDataSetSourceProvider, MutableDataSetSourceProvider>();
+            services.TryAddSingleton<IDataSetSinkProvider, MutableDataSetSinkProvider>();
 
             services.TryAddSingleton<IPubSubApplication>(sp =>
             {
@@ -292,6 +295,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     clock,
                     publishedDataSetSources: null,
                     subscribedDataSetSinks: null,
+                    dataSetSourceProvider: sp.GetService<IDataSetSourceProvider>(),
+                    dataSetSinkProvider: sp.GetService<IDataSetSinkProvider>(),
                     securityWrapperResolver:
                         sp.GetRequiredService<IPubSubSecurityWrapperResolver>(),
                     configurationStore: store,

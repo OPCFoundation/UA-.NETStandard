@@ -31,12 +31,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.DataSets;
 
 namespace Opc.Ua.PubSub.Adapter.Tests.Unit
 {
@@ -85,6 +89,22 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 session.Object,
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
+        }
+
+        private static ServerAdapterReloadCoordinator CreateReloadCoordinator(
+            ServerAdapterRuntime runtime)
+        {
+            return new ServerAdapterReloadCoordinator(
+                new FakeConfigurationStore(new PubSubConfigurationDataType()),
+                new OptionsMonitorStub<ServerPublisherOptions>(new ServerPublisherOptions()),
+                new OptionsMonitorStub<ServerSubscriberOptions>(new ServerSubscriberOptions()),
+                new OptionsMonitorStub<ServerActionResponderOptions>(
+                    new ServerActionResponderOptions()),
+                new MutableDataSetSourceProvider(),
+                new MutableDataSetSinkProvider(),
+                runtime,
+                AdapterTestHelpers.Telemetry(),
+                new AdapterMetrics());
         }
 
         [Test]
@@ -188,6 +208,85 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         }
 
         [Test]
+        public async Task RuntimeAcquireSessionReusesEqualConnectionOptionsAsync()
+        {
+            var session = new Mock<IServerSession>();
+            session.Setup(s => s.DisposeAsync()).Returns(default(ValueTask));
+            var factory = new Mock<IServerSessionFactory>();
+            factory
+                .Setup(f => f.Create(
+                    It.IsAny<ServerConnectionOptions>(), It.IsAny<ITelemetryContext>()))
+                .Returns(session.Object);
+            var runtime = new ServerAdapterRuntime(factory.Object);
+
+            await using ServerAdapterRuntime.ServerSessionLease first = runtime.AcquireSession(
+                new ServerConnectionOptions { EndpointUrl = "opc.tcp://host:4840" },
+                AdapterTestHelpers.Telemetry());
+            await using ServerAdapterRuntime.ServerSessionLease second = runtime.AcquireSession(
+                new ServerConnectionOptions { EndpointUrl = "opc.tcp://host:4840" },
+                AdapterTestHelpers.Telemetry());
+
+            Assert.That(second.Session, Is.SameAs(first.Session));
+            factory.Verify(f => f.Create(
+                It.IsAny<ServerConnectionOptions>(), It.IsAny<ITelemetryContext>()), Times.Once);
+
+            await runtime.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RuntimeAcquireSessionCreatesDistinctSessionsForDifferentEndpointsAsync()
+        {
+            var sessions = new Queue<IServerSession>(
+                new[] { new Mock<IServerSession>().Object, new Mock<IServerSession>().Object });
+            var factory = new Mock<IServerSessionFactory>();
+            factory
+                .Setup(f => f.Create(
+                    It.IsAny<ServerConnectionOptions>(), It.IsAny<ITelemetryContext>()))
+                .Returns(() => sessions.Dequeue());
+            var runtime = new ServerAdapterRuntime(factory.Object);
+
+            await using ServerAdapterRuntime.ServerSessionLease first = runtime.AcquireSession(
+                new ServerConnectionOptions { EndpointUrl = "opc.tcp://one:4840" },
+                AdapterTestHelpers.Telemetry());
+            await using ServerAdapterRuntime.ServerSessionLease second = runtime.AcquireSession(
+                new ServerConnectionOptions { EndpointUrl = "opc.tcp://two:4840" },
+                AdapterTestHelpers.Telemetry());
+
+            Assert.That(second.Session, Is.Not.SameAs(first.Session));
+            factory.Verify(f => f.Create(
+                It.IsAny<ServerConnectionOptions>(), It.IsAny<ITelemetryContext>()), Times.Exactly(2));
+
+            await runtime.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RuntimeReleaseLastSessionLeaseDisposesSessionAsync()
+        {
+            var session = new Mock<IServerSession>();
+            session.Setup(s => s.DisposeAsync()).Returns(default(ValueTask));
+            var factory = new Mock<IServerSessionFactory>();
+            factory
+                .Setup(f => f.Create(
+                    It.IsAny<ServerConnectionOptions>(), It.IsAny<ITelemetryContext>()))
+                .Returns(session.Object);
+            var runtime = new ServerAdapterRuntime(factory.Object);
+
+            ServerAdapterRuntime.ServerSessionLease first = runtime.AcquireSession(
+                new ServerConnectionOptions { EndpointUrl = "opc.tcp://host:4840" },
+                AdapterTestHelpers.Telemetry());
+            ServerAdapterRuntime.ServerSessionLease second = runtime.AcquireSession(
+                new ServerConnectionOptions { EndpointUrl = "opc.tcp://host:4840" },
+                AdapterTestHelpers.Telemetry());
+
+            await first.DisposeAsync().ConfigureAwait(false);
+            session.Verify(s => s.DisposeAsync(), Times.Never);
+            await second.DisposeAsync().ConfigureAwait(false);
+
+            session.Verify(s => s.DisposeAsync(), Times.Once);
+            await runtime.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task RuntimeAddSessionAfterDisposeThrowsAsync()
         {
             var runtime = new ServerAdapterRuntime();
@@ -219,7 +318,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             var runtime = new ServerAdapterRuntime();
 
             Assert.That(
-                () => new ServerAdapterHostedService(null!, runtime),
+                () => new ServerAdapterHostedService(
+                    null!, runtime, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("application"));
         }
 
@@ -229,8 +329,20 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             var application = new Mock<IPubSubApplication>().Object;
 
             Assert.That(
-                () => new ServerAdapterHostedService(application, null!),
+                () => new ServerAdapterHostedService(
+                    application, null!, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("runtime"));
+        }
+
+        [Test]
+        public void HostedServiceNullReloadCoordinatorThrows()
+        {
+            var application = new Mock<IPubSubApplication>().Object;
+            var runtime = new ServerAdapterRuntime();
+
+            Assert.That(
+                () => new ServerAdapterHostedService(application, runtime, null!),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("reloadCoordinator"));
         }
 
         [Test]
@@ -244,13 +356,91 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             runtime.AddCoordinator(coordinator);
             runtime.AddSession(session.Object);
             var hosted = new ServerAdapterHostedService(
-                new Mock<IPubSubApplication>().Object, runtime);
+                new Mock<IPubSubApplication>().Object,
+                runtime,
+                CreateReloadCoordinator(runtime));
 
             await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(created, Has.Count.EqualTo(1));
 
             await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
             session.Verify(s => s.DisposeAsync(), Times.Once);
+        }
+
+        private sealed class OptionsMonitorStub<T> : IOptionsMonitor<T>
+        {
+            public OptionsMonitorStub(T value)
+            {
+                CurrentValue = value;
+            }
+
+            public T CurrentValue { get; }
+
+            public T Get(string? name)
+            {
+                return CurrentValue;
+            }
+
+            public IDisposable? OnChange(Action<T, string?> listener)
+            {
+                return null;
+            }
+        }
+
+        private sealed class FakeConfigurationStore : IPubSubConfigurationStore
+        {
+            public FakeConfigurationStore(PubSubConfigurationDataType configuration)
+            {
+                m_configuration = configuration;
+            }
+
+            public event EventHandler<PubSubConfigurationChangedEventArgs>? Changed;
+
+            public ValueTask<PubSubConfigurationDataType> LoadAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<PubSubConfigurationDataType>(m_configuration);
+            }
+
+            public ValueTask SaveAsync(
+                PubSubConfigurationDataType configuration,
+                CancellationToken cancellationToken = default)
+            {
+                PubSubConfigurationDataType previous = m_configuration;
+                m_configuration = configuration;
+                Changed?.Invoke(this, new PubSubConfigurationChangedEventArgs(previous, configuration));
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<ConfigurationVersionDataType?>((ConfigurationVersionDataType?)null);
+            }
+
+            public ValueTask SetConfigurationVersionAsync(
+                ConfigurationVersionDataType configurationVersion,
+                CancellationToken cancellationToken = default)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
+                string publishedDataSetName,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<ConfigurationVersionDataType?>((ConfigurationVersionDataType?)null);
+            }
+
+            public ValueTask SetPublishedDataSetConfigurationVersionAsync(
+                string publishedDataSetName,
+                ConfigurationVersionDataType configurationVersion,
+                CancellationToken cancellationToken = default)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            private PubSubConfigurationDataType m_configuration;
         }
     }
 }

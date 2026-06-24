@@ -30,8 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter;
@@ -183,6 +185,44 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
 
             Assert.That(sp.GetService<IServerSessionFactory>(), Is.Not.Null);
             Assert.That(sp.GetService<ServerAdapterRuntime>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddServerAsPublisherNamedConfigurationBindsOptions()
+        {
+            (ServiceCollection services, _) = NewServices();
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Connection:EndpointUrl"] = "opc.tcp://configured:4840",
+                    ["Connection:SecurityMode"] = nameof(MessageSecurityMode.Sign),
+                    ["Connection:SecurityPolicyUri"] = SecurityPolicies.Basic256Sha256,
+                    ["Connection:UserName"] = "user1",
+                    ["Connection:SessionName"] = "ConfiguredSession",
+                    ["Connection:SessionTimeout"] = "12345",
+                    ["Connection:ApplicationName"] = "ConfiguredApplication",
+                    ["ReadMode"] = nameof(ReadMode.Subscription),
+                    ["Affinity"] = nameof(SubscriptionAffinity.DataSetWriter)
+                })
+                .Build();
+
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddServerAsPublisher("publisher1", configuration));
+            ServiceProvider sp = services.BuildServiceProvider();
+
+            ServerPublisherOptions options =
+                sp.GetRequiredService<IOptionsMonitor<ServerPublisherOptions>>().Get("publisher1");
+
+            Assert.That(options.Connection.EndpointUrl, Is.EqualTo("opc.tcp://configured:4840"));
+            Assert.That(options.Connection.SecurityMode, Is.EqualTo(MessageSecurityMode.Sign));
+            Assert.That(
+                options.Connection.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(options.Connection.UserName, Is.EqualTo("user1"));
+            Assert.That(options.Connection.SessionName, Is.EqualTo("ConfiguredSession"));
+            Assert.That(options.Connection.SessionTimeout, Is.EqualTo(12345));
+            Assert.That(options.Connection.ApplicationName, Is.EqualTo("ConfiguredApplication"));
+            Assert.That(options.ReadMode, Is.EqualTo(ReadMode.Subscription));
+            Assert.That(options.Affinity, Is.EqualTo(SubscriptionAffinity.DataSetWriter));
         }
 
         [Test]

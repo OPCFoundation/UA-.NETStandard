@@ -380,6 +380,16 @@ namespace Microsoft.Extensions.DependencyInjection
                     .UseAllStandardEncoders()
                     .WithTimeProvider(clock)
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
+                IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();
+                if (sourceProvider is not null)
+                {
+                    pb.WithDataSetSourceProvider(sourceProvider);
+                }
+                IDataSetSinkProvider? sinkProvider = sp.GetService<IDataSetSinkProvider>();
+                if (sinkProvider is not null)
+                {
+                    pb.WithDataSetSinkProvider(sinkProvider);
+                }
                 if (!string.IsNullOrEmpty(options.ApplicationId))
                 {
                     pb.WithApplicationId(options.ApplicationId!);

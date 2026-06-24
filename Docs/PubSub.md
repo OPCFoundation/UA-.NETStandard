@@ -953,7 +953,95 @@ For secured connections, provide an `ApplicationConfiguration` that uses the sta
 
 ### Configuration and hot reload
 
-Adapter options are bound through the standard options pattern and are designed to support hot reload by rewiring only the writers, readers, or responders whose options changed while leaving unchanged components running. The configuration source is pluggable, so a change-feed-backed configuration service such as etcd can drive live reconfiguration. Full hot reload remains a planned follow-up and extension point; it is not fully implemented yet.
+Adapter hot reload is coordinated by `ServerAdapterReloadCoordinator`. After the host starts, the coordinator listens to both `IPubSubConfigurationStore.Changed` and named `IOptionsMonitor<ServerPublisherOptions>`, `IOptionsMonitor<ServerSubscriberOptions>`, and `IOptionsMonitor<ServerActionResponderOptions>` changes. Reloads are debounced for about 250 ms and serialized so a burst of configuration-store and options reload tokens is applied as one ordered update.
+
+The coordinator diffs the previous binding state against the new `PubSubConfigurationDataType` and named options, then rewires only the affected publisher sources, subscriber sinks, or action responders. Publisher and subscriber rewires update the mutable data-set provider layer (`MutableDataSetSourceProvider` / `MutableDataSetSinkProvider`) and then call `IPubSubApplication.ReplaceConfigurationAsync` so the core runtime observes the same configuration document. Adapter sessions are pooled by `ServerConnectionOptions` value equality (`EndpointUrl`, `SecurityMode`, `SecurityPolicyUri`, `UserName`, `SessionName`, `SessionTimeout`, `ApplicationName`); unchanged connections keep their managed session, while sessions with no remaining binding references are disposed.
+
+Use `AddServerAsPublisher(string name, IConfiguration configuration)`, `AddServerAsSubscriber(string name, IConfiguration configuration)`, or `AddServerAsActionResponder(string name, IConfiguration configuration)` when adapter options should be bound from reloadable configuration. The existing `Action<TOptions>` overloads still work for code-set options. Object-typed members are intentionally code-set, not `IConfiguration`-bound: `ServerConnectionOptions.ApplicationConfiguration`, `ServerConnectionOptions.UserIdentity`, `ServerActionResponderOptions.MethodMap`, and `ServerActionResponderOptions.Targets`.
+
+Known limitation: removing an action target requires a host restart because the core `RegisterActionHandler` API has no unregister counterpart today. Adding targets and changing action mappings are applied live.
+
+#### Pluggable configuration sources (change feed)
+
+`IPubSubConfigurationStore` is the extension point for change-feed-backed configuration. A custom store loads and saves the current `PubSubConfigurationDataType`, exposes configuration-version helpers, and raises `Changed` with `PubSubConfigurationChangedEventArgs(previous, current)` whenever an external source changes. The reload coordinator consumes that event and applies the same incremental rewire path used for named-options changes. The external source can be etcd, Consul, a Kubernetes ConfigMap watch, a database notification, or a file. The built-in `XmlPubSubConfigurationStore` is the file-backed example: it persists OPC UA XML and raises `Changed` after a successful `SaveAsync`.
+
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua;
+using Opc.Ua.PubSub.Configuration;
+
+public sealed class EtcdPubSubConfigurationStore : IPubSubConfigurationStore
+{
+    private PubSubConfigurationDataType m_current;
+    private ConfigurationVersionDataType? m_configurationVersion;
+
+    public EtcdPubSubConfigurationStore(PubSubConfigurationDataType initialConfiguration)
+    {
+        m_current = initialConfiguration ?? throw new ArgumentNullException(nameof(initialConfiguration));
+    }
+
+    public event EventHandler<PubSubConfigurationChangedEventArgs>? Changed;
+
+    public ValueTask<PubSubConfigurationDataType> LoadAsync(CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PubSubConfigurationDataType>(m_current);
+    }
+
+    public ValueTask SaveAsync(
+        PubSubConfigurationDataType configuration,
+        CancellationToken cancellationToken = default)
+    {
+        PubSubConfigurationDataType previous = m_current;
+        m_current = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        Changed?.Invoke(this, new PubSubConfigurationChangedEventArgs(previous, m_current));
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<ConfigurationVersionDataType?>(m_configurationVersion);
+    }
+
+    public ValueTask SetConfigurationVersionAsync(
+        ConfigurationVersionDataType configurationVersion,
+        CancellationToken cancellationToken = default)
+    {
+        m_configurationVersion = configurationVersion;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
+        string publishedDataSetName,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<ConfigurationVersionDataType?>(null);
+    }
+
+    public ValueTask SetPublishedDataSetConfigurationVersionAsync(
+        string publishedDataSetName,
+        ConfigurationVersionDataType configurationVersion,
+        CancellationToken cancellationToken = default)
+    {
+        return ValueTask.CompletedTask;
+    }
+
+    private async Task WatchEtcdAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            // subscribe to etcd watch; on key change: decode the new PubSubConfigurationDataType.
+            PubSubConfigurationDataType next = await WaitForNextEtcdConfigurationAsync(cancellationToken)
+                .ConfigureAwait(false);
+            PubSubConfigurationDataType previous = m_current;
+            m_current = next;
+            Changed?.Invoke(this, new PubSubConfigurationChangedEventArgs(previous, next));
+        }
+    }
+}
+```
 
 ### Publisher adapter
 
@@ -1127,7 +1215,7 @@ Publisher metadata is configuration-first and server-fallback. The adapter build
 
 This behavior keeps Part 14 metadata stable when the configuration is complete and still lets a bridge infer missing type details from the source server during startup or the first publish sample.
 
-A failed fallback read is **not** cached permanently. The builder retries resolution on each publish cycle (`ResolveAsync`) until the server read succeeds, and exposes `RefreshAsync` to force a fresh resolution on demand (for example from a model-change subscription or a scheduled refresh). When a (re)resolution changes the enriched metadata, the source raises `IMetaDataChangeNotifier.MetaDataChanged`; the owning `PublishedDataSet` then rebuilds and re-emits a DataSetMetaData message so subscribers observe the corrected field types without a restart.
+A failed fallback read is **not** cached permanently. Metadata refresh has three triggers: per-cycle retry (`ResolveAsync`) until a failed server read succeeds, source-server model-change events, and explicit `RefreshAsync` calls from application code or a scheduled refresh. For model changes, the adapter session creates an EventNotifier monitored item on the Server object with an `OfType(GeneralModelChangeEventType)` filter, coalesces notifications for about 250 ms, and fails soft when the source server does not support `GeneralModelChangeEvents`. A model change calls `DataSetMetaDataBuilder.RefreshAsync`. When any (re)resolution changes the enriched metadata, the source raises `IMetaDataChangeNotifier.MetaDataChanged`; the owning `PublishedDataSet` then rebuilds and re-emits a DataSetMetaData message so subscribers observe the corrected field types without a restart.
 
 ### Browse-path node mapping
 

@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+
 namespace Opc.Ua.PubSub.Adapter.Session
 {
     /// <summary>
@@ -37,7 +40,12 @@ namespace Opc.Ua.PubSub.Adapter.Session
     /// (<see cref="ApplicationConfiguration"/>, <see cref="UserIdentity"/>)
     /// are supplied in code.
     /// </summary>
-    public sealed class ServerConnectionOptions
+    /// <remarks>
+    /// Equality compares the stable connection identity and credentials used
+    /// for correct pooling and credential rotation detection. It excludes
+    /// <see cref="ApplicationConfiguration"/>.
+    /// </remarks>
+    public sealed class ServerConnectionOptions : IEquatable<ServerConnectionOptions>
     {
         /// <summary>
         /// The endpoint or discovery URL of the external OPC UA server, for
@@ -107,5 +115,76 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// Defaults to <c>Opc.Ua.PubSub.Adapter</c>.
         /// </summary>
         public string ApplicationName { get; set; } = "Opc.Ua.PubSub.Adapter";
+
+        /// <summary>
+        /// Determines whether this instance has the same connection identity as
+        /// another <see cref="ServerConnectionOptions"/> instance.
+        /// </summary>
+        /// <param name="other">
+        /// The other options instance to compare.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> when the connection identity fields are equal;
+        /// otherwise, <see langword="false"/>.
+        /// </returns>
+        public bool Equals(ServerConnectionOptions? other)
+        {
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+            if (other is null)
+            {
+                return false;
+            }
+
+            return StringComparer.Ordinal.Equals(EndpointUrl, other.EndpointUrl)
+                && SecurityMode == other.SecurityMode
+                && StringComparer.Ordinal.Equals(SecurityPolicyUri, other.SecurityPolicyUri)
+                && StringComparer.Ordinal.Equals(UserName, other.UserName)
+                && StringComparer.Ordinal.Equals(Password, other.Password)
+                && EqualityComparer<IUserIdentity?>.Default.Equals(UserIdentity, other.UserIdentity)
+                && StringComparer.Ordinal.Equals(SessionName, other.SessionName)
+                && SessionTimeout == other.SessionTimeout
+                && StringComparer.Ordinal.Equals(ApplicationName, other.ApplicationName);
+        }
+
+        /// <summary>
+        /// Determines whether this instance has the same connection identity as
+        /// another object.
+        /// </summary>
+        /// <param name="obj">
+        /// The object to compare.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> when <paramref name="obj"/> is a
+        /// <see cref="ServerConnectionOptions"/> with equal connection identity;
+        /// otherwise, <see langword="false"/>.
+        /// </returns>
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as ServerConnectionOptions);
+        }
+
+        /// <summary>
+        /// Gets a hash code for the connection identity fields used by equality.
+        /// </summary>
+        /// <returns>
+        /// A hash code for the connection identity.
+        /// </returns>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(EndpointUrl, StringComparer.Ordinal);
+            hash.Add(SecurityMode);
+            hash.Add(SecurityPolicyUri, StringComparer.Ordinal);
+            hash.Add(UserName, StringComparer.Ordinal);
+            hash.Add(Password, StringComparer.Ordinal);
+            hash.Add(UserIdentity);
+            hash.Add(SessionName, StringComparer.Ordinal);
+            hash.Add(SessionTimeout);
+            hash.Add(ApplicationName, StringComparer.Ordinal);
+            return hash.ToHashCode();
+        }
     }
 }

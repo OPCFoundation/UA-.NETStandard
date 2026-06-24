@@ -59,6 +59,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private DataSetMetaDataType? m_resolved;
+        private int m_modelChangeMonitoringStarted;
+        private int m_modelChangeRefreshRunning;
+        private int m_modelChangeRefreshPending;
         private bool m_fullyResolved;
 
         /// <summary>
@@ -93,6 +96,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             m_metrics = metrics;
             m_logger = telemetry.CreateLogger<DataSetMetaDataBuilder>();
+            m_session.ModelChanged += OnSessionModelChanged;
         }
 
         /// <inheritdoc/>
@@ -114,6 +118,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         public async ValueTask<DataSetMetaDataType> ResolveAsync(
             CancellationToken cancellationToken = default)
         {
+            StartModelChangeMonitoring();
+
             DataSetMetaDataType? resolved = Volatile.Read(ref m_resolved);
             if (resolved is not null && Volatile.Read(ref m_fullyResolved))
             {
@@ -197,7 +203,78 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// </summary>
         public void Dispose()
         {
+            m_session.ModelChanged -= OnSessionModelChanged;
             m_gate.Dispose();
+        }
+
+        private void StartModelChangeMonitoring()
+        {
+            if (Interlocked.CompareExchange(ref m_modelChangeMonitoringStarted, 1, 0) != 0)
+            {
+                return;
+            }
+
+            _ = StartModelChangeMonitoringSafeAsync();
+        }
+
+        private async Task StartModelChangeMonitoringSafeAsync()
+        {
+            try
+            {
+                await m_session.StartModelChangeMonitoringAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "Metadata model-change monitoring could not be started.");
+            }
+        }
+
+        private void OnSessionModelChanged(object? sender, EventArgs e)
+        {
+            if (Interlocked.CompareExchange(ref m_modelChangeRefreshRunning, 1, 0) != 0)
+            {
+                Volatile.Write(ref m_modelChangeRefreshPending, 1);
+                return;
+            }
+
+            _ = RefreshFromModelChangeAsync();
+        }
+
+        private async Task RefreshFromModelChangeAsync()
+        {
+            try
+            {
+                while (true)
+                {
+                    try
+                    {
+                        await RefreshAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogInformation(
+                            ex,
+                            "Metadata refresh after a model-change event failed.");
+                    }
+
+                    if (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) == 0)
+                    {
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref m_modelChangeRefreshRunning, 0);
+                if (Volatile.Read(ref m_modelChangeRefreshPending) != 0 &&
+                    Interlocked.CompareExchange(ref m_modelChangeRefreshRunning, 1, 0) == 0)
+                {
+                    _ = RefreshFromModelChangeAsync();
+                }
+            }
         }
 
         private async Task<bool> ResolveFromServerAsync(

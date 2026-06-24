@@ -144,6 +144,12 @@ namespace Opc.Ua.PubSub.Application
             PubSubResponseAddressPolicy? responseAddressPolicy = null);
 
         /// <summary>
+        /// Clears all registered responder-side Action handlers so callers can
+        /// rebuild the current registration set.
+        /// </summary>
+        void ClearActionHandlers();
+
+        /// <summary>
         /// Replaces the entire configuration.
         /// </summary>
         ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(

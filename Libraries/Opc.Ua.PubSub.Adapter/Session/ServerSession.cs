@@ -29,13 +29,19 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
 namespace Opc.Ua.PubSub.Adapter.Session
 {
@@ -50,12 +56,20 @@ namespace Opc.Ua.PubSub.Adapter.Session
     /// </summary>
     public sealed class ServerSession : IServerSession
     {
+        private static readonly TimeSpan s_applyPollInterval = TimeSpan.FromMilliseconds(25);
+        private static readonly long s_modelChangeCoalesceTicks =
+            (long)(TimeSpan.FromMilliseconds(250).TotalSeconds * Stopwatch.Frequency);
+
         private readonly ServerConnectionOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_connectLock = new(1, 1);
+        private readonly System.Threading.Lock m_disposeGate = new();
         private readonly ConcurrentDictionary<string, NodeId> m_resolvedPaths = new(StringComparer.Ordinal);
         private ManagedSession? m_session;
+        private ISubscription? m_modelChangeSubscription;
+        private long m_lastModelChangeTicks;
+        private int m_modelChangeMonitoringStarted;
         private bool m_disposed;
 
         /// <summary>
@@ -79,6 +93,9 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
         /// <inheritdoc/>
         public bool IsConnected => m_session?.Connected ?? false;
+
+        /// <inheritdoc/>
+        public event EventHandler? ModelChanged;
 
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(CancellationToken ct = default)
@@ -172,6 +189,92 @@ namespace Opc.Ua.PubSub.Adapter.Session
         }
 
         /// <inheritdoc/>
+        public async ValueTask StartModelChangeMonitoringAsync(CancellationToken ct = default)
+        {
+            ThrowIfDisposed();
+            if (Interlocked.CompareExchange(ref m_modelChangeMonitoringStarted, 1, 0) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+
+                var subscriptionOptions = new SubscriptionOptions
+                {
+                    PublishingInterval = TimeSpan.FromMilliseconds(1000),
+                    PublishingEnabled = true
+                };
+                ISubscription subscription = session.SubscriptionManager.Add(
+                    new ModelChangeNotifier(this),
+                    new SingletonOptionsMonitor<SubscriptionOptions>(subscriptionOptions));
+
+                var itemOptions = new MonitoredItemOptions
+                {
+                    StartNodeId = ObjectIds.Server,
+                    AttributeId = Attributes.EventNotifier,
+                    SamplingInterval = TimeSpan.FromMilliseconds(-1),
+                    QueueSize = 10,
+                    Filter = BuildModelChangeFilter()
+                };
+
+                if (!subscription.MonitoredItems.TryAdd(
+                        "ext_model_change_server",
+                        new SingletonOptionsMonitor<MonitoredItemOptions>(itemOptions),
+                        out IMonitoredItem? item) ||
+                    item == null)
+                {
+                    await DisposeModelChangeSubscriptionAsync(subscription).ConfigureAwait(false);
+                    m_logger.LogInformation(
+                        "ServerSession: model-change event monitoring is not available.");
+                    return;
+                }
+
+                await WaitForModelChangeItemAsync(subscription, item, ct).ConfigureAwait(false);
+                if (!item.Created && StatusCode.IsBad(item.Error.StatusCode))
+                {
+                    await DisposeModelChangeSubscriptionAsync(subscription).ConfigureAwait(false);
+                    m_logger.LogInformation(
+                        "ServerSession: model-change event monitoring is not available ({StatusCode}).",
+                        item.Error.StatusCode);
+                    return;
+                }
+                bool disposeSubscription;
+                lock (m_disposeGate)
+                {
+                    if (m_disposed)
+                    {
+                        disposeSubscription = true;
+                    }
+                    else
+                    {
+                        m_modelChangeSubscription = subscription;
+                        disposeSubscription = false;
+                    }
+                }
+                if (disposeSubscription)
+                {
+                    await DisposeModelChangeSubscriptionAsync(subscription).ConfigureAwait(false);
+                    return;
+                }
+                m_logger.LogDebug(
+                    "ServerSession: model-change event monitoring started on the Server object.");
+            }
+            catch (OperationCanceledException)
+            {
+                Volatile.Write(ref m_modelChangeMonitoringStarted, 0);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "ServerSession: model-change event monitoring is not available.");
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<NodeId> ResolveNodeIdAsync(
             NodeId nodeId,
             CancellationToken ct = default)
@@ -225,11 +328,23 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (m_disposed)
+            ISubscription? modelChangeSubscription;
+            lock (m_disposeGate)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                ModelChanged = null;
+                modelChangeSubscription = m_modelChangeSubscription;
+                m_modelChangeSubscription = null;
             }
-            m_disposed = true;
+
+            if (modelChangeSubscription != null)
+            {
+                await DisposeModelChangeSubscriptionAsync(modelChangeSubscription).ConfigureAwait(false);
+            }
 
             ManagedSession? session = m_session;
             m_session = null;
@@ -249,6 +364,72 @@ namespace Opc.Ua.PubSub.Adapter.Session
             m_connectLock.Dispose();
         }
 
+        private static EventFilter BuildModelChangeFilter()
+        {
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                QualifiedName.From(BrowseNames.EventType));
+            filter.WhereClause.Push(
+                FilterOperator.OfType,
+                Variant.From(ObjectTypeIds.GeneralModelChangeEventType));
+            return filter;
+        }
+
+        private static async ValueTask DisposeModelChangeSubscriptionAsync(ISubscription subscription)
+        {
+            try
+            {
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort cleanup; callers log the operation context.
+            }
+        }
+
+        private async ValueTask WaitForModelChangeItemAsync(
+            ISubscription subscription,
+            IMonitoredItem item,
+            CancellationToken ct)
+        {
+            var watch = Stopwatch.StartNew();
+            TimeSpan budget = TimeSpan.FromMilliseconds(5000);
+
+            while (!subscription.Created ||
+                (!item.Created && StatusCode.IsGood(item.Error.StatusCode)))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (watch.Elapsed >= budget)
+                {
+                    m_logger.LogDebug(
+                        "ServerSession: model-change monitored item creation is still pending.");
+                    return;
+                }
+
+                await Task.Delay(s_applyPollInterval, ct).ConfigureAwait(false);
+            }
+        }
+
+        private void DispatchModelChange()
+        {
+            long now = Stopwatch.GetTimestamp();
+            long previous = Interlocked.Read(ref m_lastModelChangeTicks);
+            if (previous != 0 &&
+                now >= previous &&
+                now - previous < s_modelChangeCoalesceTicks)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(ref m_lastModelChangeTicks, now, previous) != previous)
+            {
+                return;
+            }
+
+            ModelChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         private async ValueTask<ManagedSession> EnsureConnectedAsync(CancellationToken ct)
         {
             ManagedSession? session = m_session;
@@ -264,9 +445,12 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
         private void ThrowIfDisposed()
         {
-            if (m_disposed)
+            lock (m_disposeGate)
             {
-                throw new ObjectDisposedException(nameof(ServerSession));
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ServerSession));
+                }
             }
         }
 
@@ -432,6 +616,83 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             await configuration.ValidateAsync(ApplicationType.Client, ct).ConfigureAwait(false);
             return configuration;
+        }
+
+        private sealed class ModelChangeNotifier : ISubscriptionNotificationHandler
+        {
+            private readonly ServerSession m_parent;
+
+            public ModelChangeNotifier(ServerSession parent)
+            {
+                m_parent = parent;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<DataValueChange> notification,
+                PublishState publishStateMask,
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<EventNotification> notification,
+                PublishState publishStateMask,
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
+            {
+                if (!notification.IsEmpty)
+                {
+                    m_parent.DispatchModelChange();
+                }
+
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                PublishState publishStateMask)
+            {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+        }
+
+        private sealed class SingletonOptionsMonitor<[DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>
+            : IOptionsMonitor<T>
+        {
+            public SingletonOptionsMonitor(T value)
+            {
+                CurrentValue = value;
+            }
+
+            public T CurrentValue { get; }
+
+            public T Get(string? name)
+            {
+                return CurrentValue;
+            }
+
+            public IDisposable? OnChange(Action<T, string?> listener)
+            {
+                return null;
+            }
         }
     }
 }

@@ -38,6 +38,12 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
     /// DataSets, either by issuing cyclic Read calls or by maintaining client
     /// Subscriptions.
     /// </summary>
+    /// <remarks>
+    /// Simple properties are bindable from <c>IConfiguration</c>. Object-typed
+    /// members, such as <see cref="ServerConnectionOptions.ApplicationConfiguration"/>
+    /// and <see cref="ServerConnectionOptions.UserIdentity"/>, must be supplied
+    /// from code.
+    /// </remarks>
     public sealed class ServerPublisherOptions
     {
         /// <summary>

@@ -27,28 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.Adapter.Session;
-
-namespace Opc.Ua.PubSub.Adapter.DependencyInjection
+namespace Opc.Ua.PubSub.DataSets
 {
     /// <summary>
-    /// Options that configure an external-server PubSub subscriber wired through
-    /// <c>AddServerAsSubscriber</c>. The subscriber writes the values
-    /// received for each configured DataSetReader back to an external OPC UA
-    /// server.
+    /// Resolves subscriber-side data-set sinks by DataSetReader name at runtime.
     /// </summary>
-    /// <remarks>
-    /// Simple properties are bindable from <c>IConfiguration</c>. Object-typed
-    /// members, such as <see cref="ServerConnectionOptions.ApplicationConfiguration"/>
-    /// and <see cref="ServerConnectionOptions.UserIdentity"/>, must be supplied
-    /// from code.
-    /// </remarks>
-    public sealed class ServerSubscriberOptions
+    public interface IDataSetSinkProvider
     {
         /// <summary>
-        /// The connection options describing the external OPC UA server the
-        /// subscriber writes to.
+        /// Attempts to resolve the sink for <paramref name="dataSetReaderName"/>.
         /// </summary>
-        public ServerConnectionOptions Connection { get; set; } = new();
+        /// <param name="dataSetReaderName">DataSetReader name.</param>
+        /// <param name="sink">Resolved sink when the method returns <see langword="true"/>.</param>
+        /// <returns>
+        /// <see langword="true"/> when a sink was resolved; otherwise <see langword="false"/>.
+        /// </returns>
+        bool TryGetSink(string dataSetReaderName, out ISubscribedDataSetSink sink);
     }
 }

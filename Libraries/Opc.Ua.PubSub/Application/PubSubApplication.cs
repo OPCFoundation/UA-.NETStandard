@@ -79,6 +79,8 @@ namespace Opc.Ua.PubSub.Application
             m_publishedDataSetSources;
         private readonly IReadOnlyDictionary<string, ISubscribedDataSetSink>?
             m_subscribedDataSetSinks;
+        private readonly IDataSetSourceProvider? m_publishedDataSetSourceProvider;
+        private readonly IDataSetSinkProvider? m_subscribedDataSetSinkProvider;
         private readonly IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
         private readonly Func<PubSubConnectionDataType, int>?
             m_maxNetworkMessageSizeResolver;
@@ -123,25 +125,13 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="timeProvider">Clock.</param>
         /// <param name="publishedDataSetSources">
-        /// Optional pre-registered <see cref="IPublishedDataSetSource"/>
-        /// instances keyed by published-dataset name. Connections fall
-        /// back to an empty source for unregistered datasets.
+        /// Optional pre-registered sources keyed by PublishedDataSet name.
         /// </param>
         /// <param name="subscribedDataSetSinks">
-        /// Optional pre-registered <see cref="ISubscribedDataSetSink"/>
-        /// instances keyed by data-set reader name.
+        /// Optional pre-registered sinks keyed by DataSetReader name.
         /// </param>
-        /// <param name="securityWrapperResolver">
-        /// Optional per-connection resolver that materialises the
-        /// <see cref="UadpSecurityWrapper"/> used by every PubSub
-        /// connection. Defaults to <see langword="null"/> meaning no
-        /// security wrapping is applied.
-        /// </param>
-        /// <param name="maxNetworkMessageSizeResolver">
-        /// Optional per-connection resolver supplying the maximum
-        /// outbound UADP NetworkMessage size before chunking. Returning
-        /// <c>0</c> disables chunking for that connection.
-        /// </param>
+        /// <param name="securityWrapperResolver">Optional per-connection security wrapper resolver.</param>
+        /// <param name="maxNetworkMessageSizeResolver">Optional per-connection maximum message size resolver.</param>
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         public PubSubApplication(
@@ -161,6 +151,121 @@ namespace Opc.Ua.PubSub.Application
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null)
+            : this(
+                snapshot,
+                transportFactories,
+                encoders,
+                decoders,
+                securityPolicies,
+                scheduler,
+                metaDataRegistry,
+                diagnostics,
+                telemetry,
+                timeProvider,
+                publishedDataSetSources,
+                subscribedDataSetSinks,
+                securityWrapperResolver,
+                maxNetworkMessageSizeResolver,
+                configurationStore,
+                runtimeStateStore,
+                dataSetSourceProvider: null,
+                dataSetSinkProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="PubSubApplication"/> with runtime source and sink providers.
+        /// </summary>
+        /// <param name="snapshot">Validated configuration snapshot.</param>
+        /// <param name="transportFactories">Registered transport factories.</param>
+        /// <param name="encoders">Registered network-message encoders.</param>
+        /// <param name="decoders">Registered network-message decoders.</param>
+        /// <param name="securityPolicies">Registered security policies.</param>
+        /// <param name="scheduler">Publish scheduler.</param>
+        /// <param name="metaDataRegistry">Shared metadata registry.</param>
+        /// <param name="diagnostics">Diagnostics sink.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">Clock.</param>
+        /// <param name="publishedDataSetSources">
+        /// Optional pre-registered sources keyed by PublishedDataSet name. These entries take
+        /// precedence over <paramref name="dataSetSourceProvider"/>.
+        /// </param>
+        /// <param name="subscribedDataSetSinks">
+        /// Optional pre-registered sinks keyed by DataSetReader name. These entries take
+        /// precedence over <paramref name="dataSetSinkProvider"/>.
+        /// </param>
+        /// <param name="dataSetSourceProvider">
+        /// Optional runtime source provider queried for names absent from
+        /// <paramref name="publishedDataSetSources"/>.
+        /// </param>
+        /// <param name="dataSetSinkProvider">
+        /// Optional runtime sink provider queried for names absent from
+        /// <paramref name="subscribedDataSetSinks"/>.
+        /// </param>
+        /// <param name="securityWrapperResolver">Optional per-connection security wrapper resolver.</param>
+        /// <param name="maxNetworkMessageSizeResolver">Optional per-connection maximum message size resolver.</param>
+        /// <param name="configurationStore">Optional external configuration store.</param>
+        /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
+        public PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IDataSetSourceProvider? dataSetSourceProvider,
+            IDataSetSinkProvider? dataSetSinkProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
+            IPubSubConfigurationStore? configurationStore = null,
+            IPubSubRuntimeStateStore? runtimeStateStore = null)
+            : this(
+                snapshot,
+                transportFactories,
+                encoders,
+                decoders,
+                securityPolicies,
+                scheduler,
+                metaDataRegistry,
+                diagnostics,
+                telemetry,
+                timeProvider,
+                publishedDataSetSources,
+                subscribedDataSetSinks,
+                securityWrapperResolver,
+                maxNetworkMessageSizeResolver,
+                configurationStore,
+                runtimeStateStore,
+                dataSetSourceProvider,
+                dataSetSinkProvider)
+        {
+        }
+
+        private PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources = null,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks = null,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
+            IPubSubConfigurationStore? configurationStore = null,
+            IPubSubRuntimeStateStore? runtimeStateStore = null,
+            IDataSetSourceProvider? dataSetSourceProvider = null,
+            IDataSetSinkProvider? dataSetSinkProvider = null)
         {
             if (snapshot is null)
             {
@@ -210,6 +315,8 @@ namespace Opc.Ua.PubSub.Application
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
+            m_publishedDataSetSourceProvider = dataSetSourceProvider;
+            m_subscribedDataSetSinkProvider = dataSetSinkProvider;
             m_securityWrapperResolver = securityWrapperResolver;
             m_maxNetworkMessageSizeResolver = maxNetworkMessageSizeResolver;
             m_configurationStore = configurationStore
@@ -367,12 +474,8 @@ namespace Opc.Ua.PubSub.Application
                         foreach (DataSetReaderDataType readerConfig
                             in readerGroupConfig.DataSetReaders)
                         {
-                            ISubscribedDataSetSink sink = m_subscribedDataSetSinks is not null
-                                && m_subscribedDataSetSinks.TryGetValue(
-                                    readerConfig.Name ?? string.Empty,
-                                    out ISubscribedDataSetSink? configured)
-                                ? configured
-                                : NullSubscribedDataSetSink.Instance;
+                            ISubscribedDataSetSink sink = ResolveSubscribedDataSetSink(
+                                readerConfig.Name ?? string.Empty);
                             readers.Add(new DataSetReader(
                                 readerConfig,
                                 sink,
@@ -749,6 +852,18 @@ namespace Opc.Ua.PubSub.Application
                     connections[i].RegisterActionHandler(
                         target, handler, allowUnsecured, responseAddressPolicy);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Clears all responder-side Action handlers registered for future
+        /// connection rebuilds.
+        /// </summary>
+        public void ClearActionHandlers()
+        {
+            lock (m_gate)
+            {
+                m_actionHandlers.Clear();
             }
         }
 
@@ -1349,16 +1464,53 @@ namespace Opc.Ua.PubSub.Application
             foreach (KeyValuePair<string, PublishedDataSetDataType> kvp
                 in snapshot.PublishedDataSetsByName)
             {
-                IPublishedDataSetSource source = m_publishedDataSetSources is not null
-                    && m_publishedDataSetSources.TryGetValue(
-                        kvp.Key,
-                        out IPublishedDataSetSource? configured)
-                    ? configured
-                    : EmptyPublishedDataSetSource.Instance;
+                IPublishedDataSetSource source = ResolvePublishedDataSetSource(kvp.Key);
                 publishedDataSets[kvp.Key] = new PublishedDataSet(kvp.Value, source);
             }
 
             return publishedDataSets;
+        }
+
+        private IPublishedDataSetSource ResolvePublishedDataSetSource(string publishedDataSetName)
+        {
+            if (m_publishedDataSetSources is not null
+                && m_publishedDataSetSources.TryGetValue(
+                    publishedDataSetName,
+                    out IPublishedDataSetSource? configured))
+            {
+                return configured;
+            }
+
+            if (m_publishedDataSetSourceProvider is not null
+                && m_publishedDataSetSourceProvider.TryGetSource(
+                    publishedDataSetName,
+                    out IPublishedDataSetSource providerSource))
+            {
+                return providerSource;
+            }
+
+            return EmptyPublishedDataSetSource.Instance;
+        }
+
+        private ISubscribedDataSetSink ResolveSubscribedDataSetSink(string dataSetReaderName)
+        {
+            if (m_subscribedDataSetSinks is not null
+                && m_subscribedDataSetSinks.TryGetValue(
+                    dataSetReaderName,
+                    out ISubscribedDataSetSink? configured))
+            {
+                return configured;
+            }
+
+            if (m_subscribedDataSetSinkProvider is not null
+                && m_subscribedDataSetSinkProvider.TryGetSink(
+                    dataSetReaderName,
+                    out ISubscribedDataSetSink providerSink))
+            {
+                return providerSink;
+            }
+
+            return NullSubscribedDataSetSink.Instance;
         }
 
         private void RegisterConnection(PubSubConnection connection)

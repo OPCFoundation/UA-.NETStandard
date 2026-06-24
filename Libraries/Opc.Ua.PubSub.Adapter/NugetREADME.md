@@ -10,6 +10,13 @@ Adapters that bind OPC UA **PubSub** publisher/subscriber/action datasets to an
 - **Subscriber** — writes received PubSub DataSet values back to an external server.
 - **Actions** — maps inbound PubSub Action requests to external server method calls.
 
+Runtime changes to the PubSub configuration store or named adapter options are
+hot-reloaded incrementally: unchanged sources, sinks and external-server sessions
+are reused, while removed datasets/readers release their session references.
+Action target additions and mapping changes are applied by registering updated
+handlers; target removal currently requires a host restart because the core
+PubSub action responder API has no unregister operation.
+
 ```csharp
 services.AddOpcUa()
     .AddPubSub(pubsub => pubsub

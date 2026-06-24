@@ -50,6 +50,12 @@ namespace Opc.Ua.PubSub.Adapter.Session
         bool IsConnected { get; }
 
         /// <summary>
+        /// Raised when the external server reports an address-space model change.
+        /// Handlers should treat the notification as a trigger to re-read metadata.
+        /// </summary>
+        event EventHandler? ModelChanged;
+
+        /// <summary>
         /// Connects the managed session to the external server. The call is
         /// idempotent: invoking it again while already connected is a no-op.
         /// </summary>
@@ -134,6 +140,15 @@ namespace Opc.Ua.PubSub.Adapter.Session
         ValueTask<IDataChangeSubscription> CreateDataChangeSubscriptionAsync(
             double publishingIntervalMs,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Starts monitoring the external server's GeneralModelChangeEvents.
+        /// The call is idempotent and creates at most one model-change subscription.
+        /// </summary>
+        /// <param name="ct">
+        /// A token used to cancel the start operation.
+        /// </param>
+        ValueTask StartModelChangeMonitoringAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Resolves a configured node identifier to a concrete server

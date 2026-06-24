@@ -55,29 +55,41 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         /// <param name="runtime">
         /// The runtime owning the adapter sessions and coordinators.
         /// </param>
+        /// <param name="reloadCoordinator">
+        /// The coordinator that listens for hot-reload changes.
+        /// </param>
         public ServerAdapterHostedService(
             IPubSubApplication application,
-            ServerAdapterRuntime runtime)
+            ServerAdapterRuntime runtime,
+            ServerAdapterReloadCoordinator reloadCoordinator)
         {
             if (application is null)
             {
                 throw new ArgumentNullException(nameof(application));
             }
+            m_application = application;
             m_runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+            m_reloadCoordinator = reloadCoordinator
+                ?? throw new ArgumentNullException(nameof(reloadCoordinator));
         }
 
         /// <inheritdoc/>
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            return m_runtime.StartAsync(cancellationToken).AsTask();
+            await m_runtime.StartAsync(cancellationToken).ConfigureAwait(false);
+            await m_reloadCoordinator.StartAsync(m_application, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
-            return m_runtime.DisposeAsync().AsTask();
+            await m_reloadCoordinator.DisposeAsync().ConfigureAwait(false);
+            await m_runtime.DisposeAsync().ConfigureAwait(false);
         }
 
+        private readonly IPubSubApplication m_application;
         private readonly ServerAdapterRuntime m_runtime;
+        private readonly ServerAdapterReloadCoordinator m_reloadCoordinator;
     }
 }

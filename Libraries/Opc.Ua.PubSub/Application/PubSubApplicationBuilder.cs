@@ -84,6 +84,8 @@ namespace Opc.Ua.PubSub.Application
             m_actionResponders = [];
         private readonly PubSubApplicationOptions m_options = new();
         private IUaPubSubDataStore? m_dataStore;
+        private IDataSetSourceProvider? m_dataSetSourceProvider;
+        private IDataSetSinkProvider? m_dataSetSinkProvider;
         private TimeProvider m_timeProvider = TimeProvider.System;
         private InMemoryPubSubKeyServiceServer? m_sksServer;
         private PubSubConfigurationDataType? m_configuration;
@@ -195,6 +197,38 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(clock));
             }
             m_timeProvider = clock;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the runtime provider queried for PublishedDataSet sources that are not
+        /// registered through <see cref="AddDataSetSource(string, IPublishedDataSetSource)"/>.
+        /// </summary>
+        /// <param name="provider">Runtime source provider.</param>
+        public PubSubApplicationBuilder WithDataSetSourceProvider(IDataSetSourceProvider provider)
+        {
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            m_dataSetSourceProvider = provider;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the runtime provider queried for DataSetReader sinks that are not
+        /// registered through <see cref="AddSubscribedDataSetSink(string, ISubscribedDataSetSink)"/>.
+        /// </summary>
+        /// <param name="provider">Runtime sink provider.</param>
+        public PubSubApplicationBuilder WithDataSetSinkProvider(IDataSetSinkProvider provider)
+        {
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            m_dataSetSinkProvider = provider;
             return this;
         }
 
@@ -552,7 +586,9 @@ namespace Opc.Ua.PubSub.Application
                     m_timeProvider,
                     sources,
                     m_dataSetSinks,
-                    resolver);
+                    m_dataSetSourceProvider,
+                    m_dataSetSinkProvider,
+                    securityWrapperResolver: resolver);
                 for (int i = 0; i < m_actionResponders.Count; i++)
                 {
                     application.RegisterActionHandler(

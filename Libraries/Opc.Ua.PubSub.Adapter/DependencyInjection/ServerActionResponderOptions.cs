@@ -40,6 +40,13 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
     /// requests targeting one of the configured <see cref="Targets"/> are mapped
     /// to OPC UA method calls on an external server through <see cref="MethodMap"/>.
     /// </summary>
+    /// <remarks>
+    /// Simple properties are bindable from <c>IConfiguration</c>. Object-typed
+    /// members, such as <see cref="MethodMap"/>, <see cref="Targets"/>,
+    /// <see cref="ServerConnectionOptions.ApplicationConfiguration"/> and
+    /// <see cref="ServerConnectionOptions.UserIdentity"/>, must be supplied from
+    /// code.
+    /// </remarks>
     public sealed class ServerActionResponderOptions
     {
         /// <summary>

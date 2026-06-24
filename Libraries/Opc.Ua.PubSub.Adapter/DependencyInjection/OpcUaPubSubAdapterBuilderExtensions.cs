@@ -29,9 +29,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.Actions;
@@ -88,81 +91,91 @@ namespace Microsoft.Extensions.DependencyInjection
             this IPubSubBuilder builder,
             Action<ServerPublisherOptions> configure)
         {
+            return AddServerAsPublisher(
+                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+        }
+
+        /// <summary>
+        /// Adds an external-server PubSub publisher whose options are bound from
+        /// configuration under the supplied name.
+        /// </summary>
+        /// <param name="builder">
+        /// The PubSub builder to add the publisher to.
+        /// </param>
+        /// <param name="name">
+        /// The named-options registration name.
+        /// </param>
+        /// <param name="configuration">
+        /// The configuration section that binds the publisher options. Object-typed
+        /// option members are not configuration-bindable and must be supplied from
+        /// code, for example through a post-configure callback.
+        /// </param>
+        /// <returns>
+        /// The same builder, to allow fluent composition.
+        /// </returns>
+        public static IPubSubBuilder AddServerAsPublisher(
+            this IPubSubBuilder builder,
+            string name,
+            IConfiguration configuration)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
+            }
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            RegisterConfigurationOptions<ServerPublisherOptions>(
+                builder.Services, name, configuration, BindPublisherOptions);
+
+            return AddServerAsPublisherCore(builder, name);
+        }
+
+        private static IPubSubBuilder AddServerAsPublisher(
+            IPubSubBuilder builder,
+            string name,
+            Action<ServerPublisherOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
             }
             if (configure is null)
             {
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new ServerPublisherOptions();
-            configure(options);
+            builder.Services.Configure(name, configure);
+
+            return AddServerAsPublisherCore(builder, name);
+        }
+
+        private static IPubSubBuilder AddServerAsPublisherCore(IPubSubBuilder builder, string name)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
 
             RegisterCoreServices(builder);
 
             builder.ConfigureApplication((sp, pb) =>
             {
-                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                ILogger logger =
-                    telemetry.CreateLogger<ServerAdapterRuntime>();
-                ServerAdapterRuntime runtime =
-                    sp.GetRequiredService<ServerAdapterRuntime>();
-                AdapterMetrics metrics = sp.GetRequiredService<AdapterMetrics>();
-
-                IServerSession session = CreateSession(sp, options.Connection, telemetry);
-                runtime.AddSession(session);
-
                 PubSubConfigurationDataType configuration = pb.GetConfigurationOrDefault();
-
-                SubscriptionCoordinator? coordinator = null;
-                CyclicReadStrategy? cyclic = null;
-                HashSet<string>? referenced = null;
-                if (options.ReadMode == ReadMode.Subscription)
-                {
-                    coordinator = new SubscriptionCoordinator(
-                        configuration, session, options.Affinity, telemetry);
-                    runtime.AddCoordinator(coordinator);
-                    referenced = CollectWriterDataSetNames(configuration);
-                }
-                else
-                {
-                    cyclic = new CyclicReadStrategy(session, telemetry, metrics);
-                }
-
-                foreach (PublishedDataSetDataType dataSet in EnumeratePublishedDataSets(configuration))
-                {
-                    string name = dataSet.Name ?? string.Empty;
-                    if (name.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    IReadStrategy strategy;
-                    if (coordinator is not null)
-                    {
-                        if (referenced is null || !referenced.Contains(name))
-                        {
-                            logger.LogDebug(
-                                "PublishedDataSet '{Name}' is not referenced by any "
-                                + "DataSetWriter; skipping external subscription source.",
-                                name);
-                            continue;
-                        }
-                        strategy = coordinator.GetReadStrategy(name);
-                    }
-                    else
-                    {
-                        strategy = cyclic!;
-                    }
-
-                    var metaDataBuilder = new DataSetMetaDataBuilder(
-                        dataSet, session, telemetry, metrics);
-                    var source = new ServerPublishedDataSetSource(
-                        dataSet, strategy, metaDataBuilder, telemetry);
-                    pb.AddDataSetSource(name, source);
-                }
+                ServerAdapterReloadCoordinator coordinator =
+                    sp.GetRequiredService<ServerAdapterReloadCoordinator>();
+                coordinator.RegisterPublisherBinding(name);
+                coordinator.ApplyInitialConfiguration(configuration, pb);
             });
 
             return builder;
@@ -188,50 +201,91 @@ namespace Microsoft.Extensions.DependencyInjection
             this IPubSubBuilder builder,
             Action<ServerSubscriberOptions> configure)
         {
+            return AddServerAsSubscriber(
+                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+        }
+
+        /// <summary>
+        /// Adds an external-server PubSub subscriber whose options are bound from
+        /// configuration under the supplied name.
+        /// </summary>
+        /// <param name="builder">
+        /// The PubSub builder to add the subscriber to.
+        /// </param>
+        /// <param name="name">
+        /// The named-options registration name.
+        /// </param>
+        /// <param name="configuration">
+        /// The configuration section that binds the subscriber options. Object-typed
+        /// option members are not configuration-bindable and must be supplied from
+        /// code, for example through a post-configure callback.
+        /// </param>
+        /// <returns>
+        /// The same builder, to allow fluent composition.
+        /// </returns>
+        public static IPubSubBuilder AddServerAsSubscriber(
+            this IPubSubBuilder builder,
+            string name,
+            IConfiguration configuration)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
+            }
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            RegisterConfigurationOptions<ServerSubscriberOptions>(
+                builder.Services, name, configuration, BindSubscriberOptions);
+
+            return AddServerAsSubscriberCore(builder, name);
+        }
+
+        private static IPubSubBuilder AddServerAsSubscriber(
+            IPubSubBuilder builder,
+            string name,
+            Action<ServerSubscriberOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
             }
             if (configure is null)
             {
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new ServerSubscriberOptions();
-            configure(options);
+            builder.Services.Configure(name, configure);
+
+            return AddServerAsSubscriberCore(builder, name);
+        }
+
+        private static IPubSubBuilder AddServerAsSubscriberCore(IPubSubBuilder builder, string name)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
 
             RegisterCoreServices(builder);
 
             builder.ConfigureApplication((sp, pb) =>
             {
-                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                ServerAdapterRuntime runtime =
-                    sp.GetRequiredService<ServerAdapterRuntime>();
-                AdapterMetrics metrics = sp.GetRequiredService<AdapterMetrics>();
-
-                IServerSession session = CreateSession(sp, options.Connection, telemetry);
-                runtime.AddSession(session);
-
                 PubSubConfigurationDataType configuration = pb.GetConfigurationOrDefault();
-                foreach (DataSetReaderDataType reader in EnumerateDataSetReaders(configuration))
-                {
-                    string name = reader.Name ?? string.Empty;
-                    if (name.Length == 0)
-                    {
-                        continue;
-                    }
-                    if (reader.SubscribedDataSet.IsNull
-                        || !reader.SubscribedDataSet.TryGetValue(
-                            out TargetVariablesDataType? targetVariables)
-                        || targetVariables is null)
-                    {
-                        continue;
-                    }
-
-                    ISubscribedDataSetSink sink = ServerSubscribedDataSetSink.Create(
-                        targetVariables, session, telemetry, metrics);
-                    pb.AddSubscribedDataSetSink(name, sink);
-                }
+                ServerAdapterReloadCoordinator coordinator =
+                    sp.GetRequiredService<ServerAdapterReloadCoordinator>();
+                coordinator.RegisterSubscriberBinding(name);
+                coordinator.ApplyInitialConfiguration(configuration, pb);
             });
 
             return builder;
@@ -257,44 +311,93 @@ namespace Microsoft.Extensions.DependencyInjection
             this IPubSubBuilder builder,
             Action<ServerActionResponderOptions> configure)
         {
+            return AddServerAsActionResponder(
+                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+        }
+
+        /// <summary>
+        /// Adds an external-server PubSub action responder whose options are bound
+        /// from configuration under the supplied name.
+        /// </summary>
+        /// <param name="builder">
+        /// The PubSub builder to add the action responder to.
+        /// </param>
+        /// <param name="name">
+        /// The named-options registration name.
+        /// </param>
+        /// <param name="configuration">
+        /// The configuration section that binds the action responder options.
+        /// Object-typed option members are not configuration-bindable and must be
+        /// supplied from code, for example through a post-configure callback.
+        /// </param>
+        /// <returns>
+        /// The same builder, to allow fluent composition.
+        /// </returns>
+        public static IPubSubBuilder AddServerAsActionResponder(
+            this IPubSubBuilder builder,
+            string name,
+            IConfiguration configuration)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
+            }
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            RegisterConfigurationOptions<ServerActionResponderOptions>(
+                builder.Services, name, configuration, BindActionResponderOptions);
+
+            return AddServerAsActionResponderCore(builder, name);
+        }
+
+        private static IPubSubBuilder AddServerAsActionResponder(
+            IPubSubBuilder builder,
+            string name,
+            Action<ServerActionResponderOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
             }
             if (configure is null)
             {
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new ServerActionResponderOptions();
-            configure(options);
+            builder.Services.Configure(name, configure);
+
+            return AddServerAsActionResponderCore(builder, name);
+        }
+
+        private static IPubSubBuilder AddServerAsActionResponderCore(
+            IPubSubBuilder builder,
+            string name)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
 
             RegisterCoreServices(builder);
 
             builder.ConfigureApplication((sp, pb) =>
             {
-                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                ServerAdapterRuntime runtime =
-                    sp.GetRequiredService<ServerAdapterRuntime>();
-                AdapterMetrics metrics = sp.GetRequiredService<AdapterMetrics>();
-
-                IServerSession session = CreateSession(sp, options.Connection, telemetry);
-                runtime.AddSession(session);
-
-                var handler = new ServerActionHandler(
-                    session, options.MethodMap, telemetry, metrics);
-                if (options.Targets is null)
-                {
-                    return;
-                }
-                foreach (PubSubActionTarget target in options.Targets)
-                {
-                    if (target is null)
-                    {
-                        continue;
-                    }
-                    pb.AddActionResponder(target, handler, options.AllowUnsecured);
-                }
+                PubSubConfigurationDataType configuration = pb.GetConfigurationOrDefault();
+                ServerAdapterReloadCoordinator coordinator =
+                    sp.GetRequiredService<ServerAdapterReloadCoordinator>();
+                coordinator.RegisterActionResponderBinding(name);
+                coordinator.ApplyInitialConfiguration(configuration, pb);
             });
 
             return builder;
@@ -305,8 +408,184 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<IServerSessionFactory, ServerSessionFactory>();
             builder.Services.TryAddSingleton<AdapterMetrics>();
             builder.Services.TryAddSingleton<ServerAdapterRuntime>();
+            builder.Services.TryAddSingleton<MutableDataSetSourceProvider>();
+            builder.Services.TryAddSingleton<MutableDataSetSinkProvider>();
+            builder.Services.RemoveAll<IDataSetSourceProvider>();
+            builder.Services.RemoveAll<IDataSetSinkProvider>();
+            builder.Services.AddSingleton<IDataSetSourceProvider>(
+                sp => sp.GetRequiredService<MutableDataSetSourceProvider>());
+            builder.Services.AddSingleton<IDataSetSinkProvider>(
+                sp => sp.GetRequiredService<MutableDataSetSinkProvider>());
+            builder.Services.TryAddSingleton<ServerAdapterReloadCoordinator>();
             builder.Services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<IHostedService, ServerAdapterHostedService>());
+        }
+
+        private static void RegisterConfigurationOptions<TOptions>(
+            IServiceCollection services,
+            string name,
+            IConfiguration configuration,
+            Action<TOptions, IConfiguration> bind)
+            where TOptions : class
+        {
+            services.AddSingleton<IOptionsChangeTokenSource<TOptions>>(
+                new ConfigurationChangeTokenSource<TOptions>(name, configuration));
+            services.AddSingleton<IConfigureOptions<TOptions>>(
+                new ConfigureNamedOptions<TOptions>(
+                    name, options => bind(options, configuration)));
+        }
+
+        private static void BindPublisherOptions(
+            ServerPublisherOptions options,
+            IConfiguration configuration)
+        {
+            options.Connection ??= new ServerConnectionOptions();
+            BindConnectionOptions(
+                options.Connection,
+                configuration.GetSection(nameof(ServerPublisherOptions.Connection)));
+            BindEnum<ReadMode>(
+                configuration,
+                nameof(ServerPublisherOptions.ReadMode),
+                value => options.ReadMode = value);
+            BindEnum<SubscriptionAffinity>(
+                configuration,
+                nameof(ServerPublisherOptions.Affinity),
+                value => options.Affinity = value);
+        }
+
+        private static void BindSubscriberOptions(
+            ServerSubscriberOptions options,
+            IConfiguration configuration)
+        {
+            options.Connection ??= new ServerConnectionOptions();
+            BindConnectionOptions(
+                options.Connection,
+                configuration.GetSection(nameof(ServerSubscriberOptions.Connection)));
+        }
+
+        private static void BindActionResponderOptions(
+            ServerActionResponderOptions options,
+            IConfiguration configuration)
+        {
+            options.Connection ??= new ServerConnectionOptions();
+            BindConnectionOptions(
+                options.Connection,
+                configuration.GetSection(nameof(ServerActionResponderOptions.Connection)));
+            BindBoolean(
+                configuration,
+                nameof(ServerActionResponderOptions.AllowUnsecured),
+                value => options.AllowUnsecured = value);
+        }
+
+        private static void BindConnectionOptions(
+            ServerConnectionOptions options,
+            IConfiguration configuration)
+        {
+            BindString(
+                configuration,
+                nameof(ServerConnectionOptions.EndpointUrl),
+                value => options.EndpointUrl = value);
+            BindEnum<MessageSecurityMode>(
+                configuration,
+                nameof(ServerConnectionOptions.SecurityMode),
+                value => options.SecurityMode = value);
+            BindString(
+                configuration,
+                nameof(ServerConnectionOptions.SecurityPolicyUri),
+                value => options.SecurityPolicyUri = value);
+            BindString(
+                configuration,
+                nameof(ServerConnectionOptions.UserName),
+                value => options.UserName = value);
+            BindString(
+                configuration,
+                nameof(ServerConnectionOptions.Password),
+                value => options.Password = value);
+            BindString(
+                configuration,
+                nameof(ServerConnectionOptions.SessionName),
+                value => options.SessionName = value);
+            BindUnsignedInteger(
+                configuration,
+                nameof(ServerConnectionOptions.SessionTimeout),
+                value => options.SessionTimeout = value);
+            BindString(
+                configuration,
+                nameof(ServerConnectionOptions.ApplicationName),
+                value => options.ApplicationName = value);
+        }
+
+        private static void BindString(
+            IConfiguration configuration,
+            string key,
+            Action<string> assign)
+        {
+            string? value = configuration[key];
+            if (value is not null)
+            {
+                assign(value);
+            }
+        }
+
+        private static void BindEnum<TEnum>(
+            IConfiguration configuration,
+            string key,
+            Action<TEnum> assign)
+            where TEnum : struct, Enum
+        {
+            string? value = configuration[key];
+            if (value is null)
+            {
+                return;
+            }
+
+            if (!Enum.TryParse(value, ignoreCase: true, out TEnum parsed))
+            {
+                throw new InvalidOperationException(
+                    $"Configuration value '{value}' for '{key}' is not a valid {typeof(TEnum).Name}.");
+            }
+
+            assign(parsed);
+        }
+
+        private static void BindUnsignedInteger(
+            IConfiguration configuration,
+            string key,
+            Action<uint> assign)
+        {
+            string? value = configuration[key];
+            if (value is null)
+            {
+                return;
+            }
+
+            if (!uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint parsed))
+            {
+                throw new InvalidOperationException(
+                    $"Configuration value '{value}' for '{key}' is not a valid unsigned integer.");
+            }
+
+            assign(parsed);
+        }
+
+        private static void BindBoolean(
+            IConfiguration configuration,
+            string key,
+            Action<bool> assign)
+        {
+            string? value = configuration[key];
+            if (value is null)
+            {
+                return;
+            }
+
+            if (!bool.TryParse(value, out bool parsed))
+            {
+                throw new InvalidOperationException(
+                    $"Configuration value '{value}' for '{key}' is not a valid boolean.");
+            }
+
+            assign(parsed);
         }
 
         private static IServerSession CreateSession(
