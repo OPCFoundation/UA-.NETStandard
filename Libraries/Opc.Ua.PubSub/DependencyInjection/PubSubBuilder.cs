@@ -100,6 +100,18 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <inheritdoc/>
+        public IPubSubBuilder ConfigureApplication(
+            Action<IServiceProvider, PubSubApplicationBuilder> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            m_steps.Add((sp, pb) => configure(sp, pb));
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IPubSubBuilder AddSecurityKeyProvider(IPubSubSecurityKeyProvider keyProvider)
         {
             if (keyProvider is null)

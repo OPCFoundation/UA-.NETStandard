@@ -20,6 +20,7 @@
 - [Security](#security)
 - [Security Key Service (SKS)](#security-key-service-sks)
 - [Server-side address space](#server-side-address-space)
+- [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [High availability state providers](#high-availability-state-providers)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
@@ -31,10 +32,10 @@
 
 - Targets **OPC UA Part 14 v1.05.06** conformance for the implemented UDP,
   MQTT, UADP, JSON, discovery, Action, SKS, and address-space surfaces.
-- Four library packages
+- Five library packages
   ([NuGet](https://www.nuget.org/packages?q=OPCFoundation.NetStandard.Opc.Ua.PubSub)):
   `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Mqtt`,
-  `Opc.Ua.PubSub.Server`.
+  `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`.
 - Multi-TFM: `netstandard2.0`, `netstandard2.1`, `net48`, `net472`,
   `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
@@ -889,6 +890,160 @@ register optional companion features
 (`WithSecurityKeyPushTarget`, `WithSecurityKeyServiceServer`, etc.).
 See `Libraries/Opc.Ua.PubSub.Server/Hosting/IPubSubServerBuilder.cs`.
 
+## Binding PubSub to an external OPC UA server (client-session adapters)
+
+`Opc.Ua.PubSub.Adapter` binds a PubSub application to a separate OPC UA Client/Server endpoint. Use it when the variables or methods already live in an external server and the PubSub process should act as a bridge: read server values and publish them as Part 14 DataSetMessages, write received DataSet fields back to server nodes, or map inbound Part 14 Action requests to server Method Calls. Use `Opc.Ua.PubSub.Server` instead when the same process hosts the OPC UA server and should expose the standard `PublishSubscribe` Object or bind actions to in-process node managers.
+
+The adapter keeps the PubSub seams unchanged and supplies implementations backed by `Opc.Ua.Client.ManagedSession`:
+
+| PubSub seam | Adapter implementation | Server service used |
+| ----------- | ---------------------- | ------------------- |
+| `IPublishedDataSetSource` | `ExternalServerPublishedDataSetSource` | `Read` or client `Subscription` data changes |
+| `ITargetVariableWriter` / `ISubscribedDataSetSink` | `ExternalServerTargetVariableWriter` through `ExternalServerSubscribedDataSetSink` | `Write` |
+| `IPubSubActionHandler` | `ExternalServerActionHandler` with `ExternalActionMethodMap` | `Call` |
+
+Supply the PubSub configuration before the `AddExternalServer*` call. The adapter composes itself from the configured `PublishedDataSets`, `DataSetWriters`, `DataSetReaders` with `TargetVariables`, and action targets. The connection is a managed client session, so keep-alive and reconnect are handled by `ManagedSession`; adapter components share one `IExternalServerSession` per registration and the hosted service closes sessions on shutdown.
+
+Cyclic publisher: one `Read` service call per publish cycle for each sampled PublishedDataSet.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Opc.Ua;
+using Opc.Ua.PubSub.Adapter;
+using Opc.Ua.PubSub.Adapter.Session;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+ApplicationConfiguration clientConfiguration = await LoadClientConfigurationAsync();
+
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddUdpTransport()
+        .UseConfigurationFile("publisher.xml")
+        .AddExternalServerPublisher(options =>
+        {
+            options.Connection = new ExternalServerConnectionOptions
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                ApplicationConfiguration = clientConfiguration,
+                SessionName = "PubSub external publisher"
+            };
+            options.ReadMode = ExternalReadMode.Cyclic;
+        }));
+
+await builder.Build().RunAsync();
+```
+
+Subscription publisher: creates client Subscriptions, fills a latest-value cache from monitored item notifications, primes the cache with an initial `Read`, then samples the cache during publish cycles. `ExternalSubscriptionAffinity.WriterGroup` is the default and creates one client Subscription per WriterGroup using the WriterGroup publishing interval; choose `DataSetWriter` for stricter per-writer isolation.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Opc.Ua;
+using Opc.Ua.PubSub.Adapter;
+using Opc.Ua.PubSub.Adapter.Session;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+ApplicationConfiguration clientConfiguration = await LoadClientConfigurationAsync();
+
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddMqttTransport()
+        .UseConfigurationFile("publisher.xml")
+        .AddExternalServerPublisher(options =>
+        {
+            options.Connection.EndpointUrl = "opc.tcp://localhost:4840";
+            options.Connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            options.Connection.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            options.Connection.ApplicationConfiguration = clientConfiguration;
+            options.ReadMode = ExternalReadMode.Subscription;
+            options.Affinity = ExternalSubscriptionAffinity.WriterGroup;
+        }));
+
+await builder.Build().RunAsync();
+```
+
+Subscriber writes to an external server by using each DataSetReader's configured `TargetVariablesDataType`. Received fields are resolved by the normal subscriber pipeline and written through `Write` calls to the target node, attribute, and index range.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Opc.Ua;
+using Opc.Ua.PubSub.Adapter.Session;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+ApplicationConfiguration clientConfiguration = await LoadClientConfigurationAsync();
+
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddSubscriber()
+        .AddUdpTransport()
+        .UseConfigurationFile("subscriber.xml")
+        .AddExternalServerSubscriber(options =>
+        {
+            options.Connection = new ExternalServerConnectionOptions
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                ApplicationConfiguration = clientConfiguration,
+                SessionName = "PubSub external subscriber"
+            };
+        }));
+
+await builder.Build().RunAsync();
+```
+
+Action-to-Call maps inbound PubSub Action requests to Method Calls on the external server. The action target can be resolved by `(DataSetWriterId, ActionTargetId)` or by `ActionName`; input fields become method input arguments in order, and configured output names label the response fields. `AllowUnsecured` defaults to `false`, so responders fail closed unless the PubSub action exchange is secured or the application explicitly opts in.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Opc.Ua;
+using Opc.Ua.PubSub.Adapter.Actions;
+using Opc.Ua.PubSub.Adapter.Session;
+using Opc.Ua.PubSub.Application;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+ApplicationConfiguration clientConfiguration = await LoadClientConfigurationAsync();
+
+var target = new PubSubActionTarget
+{
+    DataSetWriterId = 1001,
+    ActionTargetId = 1,
+    ActionName = "ResetMachine"
+};
+
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddSubscriber()
+        .AddMqttTransport()
+        .UseConfigurationFile("actions.xml")
+        .AddExternalServerActionResponder(options =>
+        {
+            options.Connection.EndpointUrl = "opc.tcp://localhost:4840";
+            options.Connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            options.Connection.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            options.Connection.ApplicationConfiguration = clientConfiguration;
+            options.Targets.Add(target);
+            options.MethodMap.Add(
+                dataSetWriterId: 1001,
+                actionTargetId: 1,
+                objectId: new NodeId("ns=2;s=Machine1"),
+                methodId: new NodeId("ns=2;s=Machine1.Reset"),
+                outputFieldNames: new[] { "Accepted" }.ToArrayOf());
+            options.AllowUnsecured = false;
+        }));
+
+await builder.Build().RunAsync();
+```
+
+Metadata is configuration-first: field names, order, and declared types come from `PublishedDataSetDataType` and `DataSetMetaDataType`. When type details are missing, the publisher adapter reads `DataType`, `ValueRank`, and `ArrayDimensions` from the external server and falls back to conservative Variant metadata if the read fails. See [PubSub external server adapter](PubSubExternalServerAdapter.md) for the connection option table, read-mode trade-offs, lifecycle notes, and the `ConsoleReferenceExternalServerPubSub` sample.
+
 ## High availability state providers
 
 Part 14 deployments that run multiple server instances should externalize the
@@ -1010,6 +1165,7 @@ below maps Part 14 sections to the type / file that implements them.
 ## Cross-references
 
 - [Migration sub-doc — `migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md)
+- [External server adapter](PubSubExternalServerAdapter.md)
 - [Dependency Injection](DependencyInjection.md)
 - [Native AOT Testing](NativeAoT.md)
 - [Profiles and Facets](Profiles.md#pubsub-transports)

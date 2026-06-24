@@ -499,6 +499,26 @@ namespace Opc.Ua.PubSub.Application
         public InMemoryPubSubKeyServiceServer? SecurityKeyServiceServer => m_sksServer;
 
         /// <summary>
+        /// Resolves the PubSub configuration currently assigned to the builder,
+        /// loading it from the configured XML file when a file path was supplied
+        /// and returning an empty configuration when none was set. Intended for
+        /// composition steps that must enumerate the configured datasets and
+        /// readers before <see cref="Build"/> runs.
+        /// </summary>
+        /// <returns>
+        /// The resolved configuration, or an empty configuration when none was
+        /// supplied.
+        /// </returns>
+        /// <exception cref="PubSubApplicationBuildException">
+        /// Both an inline configuration and a configuration file path were
+        /// supplied.
+        /// </exception>
+        public PubSubConfigurationDataType GetConfigurationOrDefault()
+        {
+            return LoadConfiguration();
+        }
+
+        /// <summary>
         /// Validates the accumulated state and constructs the
         /// runtime <see cref="IPubSubApplication"/>.
         /// </summary>

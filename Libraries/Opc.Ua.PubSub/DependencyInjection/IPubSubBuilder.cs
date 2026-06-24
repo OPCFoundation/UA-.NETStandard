@@ -71,6 +71,21 @@ namespace Microsoft.Extensions.DependencyInjection
         IPubSubBuilder ConfigureApplication(Action<PubSubApplicationBuilder> configure);
 
         /// <summary>
+        /// Adds a service-provider-aware application builder configuration
+        /// callback. The callback runs as a deferred composition step after the
+        /// configured PubSub configuration has been applied to the
+        /// <see cref="PubSubApplicationBuilder"/>, so it can enumerate the
+        /// configured datasets and readers via
+        /// <see cref="PubSubApplicationBuilder.GetConfigurationOrDefault"/> and
+        /// resolve services from the supplied <see cref="IServiceProvider"/>.
+        /// Unlike <see cref="ConfigureApplication(Action{PubSubApplicationBuilder})"/>
+        /// it does not suppress option-based configuration.
+        /// </summary>
+        /// <param name="configure">The application builder callback.</param>
+        IPubSubBuilder ConfigureApplication(
+            Action<IServiceProvider, PubSubApplicationBuilder> configure);
+
+        /// <summary>
         /// Adds a PubSub security key provider.
         /// </summary>
         /// <param name="keyProvider">The security key provider.</param>

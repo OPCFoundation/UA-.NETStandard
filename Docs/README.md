@@ -36,6 +36,7 @@ Here is a list of available documentation for different topics:
 * [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
 * [PubSub (Part 14)](PubSub.md) - Publisher/subscriber support library: architecture, fluent builder, transports (UDP / MQTT 3.1.1 + 5.0), encodings (UADP / JSON), security, and server-side address space.
   * [Migration sub-doc](migrate/2.0.x/pubsub.md) - 1.5.378 → 2.0 breaking API, transport, JSON, and field-encoding changes, plus the compatibility matrix.
+  * [External server adapter](PubSubExternalServerAdapter.md) - Bind PubSub publishers, subscribers, and Action responders to an external OPC UA server through `ManagedSession`.
   * [Dependency Injection extensions](DependencyInjection.md) - `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`, `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
   * [Profiles](Profiles.md#pubsub-transports) - Datagram-v2, SKS pull / push, AES-128/256-CTR security facets.
   * [PubSub Diagnostics](Diagnostics.md#5-pubsub-packet-capture-and-dissection) - packet capture, dissection and replay of UDP / MQTT PubSub traffic, including decryption of encrypted UADP messages.

@@ -35,10 +35,11 @@ assembly ships as its own NuGet package under the
 | `Opc.Ua.PubSub.Udp`     | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Udp`    | UDP datagram transport (Part 14 §7.3.2).                        |
 | `Opc.Ua.PubSub.Mqtt`    | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt`   | MQTT broker transport (Part 14 §7.3.4).                         |
 | `Opc.Ua.PubSub.Server`  | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Server` | Server-side address-space integration (Part 14 §9).             |
+| `Opc.Ua.PubSub.Adapter` | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Adapter` | External-server publisher/subscriber/Action binding over `ManagedSession`. |
 
 Consumers that previously referenced the single `Opc.Ua.PubSub` package must add
 the transport package(s) they use (`...PubSub.Udp` and/or `...PubSub.Mqtt`) and,
-for address-space integration, the `...PubSub.Server` package. The root
+for address-space integration, the `...PubSub.Server` package. Add `...PubSub.Adapter` when a PubSub application must bind DataSets or Actions to an external OPC UA server through a managed client session. The root
 namespaces follow the assembly names (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
 `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`).
 

@@ -7,6 +7,7 @@
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
+    <Project Path="Applications/ConsoleReferenceExternalServerPubSub/ConsoleReferenceExternalServerPubSub.csproj" />
     <Project Path="Applications/McpServer/Opc.Ua.Mcp.csproj" />
     <Project Path="Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
     <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
@@ -67,6 +68,7 @@
     <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
+    <Project Path="Libraries/Opc.Ua.PubSub.Adapter/Opc.Ua.PubSub.Adapter.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Diagnostics/Opc.Ua.PubSub.Diagnostics.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Mqtt/Opc.Ua.PubSub.Mqtt.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Server/Opc.Ua.PubSub.Server.csproj" />
@@ -215,6 +217,7 @@
     <Project Path="Tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Mqtt.Tests/Opc.Ua.PubSub.Mqtt.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
