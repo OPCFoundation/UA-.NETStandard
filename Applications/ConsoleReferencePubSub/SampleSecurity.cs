@@ -31,7 +31,7 @@ using System;
 using Opc.Ua;
 using Opc.Ua.PubSub.Security;
 
-namespace Quickstarts.ConsoleReferencePublisher
+namespace Quickstarts.ConsoleReferencePubSub
 {
     /// <summary>
     /// Demo-only shared symmetric key material wiring the reference

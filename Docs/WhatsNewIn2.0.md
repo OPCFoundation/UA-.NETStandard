@@ -305,9 +305,9 @@ The PubSub stack (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
 `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`) is rewritten end-to-end
 to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06).
 
-- **Native AOT clean.** Both reference samples
-  (`ConsoleReferencePublisher`, `ConsoleReferenceSubscriber`) publish
-  AOT with zero `IL2026` / `IL3050`; `PubSubAotTests` exercises every
+- **Native AOT clean.** The combined reference sample
+  (`ConsoleReferencePubSub`, with `publisher` / `subscriber` / `external` modes)
+  publishes AOT with zero `IL2026` / `IL3050`; `PubSubAotTests` exercises every
   runtime path under AOT.
 - **DI-integrated.** `services.AddOpcUa().AddPubSub(o => …)` registers
   the runtime, scheduler, security subsystem, transports, and SKS into

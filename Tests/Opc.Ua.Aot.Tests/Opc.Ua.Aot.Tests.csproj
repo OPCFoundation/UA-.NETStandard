@@ -34,11 +34,8 @@
     <ProjectReference Include="..\..\Applications\MinimalCalcServer\MinimalCalcServer.csproj">
       <Aliases>calcsample</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\..\Applications\ConsoleReferencePublisher\ConsoleReferencePublisher.csproj">
-      <Aliases>publishersample</Aliases>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Applications\ConsoleReferenceSubscriber\ConsoleReferenceSubscriber.csproj">
-      <Aliases>subscribersample</Aliases>
+    <ProjectReference Include="..\..\Applications\ConsoleReferencePubSub\ConsoleReferencePubSub.csproj">
+      <Aliases>pubsubsample</Aliases>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

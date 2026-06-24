@@ -2,12 +2,12 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <AssemblyName>ConsoleReferencePublisher</AssemblyName>
-    <PackageId>ConsoleReferencePublisher</PackageId>
+    <AssemblyName>ConsoleReferencePubSub</AssemblyName>
+    <PackageId>ConsoleReferencePubSub</PackageId>
     <Company>OPC Foundation</Company>
-    <Description>Self-contained OPC UA Part 14 PubSub reference Publisher built on the fluent + DI Host surface. Native AOT compatible.</Description>
+    <Description>Self-contained OPC UA Part 14 PubSub reference sample with three command-line-selectable modes (publisher, subscriber, external-server adapter bridge) built on the fluent + DI Host surface. Native AOT compatible.</Description>
     <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
-    <RootNamespace>Quickstarts.ConsoleReferencePublisher</RootNamespace>
+    <RootNamespace>Quickstarts.ConsoleReferencePubSub</RootNamespace>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>
@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Adapter\Opc.Ua.PubSub.Adapter.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />

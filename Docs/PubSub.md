@@ -358,7 +358,7 @@ builder.Services.AddOpcUa()
             .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
             .AddDataSetSource("Simple", new MyDataSetSource())
             .ConfigureApplication(app => app
-                .WithApplicationId("urn:opcfoundation:ConsoleReferencePublisher")
+                .WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:Publisher")
                 .UseConfigurationFile("publisher.xml"));
     });
 
@@ -1042,7 +1042,7 @@ builder.Services.AddOpcUa()
 await builder.Build().RunAsync();
 ```
 
-Metadata is configuration-first: field names, order, and declared types come from `PublishedDataSetDataType` and `DataSetMetaDataType`. When type details are missing, the publisher adapter reads `DataType`, `ValueRank`, and `ArrayDimensions` from the external server and falls back to conservative Variant metadata if the read fails. See [PubSub external server adapter](PubSubExternalServerAdapter.md) for the connection option table, read-mode trade-offs, lifecycle notes, and the `ConsoleReferenceExternalServerPubSub` sample.
+Metadata is configuration-first: field names, order, and declared types come from `PublishedDataSetDataType` and `DataSetMetaDataType`. When type details are missing, the publisher adapter reads `DataType`, `ValueRank`, and `ArrayDimensions` from the external server and falls back to conservative Variant metadata if the read fails. See [PubSub external server adapter](PubSubExternalServerAdapter.md) for the connection option table, read-mode trade-offs, lifecycle notes, and the `ConsoleReferencePubSub external` sample mode.
 
 ## High availability state providers
 
@@ -1118,10 +1118,9 @@ PubSub is AOT-clean across all four assemblies.
   exercise UADP encode/decode, JSON encode/decode, key-ring rotation,
   scheduler tick dispatch, and metadata-registry lookup inside an
   AOT-published binary.
-- **Reference samples.** Both reference applications publish AOT-clean
+- **Reference sample.** The combined reference application publishes AOT-clean
   with zero `IL2026` / `IL3050` warnings:
-  - [`Applications/ConsoleReferencePublisher`](../Applications/ConsoleReferencePublisher/README.md)
-  - [`Applications/ConsoleReferenceSubscriber`](../Applications/ConsoleReferenceSubscriber/README.md)
+  - [`Applications/ConsoleReferencePubSub`](../Applications/ConsoleReferencePubSub/README.md) (`publisher` / `subscriber` / `external` modes)
 
 ## Spec coverage
 
@@ -1171,6 +1170,5 @@ below maps Part 14 sections to the type / file that implements them.
 - [Profiles and Facets](Profiles.md#pubsub-transports)
 - [Certificate Manager](CertificateManager.md)
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.
-- [Reference Publisher (`Applications/ConsoleReferencePublisher/README.md`)](../Applications/ConsoleReferencePublisher/README.md)
-- [Reference Subscriber (`Applications/ConsoleReferenceSubscriber/README.md`)](../Applications/ConsoleReferenceSubscriber/README.md)
+- [Reference PubSub sample (`Applications/ConsoleReferencePubSub/README.md`)](../Applications/ConsoleReferencePubSub/README.md)
 

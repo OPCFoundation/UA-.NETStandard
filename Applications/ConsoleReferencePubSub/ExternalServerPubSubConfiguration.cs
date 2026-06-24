@@ -30,7 +30,7 @@
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
 
-namespace Quickstarts.ConsoleReferenceExternalServerPubSub
+namespace Quickstarts.ConsoleReferencePubSub
 {
     /// <summary>
     /// Builds the small, self-contained Part 14

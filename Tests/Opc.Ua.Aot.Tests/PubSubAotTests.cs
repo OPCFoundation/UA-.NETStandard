@@ -27,8 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-extern alias publishersample;
-extern alias subscribersample;
+extern alias pubsubsample;
 
 #nullable enable
 
@@ -71,9 +70,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType cfg =
-                publishersample::Quickstarts.ConsoleReferencePublisher
+                pubsubsample::Quickstarts.ConsoleReferencePubSub
                     .PublisherConfigurationBuilder.Build(
-                        publishersample::Quickstarts.ConsoleReferencePublisher
+                        pubsubsample::Quickstarts.ConsoleReferencePubSub
                             .PublisherProfile.UdpUadp,
                         "opc.udp://239.0.0.250:4840",
                         publisherId: 1,
@@ -85,14 +84,14 @@ namespace Opc.Ua.Aot.Tests
                 .WithApplicationId("urn:test:pubsub-aot")
                 .UseAllStandardEncoders()
                 .AddSecurityKeyProvider(
-                    publishersample::Quickstarts.ConsoleReferencePublisher
+                    pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .SampleSecurity.CreateKeyProvider())
                 .AddTransportFactory(new UdpPubSubTransportFactory(
                     Options.Create(new UdpTransportOptions())))
                 .AddDataSetSource(
-                    publishersample::Quickstarts.ConsoleReferencePublisher
+                    pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .PublisherConfigurationBuilder.DataSetName,
-                    new publishersample::Quickstarts.ConsoleReferencePublisher
+                    new pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .SampleDataSetSource())
                 .UseConfiguration(cfg)
                 .Build();
@@ -111,9 +110,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType cfg =
-                subscribersample::Quickstarts.ConsoleReferenceSubscriber
+                pubsubsample::Quickstarts.ConsoleReferencePubSub
                     .SubscriberConfigurationBuilder.Build(
-                        subscribersample::Quickstarts.ConsoleReferenceSubscriber
+                        pubsubsample::Quickstarts.ConsoleReferencePubSub
                             .SubscriberProfile.MqttJson,
                         "mqtt://localhost:1883",
                         publisherIdFilter: 1,
@@ -125,12 +124,12 @@ namespace Opc.Ua.Aot.Tests
                 .UseAllStandardEncoders()
                 .AddTransportFactory(new FakeMqttJsonTransportFactory())
                 .AddSubscribedDataSetSink(
-                    subscribersample::Quickstarts.ConsoleReferenceSubscriber
+                    pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .SubscriberConfigurationBuilder.ReaderName,
-                    new subscribersample::Quickstarts.ConsoleReferenceSubscriber
+                    new pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .ConsoleLoggingSink(
-                            telemetry.CreateLogger<subscribersample::Quickstarts
-                                .ConsoleReferenceSubscriber.ConsoleLoggingSink>()))
+                            telemetry.CreateLogger<pubsubsample::Quickstarts
+                                .ConsoleReferencePubSub.ConsoleLoggingSink>()))
                 .UseConfiguration(cfg)
                 .Build();
 
@@ -176,9 +175,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType original =
-                publishersample::Quickstarts.ConsoleReferencePublisher
+                pubsubsample::Quickstarts.ConsoleReferencePubSub
                     .PublisherConfigurationBuilder.Build(
-                        publishersample::Quickstarts.ConsoleReferencePublisher
+                        pubsubsample::Quickstarts.ConsoleReferencePubSub
                             .PublisherProfile.UdpUadp,
                         "opc.udp://239.0.0.250:4840",
                         publisherId: 7,
@@ -224,9 +223,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType cfg =
-                publishersample::Quickstarts.ConsoleReferencePublisher
+                pubsubsample::Quickstarts.ConsoleReferencePubSub
                     .PublisherConfigurationBuilder.Build(
-                        publishersample::Quickstarts.ConsoleReferencePublisher
+                        pubsubsample::Quickstarts.ConsoleReferencePubSub
                             .PublisherProfile.UdpUadp,
                         "opc.udp://239.0.0.250:4845",
                         publisherId: 9,
@@ -238,14 +237,14 @@ namespace Opc.Ua.Aot.Tests
                 .WithApplicationId("urn:test:publisher-lifecycle")
                 .UseAllStandardEncoders()
                 .AddSecurityKeyProvider(
-                    publishersample::Quickstarts.ConsoleReferencePublisher
+                    pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .SampleSecurity.CreateKeyProvider())
                 .AddTransportFactory(new UdpPubSubTransportFactory(
                     Options.Create(new UdpTransportOptions())))
                 .AddDataSetSource(
-                    publishersample::Quickstarts.ConsoleReferencePublisher
+                    pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .PublisherConfigurationBuilder.DataSetName,
-                    new publishersample::Quickstarts.ConsoleReferencePublisher
+                    new pubsubsample::Quickstarts.ConsoleReferencePubSub
                         .SampleDataSetSource())
                 .UseConfiguration(cfg)
                 .Build();

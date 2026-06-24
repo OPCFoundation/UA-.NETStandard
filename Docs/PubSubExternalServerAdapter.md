@@ -213,7 +213,7 @@ For Actions, leave `ExternalServerActionResponderOptions.AllowUnsecured` at its 
 
 ## Sample
 
-See `Applications\ConsoleReferenceExternalServerPubSub` for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
+See `Applications\ConsoleReferencePubSub` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
 
 ## See also
 

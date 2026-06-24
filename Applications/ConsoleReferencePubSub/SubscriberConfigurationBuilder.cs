@@ -31,75 +31,62 @@ using System;
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
 
-namespace Quickstarts.ConsoleReferencePublisher
+namespace Quickstarts.ConsoleReferencePubSub
 {
     /// <summary>
     /// Builds minimal Part 14 <see cref="PubSubConfigurationDataType"/>
     /// payloads for the three demo wire profiles using the fluent
-    /// <see cref="PubSubConfigurationBuilder"/>. The payloads use the
-    /// "Simple" DataSet exposed by <see cref="SampleDataSetSource"/>
-    /// (BoolToggle, Int32 counter, DateTime).
+    /// <see cref="PubSubConfigurationBuilder"/>. Each payload wires one
+    /// PubSubConnection &gt; ReaderGroup &gt; DataSetReader filtered on
+    /// PublisherId / WriterGroupId / DataSetWriterId.
     /// </summary>
-    public static class PublisherConfigurationBuilder
+    public static class SubscriberConfigurationBuilder
     {
+        public const string ReaderName = "Reader 1";
         public const string DataSetName = "Simple";
         public const string DefaultUdpEndpoint = "opc.udp://239.0.0.1:4840";
         public const string DefaultMqttEndpoint = "mqtt://localhost:1883";
         private const string MqttQueueName = "Quickstarts/Reference/Simple";
 
-        public static string DefaultEndpointFor(PublisherProfile profile)
+        public static string DefaultEndpointFor(SubscriberProfile profile)
         {
-            return profile == PublisherProfile.UdpUadp
+            return profile == SubscriberProfile.UdpUadp
                 ? DefaultUdpEndpoint
                 : DefaultMqttEndpoint;
         }
 
         public static PubSubConfigurationDataType Build(
-            PublisherProfile profile,
+            SubscriberProfile profile,
             string endpoint,
-            ushort publisherId,
-            ushort writerGroupId,
-            ushort dataSetWriterId,
-            int intervalMs)
+            ushort publisherIdFilter,
+            ushort writerGroupIdFilter,
+            ushort dataSetWriterIdFilter)
         {
-            bool udp = profile == PublisherProfile.UdpUadp;
+            bool udp = profile == SubscriberProfile.UdpUadp;
 
             // UADP message security (SignAndEncrypt) is wired for the UADP
             // profiles via the shared StaticSecurityKeyProvider. The JSON
             // profile has no UADP security wrapper, so it stays unsecured.
-            bool secured = profile != PublisherProfile.MqttJson;
+            bool secured = profile != SubscriberProfile.MqttJson;
 
             string transportProfileUri = profile switch
             {
-                PublisherProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
-                PublisherProfile.MqttUadp => Profiles.PubSubMqttUadpTransport,
-                PublisherProfile.MqttJson => Profiles.PubSubMqttJsonTransport,
+                SubscriberProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
+                SubscriberProfile.MqttUadp => Profiles.PubSubMqttUadpTransport,
+                SubscriberProfile.MqttJson => Profiles.PubSubMqttJsonTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))
             };
 
             return PubSubConfigurationBuilder.Create()
-                .AddPublishedDataSet(DataSetName, ds => ds
-                    .AddField("BoolToggle", (byte)DataTypes.Boolean, DataTypeIds.Boolean)
-                    .AddField("Int32", (byte)DataTypes.Int32, DataTypeIds.Int32)
-                    .AddField("DateTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime))
-                .AddConnection("Publisher Connection", connection =>
+                .AddConnection("Subscriber Connection", connection =>
                 {
                     connection
-                        .WithPublisherId(new Variant(publisherId))
+                        .WithPublisherId(new Variant(publisherIdFilter))
                         .WithTransportProfile(transportProfileUri)
                         .WithAddress(endpoint)
-                        .AddWriterGroup("WriterGroup 1", group =>
+                        .AddReaderGroup("ReaderGroup 1", group =>
                         {
-                            group
-                                .WithWriterGroupId(writerGroupId)
-                                .WithPublishingInterval(intervalMs)
-                                .WithMessageSettings(WriterGroupMessageSettings(profile))
-                                .WithTransportSettings(udp
-                                    ? new DatagramWriterGroupTransportDataType()
-                                    : new BrokerWriterGroupTransportDataType
-                                    {
-                                        QueueName = MqttQueueName
-                                    });
+                            group.WithMaxNetworkMessageSize(1500);
                             if (secured)
                             {
                                 group.WithSecurity(
@@ -107,18 +94,26 @@ namespace Quickstarts.ConsoleReferencePublisher
                                     SampleSecurity.SecurityGroupId,
                                     SampleSecurity.SecurityKeyServiceUrl);
                             }
-                            group.AddDataSetWriter("Writer 1", writer =>
+                            group.AddDataSetReader(ReaderName, reader =>
                             {
-                                writer
-                                    .WithDataSetWriterId(dataSetWriterId)
-                                    .WithDataSetName(DataSetName)
-                                    .WithKeyFrameCount(1)
+                                reader
+                                    .WithFilter(
+                                        new Variant(publisherIdFilter),
+                                        writerGroupIdFilter,
+                                        dataSetWriterIdFilter)
                                     .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                                    .WithMessageSettings(WriterMessageSettings(profile));
+                                    .WithMessageReceiveTimeout(5000)
+                                    .WithMessageSettings(ReaderMessageSettings(profile))
+                                    .WithMirrorSubscribedDataSet(ReaderName)
+                                    .WithDataSetMetaData(DataSetName, metaData => metaData
+                                        .WithoutFieldIds()
+                                        .AddField("BoolToggle", (byte)DataTypes.Boolean, DataTypeIds.Boolean)
+                                        .AddField("Int32", (byte)DataTypes.Int32, DataTypeIds.Int32)
+                                        .AddField("DateTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime));
                                 if (!udp)
                                 {
-                                    writer.WithTransportSettings(
-                                        new BrokerDataSetWriterTransportDataType
+                                    reader.WithTransportSettings(
+                                        new BrokerDataSetReaderTransportDataType
                                         {
                                             QueueName = MqttQueueName,
                                             RequestedDeliveryGuarantee
@@ -131,37 +126,16 @@ namespace Quickstarts.ConsoleReferencePublisher
                 .Build();
         }
 
-        private static IEncodeable WriterGroupMessageSettings(PublisherProfile profile)
+        private static IEncodeable ReaderMessageSettings(SubscriberProfile profile)
         {
-            if (profile == PublisherProfile.MqttJson)
+            if (profile == SubscriberProfile.MqttJson)
             {
-                return new JsonWriterGroupMessageDataType
+                return new JsonDataSetReaderMessageDataType
                 {
                     NetworkMessageContentMask = (uint)(
                         JsonNetworkMessageContentMask.NetworkMessageHeader
                         | JsonNetworkMessageContentMask.DataSetMessageHeader
-                        | JsonNetworkMessageContentMask.PublisherId)
-                };
-            }
-            return new UadpWriterGroupMessageDataType
-            {
-                DataSetOrdering = DataSetOrderingType.AscendingWriterId,
-                NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber)
-            };
-        }
-
-        private static IEncodeable WriterMessageSettings(PublisherProfile profile)
-        {
-            if (profile == PublisherProfile.MqttJson)
-            {
-                return new JsonDataSetWriterMessageDataType
-                {
+                        | JsonNetworkMessageContentMask.PublisherId),
                     DataSetMessageContentMask = (uint)(
                         JsonDataSetMessageContentMask.DataSetWriterId
                         | JsonDataSetMessageContentMask.SequenceNumber
@@ -169,8 +143,15 @@ namespace Quickstarts.ConsoleReferencePublisher
                         | JsonDataSetMessageContentMask.Timestamp)
                 };
             }
-            return new UadpDataSetWriterMessageDataType
+            return new UadpDataSetReaderMessageDataType
             {
+                NetworkMessageContentMask = (uint)(
+                    UadpNetworkMessageContentMask.PublisherId
+                    | UadpNetworkMessageContentMask.GroupHeader
+                    | UadpNetworkMessageContentMask.WriterGroupId
+                    | UadpNetworkMessageContentMask.PayloadHeader
+                    | UadpNetworkMessageContentMask.NetworkMessageNumber
+                    | UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(
                     UadpDataSetMessageContentMask.Status
                     | UadpDataSetMessageContentMask.SequenceNumber)

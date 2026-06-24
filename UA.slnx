@@ -2,12 +2,10 @@
   <Folder Name="/Applications/">
     <Project Path="Applications/ConsoleLdsServer/ConsoleLdsServer.csproj" />
     <Project Path="Applications/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
-    <Project Path="Applications/ConsoleReferencePublisher/ConsoleReferencePublisher.csproj" />
+    <Project Path="Applications/ConsoleReferencePubSub/ConsoleReferencePubSub.csproj" />
     <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/MinimalCalcServer/MinimalCalcServer.csproj" />
-    <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
-    <Project Path="Applications/ConsoleReferenceExternalServerPubSub/ConsoleReferenceExternalServerPubSub.csproj" />
     <Project Path="Applications/McpServer/Opc.Ua.Mcp.csproj" />
     <Project Path="Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
     <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
