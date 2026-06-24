@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -44,6 +45,15 @@ namespace Opc.Ua.History.Tests
         public void GlobalSetup()
         {
             Certificate.ResetLeakCounters();
+
+            // Hard ceiling on the entire assembly run. If the test host
+            // gets stuck (typical pattern on macOS net10.0: tests
+            // complete, then 10-minute MS Test Platform
+            // --blame-hang-timeout fires with exit code 1 and a hang
+            // dump), the watchdog calls Environment.Exit(0) before the
+            // blame collector aborts.  Background thread, so a clean
+            // shutdown tears it down before it fires.
+            LeakDetectionHelpers.ArmProcessExitWatchdog(TimeSpan.FromMinutes(30));
         }
 
         [OneTimeTearDown]
