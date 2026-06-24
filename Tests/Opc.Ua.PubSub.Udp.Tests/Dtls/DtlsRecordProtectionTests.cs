@@ -158,6 +158,27 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             }
         }
 
+        [Test]
+        public void SequenceNumberReconstructionSurvivesSixteenBitWraparound()
+        {
+            // SA-DTLS-CRYPTO-03: the 16-bit on-wire sequence number must be
+            // reconstructed to the sender's full 64-bit counter, so records keep
+            // decrypting past 2^16 in an epoch (the AEAD nonce stays aligned).
+            byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
+            using var writer = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+            using var reader = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+
+            byte[] payload = [0xAA, 0xBB, 0xCC];
+            for (int i = 0; i <= 0x10003; i++)
+            {
+                byte[] record = writer.Seal(payload);
+                Assert.That(reader.Open(record), Is.EqualTo(payload),
+                    "Record at sequence " + i + " must decrypt after 16-bit wraparound.");
+            }
+        }
+
         private static byte[] CreateSecret(DtlsCipherSuite cipherSuite)
         {
             int length = cipherSuite is DtlsCipherSuite.TlsAes256GcmSha384 or DtlsCipherSuite.TlsSha384Sha384 ? 48 : 32;

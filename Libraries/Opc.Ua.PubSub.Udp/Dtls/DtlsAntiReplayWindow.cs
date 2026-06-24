@@ -126,6 +126,18 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
         }
 
+        /// <summary>
+        /// Indicates whether at least one record has been accepted (a highest
+        /// sequence number is known).
+        /// </summary>
+        public bool HasHighest => m_hasHighest;
+
+        /// <summary>
+        /// Highest accepted full 64-bit sequence number, used to reconstruct the
+        /// high-order bits of a truncated on-wire sequence number (RFC 9147 §4.2.2).
+        /// </summary>
+        public ulong HighestSequenceNumber => m_highestSequenceNumber;
+
         private ulong m_highestSequenceNumber;
         private ulong m_bitmap;
         private bool m_hasHighest;

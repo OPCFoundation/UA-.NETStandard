@@ -42,6 +42,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         public bool TryAdd(DtlsHandshakeFrame frame, out byte[]? message)
         {
+            // Defense-in-depth (SA-DTLS-HS-07): the MessageLength is an
+            // attacker-controlled 24-bit field. Bound the per-message buffer and
+            // the number of concurrent in-flight messages so a hostile peer cannot
+            // drive unbounded allocation if this reassembler is wired into the
+            // live datagram path.
+            if (frame.MessageLength > MaxHandshakeMessageLength)
+            {
+                throw new DtlsHandshakeException(
+                    "DTLS handshake message exceeds the maximum reassembly size.");
+            }
+
             if (frame.FragmentOffset == 0 && frame.Fragment.Length == frame.MessageLength)
             {
                 message = frame.Fragment;
@@ -50,6 +61,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             if (!m_messages.TryGetValue(frame.MessageSequence, out PendingMessage? pending))
             {
+                if (m_messages.Count >= MaxConcurrentMessages)
+                {
+                    throw new DtlsHandshakeException(
+                        "Too many concurrent in-flight DTLS handshake messages.");
+                }
+
                 pending = new PendingMessage(frame.MessageType, frame.MessageLength);
                 m_messages.Add(frame.MessageSequence, pending);
             }
@@ -163,5 +180,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 
         private readonly Dictionary<ushort, PendingMessage> m_messages = [];
+
+        private const int MaxHandshakeMessageLength = 64 * 1024;
+        private const int MaxConcurrentMessages = 16;
     }
 }

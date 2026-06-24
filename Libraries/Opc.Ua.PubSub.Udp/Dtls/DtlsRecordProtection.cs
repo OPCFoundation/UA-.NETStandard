@@ -180,7 +180,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             try
             {
                 ApplySequenceNumberMask(header, record.Slice(HeaderLength, SequenceNumberSampleLength));
-                ulong sequenceNumber = BinaryPrimitives.ReadUInt16BigEndian(header[1..3]);
+                // Reconstruct the full 64-bit sequence number from the 16-bit on-wire
+                // value (RFC 9147 §4.2.2): pick the value congruent to the truncated
+                // bits that is closest to the highest accepted sequence number. Without
+                // this the receiver's AEAD nonce and replay state desynchronize from the
+                // sender's monotonic counter after 2^16 records in an epoch (SA-DTLS-CRYPTO-03).
+                ushort truncatedSequence = BinaryPrimitives.ReadUInt16BigEndian(header[1..3]);
+                ulong sequenceNumber = ReconstructSequenceNumber(truncatedSequence);
                 if (ReadEpoch(header) != Epoch)
                 {
                     return false;
@@ -425,6 +431,29 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 CryptoUtils.ZeroMemory(macInput.AsSpan(0, header.Length + plaintext.Length));
                 ArrayPool<byte>.Shared.Return(macInput);
             }
+        }
+
+        private ulong ReconstructSequenceNumber(ushort truncatedSequence)
+        {
+            if (!m_replayWindow.HasHighest)
+            {
+                return truncatedSequence;
+            }
+
+            const ulong window = 1UL << 16;
+            const ulong mask = window - 1;
+            ulong expected = m_replayWindow.HighestSequenceNumber + 1;
+            ulong candidate = (expected & ~mask) | truncatedSequence;
+            if (candidate + (window / 2) < expected)
+            {
+                candidate += window;
+            }
+            else if (candidate >= window && candidate > expected + (window / 2))
+            {
+                candidate -= window;
+            }
+
+            return candidate;
         }
 
         private void BuildNonce(ulong sequenceNumber, Span<byte> nonce)
