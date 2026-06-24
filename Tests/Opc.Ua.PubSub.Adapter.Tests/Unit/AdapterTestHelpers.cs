@@ -135,12 +135,16 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         /// Creates a connected mocked external-server session that ignores
         /// connect calls and reports itself connected.
         /// </summary>
-        public static Mock<IExternalServerSession> ConnectedSession()
+        public static Mock<IServerSession> ConnectedSession()
         {
-            var mock = new Mock<IExternalServerSession>();
+            var mock = new Mock<IServerSession>();
             mock.SetupGet(s => s.IsConnected).Returns(true);
             mock.Setup(s => s.ConnectAsync(It.IsAny<CancellationToken>()))
                 .Returns(default(System.Threading.Tasks.ValueTask));
+            mock.Setup(s => s.ResolveNodeIdAsync(
+                    It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns((NodeId node, CancellationToken _) =>
+                    new System.Threading.Tasks.ValueTask<NodeId>(node));
             return mock;
         }
     }

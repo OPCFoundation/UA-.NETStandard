@@ -50,17 +50,17 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
     [TestFixture]
     public sealed class OpcUaPubSubAdapterBuilderExtensionsTests
     {
-        private static (ServiceCollection Services, Mock<IExternalServerSessionFactory> Factory)
+        private static (ServiceCollection Services, Mock<IServerSessionFactory> Factory)
             NewServices()
         {
             var services = new ServiceCollection();
             services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
             services.AddLogging();
 
-            var factory = new Mock<IExternalServerSessionFactory>();
+            var factory = new Mock<IServerSessionFactory>();
             factory
                 .Setup(f => f.Create(
-                    It.IsAny<ExternalServerConnectionOptions>(), It.IsAny<ITelemetryContext>()))
+                    It.IsAny<ServerConnectionOptions>(), It.IsAny<ITelemetryContext>()))
                 .Returns(() => AdapterTestHelpers.ConnectedSession().Object);
             services.AddSingleton(factory.Object);
             return (services, factory);
@@ -100,67 +100,67 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         }
 
         [Test]
-        public void AddExternalServerPublisherNullBuilderThrows()
+        public void AddServerAsPublisherNullBuilderThrows()
         {
             IPubSubBuilder? builder = null;
 
             Assert.That(
-                () => builder!.AddExternalServerPublisher(_ => { }),
+                () => builder!.AddServerAsPublisher(_ => { }),
                 Throws.ArgumentNullException);
         }
 
         [Test]
-        public void AddExternalServerPublisherNullConfigureThrows()
+        public void AddServerAsPublisherNullConfigureThrows()
         {
             (ServiceCollection services, _) = NewServices();
 
             services.AddOpcUa().AddPubSub(pubsub =>
                 Assert.That(
-                    () => pubsub.AddExternalServerPublisher(null!),
+                    () => pubsub.AddServerAsPublisher(null!),
                     Throws.ArgumentNullException));
         }
 
         [Test]
-        public void AddExternalServerSubscriberNullConfigureThrows()
+        public void AddServerAsSubscriberNullConfigureThrows()
         {
             (ServiceCollection services, _) = NewServices();
 
             services.AddOpcUa().AddPubSub(pubsub =>
                 Assert.That(
-                    () => pubsub.AddExternalServerSubscriber(null!),
+                    () => pubsub.AddServerAsSubscriber(null!),
                     Throws.ArgumentNullException));
         }
 
         [Test]
-        public void AddExternalServerActionResponderNullConfigureThrows()
+        public void AddServerAsActionResponderNullConfigureThrows()
         {
             (ServiceCollection services, _) = NewServices();
 
             services.AddOpcUa().AddPubSub(pubsub =>
                 Assert.That(
-                    () => pubsub.AddExternalServerActionResponder(null!),
+                    () => pubsub.AddServerAsActionResponder(null!),
                     Throws.ArgumentNullException));
         }
 
         [Test]
-        public void AddExternalServerPublisherRegistersCoreServices()
+        public void AddServerAsPublisherRegistersCoreServices()
         {
             (ServiceCollection services, _) = NewServices();
             services.AddOpcUa().AddPubSub(pubsub =>
-                pubsub.AddExternalServerPublisher(o => o.Connection.EndpointUrl =
+                pubsub.AddServerAsPublisher(o => o.Connection.EndpointUrl =
                     "opc.tcp://localhost:4840"));
 
             ServiceProvider sp = services.BuildServiceProvider();
 
-            Assert.That(sp.GetService<IExternalServerSessionFactory>(), Is.Not.Null);
-            Assert.That(sp.GetService<ExternalServerAdapterRuntime>(), Is.Not.Null);
+            Assert.That(sp.GetService<IServerSessionFactory>(), Is.Not.Null);
+            Assert.That(sp.GetService<ServerAdapterRuntime>(), Is.Not.Null);
             Assert.That(
-                sp.GetServices<IHostedService>().OfType<ExternalServerAdapterHostedService>(),
+                sp.GetServices<IHostedService>().OfType<ServerAdapterHostedService>(),
                 Is.Not.Empty);
         }
 
         [Test]
-        public void AddExternalServerPublisherWithConfigurationRegistersFactory()
+        public void AddServerAsPublisherWithConfigurationRegistersFactory()
         {
             (ServiceCollection services, _) = NewServices();
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
@@ -173,41 +173,41 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .UseConfiguration(config)
-                .AddExternalServerPublisher(o =>
+                .AddServerAsPublisher(o =>
                 {
                     o.Connection.EndpointUrl = "opc.tcp://localhost:4840";
-                    o.ReadMode = ExternalReadMode.Subscription;
-                    o.Affinity = ExternalSubscriptionAffinity.DataSetWriter;
+                    o.ReadMode = ReadMode.Subscription;
+                    o.Affinity = SubscriptionAffinity.DataSetWriter;
                 }));
             ServiceProvider sp = services.BuildServiceProvider();
 
-            Assert.That(sp.GetService<IExternalServerSessionFactory>(), Is.Not.Null);
-            Assert.That(sp.GetService<ExternalServerAdapterRuntime>(), Is.Not.Null);
+            Assert.That(sp.GetService<IServerSessionFactory>(), Is.Not.Null);
+            Assert.That(sp.GetService<ServerAdapterRuntime>(), Is.Not.Null);
         }
 
         [Test]
-        public void AddExternalServerSubscriberWithConfigurationRegistersFactory()
+        public void AddServerAsSubscriberWithConfigurationRegistersFactory()
         {
             (ServiceCollection services, _) = NewServices();
             PubSubConfigurationDataType config = SubscriberConfiguration(new NodeId(7u));
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .UseConfiguration(config)
-                .AddExternalServerSubscriber(o =>
+                .AddServerAsSubscriber(o =>
                     o.Connection.EndpointUrl = "opc.tcp://localhost:4840"));
             ServiceProvider sp = services.BuildServiceProvider();
 
-            Assert.That(sp.GetService<IExternalServerSessionFactory>(), Is.Not.Null);
-            Assert.That(sp.GetService<ExternalServerAdapterRuntime>(), Is.Not.Null);
+            Assert.That(sp.GetService<IServerSessionFactory>(), Is.Not.Null);
+            Assert.That(sp.GetService<ServerAdapterRuntime>(), Is.Not.Null);
         }
 
         [Test]
-        public void AddExternalServerActionResponderRegistersFactory()
+        public void AddServerAsActionResponderRegistersFactory()
         {
             (ServiceCollection services, _) = NewServices();
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .AddExternalServerActionResponder(o =>
+                .AddServerAsActionResponder(o =>
                 {
                     o.Connection.EndpointUrl = "opc.tcp://localhost:4840";
                     o.AllowUnsecured = true;
@@ -219,8 +219,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 }));
             ServiceProvider sp = services.BuildServiceProvider();
 
-            Assert.That(sp.GetService<IExternalServerSessionFactory>(), Is.Not.Null);
-            Assert.That(sp.GetService<ExternalServerAdapterRuntime>(), Is.Not.Null);
+            Assert.That(sp.GetService<IServerSessionFactory>(), Is.Not.Null);
+            Assert.That(sp.GetService<ServerAdapterRuntime>(), Is.Not.Null);
         }
     }
 }

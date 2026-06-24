@@ -36,15 +36,15 @@ using Opc.Ua.PubSub.Adapter.Session;
 namespace Opc.Ua.PubSub.Adapter.Tests.Unit
 {
     /// <summary>
-    /// In-memory <see cref="IExternalDataChangeSubscription"/> test double that
+    /// In-memory <see cref="IDataChangeSubscription"/> test double that
     /// records monitored items added to it, hands out incrementing client
     /// handles, and lets a test raise <see cref="DataChanged"/> notifications.
     /// </summary>
-    internal sealed class FakeDataChangeSubscription : IExternalDataChangeSubscription
+    internal sealed class FakeDataChangeSubscription : IDataChangeSubscription
     {
         private uint m_nextHandle = 1;
 
-        public event EventHandler<ExternalDataChangeEventArgs>? DataChanged;
+        public event EventHandler<DataChangeEventArgs>? DataChanged;
 
         public List<(NodeId NodeId, uint AttributeId, double SamplingMs)> MonitoredItems { get; }
             = [];
@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         public void Raise(uint clientHandle, NodeId nodeId, DataValue value)
         {
             DataChanged?.Invoke(
-                this, new ExternalDataChangeEventArgs(clientHandle, nodeId, value));
+                this, new DataChangeEventArgs(clientHandle, nodeId, value));
         }
 
         public ValueTask DisposeAsync()

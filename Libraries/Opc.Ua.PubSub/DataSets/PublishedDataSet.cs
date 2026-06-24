@@ -90,6 +90,19 @@ namespace Opc.Ua.PubSub.DataSets
             DataSetClassId = m_metaData.DataSetClassId == Uuid.Empty
                 ? Uuid.Empty
                 : m_metaData.DataSetClassId;
+
+            if (source is IMetaDataChangeNotifier notifier)
+            {
+                // The source can re-resolve its metadata after construction
+                // (e.g. a remote source whose field types resolve on retry or on
+                // a model change). Refresh and re-publish when it signals.
+                notifier.MetaDataChanged += OnSourceMetaDataChanged;
+            }
+        }
+
+        private void OnSourceMetaDataChanged(object? sender, EventArgs e)
+        {
+            RefreshMetaData();
         }
 
         /// <inheritdoc/>

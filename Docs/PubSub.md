@@ -1,6 +1,6 @@
 # Part 14 PubSub
 
-> **OPC UA Part 14 PubSub for .NET Standard 2.0.x.** This document
+> **OPC UA Part 14 PubSub.** This document
 > describes the v1.05.06 PubSub library shipped under the
 > `Opc.Ua.PubSub.*` namespaces. It assumes the reader already
 > understands the OPC UA PubSub model
@@ -36,8 +36,7 @@
   ([NuGet](https://www.nuget.org/packages?q=OPCFoundation.NetStandard.Opc.Ua.PubSub)):
   `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Mqtt`,
   `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`.
-- Multi-TFM: `netstandard2.0`, `netstandard2.1`, `net48`, `net472`,
-  `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
+- Multi-TFM: `netstandard2.1`, `net48`, `net472`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
 - Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), and **MQTT** (3.1.1 + 5.0).
@@ -59,20 +58,22 @@
 
 ## Architecture
 
-The library is laid out as four sibling assemblies — the abstractions
+The library is laid out as five sibling assemblies — the abstractions
 and runtime live in `Opc.Ua.PubSub`, the transports plug in via
-`IPubSubTransportFactory`, and `Opc.Ua.PubSub.Server` is an optional
-add-on that exposes the runtime through the standard OPC UA address
-space.
+`IPubSubTransportFactory`, `Opc.Ua.PubSub.Server` optionally exposes the
+runtime through an in-process standard OPC UA address space, and
+`Opc.Ua.PubSub.Adapter` optionally bridges configured DataSets and
+Actions to an external OPC UA server over a managed client session.
 
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│                        Opc.Ua.PubSub.Server                        │
-│  PublishSubscribe Object · methods · diagnostics binding           │
-│  services.AddServer(...).AddPubSub(...)                            │
-└────────────────────────────────────────────────────────────────────┘
-                              │ IPubSubApplication
-                              ▼
+┌──────────────────────────────────┐      ┌──────────────────────────────────┐      ┌──────────────────────┐
+│ Optional in-process server       │      │ Optional external-server adapter │      │ External OPC UA      │
+│ Opc.Ua.PubSub.Server             │      │ Opc.Ua.PubSub.Adapter            │◀────▶│ server endpoint      │
+│ PublishSubscribe Object ·        │      │ Sources · sinks · Action handler │      │ Read / Write / Call  │
+│ methods · diagnostics binding    │      │ over ManagedSession              │      └──────────────────────┘
+└──────────────────────────────────┘      └──────────────────────────────────┘
+                 │ IPubSubApplication                      │ Sources / sinks / Action handler
+                 ▼                                          ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │                            Opc.Ua.PubSub                           │
 │                                                                    │
@@ -519,7 +520,7 @@ TFM matrix:
 
 | Target                          | MQTTnet major |
 | ------------------------------- | ------------- |
-| `netstandard2.0`, `netstandard2.1`, `net48`, `net472` | v4 |
+| `netstandard2.1`, `net48`, `net472` | v4 |
 | `net8.0`, `net9.0`, `net10.0`   | v5 |
 
 Highlights:
@@ -892,19 +893,71 @@ See `Libraries/Opc.Ua.PubSub.Server/Hosting/IPubSubServerBuilder.cs`.
 
 ## Binding PubSub to an external OPC UA server (client-session adapters)
 
-`Opc.Ua.PubSub.Adapter` binds a PubSub application to a separate OPC UA Client/Server endpoint. Use it when the variables or methods already live in an external server and the PubSub process should act as a bridge: read server values and publish them as Part 14 DataSetMessages, write received DataSet fields back to server nodes, or map inbound Part 14 Action requests to server Method Calls. Use `Opc.Ua.PubSub.Server` instead when the same process hosts the OPC UA server and should expose the standard `PublishSubscribe` Object or bind actions to in-process node managers.
+`Opc.Ua.PubSub.Adapter` connects the Part 14 PubSub runtime to an external OPC UA server by using `Opc.Ua.Client.ManagedSession`. It is a client-session binding package: the PubSub process remains a publisher, subscriber, or Action responder, while the source variables, target variables, or methods live in another OPC UA server.
 
-The adapter keeps the PubSub seams unchanged and supplies implementations backed by `Opc.Ua.Client.ManagedSession`:
+Use this package when you need to bridge an existing server into PubSub without hosting that server in the same process. Use `Opc.Ua.PubSub.Server` for the in-process server address-space integration that exposes the standard Part 14 `PublishSubscribe` Object and binds to node managers directly.
 
-| PubSub seam | Adapter implementation | Server service used |
-| ----------- | ---------------------- | ------------------- |
-| `IPublishedDataSetSource` | `ExternalServerPublishedDataSetSource` | `Read` or client `Subscription` data changes |
-| `ITargetVariableWriter` / `ISubscribedDataSetSink` | `ExternalServerTargetVariableWriter` through `ExternalServerSubscribedDataSetSink` | `Write` |
-| `IPubSubActionHandler` | `ExternalServerActionHandler` with `ExternalActionMethodMap` | `Call` |
+### Package and namespaces
 
-Supply the PubSub configuration before the `AddExternalServer*` call. The adapter composes itself from the configured `PublishedDataSets`, `DataSetWriters`, `DataSetReaders` with `TargetVariables`, and action targets. The connection is a managed client session, so keep-alive and reconnect are handled by `ManagedSession`; adapter components share one `IExternalServerSession` per registration and the hosted service closes sessions on shutdown.
+| Item | Value |
+| ---- | ----- |
+| Assembly | `Opc.Ua.PubSub.Adapter` |
+| NuGet package | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Adapter` |
+| Main namespaces | `Opc.Ua.PubSub.Adapter`, `Opc.Ua.PubSub.Adapter.Session`, `Opc.Ua.PubSub.Adapter.Actions`, `Opc.Ua.PubSub.Adapter.DependencyInjection` |
+| DI entry points | `AddServerAsPublisher`, `AddServerAsSubscriber`, `AddServerAsActionResponder` on `IPubSubBuilder` |
 
-Cyclic publisher: one `Read` service call per publish cycle for each sampled PublishedDataSet.
+The adapter implements Part 14 DataSet and Action seams rather than a new transport. You still register UDP, MQTT, encoders, security key providers, and the PubSub configuration through the normal `AddPubSub` builder.
+
+### Architecture
+
+The DI extensions create one `IServerSession` per adapter registration. `ServerSession` wraps a lazily connected `ManagedSession`; `Read`, `Write`, `Call`, and client data-change Subscriptions all go through that managed session. `ManagedSession` owns keep-alive and reconnect behavior, so adapter components do not expose reconnect handlers or custom retry APIs.
+
+| Direction | Configuration source | Adapter seam | Managed session service |
+| --------- | -------------------- | ------------ | ----------------------- |
+| External server → PubSub | `PublishedDataSetDataType` with `PublishedDataItemsDataType` | `ServerPublishedDataSetSource : IPublishedDataSetSource` | `Read` or client `Subscription` data changes |
+| PubSub → external server | `DataSetReaderDataType.SubscribedDataSet` as `TargetVariablesDataType` | `ServerSubscribedDataSetSink` and `ServerTargetVariableWriter : ITargetVariableWriter` | `Write` |
+| PubSub Action → external server method | `PubSubActionTarget` plus `ActionMethodMap` | `ServerActionHandler : IPubSubActionHandler` | `Call` |
+
+The PubSub configuration must be supplied before an `AddServerAs*` extension runs. The extensions enumerate configured PublishedDataSets, DataSetWriters, DataSetReaders, TargetVariables, and action targets during application composition and then register the appropriate sources, sinks, or handlers.
+
+```csharp
+builder.Services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddUdpTransport()
+        .UseConfigurationFile("publisher.xml")
+        .AddServerAsPublisher(options =>
+        {
+            options.Connection.EndpointUrl = "opc.tcp://localhost:4840";
+        }));
+```
+
+### Connection options
+
+`ServerConnectionOptions` describes the client session to the external OPC UA server.
+
+| Option | Type | Default | Notes |
+| ------ | ---- | ------- | ----- |
+| `EndpointUrl` | `string` | empty | Required endpoint or discovery URL, for example `opc.tcp://localhost:4840`. The session selects an advertised endpoint whose URL scheme matches this URI. |
+| `SecurityMode` | `MessageSecurityMode` | `SignAndEncrypt` | Requested client/server message security mode. |
+| `SecurityPolicyUri` | `string?` | `null` | Requested security policy URI. When `null`, the adapter chooses the highest-security endpoint advertised for the requested `SecurityMode`. |
+| `UserIdentity` | `IUserIdentity?` | `null` | Explicit user identity. Takes precedence over `UserName` and `Password`. |
+| `UserName` | `string?` | `null` | User name for username/password activation. Empty means anonymous unless `UserIdentity` is supplied. |
+| `Password` | `string?` | `null` | Password used with `UserName`. |
+| `SessionName` | `string` | `Opc.Ua.PubSub.Adapter` | Session name reported to the server. |
+| `SessionTimeout` | `uint` | `60000` | Requested session timeout in milliseconds. |
+| `ApplicationConfiguration` | `ApplicationConfiguration?` | `null` | Client application configuration used to create the session. Supply a configuration with a valid application instance certificate for secured connections. |
+| `ApplicationName` | `string` | `Opc.Ua.PubSub.Adapter` | Used only when the adapter builds a minimal client configuration automatically. |
+
+For secured connections, provide an `ApplicationConfiguration` that uses the stack certificate manager and normal trusted issuer, trusted peer, and rejected certificate stores. The automatic fallback configuration is useful for simple hosting scenarios, but production deployments should manage the client application certificate and trust lists explicitly.
+
+### Configuration and hot reload
+
+Adapter options are bound through the standard options pattern and are designed to support hot reload by rewiring only the writers, readers, or responders whose options changed while leaving unchanged components running. The configuration source is pluggable, so a change-feed-backed configuration service such as etcd can drive live reconfiguration. Full hot reload remains a planned follow-up and extension point; it is not fully implemented yet.
+
+### Publisher adapter
+
+`AddServerAsPublisher` registers an `IPublishedDataSetSource` for each configured PublishedDataSet that has a name. The PublishedDataSet must use `PublishedDataItemsDataType`; each `PublishedVariableDataType` becomes a `ReadValueId` using `PublishedVariable`, `AttributeId` (defaulting to `Attributes.Value`), and `IndexRange`.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -921,9 +974,9 @@ builder.Services.AddOpcUa()
         .AddPublisher()
         .AddUdpTransport()
         .UseConfigurationFile("publisher.xml")
-        .AddExternalServerPublisher(options =>
+        .AddServerAsPublisher(options =>
         {
-            options.Connection = new ExternalServerConnectionOptions
+            options.Connection = new ServerConnectionOptions
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
@@ -931,13 +984,31 @@ builder.Services.AddOpcUa()
                 ApplicationConfiguration = clientConfiguration,
                 SessionName = "PubSub external publisher"
             };
-            options.ReadMode = ExternalReadMode.Cyclic;
+            options.ReadMode = ReadMode.Cyclic;
         }));
 
 await builder.Build().RunAsync();
 ```
 
-Subscription publisher: creates client Subscriptions, fills a latest-value cache from monitored item notifications, primes the cache with an initial `Read`, then samples the cache during publish cycles. `ExternalSubscriptionAffinity.WriterGroup` is the default and creates one client Subscription per WriterGroup using the WriterGroup publishing interval; choose `DataSetWriter` for stricter per-writer isolation.
+#### Read modes
+
+| Mode | Behavior | Trade-offs |
+| ---- | -------- | ---------- |
+| `ReadMode.Cyclic` | The publish cycle issues a `Read` service call for the current PublishedDataSet variables. | Simple and predictable; every cycle requests fresh values. Network and server load scale with the publish cadence and field count. |
+| `ReadMode.Subscription` | The adapter creates client Subscriptions, adds monitored items for the referenced PublishedDataSet variables, maintains a latest-value cache from data-change notifications, primes that cache with one initial `Read`, and samples the cache during publish cycles. | Lower publish-path latency and server-driven updates. More lifecycle state: Subscriptions and monitored items must be created, applied, primed, and kept alive by the managed session. |
+
+Cyclic mode is the default and is a good fit when the publish interval is modest, field counts are small, or the external server should only be sampled at the PubSub cadence. Subscription mode is a better fit when values change independently of the publish cadence, lower latency matters, or the external server can serve monitored items more efficiently than repeated Read calls.
+
+#### Subscription affinity
+
+`SubscriptionAffinity` controls how subscription-mode monitored items are grouped.
+
+| Affinity | Behavior | Guidance |
+| -------- | -------- | -------- |
+| `WriterGroup` | One client Subscription per WriterGroup. The subscription publishing interval is the WriterGroup publishing interval, or 1000 ms when the WriterGroup interval is not set. This is the default. | Prefer this for most deployments because it aligns the client/server sampling group with the Part 14 WriterGroup cadence and reduces subscription count. |
+| `DataSetWriter` | One client Subscription per DataSetWriter, using the owning WriterGroup publishing interval. | Use this when writers need isolation, when a server applies per-subscription limits or diagnostics that should map to one writer, or when you want to contain noisy datasets. |
+
+For each affinity group, the coordinator de-duplicates monitored items by node and attribute, uses `PublishedVariableDataType.SamplingIntervalHint` when set, otherwise uses the group publishing interval, applies the monitored items server-side, and then primes the cache with a one-shot `Read`. Until a value is primed or a data change arrives, the cache returns `UncertainInitialValue` for that field.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -954,20 +1025,22 @@ builder.Services.AddOpcUa()
         .AddPublisher()
         .AddMqttTransport()
         .UseConfigurationFile("publisher.xml")
-        .AddExternalServerPublisher(options =>
+        .AddServerAsPublisher(options =>
         {
             options.Connection.EndpointUrl = "opc.tcp://localhost:4840";
             options.Connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
             options.Connection.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
             options.Connection.ApplicationConfiguration = clientConfiguration;
-            options.ReadMode = ExternalReadMode.Subscription;
-            options.Affinity = ExternalSubscriptionAffinity.WriterGroup;
+            options.ReadMode = ReadMode.Subscription;
+            options.Affinity = SubscriptionAffinity.WriterGroup;
         }));
 
 await builder.Build().RunAsync();
 ```
 
-Subscriber writes to an external server by using each DataSetReader's configured `TargetVariablesDataType`. Received fields are resolved by the normal subscriber pipeline and written through `Write` calls to the target node, attribute, and index range.
+### Subscriber adapter
+
+`AddServerAsSubscriber` registers a sink for every configured DataSetReader whose `SubscribedDataSet` is `TargetVariablesDataType`. The normal PubSub subscriber resolves incoming DataSet fields to `FieldTargetDataType` entries; the adapter writes each resolved field to the configured external node, attribute, and write index range.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -983,9 +1056,9 @@ builder.Services.AddOpcUa()
         .AddSubscriber()
         .AddUdpTransport()
         .UseConfigurationFile("subscriber.xml")
-        .AddExternalServerSubscriber(options =>
+        .AddServerAsSubscriber(options =>
         {
-            options.Connection = new ExternalServerConnectionOptions
+            options.Connection = new ServerConnectionOptions
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
@@ -998,7 +1071,11 @@ builder.Services.AddOpcUa()
 await builder.Build().RunAsync();
 ```
 
-Action-to-Call maps inbound PubSub Action requests to Method Calls on the external server. The action target can be resolved by `(DataSetWriterId, ActionTargetId)` or by `ActionName`; input fields become method input arguments in order, and configured output names label the response fields. `AllowUnsecured` defaults to `false`, so responders fail closed unless the PubSub action exchange is secured or the application explicitly opts in.
+The writer is fail-soft for service and transport faults: it logs the failure and returns a Bad status for that field so the receive loop can continue. Cancellation still propagates.
+
+### Action responder adapter
+
+`AddServerAsActionResponder` maps inbound PubSub Actions to external OPC UA Method Calls. `Targets` lists the `PubSubActionTarget` values that should be handled. `MethodMap` resolves each target to an external object and method, either by `(DataSetWriterId, ActionTargetId)` or by `ActionName`. Action input fields are converted to method input arguments in order. Method output arguments are converted back to Action response fields using the configured output field names; positions without names become `Output0`, `Output1`, and so on.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -1023,7 +1100,7 @@ builder.Services.AddOpcUa()
         .AddSubscriber()
         .AddMqttTransport()
         .UseConfigurationFile("actions.xml")
-        .AddExternalServerActionResponder(options =>
+        .AddServerAsActionResponder(options =>
         {
             options.Connection.EndpointUrl = "opc.tcp://localhost:4840";
             options.Connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
@@ -1042,7 +1119,46 @@ builder.Services.AddOpcUa()
 await builder.Build().RunAsync();
 ```
 
-Metadata is configuration-first: field names, order, and declared types come from `PublishedDataSetDataType` and `DataSetMetaDataType`. When type details are missing, the publisher adapter reads `DataType`, `ValueRank`, and `ArrayDimensions` from the external server and falls back to conservative Variant metadata if the read fails. See [PubSub external server adapter](PubSubExternalServerAdapter.md) for the connection option table, read-mode trade-offs, lifecycle notes, and the `ConsoleReferencePubSub external` sample mode.
+Action responders honor the Part 14 security posture of the Action exchange. `AllowUnsecured` defaults to `false`; keep it false unless the deployment explicitly accepts unsecured Action requests and responses. With the default, the responder fails closed for unsecured action paths.
+
+### Metadata behavior
+
+Publisher metadata is configuration-first and server-fallback. The adapter builds the field set, order, and names from the configured `PublishedDataSetDataType`, its `PublishedDataItemsDataType.PublishedData`, and any declared `DataSetMetaDataType`. If a field does not declare type information, `DataSetMetaDataBuilder` reads `DataType`, `ValueRank`, and `ArrayDimensions` from the external server. If the fallback read fails, the field remains conservative: `BaseDataType`, `Variant`, scalar.
+
+This behavior keeps Part 14 metadata stable when the configuration is complete and still lets a bridge infer missing type details from the source server during startup or the first publish sample.
+
+A failed fallback read is **not** cached permanently. The builder retries resolution on each publish cycle (`ResolveAsync`) until the server read succeeds, and exposes `RefreshAsync` to force a fresh resolution on demand (for example from a model-change subscription or a scheduled refresh). When a (re)resolution changes the enriched metadata, the source raises `IMetaDataChangeNotifier.MetaDataChanged`; the owning `PublishedDataSet` then rebuilds and re-emits a DataSetMetaData message so subscribers observe the corrected field types without a restart.
+
+### Browse-path node mapping
+
+Any node id in the mapping configuration — published variables (read), target variables (write), and Action object/method ids (call) — may be expressed as a relative **browse path** instead of a concrete `NodeId`. A browse path is carried as a sentinel `NodeId` whose namespace-zero string identifier starts with `/` (hierarchical) or `.` (aggregates), for example `/2:Demo/2:CurrentTime`. Use `NodeBrowsePath.ToNodeId("/2:Demo/2:CurrentTime")`, or the `ActionMethodMap.Add(actionName, objectBrowsePath, methodBrowsePath)` overload. The adapter resolves browse paths against the server with `TranslateBrowsePathsToNodeIds` the first time the node is used and caches the result, so mappings can be authored without knowing the server-assigned identifiers in advance. Each segment is parsed with `QualifiedName.Parse`, so `2:Name` selects the target namespace; named reference types are not supported in this shorthand (supply a concrete `NodeId` for those).
+
+### Lifecycle and resilience
+
+The adapter registrations add `ServerAdapterRuntime` and `ServerAdapterHostedService`. The runtime owns sessions and subscription coordinators. On host start, subscription-mode publisher coordinators connect the session, create the client Subscriptions, add monitored items, apply changes, and prime caches. Cyclic publishers, subscribers, and action responders connect lazily on first service call. On host shutdown, coordinators and sessions are disposed.
+
+`ManagedSession` handles keep-alive and reconnect for the underlying client session. Adapter read, write, and call components are fail-soft for ordinary service or transport faults: publisher fields become Bad-quality values, subscriber writes return Bad field status, and action failures return Bad action status. Cancellation and disposal still propagate normally. Recoverable, fail-soft faults are logged at `Information` level (not as warnings) so a transient outage does not spam the log.
+
+### Observability
+
+The adapter publishes metrics through a single `System.Diagnostics.Metrics.Meter` named `Opc.Ua.PubSub.Adapter` (`AdapterMetrics`, registered as a singleton). Counters cover read, write, method-call, and metadata-resolution activity with a success/failure split (`opcua.pubsub.adapter.reads` / `.read.failures`, `.writes` / `.write.failures`, `.calls` / `.call.failures`, `.metadata.resolutions` / `.metadata.failures`). Subscribe with the OpenTelemetry metrics SDK (or any `MeterListener`) to observe bridge health alongside the leveled logs.
+
+### Security notes
+
+The external client session uses the same stack security configuration model as other OPC UA clients. Use the certificate manager and trust stores described in [Certificates](Certificates.md) for application instance certificates, issuers, trusted peers, and rejected certificates. Prefer `MessageSecurityMode.SignAndEncrypt` with a SHA-2 security policy such as `SecurityPolicies.Basic256Sha256` or stronger policies supported by the server.
+
+For Actions, leave `ServerActionResponderOptions.AllowUnsecured` at its default `false` unless an application-specific risk assessment requires otherwise. That gate is intentionally fail-closed.
+
+### Sample
+
+See `Applications\ConsoleReferencePubSub` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
+
+### See also
+
+- [Dependency Injection](DependencyInjection.md)
+- [Sessions, Reconnection, and Subscription Engines](Sessions.md)
+- [Certificates](Certificates.md)
+- [OPC UA Part 14](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/)
 
 ## High availability state providers
 
@@ -1164,7 +1280,7 @@ below maps Part 14 sections to the type / file that implements them.
 ## Cross-references
 
 - [Migration sub-doc — `migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md)
-- [External server adapter](PubSubExternalServerAdapter.md)
+- [External server adapter](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [Dependency Injection](DependencyInjection.md)
 - [Native AOT Testing](NativeAoT.md)
 - [Profiles and Facets](Profiles.md#pubsub-transports)

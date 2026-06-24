@@ -294,7 +294,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                     setExitCode(2);
                     return;
                 }
-                if (!TryParseReadMode(parseResult.GetValue(readModeOption), out ExternalReadMode readMode))
+                if (!TryParseReadMode(parseResult.GetValue(readModeOption), out ReadMode readMode))
                 {
                     await Console.Error.WriteLineAsync(
                         $"Unknown --read-mode value '{parseResult.GetValue(readModeOption)}'. "
@@ -304,7 +304,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                     return;
                 }
                 if (!TryParseAffinity(
-                    parseResult.GetValue(affinityOption), out ExternalSubscriptionAffinity affinity))
+                    parseResult.GetValue(affinityOption), out SubscriptionAffinity affinity))
                 {
                     await Console.Error.WriteLineAsync(
                         $"Unknown --affinity value '{parseResult.GetValue(affinityOption)}'. "
@@ -461,8 +461,8 @@ namespace Quickstarts.ConsoleReferencePubSub
 
         private static async Task<int> RunExternalAsync(
             BridgeMode mode,
-            ExternalReadMode readMode,
-            ExternalSubscriptionAffinity affinity,
+            ReadMode readMode,
+            SubscriptionAffinity affinity,
             string externalEndpoint,
             string pubSubEndpoint,
             CancellationToken cancellationToken)
@@ -501,13 +501,13 @@ namespace Quickstarts.ConsoleReferencePubSub
         /// Wires the external PUBLISHER direction: a UDP/UADP publisher whose
         /// PublishedDataSet variables are sampled from an external OPC UA server.
         /// The PubSub configuration is supplied with <c>UseConfiguration</c>
-        /// before <c>AddExternalServerPublisher</c> so the adapter can enumerate
+        /// before <c>AddServerAsPublisher</c> so the adapter can enumerate
         /// the configured PublishedDataSets and attach an external read source.
         /// </summary>
         private static void ConfigureExternalPublisher(
             HostApplicationBuilder builder,
-            ExternalReadMode readMode,
-            ExternalSubscriptionAffinity affinity,
+            ReadMode readMode,
+            SubscriptionAffinity affinity,
             string externalEndpoint,
             string pubSubEndpoint)
         {
@@ -518,7 +518,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                     app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:ExternalPublisher"))
                 .UseConfiguration(
                     ExternalServerPubSubConfiguration.BuildPublisherConfiguration(pubSubEndpoint))
-                .AddExternalServerPublisher(options =>
+                .AddServerAsPublisher(options =>
                 {
                     options.Connection.EndpointUrl = externalEndpoint;
                     // The demo connects unsecured for zero-config interop. A
@@ -547,7 +547,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                     app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:ExternalSubscriber"))
                 .UseConfiguration(
                     ExternalServerPubSubConfiguration.BuildSubscriberConfiguration(pubSubEndpoint))
-                .AddExternalServerSubscriber(options =>
+                .AddServerAsSubscriber(options =>
                 {
                     options.Connection.EndpointUrl = externalEndpoint;
                     options.Connection.SecurityMode = MessageSecurityMode.None;
@@ -570,7 +570,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                     app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:ExternalResponder"))
                 .UseConfiguration(
                     ExternalServerPubSubConfiguration.BuildSubscriberConfiguration(pubSubEndpoint))
-                .AddExternalServerActionResponder(options =>
+                .AddServerAsActionResponder(options =>
                 {
                     options.Connection.EndpointUrl = externalEndpoint;
                     options.Connection.SecurityMode = MessageSecurityMode.None;
@@ -578,8 +578,8 @@ namespace Quickstarts.ConsoleReferencePubSub
                     // Map the "ResetCounters" action to an external method call.
                     options.MethodMap.Add(
                         "ResetCounters",
-                        new NodeId("Demo.External.Methods", 2),
-                        new NodeId("Demo.External.ResetCounters", 2));
+                        NodeId.Parse("ns=2;s=Demo.External.Methods"),
+                        NodeId.Parse("ns=2;s=Demo.External.ResetCounters"));
                     options.Targets.Add(new PubSubActionTarget
                     {
                         DataSetWriterId = 1,
@@ -645,34 +645,34 @@ namespace Quickstarts.ConsoleReferencePubSub
             }
         }
 
-        private static bool TryParseReadMode(string? text, out ExternalReadMode readMode)
+        private static bool TryParseReadMode(string? text, out ReadMode readMode)
         {
             switch (text)
             {
                 case "cyclic":
-                    readMode = ExternalReadMode.Cyclic;
+                    readMode = ReadMode.Cyclic;
                     return true;
                 case "subscription":
-                    readMode = ExternalReadMode.Subscription;
+                    readMode = ReadMode.Subscription;
                     return true;
                 default:
-                    readMode = ExternalReadMode.Cyclic;
+                    readMode = ReadMode.Cyclic;
                     return false;
             }
         }
 
-        private static bool TryParseAffinity(string? text, out ExternalSubscriptionAffinity affinity)
+        private static bool TryParseAffinity(string? text, out SubscriptionAffinity affinity)
         {
             switch (text)
             {
                 case "writergroup":
-                    affinity = ExternalSubscriptionAffinity.WriterGroup;
+                    affinity = SubscriptionAffinity.WriterGroup;
                     return true;
                 case "datasetwriter":
-                    affinity = ExternalSubscriptionAffinity.DataSetWriter;
+                    affinity = SubscriptionAffinity.DataSetWriter;
                     return true;
                 default:
-                    affinity = ExternalSubscriptionAffinity.WriterGroup;
+                    affinity = SubscriptionAffinity.WriterGroup;
                     return false;
             }
         }

@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public void ConstructorNullTelemetryThrows()
         {
-            var session = new Mock<IExternalServerSession>().Object;
+            var session = new Mock<IServerSession>().Object;
             Assert.That(
                 () => new CyclicReadStrategy(session, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("telemetry"));
@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public async Task ReadAsyncEmptyInputReturnsEmptyWithoutSessionCallAsync()
         {
-            Mock<IExternalServerSession> session = AdapterTestHelpers.ConnectedSession();
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             var strategy = new CyclicReadStrategy(session.Object, AdapterTestHelpers.Telemetry());
 
             ArrayOf<DataValue> result = await strategy
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public async Task ReadAsyncDelegatesToSessionReadAsync()
         {
-            Mock<IExternalServerSession> session = AdapterTestHelpers.ConnectedSession();
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             var values = new[]
             {
                 new DataValue(new Variant(11.0)),
@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public async Task ReadAsyncConnectsWhenSessionDisconnectedAsync()
         {
-            var session = new Mock<IExternalServerSession>();
+            var session = new Mock<IServerSession>();
             session.SetupGet(s => s.IsConnected).Returns(false);
             session.Setup(s => s.ConnectAsync(It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public async Task ReadAsyncServiceFaultReturnsPositionallyAlignedBadValuesAsync()
         {
-            Mock<IExternalServerSession> session = AdapterTestHelpers.ConnectedSession();
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             session
                 .Setup(s => s.ReadAsync(
                     It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public async Task ReadAsyncUnexpectedFaultReturnsBadCommunicationErrorAsync()
         {
-            Mock<IExternalServerSession> session = AdapterTestHelpers.ConnectedSession();
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             session
                 .Setup(s => s.ReadAsync(
                     It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
@@ -175,7 +175,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
         [Test]
         public void ReadAsyncCancellationPropagates()
         {
-            Mock<IExternalServerSession> session = AdapterTestHelpers.ConnectedSession();
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             session
                 .Setup(s => s.ReadAsync(
                     It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))

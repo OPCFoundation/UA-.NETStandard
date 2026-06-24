@@ -37,15 +37,15 @@ using Opc.Ua.PubSub.Adapter.Session;
 namespace Opc.Ua.PubSub.Adapter.Publisher
 {
     /// <summary>
-    /// An <see cref="IExternalReadStrategy"/> that serves the publisher's
+    /// An <see cref="IReadStrategy"/> that serves the publisher's
     /// per-cycle reads from a latest-value cache. The cache is keyed by node and
     /// attribute and is kept up to date by an
-    /// <see cref="IExternalDataChangeSubscription"/> whose monitored items push
-    /// data changes through <see cref="IExternalDataChangeSubscription.DataChanged"/>.
+    /// <see cref="IDataChangeSubscription"/> whose monitored items push
+    /// data changes through <see cref="IDataChangeSubscription.DataChanged"/>.
     /// Reads never touch the network: they sample the cache and return the most
     /// recent value, or an uncertain placeholder for keys not yet primed.
     /// </summary>
-    public sealed class SubscriptionReadStrategy : IExternalReadStrategy, IDisposable
+    public sealed class SubscriptionReadStrategy : IReadStrategy, IDisposable
     {
         /// <summary>
         /// Creates a new subscription-backed read strategy.
@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <param name="subscription">
         /// The data-change subscription feeding this cache.
         /// </param>
-        internal void Attach(IExternalDataChangeSubscription subscription)
+        internal void Attach(IDataChangeSubscription subscription)
         {
             if (subscription is null)
             {
@@ -128,7 +128,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// </summary>
         /// <param name="clientHandle">
         /// The client handle returned by
-        /// <see cref="IExternalDataChangeSubscription.AddMonitoredItemAsync"/>.
+        /// <see cref="IDataChangeSubscription.AddMonitoredItemAsync"/>.
         /// </param>
         /// <param name="nodeId">
         /// The monitored node identifier.
@@ -196,7 +196,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             m_handleToKey.Clear();
         }
 
-        private void OnDataChanged(object? sender, ExternalDataChangeEventArgs e)
+        private void OnDataChanged(object? sender, DataChangeEventArgs e)
         {
             if (m_disposed || e is null)
             {
@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         private readonly int m_maxCacheEntries;
         private readonly ConcurrentDictionary<NodeAttributeKey, DataValue> m_cache = new();
         private readonly ConcurrentDictionary<uint, NodeAttributeKey> m_handleToKey = new();
-        private IExternalDataChangeSubscription? m_subscription;
+        private IDataChangeSubscription? m_subscription;
         private int m_cacheFullLogged;
         private bool m_disposed;
     }

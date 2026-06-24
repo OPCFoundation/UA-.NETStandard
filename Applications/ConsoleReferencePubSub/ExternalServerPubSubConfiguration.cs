@@ -226,7 +226,7 @@ namespace Quickstarts.ConsoleReferencePubSub
         {
             return new FieldTargetDataType
             {
-                TargetNodeId = new NodeId(nodeIdentifier, 2),
+                TargetNodeId = NodeId.Parse($"ns=2;s={nodeIdentifier}"),
                 AttributeId = Attributes.Value,
                 OverrideValueHandling = OverrideValueHandling.LastUsableValue
             };

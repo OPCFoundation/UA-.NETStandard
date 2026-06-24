@@ -31,14 +31,15 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.Session;
 
 namespace Opc.Ua.PubSub.Adapter.Publisher
 {
     /// <summary>
-    /// <see cref="IExternalReadStrategy"/> that obtains current values by issuing a
+    /// <see cref="IReadStrategy"/> that obtains current values by issuing a
     /// Read service call to the external server on every publish cycle. The strategy
-    /// ensures the underlying <see cref="IExternalServerSession"/> is connected and
+    /// ensures the underlying <see cref="IServerSession"/> is connected and
     /// then delegates the Read; the cyclic cadence implies <c>maxAge = 0</c>
     /// (always-fresh) semantics, which the managed session applies.
     /// </summary>
@@ -49,9 +50,10 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
     /// the writer can still produce a (bad-quality) DataSetMessage. Cancellation is
     /// always propagated to the caller.
     /// </remarks>
-    public sealed class CyclicReadStrategy : IExternalReadStrategy
+    public sealed class CyclicReadStrategy : IReadStrategy
     {
-        private readonly IExternalServerSession m_session;
+        private readonly IServerSession m_session;
+        private readonly AdapterMetrics? m_metrics;
         private readonly ILogger m_logger;
 
         /// <summary>
@@ -63,15 +65,20 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <param name="telemetry">
         /// The telemetry context used to create the logger.
         /// </param>
+        /// <param name="metrics">
+        /// Optional metrics sink that records read activity.
+        /// </param>
         public CyclicReadStrategy(
-            IExternalServerSession session,
-            ITelemetryContext telemetry)
+            IServerSession session,
+            ITelemetryContext telemetry,
+            AdapterMetrics? metrics = null)
         {
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             if (telemetry is null)
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
+            m_metrics = metrics;
             m_logger = telemetry.CreateLogger<CyclicReadStrategy>();
         }
 
@@ -91,8 +98,12 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 {
                     await m_session.ConnectAsync(cancellationToken).ConfigureAwait(false);
                 }
-                return await m_session.ReadAsync(nodesToRead, cancellationToken)
+                ArrayOf<ReadValueId> resolved = await ResolveNodesAsync(
+                    nodesToRead, cancellationToken).ConfigureAwait(false);
+                ArrayOf<DataValue> values = await m_session.ReadAsync(resolved, cancellationToken)
                     .ConfigureAwait(false);
+                m_metrics?.RecordRead(nodesToRead.Count, true);
+                return values;
             }
             catch (OperationCanceledException)
             {
@@ -100,7 +111,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             catch (ServiceResultException sre)
             {
-                m_logger.LogWarning(
+                m_metrics?.RecordRead(nodesToRead.Count, false);
+                m_logger.LogInformation(
                     sre,
                     "Cyclic read of {Count} node(s) failed with {StatusCode}; " +
                     "returning Bad values for this publish cycle.",
@@ -110,7 +122,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
+                m_metrics?.RecordRead(nodesToRead.Count, false);
+                m_logger.LogInformation(
                     ex,
                     "Cyclic read of {Count} node(s) failed; returning Bad values " +
                     "for this publish cycle.",
@@ -119,6 +132,49 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     nodesToRead.Count,
                     (StatusCode)StatusCodes.BadCommunicationError);
             }
+        }
+
+        private async ValueTask<ArrayOf<ReadValueId>> ResolveNodesAsync(
+            ArrayOf<ReadValueId> nodesToRead,
+            CancellationToken cancellationToken)
+        {
+            ReadValueId[]? resolved = null;
+            for (int i = 0; i < nodesToRead.Count; i++)
+            {
+                ReadValueId source = nodesToRead[i];
+                if (!NodeBrowsePath.IsBrowsePath(source.NodeId))
+                {
+                    resolved?[i] = source;
+                    continue;
+                }
+
+                NodeId target = await m_session
+                    .ResolveNodeIdAsync(source.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                resolved ??= MaterializeUpTo(nodesToRead, i);
+                resolved[i] = new ReadValueId
+                {
+                    NodeId = target,
+                    AttributeId = source.AttributeId,
+                    IndexRange = source.IndexRange,
+                    DataEncoding = source.DataEncoding
+                };
+            }
+            if (resolved is null)
+            {
+                return nodesToRead;
+            }
+            return resolved;
+        }
+
+        private static ReadValueId[] MaterializeUpTo(ArrayOf<ReadValueId> source, int count)
+        {
+            var array = new ReadValueId[source.Count];
+            for (int i = 0; i < count; i++)
+            {
+                array[i] = source[i];
+            }
+            return array;
         }
 
         private static ArrayOf<DataValue> CreateFaultedResults(int count, StatusCode statusCode)

@@ -36,6 +36,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.Actions;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
+using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Adapter.Subscriber;
@@ -53,9 +54,9 @@ namespace Microsoft.Extensions.DependencyInjection
     /// Action requests to external server method calls.
     /// </summary>
     /// <remarks>
-    /// Every extension shares a single <see cref="IExternalServerSession"/> per
+    /// Every extension shares a single <see cref="IServerSession"/> per
     /// registration whose lifetime is owned by a singleton
-    /// <see cref="ExternalServerAdapterRuntime"/>: subscription coordinators are
+    /// <see cref="ServerAdapterRuntime"/>: subscription coordinators are
     /// started on application start and every session is closed on shutdown.
     /// The configured PubSub configuration must be supplied (via
     /// <see cref="IPubSubBuilder.UseConfiguration"/>,
@@ -68,10 +69,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds an external-server PubSub publisher. A single managed session is
         /// created for the configured endpoint and reused across the publisher's
-        /// PublishedDataSets. In <see cref="ExternalReadMode.Subscription"/> mode
-        /// one <see cref="ExternalSubscriptionCoordinator"/> is created for the
+        /// PublishedDataSets. In <see cref="ReadMode.Subscription"/> mode
+        /// one <see cref="SubscriptionCoordinator"/> is created for the
         /// whole configuration and started on application start; in
-        /// <see cref="ExternalReadMode.Cyclic"/> mode a shared
+        /// <see cref="ReadMode.Cyclic"/> mode a shared
         /// <see cref="CyclicReadStrategy"/> issues Read calls each publish cycle.
         /// </summary>
         /// <param name="builder">
@@ -83,9 +84,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
-        public static IPubSubBuilder AddExternalServerPublisher(
+        public static IPubSubBuilder AddServerAsPublisher(
             this IPubSubBuilder builder,
-            Action<ExternalServerPublisherOptions> configure)
+            Action<ServerPublisherOptions> configure)
         {
             if (builder is null)
             {
@@ -96,7 +97,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new ExternalServerPublisherOptions();
+            var options = new ServerPublisherOptions();
             configure(options);
 
             RegisterCoreServices(builder);
@@ -105,28 +106,29 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 ILogger logger =
-                    telemetry.CreateLogger<ExternalServerAdapterRuntime>();
-                ExternalServerAdapterRuntime runtime =
-                    sp.GetRequiredService<ExternalServerAdapterRuntime>();
+                    telemetry.CreateLogger<ServerAdapterRuntime>();
+                ServerAdapterRuntime runtime =
+                    sp.GetRequiredService<ServerAdapterRuntime>();
+                AdapterMetrics metrics = sp.GetRequiredService<AdapterMetrics>();
 
-                IExternalServerSession session = CreateSession(sp, options.Connection, telemetry);
+                IServerSession session = CreateSession(sp, options.Connection, telemetry);
                 runtime.AddSession(session);
 
                 PubSubConfigurationDataType configuration = pb.GetConfigurationOrDefault();
 
-                ExternalSubscriptionCoordinator? coordinator = null;
+                SubscriptionCoordinator? coordinator = null;
                 CyclicReadStrategy? cyclic = null;
                 HashSet<string>? referenced = null;
-                if (options.ReadMode == ExternalReadMode.Subscription)
+                if (options.ReadMode == ReadMode.Subscription)
                 {
-                    coordinator = new ExternalSubscriptionCoordinator(
+                    coordinator = new SubscriptionCoordinator(
                         configuration, session, options.Affinity, telemetry);
                     runtime.AddCoordinator(coordinator);
                     referenced = CollectWriterDataSetNames(configuration);
                 }
                 else
                 {
-                    cyclic = new CyclicReadStrategy(session, telemetry);
+                    cyclic = new CyclicReadStrategy(session, telemetry, metrics);
                 }
 
                 foreach (PublishedDataSetDataType dataSet in EnumeratePublishedDataSets(configuration))
@@ -137,7 +139,7 @@ namespace Microsoft.Extensions.DependencyInjection
                         continue;
                     }
 
-                    IExternalReadStrategy strategy;
+                    IReadStrategy strategy;
                     if (coordinator is not null)
                     {
                         if (referenced is null || !referenced.Contains(name))
@@ -155,9 +157,9 @@ namespace Microsoft.Extensions.DependencyInjection
                         strategy = cyclic!;
                     }
 
-                    var metaDataBuilder = new ExternalDataSetMetaDataBuilder(
-                        dataSet, session, telemetry);
-                    var source = new ExternalServerPublishedDataSetSource(
+                    var metaDataBuilder = new DataSetMetaDataBuilder(
+                        dataSet, session, telemetry, metrics);
+                    var source = new ServerPublishedDataSetSource(
                         dataSet, strategy, metaDataBuilder, telemetry);
                     pb.AddDataSetSource(name, source);
                 }
@@ -182,9 +184,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
-        public static IPubSubBuilder AddExternalServerSubscriber(
+        public static IPubSubBuilder AddServerAsSubscriber(
             this IPubSubBuilder builder,
-            Action<ExternalServerSubscriberOptions> configure)
+            Action<ServerSubscriberOptions> configure)
         {
             if (builder is null)
             {
@@ -195,7 +197,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new ExternalServerSubscriberOptions();
+            var options = new ServerSubscriberOptions();
             configure(options);
 
             RegisterCoreServices(builder);
@@ -203,10 +205,11 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.ConfigureApplication((sp, pb) =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                ExternalServerAdapterRuntime runtime =
-                    sp.GetRequiredService<ExternalServerAdapterRuntime>();
+                ServerAdapterRuntime runtime =
+                    sp.GetRequiredService<ServerAdapterRuntime>();
+                AdapterMetrics metrics = sp.GetRequiredService<AdapterMetrics>();
 
-                IExternalServerSession session = CreateSession(sp, options.Connection, telemetry);
+                IServerSession session = CreateSession(sp, options.Connection, telemetry);
                 runtime.AddSession(session);
 
                 PubSubConfigurationDataType configuration = pb.GetConfigurationOrDefault();
@@ -225,8 +228,8 @@ namespace Microsoft.Extensions.DependencyInjection
                         continue;
                     }
 
-                    ISubscribedDataSetSink sink = ExternalServerSubscribedDataSetSink.Create(
-                        targetVariables, session, telemetry);
+                    ISubscribedDataSetSink sink = ServerSubscribedDataSetSink.Create(
+                        targetVariables, session, telemetry, metrics);
                     pb.AddSubscribedDataSetSink(name, sink);
                 }
             });
@@ -237,8 +240,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds an external-server PubSub action responder. A single managed
         /// session is created for the configured endpoint and an
-        /// <see cref="ExternalServerActionHandler"/> backed by the configured
-        /// <see cref="ExternalServerActionResponderOptions.MethodMap"/> is
+        /// <see cref="ServerActionHandler"/> backed by the configured
+        /// <see cref="ServerActionResponderOptions.MethodMap"/> is
         /// registered for every configured target.
         /// </summary>
         /// <param name="builder">
@@ -250,9 +253,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
-        public static IPubSubBuilder AddExternalServerActionResponder(
+        public static IPubSubBuilder AddServerAsActionResponder(
             this IPubSubBuilder builder,
-            Action<ExternalServerActionResponderOptions> configure)
+            Action<ServerActionResponderOptions> configure)
         {
             if (builder is null)
             {
@@ -263,7 +266,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new ExternalServerActionResponderOptions();
+            var options = new ServerActionResponderOptions();
             configure(options);
 
             RegisterCoreServices(builder);
@@ -271,14 +274,15 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.ConfigureApplication((sp, pb) =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                ExternalServerAdapterRuntime runtime =
-                    sp.GetRequiredService<ExternalServerAdapterRuntime>();
+                ServerAdapterRuntime runtime =
+                    sp.GetRequiredService<ServerAdapterRuntime>();
+                AdapterMetrics metrics = sp.GetRequiredService<AdapterMetrics>();
 
-                IExternalServerSession session = CreateSession(sp, options.Connection, telemetry);
+                IServerSession session = CreateSession(sp, options.Connection, telemetry);
                 runtime.AddSession(session);
 
-                var handler = new ExternalServerActionHandler(
-                    session, options.MethodMap, telemetry);
+                var handler = new ServerActionHandler(
+                    session, options.MethodMap, telemetry, metrics);
                 if (options.Targets is null)
                 {
                     return;
@@ -298,19 +302,20 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void RegisterCoreServices(IPubSubBuilder builder)
         {
-            builder.Services.TryAddSingleton<IExternalServerSessionFactory, ExternalServerSessionFactory>();
-            builder.Services.TryAddSingleton<ExternalServerAdapterRuntime>();
+            builder.Services.TryAddSingleton<IServerSessionFactory, ServerSessionFactory>();
+            builder.Services.TryAddSingleton<AdapterMetrics>();
+            builder.Services.TryAddSingleton<ServerAdapterRuntime>();
             builder.Services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IHostedService, ExternalServerAdapterHostedService>());
+                ServiceDescriptor.Singleton<IHostedService, ServerAdapterHostedService>());
         }
 
-        private static IExternalServerSession CreateSession(
+        private static IServerSession CreateSession(
             IServiceProvider sp,
-            ExternalServerConnectionOptions connection,
+            ServerConnectionOptions connection,
             ITelemetryContext telemetry)
         {
-            IExternalServerSessionFactory factory =
-                sp.GetRequiredService<IExternalServerSessionFactory>();
+            IServerSessionFactory factory =
+                sp.GetRequiredService<IServerSessionFactory>();
             return factory.Create(connection, telemetry);
         }
 

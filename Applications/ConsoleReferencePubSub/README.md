@@ -63,7 +63,7 @@ Options: `--mode publisher|subscriber|responder`,
 > The samples connect to the external server unsecured (`SecurityMode.None`) for
 > zero-config interop. A production bridge must use `SignAndEncrypt` with a provisioned
 > application instance certificate. See
-> [Docs/PubSubExternalServerAdapter.md](../../Docs/PubSubExternalServerAdapter.md).
+> [Docs/PubSub.md external-server adapter section](../../Docs/PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters).
 
 ## Build / publish
 
