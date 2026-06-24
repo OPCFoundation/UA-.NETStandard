@@ -185,3 +185,91 @@ jobs:
         name: TestReport-aot-${{ matrix.os }}
         path: '**/*-report.html'
       if: ${{ always() }}
+
+  # Full UA.slnx build across every target framework, in parallel with the unit
+  # tests. Each TFM is built by pinning the solution to it via CustomTestTarget
+  # (the same mechanism the Azure full build uses). All TFMs are attempted so a
+  # single failure reports every broken TFM; the job fails if any TFM fails.
+  build-all-tfm-windows:
+    name: build-windows-all-tfm
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+          8.0.x
+          9.0.x
+          10.0.x
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build UA.slnx for all target frameworks
+      shell: pwsh
+      run: |
+        $tfms = @('net472', 'net48', 'netstandard2.0', 'netstandard2.1', 'net8.0', 'net9.0', 'net10.0')
+        $failed = @()
+        foreach ($tfm in $tfms) {
+          Write-Host "::group::Build UA.slnx ($tfm)"
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          if ($LASTEXITCODE -ne 0) {
+            $failed += $tfm
+            Write-Host "::error::UA.slnx build failed for $tfm"
+          }
+          Write-Host "::endgroup::"
+        }
+        if ($failed.Count -gt 0) {
+          Write-Host "UA.slnx build failed for: $($failed -join ', ')"
+          exit 1
+        }
+        Write-Host "UA.slnx built successfully for all target frameworks."
+
+  build-all-tfm-linux:
+    name: build-linux-all-tfm
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+          8.0.x
+          9.0.x
+          10.0.x
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build UA.slnx for all Linux-capable target frameworks
+      shell: pwsh
+      run: |
+        # net472/net48/netstandard2.0 (which the build maps onto net48) are .NET
+        # Framework targets and are not built on Linux.
+        $tfms = @('net8.0', 'net9.0', 'net10.0', 'netstandard2.1')
+        $failed = @()
+        foreach ($tfm in $tfms) {
+          Write-Host "::group::Build UA.slnx ($tfm)"
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          if ($LASTEXITCODE -ne 0) {
+            $failed += $tfm
+            Write-Host "::error::UA.slnx build failed for $tfm"
+          }
+          Write-Host "::endgroup::"
+        }
+        if ($failed.Count -gt 0) {
+          Write-Host "UA.slnx build failed for: $($failed -join ', ')"
+          exit 1
+        }
+        Write-Host "UA.slnx built successfully for all target frameworks."
