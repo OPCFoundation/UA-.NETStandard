@@ -232,7 +232,14 @@ namespace Opc.Ua
             ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
             if (channel != null)
             {
-                await channel.CloseAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await channel.CloseAsync(ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    channel.Dispose();
+                }
             }
 
             AuthenticationToken = NodeId.Null;

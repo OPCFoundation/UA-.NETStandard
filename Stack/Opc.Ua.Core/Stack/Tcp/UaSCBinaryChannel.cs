@@ -285,6 +285,16 @@ namespace Opc.Ua.Bindings
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
+                if (m_serverCertificates == null)
+                {
+                    ServerCertificate?.Dispose();
+                    ServerCertificate = null;
+                }
+
+                ClientCertificateChain?.Dispose();
+                ClientCertificateChain = null;
+                ClientCertificate?.Dispose();
+                ClientCertificate = null;
 
                 m_localNonce?.Dispose();
                 m_localNonce = null;

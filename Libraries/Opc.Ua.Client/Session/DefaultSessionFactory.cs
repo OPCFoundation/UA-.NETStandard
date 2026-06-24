@@ -283,6 +283,8 @@ namespace Opc.Ua.Client
 
             Certificate? clientCertificate = null;
             CertificateCollection? clientCertificateChain = null;
+            Certificate? channelClientCertificate = null;
+            CertificateCollection? channelClientCertificateChain = null;
             try
             {
                 if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
@@ -296,6 +298,10 @@ namespace Opc.Ua.Client
                         configuration,
                         clientCertificate,
                         ct).ConfigureAwait(false);
+                    channelClientCertificate = clientCertificate.AddRef();
+                    channelClientCertificateChain = clientCertificateChain == null
+                        ? null
+                        : new CertificateCollection(clientCertificateChain);
                 }
 
                 // initialize the channel which will be created with the server.
@@ -307,8 +313,8 @@ namespace Opc.Ua.Client
                         connection,
                         endpointDescription,
                         endpointConfiguration,
-                        clientCertificate,
-                        clientCertificateChain,
+                        channelClientCertificate,
+                        channelClientCertificateChain,
                         messageContext,
                         ct).ConfigureAwait(false);
                 }
@@ -318,8 +324,8 @@ namespace Opc.Ua.Client
                         configuration,
                         endpointDescription,
                         endpointConfiguration,
-                        clientCertificate,
-                        clientCertificateChain,
+                        channelClientCertificate,
+                        channelClientCertificateChain,
                         messageContext,
                         ct).ConfigureAwait(false);
                 }
@@ -327,12 +333,14 @@ namespace Opc.Ua.Client
                 // Ownership of the cert and chain has been transferred to the
                 // channel's TransportChannelSettings; the channel disposes
                 // them when it is disposed, so we must not dispose here.
-                clientCertificate = null;
-                clientCertificateChain = null;
+                channelClientCertificate = null;
+                channelClientCertificateChain = null;
                 return channel;
             }
             finally
             {
+                channelClientCertificateChain?.Dispose();
+                channelClientCertificate?.Dispose();
                 clientCertificateChain?.Dispose();
                 clientCertificate?.Dispose();
             }
