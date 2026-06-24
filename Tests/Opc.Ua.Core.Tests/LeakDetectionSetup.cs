@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Tests
             // test host indefinitely during assembly teardown.
             if (!LeakDetectionHelpers.TryRunFinalizerSweep())
             {
-                Assert.Warn(
+                Assert.Fail(
                     $"Finalizer sweep exceeded {LeakDetectionHelpers.DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
                     "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
             }
@@ -125,7 +125,7 @@ namespace Opc.Ua.Core.Tests
                         .OrderByDescending(kv => kv.Value.created - kv.Value.disposed)
                         .Select(kv => $"  {kv.Key}: leaked={kv.Value.created - kv.Value.disposed} (created={kv.Value.created}, disposed={kv.Value.disposed})"));
 
-                Assert.Warn(
+                Assert.Fail(
                     $"Certificate leak detected: {leaked} instance(s) created " +
                     $"but not disposed (created={Certificate.InstancesCreated}, " +
                     $"disposed={Certificate.InstancesDisposed}).\n" +

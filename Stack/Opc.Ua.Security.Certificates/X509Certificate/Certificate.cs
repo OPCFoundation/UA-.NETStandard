@@ -717,6 +717,21 @@ namespace Opc.Ua.Security.Certificates
             Interlocked.Exchange(ref s_instancesDisposed, 0);
         }
 
+#if DEBUG
+        /// <summary>
+        /// Test-only hook used by the leak-detector self-tests to account
+        /// for a certificate that is deliberately abandoned (never disposed)
+        /// in order to exercise the finalizer-based leak tracking. Balances
+        /// the global leak counters so the intentional leak does not trip
+        /// the assembly-level leak assertion. DEBUG-only and visible to
+        /// friend test assemblies via <c>InternalsVisibleTo</c>.
+        /// </summary>
+        internal static void AccountForDeliberatelyLeakedInstanceForTest()
+        {
+            Interlocked.Increment(ref s_instancesDisposed);
+        }
+#endif
+
         /// <summary>
         /// The shared, reference-counted state for a logical certificate. One
         /// core is created per <c>new Certificate(...)</c> and may be owned by

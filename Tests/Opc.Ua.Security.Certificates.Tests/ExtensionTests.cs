@@ -44,7 +44,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class ExtensionTests
     {
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases =
+        public static readonly CertificateAsset[] CertificateTestCases =
         [
             .. AssetCollection<CertificateAsset>.CreateFromFiles(
                 TestUtils.EnumerateTestAssets("*.?er"))

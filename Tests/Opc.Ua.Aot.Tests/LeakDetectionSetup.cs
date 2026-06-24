@@ -59,18 +59,19 @@ namespace Opc.Ua.Aot.Tests
             // the same watchdog primitive is inlined here.)
             if (!TryRunFinalizerSweep(s_finalizerSweepTimeout))
             {
-                Console.WriteLine(
-                    $"[WARNING] Finalizer sweep exceeded {s_finalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
+                throw new InvalidOperationException(
+                    $"Finalizer sweep exceeded {s_finalizerSweepTimeout.TotalSeconds:0}s " +
+                    "watchdog; at least one finalizer is stuck. Certificate leak counts are " +
+                    "unreliable, so the run cannot be considered leak-free.");
             }
 
             long leaked = Certificate.InstancesLeaked;
             if (leaked > 0)
             {
-                // TUnit doesn't have Assert.Warn; log via Console (visible
-                // in CI test output) without failing the assembly hook.
-                Console.WriteLine(
-                    $"[WARNING] Certificate leak detected: {leaked} instance(s) created " +
+                // TUnit has no Assert.Warn; throwing from the assembly hook
+                // fails the run, which is the intended hard error.
+                throw new InvalidOperationException(
+                    $"Certificate leak detected: {leaked} instance(s) created " +
                     $"but not disposed (created={Certificate.InstancesCreated}, " +
                     $"disposed={Certificate.InstancesDisposed}).");
             }

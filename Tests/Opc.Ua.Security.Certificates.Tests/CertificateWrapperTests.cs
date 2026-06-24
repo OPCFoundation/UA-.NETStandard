@@ -975,6 +975,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             GC.Collect();
 
             Assert.That(weakRef.IsAlive, Is.False);
+
+            // The certificate above is deliberately abandoned without Dispose
+            // to exercise the finalizer-based leak tracking. Account for it so
+            // the intentional leak does not trip the assembly-level leak
+            // assertion (the inner X509Certificate2 is reclaimed by its own
+            // finalizer).
+            Certificate.AccountForDeliberatelyLeakedInstanceForTest();
         }
 
         [Test]
@@ -1032,8 +1039,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             Certificate cert = CertificateBuilder.Create(cn)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            cert.AddRef();
-            cert.Dispose();
+
+            // AddRef returns a distinct handle over the same shared core;
+            // both handles must be disposed for the core to be released.
+            Certificate handle = cert.AddRef();
+            handle.Dispose();
             cert.Dispose();
             return new WeakReference(cert);
         }

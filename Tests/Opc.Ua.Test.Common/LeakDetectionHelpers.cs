@@ -28,7 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
+using System.Text;
 using System.Threading;
+using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Tests
 {
@@ -106,6 +110,90 @@ namespace Opc.Ua.Tests
             };
             sweep.Start();
             return sweep.Join(timeout ?? DefaultFinalizerSweepTimeout);
+        }
+
+        /// <summary>
+        /// Runs the bounded finalizer sweep and then asserts that no
+        /// <see cref="Certificate"/> instances were leaked during the test
+        /// run (i.e. <see cref="Certificate.InstancesLeaked"/> is zero).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Intended to be called from an assembly-level
+        /// <c>[OneTimeTearDown]</c>. Both a stuck-finalizer watchdog timeout
+        /// and a positive leak count are reported as hard test failures via
+        /// <see cref="Assert.Fail(string)"/> (a sweep timeout makes the leak
+        /// counters unreliable, so it cannot be treated as a pass).
+        /// </para>
+        /// <para>
+        /// In <c>DEBUG</c> builds the failure message additionally includes
+        /// the allocation stack traces of every live (reachable) certificate
+        /// with a positive refcount and of every certificate whose finalizer
+        /// ran while still referenced, so the leak source is visible directly
+        /// in the CI test output.
+        /// </para>
+        /// </remarks>
+        /// <param name="detail">Optional caller-supplied breakdown (for
+        /// example a per-fixture leak summary) appended to the failure
+        /// message.</param>
+        public static void AssertNoCertificateLeaks(string detail = null)
+        {
+            if (!TryRunFinalizerSweep())
+            {
+                Assert.Fail(
+                    $"Finalizer sweep exceeded {DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
+                    "watchdog; at least one finalizer is stuck. Certificate leak counts are " +
+                    "unreliable, so the run cannot be considered leak-free.");
+            }
+
+            long leaked = Certificate.InstancesLeaked;
+            if (leaked <= 0)
+            {
+                return;
+            }
+
+            var message = new StringBuilder();
+            message.Append(CultureInfo.InvariantCulture,
+                $"Certificate leak detected: {leaked} instance(s) created but not disposed " +
+                $"(created={Certificate.InstancesCreated}, disposed={Certificate.InstancesDisposed}).");
+
+            if (!string.IsNullOrEmpty(detail))
+            {
+                message.AppendLine();
+                message.Append(detail);
+            }
+
+            AppendDebugLeakDumps(message);
+            Assert.Fail(message.ToString());
+        }
+
+        /// <summary>
+        /// Appends the DEBUG-only allocation stack traces of leaked
+        /// certificates to <paramref name="message"/>. No-op in release
+        /// builds (the per-instance tracking is compiled out).
+        /// </summary>
+        private static void AppendDebugLeakDumps(StringBuilder message)
+        {
+#if DEBUG
+            message.AppendLine();
+            message.AppendLine("LIVE LEAKED CERTIFICATES (DEBUG):");
+            foreach ((string thumbprint, int refCount, DateTime createdAt, string stackTrace) in
+                Certificate.EnumerateLiveCertificates())
+            {
+                message.AppendLine(CultureInfo.InvariantCulture,
+                    $"  Thumbprint={thumbprint}, RefCount={refCount}, CreatedAt={createdAt:O}");
+                message.AppendLine(CultureInfo.InvariantCulture, $"  StackTrace:\n{stackTrace}");
+            }
+
+            message.AppendLine("FINALIZED-WITH-LEAKED-REF CERTIFICATES (DEBUG):");
+            foreach ((string thumbprint, DateTime createdAt, string stackTrace) in
+                Certificate.EnumerateFinalizedLeakedCertificates())
+            {
+                message.AppendLine(CultureInfo.InvariantCulture,
+                    $"  Thumbprint={thumbprint}, CreatedAt={createdAt:O}");
+                message.AppendLine(CultureInfo.InvariantCulture, $"  StackTrace:\n{stackTrace}");
+            }
+#endif
         }
     }
 }
