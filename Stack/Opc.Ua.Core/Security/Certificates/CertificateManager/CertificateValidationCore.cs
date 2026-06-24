@@ -1492,6 +1492,10 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
             if (srex != null)
             {
+                // GetIssuerNoExceptionAsync may return a resolved (AddRef'd)
+                // issuer reference alongside a revocation error; dispose that
+                // borrowed handle before propagating so it is not leaked.
+                result?.Certificate.Dispose();
                 throw srex;
             }
             return result;

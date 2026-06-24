@@ -342,10 +342,14 @@ namespace Opc.Ua.Configuration
 
             // Initialize CertificateManager early so CheckApplicationInstanceCertificateAsync
             // can use the new ICertificateValidatorEx pipeline (with CertificateValidationOptions.AcceptError)
-            // for per-certificate validation below.
-            CertificateManager ??= CertificateManagerFactory.Create(
-                securityConfiguration,
-                m_telemetry!);
+            // for per-certificate validation below. Adopt the configuration's
+            // existing manager (created eagerly by ApplicationConfiguration.ValidateAsync)
+            // when present, so we do not orphan it — its disposal is otherwise
+            // overwritten below and the certificates it loaded would leak.
+            CertificateManager ??= configuration.CertificateManager as CertificateManager
+                ?? CertificateManagerFactory.Create(
+                    securityConfiguration,
+                    m_telemetry!);
 
             // Make the manager visible via the configuration so consumers
             // that only see ApplicationConfiguration (e.g. Session) can
