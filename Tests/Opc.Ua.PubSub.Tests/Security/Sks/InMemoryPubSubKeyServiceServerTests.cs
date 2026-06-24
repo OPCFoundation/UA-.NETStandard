@@ -77,6 +77,63 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
+        [TestSpec("8.3.2", Summary = "GetSecurityKeys honors granted RolePermissions")]
+        public async Task GetSecurityKeysAllowsCallerWithGrantedRolePermission()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(new SksSecurityGroup(
+                "role-group",
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                TimeSpan.FromMinutes(5),
+                1,
+                1,
+                Array.Empty<PubSubSecurityKey>(),
+                rolePermissions:
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)PermissionType.Call
+                    }
+                ])).ConfigureAwait(false);
+
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                "security-admin",
+                new SksKeyRequest("role-group", 0, 1),
+                [ObjectIds.WellKnownRole_SecurityAdmin]).ConfigureAwait(false);
+
+            Assert.That(response.Keys, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Summary = "GetSecurityKeys allows anonymous only when RolePermissions grant it")]
+        public async Task GetSecurityKeysAllowsAnonymousWhenAnonymousRoleGrantsCall()
+        {
+            var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
+            await server.AddSecurityGroupAsync(new SksSecurityGroup(
+                "anonymous-group",
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                TimeSpan.FromMinutes(5),
+                1,
+                1,
+                Array.Empty<PubSubSecurityKey>(),
+                rolePermissions:
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)PermissionType.Call
+                    }
+                ])).ConfigureAwait(false);
+
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                string.Empty,
+                new SksKeyRequest("anonymous-group", 0, 1)).ConfigureAwait(false);
+
+            Assert.That(response.Keys, Has.Count.EqualTo(1));
+        }
+
+        [Test]
         public async Task GetSecurityGroup_ReturnsNullForUnknownGroup()
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
@@ -148,7 +205,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 async () => await server.GetSecurityKeysAsync(
                     string.Empty,
                     new SksKeyRequest("group-1", 0U, 1U)))!;
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -159,7 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 async () => await server.GetSecurityKeysAsync(
                     CallerId,
                     new SksKeyRequest("missing", 0U, 1U)))!;
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -253,7 +310,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
             SksKeyResponse response = await server.GetSecurityKeysAsync(
                 CallerId,
-                new SksKeyRequest("role-group", 0U, 1U)).ConfigureAwait(false);
+                new SksKeyRequest("role-group", 0U, 1U),
+                [ObjectIds.WellKnownRole_AuthenticatedUser]).ConfigureAwait(false);
 
             Assert.That(response.Keys, Has.Count.EqualTo(1));
         }

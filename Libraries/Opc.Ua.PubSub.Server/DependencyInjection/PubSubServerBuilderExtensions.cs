@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server;
 using Opc.Ua.PubSub.Server.Hosting;
@@ -74,12 +75,14 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            builder.Services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
 
             builder.Services.TryAddSingleton(sp =>
             {
                 var server = new InMemoryPubSubKeyServiceServer(
                     sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                    sp.GetRequiredService<ITelemetryContext>());
+                    sp.GetRequiredService<ITelemetryContext>(),
+                    keyStore: sp.GetRequiredService<IPubSubSecurityKeyStore>());
                 configure?.Invoke(server);
                 return server;
             });
@@ -114,6 +117,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 securityGroupId,
                 sp.GetRequiredService<ITelemetryContext>(),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            builder.Services.AddSingleton<IPubSubSecurityKeyProvider>(
+                sp => sp.GetRequiredService<PushSecurityKeyProvider>());
             return builder;
         }
 

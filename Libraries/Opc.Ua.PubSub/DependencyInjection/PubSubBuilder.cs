@@ -35,8 +35,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -106,6 +108,54 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             Services.AddSingleton(keyProvider);
             m_steps.Add((_, pb) => pb.AddSecurityKeyProvider(keyProvider));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithConfigurationStore(IPubSubConfigurationStore store)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
+            Services.AddSingleton(store);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithIdAllocator(IPubSubIdAllocator allocator)
+        {
+            if (allocator is null)
+            {
+                throw new ArgumentNullException(nameof(allocator));
+            }
+
+            Services.AddSingleton(allocator);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithRuntimeStateStore(IPubSubRuntimeStateStore store)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
+            Services.AddSingleton(store);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithSecurityKeyStore(IPubSubSecurityKeyStore store)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
+            Services.AddSingleton(store);
             return this;
         }
 

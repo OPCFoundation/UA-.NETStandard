@@ -144,6 +144,71 @@ namespace Opc.Ua.PubSub.Configuration
                 new PubSubConfigurationChangedEventArgs(previous, configuration));
         }
 
+        /// <inheritdoc/>
+        public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            lock (m_versionGate)
+            {
+                return new ValueTask<ConfigurationVersionDataType?>(
+                    m_configurationVersion is null
+                        ? null
+                        : (ConfigurationVersionDataType)m_configurationVersion.Clone());
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (configurationVersion is null)
+            {
+                throw new ArgumentNullException(nameof(configurationVersion));
+            }
+
+            lock (m_versionGate)
+            {
+                m_configurationVersion = (ConfigurationVersionDataType)configurationVersion.Clone();
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
+            string publishedDataSetName,
+            CancellationToken cancellationToken = default)
+        {
+            PubSubConfigurationDataType configuration = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            PublishedDataSetDataType? dataSet = FindPublishedDataSet(configuration, publishedDataSetName);
+            return dataSet?.DataSetMetaData?.ConfigurationVersion;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask SetPublishedDataSetConfigurationVersionAsync(
+            string publishedDataSetName,
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default)
+        {
+            if (configurationVersion is null)
+            {
+                throw new ArgumentNullException(nameof(configurationVersion));
+            }
+
+            PubSubConfigurationDataType configuration = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            PublishedDataSetDataType? dataSet = FindPublishedDataSet(configuration, publishedDataSetName);
+            if (dataSet?.DataSetMetaData is null)
+            {
+                return;
+            }
+
+            dataSet.DataSetMetaData.ConfigurationVersion = configurationVersion;
+            await SaveAsync(configuration, cancellationToken).ConfigureAwait(false);
+        }
+
         private async ValueTask<PubSubConfigurationDataType?> TryLoadPreviousAsync(
             CancellationToken cancellationToken)
         {
@@ -175,6 +240,26 @@ namespace Opc.Ua.PubSub.Configuration
             IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                 ServiceMessageContext.CreateEmpty(m_telemetry);
             return PubSubConfigurationXmlSerializer.DecodeXml(payload, context);
+        }
+
+        private static PublishedDataSetDataType? FindPublishedDataSet(
+            PubSubConfigurationDataType configuration,
+            string publishedDataSetName)
+        {
+            if (configuration.PublishedDataSets.IsNull)
+            {
+                return null;
+            }
+
+            foreach (PublishedDataSetDataType dataSet in configuration.PublishedDataSets)
+            {
+                if (StringComparer.Ordinal.Equals(dataSet.Name, publishedDataSetName))
+                {
+                    return dataSet;
+                }
+            }
+
+            return null;
         }
 
         private byte[] EncodePayload(PubSubConfigurationDataType configuration)
@@ -280,5 +365,7 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly string m_filePath;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private readonly System.Threading.Lock m_versionGate = new();
+        private ConfigurationVersionDataType? m_configurationVersion;
     }
 }

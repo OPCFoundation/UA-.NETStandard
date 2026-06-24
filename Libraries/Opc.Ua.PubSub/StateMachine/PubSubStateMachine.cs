@@ -82,10 +82,12 @@ namespace Opc.Ua.PubSub.StateMachine
         /// </param>
         /// <param name="componentKind">Kind of component this machine tracks.</param>
         /// <param name="logger">Contextual logger; required.</param>
+        /// <param name="initialState">Initial state to seed from a runtime-state store.</param>
         public PubSubStateMachine(
             string componentName,
             PubSubComponentKind componentKind,
-            ILogger logger)
+            ILogger logger,
+            PubSubState initialState = PubSubState.Disabled)
         {
             if (componentName is null)
             {
@@ -102,8 +104,8 @@ namespace Opc.Ua.PubSub.StateMachine
             ComponentName = componentName;
             ComponentKind = componentKind;
             m_logger = logger;
-            m_state = PubSubState.Disabled;
-            m_statusCode = StatusCodes.BadInvalidState;
+            m_state = initialState;
+            m_statusCode = DefaultStatusCodeFor(initialState);
         }
 
         /// <summary>
@@ -318,6 +320,7 @@ namespace Opc.Ua.PubSub.StateMachine
             StatusCode errorStatus,
             PubSubStateTransitionReason reason = PubSubStateTransitionReason.Fatal)
         {
+            TryPauseChildrenCascade();
             return TryTransition(
                 PubSubState.Error,
                 reason,
@@ -379,6 +382,20 @@ namespace Opc.Ua.PubSub.StateMachine
             return TryPause(PubSubStateTransitionReason.ByParent);
         }
 
+        private void TryPauseChildrenCascade()
+        {
+            PubSubStateMachine[] childSnapshot;
+            lock (m_lock)
+            {
+                childSnapshot = [.. m_children];
+            }
+
+            foreach (PubSubStateMachine child in childSnapshot)
+            {
+                _ = child.TryPauseCascade();
+            }
+        }
+
         /// <summary>
         /// Cascades a parent-driven resume to all paused children recursively.
         /// </summary>
@@ -413,6 +430,20 @@ namespace Opc.Ua.PubSub.StateMachine
                 }
                 m_disposed = true;
                 m_parent?.DetachChild(this);
+            }
+        }
+
+        /// <summary>
+        /// Restores a persisted state without raising a transition event.
+        /// </summary>
+        /// <param name="state">Persisted PubSub state.</param>
+        public void Restore(PubSubState state)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposedLocked();
+                m_state = state;
+                m_statusCode = DefaultStatusCodeFor(state);
             }
         }
 

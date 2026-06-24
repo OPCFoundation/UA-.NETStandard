@@ -140,13 +140,14 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
 
             string? callerIdentity = context.UserId;
+            ArrayOf<NodeId> callerRoleIds = GetCallerRoleIds(context);
             var request = new SksKeyRequest(securityGroupId, startingTokenId, requestedKeyCount);
 
             SksKeyResponse response;
             try
             {
                 response = m_keyService
-                    .GetSecurityKeysAsync(callerIdentity ?? string.Empty, request)
+                    .GetSecurityKeysAsync(callerIdentity ?? string.Empty, request, callerRoleIds)
                     .AsTask()
                     .GetAwaiter()
                     .GetResult();
@@ -183,6 +184,22 @@ namespace Opc.Ua.PubSub.Security.Sks
             outputArguments.Add(Variant.From(response.TimeToNextKey.TotalMilliseconds));
             outputArguments.Add(Variant.From(response.KeyLifetime.TotalMilliseconds));
             return ServiceResult.Good;
+        }
+
+        private static ArrayOf<NodeId> GetCallerRoleIds(ISystemContext context)
+        {
+            if (context is ISessionSystemContext sessionSystemContext &&
+                sessionSystemContext.UserIdentity is not null)
+            {
+                return sessionSystemContext.UserIdentity.GrantedRoleIds;
+            }
+
+            if (context is ISessionOperationContext sessionOperationContext)
+            {
+                return sessionOperationContext.UserIdentity.GrantedRoleIds;
+            }
+
+            return [];
         }
     }
 }

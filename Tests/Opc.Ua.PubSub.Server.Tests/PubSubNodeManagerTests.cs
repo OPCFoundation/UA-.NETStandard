@@ -152,6 +152,158 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        [TestSpec("8.3.4", Summary = "AddSecurityGroup returns a browseable SecurityGroupType node")]
+        [TestSpec("8.4.2", Summary = "SecurityGroupType InvalidateKeys is callable")]
+        [TestSpec("8.4.3", Summary = "SecurityGroupType ForceKeyRotation is callable")]
+        public async Task AddSecurityGroupMaterializesRoutableNodeAndKeyMethods()
+        {
+            using var harness = new Harness(opt =>
+            {
+                opt.ExposeSecurityKeyService = true;
+            }, includeSks: true);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            var outputs = new List<Variant>();
+            ArrayOf<ExtensionObject> rolePermissions =
+            [
+                new ExtensionObject(new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                    Permissions = (uint)PermissionType.Call
+                })
+            ];
+
+            ServiceResult addResult = harness.AddSecurityGroupMethod.OnCallMethod!(
+                harness.Context,
+                harness.AddSecurityGroupMethod,
+                BuildArray(
+                    Variant.From("rd3-group"),
+                    Variant.From(60_000.0),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(1U),
+                    Variant.From(1U),
+                    Variant.From(rolePermissions)),
+                outputs);
+            Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
+            BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
+            MethodState invalidate = (MethodState)groupNode.FindChild(
+                harness.Context,
+                new QualifiedName("InvalidateKeys", harness.Manager.AddressSpaceNamespaceIndex))!;
+            MethodState rotate = (MethodState)groupNode.FindChild(
+                harness.Context,
+                new QualifiedName("ForceKeyRotation", harness.Manager.AddressSpaceNamespaceIndex))!;
+            SksKeyResponse before = await harness.SksServer.GetSecurityKeysAsync(
+                "admin",
+                new SksKeyRequest("rd3-group", 0, 1),
+                [ObjectIds.WellKnownRole_SecurityAdmin]).ConfigureAwait(false);
+
+            ServiceResult rotateResult = rotate.OnCallMethod!(
+                harness.Context,
+                rotate,
+                [],
+                []);
+            SksKeyResponse afterRotate = await harness.SksServer.GetSecurityKeysAsync(
+                "admin",
+                new SksKeyRequest("rd3-group", 0, 1),
+                [ObjectIds.WellKnownRole_SecurityAdmin]).ConfigureAwait(false);
+            ServiceResult invalidateResult = invalidate.OnCallMethod!(
+                harness.Context,
+                invalidate,
+                [],
+                []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(StatusCode.IsGood(addResult.StatusCode), Is.True);
+                Assert.That(groupNode, Is.Not.Null);
+                Assert.That(groupNode.TypeDefinitionId, Is.EqualTo(new NodeId(15471u)));
+                Assert.That(groupNode.RolePermissions, Has.Count.EqualTo(1));
+                Assert.That(StatusCode.IsGood(rotateResult.StatusCode), Is.True);
+                Assert.That(afterRotate.FirstTokenId, Is.Not.EqualTo(before.FirstTokenId));
+                Assert.That(StatusCode.IsGood(invalidateResult.StatusCode), Is.True);
+            });
+        }
+
+        [Test]
+        [TestSpec("8.7.2", Summary = "KeyPushTargets AddPushTarget materializes PubSubKeyPushTargetType")]
+        [TestSpec("8.6.3", Summary = "Push targets connect SecurityGroups")]
+        [TestSpec("8.6.6", Summary = "TriggerKeyUpdate pushes keys to the target")]
+        public async Task KeyPushTargetCanBeAddedConnectedTriggeredAndRemoved()
+        {
+            var pushProvider = new PushSecurityKeyProvider("push-endpoint", NUnitTelemetryContext.Create());
+            using var harness = new Harness(opt =>
+            {
+                opt.ExposeSecurityKeyService = true;
+            }, includeSks: true, pushProvider: pushProvider);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            await harness.SksServer.AddSecurityGroupAsync(new SksSecurityGroup(
+                "rd4-group",
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                TimeSpan.FromMinutes(1),
+                1,
+                1,
+                Array.Empty<PubSubSecurityKey>(),
+                rolePermissions:
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)PermissionType.Call
+                    }
+                ])).ConfigureAwait(false);
+            await harness.Manager.RebuildSksAddressSpaceForTestsAsync().ConfigureAwait(false);
+            NodeId groupNodeId = harness.Manager.MethodHandlers.TryGetSecurityGroupNodeId("rd4-group") ?? NodeId.Null;
+            var addOutputs = new List<Variant>();
+
+            ServiceResult addResult = harness.AddPushTargetMethod.OnCallMethod!(
+                harness.Context,
+                harness.AddPushTargetMethod,
+                BuildArray(
+                    Variant.From("target-app"),
+                    Variant.From("push-endpoint"),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(UserTokenType.Anonymous),
+                    Variant.From((ushort)1),
+                    Variant.From(1_000.0)),
+                addOutputs);
+            Assert.That(addOutputs[0].TryGetValue(out NodeId targetNodeId), Is.True);
+            BaseObjectState targetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(targetNodeId);
+            MethodState connect = (MethodState)targetNode.FindChild(
+                harness.Context,
+                new QualifiedName("ConnectSecurityGroups", harness.Manager.AddressSpaceNamespaceIndex))!;
+            MethodState trigger = (MethodState)targetNode.FindChild(
+                harness.Context,
+                new QualifiedName("TriggerKeyUpdate", harness.Manager.AddressSpaceNamespaceIndex))!;
+            MethodState remove = harness.RemovePushTargetMethod;
+            var connectOutputs = new List<Variant>();
+
+            ServiceResult connectResult = connect.OnCallMethod!(
+                harness.Context,
+                connect,
+                BuildArray(Variant.From(new ArrayOf<NodeId>(new[] { groupNodeId }))),
+                connectOutputs);
+            ServiceResult triggerResult = trigger.OnCallMethod!(harness.Context, trigger, [], []);
+            PubSubSecurityKey pushed = await pushProvider.GetCurrentKeyAsync().ConfigureAwait(false);
+            ServiceResult removeResult = remove.OnCallMethod!(
+                harness.Context,
+                remove,
+                BuildArray(Variant.From(targetNodeId)),
+                []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(StatusCode.IsGood(addResult.StatusCode), Is.True);
+                Assert.That(targetNode.TypeDefinitionId, Is.EqualTo(new NodeId(25337u)));
+                Assert.That(StatusCode.IsGood(connectResult.StatusCode), Is.True);
+                Assert.That(StatusCode.IsGood(triggerResult.StatusCode), Is.True);
+                Assert.That(pushed.TokenId, Is.GreaterThan(0U));
+                Assert.That(StatusCode.IsGood(removeResult.StatusCode), Is.True);
+                Assert.That(harness.Manager.FindPredefinedNode<BaseObjectState>(targetNodeId), Is.Null);
+            });
+        }
+
+        [Test]
         public async Task CreateAddressSpaceAsync_WithDiagnosticsExposureNone_SkipsBinding()
         {
             using var harness = new Harness(opt =>
@@ -187,14 +339,17 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(connectionId);
             BaseObjectState statusNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
-                new NodeId("pubsub:connection:conn-tree:Status", 0));
+                new NodeId("pubsub:connection:conn-tree:Status", harness.Manager.AddressSpaceNamespaceIndex));
             MethodState enable = harness.Manager.FindPredefinedNode<MethodState>(
-                new NodeId("pubsub:connection:conn-tree:Status:Enable", 0));
+                new NodeId("pubsub:connection:conn-tree:Status:Enable", harness.Manager.AddressSpaceNamespaceIndex));
             BaseDataVariableState version = harness.Manager.FindPredefinedNode<BaseDataVariableState>(
-                new NodeId("pubsub:connection:conn-tree:ConfigurationVersion", 0));
+                new NodeId(
+                    "pubsub:connection:conn-tree:ConfigurationVersion",
+                    harness.Manager.AddressSpaceNamespaceIndex));
 
             Assert.Multiple(() =>
             {
+                Assert.That(connectionId.NamespaceIndex, Is.EqualTo(harness.Manager.AddressSpaceNamespaceIndex));
                 Assert.That(connectionNode, Is.Not.Null);
                 Assert.That(connectionNode.TypeDefinitionId, Is.EqualTo(new NodeId(14209u)));
                 Assert.That(statusNode, Is.Not.Null);
@@ -246,13 +401,19 @@ namespace Opc.Ua.PubSub.Server.Tests
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             BaseObjectState fileNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
-                new NodeId("pubsub:configuration", 0))!;
-            var open = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("Open"))!;
-            var read = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("Read"))!;
-            var reserve = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("ReserveIds"))!;
+                new NodeId("pubsub:configuration", harness.Manager.AddressSpaceNamespaceIndex))!;
+            var open = (MethodState)fileNode.FindChild(
+                harness.Context,
+                new QualifiedName("Open", harness.Manager.AddressSpaceNamespaceIndex))!;
+            var read = (MethodState)fileNode.FindChild(
+                harness.Context,
+                new QualifiedName("Read", harness.Manager.AddressSpaceNamespaceIndex))!;
+            var reserve = (MethodState)fileNode.FindChild(
+                harness.Context,
+                new QualifiedName("ReserveIds", harness.Manager.AddressSpaceNamespaceIndex))!;
             var closeAndUpdate = (MethodState)fileNode.FindChild(
                 harness.Context,
-                new QualifiedName("CloseAndUpdate"))!;
+                new QualifiedName("CloseAndUpdate", harness.Manager.AddressSpaceNamespaceIndex))!;
             var reserveOutputs = new List<Variant>();
             ServiceResult reserveResult = reserve.OnCallMethod!(
                 harness.Context,
@@ -281,7 +442,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildArray(Variant.From((byte)2)),
                 openWriteOutputs);
             Assert.That(openWriteOutputs[0].TryGetValue(out uint writeHandle), Is.True);
-            var write = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName("Write"))!;
+            var write = (MethodState)fileNode.FindChild(
+                harness.Context,
+                new QualifiedName("Write", harness.Manager.AddressSpaceNamespaceIndex))!;
             write.OnCallMethod!(
                 harness.Context,
                 write,
@@ -376,7 +539,10 @@ namespace Opc.Ua.PubSub.Server.Tests
 
         private sealed class Harness : IDisposable
         {
-            public Harness(Action<PubSubServerOptions>? configure = null, bool includeSks = false)
+            public Harness(
+                Action<PubSubServerOptions>? configure = null,
+                bool includeSks = false,
+                PushSecurityKeyProvider? pushProvider = null)
             {
                 MockServer = new Mock<IServerInternal>();
                 NamespaceTable = new NamespaceTable();
@@ -418,6 +584,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 GetSecurityGroupMethod = NewMethod(15440);
                 AddSecurityGroupMethod = NewMethod(15444);
                 RemoveSecurityGroupMethod = NewMethod(15447);
+                AddPushTargetMethod = NewMethod(25441);
+                RemovePushTargetMethod = NewMethod(25444);
                 AddDataSetFolderMethod = NewMethod(16884);
                 RemoveDataSetFolderMethod = NewMethod(16923);
                 StatusVariable = new BaseDataVariableState(null)
@@ -435,6 +603,16 @@ namespace Opc.Ua.PubSub.Server.Tests
                     NodeId = new NodeId(14478u),
                     BrowseName = new QualifiedName("PublishedDataSets")
                 };
+                SecurityGroupsObject = new BaseObjectState(PublishSubscribeObject)
+                {
+                    NodeId = new NodeId(15443u),
+                    BrowseName = new QualifiedName("SecurityGroups")
+                };
+                KeyPushTargetsObject = new BaseObjectState(PublishSubscribeObject)
+                {
+                    NodeId = new NodeId(25440u),
+                    BrowseName = new QualifiedName("KeyPushTargets")
+                };
 
                 var diagnosticsNm = new Mock<IDiagnosticsNodeManager>();
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(17407u))).Returns(EnableMethod);
@@ -446,6 +624,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15440u))).Returns(GetSecurityGroupMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15444u))).Returns(AddSecurityGroupMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15447u))).Returns(RemoveSecurityGroupMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25441u))).Returns(AddPushTargetMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25444u))).Returns(RemovePushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(16884u))).Returns(AddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(16923u))).Returns(RemoveDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(new NodeId(17406u))).Returns(StatusVariable);
@@ -455,6 +635,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                     .Returns(PublishSubscribeObject);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(14478u)))
                     .Returns(PublishedDataSetsObject);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(15443u)))
+                    .Returns(SecurityGroupsObject);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(25440u)))
+                    .Returns(KeyPushTargetsObject);
                 MockServer.Setup(s => s.DiagnosticsNodeManager).Returns(diagnosticsNm.Object);
 
                 Application = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
@@ -479,7 +663,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Application,
                     includeSks ? SksServer : null,
                     Options,
-                    telemetry);
+                    telemetry,
+                    pushKeyProviders: pushProvider is null ? null : [pushProvider]);
             }
 
             public Mock<IServerInternal> MockServer { get; }
@@ -498,11 +683,15 @@ namespace Opc.Ua.PubSub.Server.Tests
             public MethodState GetSecurityGroupMethod { get; }
             public MethodState AddSecurityGroupMethod { get; }
             public MethodState RemoveSecurityGroupMethod { get; }
+            public MethodState AddPushTargetMethod { get; }
+            public MethodState RemovePushTargetMethod { get; }
             public MethodState AddDataSetFolderMethod { get; }
             public MethodState RemoveDataSetFolderMethod { get; }
             public BaseDataVariableState StatusVariable { get; }
             public BaseObjectState PublishSubscribeObject { get; }
             public BaseObjectState PublishedDataSetsObject { get; }
+            public BaseObjectState SecurityGroupsObject { get; }
+            public BaseObjectState KeyPushTargetsObject { get; }
             public ServerSystemContext Context => m_serverSystemContext;
 
             public void Dispose()

@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly ILogger m_logger;
         private readonly Dictionary<NodeId, string> m_securityGroupNodeIds = new();
         private readonly System.Threading.Lock m_gate = new();
-        private uint m_nextSecurityGroupHandle;
+        private ushort m_securityGroupNamespaceIndex;
 
         /// <summary>
         /// Creates a new <see cref="PubSubMethodHandlers"/>.
@@ -104,6 +104,36 @@ namespace Opc.Ua.PubSub.Server
             m_sks = keyService is null ? null : new SksMethodHandler(keyService, telemetry);
             m_pushProviders = pushProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
             m_logger = telemetry.CreateLogger<PubSubMethodHandlers>();
+        }
+
+        /// <summary>
+        /// Sets the namespace index used for SecurityGroup instance NodeIds.
+        /// </summary>
+        /// <param name="namespaceIndex">PubSub node-manager namespace index.</param>
+        public void SetSecurityGroupNamespaceIndex(ushort namespaceIndex)
+        {
+            lock (m_gate)
+            {
+                m_securityGroupNamespaceIndex = namespaceIndex;
+            }
+        }
+
+        /// <summary>
+        /// Registers a materialized SecurityGroup node.
+        /// </summary>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <param name="nodeId">Routable SecurityGroup node id.</param>
+        public void RegisterSecurityGroupNodeId(string securityGroupId, NodeId nodeId)
+        {
+            if (string.IsNullOrEmpty(securityGroupId))
+            {
+                throw new ArgumentException("SecurityGroupId must be non-empty.", nameof(securityGroupId));
+            }
+
+            lock (m_gate)
+            {
+                m_securityGroupNodeIds[nodeId] = securityGroupId;
+            }
         }
 
         /// <summary>
@@ -1604,7 +1634,7 @@ namespace Opc.Ua.PubSub.Server
                 return new ServiceResult(StatusCodes.BadInternalError, new LocalizedText(ex.Message));
             }
 
-            NodeId groupNodeId = AllocateSecurityGroupNodeId(name);
+            NodeId groupNodeId = GetOrAllocateSecurityGroupNodeId(name);
             outputArguments.Add(Variant.From(name));
             outputArguments.Add(Variant.From(groupNodeId));
             return ServiceResult.Good;
@@ -1741,10 +1771,13 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            _ = context;
             _ = method;
             _ = outputArguments;
             if (!m_options.ExposeConfigurationMethods)
+            {
+                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+            if (!IsSecurityKeyPushAuthorized(context))
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
@@ -1787,6 +1820,22 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
             }
+        }
+
+        private static bool IsSecurityKeyPushAuthorized(ISystemContext context)
+        {
+            if (StringComparer.Ordinal.Equals(context.UserId, "sks"))
+            {
+                return true;
+            }
+
+            if (context is not ISessionOperationContext sessionContext)
+            {
+                return false;
+            }
+
+            ArrayOf<NodeId> grantedRoleIds = sessionContext.UserIdentity?.GrantedRoleIds ?? [];
+            return grantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         }
 
         /// <summary>
@@ -1849,6 +1898,15 @@ namespace Opc.Ua.PubSub.Server
             }
         }
 
+        /// <summary>
+        /// Resolves a SecurityGroup node id to its SecurityGroupId.
+        /// </summary>
+        /// <param name="groupNodeId">SecurityGroup node id.</param>
+        public string? LookupSecurityGroupIdForNode(NodeId groupNodeId)
+        {
+            return LookupSecurityGroupId(groupNodeId);
+        }
+
         private ServiceResult RotateOrInvalidateKeys(NodeId groupNodeId, bool invalidate)
         {
             if (m_keyService is null)
@@ -1889,7 +1947,7 @@ namespace Opc.Ua.PubSub.Server
         private NodeId GetOrAllocateSecurityGroupNodeId(string securityGroupId)
         {
             NodeId? existing = TryGetSecurityGroupNodeId(securityGroupId);
-            return existing ?? AllocateSecurityGroupNodeId(securityGroupId);
+            return existing ?? CreateSecurityGroupNodeId(securityGroupId);
         }
 
         private static ArrayOf<RolePermissionType> TryReadRolePermissions(
@@ -1939,19 +1997,22 @@ namespace Opc.Ua.PubSub.Server
                 groupNodeId.TryGetValue(out string identifier) &&
                 !string.IsNullOrEmpty(identifier))
             {
-                return identifier;
+                const string prefix = "pubsub:security-group:";
+                return identifier.StartsWith(prefix, StringComparison.Ordinal)
+                    ? identifier[prefix.Length..]
+                    : identifier;
             }
             return null;
         }
 
-        private NodeId AllocateSecurityGroupNodeId(string securityGroupId)
+        private NodeId CreateSecurityGroupNodeId(string securityGroupId)
         {
-            uint handle;
+            ushort namespaceIndex;
             lock (m_gate)
             {
-                handle = ++m_nextSecurityGroupHandle;
+                namespaceIndex = m_securityGroupNamespaceIndex;
             }
-            var nodeId = new NodeId($"SecurityGroups/{securityGroupId}/{handle}", 0);
+            var nodeId = new NodeId($"pubsub:security-group:{securityGroupId}", namespaceIndex);
             lock (m_gate)
             {
                 m_securityGroupNodeIds[nodeId] = securityGroupId;

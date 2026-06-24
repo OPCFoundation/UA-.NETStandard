@@ -64,6 +64,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// empty identities and enforce per-SecurityGroup key access.
         /// </param>
         /// <param name="request">SKS pull request arguments.</param>
+        /// <param name="callerRoleIds">RoleIds granted to the caller.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The packed key material.</returns>
         /// <exception cref="OpcUaSksException">
@@ -73,6 +74,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         ValueTask<SksKeyResponse> GetSecurityKeysAsync(
             string callerIdentity,
             SksKeyRequest request,
+            ArrayOf<NodeId> callerRoleIds = default,
             CancellationToken cancellationToken = default);
 
         /// <summary>

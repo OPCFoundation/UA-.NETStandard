@@ -220,17 +220,18 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Determines whether a caller may retrieve keys for this group.
         /// </summary>
         /// <param name="callerIdentity">Authenticated caller identity.</param>
+        /// <param name="callerRoleIds">RoleIds granted to the caller.</param>
         /// <returns>
         /// <see langword="true"/> when RolePermissions grant Call or the caller is explicitly authorized.
         /// </returns>
-        public bool IsCallerAuthorized(string callerIdentity)
+        public bool IsCallerAuthorized(string callerIdentity, ArrayOf<NodeId> callerRoleIds = default)
         {
             if (string.IsNullOrEmpty(callerIdentity))
             {
-                return false;
+                return RolePermissionsGrantCall(callerRoleIds);
             }
 
-            if (RolePermissionsGrantCall())
+            if (RolePermissionsGrantCall(callerRoleIds))
             {
                 return true;
             }
@@ -262,7 +263,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             };
         }
 
-        private bool RolePermissionsGrantCall()
+        private bool RolePermissionsGrantCall(ArrayOf<NodeId> callerRoleIds)
         {
             for (int i = 0; i < RolePermissions.Count; i++)
             {
@@ -271,8 +272,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                 {
                     continue;
                 }
-                if (permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser ||
-                    permission.RoleId == ObjectIds.WellKnownRole_Anonymous)
+                if (permission.RoleId == ObjectIds.WellKnownRole_Anonymous ||
+                    callerRoleIds.Contains(permission.RoleId))
                 {
                     return true;
                 }

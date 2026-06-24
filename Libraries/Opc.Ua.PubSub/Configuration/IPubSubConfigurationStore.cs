@@ -68,5 +68,41 @@ namespace Opc.Ua.PubSub.Configuration
         ValueTask SaveAsync(
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets the persisted application ConfigurationVersion.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Persists the application ConfigurationVersion.
+        /// </summary>
+        /// <param name="configurationVersion">ConfigurationVersion to persist.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask SetConfigurationVersionAsync(
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets the persisted ConfigurationVersion for a PublishedDataSet.
+        /// </summary>
+        /// <param name="publishedDataSetName">PublishedDataSet name.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
+            string publishedDataSetName,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Persists the ConfigurationVersion for a PublishedDataSet.
+        /// </summary>
+        /// <param name="publishedDataSetName">PublishedDataSet name.</param>
+        /// <param name="configurationVersion">ConfigurationVersion to persist.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask SetPublishedDataSetConfigurationVersionAsync(
+            string publishedDataSetName,
+            ConfigurationVersionDataType configurationVersion,
+            CancellationToken cancellationToken = default);
     }
 }
