@@ -45,14 +45,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public static PubSubNetworkMessageContext NewContext(
             IDataSetMetaDataRegistry? registry = null,
             IPubSubDiagnostics? diagnostics = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            PubSubFieldEncoding uadpActionFieldEncoding = PubSubFieldEncoding.Variant)
         {
             return new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(null!),
                 registry ?? new DataSetMetaDataRegistry(),
                 diagnostics ?? new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 timeProvider ?? new FakeTimeProvider(
-                    new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero)));
+                    new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero)),
+                uadpActionFieldEncoding);
         }
     }
 }

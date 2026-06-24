@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
@@ -112,6 +113,54 @@ namespace OpcUaPubSubJsonTests
             {
                 Assert.That(((DataSetField[]?)receivedDsm.Fields) ?? [], Has.Length.EqualTo(3));
             }
+        }
+
+
+        [Test]
+        [TestSpec("7.2.5.3")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task NumericPublisherIdStringResolvesNumericMetadataAsync()
+        {
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            var registry = new DataSetMetaDataRegistry();
+            registry.Register(
+                new DataSetMetaDataKey(PublisherId.FromUInt16(5), 0, 1, Uuid.Empty, 1),
+                meta);
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext(registry);
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 1,
+                MessageType = PubSubDataSetMessageType.KeyFrame,
+                MetaDataVersion = meta.ConfigurationVersion,
+                Fields = JsonTestUtilities.CreateFields()
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                MessageId = "numeric-publisher",
+                PublisherId = PublisherId.FromUInt16(5),
+                DataSetMessages = [dsm]
+            };
+            var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder(
+                Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact);
+            ReadOnlyMemory<byte> bytes = await encoder
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+            using (JsonDocument document = JsonDocument.Parse(bytes))
+            {
+                Assert.That(document.RootElement.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
+            }
+
+            var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
+            PubSubNetworkMessage? decoded = await decoder
+                .TryDecodeAsync(bytes, ctx).ConfigureAwait(false);
+
+            var decodedNetwork = decoded as Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
+            Assert.That(decodedNetwork, Is.Not.Null);
+            Assert.That(decodedNetwork!.DataSetMessages, Has.Count.EqualTo(1));
+            var decodedMessage = decodedNetwork.DataSetMessages[0]
+                as Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
+            Assert.That(decodedMessage, Is.Not.Null);
+            Assert.That(decodedMessage!.Fields, Has.Count.EqualTo(3),
+                "Part 14 Tables 184 and 185 encode UInteger PublisherId as a JSON string without changing identity.");
         }
 
         [Test]

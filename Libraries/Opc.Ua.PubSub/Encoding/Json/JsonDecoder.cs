@@ -1149,6 +1149,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return metaData;
             }
+            if (TryGetUIntegerPublisherIdString(publisherId, out string? numericText)
+                && numericText is not null)
+            {
+                foreach (PublisherId numericPublisherId in EnumerateNumericPublisherIds(numericText))
+                {
+                    key = new DataSetMetaDataKey(
+                        numericPublisherId,
+                        0,
+                        writerId,
+                        dataSetClassId,
+                        metaVersion?.MajorVersion ?? 0);
+                    result = context.MetaDataRegistry.TryGet(in key, out metaData);
+                    if (result is MetaDataMatchResult.Match
+                        or MetaDataMatchResult.MinorVersionMismatch)
+                    {
+                        return metaData;
+                    }
+                }
+            }
             return null;
         }
 
@@ -1280,7 +1299,106 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
+            if (TryGetUIntegerPublisherIdString(left, out string? leftNumber)
+                && TryGetUIntegerPublisherIdString(right, out string? rightNumber))
+            {
+                return string.Equals(leftNumber, rightNumber, StringComparison.Ordinal);
+            }
             return left.Equals(right);
+        }
+
+        private static IEnumerable<PublisherId> EnumerateNumericPublisherIds(string value)
+        {
+            if (byte.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out byte b))
+            {
+                yield return PublisherId.FromByte(b);
+            }
+            if (ushort.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out ushort u16))
+            {
+                yield return PublisherId.FromUInt16(u16);
+            }
+            if (uint.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out uint u32))
+            {
+                yield return PublisherId.FromUInt32(u32);
+            }
+            if (ulong.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out ulong u64))
+            {
+                yield return PublisherId.FromUInt64(u64);
+            }
+        }
+
+        private static bool TryGetUIntegerPublisherIdString(
+            PublisherId publisherId,
+            out string? value)
+        {
+            if (publisherId.TryGetByte(out byte b))
+            {
+                value = b.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+            if (publisherId.TryGetUInt16(out ushort u16))
+            {
+                value = u16.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+            if (publisherId.TryGetUInt32(out uint u32))
+            {
+                value = u32.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+            if (publisherId.TryGetUInt64(out ulong u64))
+            {
+                value = u64.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+            if (publisherId.TryGetString(out string? text)
+                && IsUIntegerPublisherIdString(text))
+            {
+                value = text;
+                return true;
+            }
+            value = null;
+            return false;
+        }
+
+        private static bool IsUIntegerPublisherIdString(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+            if (value.Length > 1 && value[0] == '0')
+            {
+                return false;
+            }
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (value[i] < '0' || value[i] > '9')
+                {
+                    return false;
+                }
+            }
+            return ulong.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out _);
         }
 
         /// <summary>

@@ -31,6 +31,7 @@ using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Encoding.Uadp;
 
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
@@ -136,6 +137,67 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(value, Is.EqualTo("done"));
         }
 
+
+        [TestCase(false, PubSubFieldEncoding.Variant)]
+        [TestCase(false, PubSubFieldEncoding.RawData)]
+        [TestCase(true, PubSubFieldEncoding.Variant)]
+        [TestCase(true, PubSubFieldEncoding.RawData)]
+        [TestSpec("7.2.4.5.9")]
+        [TestSpec("7.2.4.5.10")]
+        public void ActionPayloadRoundTripsAllowedFieldEncodings(
+            bool response,
+            PubSubFieldEncoding fieldEncoding)
+        {
+            DataSetMetaDataType metaData = CreateActionMetaData();
+            var registry = new DataSetMetaDataRegistry();
+            PublisherId publisherId = PublisherId.FromUInt16(0x55);
+            registry.Register(
+                new DataSetMetaDataKey(publisherId, 0, 0x33, Uuid.Empty, 0),
+                metaData);
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext(
+                registry,
+                uadpActionFieldEncoding: fieldEncoding);
+            PubSubNetworkMessage message = response
+                ? CreateActionResponse(publisherId, fieldEncoding, metaData)
+                : CreateActionRequest(publisherId, fieldEncoding, metaData);
+
+            byte[] encoded = UadpActionCoder.Encode(message, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            if (response)
+            {
+                var decodedResponse = decoded as UadpActionResponseMessage;
+                Assert.That(decodedResponse, Is.Not.Null);
+                Assert.That(decodedResponse!.FieldEncoding, Is.EqualTo(fieldEncoding));
+                Assert.That(decodedResponse.Payload[0].Value.TryGetValue(out int value), Is.True);
+                Assert.That(value, Is.EqualTo(1234));
+            }
+            else
+            {
+                var decodedRequest = decoded as UadpActionRequestMessage;
+                Assert.That(decodedRequest, Is.Not.Null);
+                Assert.That(decodedRequest!.FieldEncoding, Is.EqualTo(fieldEncoding));
+                Assert.That(decodedRequest.Payload[0].Value.TryGetValue(out int value), Is.True);
+                Assert.That(value, Is.EqualTo(1234));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [TestSpec("7.2.4.5.9")]
+        [TestSpec("7.2.4.5.10")]
+        public void ActionPayloadRejectsDataValueFieldEncoding(bool response)
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            DataSetMetaDataType metaData = CreateActionMetaData();
+            PubSubNetworkMessage message = response
+                ? CreateActionResponse(PublisherId.FromUInt16(1), PubSubFieldEncoding.DataValue, metaData)
+                : CreateActionRequest(PublisherId.FromUInt16(1), PubSubFieldEncoding.DataValue, metaData);
+
+            Assert.That(() => UadpActionCoder.Encode(message, context),
+                Throws.InvalidOperationException.And.Message.Contains("Variant or RawData"));
+        }
+
         [Test]
         public async Task ActionRequestEncoderDispatchRoundTrips()
         {
@@ -186,6 +248,74 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(payloadOffset, Is.GreaterThan(0));
             Assert.That(encoded.Span[1] & (byte)ExtendedFlags1EncodingMask.SecurityEnabled, Is.Not.Zero);
             Assert.That(encoded.Span[payloadOffset], Is.EqualTo((byte)(0x01 | 0x10)));
+        }
+
+
+        private static UadpActionRequestMessage CreateActionRequest(
+            PublisherId publisherId,
+            PubSubFieldEncoding fieldEncoding,
+            DataSetMetaDataType metaData)
+        {
+            return new UadpActionRequestMessage
+            {
+                PublisherId = publisherId,
+                DataSetWriterId = 0x33,
+                ActionTargetId = 0x44,
+                RequestId = 0x45,
+                ActionState = ActionState.Executing,
+                TimeoutHint = 1000,
+                FieldEncoding = fieldEncoding,
+                MetaData = metaData,
+                Payload = CreateActionFields(fieldEncoding)
+            };
+        }
+
+        private static UadpActionResponseMessage CreateActionResponse(
+            PublisherId publisherId,
+            PubSubFieldEncoding fieldEncoding,
+            DataSetMetaDataType metaData)
+        {
+            return new UadpActionResponseMessage
+            {
+                PublisherId = publisherId,
+                DataSetWriterId = 0x33,
+                ActionTargetId = 0x44,
+                RequestId = 0x45,
+                ActionState = ActionState.Done,
+                FieldEncoding = fieldEncoding,
+                MetaData = metaData,
+                Payload = CreateActionFields(fieldEncoding)
+            };
+        }
+
+        private static ArrayOf<DataSetField> CreateActionFields(PubSubFieldEncoding fieldEncoding)
+        {
+            return
+            [
+                new DataSetField
+                {
+                    Name = "Value",
+                    Value = new Variant(1234),
+                    Encoding = fieldEncoding
+                }
+            ];
+        }
+
+        private static DataSetMetaDataType CreateActionMetaData()
+        {
+            return new DataSetMetaDataType
+            {
+                Name = "ActionPayload",
+                Fields =
+                [
+                    new FieldMetaData
+                    {
+                        Name = "Value",
+                        BuiltInType = (byte)BuiltInType.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+            };
         }
 
         [Test]

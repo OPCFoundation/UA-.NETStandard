@@ -670,13 +670,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     }
                     publisherId = PublisherId.FromString(s ?? string.Empty);
                     return true;
-                case PublisherIdType.Guid:
-                    if (!reader.TryReadGuid(out Guid g))
-                    {
-                        return false;
-                    }
-                    publisherId = PublisherId.FromGuid(g);
-                    return true;
                 default:
                     return false;
             }

@@ -80,6 +80,10 @@ namespace OpcUaPubSubJsonTests
             {
                 Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                     Is.EqualTo(JsonDiscoveryMessage.MessageTypeApplication));
+                Assert.That(document.RootElement.GetProperty("PublisherId").ValueKind,
+                    Is.EqualTo(JsonValueKind.String));
+                Assert.That(document.RootElement.GetProperty("PublisherId").GetString(),
+                    Is.EqualTo("16962"));
             }
 
             var decoder = new JsonDecoder();

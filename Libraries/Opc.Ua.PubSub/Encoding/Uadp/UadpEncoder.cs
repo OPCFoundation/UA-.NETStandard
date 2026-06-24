@@ -500,16 +500,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     publisherId.TryGetString(out string? s);
                     writer.WriteString(s);
                     break;
-                case PublisherIdType.Guid:
-                    if (publisherId.TryGetGuid(out Guid g))
-                    {
-                        writer.WriteGuid(g);
-                    }
-                    else
-                    {
-                        writer.WriteGuid(Guid.Empty);
-                    }
-                    break;
                 default:
                     throw new InvalidOperationException(
                         $"Unsupported PublisherIdType {type}.");
@@ -813,8 +803,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return 4;
                 case PublisherIdType.UInt64:
                     return 8;
-                case PublisherIdType.Guid:
-                    return 16;
                 case PublisherIdType.String:
                     string? s = publisherId.TryGetString(out string? str) ? str : null;
                     int byteLen = s is null ? 0 : System.Text.Encoding.UTF8.GetByteCount(s);
