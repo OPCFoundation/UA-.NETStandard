@@ -197,38 +197,8 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            if (passiveNode is not ServerConfigurationState activeNode)
-                            {
-                                activeNode = context.CreateInstanceOfServerConfigurationType(passiveNode.Parent!);
+                            var activeNode = (ServerConfigurationState)passiveNode;
 
-                                if (passiveNode.Parent != null)
-                                {
-                                    passiveNode.Parent.ReplaceChild(context, activeNode);
-                                }
-                                else
-                                {
-                                    NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                        .ConfigureAwait(false);
-                                    serverNode?.ReplaceChild(context, activeNode);
-                                }
-                                // remove the reference to server node because it is set as parent
-                                activeNode.RemoveReference(
-                                    ReferenceTypeIds.HasComponent,
-                                    true,
-                                    ObjectIds.Server);
-                            }
-
-                            // Optional ServerConfigurationType methods this
-                            // SDK wires in CreateServerConfiguration but that
-                            // are no longer emitted by the singleton factory
-                            // (Optional per Part 12). Use the idempotent
-                            // generated Add{Method} helpers so the typed
-                            // slot is initialised with the type-level
-                            // factory (BrowseName, InputArguments, etc.)
-                            // before Create() copies the loaded passive
-                            // node into the active subtree. The new
-                            // Add{Method}(context, nodeId?) chains via the
-                            // owner state for fluent usage.
                             activeNode
                                 .AddGetCertificates(context)
                                 .AddCreateSelfSignedCertificate(context);
@@ -239,69 +209,29 @@ namespace Opc.Ua.Server
                         }
                         case ObjectTypes.CertificateGroupFolderType:
                         {
-                            if (passiveNode is not CertificateGroupFolderState activeNode)
-                            {
-                                activeNode =
-                                    context.CreateInstanceOfCertificateGroupFolderType(passiveNode.Parent!);
+                            var activeNode = (CertificateGroupFolderState)passiveNode;
 
-                                // replace the node in the parent.
-                                passiveNode.Parent?.ReplaceChild(context, activeNode);
+                            ServerCertificateGroup? applicationGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultApplicationGroup);
+
+                            applicationGroup!.Node = activeNode.DefaultApplicationGroup!;
+
+                            ServerCertificateGroup? httpsGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultHttpsGroup);
+                            if (httpsGroup != null)
+                            {
+                                activeNode.AddDefaultHttpsGroup(context);
+                                httpsGroup.Node = activeNode.DefaultHttpsGroup!;
                             }
 
-                            // delete unsupported groups
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultHttpsGroup == null ||
-                                    activeNode.DefaultHttpsGroup.BrowseName != group.BrowseName))
+                            ServerCertificateGroup? userTokenGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultUserTokenGroup);
+                            if (userTokenGroup != null)
                             {
-                                activeNode.DefaultHttpsGroup = null;
-                            }
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultUserTokenGroup == null ||
-                                    activeNode.DefaultUserTokenGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultUserTokenGroup = null;
-                            }
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultApplicationGroup == null ||
-                                    activeNode.DefaultApplicationGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultApplicationGroup = null;
+                                activeNode.AddDefaultUserTokenGroup(context);
+                                userTokenGroup.Node = activeNode.DefaultUserTokenGroup!;
                             }
 
-                            return activeNode;
-                        }
-                        case ObjectTypes.CertificateGroupType:
-                        {
-                            ServerCertificateGroup? result = m_certificateGroups
-                                .FirstOrDefault(group =>
-                                    group.NodeId == passiveNode.NodeId);
-
-                            if (result != null)
-                            {
-                                if (passiveNode is not CertificateGroupState activeNode)
-                                {
-                                    activeNode =
-                                        context.CreateInstanceOfCertificateGroupType(passiveNode.Parent!);
-
-                                    // replace the node in the parent.
-                                    passiveNode.Parent?.ReplaceChild(context, activeNode);
-                                }
-
-                                result.NodeId = activeNode.NodeId;
-                                result.Node = activeNode;
-
-                                return activeNode;
-                            }
-                            break;
-                        }
-                        case ObjectTypes.UserManagementType:
-                        {
-                            if (passiveNode is UserManagementState)
-                            {
-                                break;
-                            }
-                            UserManagementState activeNode = context.CreateInstanceOfUserManagementType(passiveNode.Parent!);
-                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                             return activeNode;
                         }
                     }
