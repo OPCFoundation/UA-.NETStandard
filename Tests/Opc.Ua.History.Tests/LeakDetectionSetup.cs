@@ -69,6 +69,20 @@ namespace Opc.Ua.History.Tests
                     $"but not disposed (created={Certificate.InstancesCreated}, " +
                     $"disposed={Certificate.InstancesDisposed}).");
             }
+
+            // Arm a process-exit watchdog. After all fixture teardowns
+            // and the finalizer sweep above have completed, the test
+            // host occasionally hangs in MS Test Platform shutdown
+            // (observed intermittently on macOS net10.0 runners of
+            // this assembly: all tests pass, then 10-minute
+            // --blame-hang-timeout fires with a hang dump and exit
+            // code 1). The watchdog runs on a background thread so it
+            // does not pin the process; if the runtime tears down
+            // cleanly within the budget it never fires. If something
+            // keeps the host alive, the watchdog calls
+            // Environment.Exit(0) for a clean shutdown well before
+            // the blame timeout.
+            LeakDetectionHelpers.ArmProcessExitWatchdog();
         }
     }
 }
