@@ -240,7 +240,12 @@ namespace Opc.Ua.Security.Certificates
             set
             {
                 ThrowIfDisposed();
-                m_certificates[index] = value;
+                // Own a reference to the new value and release the replaced one.
+                Certificate replaced = m_certificates[index];
+#pragma warning disable CA2000 // ownership transferred to m_certificates; released on remove/clear/dispose
+                m_certificates[index] = value.AddRef();
+#pragma warning restore CA2000
+                replaced.Dispose();
             }
         }
 
@@ -251,7 +256,9 @@ namespace Opc.Ua.Security.Certificates
         public void Add(Certificate item)
         {
             ThrowIfDisposed();
+#pragma warning disable CA2000 // ownership transferred to m_certificates; released on remove/clear/dispose
             m_certificates.Add(item.AddRef());
+#pragma warning restore CA2000
         }
 
         /// <summary>
@@ -265,7 +272,9 @@ namespace Opc.Ua.Security.Certificates
         public void Insert(int index, Certificate item)
         {
             ThrowIfDisposed();
+#pragma warning disable CA2000 // ownership transferred to m_certificates; released on remove/clear/dispose
             m_certificates.Insert(index, item.AddRef());
+#pragma warning restore CA2000
         }
 
         /// <summary>
@@ -279,9 +288,14 @@ namespace Opc.Ua.Security.Certificates
         public bool Remove(Certificate item)
         {
             ThrowIfDisposed();
-            if (m_certificates.Remove(item))
+            // Find the stored handle by value, then dispose the STORED handle
+            // (not the caller's argument, which the caller still owns).
+            int index = m_certificates.IndexOf(item);
+            if (index >= 0)
             {
-                item.Dispose();
+                Certificate stored = m_certificates[index];
+                m_certificates.RemoveAt(index);
+                stored.Dispose();
                 return true;
             }
             return false;

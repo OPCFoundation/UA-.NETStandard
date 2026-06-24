@@ -677,8 +677,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             collection.Add(cert1);
             collection.Add(cert2);
 
-            Assert.That(collection[0], Is.SameAs(cert1));
-            Assert.That(collection[1], Is.SameAs(cert2));
+            // CertificateCollection.Add stores an independent AddRef handle
+            // (distinct object, value-equal) rather than the caller's instance.
+            Assert.That(collection[0], Is.EqualTo(cert1));
+            Assert.That(collection[1], Is.EqualTo(cert2));
         }
 
         [Test]
@@ -691,7 +693,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             collection[0] = replacement;
 
-            Assert.That(collection[0], Is.SameAs(replacement));
+            Assert.That(collection[0], Is.EqualTo(replacement));
             Assert.That(collection, Has.Count.EqualTo(1));
 
             cert1.Dispose();
@@ -710,7 +712,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             collection.Insert(1, inserted);
 
             Assert.That(collection, Has.Count.EqualTo(3));
-            Assert.That(collection[1], Is.SameAs(inserted));
+            Assert.That(collection[1], Is.EqualTo(inserted));
         }
 
         [Test]
@@ -725,8 +727,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             var array = new Certificate[2];
             collection.CopyTo(array, 0);
 
-            Assert.That(array[0], Is.SameAs(cert1));
-            Assert.That(array[1], Is.SameAs(cert2));
+            Assert.That(array[0], Is.EqualTo(cert1));
+            Assert.That(array[1], Is.EqualTo(cert2));
         }
 
         [Test]
@@ -745,9 +747,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             enumerated.AddRange(collection);
 
             Assert.That(enumerated, Has.Count.EqualTo(3));
-            Assert.That(enumerated[0], Is.SameAs(cert1));
-            Assert.That(enumerated[1], Is.SameAs(cert2));
-            Assert.That(enumerated[2], Is.SameAs(cert3));
+            Assert.That(enumerated[0], Is.EqualTo(cert1));
+            Assert.That(enumerated[1], Is.EqualTo(cert2));
+            Assert.That(enumerated[2], Is.EqualTo(cert3));
         }
 
         [Test]
@@ -897,6 +899,69 @@ namespace Opc.Ua.Security.Certificates.Tests
             // Final cleanup
             cert1.Dispose();
             cert2.Dispose();
+        }
+
+        /// <summary>
+        /// SA-CERT-01 regression: a double-<see cref="Certificate.Dispose()"/>
+        /// of ONE logical owner (an <see cref="Certificate.AddRef"/> handle)
+        /// must NOT over-decrement the shared reference count and free the
+        /// inner certificate that another owner is still using. With the
+        /// per-owner handle model each handle's Dispose is idempotent, so the
+        /// second Dispose of <c>handle</c> is a safe no-op and <c>root</c>
+        /// remains usable.
+        /// </summary>
+        [Test]
+        public void DoubleDisposeOfOneHandleDoesNotFreeSharedCertificate()
+        {
+            using Certificate root = CreateTestCertificate("CN=SaCert01Shared");
+
+            // A second logical owner of the same underlying certificate.
+            Certificate handle = root.AddRef();
+
+            // The bug: one owner disposes its handle twice. This must not
+            // free the inner certificate still owned by 'root'.
+            handle.Dispose();
+            handle.Dispose();
+
+            // 'root' must still be usable — the inner X509Certificate2 is alive.
+            Assert.DoesNotThrow(() => _ = root.RawData);
+            Assert.That(root.Thumbprint, Is.Not.Null);
+
+            // Releasing the last owner finally frees the inner certificate.
+            root.Dispose();
+        }
+
+        /// <summary>
+        /// SA-CERT-01 regression: the global create/dispose counters stay
+        /// balanced across a double-dispose-of-one-handle sequence. Exactly
+        /// one core is created and disposed; the redundant Dispose is a no-op.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public void DoubleDisposeOfOneHandleKeepsCounterBalance()
+        {
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            Certificate root = CreateTestCertificate("CN=SaCert01Counter");
+            Certificate handle = root.AddRef();
+
+            handle.Dispose();
+            handle.Dispose();
+
+            // Still one live core reference (root) — not disposed yet.
+            Assert.That(
+                Certificate.InstancesDisposed - disposedBefore,
+                Is.Zero,
+                "Shared core must not be disposed while 'root' still holds it.");
+
+            root.Dispose();
+
+            long createdDelta = Certificate.InstancesCreated - createdBefore;
+            long disposedDelta = Certificate.InstancesDisposed - disposedBefore;
+            Assert.That(disposedDelta, Is.EqualTo(createdDelta),
+                "Exactly one core created and one disposed; the redundant " +
+                "handle Dispose must not affect the counters.");
         }
 
 #if DEBUG
