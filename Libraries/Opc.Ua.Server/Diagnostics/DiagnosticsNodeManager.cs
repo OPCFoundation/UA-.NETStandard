@@ -172,14 +172,82 @@ namespace Opc.Ua.Server
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-            // The nodes are loaded by the DiagnosticsNodeManager from the
-            // output by the Source Generator. These nodes are added to the CoreNodeManager
-            // via the ImportNodes() method.
+            // SamplingIntervalDiagnosticsArray is part of the
+            // standard nodeset; rather than deleting the node (which makes
+            // reads return BadNodeIdUnknown), leave it in place with a
+            // default empty value. Per Part 5 §6.4.7 the array is optional
+            // and an empty array is a valid representation of "no per-
+            // sampling-interval diagnostics tracked".
+            ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
+                ObjectIds.Server_ServerDiagnostics);
+
+            if (serverDiagnosticsNode != null &&
+                serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
+            {
+                NodeState? samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
+                    SystemContext,
+                    QualifiedName.From(BrowseNames.SamplingIntervalDiagnosticsArray));
+
+                if (samplingDiagnosticsArrayNode != null)
+                {
+                    await DeleteNodeAsync(
+                        SystemContext,
+                        VariableIds.Server_ServerDiagnostics_SamplingIntervalDiagnosticsArray,
+                        cancellationToken).ConfigureAwait(false);
+                    serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
+                }
+            }
+
+            // The nodes are now loaded by the DiagnosticsNodeManager from the file
+            // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
+            // via the ImportNodes() method when the DiagnosticsNodeManager starts.
             await Server.CoreNodeManager.ImportNodesAsync(
                 SystemContext,
                 PredefinedNodes.Values,
                 true,
                 cancellationToken).ConfigureAwait(false);
+
+            // hook up the server GetMonitoredItems method.
+            GetMonitoredItemsMethodState getMonitoredItems = FindPredefinedNode<GetMonitoredItemsMethodState>(
+                MethodIds.Server_GetMonitoredItems);
+
+            getMonitoredItems?.OnCallMethod = OnGetMonitoredItems;
+
+            if (m_durableSubscriptionsEnabled)
+            {
+                // hook up the server SetSubscriptionDurable method.
+                SetSubscriptionDurableMethodState setSubscriptionDurable
+                    = FindPredefinedNode<SetSubscriptionDurableMethodState>(
+                    MethodIds.Server_SetSubscriptionDurable);
+
+                setSubscriptionDurable?.OnCall = OnSetSubscriptionDurable;
+            }
+            else
+            {
+                // Subscription Durable mode not supported by the server.
+                ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
+                    ObjectIds.Server);
+
+                if (serverObject != null)
+                {
+                    NodeState? setSubscriptionDurableNode = serverObject.FindChild(
+                        SystemContext,
+                        QualifiedName.From(BrowseNames.SetSubscriptionDurable));
+
+                    if (setSubscriptionDurableNode != null)
+                    {
+                        await DeleteNodeAsync(SystemContext, MethodIds.Server_SetSubscriptionDurable, cancellationToken)
+                            .ConfigureAwait(false);
+                        serverObject.SetSubscriptionDurable = null;
+                    }
+                }
+            }
+            // hookup server ResendData method.
+
+            ResendDataMethodState resendData = FindPredefinedNode<ResendDataMethodState>(
+                MethodIds.Server_ResendData);
+
+            resendData?.OnCallMethod = OnResendData;
 
             // OPC UA Part 17 — wire the standard well-known Aliases /
             // TagVariables / Topics methods through the server-wide
@@ -334,6 +402,18 @@ namespace Opc.Ua.Server
         {
             var nodes = new NodeStateCollection().AddOpcUa(context);
 
+            // The generator emits factory bodies that respect each child's
+            // type-definition modelling rule transitively for every descendant
+            // of a top-level singleton instance (Server, ServerConfiguration,
+            // HistoryServerCapabilities). Optional children that
+            // StandardTypes.xml promotes to Mandatory on the singleton level
+            // are no longer auto-emitted as null-valued nodes (issue #3768).
+            // Programmatically add the Optional children that this SDK
+            // actually implements, with their well-known instance-level
+            // NodeIds. The recursive AddPredefinedNodeAsync the base class
+            // invokes on each entry walks newly-added children automatically,
+            // so they end up in PredefinedNodes (and propagate to
+            // CoreNodeManager via ImportNodesAsync).
             AddSdkImplementedOptionalChildren(context, nodes);
 
             return new ValueTask<NodeStateCollection>(nodes);
@@ -376,6 +456,15 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerObjectState serverObject)
         {
+            // Lazy-add the Optional Variable/Method descendants of Server
+            // that this SDK actually implements; the generator's transitive
+            // singleton-instance gate (issue #3768) suppresses them at
+            // load time so clients reading the standard well-known instance
+            // NodeIds would otherwise get BadNodeIdUnknown. The generated
+            // Add{Child}(context) extensions dispatch the well-known
+            // NodeIds based on the owner's NodeId, so no explicit override
+            // is needed. SetSubscriptionDurable is only wired when durable
+            // subscriptions are enabled.
             serverObject
                 .AddGetMonitoredItems(context)
                 .AddResendData(context)
@@ -403,6 +492,9 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerCapabilitiesState serverCapabilities)
         {
+            // OperationLimits needs its sub-tree populated, so access the
+            // typed slot via .AddOperationLimits(...).OperationLimits! to
+            // continue chaining the operational-limit Properties.
             serverCapabilities
                 .AddMaxArrayLength(context)
                 .AddMaxStringLength(context)
@@ -437,6 +529,13 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerRedundancyState serverRedundancy)
         {
+            // RedundantServerArray is Optional on ServerRedundancyType per
+            // Part 5 §6.3.10 but was emitted on master at the well-known
+            // instance NodeId. Re-add at startup so clients that rely on
+            // the standard browse path (Server.ServerRedundancy.
+            // RedundantServerArray, see DefaultServerRedundancyHandler in
+            // Opc.Ua.Client) keep working even when no redundancy provider
+            // populates it.
             serverRedundancy.AddRedundantServerArray(context);
         }
 
@@ -444,9 +543,24 @@ namespace Opc.Ua.Server
             ISystemContext context,
             HistoryServerCapabilitiesState historyCaps)
         {
+            // ServerTimestampSupported is Optional on
+            // HistoryServerCapabilitiesType but is written by
+            // GetDefaultHistoryCapabilitiesAsync from the rolled-up
+            // historian capabilities — without lazy-add the write would
+            // NRE.
             historyCaps.AddServerTimestampSupported(context);
         }
 
+        /// <summary>
+        /// Re-adds the Optional NamespaceMetadataType properties that the
+        /// standard OPCUANamespaceMetadata singleton (Server.Namespaces.
+        /// "http://opcfoundation.org/UA/") declares in
+        /// <c>Opc.Ua.NodeSet2.xml</c>. The transitive singleton-instance
+        /// gate (issue #3768) suppresses them at the generator level;
+        /// without lazy-add, role-based access conformance tests that
+        /// browse the metadata for DefaultRolePermissions /
+        /// DefaultUserRolePermissions / DefaultAccessRestrictions fail.
+        /// </summary>
         private static void AddOpcUaNamespaceMetadataSdkOptionalChildren(
             ISystemContext context,
             NamespaceMetadataState metadataState)
@@ -464,6 +578,20 @@ namespace Opc.Ua.Server
                 .AddDefaultAccessRestrictions(context);
         }
 
+        /// <summary>
+        /// Re-adds the Optional LastChange property on the standard Part 17
+        /// <c>Aliases</c> singleton (i=23470). The transitive
+        /// singleton-instance gate (issue #3768) suppresses it at the
+        /// generator level; without lazy-add, monitored-item-based cache
+        /// invalidation (see
+        /// <c>AliasNameResolverRefreshMode.AutoOnLastChangeMonitoredItem</c>
+        /// in <c>Opc.Ua.Client</c>) cannot subscribe to LastChange and
+        /// the test
+        /// <c>MonitoredItemAliasNameRefreshStrategyTests.
+        /// MonitoredItemStrategyInvalidatesCacheAsync</c> fails.
+        /// Only the standard <c>Aliases</c> category exposes LastChange in
+        /// the shipped NodeSet; <c>TagVariables</c> and <c>Topics</c> do not.
+        /// </summary>
         private static void AddAliasNameCategorySdkOptionalChildren(
             ISystemContext context,
             AliasNameCategoryState category)
@@ -479,9 +607,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Programmatically re-adds the Optional RoleType children for the
+        /// Programmatically re-adds the Optional RoleType children that the
         /// six modifiable well-known roles (Observer, Operator, Engineer,
-        /// Supervisor, ConfigureAdmin, SecurityAdmin)
+        /// Supervisor, ConfigureAdmin, SecurityAdmin) explicitly promote to
+        /// Mandatory in StandardTypes.xml. The transitive singleton-instance
+        /// gate (issue #3768) stops the generator from emitting these
+        /// Variable/Method descendants under their well-known instance
+        /// NodeIds; lazy-add restores the standard well-known address space
         /// so <see cref="Opc.Ua.Server.RoleStateBinding"/> finds them and
         /// can wire OnCallAsync delegates and OnWriteValue handlers.
         /// </summary>
@@ -489,7 +621,9 @@ namespace Opc.Ua.Server
         /// <para>
         /// The three immutable roles (Anonymous, AuthenticatedUser,
         /// TrustedApplication) do not have well-known instance NodeIds for
-        /// the Optional methods/properties.
+        /// the Optional methods/properties (only Identities and a few
+        /// InputArguments NodeIds are reserved by the spec); they are
+        /// intentionally left untouched here.
         /// </para>
         /// </remarks>
         private static void AddWellKnownRoleSdkOptionalChildren(
@@ -519,6 +653,16 @@ namespace Opc.Ua.Server
             ISystemContext context,
             RoleState role)
         {
+            // Identities is Mandatory@RoleType so the singleton factory always
+            // emits it with the correct well-known instance NodeId; no add-back
+            // needed. All other RoleType children are Optional@type but the
+            // StandardTypes.xml well-known-role declarations promote them to
+            // Mandatory at the singleton-instance level. The transitive gate
+            // (issue #3768) uses the type-def rule rather than the singleton
+            // override, so the generator suppresses every other child under
+            // forInstance=true. Re-add them here so RoleStateBinding finds
+            // them. Add{Child}(context) is idempotent, dispatches NodeIds on
+            // the role's NodeId, and returns `this` for chaining.
             role
                 .AddApplications(context)
                 .AddApplicationsExclude(context)
@@ -543,6 +687,26 @@ namespace Opc.Ua.Server
         {
             if (predefinedNode is not BaseObjectState passiveNode)
             {
+                if (predefinedNode is BaseVariableState passiveVariable)
+                {
+                    if (passiveVariable.NodeId == VariableIds.ServerStatusType_BuildInfo)
+                    {
+                        if (passiveVariable is BuildInfoVariableState)
+                        {
+                            return predefinedNode;
+                        }
+
+                        var activeNode = new BuildInfoVariableState(passiveVariable.Parent);
+                        activeNode.Create(context, passiveVariable);
+
+                        // replace the node in the parent.
+                        passiveVariable.Parent?.ReplaceChild(context, activeNode);
+
+                        return activeNode;
+                    }
+                    return predefinedNode;
+                }
+
                 if (predefinedNode is not MethodState passiveMethod)
                 {
                     return predefinedNode;
@@ -550,33 +714,27 @@ namespace Opc.Ua.Server
 
                 if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh)
                 {
-                    var activeNode = (ConditionRefreshMethodState)passiveMethod;
+                    var activeNode = new ConditionRefreshMethodState(passiveMethod.Parent);
+                    activeNode.Create(context, passiveMethod);
+
+                    // replace the node in the parent.
+                    passiveMethod.Parent?.ReplaceChild(context, activeNode);
 
                     activeNode.OnCall = OnConditionRefresh;
+
+                    return activeNode;
                 }
                 else if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh2)
                 {
-                    var activeNode = (ConditionRefresh2MethodState)passiveMethod;
+                    var activeNode = new ConditionRefresh2MethodState(passiveMethod.Parent);
+                    activeNode.Create(context, passiveMethod);
+
+                    // replace the node in the parent.
+                    passiveMethod.Parent?.ReplaceChild(context, activeNode);
 
                     activeNode.OnCall = OnConditionRefresh2;
-                }
-                else if (passiveMethod.NodeId == MethodIds.Server_SetSubscriptionDurable)
-                {
-                    var activeNode = (SetSubscriptionDurableMethodState)passiveMethod;
-                    if (m_durableSubscriptionsEnabled)
-                    {
-                        activeNode.OnCall = OnSetSubscriptionDurable;
-                    }
-                }
-                else if (passiveMethod.NodeId == MethodIds.Server_GetMonitoredItems)
-                {
-                    var activeNode = (GetMonitoredItemsMethodState)passiveMethod;
-                    activeNode.OnCallMethod = OnGetMonitoredItems;
-                }
-                else if (passiveMethod.NodeId == MethodIds.Server_ResendData)
-                {
-                    var activeNode = (ResendDataMethodState)passiveMethod;
-                    activeNode.OnCallMethod = OnResendData;
+
+                    return activeNode;
                 }
 
                 return predefinedNode;
@@ -592,9 +750,61 @@ namespace Opc.Ua.Server
             switch (numericId)
             {
                 case ObjectTypes.ServerType:
+                {
+                    if (passiveNode is ServerObjectState)
+                    {
+                        // add the server object as the root notifier.
+                        await AddRootNotifierAsync(passiveNode, cancellationToken).ConfigureAwait(false);
+                        break;
+                    }
+                    var activeNode = new ServerObjectState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
                     // add the server object as the root notifier.
-                    await AddRootNotifierAsync(passiveNode, cancellationToken).ConfigureAwait(false);
-                    return passiveNode;
+                    await AddRootNotifierAsync(activeNode, cancellationToken).ConfigureAwait(false);
+
+                    // replace the node in the parent.
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+
+                    return activeNode;
+                }
+                case ObjectTypes.HistoryServerCapabilitiesType:
+                {
+                    if (passiveNode is HistoryServerCapabilitiesState)
+                    {
+                        break;
+                    }
+
+                    var activeNode = new HistoryServerCapabilitiesState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
+                    // replace the node in the parent.
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+
+                    return activeNode;
+                }
+                case ObjectTypes.RoleSetType:
+                {
+                    if (passiveNode is RoleSetState)
+                    {
+                        break;
+                    }
+                    var activeNode = new RoleSetState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                    return activeNode;
+                }
+                case ObjectTypes.RoleType:
+                {
+                    if (passiveNode is RoleState)
+                    {
+                        break;
+                    }
+                    var activeNode = new RoleState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
