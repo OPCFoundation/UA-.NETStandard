@@ -479,6 +479,7 @@ namespace Opc.Ua.Server.TestFramework
                     "skipping the remaining server / application disposal in this process to " +
                     "avoid pinning the dotnet test host past --blame-hang-timeout. " +
                     "References will be released to the runtime for finalization.");
+                DisposeCertificateManagers();
                 Server = null;
                 Application = null;
                 Config = null;
@@ -509,6 +510,19 @@ namespace Opc.Ua.Server.TestFramework
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        private void DisposeCertificateManagers()
+        {
+            IDisposable applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable
+                ?? Config?.CertificateManager as IDisposable;
+            applicationManager?.Dispose();
+
+            if (Server?.CertificateManager is IDisposable serverManager &&
+                !ReferenceEquals(serverManager, applicationManager))
+            {
+                serverManager.Dispose();
+            }
         }
 
         private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);

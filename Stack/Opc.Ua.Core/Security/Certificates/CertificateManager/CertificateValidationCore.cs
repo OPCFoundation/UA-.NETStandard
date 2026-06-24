@@ -1146,10 +1146,18 @@ namespace Opc.Ua
                     isSuppressible: true);
             }
 
-            // accepted; cache for future fast-path
-            m_validatedCertificates.GetOrAdd(
-                certificate.Thumbprint,
-                _ => Certificate.FromRawData(certificate.RawData));
+            // accepted; cache for future fast-path. Avoid GetOrAdd's
+            // value-factory overload here: it can construct the certificate
+            // and then discard it (without disposing) when another thread
+            // wins the race for the same thumbprint, leaking the loser.
+            if (!m_validatedCertificates.ContainsKey(certificate.Thumbprint))
+            {
+                Certificate cached = Certificate.FromRawData(certificate.RawData);
+                if (!m_validatedCertificates.TryAdd(certificate.Thumbprint, cached))
+                {
+                    cached.Dispose();
+                }
+            }
             return CertificateValidationResult.Success;
         }
 
