@@ -762,13 +762,20 @@ namespace Opc.Ua
                 }
                 catch
                 {
-                    // Leave the fresh entry in m_entries so callers (e.g.
-                    // diagnostic queries) continue to see a record for the
-                    // lease's key. DisposeAsync(Faulted) drives the entry to
-                    // ChannelState.Faulted; the next ReconnectAsync invocation
-                    // will detect the Faulted state and create another fresh
-                    // entry, replacing this one.
+                    // The fresh entry failed to open. Dispose it (which removes
+                    // it from m_entries via RemoveEntryIfPresent) and restore
+                    // the original Faulted entry so callers still see a
+                    // diagnostic record for the lease's key. The next
+                    // ReconnectAsync invocation will detect the Faulted state
+                    // and create another fresh entry, replacing the original.
                     await fresh.DisposeAsync(ChannelCloseReason.Faulted).ConfigureAwait(false);
+                    lock (m_entries)
+                    {
+                        if (!m_entries.ContainsKey(lease.Key))
+                        {
+                            m_entries[lease.Key] = original;
+                        }
+                    }
                     throw;
                 }
             }
