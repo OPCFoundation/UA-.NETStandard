@@ -83,8 +83,7 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
             m_stores = [];
-            m_state = new TrustListState(
-                null, default, null, default, default);
+            m_state = new TrustListState(null, null, default);
             AutoAcceptUntrustedCertificates = false;
             RejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
             RejectUnknownRevocationStatus = false;
@@ -110,7 +109,7 @@ namespace Opc.Ua
             }
             m_stores.Clear();
 
-            m_state = new TrustListState(null, default, null, default, default);
+            m_state = new TrustListState(null, null, default);
             m_semaphore.Dispose();
         }
 
@@ -307,33 +306,21 @@ namespace Opc.Ua
             InternalResetValidatedCertificates();
 
             CertificateStoreIdentifier? trustedCertificateStore = null;
-            ArrayOf<CertificateIdentifier> trustedCertificateList = default;
             if (trustedStore != null)
             {
                 trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath!)
                 {
                     ValidationOptions = trustedStore.ValidationOptions
                 };
-
-                if (!trustedStore.TrustedCertificates.IsEmpty)
-                {
-                    trustedCertificateList = trustedStore.TrustedCertificates;
-                }
             }
 
             CertificateStoreIdentifier? issuerCertificateStore = null;
-            ArrayOf<CertificateIdentifier> issuerCertificateList = default;
             if (issuerStore != null)
             {
                 issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath!)
                 {
                     ValidationOptions = issuerStore.ValidationOptions
                 };
-
-                if (!issuerStore.TrustedCertificates.IsEmpty)
-                {
-                    issuerCertificateList = issuerStore.TrustedCertificates;
-                }
             }
 
             // Note: the rejectedCertificateStore parameter is accepted for
@@ -347,9 +334,7 @@ namespace Opc.Ua
             // UpdateAsync.
             m_state = new TrustListState(
                 trustedCertificateStore,
-                trustedCertificateList,
                 issuerCertificateStore,
-                issuerCertificateList,
                 m_state.ApplicationCertificates);
         }
 
@@ -483,7 +468,7 @@ namespace Opc.Ua
                 {
                     (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
                             certificate,
-                            state.TrustedList,
+                            default,
                             state.TrustedStore,
                             true,
                             ct)
@@ -493,7 +478,7 @@ namespace Opc.Ua
                 {
                     issuer = await GetIssuerAsync(
                             certificate,
-                            state.TrustedList,
+                            default,
                             state.TrustedStore,
                             true,
                             ct)
@@ -506,7 +491,7 @@ namespace Opc.Ua
                     {
                         (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
                                 certificate,
-                                state.IssuerList,
+                                default,
                                 state.IssuerStore,
                                 true,
                                 ct)
@@ -516,7 +501,7 @@ namespace Opc.Ua
                     {
                         issuer = await GetIssuerAsync(
                                 certificate,
-                                state.IssuerList,
+                                default,
                                 state.IssuerStore,
                                 true,
                                 ct)
@@ -1245,33 +1230,6 @@ namespace Opc.Ua
         {
             TrustListState state = m_state;
 
-            if (!state.TrustedList.IsEmpty)
-            {
-                for (int ii = 0; ii < state.TrustedList.Count; ii++)
-                {
-                    Certificate? trusted = await CertificateIdentifierResolver
-                        .ResolveAsync(
-                            state.TrustedList[ii],
-                            registry: null,
-                            needPrivateKey: false,
-                            applicationUri: null,
-                            m_telemetry,
-                            ct)
-                        .ConfigureAwait(false);
-
-                    if (trusted != null &&
-                        trusted.Thumbprint == certificate.Thumbprint &&
-                        Utils.IsEqual(trusted.RawData, certificate.RawData))
-                    {
-                        return new CertificateIssuerReference(
-                            trusted,
-                            state.TrustedList[ii].ValidationOptions);
-                    }
-
-                    trusted?.Dispose();
-                }
-            }
-
             // check if in peer trust store.
             if (state.TrustedStore != null)
             {
@@ -1799,9 +1757,7 @@ namespace Opc.Ua
         /// </summary>
         private sealed record TrustListState(
             CertificateStoreIdentifier? TrustedStore,
-            ArrayOf<CertificateIdentifier> TrustedList,
             CertificateStoreIdentifier? IssuerStore,
-            ArrayOf<CertificateIdentifier> IssuerList,
             ArrayOf<Certificate> ApplicationCertificates);
     }
 }
