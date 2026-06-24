@@ -306,7 +306,7 @@ The PubSub stack (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
 to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06).
 
 - **Native AOT clean.** The combined reference sample
-  (`ConsoleReferencePubSub`, with `publisher` / `subscriber` / `external` modes)
+  (`ConsoleReferencePubSubClient`, with `publisher` / `subscriber` / `external` modes)
   publishes AOT with zero `IL2026` / `IL3050`; `PubSubAotTests` exercises every
   runtime path under AOT.
 - **DI-integrated.** `services.AddOpcUa().AddPubSub(o => …)` registers

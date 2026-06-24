@@ -35,7 +35,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Quickstarts.ConsoleReferencePubSub
+namespace Quickstarts.ConsoleReferencePubSubClient
 {
     /// <summary>
     /// In-process <see cref="IPublishedDataSetSource"/> that mints a

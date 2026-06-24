@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Quickstarts.ConsoleReferencePubSub
+namespace Quickstarts.ConsoleReferencePubSubClient
 {
     /// <summary>
     /// <see cref="ISubscribedDataSetSink"/> that prints every received

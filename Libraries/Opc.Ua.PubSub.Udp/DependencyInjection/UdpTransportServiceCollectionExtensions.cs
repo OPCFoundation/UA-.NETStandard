@@ -69,7 +69,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
-        public static IPubSubBuilder AddUdpTransport(
+        public static IUdpTransportBuilder AddUdpTransport(
             this IPubSubBuilder builder,
             Action<UdpTransportOptions>? configure = null)
         {
@@ -86,7 +86,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.Services.AddOptions<UdpTransportOptions>().Configure(configure);
             }
             RegisterFactory(builder.Services);
-            return builder;
+            return CreateUdpTransportBuilder(builder);
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
-        public static IPubSubBuilder AddUdpTransport(
+        public static IUdpTransportBuilder AddUdpTransport(
             this IPubSubBuilder builder,
             IConfiguration configuration)
         {
@@ -119,7 +119,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
-        public static IPubSubBuilder AddUdpTransport(
+        public static IUdpTransportBuilder AddUdpTransport(
             this IPubSubBuilder builder,
             IConfigurationSection section)
         {
@@ -133,7 +133,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             builder.Services.AddOptions<UdpTransportOptions>().Bind(section);
             RegisterFactory(builder.Services);
-            return builder;
+            return CreateUdpTransportBuilder(builder);
         }
 
 
@@ -148,13 +148,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="DtlsTransportOptions.DisabledProfiles"/>, and a
         /// <see cref="DtlsTransportOptions.PeerCertificateValidator"/>. The cipher suite/profile is
         /// selected at runtime from the enabled and runtime-supported set; profiles are never pinned
-        /// by configuration. Chains on the <see cref="IPubSubBuilder"/> returned by
+        /// by configuration. Chains on the <see cref="IUdpTransportBuilder"/> returned by
         /// <c>AddUdpTransport()</c>.
         /// </remarks>
-        /// <param name="builder">PubSub builder.</param>
+        /// <param name="builder">UDP transport builder.</param>
         /// <param name="configure">Optional DTLS options callback.</param>
-        public static IPubSubBuilder WithDtls(
-            this IPubSubBuilder builder,
+        public static IUdpTransportBuilder WithDtls(
+            this IUdpTransportBuilder builder,
             Action<DtlsTransportOptions>? configure = null)
         {
             if (builder is null)
@@ -174,6 +174,24 @@ namespace Microsoft.Extensions.DependencyInjection
             RegisterDtls(builder.Services);
             RegisterFactory(builder.Services);
             return builder;
+        }
+
+        /// <summary>
+        /// Registers DTLS 1.3 support for <c>opc.dtls://</c> unicast PubSub endpoints.
+        /// </summary>
+        /// <param name="builder">PubSub builder.</param>
+        /// <param name="configure">Optional DTLS options callback.</param>
+        [Obsolete("Call WithDtls on the IUdpTransportBuilder returned by AddUdpTransport().")]
+        public static IPubSubBuilder WithDtls(
+            this IPubSubBuilder builder,
+            Action<DtlsTransportOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            return CreateUdpTransportBuilder(builder).WithDtls(configure).PubSubBuilder;
         }
 
         /// <summary>
@@ -215,6 +233,11 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<DtlsProfileRegistry>();
             services.TryAddSingleton<IDtlsContextFactory, DefaultDtlsContextFactory>();
+        }
+
+        private static IUdpTransportBuilder CreateUdpTransportBuilder(IPubSubBuilder builder)
+        {
+            return builder as IUdpTransportBuilder ?? new UdpTransportBuilder(builder);
         }
     }
 }

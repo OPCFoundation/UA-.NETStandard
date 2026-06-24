@@ -31,7 +31,7 @@ using System;
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
 
-namespace Quickstarts.ConsoleReferencePubSub
+namespace Quickstarts.ConsoleReferencePubSubClient
 {
     /// <summary>
     /// Builds minimal Part 14 <see cref="PubSubConfigurationDataType"/>

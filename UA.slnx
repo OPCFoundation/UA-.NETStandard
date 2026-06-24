@@ -2,7 +2,7 @@
   <Folder Name="/Applications/">
     <Project Path="Applications/ConsoleLdsServer/ConsoleLdsServer.csproj" />
     <Project Path="Applications/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
-    <Project Path="Applications/ConsoleReferencePubSub/ConsoleReferencePubSub.csproj" />
+    <Project Path="Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
     <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/MinimalCalcServer/MinimalCalcServer.csproj" />

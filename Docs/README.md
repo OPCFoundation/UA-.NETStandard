@@ -45,7 +45,7 @@ Here is a list of available documentation for different topics:
 
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
 * [Reference Server](../Applications/README.md) documentation for running against CTT.
-* [ConsoleReferencePubSub](../Applications/ConsoleReferencePubSub/README.md) documentation for the PubSub reference sample (publisher / subscriber / external-server adapter modes).
+* [ConsoleReferencePubSubClient](../Applications/ConsoleReferencePubSubClient/README.md) documentation for the PubSub reference sample (publisher / subscriber / external-server adapter modes).
 * [Provisioning Mode](ProvisioningMode.md) for secure certificate provisioning and initial server configuration.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in Visual Studio 2026 and for local testing.
 

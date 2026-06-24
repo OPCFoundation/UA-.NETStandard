@@ -38,7 +38,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Application;
 
-namespace Quickstarts.ConsoleReferencePubSub
+namespace Quickstarts.ConsoleReferencePubSubClient
 {
     /// <summary>
     /// Unified OPC UA Part 14 PubSub reference sample built on the fluent
@@ -362,7 +362,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                 }
                 publisher.ConfigureApplication(app =>
                 {
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:Publisher");
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:Publisher");
                     if (!string.IsNullOrEmpty(configFile))
                     {
                         app.UseConfigurationFile(configFile);
@@ -383,7 +383,7 @@ namespace Quickstarts.ConsoleReferencePubSub
             IHost host = builder.Build();
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("ConsoleReferencePubSub.Publisher");
+                .CreateLogger("ConsoleReferencePubSubClient.Publisher");
             logger.LogInformation(
                 "Publisher starting: profile={Profile} endpoint={Endpoint} "
                 + "interval={Interval}ms publisherId={PublisherId} writerGroup={WriterGroupId}",
@@ -426,7 +426,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                 }
                 subscriber.ConfigureApplication(app =>
                 {
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:Subscriber");
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:Subscriber");
                     if (!string.IsNullOrEmpty(configFile))
                     {
                         app.UseConfigurationFile(configFile);
@@ -446,7 +446,7 @@ namespace Quickstarts.ConsoleReferencePubSub
             IHost host = builder.Build();
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("ConsoleReferencePubSub.Subscriber");
+                .CreateLogger("ConsoleReferencePubSubClient.Subscriber");
             logger.LogInformation(
                 "Subscriber starting: profile={Profile} endpoint={Endpoint} "
                 + "publisherFilter={PublisherFilter} writerGroupFilter={WriterGroupFilter}",
@@ -487,7 +487,7 @@ namespace Quickstarts.ConsoleReferencePubSub
             IHost host = builder.Build();
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("ConsoleReferencePubSub.External");
+                .CreateLogger("ConsoleReferencePubSubClient.External");
             logger.LogInformation(
                 "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} "
                 + "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}",
@@ -515,7 +515,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                 .AddPublisher()
                 .AddUdpTransport()
                 .ConfigureApplication(app =>
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:ExternalPublisher"))
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:ExternalPublisher"))
                 .UseConfiguration(
                     ExternalServerPubSubConfiguration.BuildPublisherConfiguration(pubSubEndpoint))
                 .AddServerAsPublisher(options =>
@@ -544,7 +544,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                 .AddSubscriber()
                 .AddUdpTransport()
                 .ConfigureApplication(app =>
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:ExternalSubscriber"))
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:ExternalSubscriber"))
                 .UseConfiguration(
                     ExternalServerPubSubConfiguration.BuildSubscriberConfiguration(pubSubEndpoint))
                 .AddServerAsSubscriber(options =>
@@ -567,7 +567,7 @@ namespace Quickstarts.ConsoleReferencePubSub
                 .AddSubscriber()
                 .AddUdpTransport()
                 .ConfigureApplication(app =>
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:ExternalResponder"))
+                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:ExternalResponder"))
                 .UseConfiguration(
                     ExternalServerPubSubConfiguration.BuildSubscriberConfiguration(pubSubEndpoint))
                 .AddServerAsActionResponder(options =>

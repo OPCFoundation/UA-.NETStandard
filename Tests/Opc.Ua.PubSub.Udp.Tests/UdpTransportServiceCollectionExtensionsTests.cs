@@ -93,13 +93,16 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
         [Test]
         [TestSpec("7.3.2.4")]
-        public async Task WithDtlsRegistersOptionsRegistryAndFactoryAsync()
+        public async Task AddUdpTransportReturnsUdpBuilderAndWithDtlsRegistersOptionsRegistryAndFactoryAsync()
         {
             var services = new ServiceCollection();
+            IUdpTransportBuilder? udpBuilder = null;
 
-            services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .AddUdpTransport()
-                .WithDtls(options => options.PreferredProfileName = "ECC_nistP256"));
+            services.AddOpcUa().AddPubSub(pubsub =>
+            {
+                udpBuilder = pubsub.AddUdpTransport();
+                udpBuilder.WithDtls(options => options.PreferredProfileName = "ECC_nistP256");
+            });
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             DtlsTransportOptions options =
@@ -107,6 +110,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             Assert.Multiple(() =>
             {
+                Assert.That(udpBuilder, Is.Not.Null);
+                Assert.That(udpBuilder, Is.InstanceOf<IUdpTransportBuilder>());
                 Assert.That(options.PreferredProfileName, Is.EqualTo("ECC_nistP256"));
                 Assert.That(serviceProvider.GetRequiredService<DtlsProfileRegistry>(), Is.Not.Null);
                 Assert.That(serviceProvider.GetRequiredService<IDtlsContextFactory>(),

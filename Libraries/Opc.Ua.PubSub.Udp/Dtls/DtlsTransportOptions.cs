@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
@@ -85,6 +86,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// certificate per certificate type.
         /// </summary>
         public IList<Certificate> LocalCertificates { get; } = [];
+
+        /// <summary>
+        /// Local certificate identifiers resolved from the configured certificate manager or store
+        /// registry when a DTLS context is created. Resolved private-key certificates are merged with
+        /// <see cref="LocalCertificates"/> before the handshake selects the certificate whose ECDsa
+        /// named curve matches the negotiated profile certificate curve.
+        /// </summary>
+        public IList<CertificateIdentifier> LocalCertificateIdentifiers { get; } = [];
 
         /// <summary>
         /// Optional direct-construction peer certificate validator.

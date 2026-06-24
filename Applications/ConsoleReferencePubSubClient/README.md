@@ -8,7 +8,7 @@ NativeAOT-ready single-file executable.
 ## Modes
 
 ```
-ConsoleReferencePubSub <mode> [options]
+ConsoleReferencePubSubClient <mode> [options]
 ```
 
 | Mode | Purpose |
@@ -20,8 +20,8 @@ ConsoleReferencePubSub <mode> [options]
 ### `publisher`
 
 ```bash
-ConsoleReferencePubSub publisher --profile udp-uadp --interval 1000
-ConsoleReferencePubSub publisher --profile mqtt-json --endpoint mqtt://localhost:1883
+ConsoleReferencePubSubClient publisher --profile udp-uadp --interval 1000
+ConsoleReferencePubSubClient publisher --profile mqtt-json --endpoint mqtt://localhost:1883
 ```
 
 Options: `--profile udp-uadp|mqtt-uadp|mqtt-json`, `--config-file <xml>`,
@@ -30,7 +30,7 @@ Options: `--profile udp-uadp|mqtt-uadp|mqtt-json`, `--config-file <xml>`,
 ### `subscriber`
 
 ```bash
-ConsoleReferencePubSub subscriber --profile udp-uadp
+ConsoleReferencePubSubClient subscriber --profile udp-uadp
 ```
 
 Options: `--profile`, `--config-file <xml>`, `--publisher-id-filter`,
@@ -44,16 +44,16 @@ the `OPCUA_EXTERNAL_ENDPOINT` environment variable).
 
 ```bash
 # Read an external server and publish its values (cyclic Read each cycle)
-ConsoleReferencePubSub external --mode publisher --read-mode cyclic
+ConsoleReferencePubSubClient external --mode publisher --read-mode cyclic
 
 # Read via a client Subscription cache, one subscription per WriterGroup
-ConsoleReferencePubSub external --mode publisher --read-mode subscription --affinity writergroup
+ConsoleReferencePubSubClient external --mode publisher --read-mode subscription --affinity writergroup
 
 # Write received PubSub values back to an external server
-ConsoleReferencePubSub external --mode subscriber
+ConsoleReferencePubSubClient external --mode subscriber
 
 # Map an inbound PubSub Action to an external server method call
-ConsoleReferencePubSub external --mode responder
+ConsoleReferencePubSubClient external --mode responder
 ```
 
 Options: `--mode publisher|subscriber|responder`,
@@ -68,8 +68,8 @@ Options: `--mode publisher|subscriber|responder`,
 ## Build / publish
 
 ```bash
-dotnet build Applications/ConsoleReferencePubSub/ConsoleReferencePubSub.csproj
-dotnet publish Applications/ConsoleReferencePubSub/ConsoleReferencePubSub.csproj -r win-x64
+dotnet build Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj
+dotnet publish Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj -r win-x64
 ```
 
 See [Docs/PubSub.md](../../Docs/PubSub.md) for the full PubSub guide.

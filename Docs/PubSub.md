@@ -68,12 +68,12 @@ Actions to an external OPC UA server over a managed client session.
 ```text
 ┌──────────────────────────────────┐      ┌──────────────────────────────────┐      ┌──────────────────────┐
 │ Optional in-process server       │      │ Optional external-server adapter │      │ External OPC UA      │
-│ Opc.Ua.PubSub.Server             │      │ Opc.Ua.PubSub.Adapter            │◀────▶│ server endpoint      │
+│ Opc.Ua.PubSub.Server             │      │ Opc.Ua.PubSub.Adapter            │◀───▶│ server endpoint      │
 │ PublishSubscribe Object ·        │      │ Sources · sinks · Action handler │      │ Read / Write / Call  │
 │ methods · diagnostics binding    │      │ over ManagedSession              │      └──────────────────────┘
 └──────────────────────────────────┘      └──────────────────────────────────┘
-                 │ IPubSubApplication                      │ Sources / sinks / Action handler
-                 ▼                                          ▼
+                 │ IPubSubApplication                     │ Sources / sinks / Action handler
+                 ▼                                         ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │                            Opc.Ua.PubSub                           │
 │                                                                    │
@@ -359,7 +359,7 @@ builder.Services.AddOpcUa()
             .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
             .AddDataSetSource("Simple", new MyDataSetSource())
             .ConfigureApplication(app => app
-                .WithApplicationId("urn:opcfoundation:ConsoleReferencePubSub:Publisher")
+                .WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:Publisher")
                 .UseConfigurationFile("publisher.xml"));
     });
 
@@ -435,15 +435,18 @@ broadcast. The transport honours the
 unicast UADP PubSub endpoints. Use `opc.dtls://host:4843` (default port 4843).
 Multicast and broadcast DTLS endpoints are rejected fail-closed.
 
-Register DTLS with the UDP transport fluent/DI extension:
+Register DTLS on the `IUdpTransportBuilder` returned by `AddUdpTransport()`:
 
 ```csharp
 services.AddOpcUa()
-    .AddPubSub(pubsub => pubsub
-        .AddPublisher()
-        .AddSubscriber()
-        .AddUdpTransport()
-        .WithDtls(options =>
+    .AddPubSub(pubsub =>
+    {
+        var udp = pubsub
+            .AddPublisher()
+            .AddSubscriber()
+            .AddUdpTransport();
+
+        udp.WithDtls(options =>
         {
             // Register one or more local ECC certificates (with private keys). The handshake
             // selects the certificate whose ECDsa named curve matches the negotiated profile
@@ -452,6 +455,15 @@ services.AddOpcUa()
             options.LocalCertificates.Add(nistP256EccCertificate);
             options.LocalCertificates.Add(nistP384EccCertificate);
 
+            // Or resolve local certificates (with private keys) from the certificate manager/registry
+            // at startup; resolved certificates are merged with any explicit LocalCertificates.
+            options.LocalCertificateIdentifiers.Add(new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "%LocalApplicationData%/OPC Foundation/UA/PKI/own",
+                SubjectName = "CN=PubSub DTLS"
+            });
+
             // Optional: express a preferred profile. This is only a preference, not a hard pin.
             options.PreferredProfileName = "ECC_nistP256_AesGcm";
 
@@ -459,7 +471,8 @@ services.AddOpcUa()
             options.DisabledProfiles.Add("ECC_brainpoolP256r1_ChaChaPoly");
 
             options.PeerCertificateValidator = certificateValidator;
-        }));
+        });
+    });
 ```
 
 The cipher suite/profile is selected at runtime from the enabled and runtime-supported set: the
@@ -567,14 +580,9 @@ var options = new MqttConnectionOptions
 
 ### DTLS transport status
 
-The `opc.dtls://` transport URI is parsed for Part 14 §7.3.2.4 unicast endpoints
-and wired through the UDP transport factory when `.WithDtls(...)` is registered.
-The runtime profile registry is fail-closed: Curve25519 / Curve448 profiles are
-not registered because the portable .NET BCL does not expose RFC 7748 ECDH APIs,
-and optional NIST / Brainpool profiles are registered only when the required BCL
-cipher, HKDF, and ECDH curve probes succeed. The DTLS 1.3 handshake and record
-protection are still pending, so opening a registered DTLS endpoint throws a
-clear TODO(S3) error instead of sending unprotected PubSub payloads.
+The `opc.dtls://` transport URI is parsed for Part 14 §7.3.2.4 unicast endpoints and wired through the UDP transport factory when `.WithDtls(...)` is registered on the `IUdpTransportBuilder` returned by `AddUdpTransport()`. The DTLS 1.3 handshake is implemented, including ECDHE negotiation, HelloRetryRequest cookies, and certificate authentication. The key schedule/HKDF, AEAD record protection, and anti-replay window are implemented for the registered runtime profiles.
+
+The runtime profile registry remains fail-closed: Curve25519 / Curve448 profiles are not registered because the portable .NET BCL does not expose RFC 7748 ECDH APIs, and optional NIST / Brainpool profiles are registered only when the required BCL cipher, HKDF, and ECDH curve probes succeed.
 
 ## Encodings
 
@@ -698,6 +706,8 @@ public enum UadpSecurityWrapOptions
 Lookup uses
 `PubSubSecurityPolicyRegistry.Find(policyUri)` — the URIs match
 [Part 7 §6.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
+
+These policies are UADP message-level security for Part 14 §7.2.2 and apply to the NetworkMessage payload. DTLS transport security protects the whole UDP datagram on the wire for one transport hop. Use DTLS to secure the transport hop, and use a UADP security policy when the message must remain protected end-to-end across brokers or relays. They can be combined or used independently: `PubSubNonePolicy` over DTLS gives transport-only confidentiality, while an AES-CTR UADP policy over DTLS is redundant but supported.
 
 ### Key ring
 
@@ -1239,7 +1249,7 @@ For Actions, leave `ServerActionResponderOptions.AllowUnsecured` at its default 
 
 ### Sample
 
-See `Applications\ConsoleReferencePubSub` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
+See `Applications\ConsoleReferencePubSubClient` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
 
 ### See also
 
@@ -1324,7 +1334,7 @@ PubSub is AOT-clean across all four assemblies.
   AOT-published binary.
 - **Reference sample.** The combined reference application publishes AOT-clean
   with zero `IL2026` / `IL3050` warnings:
-  - [`Applications/ConsoleReferencePubSub`](../Applications/ConsoleReferencePubSub/README.md) (`publisher` / `subscriber` / `external` modes)
+  - [`Applications/ConsoleReferencePubSubClient`](../Applications/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
 
 ## Spec coverage
 
@@ -1374,5 +1384,4 @@ below maps Part 14 sections to the type / file that implements them.
 - [Profiles and Facets](Profiles.md#pubsub-transports)
 - [Certificate Manager](CertificateManager.md)
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.
-- [Reference PubSub sample (`Applications/ConsoleReferencePubSub/README.md`)](../Applications/ConsoleReferencePubSub/README.md)
-
+- [Reference PubSub Client sample (`Applications/ConsoleReferencePubSubClient/README.md`)](../Applications/ConsoleReferencePubSubClient/README.md)

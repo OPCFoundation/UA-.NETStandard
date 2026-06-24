@@ -35,11 +35,13 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Udp.Dtls;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 {
@@ -184,6 +186,58 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 .ConfigureAwait(false);
 
             Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
+        public async Task ServerSelectsLocalCertificateResolvedFromIdentifierAsync()
+        {
+            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            var validator = CreateSuccessfulValidator();
+            var certificateProvider = new Mock<ICertificateProvider>(MockBehavior.Strict);
+            certificateProvider
+                .Setup(p => p.GetPrivateKeyCertificateAsync(
+                    It.Is<CertificateIdentifier>(id => id.Thumbprint == serverCertificate.Thumbprint),
+                    null,
+                    null,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Certificate?>(serverCertificate.AddRef()));
+            var serverOptions = new DtlsTransportOptions { PeerCertificateValidator = validator.Object };
+            serverOptions.LocalCertificateIdentifiers.Add(new CertificateIdentifier
+            {
+                Thumbprint = serverCertificate.Thumbprint
+            });
+            var factory = new DefaultDtlsContextFactory(
+                Options.Create(serverOptions),
+                new DtlsProfileRegistry(),
+                validator.Object,
+                certificateProvider.Object);
+            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientCertificate, validator.Object);
+            using IDtlsContext server = await factory.CreateAsync(
+                    new PubSubConnectionDataType { Name = "resolved-server" },
+                    CreateEndpoint(profile),
+                    profile,
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System)
+                .ConfigureAwait(false);
+
+            await Task.WhenAll(
+                client.OpenAsync(pair.Client, CancellationToken.None).AsTask(),
+                server.OpenAsync(pair.Server, CancellationToken.None).AsTask()).ConfigureAwait(false);
+
+            byte[] payload = [0x44, 0x54, 0x4c, 0x53];
+            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, CancellationToken.None)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+                certificateProvider.VerifyAll();
+            });
         }
 
         [Test]
@@ -375,9 +429,19 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 options,
                 validator,
                 role,
-                new UdpEndpoint(IPAddress.Loopback, 4843, UdpAddressType.Unicast, "opc.dtls://localhost:4843", true,
-                    profile.Name),
+                CreateEndpoint(profile),
                 TimeProvider.System);
+        }
+
+        private static UdpEndpoint CreateEndpoint(DtlsProfile profile)
+        {
+            return new UdpEndpoint(
+                IPAddress.Loopback,
+                4843,
+                UdpAddressType.Unicast,
+                "opc.dtls://localhost:4843",
+                true,
+                profile.Name);
         }
 
         private static Certificate CreateEcdsaCertificate(DtlsNamedCurve curve)

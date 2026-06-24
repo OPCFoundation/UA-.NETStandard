@@ -88,7 +88,7 @@ Each sample has its own `README.md` with build and run instructions.
 
 **PubSub samples**
 
-- [Console Reference PubSub](Applications/ConsoleReferencePubSub/README.md) —
+- [Console Reference PubSub Client](Applications/ConsoleReferencePubSubClient/README.md) —
   one executable with `publisher`, `subscriber`, and `external` (external-server
   adapter) modes across the supported transport profiles.
 

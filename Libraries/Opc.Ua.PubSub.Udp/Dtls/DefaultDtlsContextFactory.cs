@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
 {
@@ -46,7 +48,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public DefaultDtlsContextFactory(
             IOptions<DtlsTransportOptions> options,
             DtlsProfileRegistry profileRegistry,
-            ICertificateValidatorEx? certificateValidator = null)
+            ICertificateValidatorEx? certificateValidator = null,
+            ICertificateProvider? certificateProvider = null,
+            ApplicationConfiguration? applicationConfiguration = null)
         {
             if (options is null)
             {
@@ -60,7 +64,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             Options = options.Value ?? new DtlsTransportOptions();
             ProfileRegistry = profileRegistry;
-            CertificateValidator = certificateValidator;
+            CertificateValidator = certificateValidator ?? applicationConfiguration?.CertificateManager;
+            CertificateProvider = certificateProvider ??
+                (certificateValidator as ICertificateManager)?.CertificateProvider ??
+                applicationConfiguration?.CertificateManager?.CertificateProvider;
+            ApplicationConfiguration = applicationConfiguration;
         }
 
         /// <summary>
@@ -78,8 +86,18 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         public ICertificateValidatorEx? CertificateValidator { get; }
 
+        /// <summary>
+        /// Injected certificate provider used to resolve identifier-backed local certificates.
+        /// </summary>
+        public ICertificateProvider? CertificateProvider { get; }
+
+        /// <summary>
+        /// Optional application configuration used for certificate-store passwords and URI fallback.
+        /// </summary>
+        public ApplicationConfiguration? ApplicationConfiguration { get; }
+
         /// <inheritdoc/>
-        public ValueTask<IDtlsContext> CreateAsync(
+        public async ValueTask<IDtlsContext> CreateAsync(
             PubSubConnectionDataType connection,
             UdpEndpoint endpoint,
             DtlsProfile profile,
@@ -119,18 +137,39 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 connection.Name,
                 endpoint,
                 profile.Name);
+            List<Certificate> resolvedLocalCertificates = await ResolveLocalCertificatesAsync(
+                    telemetry,
+                    logger,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            DtlsTransportOptions effectiveOptions = resolvedLocalCertificates.Count == 0
+                ? Options
+                : CreateEffectiveOptions(resolvedLocalCertificates);
             // CA2000: ownership is transferred to DtlsDatagramTransport, which disposes the context on close.
             // TODO(CA2000): introduce an owned-context result type if this factory gains additional disposable contexts.
 #pragma warning disable CA2000
-            IDtlsContext context = new DtlsHandshakeContext(
-                profile,
-                Options,
-                CertificateValidator ?? Options.PeerCertificateValidator,
-                DetermineRole(connection),
-                endpoint,
-                timeProvider);
+            IDtlsContext context;
+            try
+            {
+                context = new DtlsHandshakeContext(
+                    profile,
+                    effectiveOptions,
+                    CertificateValidator ?? effectiveOptions.PeerCertificateValidator,
+                    DetermineRole(connection),
+                    endpoint,
+                    timeProvider);
+            }
+            catch
+            {
+                DisposeCertificates(resolvedLocalCertificates);
+                throw;
+            }
 #pragma warning restore CA2000
-            return new ValueTask<IDtlsContext>(context);
+            if (resolvedLocalCertificates.Count != 0)
+            {
+                context = new ResolvedLocalCertificateDtlsContext(context, resolvedLocalCertificates);
+            }
+            return context;
         }
 
         private static DtlsEndpointRole DetermineRole(PubSubConnectionDataType connection)
@@ -138,6 +177,157 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             bool hasWriters = !connection.WriterGroups.IsNull && connection.WriterGroups.Count > 0;
             bool hasReaders = !connection.ReaderGroups.IsNull && connection.ReaderGroups.Count > 0;
             return hasWriters && !hasReaders ? DtlsEndpointRole.Client : DtlsEndpointRole.Server;
+        }
+
+        private async ValueTask<List<Certificate>> ResolveLocalCertificatesAsync(
+            ITelemetryContext telemetry,
+            ILogger logger,
+            CancellationToken cancellationToken)
+        {
+            var resolvedCertificates = new List<Certificate>();
+            if (Options.LocalCertificateIdentifiers.Count == 0)
+            {
+                return resolvedCertificates;
+            }
+
+            ICertificatePasswordProvider? passwordProvider = ApplicationConfiguration
+                ?.SecurityConfiguration
+                ?.CertificatePasswordProvider;
+            string? applicationUri = ApplicationConfiguration?.ApplicationUri;
+            foreach (CertificateIdentifier identifier in Options.LocalCertificateIdentifiers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (identifier is null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    Certificate? certificate = CertificateProvider is not null
+                        ? await CertificateProvider
+                            .GetPrivateKeyCertificateAsync(identifier, passwordProvider, applicationUri, cancellationToken)
+                            .ConfigureAwait(false)
+                        : await CertificateIdentifierResolver
+                            .LoadPrivateKeyAsync(identifier, passwordProvider, applicationUri, telemetry, cancellationToken)
+                            .ConfigureAwait(false);
+                    if (certificate?.HasPrivateKey == true)
+                    {
+                        resolvedCertificates.Add(certificate);
+                        logger.LogInformation(
+                            "Resolved OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
+                            identifier);
+                    }
+                    else
+                    {
+                        certificate?.Dispose();
+                        logger.LogWarning(
+                            "OPC UA PubSub DTLS local certificate identifier '{Identifier}' did not resolve to a " +
+                            "certificate with a private key.",
+                            identifier);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Failed to resolve OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
+                        identifier);
+                }
+            }
+
+            return resolvedCertificates;
+        }
+
+        private DtlsTransportOptions CreateEffectiveOptions(IReadOnlyList<Certificate> resolvedLocalCertificates)
+        {
+            var options = new DtlsTransportOptions
+            {
+                PreferredProfileName = Options.PreferredProfileName,
+                MaxHandshakeDatagramSize = Options.MaxHandshakeDatagramSize,
+                InitialRetransmissionTimeout = Options.InitialRetransmissionTimeout,
+                MaxRetransmissionTimeout = Options.MaxRetransmissionTimeout,
+                RequireHelloRetryRequestCookie = Options.RequireHelloRetryRequestCookie,
+                PeerCertificateValidator = Options.PeerCertificateValidator,
+                RequireClientCertificate = Options.RequireClientCertificate
+            };
+
+            foreach (string disabledProfile in Options.DisabledProfiles)
+            {
+                options.DisabledProfiles.Add(disabledProfile);
+            }
+
+            foreach (Certificate certificate in Options.LocalCertificates)
+            {
+                options.LocalCertificates.Add(certificate);
+            }
+
+            foreach (Certificate certificate in resolvedLocalCertificates)
+            {
+                options.LocalCertificates.Add(certificate);
+            }
+
+            return options;
+        }
+
+        private sealed class ResolvedLocalCertificateDtlsContext : IDtlsContext
+        {
+            private readonly IDtlsContext m_inner;
+            private readonly IReadOnlyList<Certificate> m_resolvedLocalCertificates;
+
+            public ResolvedLocalCertificateDtlsContext(
+                IDtlsContext inner,
+                IReadOnlyList<Certificate> resolvedLocalCertificates)
+            {
+                m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
+                m_resolvedLocalCertificates = resolvedLocalCertificates
+                    ?? throw new ArgumentNullException(nameof(resolvedLocalCertificates));
+            }
+
+            /// <inheritdoc/>
+            public DtlsProfile Profile => m_inner.Profile;
+
+            /// <inheritdoc/>
+            public ValueTask OpenAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken = default)
+            {
+                return m_inner.OpenAsync(channel, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ReadOnlyMemory<byte>> ProtectAsync(
+                ReadOnlyMemory<byte> payload,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.ProtectAsync(payload, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ReadOnlyMemory<byte>> UnprotectAsync(
+                ReadOnlyMemory<byte> record,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.UnprotectAsync(record, cancellationToken);
+            }
+
+            public void Dispose()
+            {
+                try
+                {
+                    m_inner.Dispose();
+                }
+                finally
+                {
+                    DisposeCertificates(m_resolvedLocalCertificates);
+                }
+            }
+        }
+
+        private static void DisposeCertificates(IReadOnlyList<Certificate> certificates)
+        {
+            foreach (Certificate certificate in certificates)
+            {
+                certificate.Dispose();
+            }
         }
     }
 

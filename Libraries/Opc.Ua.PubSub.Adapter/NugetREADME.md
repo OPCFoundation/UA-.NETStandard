@@ -23,10 +23,10 @@ services.AddOpcUa()
         .AddPublisher()
         .AddUdpTransport()
         .UseConfigurationFile("pubsub-config.xml")
-        .AddExternalServerPublisher(options =>
+        .AddServerAsPublisher(options =>
         {
             options.Connection.EndpointUrl = "opc.tcp://plant-server:4840";
-            options.ReadMode = ExternalReadMode.Subscription; // or Cyclic
+            options.ReadMode = ReadMode.Subscription; // or Cyclic
         }));
 ```
 
