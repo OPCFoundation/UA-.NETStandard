@@ -181,9 +181,10 @@ namespace Opc.Ua
 
                 string postEventId = branchedAlarm.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
 
-                Dictionary<string, ConditionState> branches = GetBranches();
-
-                branches.Add(postEventId, branchedAlarm);
+                lock (m_branchesLock)
+                {
+                    (m_branches ??= []).Add(postEventId, branchedAlarm);
+                }
 
                 state = branchedAlarm;
             }
@@ -204,15 +205,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Retrieves the branches for the current ConditionState.
-        /// Creates the branches dictionary if required
+        /// Returns a snapshot of the current branches for this ConditionState.
         /// </summary>
         /// <remarks>
         /// Function exists because constructor is in auto generated code.
+        /// Returns a snapshot copy so the caller can safely enumerate it
+        /// while other threads concurrently modify the branch collection.
+        /// If no branches exist, an empty dictionary is returned.
         /// </remarks>
         public Dictionary<string, ConditionState> GetBranches()
         {
-            return m_branches ??= [];
+            lock (m_branchesLock)
+            {
+                return m_branches != null
+                    ? new Dictionary<string, ConditionState>(m_branches)
+                    : [];
+            }
         }
 
         /// <summary>
@@ -237,20 +245,21 @@ namespace Opc.Ua
         /// <returns>ConditionState branch if it exists</returns>
         public ConditionState? GetBranch(ByteString eventId)
         {
-            ConditionState? alarm = null;
-
-            Dictionary<string, ConditionState> branches = GetBranches();
-
-            foreach (ConditionState branchEvent in branches.Values)
+            lock (m_branchesLock)
             {
-                if (branchEvent.EventId!.Value == eventId) // ConditionState.Initialize creates EventId
+                if (m_branches != null)
                 {
-                    alarm = branchEvent;
-                    break;
+                    foreach (ConditionState branchEvent in m_branches.Values)
+                    {
+                        if (branchEvent.EventId!.Value == eventId) // ConditionState.Initialize creates EventId
+                        {
+                            return branchEvent;
+                        }
+                    }
                 }
             }
 
-            return alarm;
+            return null;
         }
 
         /// <summary>
@@ -263,10 +272,12 @@ namespace Opc.Ua
             string originalKey = originalEventId.ToHexString();
             string newKey = alarm.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
 
-            Dictionary<string, ConditionState> branches = GetBranches();
-
-            branches.Remove(originalKey);
-            branches.Add(newKey, alarm);
+            lock (m_branchesLock)
+            {
+                m_branches ??= [];
+                m_branches.Remove(originalKey);
+                m_branches.Add(newKey, alarm);
+            }
         }
 
         /// <summary>
@@ -277,9 +288,10 @@ namespace Opc.Ua
         {
             string key = eventId.ToHexString();
 
-            Dictionary<string, ConditionState> branches = GetBranches();
-
-            branches.Remove(key);
+            lock (m_branchesLock)
+            {
+                m_branches?.Remove(key);
+            }
         }
 
         /// <summary>
@@ -287,8 +299,10 @@ namespace Opc.Ua
         /// </summary>
         public void ClearBranches()
         {
-            Dictionary<string, ConditionState> branches = GetBranches();
-            branches.Clear();
+            lock (m_branchesLock)
+            {
+                m_branches?.Clear();
+            }
         }
 
         /// <summary>
@@ -341,9 +355,10 @@ namespace Opc.Ua
         /// </returns>
         public virtual int GetBranchCount()
         {
-            Dictionary<string, ConditionState> branches = GetBranches();
-
-            return branches.Count;
+            lock (m_branchesLock)
+            {
+                return m_branches?.Count ?? 0;
+            }
         }
 
         /// <summary>
@@ -786,6 +801,11 @@ namespace Opc.Ua
         /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState>? m_branches;
+
+        /// <summary>
+        /// Lock protecting all access to <see cref="m_branches"/>.
+        /// </summary>
+        protected readonly Lock m_branchesLock = new();
         private PropertyState<bool>? m_supportsFilteredRetain;
     }
 
