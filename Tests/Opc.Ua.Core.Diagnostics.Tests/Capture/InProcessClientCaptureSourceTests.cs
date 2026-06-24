@@ -193,11 +193,9 @@ namespace Opc.Ua.Pcap.Tests.Capture
 
         private static async Task ForceDisposeWritersAsync(InProcessClientCaptureSource source)
         {
-            // When the cap-byte/frame/duration limits short-circuit
-            // EnqueueFrame, m_state is set to StateStopped without draining
-            // the queue or awaiting m_workerTask, so a subsequent StopAsync
-            // call returns early at the CompareExchange guard and leaves
-            // the in-flight frame unread when the test reads the file.
+            // ForceDisposeWriterAsync bypasses StopAsync's normal teardown and can race
+            // with the queue worker. Drain the queue + worker explicitly so the worker has
+            // written any pending packets to disk before the writers are forcibly disposed.
             // Drain the queue + worker explicitly here so the worker has
             // written any pending packets to disk before the writers are
             // forcibly disposed.
