@@ -572,7 +572,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // the last-write-time so the (name, length, mtime) signature is
             // unchanged. The new content is not a valid CRL.
             var sameLengthGarbage = new byte[length];
-            Array.Fill(sameLengthGarbage, (byte)0xEE);
+            sameLengthGarbage.AsSpan().Fill(0xEE);
             File.WriteAllBytes(crlFile, sameLengthGarbage);
             File.SetLastWriteTimeUtc(crlFile, writeTimeUtc);
 
