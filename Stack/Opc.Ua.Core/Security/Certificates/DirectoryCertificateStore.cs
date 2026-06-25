@@ -1215,9 +1215,9 @@ namespace Opc.Ua
                                 X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
                     }
 
-                    for (int li = 0; li < loaded.Count; li++)
+                    for (int ii = 0; ii < loaded.Count; ii++)
                     {
-                        Certificate certificate = loaded[li];
+                        Certificate certificate = loaded[ii];
                         var entry = new Entry
                         {
                             // Entry takes sole ownership of this handle.
@@ -1229,7 +1229,7 @@ namespace Opc.Ua
                         };
                         // Ownership transferred to the entry; clear the slot so
                         // the finally-block does not also dispose it.
-                        loaded[li] = null!;
+                        loaded[ii] = null!;
 
                         if (!NoPrivateKeys && m_privateKeySubdir is { } pkSubdir)
                         {

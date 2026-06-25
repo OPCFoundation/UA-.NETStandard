@@ -43,10 +43,6 @@ namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
     /// Wraps an <see cref="X509Certificate2"/> providing a managed
-    /// lifetime and implementing <see cref="IX509Certificate"/>.
-    /// </summary>
-    /// <summary>
-    /// Wraps an <see cref="X509Certificate2"/> providing a managed
     /// lifetime with reference counting and implementing
     /// <see cref="IX509Certificate"/>.
     /// </summary>

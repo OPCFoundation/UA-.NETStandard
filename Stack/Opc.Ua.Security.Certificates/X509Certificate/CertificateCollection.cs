@@ -40,10 +40,15 @@ namespace Opc.Ua.Security.Certificates
     /// manages the lifecycle of the certificates it contains, disposing them
     /// when they are removed from the collection or when the collection
     /// itself is disposed. When a certificate is added to the collection,
-    /// the collection takes ownership by incrementing the reference count
-    /// of the certificate. It is therefore simple to use the collection using
-    /// a using pattern, and to share certificates between collections by
-    /// adding the same certificate instance to multiple collections.
+    /// the collection takes its own ownership by calling
+    /// <see cref="Certificate.AddRef"/>, so the stored element is an
+    /// independent owning handle over the same underlying certificate rather
+    /// than the caller's instance. It is therefore simple to use the
+    /// collection with a <c>using</c> pattern, and the same logical
+    /// certificate can be held by several collections at once — each owns its
+    /// own handle and disposes it independently; the underlying
+    /// <see cref="X509Certificate2"/> is released only when the last handle is
+    /// disposed.
     /// </summary>
     public class CertificateCollection : IList<Certificate>, IDisposable
     {
@@ -68,10 +73,11 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Initializes a new <see cref="CertificateCollection"/>
-        /// populated with references to the certificates in the
-        /// specified enumerable. Does not copy the
-        /// <see cref="Certificate"/> objects.
+        /// Initializes a new <see cref="CertificateCollection"/> populated
+        /// from the specified enumerable. Each certificate is added as an
+        /// independent owning handle (via <see cref="Certificate.AddRef"/>);
+        /// the source instances are not transferred and the collection
+        /// disposes its own handles when it is disposed.
         /// </summary>
         /// <param name="certificates">
         /// The certificates to add to this collection.
@@ -164,9 +170,10 @@ namespace Opc.Ua.Security.Certificates
         /// </param>
         /// <returns>
         /// A new <see cref="CertificateCollection"/> containing the
-        /// matching certificates. The returned collection holds
-        /// references to the same <see cref="Certificate"/> objects —
-        /// it does not take ownership.
+        /// matching certificates. The returned collection is an independent
+        /// owner: each match is added as its own handle (via
+        /// <see cref="Certificate.AddRef"/>), so the caller owns the result
+        /// and must dispose it.
         /// </returns>
         public CertificateCollection Find(
             X509FindType findType,
@@ -526,8 +533,8 @@ namespace Opc.Ua.Security.Certificates
                 thumbprints.Add(cert.Thumbprint);
             }
 
-            // Return references to the original Certificate
-            // objects that match.
+            // Add an independent owning handle (AddRef) for each Certificate
+            // whose thumbprint matched.
             var result = new CertificateCollection();
 
             foreach (Certificate cert in m_certificates)
