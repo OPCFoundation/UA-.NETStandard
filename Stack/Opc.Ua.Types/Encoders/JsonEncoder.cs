@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -62,13 +63,21 @@ namespace Opc.Ua
             IBufferWriter<byte> writer,
             IServiceMessageContext context,
             JsonEncoderOptions? options = null)
-            : this(new Utf8JsonWriter(writer, new JsonWriterOptions
-            {
-                SkipValidation = true,
-                Indented = options?.Indented ?? false
-            }), context, options)
         {
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_options = options ?? JsonEncoderOptions.Verbose;
+            m_stream = null;
+            m_pooledBufferWriter = null;
             m_leaveOpen = false;
+            m_writer = RentJsonWriter(writer, m_options.Indented);
+            m_writerIsPooled = true;
+
+            StartObject();
         }
 
         /// <summary>
@@ -90,9 +99,9 @@ namespace Opc.Ua
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_options = options ?? JsonEncoderOptions.Verbose;
             m_stream = null;
+            m_pooledBufferWriter = null;
             m_writer = writer;
 
             StartObject();
@@ -107,26 +116,27 @@ namespace Opc.Ua
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_options = options ?? JsonEncoderOptions.Verbose;
 
             if (stream == null)
             {
-                // TODO: Use pooledBufferWriter instead
-                m_stream = new MemoryStream();
+                m_stream = null;
+                m_pooledBufferWriter = new PooledBufferWriter();
                 m_leaveOpen = false;
+                m_writer = new Utf8JsonWriter(m_pooledBufferWriter, new JsonWriterOptions
+                {
+                    SkipValidation = true,
+                    Indented = m_options.Indented
+                });
             }
             else
             {
                 m_stream = stream;
+                m_pooledBufferWriter = null;
                 m_leaveOpen = true;
+                m_writer = RentJsonWriter(m_stream, m_options.Indented);
+                m_writerIsPooled = true;
             }
-
-            m_writer = new Utf8JsonWriter(m_stream, new JsonWriterOptions
-            {
-                SkipValidation = true,
-                Indented = m_options.Indented
-            });
 
             StartObject();
         }
@@ -161,17 +171,7 @@ namespace Opc.Ua
             m_writer.Flush();
             int length = (int)m_writer.BytesCommitted;
 
-            // If a stream was passed and we should not leave it open dispose it.
-            if (m_stream != null && !m_leaveOpen)
-            {
-                m_stream.Dispose();
-            }
-            // if a stream was passed and we created a writer - or -
-            // if a writer was passed and we should not leve it open, dispose writer
-            if (m_stream != null || !m_leaveOpen)
-            {
-                m_writer.Dispose();
-            }
+            DisposeWriterAndBuffer();
             m_disposed = true;
             return length;
         }
@@ -185,28 +185,22 @@ namespace Opc.Ua
             }
             try
             {
-                if (m_stream is not MemoryStream memory)
+                if (m_pooledBufferWriter == null && m_stream is not MemoryStream)
                 {
                     throw new NotSupportedException(
                         "Cannot get text from encoder created with external stream.");
                 }
                 EndObject();
                 m_writer.Flush();
-                return Encoding.UTF8.GetString(memory.ToArray());
+                if (m_pooledBufferWriter != null)
+                {
+                    return m_pooledBufferWriter.GetText();
+                }
+                return Encoding.UTF8.GetString(((MemoryStream)m_stream!).ToArray());
             }
             finally
             {
-                // If a stream was passed and we should not leave it open dispose it.
-                if (m_stream != null && !m_leaveOpen)
-                {
-                    m_stream.Dispose();
-                }
-                // if a stream was passed and we created a writer - or -
-                // if a writer was passed and we should not leve it open, dispose writer
-                if (m_stream != null || !m_leaveOpen)
-                {
-                    m_writer.Dispose();
-                }
+                DisposeWriterAndBuffer();
                 m_disposed = true;
             }
         }
@@ -343,7 +337,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             if (value.IsNull)
             {
@@ -875,7 +869,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
             if (value.IsNull)
             {
@@ -898,7 +892,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
             if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
             {
@@ -910,7 +904,7 @@ namespace Opc.Ua
                 return;
             }
             m_writer.WritePropertyName(fieldName!);
-            WriteVariantContents(value, true, m_options.SuppressArtifacts);
+            WriteVariantContents(in value, true, m_options.SuppressArtifacts);
         }
 
         /// <inheritdoc/>
@@ -1026,7 +1020,7 @@ namespace Opc.Ua
         /// Write data value
         /// </summary>
         /// <param name="value"></param>
-        private void WriteDataValue(DataValue value)
+        private void WriteDataValue(in DataValue value)
         {
             if (value.IsNull)
             {
@@ -1087,9 +1081,10 @@ namespace Opc.Ua
         private void WriteDataValueArray(ArrayOf<DataValue> values)
         {
             StartArray(values.Count);
-            for (int i = 0; i < values.Count; i++)
+            ReadOnlySpan<DataValue> span = values.Span;
+            for (int i = 0; i < span.Length; i++)
             {
-                WriteDataValue(values.Span[i]);
+                WriteDataValue(in span[i]);
             }
             EndArray();
         }
@@ -1183,7 +1178,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_logger.LogWarning(
+                    Logger.LogWarning(
                         "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                         DiagnosticInfo.MaxInnerDepth);
                 }
@@ -1538,6 +1533,17 @@ namespace Opc.Ua
                 return;
             }
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            // Avoid the per node id string allocation for the common cases that
+            // fit into a stack buffer (numeric/guid/string in the default
+            // namespace or any non namespace-uri form).
+            Span<char> buffer = stackalloc char[256];
+            if (value.TryFormat(buffer, out int charsWritten, m_options.ForceNamespaceUri))
+            {
+                m_writer.WriteStringValue(buffer[..charsWritten]);
+                return;
+            }
+#endif
             m_writer.WriteStringValue(value.Format(Context, m_options.ForceNamespaceUri));
         }
 
@@ -1786,7 +1792,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write variant
         /// </summary>
-        private void WriteVariant(Variant value, bool suppressUaType)
+        private void WriteVariant(in Variant value, bool suppressUaType)
         {
             if (value.IsNull)
             {
@@ -1801,7 +1807,7 @@ namespace Opc.Ua
             if (!m_options.IgnoreDefaultValues || !value.ValueIsDefaultOrNull)
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
-                WriteVariantContents(value, false, suppressUaType);
+                WriteVariantContents(in value, false, suppressUaType);
             }
             EndObject();
         }
@@ -1812,9 +1818,10 @@ namespace Opc.Ua
         private void WriteVariantArray(ArrayOf<Variant> values, bool suppressUaType)
         {
             StartArray(values.Count);
-            for (int i = 0; i < values.Count; i++)
+            ReadOnlySpan<Variant> span = values.Span;
+            for (int i = 0; i < span.Length; i++)
             {
-                WriteVariant(values.Span[i], suppressUaType);
+                WriteVariant(in span[i], suppressUaType);
             }
             EndArray();
         }
@@ -1863,7 +1870,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void WriteVariantContents(
-            Variant value,
+            in Variant value,
             bool writeRawValue,
             bool suppressUaType)
         {
@@ -2172,7 +2179,7 @@ namespace Opc.Ua
         /// Write the UaType byte
         /// </summary>
         /// <param name="value"></param>
-        private void WriteVariantUaTypeByte(Variant value)
+        private void WriteVariantUaTypeByte(in Variant value)
         {
             if (!value.IsNull &&
                 value.TypeInfo.BuiltInType != BuiltInType.Null)
@@ -2225,6 +2232,7 @@ namespace Opc.Ua
         internal void StartObject()
         {
             CheckNestingLevel();
+            MaybeFlush();
             m_writer.WriteStartObject();
         }
 
@@ -2237,12 +2245,31 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Flushes buffered JSON to the underlying stream once enough bytes
+        /// have accumulated. <see cref="Utf8JsonWriter"/> never flushes on its
+        /// own, so without this its internal buffer grows (doubling, and onto
+        /// the large object heap) to the size of the entire encoded message.
+        /// Flushing at structural boundaries caps that buffer and lets the
+        /// pooled buffer be reused, which dramatically reduces allocations for
+        /// large or streamed payloads. Flushing only writes already-complete
+        /// tokens to the stream and never changes the encoded output.
+        /// </summary>
+        private void MaybeFlush()
+        {
+            if (m_writer.BytesPending >= kFlushThreshold)
+            {
+                m_writer.Flush();
+            }
+        }
+
+        /// <summary>
         /// Start new array
         /// </summary>
         /// <param name="count"></param>
         private void StartArray(int count)
         {
             CheckArrayLength(count);
+            MaybeFlush();
             m_writer.WriteStartArray();
         }
 
@@ -2311,9 +2338,203 @@ namespace Opc.Ua
             }
         }
 
+        private const int kFlushThreshold = 16 * 1024;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<JsonEncoder>();
+
+        private void DisposeWriterAndBuffer()
+        {
+            try
+            {
+                if (m_writerIsPooled)
+                {
+                    ReturnJsonWriter(m_writer, m_options.Indented);
+                }
+                else
+                {
+                    // If a stream was passed and we should not leave it open dispose it.
+                    if (m_stream != null && !m_leaveOpen)
+                    {
+                        m_stream.Dispose();
+                    }
+                    // if a stream was passed and we created a writer - or -
+                    // if a writer was passed and we should not leve it open, dispose writer
+                    if (m_stream != null || !m_leaveOpen)
+                    {
+                        m_writer.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                m_pooledBufferWriter?.ReturnBuffer();
+            }
+        }
+
+        private static Utf8JsonWriter RentJsonWriter(Stream stream, bool indented)
+        {
+            Utf8JsonWriter writer = RentJsonWriter(indented);
+            writer.Reset(stream);
+            return writer;
+        }
+
+        private static Utf8JsonWriter RentJsonWriter(IBufferWriter<byte> bufferWriter, bool indented)
+        {
+            Utf8JsonWriter writer = RentJsonWriter(indented);
+            writer.Reset(bufferWriter);
+            return writer;
+        }
+
+        private static Utf8JsonWriter RentJsonWriter(bool indented)
+        {
+            ConcurrentQueue<Utf8JsonWriter> pool = GetJsonWriterPool(indented);
+            if (pool.TryDequeue(out Utf8JsonWriter? writer))
+            {
+                return writer;
+            }
+
+            return new Utf8JsonWriter(Stream.Null, new JsonWriterOptions
+            {
+                SkipValidation = true,
+                Indented = indented
+            });
+        }
+
+        private static void ReturnJsonWriter(Utf8JsonWriter writer, bool indented)
+        {
+            try
+            {
+                writer.Reset();
+            }
+            catch (InvalidOperationException)
+            {
+                DiscardJsonWriter(writer);
+                return;
+            }
+
+            ConcurrentQueue<Utf8JsonWriter> pool = GetJsonWriterPool(indented);
+            if (pool.Count < kMaxPooledJsonWriters)
+            {
+                pool.Enqueue(writer);
+            }
+        }
+
+        private static void DiscardJsonWriter(Utf8JsonWriter writer)
+        {
+            try
+            {
+                writer.Dispose();
+            }
+            catch (InvalidOperationException)
+            {
+                // Incomplete JSON can make Dispose throw; the writer is already being discarded.
+            }
+        }
+
+        private static ConcurrentQueue<Utf8JsonWriter> GetJsonWriterPool(bool indented)
+        {
+            // JsonWriterOptions are fixed at construction and Reset only changes
+            // the output target, so compact and indented writers use separate pools.
+            return indented ? s_indentedJsonWriterPool : s_compactJsonWriterPool;
+        }
+
+        private sealed class PooledBufferWriter : IBufferWriter<byte>
+        {
+            public PooledBufferWriter()
+            {
+                m_buffer = ArrayPool<byte>.Shared.Rent(kDefaultInitialBufferSize);
+            }
+
+            public void Advance(int count)
+            {
+                if (count < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(count));
+                }
+
+                byte[] buffer = m_buffer ?? throw new ObjectDisposedException(nameof(PooledBufferWriter));
+                if (m_index > buffer.Length - count)
+                {
+                    throw new InvalidOperationException("Cannot advance past the end of the buffer.");
+                }
+
+                m_index += count;
+            }
+
+            public Memory<byte> GetMemory(int sizeHint = 0)
+            {
+                Ensure(sizeHint);
+                return m_buffer!.AsMemory(m_index);
+            }
+
+            public Span<byte> GetSpan(int sizeHint = 0)
+            {
+                Ensure(sizeHint);
+                return m_buffer!.AsSpan(m_index);
+            }
+
+            public string GetText()
+            {
+                byte[] buffer = m_buffer ?? throw new ObjectDisposedException(nameof(PooledBufferWriter));
+                return Encoding.UTF8.GetString(buffer, 0, m_index);
+            }
+
+            public void ReturnBuffer()
+            {
+                byte[]? buffer = m_buffer;
+                if (buffer == null)
+                {
+                    return;
+                }
+
+                m_buffer = null;
+                m_index = 0;
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            }
+
+            private void Ensure(int sizeHint)
+            {
+                if (sizeHint < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(sizeHint));
+                }
+
+                byte[] buffer = m_buffer ?? throw new ObjectDisposedException(nameof(PooledBufferWriter));
+                if (sizeHint == 0)
+                {
+                    sizeHint = 1;
+                }
+
+                if (sizeHint <= buffer.Length - m_index)
+                {
+                    return;
+                }
+
+                Grow(sizeHint);
+            }
+
+            private void Grow(int sizeHint)
+            {
+                byte[] buffer = m_buffer!;
+                int growBy = Math.Max(sizeHint, buffer.Length);
+                int newSize = checked(buffer.Length + growBy);
+                byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newSize);
+
+                Buffer.BlockCopy(buffer, 0, newBuffer, 0, m_index);
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+                m_buffer = newBuffer;
+            }
+
+            private const int kDefaultInitialBufferSize = 256;
+
+            private byte[]? m_buffer;
+            private int m_index;
+        }
+
         private readonly Stream? m_stream;
+        private readonly PooledBufferWriter? m_pooledBufferWriter;
         private readonly bool m_leaveOpen;
-        private readonly ILogger m_logger;
+        private readonly bool m_writerIsPooled;
+        private ILogger? m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
 #pragma warning disable IDE0052 // TODO Keep for future implementation or remove
@@ -2321,5 +2542,8 @@ namespace Opc.Ua
         private ushort[]? m_serverMappings;
 #pragma warning restore IDE0052
         private bool m_disposed;
+        private const int kMaxPooledJsonWriters = 32;
+        private static readonly ConcurrentQueue<Utf8JsonWriter> s_compactJsonWriterPool = new();
+        private static readonly ConcurrentQueue<Utf8JsonWriter> s_indentedJsonWriterPool = new();
     }
 }
