@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// Opc.Ua.Mcp targets net10.0 only and is loaded reflectively from its net10.0
+// build output, so these tests only build and run on net10.0.
+#if NET10_0_OR_GREATER
 using System;
 using System.IO;
 using System.Linq;
@@ -296,3 +299,4 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
         }
     }
 }
+#endif
