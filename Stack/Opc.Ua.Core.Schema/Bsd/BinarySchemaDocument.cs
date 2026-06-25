@@ -108,6 +108,7 @@ namespace Opc.Ua.Schema.Bsd
             writer.WriteAttributeString("xmlns", "xsi", null, XmlSchemaInstanceNamespace);
             writer.WriteAttributeString("xmlns", "ua", null, UaTypesNamespace);
             writer.WriteAttributeString("xmlns", "tns", null, TargetNamespace);
+            WriteImportedNamespaceDeclarations(writer);
             if (Dictionary.DefaultByteOrderSpecified)
             {
                 writer.WriteAttributeString("DefaultByteOrder", Dictionary.DefaultByteOrder.ToString());
@@ -289,7 +290,65 @@ namespace Opc.Ua.Schema.Bsd
                 return "tns:" + name.Name;
             }
 
+            string prefix = PrefixForNamespace(name.Namespace);
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                return prefix + ":" + name.Name;
+            }
+
             return name.Name;
+        }
+
+        private void WriteImportedNamespaceDeclarations(XmlWriter writer)
+        {
+            if (Dictionary.Import == null)
+            {
+                return;
+            }
+
+            int prefixIndex = 1;
+            for (int i = 0; i < Dictionary.Import.Length; i++)
+            {
+                string? namespaceUri = Dictionary.Import[i].Namespace;
+                if (string.IsNullOrEmpty(namespaceUri) ||
+                    namespaceUri == UaTypesNamespace ||
+                    namespaceUri == TargetNamespace)
+                {
+                    continue;
+                }
+
+                writer.WriteAttributeString("xmlns", "n" + prefixIndex, null, namespaceUri);
+                prefixIndex++;
+            }
+        }
+
+        private string PrefixForNamespace(string namespaceUri)
+        {
+            if (Dictionary.Import == null)
+            {
+                return string.Empty;
+            }
+
+            int prefixIndex = 1;
+            for (int i = 0; i < Dictionary.Import.Length; i++)
+            {
+                string? importNamespace = Dictionary.Import[i].Namespace;
+                if (string.IsNullOrEmpty(importNamespace) ||
+                    importNamespace == UaTypesNamespace ||
+                    importNamespace == TargetNamespace)
+                {
+                    continue;
+                }
+
+                if (importNamespace == namespaceUri)
+                {
+                    return "n" + prefixIndex;
+                }
+
+                prefixIndex++;
+            }
+
+            return string.Empty;
         }
 
         private const string OpcBinaryNamespace = "http://opcfoundation.org/BinarySchema/";

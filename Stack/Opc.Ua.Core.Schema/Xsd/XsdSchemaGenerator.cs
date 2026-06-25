@@ -87,6 +87,8 @@ namespace Opc.Ua.Schema.Xsd
                 m_emittedTypes = new HashSet<string>(StringComparer.Ordinal);
                 m_visitingTypes = new HashSet<string>(StringComparer.Ordinal);
                 m_emittedListTypes = new HashSet<string>(StringComparer.Ordinal);
+                m_importedNamespaces = new HashSet<string>(StringComparer.Ordinal);
+                m_nextNamespacePrefix = 1;
 
                 Schema = new XmlSchema
                 {
@@ -104,12 +106,13 @@ namespace Opc.Ua.Schema.Xsd
 
             public void EnsureType(UaTypeDescription type)
             {
-                if (m_emittedTypes.Contains(type.Name) || m_visitingTypes.Contains(type.Name))
+                string typeKey = TypeKey(type);
+                if (m_emittedTypes.Contains(typeKey) || m_visitingTypes.Contains(typeKey))
                 {
                     return;
                 }
 
-                m_visitingTypes.Add(type.Name);
+                m_visitingTypes.Add(typeKey);
                 switch (type.Definition)
                 {
                     case StructureDefinition structure:
@@ -119,8 +122,8 @@ namespace Opc.Ua.Schema.Xsd
                         AddEnum(type, enumeration);
                         break;
                 }
-                m_visitingTypes.Remove(type.Name);
-                m_emittedTypes.Add(type.Name);
+                m_visitingTypes.Remove(typeKey);
+                m_emittedTypes.Add(typeKey);
             }
 
             private void AddStructure(UaTypeDescription type, StructureDefinition structure)
@@ -249,8 +252,16 @@ namespace Opc.Ua.Schema.Xsd
 
                 if (m_resolver.TryResolve(dataType, out UaTypeDescription? referenced))
                 {
-                    EnsureType(referenced);
-                    return new TypeReference(Tns(referenced.Name), referenced.Name, true);
+                    if (string.Equals(referenced.NamespaceUri, m_targetNamespace, StringComparison.Ordinal))
+                    {
+                        EnsureType(referenced);
+                        return new TypeReference(Tns(referenced.Name), referenced.Name, true);
+                    }
+
+                    AddNamespaceImport(referenced.NamespaceUri);
+                    return new TypeReference(new XmlQualifiedName(referenced.Name, referenced.NamespaceUri),
+                        referenced.Name,
+                        true);
                 }
 
                 return new TypeReference(Xs("anyType"), "Value", true);
@@ -365,6 +376,24 @@ namespace Opc.Ua.Schema.Xsd
                 return name + "_" + XmlConvert.ToString(field.Value);
             }
 
+            private void AddNamespaceImport(string namespaceUri)
+            {
+                if (string.IsNullOrEmpty(namespaceUri) || m_importedNamespaces.Contains(namespaceUri))
+                {
+                    return;
+                }
+
+                m_importedNamespaces.Add(namespaceUri);
+                Schema.Namespaces.Add("n" + m_nextNamespacePrefix, namespaceUri);
+                m_nextNamespacePrefix++;
+                Schema.Includes.Add(new XmlSchemaImport { Namespace = namespaceUri });
+            }
+
+            private static string TypeKey(UaTypeDescription type)
+            {
+                return type.NamespaceUri + "|" + type.Name;
+            }
+
             private XmlQualifiedName Tns(string name)
             {
                 return new XmlQualifiedName(name, m_targetNamespace);
@@ -387,6 +416,8 @@ namespace Opc.Ua.Schema.Xsd
             private readonly HashSet<string> m_emittedTypes;
             private readonly HashSet<string> m_visitingTypes;
             private readonly HashSet<string> m_emittedListTypes;
+            private readonly HashSet<string> m_importedNamespaces;
+            private int m_nextNamespacePrefix;
         }
 
         private sealed class TypeReference

@@ -127,14 +127,14 @@ namespace Opc.Ua.SourceGeneration
                 // PooledEncodeableType<T> constraint. Use the plain
                 // EncodeableType<T> for them.
                 return datatype.IsPartOfOpcUaTypesLibrary()
-                    ? DataTypeTemplates.StructureActivatorClass
-                    : DataTypeTemplates.PooledStructureActivatorClass;
+                    ? DataTypeTemplates.StructureActivatorClassWithDefinition
+                    : DataTypeTemplates.PooledStructureActivatorClassWithDefinition;
             }
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
                 datatype.IsEnumeration &&
                 !datatype.IsOptionSet)
             {
-                return DataTypeTemplates.EnumerationActivatorClass;
+                return DataTypeTemplates.EnumerationActivatorClassWithDefinition;
             }
             return null;
         }

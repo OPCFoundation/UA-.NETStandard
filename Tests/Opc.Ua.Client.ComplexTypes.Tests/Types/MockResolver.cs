@@ -178,9 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         .Values.Where(n =>
                             n.NodeClass == NodeClass.DataType &&
                             n is DataTypeNode dataType &&
-                            dataType.DataTypeDefinition.TryGetValue(
-                                out StructureDefinition structureDefinition) &&
-                            Utils.IsEqual(structureDefinition.BaseDataType, node))
+                            IsSubTypeOf(dataType, node))
                         .Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
@@ -233,6 +231,27 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
             }
             return Task.FromResult(DataTypeIds.BaseDataType);
+        }
+
+        /// <summary>
+        /// Returns true when the data type node is a direct subtype of the requested base type.
+        /// </summary>
+        /// <param name="dataTypeNode">The data type node to inspect.</param>
+        /// <param name="baseDataType">The requested base data type.</param>
+        /// <returns><c>true</c> if the node is a direct subtype of <paramref name="baseDataType"/>.</returns>
+        private bool IsSubTypeOf(DataTypeNode dataTypeNode, ExpandedNodeId baseDataType)
+        {
+            if (dataTypeNode.DataTypeDefinition.TryGetValue(
+                out StructureDefinition structureDefinition))
+            {
+                return Utils.IsEqual(structureDefinition.BaseDataType, baseDataType);
+            }
+            if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition _))
+            {
+                NodeId baseNodeId = ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
+                return baseNodeId == DataTypeIds.Enumeration;
+            }
+            return false;
         }
 
         /// <summary>

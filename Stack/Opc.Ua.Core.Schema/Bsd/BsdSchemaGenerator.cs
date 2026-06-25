@@ -87,6 +87,7 @@ namespace Opc.Ua.Schema.Bsd
                 m_items = [];
                 m_emittedTypes = new HashSet<string>(StringComparer.Ordinal);
                 m_visitingTypes = new HashSet<string>(StringComparer.Ordinal);
+                m_importedNamespaces = new HashSet<string>(StringComparer.Ordinal);
 
                 Dictionary = new TypeDictionary
                 {
@@ -104,25 +105,26 @@ namespace Opc.Ua.Schema.Bsd
 
             public void EnsureType(UaTypeDescription type)
             {
-                if (m_emittedTypes.Contains(type.Name) || m_visitingTypes.Contains(type.Name))
+                string typeKey = TypeKey(type);
+                if (m_emittedTypes.Contains(typeKey) || m_visitingTypes.Contains(typeKey))
                 {
                     return;
                 }
 
-                m_visitingTypes.Add(type.Name);
+                m_visitingTypes.Add(typeKey);
                 TypeDescription? description = type.Definition switch
                 {
                     StructureDefinition structure => BuildStructure(type, structure),
                     EnumDefinition enumeration => BuildEnum(type, enumeration),
                     _ => null
                 };
-                m_visitingTypes.Remove(type.Name);
+                m_visitingTypes.Remove(typeKey);
 
                 if (description != null)
                 {
                     m_items.Add(description);
                     Dictionary.Items = [.. m_items];
-                    m_emittedTypes.Add(type.Name);
+                    m_emittedTypes.Add(typeKey);
                 }
             }
 
@@ -292,8 +294,14 @@ namespace Opc.Ua.Schema.Bsd
 
                 if (m_resolver.TryResolve(dataType, out UaTypeDescription? referenced))
                 {
-                    EnsureType(referenced);
-                    return Tns(referenced.Name);
+                    if (string.Equals(referenced.NamespaceUri, m_targetNamespace, StringComparison.Ordinal))
+                    {
+                        EnsureType(referenced);
+                        return Tns(referenced.Name);
+                    }
+
+                    AddNamespaceImport(referenced.NamespaceUri);
+                    return new XmlQualifiedName(referenced.Name, referenced.NamespaceUri);
                 }
 
                 return Ua("ExtensionObject");
@@ -384,6 +392,23 @@ namespace Opc.Ua.Schema.Bsd
                 return string.IsNullOrEmpty(field.Name) ? "Value" + index : field.Name!;
             }
 
+            private void AddNamespaceImport(string namespaceUri)
+            {
+                if (string.IsNullOrEmpty(namespaceUri) || m_importedNamespaces.Contains(namespaceUri))
+                {
+                    return;
+                }
+
+                m_importedNamespaces.Add(namespaceUri);
+                ImportDirective[] imports = Dictionary.Import ?? [];
+                Dictionary.Import = [.. imports, new ImportDirective { Namespace = namespaceUri }];
+            }
+
+            private static string TypeKey(UaTypeDescription type)
+            {
+                return type.NamespaceUri + "|" + type.Name;
+            }
+
             private const string OpcBinaryNamespace = "http://opcfoundation.org/BinarySchema/";
             private const string UaTypesNamespace = "http://opcfoundation.org/UA/";
             private const int EncodingMaskBits = 32;
@@ -393,6 +418,7 @@ namespace Opc.Ua.Schema.Bsd
             private readonly List<TypeDescription> m_items;
             private readonly HashSet<string> m_emittedTypes;
             private readonly HashSet<string> m_visitingTypes;
+            private readonly HashSet<string> m_importedNamespaces;
         }
     }
 }

@@ -110,6 +110,7 @@ namespace Opc.Ua.Schema.Xsd
             writer.WriteStartElement("xs", "schema", XmlSchema.Namespace);
             writer.WriteAttributeString("xmlns", "ua", null, UaTypesNamespace);
             writer.WriteAttributeString("xmlns", "tns", null, TargetNamespace);
+            WriteImportedNamespaceDeclarations(writer);
             writer.WriteAttributeString("targetNamespace", TargetNamespace);
             writer.WriteAttributeString("elementFormDefault", "qualified");
 
@@ -252,7 +253,49 @@ namespace Opc.Ua.Schema.Xsd
                 return "tns:" + name.Name;
             }
 
+            string prefix = PrefixForNamespace(name.Namespace);
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                return prefix + ":" + name.Name;
+            }
+
             return name.Name;
+        }
+
+        private void WriteImportedNamespaceDeclarations(XmlWriter writer)
+        {
+            XmlQualifiedName[] namespaces = Schema.Namespaces.ToArray();
+            for (int i = 0; i < namespaces.Length; i++)
+            {
+                XmlQualifiedName namespaceDeclaration = namespaces[i];
+                if (namespaceDeclaration.Name == "xs" ||
+                    namespaceDeclaration.Name == "ua" ||
+                    namespaceDeclaration.Name == "tns")
+                {
+                    continue;
+                }
+
+                writer.WriteAttributeString(
+                    "xmlns",
+                    namespaceDeclaration.Name,
+                    null,
+                    namespaceDeclaration.Namespace);
+            }
+        }
+
+        private string PrefixForNamespace(string namespaceUri)
+        {
+            XmlQualifiedName[] namespaces = Schema.Namespaces.ToArray();
+            for (int i = 0; i < namespaces.Length; i++)
+            {
+                XmlQualifiedName namespaceDeclaration = namespaces[i];
+                if (namespaceDeclaration.Namespace == namespaceUri)
+                {
+                    return namespaceDeclaration.Name;
+                }
+            }
+
+            return string.Empty;
         }
 
         private const string UaTypesNamespace = "http://opcfoundation.org/UA/2008/02/Types.xsd";

@@ -217,6 +217,88 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public void CrossNamespaceTypesWithSameNameProduceDistinctDefinitions()
+        {
+            UaTypeDescription localDuplicate = SchemaTestData.Structure(
+                3031,
+                "Duplicate",
+                SchemaTestData.Field("LocalValue", SchemaTestData.BuiltIn(BuiltInType.Int32)));
+            UaTypeDescription foreignDuplicate = SchemaTestData.Structure(
+                3032,
+                "Duplicate",
+                SchemaTestData.OtherNamespace,
+                SchemaTestData.OtherNamespaceIndex,
+                SchemaTestData.Field("ForeignValue", SchemaTestData.BuiltIn(BuiltInType.String)));
+            UaTypeDescription outer = SchemaTestData.Structure(
+                3030,
+                "Outer",
+                SchemaTestData.Field("Local", new NodeId(3031, SchemaTestData.TestNamespaceIndex)),
+                SchemaTestData.Field("Foreign", new NodeId(3032, SchemaTestData.OtherNamespaceIndex)));
+            ISchemaProvider provider = SchemaTestData.CreateProvider(localDuplicate, foreignDuplicate, outer);
+
+            IUaSchema schema = provider.CreateSchema(outer, UaSchemaFormat.JsonCompact);
+
+            JsonObject definitions = Definitions(schema);
+            JsonObject outerDefinition = Definition(schema, "Outer");
+            string localReference = outerDefinition["properties"]!["Local"]!["$ref"]!.GetValue<string>();
+            string foreignReference = outerDefinition["properties"]!["Foreign"]!["$ref"]!.GetValue<string>();
+            string foreignKey = DefinitionName(foreignReference);
+            Assert.Multiple(() =>
+            {
+                Assert.That(localReference, Is.EqualTo("#/$defs/Duplicate"));
+                Assert.That(foreignReference, Is.Not.EqualTo("#/$defs/Duplicate"));
+                Assert.That(definitions.ContainsKey("Duplicate"), Is.True);
+                Assert.That(definitions.ContainsKey(foreignKey), Is.True);
+                Assert.That(definitions[foreignKey]!["title"]!.GetValue<string>(), Is.EqualTo("Duplicate"));
+            });
+        }
+
+        [Test]
+        public void AnyValueRankAllowsScalarOrUnconstrainedArray()
+        {
+            UaTypeDescription type = SchemaTestData.Structure(
+                3033,
+                "AnyRankType",
+                SchemaTestData.Field("Value", SchemaTestData.BuiltIn(BuiltInType.Int32), ValueRanks.Any));
+            ISchemaProvider provider = SchemaTestData.CreateProvider(type);
+
+            IUaSchema schema = provider.CreateSchema(type, UaSchemaFormat.JsonCompact);
+
+            JsonArray options = Definition(schema, "AnyRankType")["properties"]!["Value"]!["oneOf"]!.AsArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(options, Has.Count.EqualTo(2));
+                Assert.That(options[0]!["type"]!.GetValue<string>(), Is.EqualTo("integer"));
+                Assert.That(options[1]!["type"]!.GetValue<string>(), Is.EqualTo("array"));
+                Assert.That(options[1]!.AsObject().ContainsKey("items"), Is.False);
+            });
+        }
+
+        [Test]
+        public void ScalarOrOneDimensionValueRankAllowsOnlyScalarOrOneDimensionalArray()
+        {
+            UaTypeDescription type = SchemaTestData.Structure(
+                3034,
+                "ScalarOrArrayType",
+                SchemaTestData.Field(
+                    "Value",
+                    SchemaTestData.BuiltIn(BuiltInType.Int32),
+                    ValueRanks.ScalarOrOneDimension));
+            ISchemaProvider provider = SchemaTestData.CreateProvider(type);
+
+            IUaSchema schema = provider.CreateSchema(type, UaSchemaFormat.JsonCompact);
+
+            JsonArray options = Definition(schema, "ScalarOrArrayType")["properties"]!["Value"]!["oneOf"]!.AsArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(options, Has.Count.EqualTo(2));
+                Assert.That(options[0]!["type"]!.GetValue<string>(), Is.EqualTo("integer"));
+                Assert.That(options[1]!["type"]!.GetValue<string>(), Is.EqualTo("array"));
+                Assert.That(options[1]!["items"]!["type"]!.GetValue<string>(), Is.EqualTo("integer"));
+            });
+        }
+
+        [Test]
         public void UnionProducesOneOfSchema()
         {
             UaTypeDescription type = SchemaTestData.Union(
@@ -357,6 +439,13 @@ namespace Opc.Ua.Schema.Tests
         private static JsonObject Definition(IUaSchema schema, string name)
         {
             return Definitions(schema)[name]!.AsObject();
+        }
+
+        private static string DefinitionName(string reference)
+        {
+            const string prefix = "#/$defs/";
+            Assert.That(reference, Does.StartWith(prefix));
+            return reference.Substring(prefix.Length);
         }
 
         private static List<string> RequiredNames(JsonObject definition)

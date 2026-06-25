@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using System.Text.Json.Nodes;
 
 namespace Opc.Ua.Schema.Json
@@ -65,7 +67,7 @@ namespace Opc.Ua.Schema.Json
             }
 
             bool verbose = format == UaSchemaFormat.JsonVerbose;
-            var context = new GenerationContext(resolver, verbose);
+            var context = new GenerationContext(type.NamespaceUri, resolver, verbose);
 
             if (scope == UaSchemaScope.Namespace)
             {
@@ -118,34 +120,38 @@ namespace Opc.Ua.Schema.Json
         /// </summary>
         private sealed class GenerationContext
         {
-            public GenerationContext(IDataTypeDefinitionResolver resolver, bool verbose)
+            public GenerationContext(string targetNamespace, IDataTypeDefinitionResolver resolver, bool verbose)
             {
+                m_targetNamespace = targetNamespace;
                 m_resolver = resolver;
                 m_verbose = verbose;
                 Definitions = [];
                 m_visiting = new HashSet<string>(StringComparer.Ordinal);
+                m_emittedTypes = new HashSet<string>(StringComparer.Ordinal);
             }
 
             public JsonObject Definitions { get; }
 
             public string EnsureType(UaTypeDescription type)
             {
-                string key = type.Name;
-                if (Definitions.ContainsKey(key) || m_visiting.Contains(key))
+                string typeKey = TypeKey(type);
+                string definitionKey = DefinitionKey(type);
+                if (m_emittedTypes.Contains(typeKey) || m_visiting.Contains(typeKey))
                 {
-                    return key;
+                    return definitionKey;
                 }
 
-                m_visiting.Add(key);
+                m_visiting.Add(typeKey);
                 JsonObject schema = type.Definition switch
                 {
                     StructureDefinition structure => BuildStructure(type, structure),
                     EnumDefinition enumeration => BuildEnum(enumeration),
                     _ => new JsonObject { ["type"] = "object" }
                 };
-                m_visiting.Remove(key);
-                Definitions[key] = schema;
-                return key;
+                m_visiting.Remove(typeKey);
+                Definitions[definitionKey] = schema;
+                m_emittedTypes.Add(typeKey);
+                return definitionKey;
             }
 
             private JsonObject BuildStructure(UaTypeDescription type, StructureDefinition structure)
@@ -304,6 +310,10 @@ namespace Opc.Ua.Schema.Json
                     case ValueRanks.Scalar:
                         return elementFactory();
                     case ValueRanks.Any:
+                        return new JsonObject
+                        {
+                            ["oneOf"] = new JsonArray(elementFactory(), AnyArray())
+                        };
                     case ValueRanks.ScalarOrOneDimension:
                         return new JsonObject
                         {
@@ -321,6 +331,14 @@ namespace Opc.Ua.Schema.Json
                 }
             }
 
+            private static JsonObject AnyArray()
+            {
+                return new JsonObject
+                {
+                    ["type"] = "array"
+                };
+            }
+
             private static JsonObject ArrayOf(JsonObject items)
             {
                 return new JsonObject
@@ -335,9 +353,56 @@ namespace Opc.Ua.Schema.Json
                 return string.IsNullOrEmpty(field.Name) ? "Field" + index : field.Name!;
             }
 
+            private string DefinitionKey(UaTypeDescription type)
+            {
+                if (string.Equals(type.NamespaceUri, m_targetNamespace, StringComparison.Ordinal))
+                {
+                    return type.Name;
+                }
+
+                return NamespaceToken(type.NamespaceUri) + "_" + type.Name;
+            }
+
+            private static string TypeKey(UaTypeDescription type)
+            {
+                return type.NamespaceUri + "|" + type.Name;
+            }
+
+            private static string NamespaceToken(string namespaceUri)
+            {
+                var builder = new StringBuilder(namespaceUri.Length);
+                for (int i = 0; i < namespaceUri.Length; i++)
+                {
+                    char ch = namespaceUri[i];
+                    builder.Append(char.IsLetterOrDigit(ch) ? ch : '_');
+                }
+
+                string sanitized = builder.Length == 0 ? "ns" : builder.ToString().Trim('_');
+                if (sanitized.Length == 0)
+                {
+                    sanitized = "ns";
+                }
+
+                return sanitized + "_" + StableHash(namespaceUri).ToString("x8", CultureInfo.InvariantCulture);
+            }
+
+            private static uint StableHash(string value)
+            {
+                uint hash = 2166136261;
+                for (int i = 0; i < value.Length; i++)
+                {
+                    hash ^= value[i];
+                    hash *= 16777619;
+                }
+
+                return hash;
+            }
+
+            private readonly string m_targetNamespace;
             private readonly IDataTypeDefinitionResolver m_resolver;
             private readonly bool m_verbose;
             private readonly HashSet<string> m_visiting;
+            private readonly HashSet<string> m_emittedTypes;
         }
     }
 }

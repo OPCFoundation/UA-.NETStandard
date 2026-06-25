@@ -143,6 +143,34 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        [Test]
+        public void CrossNamespaceReferenceProducesImportAndPrefixedType()
+        {
+            UaTypeDescription foreign = SchemaTestData.Structure(
+                3131,
+                "Inner",
+                SchemaTestData.OtherNamespace,
+                SchemaTestData.OtherNamespaceIndex,
+                SchemaTestData.Field("Value", SchemaTestData.BuiltIn(BuiltInType.Int32)));
+            UaTypeDescription outer = SchemaTestData.Structure(
+                3130,
+                "Outer",
+                SchemaTestData.Field("Child", new NodeId(3131, SchemaTestData.OtherNamespaceIndex)));
+            ISchemaProvider provider = CreateProvider(foreign, outer);
+
+            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
+            XDocument document = XDocument.Parse(schema.ToSchemaString());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(document.Root!.Attribute(XNamespace.Xmlns + "n1")!.Value,
+                    Is.EqualTo(SchemaTestData.OtherNamespace));
+                Assert.That(document.Descendants(Xsd("import")).Any(
+                    x => (string?)x.Attribute("namespace") == SchemaTestData.OtherNamespace), Is.True);
+                Assert.That(Attribute(document, "Child", "type"), Is.EqualTo("n1:Inner"));
+            });
+        }
+
         private static DefaultSchemaProvider CreateProvider(params UaTypeDescription[] types)
         {
             var registry = new DataTypeDefinitionRegistry();

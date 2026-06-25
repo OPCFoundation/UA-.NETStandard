@@ -48,6 +48,16 @@ namespace Opc.Ua.Schema.Tests
         public const ushort TestNamespaceIndex = 1;
 
         /// <summary>
+        /// The namespace uri used by referenced test data types from another namespace.
+        /// </summary>
+        public const string OtherNamespace = "http://other.test.org/UA/schema";
+
+        /// <summary>
+        /// The namespace index used by referenced test data types from another namespace.
+        /// </summary>
+        public const ushort OtherNamespaceIndex = 2;
+
+        /// <summary>
         /// Creates a schema provider populated with the supplied data types.
         /// </summary>
         public static ISchemaProvider CreateProvider(params UaTypeDescription[] types)
@@ -94,7 +104,20 @@ namespace Opc.Ua.Schema.Tests
             string name,
             params StructureField[] fields)
         {
-            return BuildStructure(id, name, StructureType.Structure, fields);
+            return Structure(id, name, TestNamespace, TestNamespaceIndex, fields);
+        }
+
+        /// <summary>
+        /// Creates a structure type description in the specified namespace.
+        /// </summary>
+        public static UaTypeDescription Structure(
+            uint id,
+            string name,
+            string namespaceUri,
+            ushort namespaceIndex,
+            params StructureField[] fields)
+        {
+            return BuildStructure(id, name, namespaceUri, namespaceIndex, StructureType.Structure, fields);
         }
 
         /// <summary>
@@ -105,7 +128,7 @@ namespace Opc.Ua.Schema.Tests
             string name,
             params StructureField[] fields)
         {
-            return BuildStructure(id, name, StructureType.Union, fields);
+            return BuildStructure(id, name, TestNamespace, TestNamespaceIndex, StructureType.Union, fields);
         }
 
         /// <summary>
@@ -126,12 +149,14 @@ namespace Opc.Ua.Schema.Tests
                 };
             }
             var definition = new EnumDefinition { Fields = fields };
-            return Describe(id, name, definition);
+            return Describe(id, name, TestNamespace, TestNamespaceIndex, definition);
         }
 
         private static UaTypeDescription BuildStructure(
             uint id,
             string name,
+            string namespaceUri,
+            ushort namespaceIndex,
             StructureType structureType,
             StructureField[] fields)
         {
@@ -141,16 +166,21 @@ namespace Opc.Ua.Schema.Tests
                 StructureType = structureType,
                 Fields = fields
             };
-            return Describe(id, name, definition);
+            return Describe(id, name, namespaceUri, namespaceIndex, definition);
         }
 
-        private static UaTypeDescription Describe(uint id, string name, DataTypeDefinition definition)
+        private static UaTypeDescription Describe(
+            uint id,
+            string name,
+            string namespaceUri,
+            ushort namespaceIndex,
+            DataTypeDefinition definition)
         {
             return new UaTypeDescription(
-                new ExpandedNodeId(new NodeId(id, TestNamespaceIndex)),
-                new QualifiedName(name, TestNamespaceIndex),
+                new ExpandedNodeId(new NodeId(id, namespaceIndex)),
+                new QualifiedName(name, namespaceIndex),
                 definition,
-                TestNamespace);
+                namespaceUri);
         }
     }
 }
