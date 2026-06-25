@@ -303,12 +303,12 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             context.Coordinator.RegisterPublisherBinding("publisher1");
             context.Coordinator.ApplyInitialConfiguration(configA, CreateBuilder());
             await context.Coordinator.StartAsync(context.Application.Object).ConfigureAwait(false);
-            var replaceEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseReplace = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var replaceEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseReplace = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             context.Application
                 .Setup(a => a.ReplaceConfigurationAsync(
                     It.IsAny<PubSubConfigurationDataType>(), It.IsAny<CancellationToken>()))
-                .Callback(() => replaceEntered.TrySetResult())
+                .Callback(() => replaceEntered.TrySetResult(true))
                 .Returns(() => new ValueTask<ArrayOf<StatusCode>>(WaitForReleaseAsync(releaseReplace.Task)));
 
             Task reloadTask = context.Store.SaveAsync(configB).AsTask();
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             await Task.Delay(100).ConfigureAwait(false);
             Assert.That(disposeTask.IsCompleted, Is.False);
 
-            releaseReplace.SetResult();
+            releaseReplace.SetResult(true);
             await Task.WhenAll(reloadTask, disposeTask).ConfigureAwait(false);
             await context.Runtime.DisposeAsync().ConfigureAwait(false);
         }
@@ -575,7 +575,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 PubSubConfigurationDataType previous = m_configuration;
                 m_configuration = configuration;
                 Changed?.Invoke(this, new PubSubConfigurationChangedEventArgs(previous, configuration));
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
@@ -588,7 +588,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 ConfigurationVersionDataType configurationVersion,
                 CancellationToken cancellationToken = default)
             {
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             public ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
@@ -603,7 +603,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 ConfigurationVersionDataType configurationVersion,
                 CancellationToken cancellationToken = default)
             {
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             private PubSubConfigurationDataType m_configuration;

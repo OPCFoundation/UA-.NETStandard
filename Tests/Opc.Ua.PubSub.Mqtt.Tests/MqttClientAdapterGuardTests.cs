@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
+using MQTTnet.Client;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Mqtt.Internal;

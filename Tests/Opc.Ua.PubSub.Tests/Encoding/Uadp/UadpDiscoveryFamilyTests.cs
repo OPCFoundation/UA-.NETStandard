@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             byte[] encoded = UadpDiscoveryCoder.Encode(response, context);
 
-            Assert.That(encoded[..4], Is.EqualTo(new byte[] { 0x91, 0x80, 0x08, 0x01 }),
+            Assert.That(new byte[] { encoded[0], encoded[1], encoded[2], encoded[3] }, Is.EqualTo(new byte[] { 0x91, 0x80, 0x08, 0x01 }),
                 "Part 14 §7.2.4.6.3 requires UADP flags, ExtendedFlags1, " +
                 "DiscoveryResponse ExtendedFlags2, then PublisherId.");
         }
@@ -272,7 +272,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             byte[] encoded = UadpDiscoveryCoder.Encode(request, context);
 
-            Assert.That(encoded[..4], Is.EqualTo(new byte[] { 0x91, 0x80, 0x04, 0x01 }),
+            Assert.That(new byte[] { encoded[0], encoded[1], encoded[2], encoded[3] }, Is.EqualTo(new byte[] { 0x91, 0x80, 0x04, 0x01 }),
                 "Part 14 §7.2.4.6.12.3 requires UADP flags, ExtendedFlags1, " +
                 "DiscoveryRequest ExtendedFlags2, then PublisherId.");
         }

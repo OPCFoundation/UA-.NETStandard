@@ -59,14 +59,14 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task HandshakeCompletesAndProtectsApplicationDatagramForNistAeadAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP384_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP384_AesGcm");
             await RunHandshakeAndApplicationRoundTripAsync(profile!).ConfigureAwait(false);
         }
 
         [Test]
         public async Task HandshakeCompletesAndProtectsApplicationDatagramForIntegrityOnlyAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256");
             await RunHandshakeAndApplicationRoundTripAsync(profile!).ConfigureAwait(false);
         }
 
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task CipherDowngradeIsRejectedAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP384_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP384_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = CreateSuccessfulValidator();
             var pair = InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: DowngradeServerCipherSuite);
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task TamperedFinishedIsRejectedAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = CreateSuccessfulValidator();
             var pair = InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: TamperFirstFinished);
@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task BadPeerCertificateIsRejectedByInjectedValidatorAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = new Mock<ICertificateValidatorEx>(MockBehavior.Strict);
             validator.Setup(v => v.ValidateAsync(
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task ServerSelectsLocalCertificateMatchingProfileCurveAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate nistP384 = CreateEcdsaCertificate(DtlsNamedCurve.NistP384);
             using Certificate nistP256 = CreateEcdsaCertificate(DtlsNamedCurve.NistP256);
             var validator = CreateSuccessfulValidator();
@@ -191,7 +191,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task ServerSelectsLocalCertificateResolvedFromIdentifierAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = CreateSuccessfulValidator();
@@ -243,7 +243,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void ServerFailsClosedWhenNoLocalCertificateMatchesProfileCurve()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate nistP384 = CreateEcdsaCertificate(DtlsNamedCurve.NistP384);
             var validator = CreateSuccessfulValidator();
             var pair = InMemoryDtlsDatagramChannel.CreatePair();
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestSpec("RFC 8446 §4.1.4")]
         public void ClientAbortsAfterSecondHelloRetryRequest()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = CreateSuccessfulValidator();
             using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestSpec("RFC 8446 §4.3.2")]
         public async Task MutualAuthenticationHandshakeSucceedsWhenClientCertificateRequiredAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = CreateSuccessfulValidator();
@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestSpec("RFC 8446 §4.3.2")]
         public async Task MutualAuthenticationFailsClosedWhenClientHasNoCertificateAsync()
         {
-            DtlsProfile profile = new DtlsProfileRegistry().Resolve("ECC_nistP256_AesGcm");
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             var validator = CreateSuccessfulValidator();
             var pair = InMemoryDtlsDatagramChannel.CreatePair();
@@ -442,6 +442,16 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 "opc.dtls://localhost:4843",
                 true,
                 profile.Name);
+        }
+
+        private static DtlsProfile ResolveOrIgnore(string profileName)
+        {
+            var registry = new DtlsProfileRegistry();
+            if (!registry.TryResolve(profileName, out DtlsProfile? profile))
+            {
+                Assert.Ignore($"DTLS profile '{profileName}' is not available from this platform BCL.");
+            }
+            return profile!;
         }
 
         private static Certificate CreateEcdsaCertificate(DtlsNamedCurve curve)

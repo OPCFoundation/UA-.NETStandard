@@ -121,8 +121,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
 
             await builder.ResolveAsync();
 
-            var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            ((IMetaDataChangeNotifier)source).MetaDataChanged += (_, _) => changed.TrySetResult();
+            var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ((IMetaDataChangeNotifier)source).MetaDataChanged += (_, _) => changed.TrySetResult(true);
 
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
 
@@ -142,8 +142,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             session.Setup(s => s.StartModelChangeMonitoringAsync(It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
-            var firstRefreshEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseFirstRefresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstRefreshEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirstRefresh = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int readCount = 0;
             session.Setup(s => s.ReadAsync(
                     It.IsAny<ArrayOf<ReadValueId>>(),
@@ -159,7 +159,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
             await firstRefreshEntered.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
-            releaseFirstRefresh.SetResult();
+            releaseFirstRefresh.SetResult(true);
 
             await WaitForReadCountAsync(() => Volatile.Read(ref readCount), 3).ConfigureAwait(false);
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 int ordinal = Interlocked.Increment(ref readCount);
                 if (ordinal == 2)
                 {
-                    firstRefreshEntered.SetResult();
+                    firstRefreshEntered.SetResult(true);
                     await releaseFirstRefresh.Task.ConfigureAwait(false);
                     return CreateTypeResults(DataTypeIds.Int32);
                 }

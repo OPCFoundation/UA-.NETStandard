@@ -409,7 +409,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 PubSubConfigurationDataType previous = m_configuration;
                 m_configuration = configuration;
                 Changed?.Invoke(this, new PubSubConfigurationChangedEventArgs(previous, configuration));
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             public ValueTask<ConfigurationVersionDataType?> GetConfigurationVersionAsync(
@@ -422,7 +422,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 ConfigurationVersionDataType configurationVersion,
                 CancellationToken cancellationToken = default)
             {
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             public ValueTask<ConfigurationVersionDataType?> GetPublishedDataSetConfigurationVersionAsync(
@@ -437,7 +437,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests.Unit
                 ConfigurationVersionDataType configurationVersion,
                 CancellationToken cancellationToken = default)
             {
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             private PubSubConfigurationDataType m_configuration;
