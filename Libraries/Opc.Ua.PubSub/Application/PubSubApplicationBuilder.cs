@@ -642,7 +642,7 @@ namespace Opc.Ua.PubSub.Application
             }
             if (m_configurationFilePath is not null)
             {
-                var store = new XmlPubSubConfigurationStore(
+                using var store = new XmlPubSubConfigurationStore(
                     m_configurationFilePath, m_telemetry, m_timeProvider);
                 return store.LoadAsync(CancellationToken.None)
                     .AsTask().GetAwaiter().GetResult();

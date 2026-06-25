@@ -61,7 +61,27 @@ ConsoleReferencePubSubClient external --mode publisher,subscriber
 
 Options: `--mode publisher|subscriber|responder` (comma-separated list accepted),
 `--read-mode cyclic|subscription`, `--affinity writergroup|datasetwriter`,
-`--endpoint <external server>`, `--pubsub-endpoint <udp url>`.
+`--endpoint <external server>`, `--pubsub-endpoint <udp url>`, `--hot-reload`.
+
+#### Hot reload
+
+Add `--hot-reload` to the `external` bridge to run the opt-in live reconfiguration
+demo:
+
+```bash
+ConsoleReferencePubSubClient external --mode publisher,subscriber --hot-reload
+```
+
+The bridge writes `pubsub-config.xml` next to the executable before starting and
+loads adapter options from the copied `appsettings.json` in the same directory.
+Edit and save either file while the bridge is running:
+
+- `appsettings.json`: change `ExternalPublisher:ReadMode` from `Cyclic` to
+  `Subscription`, or change `ExternalPublisher:Affinity` to `DataSetWriter`, to
+  rewire the external-server publisher options.
+- `pubsub-config.xml`: add or remove a `DataSetWriter` to change the PubSub
+  topology. The watching XML store raises a configuration change and the adapter
+  incrementally rewires the affected binding.
 
 > The samples connect to the external server unsecured (`SecurityMode.None`) for
 > zero-config interop. A production bridge must use `SignAndEncrypt` with a provisioned

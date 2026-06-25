@@ -227,6 +227,67 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(store.TimeProvider, Is.SameAs(TimeProvider.System));
         }
 
+        [Test]
+        public async Task WatchForChanges_ExternalEdit_RaisesChanged()
+        {
+            string path = Path.Combine(m_workDir, "watch.xml");
+            using var watching = new XmlPubSubConfigurationStore(
+                path, m_telemetry, watchForChanges: true);
+            await watching.SaveAsync(NewMinimalConfig("Initial")).ConfigureAwait(false);
+
+            var changed = new TaskCompletionSource<PubSubConfigurationChangedEventArgs>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            watching.Changed += (_, args) => changed.TrySetResult(args);
+
+            // Simulate an external process rewriting the configuration file.
+            using var external = new XmlPubSubConfigurationStore(path, m_telemetry);
+            await external.SaveAsync(NewMinimalConfig("ExternallyEdited")).ConfigureAwait(false);
+
+            PubSubConfigurationChangedEventArgs observed =
+                await changed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(observed.Current, Is.Not.Null);
+            Assert.That(observed.Current!.Connections[0].Name, Is.EqualTo("ExternallyEdited"));
+        }
+
+        [Test]
+        public async Task WatchForChanges_Disabled_DoesNotRaiseOnExternalEdit()
+        {
+            string path = Path.Combine(m_workDir, "nowatch.xml");
+            using var store = new XmlPubSubConfigurationStore(path, m_telemetry);
+            await store.SaveAsync(NewMinimalConfig("Initial")).ConfigureAwait(false);
+
+            int changedCount = 0;
+            store.Changed += (_, _) => Interlocked.Increment(ref changedCount);
+
+            using var external = new XmlPubSubConfigurationStore(path, m_telemetry);
+            await external.SaveAsync(NewMinimalConfig("ExternallyEdited")).ConfigureAwait(false);
+
+            await Task.Delay(1500).ConfigureAwait(false);
+
+            Assert.That(Volatile.Read(ref changedCount), Is.Zero);
+        }
+
+        [Test]
+        public async Task WatchForChanges_SelfSave_DoesNotDoubleFire()
+        {
+            string path = Path.Combine(m_workDir, "selfsave.xml");
+            using var watching = new XmlPubSubConfigurationStore(
+                path, m_telemetry, watchForChanges: true);
+            await watching.SaveAsync(NewMinimalConfig("Initial")).ConfigureAwait(false);
+
+            int changedCount = 0;
+            watching.Changed += (_, _) => Interlocked.Increment(ref changedCount);
+
+            await watching.SaveAsync(NewMinimalConfig("Second")).ConfigureAwait(false);
+
+            // Allow the file-watch debounce window to elapse; the self-write must
+            // not produce a second Changed beyond the one SaveAsync already raised.
+            await Task.Delay(1500).ConfigureAwait(false);
+
+            Assert.That(Volatile.Read(ref changedCount), Is.EqualTo(1));
+        }
+
         private static PubSubConfigurationDataType NewMinimalConfig(string connectionName = "Conn1")
         {
             return new PubSubConfigurationDataType

@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -49,7 +50,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// <c>.tmp</c> file followed by a destructive rename to keep
     /// readers from observing torn payloads.
     /// </remarks>
-    public sealed class XmlPubSubConfigurationStore : IPubSubConfigurationStore
+    public sealed class XmlPubSubConfigurationStore : IPubSubConfigurationStore, IDisposable
     {
         /// <summary>
         /// Initializes a new <see cref="XmlPubSubConfigurationStore"/>.
@@ -60,10 +61,18 @@ namespace Opc.Ua.PubSub.Configuration
         /// Optional clock used by helpers that need a deterministic
         /// timestamp. Defaults to <see cref="TimeProvider.System"/>.
         /// </param>
+        /// <param name="watchForChanges">
+        /// When <c>true</c>, the store watches the backing file and raises
+        /// <see cref="Changed"/> after an external process modifies it (debounced),
+        /// in addition to the in-process <see cref="SaveAsync"/> notification.
+        /// Self-writes from <see cref="SaveAsync"/> are suppressed so they do not
+        /// re-fire <see cref="Changed"/>. Defaults to <c>false</c>.
+        /// </param>
         public XmlPubSubConfigurationStore(
             string filePath,
             ITelemetryContext telemetry,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            bool watchForChanges = false)
         {
             if (filePath is null)
             {
@@ -82,6 +91,11 @@ namespace Opc.Ua.PubSub.Configuration
             m_filePath = filePath;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_logger = telemetry.CreateLogger<XmlPubSubConfigurationStore>();
+            if (watchForChanges)
+            {
+                SetupFileWatch();
+            }
         }
 
         /// <inheritdoc/>
@@ -132,6 +146,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 await WriteAllBytesAsync(tempPath, payload, cancellationToken)
                     .ConfigureAwait(false);
+                RecordSelfWrite(payload, configuration);
                 ReplaceFile(tempPath, m_filePath);
             }
             catch
@@ -359,13 +374,188 @@ namespace Opc.Ua.PubSub.Configuration
             }
         }
 
+        private void SetupFileWatch()
+        {
+            string? directory = Path.GetDirectoryName(m_filePath);
+            if (string.IsNullOrEmpty(directory))
+            {
+                directory = ".";
+            }
+            string fileName = Path.GetFileName(m_filePath);
+            try
+            {
+                m_debounceTimer = m_timeProvider.CreateTimer(
+                    _ => OnDebounceElapsed(),
+                    null,
+                    Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan);
+                var watcher = new FileSystemWatcher(directory!, fileName)
+                {
+                    NotifyFilter = NotifyFilters.LastWrite
+                        | NotifyFilters.Size
+                        | NotifyFilters.FileName
+                        | NotifyFilters.CreationTime
+                };
+                watcher.Changed += OnFileSystemChange;
+                watcher.Created += OnFileSystemChange;
+                watcher.Renamed += OnFileSystemChange;
+                watcher.EnableRaisingEvents = true;
+                m_watcher = watcher;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "PubSub configuration file watch could not be started for '{Path}'; " +
+                    "external changes will not raise Changed.",
+                    m_filePath);
+            }
+        }
+
+        private void OnFileSystemChange(object sender, FileSystemEventArgs e)
+        {
+            lock (m_watchGate)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                // Coalesce the burst of events an editor produces into one reload.
+                m_debounceTimer?.Change(
+                    TimeSpan.FromMilliseconds(WatchDebounceMs),
+                    Timeout.InfiniteTimeSpan);
+            }
+        }
+
+        private void OnDebounceElapsed()
+        {
+            _ = ReloadFromFileAsync();
+        }
+
+        private async Task ReloadFromFileAsync()
+        {
+            byte[] payload;
+            try
+            {
+                if (!File.Exists(m_filePath))
+                {
+                    return;
+                }
+                payload = await ReadAllBytesAsync(m_filePath, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "PubSub configuration reload after a file change failed to read '{Path}'.",
+                    m_filePath);
+                return;
+            }
+
+            PubSubConfigurationDataType? previous;
+            lock (m_watchGate)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                // Ignore the file event our own SaveAsync produced.
+                if (m_lastWrittenPayload is not null
+                    && payload.AsSpan().SequenceEqual(m_lastWrittenPayload))
+                {
+                    return;
+                }
+                previous = m_lastKnownConfig;
+            }
+
+            PubSubConfigurationDataType configuration;
+            try
+            {
+                configuration = DecodePayload(payload);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "PubSub configuration reload after a file change could not decode '{Path}'; " +
+                    "keeping the previous configuration.",
+                    m_filePath);
+                return;
+            }
+
+            lock (m_watchGate)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_lastWrittenPayload = payload;
+                m_lastKnownConfig = configuration;
+            }
+
+            m_logger.LogInformation(
+                "PubSub configuration file '{Path}' changed externally; raising Changed.",
+                m_filePath);
+            Changed?.Invoke(
+                this,
+                new PubSubConfigurationChangedEventArgs(previous, configuration));
+        }
+
+        private void RecordSelfWrite(byte[] payload, PubSubConfigurationDataType configuration)
+        {
+            lock (m_watchGate)
+            {
+                m_lastWrittenPayload = payload;
+                m_lastKnownConfig = configuration;
+            }
+        }
+
+        /// <summary>
+        /// Stops watching the backing file and releases the watcher resources.
+        /// </summary>
+        public void Dispose()
+        {
+            FileSystemWatcher? watcher;
+            ITimer? timer;
+            lock (m_watchGate)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                watcher = m_watcher;
+                timer = m_debounceTimer;
+                m_watcher = null;
+                m_debounceTimer = null;
+            }
+            if (watcher is not null)
+            {
+                watcher.EnableRaisingEvents = false;
+                watcher.Changed -= OnFileSystemChange;
+                watcher.Created -= OnFileSystemChange;
+                watcher.Renamed -= OnFileSystemChange;
+                watcher.Dispose();
+            }
+            timer?.Dispose();
+        }
+
         private const int FileBufferSize = 4096;
         private const string TempSuffix = ".tmp";
+        private const int WatchDebounceMs = 250;
 
         private readonly string m_filePath;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private readonly ILogger m_logger;
         private readonly System.Threading.Lock m_versionGate = new();
+        private readonly System.Threading.Lock m_watchGate = new();
         private ConfigurationVersionDataType? m_configurationVersion;
+        private FileSystemWatcher? m_watcher;
+        private ITimer? m_debounceTimer;
+        private byte[]? m_lastWrittenPayload;
+        private PubSubConfigurationDataType? m_lastKnownConfig;
+        private bool m_disposed;
     }
 }

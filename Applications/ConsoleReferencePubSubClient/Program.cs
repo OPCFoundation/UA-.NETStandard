@@ -29,6 +29,7 @@
 
 using System;
 using System.CommandLine;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +37,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.PubSub.Adapter;
+using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 
 namespace Quickstarts.ConsoleReferencePubSubClient
 {
@@ -62,6 +65,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
     {
         private const string DefaultExternalEndpoint =
             "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+        private const string ExternalPublisherOptionsName = "ExternalPublisher";
+        private const string ExternalSubscriberOptionsName = "ExternalSubscriber";
+        private const string ExternalResponderOptionsName = "ExternalResponder";
 
         public static async Task<int> Main(string[] args)
         {
@@ -272,6 +278,11 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 Description = "UDP/UADP PubSub transport endpoint URL.",
                 DefaultValueFactory = _ => ExternalServerPubSubConfiguration.DefaultPubSubEndpoint
             };
+            var hotReloadOption = new Option<bool>("--hot-reload")
+            {
+                Description =
+                    "Enable the external bridge hot-reload demo using appsettings.json and pubsub-config.xml."
+            };
 
             var command = new Command(
                 "external",
@@ -281,7 +292,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 readModeOption,
                 affinityOption,
                 endpointOption,
-                pubSubEndpointOption
+                pubSubEndpointOption,
+                hotReloadOption
             };
 
             command.SetAction(async (parseResult, cancellationToken) =>
@@ -326,6 +338,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     externalEndpoint,
                     parseResult.GetValue(pubSubEndpointOption)
                         ?? ExternalServerPubSubConfiguration.DefaultPubSubEndpoint,
+                    parseResult.GetValue(hotReloadOption),
                     cancellationToken).ConfigureAwait(false));
             });
 
@@ -466,13 +479,31 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             SubscriptionAffinity affinity,
             string externalEndpoint,
             string pubSubEndpoint,
+            bool hotReload,
             CancellationToken cancellationToken)
         {
-            HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+            HostApplicationBuilder builder = hotReload
+                ? Host.CreateApplicationBuilder(
+                    new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory })
+                : Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
 
-            ConfigureExternalBridge(builder, mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
+            string? configFile = null;
+            XmlPubSubConfigurationStore? hotReloadStore = null;
+            string appSettingsFile = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            if (hotReload)
+            {
+                (configFile, hotReloadStore) = await ConfigureExternalBridgeHotReloadAsync(
+                    builder,
+                    mode,
+                    pubSubEndpoint,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                ConfigureExternalBridge(builder, mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
+            }
 
             IHost host = builder.Build();
             ILogger logger = host.Services
@@ -482,8 +513,26 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} "
                 + "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}",
                 mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
+            if (hotReload)
+            {
+                logger.LogInformation(
+                    "Hot reload enabled. Edit {AppSettingsFile} (for example, change "
+                    + "{PublisherOptionsName}:ReadMode to Subscription) or {ConfigFile} "
+                    + "(for example, add or remove a DataSetWriter) and save to reconfigure "
+                    + "the running bridge.",
+                    appSettingsFile,
+                    ExternalPublisherOptionsName,
+                    configFile);
+            }
             logger.LogInformation("Bridge started. Press Ctrl-C to exit.");
-            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                hotReloadStore?.Dispose();
+            }
             return 0;
         }
 
@@ -559,6 +608,88 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     });
                 }
             });
+        }
+
+        private static async Task<(string ConfigFile, XmlPubSubConfigurationStore Store)> ConfigureExternalBridgeHotReloadAsync(
+            HostApplicationBuilder builder,
+            BridgeMode modes,
+            string pubSubEndpoint,
+            CancellationToken cancellationToken)
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(logging => logging.AddConsole());
+            string configFile = Path.Combine(AppContext.BaseDirectory, "pubsub-config.xml");
+            var store = new XmlPubSubConfigurationStore(configFile, telemetry, watchForChanges: true);
+            try
+            {
+                await store.SaveAsync(
+                    ExternalServerPubSubConfiguration.BuildConfiguration(modes, pubSubEndpoint),
+                    cancellationToken).ConfigureAwait(false);
+
+                builder.Services.AddOpcUa().AddPubSub(pubsub =>
+                {
+                    IPubSubBuilder bridge = pubsub;
+                    if (modes.HasFlag(BridgeMode.Publisher))
+                    {
+                        bridge = bridge.AddPublisher();
+                    }
+                    if (modes.HasFlag(BridgeMode.Subscriber) || modes.HasFlag(BridgeMode.Responder))
+                    {
+                        bridge = bridge.AddSubscriber();
+                    }
+
+                    bridge = bridge
+                        .AddUdpTransport()
+                        .ConfigureApplication(app => app.WithApplicationId(
+                            "urn:opcfoundation:ConsoleReferencePubSubClient:ExternalBridge"))
+                        // WithConfigurationStore registers this externally-created singleton instance.
+                        // The sample disposes it after the host stops instead of relying on the container.
+                        .WithConfigurationStore(store);
+
+                    if (modes.HasFlag(BridgeMode.Publisher))
+                    {
+                        bridge = bridge.AddServerAsPublisher(
+                            ExternalPublisherOptionsName,
+                            builder.Configuration.GetSection(ExternalPublisherOptionsName));
+                    }
+                    if (modes.HasFlag(BridgeMode.Subscriber))
+                    {
+                        bridge = bridge.AddServerAsSubscriber(
+                            ExternalSubscriberOptionsName,
+                            builder.Configuration.GetSection(ExternalSubscriberOptionsName));
+                    }
+                    if (modes.HasFlag(BridgeMode.Responder))
+                    {
+                        bridge.AddServerAsActionResponder(
+                            ExternalResponderOptionsName,
+                            builder.Configuration.GetSection(ExternalResponderOptionsName));
+                    }
+                });
+
+                if (modes.HasFlag(BridgeMode.Responder))
+                {
+                    builder.Services.Configure<ServerActionResponderOptions>(
+                        ExternalResponderOptionsName,
+                        options =>
+                        {
+                            options.MethodMap.Add(
+                                "ResetCounters",
+                                NodeId.Parse("ns=2;s=Demo.External.Methods"),
+                                NodeId.Parse("ns=2;s=Demo.External.ResetCounters"));
+                            options.Targets.Add(new PubSubActionTarget
+                            {
+                                DataSetWriterId = 1,
+                                ActionName = "ResetCounters"
+                            });
+                        });
+                }
+
+                return (configFile, store);
+            }
+            catch
+            {
+                store.Dispose();
+                throw;
+            }
         }
 
         private static bool TryParsePublisherProfile(string? text, out PublisherProfile profile)
