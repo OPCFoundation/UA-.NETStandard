@@ -44,14 +44,18 @@ namespace Quickstarts.ConsoleReferencePubSubClient
     {
         public const string DataSetName = "Simple";
         public const string DefaultUdpEndpoint = "opc.udp://239.0.0.1:4840";
+        public const string DefaultEthEndpoint = "opc.eth://01-00-5E-7F-00-01";
         public const string DefaultMqttEndpoint = "mqtt://localhost:1883";
         private const string MqttQueueName = "Quickstarts/Reference/Simple";
 
         public static string DefaultEndpointFor(PublisherProfile profile)
         {
-            return profile == PublisherProfile.UdpUadp
-                ? DefaultUdpEndpoint
-                : DefaultMqttEndpoint;
+            return profile switch
+            {
+                PublisherProfile.UdpUadp => DefaultUdpEndpoint,
+                PublisherProfile.EthUadp => DefaultEthEndpoint,
+                _ => DefaultMqttEndpoint
+            };
         }
 
         public static PubSubConfigurationDataType Build(
@@ -62,7 +66,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ushort dataSetWriterId,
             int intervalMs)
         {
-            bool udp = profile == PublisherProfile.UdpUadp;
+            // UDP and Ethernet are datagram transports (no broker queue);
+            // the MQTT profiles use broker transport settings instead.
+            bool udp = profile is PublisherProfile.UdpUadp or PublisherProfile.EthUadp;
 
             // UADP message security (SignAndEncrypt) is wired for the UADP
             // profiles via the shared StaticSecurityKeyProvider. The JSON
@@ -72,6 +78,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             string transportProfileUri = profile switch
             {
                 PublisherProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
+                PublisherProfile.EthUadp => Profiles.PubSubEthUadpTransport,
                 PublisherProfile.MqttUadp => Profiles.PubSubMqttUadpTransport,
                 PublisherProfile.MqttJson => Profiles.PubSubMqttJsonTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))

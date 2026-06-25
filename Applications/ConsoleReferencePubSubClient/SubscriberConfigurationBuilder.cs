@@ -45,14 +45,18 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         public const string ReaderName = "Reader 1";
         public const string DataSetName = "Simple";
         public const string DefaultUdpEndpoint = "opc.udp://239.0.0.1:4840";
+        public const string DefaultEthEndpoint = "opc.eth://01-00-5E-7F-00-01";
         public const string DefaultMqttEndpoint = "mqtt://localhost:1883";
         private const string MqttQueueName = "Quickstarts/Reference/Simple";
 
         public static string DefaultEndpointFor(SubscriberProfile profile)
         {
-            return profile == SubscriberProfile.UdpUadp
-                ? DefaultUdpEndpoint
-                : DefaultMqttEndpoint;
+            return profile switch
+            {
+                SubscriberProfile.UdpUadp => DefaultUdpEndpoint,
+                SubscriberProfile.EthUadp => DefaultEthEndpoint,
+                _ => DefaultMqttEndpoint
+            };
         }
 
         public static PubSubConfigurationDataType Build(
@@ -62,7 +66,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ushort writerGroupIdFilter,
             ushort dataSetWriterIdFilter)
         {
-            bool udp = profile == SubscriberProfile.UdpUadp;
+            // UDP and Ethernet are datagram transports (no broker queue);
+            // the MQTT profiles use broker transport settings instead.
+            bool udp = profile is SubscriberProfile.UdpUadp or SubscriberProfile.EthUadp;
 
             // UADP message security (SignAndEncrypt) is wired for the UADP
             // profiles via the shared StaticSecurityKeyProvider. The JSON
@@ -72,6 +78,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             string transportProfileUri = profile switch
             {
                 SubscriberProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
+                SubscriberProfile.EthUadp => Profiles.PubSubEthUadpTransport,
                 SubscriberProfile.MqttUadp => Profiles.PubSubMqttUadpTransport,
                 SubscriberProfile.MqttJson => Profiles.PubSubMqttJsonTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))

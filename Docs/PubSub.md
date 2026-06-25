@@ -39,7 +39,7 @@
 - Multi-TFM: `netstandard2.1`, `net48`, `net472`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
-- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), and **MQTT** (3.1.1 + 5.0).
+- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
   with `Verbose` / `Compact` / `RawData` modes.
@@ -397,6 +397,9 @@ only makes sense together with the PubSub feature:
   unicast / multicast / broadcast.
 - `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
   MQTT 3.1.1 + 5.0 via MQTTnet.
+- `IPubSubBuilder.AddEthTransport(Action<EthTransportOptions>?)` —
+  Ethernet Layer 2 (`opc.eth://`); chain `.WithPcap()` for the
+  SharpPcap (libpcap / Npcap) backend.
 
 Server-side address space — see
 [Server-side address space](#server-side-address-space):
@@ -423,6 +426,34 @@ broadcast. The transport honours the
 | `QosCategory`              | Maps to the IPv4/IPv6 DSCP TOS byte applied to outgoing datagrams.   |
 | `MessageRepeatCount`       | How many times the publisher re-sends the same NetworkMessage.       |
 | `MessageRepeatDelay`       | Delay between repeats; receivers deduplicate using `SequenceNumber`. |
+
+
+### Ethernet / UADP (`opc.eth://`)
+
+Implemented in `Opc.Ua.PubSub.Eth`. Wire profile
+[`PubSub Ethernet UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp).
+Carries UADP NetworkMessages directly inside Ethernet II frames
+(EtherType `0xB62C`) with optional IEEE 802.1Q VLAN tagging
+(`opc.eth://<mac>?vid=&pcp=`). Raw Layer-2 I/O is abstracted behind
+an injectable `IEthernetFrameChannelFactory`: the default native
+backend (Linux `AF_PACKET`, macOS BPF) requires `CAP_NET_RAW` / root,
+and `.WithPcap()` selects the SharpPcap (libpcap / Npcap) backend for
+Windows / cross-platform use. An in-memory loopback backend keeps the
+tests deterministic. See
+[PubSub Ethernet transport](PubSubEth.md) for addressing, options,
+backends and examples.
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub(pubsub => pubsub
+        .AddPublisher()
+        .AddEthTransport(options =>
+        {
+            options.PreferredNetworkInterface = "eth0";
+            options.DefaultVlanId = 5;
+            options.DefaultPriority = 6;
+        }));
+```
 
 
 ### DTLS / UADP (`opc.dtls://`)

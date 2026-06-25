@@ -165,6 +165,14 @@ namespace Opc.Ua
             = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
 
         /// <summary>
+        /// Uri for "PubSub Ethernet UADP" Profile.
+        /// This PubSub transport Facet defines a combination of the Ethernet transport protocol mapping with UADP message mapping.
+        /// This Facet is used for direct Layer 2 messaging (Part 14 Ethernet mapping, EtherType 0xB62C).
+        /// </summary>
+        public const string PubSubEthUadpTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp";
+
+        /// <summary>
         /// An Issued User Token that complies with the JWT specification.
         /// </summary>
         public const string JwtUserToken = "http://opcfoundation.org/UA/UserToken#JWT";

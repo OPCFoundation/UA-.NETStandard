@@ -370,7 +370,11 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     .AddUdpTransport()
                     .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
                     .AddDataSetSource(PublisherConfigurationBuilder.DataSetName, sampleSource);
-                if (profile != PublisherProfile.UdpUadp)
+                if (profile == PublisherProfile.EthUadp)
+                {
+                    publisher.AddEthTransport();
+                }
+                else if (profile != PublisherProfile.UdpUadp)
                 {
                     publisher.AddMqttTransport();
                 }
@@ -434,7 +438,11 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                         sp => new ConsoleLoggingSink(
                             sp.GetRequiredService<ILoggerFactory>()
                                 .CreateLogger<ConsoleLoggingSink>()));
-                if (profile != SubscriberProfile.UdpUadp)
+                if (profile == SubscriberProfile.EthUadp)
+                {
+                    subscriber.AddEthTransport();
+                }
+                else if (profile != SubscriberProfile.UdpUadp)
                 {
                     subscriber.AddMqttTransport();
                 }
@@ -705,6 +713,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 case "mqtt-json":
                     profile = PublisherProfile.MqttJson;
                     return true;
+                case "eth-uadp":
+                    profile = PublisherProfile.EthUadp;
+                    return true;
                 default:
                     profile = PublisherProfile.UdpUadp;
                     return false;
@@ -723,6 +734,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     return true;
                 case "mqtt-json":
                     profile = SubscriberProfile.MqttJson;
+                    return true;
+                case "eth-uadp":
+                    profile = SubscriberProfile.EthUadp;
                     return true;
                 default:
                     profile = SubscriberProfile.UdpUadp;
@@ -821,7 +835,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// <summary>
         /// MQTT broker transport with JSON message mapping.
         /// </summary>
-        MqttJson = 2
+        MqttJson = 2,
+
+        /// <summary>
+        /// Ethernet (Layer 2) transport with UADP message mapping.
+        /// </summary>
+        EthUadp = 3
     }
 
     /// <summary>
@@ -842,7 +861,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// <summary>
         /// MQTT broker transport with JSON message mapping.
         /// </summary>
-        MqttJson = 2
+        MqttJson = 2,
+
+        /// <summary>
+        /// Ethernet (Layer 2) transport with UADP message mapping.
+        /// </summary>
+        EthUadp = 3
     }
 
     /// <summary>

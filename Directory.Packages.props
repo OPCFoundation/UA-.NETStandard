@@ -57,8 +57,10 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
       PacketDotNet and SharpPcap are native-code dependencies of
-      Opc.Ua.Core.Diagnostics. They dynamically load libpcap on
-      Linux/macOS and Npcap on Windows. Per SDL native-code policy:
+      Opc.Ua.Core.Diagnostics, Opc.Ua.PubSub.Diagnostics and (for the
+      opt-in WithPcap() backend, net8.0+ only) Opc.Ua.PubSub.Eth. They
+      dynamically load libpcap on Linux/macOS and Npcap on Windows. Per
+      SDL native-code policy:
       - Versions are pinned (no floating range)
       - SBOM tracking is required for every release
       - Subscribe to upstream CVE feeds:
