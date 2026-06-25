@@ -1993,6 +1993,7 @@ namespace Opc.Ua.Gds.Server
             Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
 
             result.ServiceResult = ServiceResult.Good;
+            certificate?.Dispose();
             return result;
         }
 
@@ -2645,6 +2646,22 @@ namespace Opc.Ua.Gds.Server
                 context, objectId, method, auditInputs, m_logger);
 
             return new KeyCredentialRevokeMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
+                {
+                    (certificateGroup as IDisposable)?.Dispose();
+                }
+
+                m_certificateGroups.Clear();
+            }
+
+            base.Dispose(disposing);
         }
 
         private readonly bool m_autoApprove;

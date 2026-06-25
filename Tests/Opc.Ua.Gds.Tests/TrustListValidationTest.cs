@@ -69,8 +69,10 @@ namespace Opc.Ua.Gds.Tests
         {
             try
             {
-                await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
-                await m_server.DisposeAsync().ConfigureAwait(false);
+                if (m_pushClient != null)
+                {
+                    await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
+                }
             }
             catch
             {
@@ -79,6 +81,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 m_pushClient?.Dispose();
                 m_pushClient = null;
+                if (m_server != null)
+                {
+                    await m_server.DisposeAsync().ConfigureAwait(false);
+                }
                 m_server = null;
             }
         }

@@ -745,7 +745,8 @@ namespace Opc.Ua.Server
                     // build issuer chain
                     foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        newIssuerCollection.Add(Certificate.FromRawData(issuerRawCert));
+                        using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                        newIssuerCollection.Add(issuerCertificate);
                     }
                 }
                 catch
@@ -908,6 +909,7 @@ namespace Opc.Ua.Server
 #pragma warning restore CA2000
                                     }
 
+                                    updateCertificate.CertificateWithPrivateKey?.Dispose();
                                     updateCertificate.CertificateWithPrivateKey =
                                         DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                                             newCert,
@@ -954,6 +956,7 @@ namespace Opc.Ua.Server
 #pragma warning restore CA2000 // Dispose objects before losing scope
                                 try
                                 {
+                                    updateCertificate.CertificateWithPrivateKey?.Dispose();
                                     updateCertificate.CertificateWithPrivateKey =
                                         DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                                             newCert,
@@ -977,6 +980,7 @@ namespace Opc.Ua.Server
                         case "PEM":
                             for (int attempt = 0; ; attempt++)
                             {
+                                updateCertificate.CertificateWithPrivateKey?.Dispose();
                                 updateCertificate.CertificateWithPrivateKey =
                                     DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                                         newCert,
@@ -1036,7 +1040,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                // certWithPrivateKey?.Dispose();
+                newCert?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
@@ -1185,7 +1189,7 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
-                        issuerStore?.Close();
+                        issuerStore?.Dispose();
                     }
 
                     updateCertificate.IssuerCollection?.Dispose();
@@ -1402,19 +1406,29 @@ namespace Opc.Ua.Server
                     throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
             }
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Create signing request {Certificate}",
-                certWithPrivateKey);
-            var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
-                certWithPrivateKey,
-                X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
-
-            return new CreateSigningRequestMethodStateResult
+            try
             {
-                ServiceResult = ServiceResult.Good,
-                CertificateRequest = certificateRequest
-            };
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "Create signing request {Certificate}",
+                    certWithPrivateKey);
+                var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
+                    certWithPrivateKey,
+                    X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
+
+                return new CreateSigningRequestMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    CertificateRequest = certificateRequest
+                };
+            }
+            finally
+            {
+                if (!regeneratePrivateKey)
+                {
+                    certWithPrivateKey.Dispose();
+                }
+            }
         }
 
         private Certificate GenerateTemporaryApplicationCertificate(
@@ -1497,6 +1511,8 @@ namespace Opc.Ua.Server
                 });
                 certificateGroup.OriginalCertificate = null;
                 certificateGroup.OriginalCertificateType = NodeId.Null;
+                updateCertificate.CertificateWithPrivateKey?.Dispose();
+                updateCertificate.IssuerCollection?.Dispose();
                 certificateGroup.UpdateCertificate = null!;
             }
 
@@ -1689,6 +1705,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private static void ResetPendingUpdateCertificate(ServerCertificateGroup certificateGroup)
         {
+            certificateGroup.UpdateCertificate?.CertificateWithPrivateKey?.Dispose();
+            certificateGroup.UpdateCertificate?.IssuerCollection?.Dispose();
             certificateGroup.UpdateCertificate = null!;
         }
 
@@ -1704,6 +1722,8 @@ namespace Opc.Ua.Server
             certificateGroup.OriginalCertificate?.Dispose();
             certificateGroup.OriginalCertificate = null;
             certificateGroup.OriginalCertificateType = NodeId.Null;
+            certificateGroup.UpdateCertificate?.CertificateWithPrivateKey?.Dispose();
+            certificateGroup.UpdateCertificate?.IssuerCollection?.Dispose();
             certificateGroup.UpdateCertificate = null!;
         }
 
