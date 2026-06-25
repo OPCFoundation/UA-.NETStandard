@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,8 +44,8 @@ namespace Opc.Ua
     /// inheritance tree); proxies for types that derive directly from
     /// <c>BaseObjectType</c> ultimately inherit from this class. The base
     /// class holds the per-instance plumbing (session, object NodeId,
-    /// telemetry) and exposes a single <see cref="CallMethodAsync"/>
-    /// helper used by every generated wrapper.
+    /// telemetry) and exposes the <c>CallMethodAsync</c> helpers used by
+    /// every generated wrapper.
     /// </remarks>
     public abstract class ObjectTypeClient
     {
@@ -106,36 +107,86 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
-            var request = new CallMethodRequest
+            CallResponse response = await CallOnceAsync(methodId, ct, args)
+                .ConfigureAwait(false);
+            return ThrowOrGetOutputArguments(response);
+        }
+
+        /// <summary>
+        /// Calls the method identified by <paramref name="methodId"/> on
+        /// the wrapped object and returns the raw output arguments, with
+        /// an interoperability fallback for non-conformant servers.
+        /// </summary>
+        /// <remarks>
+        /// The <paramref name="methodId"/> is the type-declaration
+        /// MethodId (the Method on the ObjectType). Per OPC UA Part 4
+        /// (v1.04 §5.11.2.2 / v1.05.07 §5.12.2.2) a Call on an Object
+        /// instance may use <b>either</b> the instance MethodId <b>or</b>
+        /// the type-declaration MethodId, so this is the spec-conformant
+        /// happy path and conformant servers (including this stack's own
+        /// server) accept it. Some non-conformant servers only bind the
+        /// method handler on the instance and reject the type-declaration
+        /// MethodId with <see cref="StatusCodes.BadMethodInvalid"/>. To
+        /// interoperate with those servers, the instance MethodId is
+        /// resolved once via a <c>HasComponent</c> browse path, cached on
+        /// this proxy, and the call is retried. Subsequent calls reuse the
+        /// cached instance MethodId, so conformant servers pay no extra
+        /// cost.
+        /// </remarks>
+        /// <param name="methodId">The type-declaration NodeId of the
+        /// method to invoke.</param>
+        /// <param name="methodNamespaceUri">The namespace URI of the
+        /// method's browse name, used for the fallback resolution.</param>
+        /// <param name="methodBrowseName">The unqualified browse name of
+        /// the method, used for the fallback resolution.</param>
+        /// <param name="ct">Cancellation token for the request.</param>
+        /// <param name="args">The boxed input arguments.</param>
+        /// <returns>The output arguments returned by the server.</returns>
+        /// <exception cref="ServiceResultException">
+        /// Thrown if the call fails or returns a Bad status.
+        /// </exception>
+        protected async ValueTask<ArrayOf<Variant>> CallMethodAsync(
+            NodeId methodId,
+            string methodNamespaceUri,
+            string methodBrowseName,
+            CancellationToken ct,
+            params Variant[] args)
+        {
+            // Reuse a previously resolved instance MethodId if we already
+            // had to fall back for this method against a non-conformant
+            // server; otherwise start with the type-declaration MethodId.
+            bool usedTypeMethodId = !m_instanceMethodIdCache.TryGetValue(
+                methodId,
+                out NodeId callMethodId);
+            if (usedTypeMethodId)
             {
-                ObjectId = ObjectId,
-                MethodId = methodId,
-                InputArguments = args
-            };
-
-            ArrayOf<CallMethodRequest> requests = [request];
-
-            CallResponse response = await Session.CallAsync(
-                null,
-                requests,
-                ct).ConfigureAwait(false);
-
-            ArrayOf<CallMethodResult> results = response.Results;
-            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
-
-            ClientBase.ValidateResponse(results, requests);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
-
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw ServiceResultException.Create(
-                    results[0].StatusCode,
-                    0,
-                    diagnosticInfos,
-                    response.ResponseHeader.StringTable);
+                callMethodId = methodId;
             }
 
-            return results[0].OutputArguments;
+            CallResponse response = await CallOnceAsync(callMethodId, ct, args)
+                .ConfigureAwait(false);
+
+            // Interoperability fallback: a conformant server accepts the
+            // type-declaration MethodId, but a non-conformant one returns
+            // Bad_MethodInvalid. Resolve the instance MethodId via
+            // HasComponent, cache it, and retry once.
+            if (usedTypeMethodId &&
+                response.Results[0].StatusCode.Code == StatusCodes.BadMethodInvalid)
+            {
+                NodeId instanceMethodId = await ResolveChildNodeIdAsync(
+                    methodNamespaceUri,
+                    methodBrowseName,
+                    ct).ConfigureAwait(false);
+
+                if (!instanceMethodId.IsNull && !instanceMethodId.Equals(methodId))
+                {
+                    m_instanceMethodIdCache[methodId] = instanceMethodId;
+                    response = await CallOnceAsync(instanceMethodId, ct, args)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            return ThrowOrGetOutputArguments(response);
         }
 
         /// <summary>
@@ -196,5 +247,66 @@ namespace Opc.Ua
                 response.Results[0].Targets[0].TargetId,
                 Session.MessageContext.NamespaceUris);
         }
+
+        /// <summary>
+        /// Issues a single <c>Call</c> for the wrapped object and returns
+        /// the validated response without throwing on a Bad operation
+        /// status, so callers can inspect the status and optionally retry.
+        /// </summary>
+        /// <param name="methodId">The NodeId of the method to invoke.</param>
+        /// <param name="ct">Cancellation token for the request.</param>
+        /// <param name="args">The boxed input arguments.</param>
+        private async ValueTask<CallResponse> CallOnceAsync(
+            NodeId methodId,
+            CancellationToken ct,
+            params Variant[] args)
+        {
+            var request = new CallMethodRequest
+            {
+                ObjectId = ObjectId,
+                MethodId = methodId,
+                InputArguments = args
+            };
+
+            ArrayOf<CallMethodRequest> requests = [request];
+
+            CallResponse response = await Session.CallAsync(
+                null,
+                requests,
+                ct).ConfigureAwait(false);
+
+            ClientBase.ValidateResponse(response.Results, requests);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+
+            return response;
+        }
+
+        /// <summary>
+        /// Returns the output arguments of the first (and only) Call
+        /// result, or throws a <see cref="ServiceResultException"/> when
+        /// the operation status is Bad.
+        /// </summary>
+        /// <param name="response">The validated Call response.</param>
+        private static ArrayOf<Variant> ThrowOrGetOutputArguments(CallResponse response)
+        {
+            CallMethodResult result = response.Results[0];
+
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                throw ServiceResultException.Create(
+                    result.StatusCode,
+                    0,
+                    response.DiagnosticInfos,
+                    response.ResponseHeader.StringTable);
+            }
+
+            return result.OutputArguments;
+        }
+
+        /// <summary>
+        /// Per-proxy cache mapping a type-declaration MethodId to the
+        /// instance MethodId resolved via the interoperability fallback.
+        /// </summary>
+        private readonly ConcurrentDictionary<NodeId, NodeId> m_instanceMethodIdCache = new();
     }
 }
