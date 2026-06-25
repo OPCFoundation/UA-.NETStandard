@@ -49,9 +49,15 @@
     <When Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
       <PropertyGroup>
         <NetStandardTests>true</NetStandardTests>
-        <AppTargetFrameworks>net10.0</AppTargetFrameworks>
-        <AppTargetFramework>net10.0</AppTargetFramework>
-        <TestsTargetFrameworks>net10.0</TestsTargetFrameworks>
+        <!-- netstandard2.1 is a library-only TFM; its build is validated by a net8.0
+             consumer (apps/tests). net8.0 (unlike net9.0+/net10.0) does not define
+             System.Threading.Lock or X509CertificateLoader in its BCL, so the
+             netstandard2.1 libraries' public polyfills for those types do not collide
+             with the consumer's BCL. This matches the net8.0 framework the netstandard2.1
+             test stage already runs (azure-pipelines.yml). -->
+        <AppTargetFrameworks>net8.0</AppTargetFrameworks>
+        <AppTargetFramework>net8.0</AppTargetFramework>
+        <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.1</LibTargetFrameworks>
         <LibCoreTargetFrameworks>netstandard2.1</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
