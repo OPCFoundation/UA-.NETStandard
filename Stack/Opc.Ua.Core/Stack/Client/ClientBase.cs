@@ -290,11 +290,15 @@ namespace Opc.Ua
                 try
                 {
                     await channel.CloseAsync(ct).ConfigureAwait(false);
-                    channel.Dispose();
                 }
                 catch
                 {
-                    // ignore errors.
+                    // ignore errors during close; the channel is still
+                    // disposed below so it does not leak its certificates.
+                }
+                finally
+                {
+                    channel.Dispose();
                 }
             }
         }
