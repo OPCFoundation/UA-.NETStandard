@@ -45,8 +45,17 @@ namespace Opc.Ua.Tests
         /// <summary>
         /// Default total time budget for <see cref="TryRunFinalizerSweep"/>.
         /// </summary>
+        /// <remarks>
+        /// A genuinely stuck finalizer blocks
+        /// <see cref="GC.WaitForPendingFinalizers"/> indefinitely, so any
+        /// finite budget still catches it — it merely waits longer before
+        /// failing. The budget therefore only needs to be large enough that a
+        /// slow-but-healthy sweep over a large accumulated heap on a heavily
+        /// loaded CI agent (observed: macOS agents exceeded 30s on the heavier
+        /// integration suites) never produces a false watchdog failure.
+        /// </remarks>
         public static readonly TimeSpan DefaultFinalizerSweepTimeout =
-            TimeSpan.FromSeconds(30);
+            TimeSpan.FromSeconds(180);
 
         /// <summary>
         /// Runs <paramref name="cycles"/> consecutive
