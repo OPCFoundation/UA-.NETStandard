@@ -213,12 +213,12 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a Variant to the stream.
         /// </summary>
-        void WriteVariant(string? fieldName, Variant value);
+        void WriteVariant(string? fieldName, in Variant value);
 
         /// <summary>
         /// Writes a DataValue to the stream.
         /// </summary>
-        void WriteDataValue(string? fieldName, DataValue value);
+        void WriteDataValue(string? fieldName, in DataValue value);
 
         /// <summary>
         /// Writes an ExtensionObject to the stream.
@@ -433,7 +433,7 @@ namespace Opc.Ua
         /// type safe manner and did essentially the same here just for
         /// arrays while this method also handles scalar values.
         /// </remarks>
-        void WriteVariantValue(string? fieldName, Variant value);
+        void WriteVariantValue(string? fieldName, in Variant value);
 
         /// <summary>
         /// Writes a matrix of structures of type T (a field inside another
