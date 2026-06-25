@@ -175,15 +175,15 @@ namespace Opc.Ua.PubSub.Adapter.Session
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            hash.Add(EndpointUrl, StringComparer.Ordinal);
+            hash.Add(EndpointUrl ?? string.Empty, StringComparer.Ordinal);
             hash.Add(SecurityMode);
-            hash.Add(SecurityPolicyUri, StringComparer.Ordinal);
-            hash.Add(UserName, StringComparer.Ordinal);
-            hash.Add(Password, StringComparer.Ordinal);
+            hash.Add(SecurityPolicyUri ?? string.Empty, StringComparer.Ordinal);
+            hash.Add(UserName ?? string.Empty, StringComparer.Ordinal);
+            hash.Add(Password ?? string.Empty, StringComparer.Ordinal);
             hash.Add(UserIdentity);
-            hash.Add(SessionName, StringComparer.Ordinal);
+            hash.Add(SessionName ?? string.Empty, StringComparer.Ordinal);
             hash.Add(SessionTimeout);
-            hash.Add(ApplicationName, StringComparer.Ordinal);
+            hash.Add(ApplicationName ?? string.Empty, StringComparer.Ordinal);
             return hash.ToHashCode();
         }
     }

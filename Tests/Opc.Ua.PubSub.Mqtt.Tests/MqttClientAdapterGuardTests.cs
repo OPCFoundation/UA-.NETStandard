@@ -208,6 +208,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 .WithTcpServer("broker.example", 8883)
                 .Build();
 
+#if NET8_0_OR_GREATER
             MqttClientAdapter.ApplyEnhancedAuthentication(mqttOptions, options);
 
             Assert.Multiple(() =>
@@ -217,6 +218,14 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     System.Text.Encoding.UTF8.GetString(mqttOptions.AuthenticationData ?? []),
                     Is.EqualTo(options.ResourceUri));
             });
+#else
+            // MQTTnet 4.x (used by the net48 / net472 / netstandard2.1 target
+            // frameworks) exposes no enhanced-authentication API, so the adapter
+            // fails closed instead of silently dropping the AuthenticationProfileUri.
+            Assert.That(
+                () => MqttClientAdapter.ApplyEnhancedAuthentication(mqttOptions, options),
+                Throws.TypeOf<NotSupportedException>());
+#endif
         }
 
         [Test]
