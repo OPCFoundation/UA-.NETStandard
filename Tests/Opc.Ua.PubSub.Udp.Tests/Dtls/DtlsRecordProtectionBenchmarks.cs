@@ -68,7 +68,12 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void Setup()
         {
             var registry = new DtlsProfileRegistry();
-            m_profile = registry.Resolve("ECC_nistP256_AesGcm");
+            if (!registry.TryResolve("ECC_nistP256_AesGcm", out DtlsProfile? profile))
+            {
+                Assert.Ignore("DTLS profile 'ECC_nistP256_AesGcm' is not available from this platform BCL.");
+                return;
+            }
+            m_profile = profile!;
             m_trafficSecret = RandomNumberGenerator.GetBytes(32);
             m_payload = RandomNumberGenerator.GetBytes(PayloadSize);
             m_writer = new DtlsRecordProtection(m_profile, m_trafficSecret, epoch: 3);
