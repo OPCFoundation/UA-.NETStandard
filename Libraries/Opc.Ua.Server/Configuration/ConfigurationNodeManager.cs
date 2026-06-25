@@ -197,104 +197,41 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            var activeNode = new ServerConfigurationState(passiveNode.Parent);
+                            var activeNode = (ServerConfigurationState)passiveNode;
 
-                            // Optional ServerConfigurationType methods this
-                            // SDK wires in CreateServerConfiguration but that
-                            // are no longer emitted by the singleton factory
-                            // (Optional per Part 12). Use the idempotent
-                            // generated Add{Method} helpers so the typed
-                            // slot is initialised with the type-level
-                            // factory (BrowseName, InputArguments, etc.)
-                            // before Create() copies the loaded passive
-                            // node into the active subtree. The new
-                            // Add{Method}(context, nodeId?) chains via the
-                            // owner state for fluent usage.
                             activeNode
                                 .AddGetCertificates(context)
                                 .AddCreateSelfSignedCertificate(context);
 
-                            activeNode.Create(context, passiveNode);
-
                             m_serverConfigurationNode = activeNode;
-
-                            // replace the node in the parent.
-                            if (passiveNode.Parent != null)
-                            {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
-                            else
-                            {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                    .ConfigureAwait(false);
-                                serverNode?.ReplaceChild(context, activeNode);
-                            }
-                            // remove the reference to server node because it is set as parent
-                            activeNode.RemoveReference(
-                                ReferenceTypeIds.HasComponent,
-                                true,
-                                ObjectIds.Server);
 
                             return activeNode;
                         }
                         case ObjectTypes.CertificateGroupFolderType:
                         {
-                            var activeNode = new CertificateGroupFolderState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
+                            var activeNode = (CertificateGroupFolderState)passiveNode;
 
-                            // delete unsupported groups
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultHttpsGroup == null ||
-                                    activeNode.DefaultHttpsGroup.BrowseName != group.BrowseName))
+                            ServerCertificateGroup? applicationGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultApplicationGroup);
+
+                            applicationGroup!.Node = activeNode.DefaultApplicationGroup!;
+
+                            ServerCertificateGroup? httpsGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultHttpsGroup);
+                            if (httpsGroup != null)
                             {
-                                activeNode.DefaultHttpsGroup = null;
-                            }
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultUserTokenGroup == null ||
-                                    activeNode.DefaultUserTokenGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultUserTokenGroup = null;
-                            }
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultApplicationGroup == null ||
-                                    activeNode.DefaultApplicationGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultApplicationGroup = null;
+                                activeNode.AddDefaultHttpsGroup(context);
+                                httpsGroup.Node = activeNode.DefaultHttpsGroup!;
                             }
 
-                            // replace the node in the parent.
-                            passiveNode.Parent?.ReplaceChild(context, activeNode);
-                            return activeNode;
-                        }
-                        case ObjectTypes.CertificateGroupType:
-                        {
-                            ServerCertificateGroup? result = m_certificateGroups
-                                .FirstOrDefault(group =>
-                                    group.NodeId == passiveNode.NodeId);
-
-                            if (result != null)
+                            ServerCertificateGroup? userTokenGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultUserTokenGroup);
+                            if (userTokenGroup != null)
                             {
-                                var activeNode = new CertificateGroupState(passiveNode.Parent);
-                                activeNode.Create(context, passiveNode);
-
-                                result.NodeId = activeNode.NodeId;
-                                result.Node = activeNode;
-
-                                // replace the node in the parent.
-                                passiveNode.Parent?.ReplaceChild(context, activeNode);
-                                return activeNode;
+                                activeNode.AddDefaultUserTokenGroup(context);
+                                userTokenGroup.Node = activeNode.DefaultUserTokenGroup!;
                             }
-                        }
-                        break;
-                        case ObjectTypes.UserManagementType:
-                        {
-                            if (passiveNode is UserManagementState)
-                            {
-                                break;
-                            }
-                            var activeNode = new UserManagementState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
-                            passiveNode.Parent?.ReplaceChild(context, activeNode);
+
                             return activeNode;
                         }
                     }
@@ -519,16 +456,10 @@ namespace Opc.Ua.Server
                 }
 
                 // create the NamespaceMetadata node
-                namespaceMetadataState = new NamespaceMetadataState(serverNamespacesNode)
-                {
-                    BrowseName = new QualifiedName(namespaceUri, NamespaceIndex)
-                };
-                namespaceMetadataState.Create(
-                    SystemContext,
-                    default,
-                    namespaceMetadataState.BrowseName,
-                    default,
-                    true);
+                namespaceMetadataState = SystemContext.CreateInstanceOfNamespaceMetadataType(
+                    serverNamespacesNode,
+                    new QualifiedName(namespaceUri, NamespaceIndex));
+                namespaceMetadataState.NodeId = SystemContext.NodeIdFactory.New(SystemContext, namespaceMetadataState);
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState!.NamespaceUri!.Value = namespaceUri;

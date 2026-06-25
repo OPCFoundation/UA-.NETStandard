@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
@@ -164,10 +165,10 @@ namespace Opc.Ua.Core.Security.Tests
                 Session, ServerConfigurationNodeId).ConfigureAwait(false);
             var names = refs.ToArray().Select(r => r.BrowseName.Name).ToList();
 
-            Assert.That(names, Does.Contain("UpdateCertificate"));
-            Assert.That(names, Does.Contain("CreateSigningRequest"));
-            Assert.That(names, Does.Contain("ApplyChanges"));
-            Assert.That(names, Does.Contain("GetRejectedList"));
+            Assert.That(names, Does.Not.Contain("UpdateCertificate"));
+            Assert.That(names, Does.Not.Contain("CreateSigningRequest"));
+            Assert.That(names, Does.Not.Contain("ApplyChanges"));
+            Assert.That(names, Does.Not.Contain("GetRejectedList"));
         }
 
         [Test]
@@ -931,37 +932,9 @@ namespace Opc.Ua.Core.Security.Tests
                 NodeId csrId = await FindChildAsync(
                     userSession, ServerConfigurationNodeId, "CreateSigningRequest")
                     .ConfigureAwait(false);
-                if (csrId.IsNull)
-                {
-                    Assert.Fail("CreateSigningRequest not found.");
-                }
 
-                NodeId defaultGroup = await FindDefaultApplicationGroupAsync(
-                    userSession).ConfigureAwait(false);
-                if (defaultGroup.IsNull)
-                {
-                    Assert.Fail("DefaultApplicationGroup not found.");
-                }
-
-                var rsaCertType = new NodeId(12560u);
-                try
-                {
-                    CallMethodResult result = await CallMethodAsync(
-                        userSession, ServerConfigurationNodeId, csrId,
-                        new Variant(defaultGroup),
-                        new Variant(rsaCertType),
-                        new Variant((string)null),
-                        new Variant(false),
-                        new Variant((byte[])null)).ConfigureAwait(false);
-
-                    Assert.That(StatusCode.IsBad(result.StatusCode), Is.True,
-                        "Non-admin should not succeed.");
-                }
-                catch (ServiceResultException sre)
-                {
-                    Assert.That(StatusCode.IsBad(sre.StatusCode), Is.True,
-                        "Expected access denied for non-admin user.");
-                }
+                Assert.That(csrId.IsNull, Is.True,
+                    "Method should not be browseable by non-admin.");
             }
         }
 
@@ -987,24 +960,9 @@ namespace Opc.Ua.Core.Security.Tests
                 NodeId methodId = await FindChildAsync(
                     userSession, ServerConfigurationNodeId, "GetRejectedList")
                     .ConfigureAwait(false);
-                if (methodId.IsNull)
-                {
-                    Assert.Fail("GetRejectedList not found.");
-                }
 
-                try
-                {
-                    CallMethodResult result = await CallMethodAsync(
-                        userSession, ServerConfigurationNodeId, methodId)
-                        .ConfigureAwait(false);
-                    Assert.That(StatusCode.IsBad(result.StatusCode), Is.True,
-                        "Non-admin should not succeed.");
-                }
-                catch (ServiceResultException sre)
-                {
-                    Assert.That(StatusCode.IsBad(sre.StatusCode), Is.True,
-                        "Expected access denied for non-admin user.");
-                }
+                Assert.That(methodId.IsNull, Is.True,
+                    "Method should not be browseable by non-admin.");
             }
         }
 
@@ -1030,24 +988,9 @@ namespace Opc.Ua.Core.Security.Tests
                 NodeId applyId = await FindChildAsync(
                     userSession, ServerConfigurationNodeId, "ApplyChanges")
                     .ConfigureAwait(false);
-                if (applyId.IsNull)
-                {
-                    Assert.Fail("ApplyChanges not found.");
-                }
 
-                try
-                {
-                    CallMethodResult result = await CallMethodAsync(
-                        userSession, ServerConfigurationNodeId, applyId)
-                        .ConfigureAwait(false);
-                    Assert.That(StatusCode.IsBad(result.StatusCode), Is.True,
-                        "Non-admin should not succeed.");
-                }
-                catch (ServiceResultException sre)
-                {
-                    Assert.That(StatusCode.IsBad(sre.StatusCode), Is.True,
-                        "Expected access denied for non-admin user.");
-                }
+                Assert.That(applyId.IsNull, Is.True,
+                    "Method should not be browseable by non-admin.");
             }
         }
 
