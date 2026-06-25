@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
             return new PubSubConnectionDataType
             {
                 Name = name,
-                TransportProfileUri = Profiles.PubSubEthUadpTransport,
+                TransportProfileUri = EthProfiles.PubSubEthUadpTransport,
                 Address = new ExtensionObject(new NetworkAddressUrlDataType
                 {
                     Url = url

@@ -56,6 +56,9 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private bool m_isOpen;
         private bool m_disposed;
 
+        /// <summary>
+        /// Initializes a new <see cref="InMemoryEthernetFrameChannel"/>.
+        /// </summary>
         public InMemoryEthernetFrameChannel(
             InMemoryEthernetFrameChannelFactory factory,
             string key,
@@ -75,8 +78,10 @@ namespace Opc.Ua.PubSub.Eth.Channels
             m_interfaceAddress = ResolveInterfaceAddress(parameters);
         }
 
+        /// <inheritdoc/>
         public PhysicalAddress InterfaceAddress => m_interfaceAddress;
 
+        /// <inheritdoc/>
         public bool IsOpen
         {
             get
@@ -88,6 +93,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <inheritdoc/>
         public ValueTask OpenAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -116,6 +122,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return default;
         }
 
+        /// <inheritdoc/>
         public ValueTask CloseAsync(CancellationToken cancellationToken = default)
         {
             Channel<byte[]>? channel;
@@ -138,6 +145,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return default;
         }
 
+        /// <inheritdoc/>
         public ValueTask SendFrameAsync(
             ReadOnlyMemory<byte> frame,
             CancellationToken cancellationToken = default)
@@ -159,6 +167,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return default;
         }
 
+        /// <inheritdoc/>
         public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveFramesAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
@@ -179,6 +188,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             await CloseAsync().ConfigureAwait(false);
@@ -188,6 +198,11 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <summary>
+        /// Delivers a frame published by a peer channel into this
+        /// channel's receive queue.
+        /// </summary>
+        /// <param name="frame">The raw frame bytes.</param>
         internal void Deliver(ReadOnlySpan<byte> frame)
         {
             if (frame.Length > m_parameters.MaxFrameSize)

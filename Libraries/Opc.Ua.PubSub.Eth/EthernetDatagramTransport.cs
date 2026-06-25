@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Eth
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => Profiles.PubSubEthUadpTransport;
+        public string TransportProfileUri => EthProfiles.PubSubEthUadpTransport;
 
         /// <inheritdoc/>
         public PubSubTransportDirection Direction => m_direction;

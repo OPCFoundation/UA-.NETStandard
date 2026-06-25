@@ -73,6 +73,9 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private bool m_isOpen;
         private bool m_disposed;
 
+        /// <summary>
+        /// Initializes a new <see cref="AfPacketEthernetFrameChannel"/>.
+        /// </summary>
         public AfPacketEthernetFrameChannel(
             EthChannelParameters parameters,
             ITelemetryContext telemetry,
@@ -102,8 +105,10 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <inheritdoc/>
         public PhysicalAddress InterfaceAddress => m_interfaceAddress;
 
+        /// <inheritdoc/>
         public bool IsOpen
         {
             get
@@ -115,6 +120,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <inheritdoc/>
         public ValueTask OpenAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -165,6 +171,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return default;
         }
 
+        /// <inheritdoc/>
         public async ValueTask CloseAsync(CancellationToken cancellationToken = default)
         {
             int fd;
@@ -203,6 +210,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             cancellationToken.ThrowIfCancellationRequested();
         }
 
+        /// <inheritdoc/>
         public ValueTask SendFrameAsync(
             ReadOnlyMemory<byte> frame,
             CancellationToken cancellationToken = default)
@@ -233,6 +241,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return default;
         }
 
+        /// <inheritdoc/>
         public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveFramesAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
@@ -253,6 +262,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             await CloseAsync().ConfigureAwait(false);

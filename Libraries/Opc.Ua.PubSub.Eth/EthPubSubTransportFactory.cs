@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Eth
 {
     /// <summary>
     /// <see cref="IPubSubTransportFactory"/> for the
-    /// <see cref="Profiles.PubSubEthUadpTransport"/> profile. One instance
+    /// <see cref="EthProfiles.PubSubEthUadpTransport"/> profile. One instance
     /// is registered with the DI container; it turns each
     /// <see cref="PubSubConnectionDataType"/> with an <c>opc.eth://</c>
     /// address into an <see cref="EthernetDatagramTransport"/> backed by
@@ -85,7 +85,7 @@ namespace Opc.Ua.PubSub.Eth
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => Profiles.PubSubEthUadpTransport;
+        public string TransportProfileUri => EthProfiles.PubSubEthUadpTransport;
 
         /// <inheritdoc/>
         public IPubSubTransport Create(

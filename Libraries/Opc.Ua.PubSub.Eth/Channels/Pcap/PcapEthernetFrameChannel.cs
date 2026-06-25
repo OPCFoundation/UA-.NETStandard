@@ -71,6 +71,9 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
         private bool m_isOpen;
         private bool m_disposed;
 
+        /// <summary>
+        /// Initializes a new <see cref="PcapEthernetFrameChannel"/>.
+        /// </summary>
         public PcapEthernetFrameChannel(
             EthChannelParameters parameters,
             ITelemetryContext telemetry,
@@ -94,8 +97,10 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
                 CultureInfo.InvariantCulture, "ether proto 0x{0:X4}", parameters.EtherType);
         }
 
+        /// <inheritdoc/>
         public PhysicalAddress InterfaceAddress => m_interfaceAddress;
 
+        /// <inheritdoc/>
         public bool IsOpen
         {
             get
@@ -107,6 +112,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             }
         }
 
+        /// <inheritdoc/>
         [UnconditionalSuppressMessage(
             "AOT",
             "IL3050:RequiresDynamicCode",
@@ -160,6 +166,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             return default;
         }
 
+        /// <inheritdoc/>
         public ValueTask CloseAsync(CancellationToken cancellationToken = default)
         {
             LibPcapLiveDevice? device;
@@ -188,6 +195,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             return default;
         }
 
+        /// <inheritdoc/>
         [UnconditionalSuppressMessage(
             "AOT",
             "IL3050:RequiresDynamicCode",
@@ -218,6 +226,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             return default;
         }
 
+        /// <inheritdoc/>
         public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveFramesAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
@@ -238,6 +247,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             }
         }
 
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             await CloseAsync().ConfigureAwait(false);

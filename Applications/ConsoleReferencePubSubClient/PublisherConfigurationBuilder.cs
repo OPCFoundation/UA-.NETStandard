@@ -30,6 +30,7 @@
 using System;
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Eth;
 
 namespace Quickstarts.ConsoleReferencePubSubClient
 {
@@ -78,7 +79,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             string transportProfileUri = profile switch
             {
                 PublisherProfile.UdpUadp => Profiles.PubSubUdpUadpTransport,
-                PublisherProfile.EthUadp => Profiles.PubSubEthUadpTransport,
+                PublisherProfile.EthUadp => EthProfiles.PubSubEthUadpTransport,
                 PublisherProfile.MqttUadp => Profiles.PubSubMqttUadpTransport,
                 PublisherProfile.MqttJson => Profiles.PubSubMqttJsonTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))

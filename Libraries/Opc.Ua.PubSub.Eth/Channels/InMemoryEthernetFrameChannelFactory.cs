@@ -75,6 +75,12 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return new InMemoryEthernetFrameChannel(this, key, parameters, telemetry, timeProvider);
         }
 
+        /// <summary>
+        /// Registers a channel on the loopback bus identified by
+        /// <paramref name="key"/>.
+        /// </summary>
+        /// <param name="key">Bus key (interface name + EtherType).</param>
+        /// <param name="channel">The channel to attach.</param>
         internal void Attach(string key, InMemoryEthernetFrameChannel channel)
         {
             lock (m_sync)
@@ -91,6 +97,12 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <summary>
+        /// Removes a channel from the loopback bus identified by
+        /// <paramref name="key"/>.
+        /// </summary>
+        /// <param name="key">Bus key (interface name + EtherType).</param>
+        /// <param name="channel">The channel to detach.</param>
         internal void Detach(string key, InMemoryEthernetFrameChannel channel)
         {
             lock (m_sync)
@@ -106,6 +118,13 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
         }
 
+        /// <summary>
+        /// Delivers a frame from <paramref name="sender"/> to every other
+        /// channel attached to the same bus.
+        /// </summary>
+        /// <param name="key">Bus key (interface name + EtherType).</param>
+        /// <param name="sender">The publishing channel (not delivered to).</param>
+        /// <param name="frame">The raw frame bytes.</param>
         internal void Publish(
             string key,
             InMemoryEthernetFrameChannel sender,

@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         [Test]
         public void TransportProfileUriIsEthernetUadp()
         {
-            Assert.That(NewFactory().TransportProfileUri, Is.EqualTo(Profiles.PubSubEthUadpTransport));
+            Assert.That(NewFactory().TransportProfileUri, Is.EqualTo(EthProfiles.PubSubEthUadpTransport));
         }
 
         [Test]
@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
             {
                 Assert.That(
                     transport.TransportProfileUri,
-                    Is.EqualTo(Profiles.PubSubEthUadpTransport));
+                    Is.EqualTo(EthProfiles.PubSubEthUadpTransport));
                 Assert.That(transport, Is.InstanceOf<EthernetDatagramTransport>());
             });
         }
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
             var connection = new PubSubConnectionDataType
             {
                 Name = "Bad",
-                TransportProfileUri = Profiles.PubSubEthUadpTransport,
+                TransportProfileUri = EthProfiles.PubSubEthUadpTransport,
                 Address = new ExtensionObject(new NetworkAddressDataType())
             };
 
@@ -110,7 +110,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
             var connection = new PubSubConnectionDataType
             {
                 Name = "Empty",
-                TransportProfileUri = Profiles.PubSubEthUadpTransport,
+                TransportProfileUri = EthProfiles.PubSubEthUadpTransport,
                 Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = string.Empty })
             };
 
