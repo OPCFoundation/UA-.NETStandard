@@ -8,6 +8,17 @@ on:
     paths:
     - '**.cs'
     - '**.csproj'
+    # Build/config files affect compilation across TFMs, so the all-TFM build
+    # jobs must run when they change (e.g. targets.props, Directory.Packages.props,
+    # Directory.Build.props/targets, the solution, and this workflow itself).
+    - '**.props'
+    - '**.targets'
+    - '**.slnx'
+    - '**.sln'
+    - 'global.json'
+    - 'nuget.config'
+    - 'NuGet.config'
+    - '.github/workflows/buildandtest.yml'
 
 permissions:
   contents: read
