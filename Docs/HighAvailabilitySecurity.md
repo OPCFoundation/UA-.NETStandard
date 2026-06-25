@@ -101,7 +101,7 @@ o.RecordProtectorFactory = sp => new KeyRingRecordProtector(
 
 The `AuthenticationToken` is therefore only a lookup key — it never admits a session without a valid client signature, closing the token-only hijack (Finding 2). The safe default is `EnableFastReconnect = false` (re-authentication on failover, no shared session state). Restores are logged with a one-way token digest for provenance (Finding 9 / Finding 6 hygiene).
 
-A residual, intentional trade-off: an attacker who can open a SecureChannel to a standby and replays a token can cause that session's mirrored nonce to be consumed, degrading a legitimate client's fast reconnect to a full re-authentication (the secure default) — it never grants access. The full two-server reconnect end-to-end test is tracked as follow-up; the security-decision logic (policy match + single-use nonce) is unit-tested.
+A residual, intentional trade-off: an attacker who can open a SecureChannel to a standby and replays a token can cause that session's mirrored nonce to be consumed, degrading a legitimate client's fast reconnect to a full re-authentication (the secure default) — it never grants access. A real-server integration test (`DistributedSessionMirrorIntegrationTests`) verifies that a fully-started server using the `ISessionManagerFactory` mirrors a session **encrypted** on activate (a wrong-key reader fails closed) and removes it on close. The full secured two-server token-reuse reconnect end-to-end test is tracked as follow-up; the security-decision logic (policy match + single-use nonce) is unit-tested.
 
 ## Deployment guidance (operator responsibilities)
 
