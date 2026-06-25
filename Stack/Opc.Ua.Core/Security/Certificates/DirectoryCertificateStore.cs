@@ -175,6 +175,7 @@ namespace Opc.Ua
                     // force load
                     ClearCertificates();
                     m_lastDirectoryCheck = DateTime.MinValue;
+                    m_crlCache = null;
                 }
             }
             finally
@@ -187,6 +188,7 @@ namespace Opc.Ua
         public void Close()
         {
             m_cache.Clear();
+            m_crlCache = null;
         }
 
         /// <inheritdoc/>
@@ -934,18 +936,116 @@ namespace Opc.Ua
             }
 
             // check for CRL.
-            DirectoryInfo? crlSubdir = m_crlSubdir;
-            if (crlSubdir is { Exists: true })
-            {
-                bool crlExpired = true;
+            bool crlExpired = true;
 
-                foreach (FileInfo file in crlSubdir.GetFiles("*" + kCrlExtension))
+            foreach (X509CRL crl in GetCachedCrls())
+            {
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
-                    X509CRL? crl = null;
+                    continue;
+                }
+
+                if (!crl.VerifySignature(issuer, false))
+                {
+                    continue;
+                }
+
+                if (crl.IsRevoked(certificate))
+                {
+                    return Task.FromResult(StatusCodes.BadCertificateRevoked);
+                }
+
+                if (crl.ThisUpdate <= DateTime.UtcNow &&
+                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                {
+                    crlExpired = false;
+                }
+            }
+
+            // certificate is fine.
+            if (!crlExpired)
+            {
+                return Task.FromResult(StatusCodes.Good);
+            }
+
+            // can't find a valid CRL.
+            return Task.FromResult(StatusCodes.BadCertificateRevocationUnknown);
+        }
+
+        /// <summary>
+        /// Returns the parsed CRLs for this store, caching them so the CRL
+        /// files are re-read and re-parsed only when the CRL directory changes
+        /// (detected via a per-file name/length/last-write-time signature).
+        /// The parsed <see cref="X509CRL"/> instances are immutable and are
+        /// safe to share across concurrent revocation checks. The read path is
+        /// lock-free; only a (rare) rebuild takes a lock.
+        /// </summary>
+        private X509CRL[] GetCachedCrls()
+        {
+            DirectoryInfo? crlSubdir = m_crlSubdir;
+            if (crlSubdir == null)
+            {
+                return [];
+            }
+
+            // Use a fresh DirectoryInfo so the shared m_crlSubdir is not
+            // mutated (Refresh) by parallel revocation checks.
+            var directory = new DirectoryInfo(crlSubdir.FullName);
+            if (!directory.Exists)
+            {
+                return [];
+            }
+
+            FileInfo[] files = directory.GetFiles("*" + kCrlExtension);
+
+            // GetFiles does not guarantee a stable order; sort by name so the
+            // cache signature comparison is order-independent.
+            Array.Sort(files, static (a, b) => string.CompareOrdinal(a.Name, b.Name));
+
+            // Bound the staleness window: even when the (name, length, mtime)
+            // signature is unchanged, re-read from disk once the snapshot is
+            // older than kCrlCacheMaxAge. This defends revocation freshness
+            // against an out-of-band CRL replacement that preserves all three
+            // signature fields (e.g. a timestamp-preserving sync).
+            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+            long maxAgeTicks = kCacheMaxAge.Ticks;
+
+            // Lock-free fast path: reuse the cache when the files are unchanged
+            // and the snapshot is still within its max age.
+            CrlCacheEntry? cache = m_crlCache;
+            if (cache != null &&
+                nowTicks - cache.BuiltTicks <= maxAgeTicks &&
+                cache.Matches(files))
+            {
+                return cache.Crls;
+            }
+
+            lock (m_crlCacheLock)
+            {
+                // Re-check under the lock in case another thread just rebuilt.
+                cache = m_crlCache;
+                if (cache != null &&
+                    nowTicks - cache.BuiltTicks <= maxAgeTicks &&
+                    cache.Matches(files))
+                {
+                    return cache.Crls;
+                }
+
+                var crls = new List<X509CRL>(files.Length);
+                var names = new string[files.Length];
+                var lengths = new long[files.Length];
+                var ticks = new long[files.Length];
+
+                for (int i = 0; i < files.Length; i++)
+                {
+                    FileInfo file = files[i];
+                    names[i] = file.Name;
+                    lengths[i] = file.Length;
+                    ticks[i] = file.LastWriteTimeUtc.Ticks;
 
                     try
                     {
-                        crl = new X509CRL(file.FullName);
+                        crls.Add(new X509CRL(file.FullName));
                     }
                     catch (Exception e)
                     {
@@ -954,40 +1054,13 @@ namespace Opc.Ua
                             "Failed to parse CRL {Crl} in store {StorePath}.",
                             file.FullName,
                             StorePath);
-                        continue;
-                    }
-
-                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
-                    {
-                        continue;
-                    }
-
-                    if (!crl.VerifySignature(issuer, false))
-                    {
-                        continue;
-                    }
-
-                    if (crl.IsRevoked(certificate))
-                    {
-                        return Task.FromResult(StatusCodes.BadCertificateRevoked);
-                    }
-
-                    if (crl.ThisUpdate <= DateTime.UtcNow &&
-                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                    {
-                        crlExpired = false;
                     }
                 }
 
-                // certificate is fine.
-                if (!crlExpired)
-                {
-                    return Task.FromResult(StatusCodes.Good);
-                }
+                var entry = new CrlCacheEntry(crls.ToArray(), names, lengths, ticks, nowTicks);
+                m_crlCache = entry;
+                return entry.Crls;
             }
-
-            // can't find a valid CRL.
-            return Task.FromResult(StatusCodes.BadCertificateRevocationUnknown);
         }
 
         /// <inheritdoc/>
@@ -1102,6 +1175,9 @@ namespace Opc.Ua
             }
 
             File.WriteAllBytes(fileInfo.FullName, crl.RawData);
+
+            // Invalidate the CRL cache so the next revocation check re-parses.
+            m_crlCache = null;
         }
 
         /// <inheritdoc/>
@@ -1125,6 +1201,10 @@ namespace Opc.Ua
                         if (Utils.IsEqual(bytes, crl.RawData))
                         {
                             fileInfo.Delete();
+
+                            // Invalidate the CRL cache so the next revocation
+                            // check re-parses.
+                            m_crlCache = null;
                             return Task.FromResult(true);
                         }
                     }
@@ -1159,6 +1239,7 @@ namespace Opc.Ua
 
             // check if cache is still good.
             if ((certSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
+                (now - m_lastDirectoryCheck) <= kCacheMaxAge &&
                 (
                     NoPrivateKeys ||
                     m_privateKeySubdir == null ||
@@ -1171,7 +1252,9 @@ namespace Opc.Ua
                 // the directory, so a successful Refresh() does not guarantee a
                 // current value. Comparing the cached entry count to the
                 // current file count detects external changes without re-parsing
-                // every certificate file in the common (unchanged) case.
+                // every certificate file in the common (unchanged) case. The
+                // kCacheMaxAge bound above additionally caps how long a stale
+                // same-count snapshot can be served against an in-place edit.
                 int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length +
                     certSubdir.GetFiles(kPemCertSearchString).Length;
                 if (onDiskCount == m_certificates.Count)
@@ -1465,6 +1548,65 @@ namespace Opc.Ua
             public DateTime LastWriteTimeUtc;
         }
 
+        /// <summary>
+        /// Immutable snapshot of the parsed CRLs together with a signature of
+        /// the CRL files they were parsed from (file name, length and last
+        /// write time). Used to avoid re-parsing the CRL files on every
+        /// revocation check while still detecting changes on disk.
+        /// </summary>
+        private sealed class CrlCacheEntry
+        {
+            public CrlCacheEntry(
+                X509CRL[] crls,
+                string[] names,
+                long[] lengths,
+                long[] ticks,
+                long builtTicks)
+            {
+                Crls = crls;
+                BuiltTicks = builtTicks;
+                m_names = names;
+                m_lengths = lengths;
+                m_ticks = ticks;
+            }
+
+            public X509CRL[] Crls { get; }
+
+            /// <summary>
+            /// UTC tick count (from the store's TimeProvider) at which this
+            /// snapshot was built; used to bound the cache max age.
+            /// </summary>
+            public long BuiltTicks { get; }
+
+            /// <summary>
+            /// Returns true when the supplied (name-sorted) CRL files match the
+            /// files this entry was parsed from.
+            /// </summary>
+            public bool Matches(FileInfo[] files)
+            {
+                if (files.Length != m_names.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < files.Length; i++)
+                {
+                    if (!string.Equals(files[i].Name, m_names[i], StringComparison.Ordinal) ||
+                        files[i].Length != m_lengths[i] ||
+                        files[i].LastWriteTimeUtc.Ticks != m_ticks[i])
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            private readonly string[] m_names;
+            private readonly long[] m_lengths;
+            private readonly long[] m_ticks;
+        }
+
         // CA2213: m_lock SemaphoreSlim cannot be disposed because the
         // store supports being re-opened (Open/Close lifecycle); disposing
         // the lock would break that pattern. m_cache.Dispose() IS called in
@@ -1482,5 +1624,16 @@ namespace Opc.Ua
         private DirectoryInfo? m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
+
+        /// <summary>
+        /// Upper bound on how long a cached certificate or CRL snapshot is
+        /// served before it is re-read from disk, even when the directory /
+        /// per-file freshness signature is unchanged. Bounds the staleness
+        /// window against an out-of-band, same-signature in-place replacement
+        /// of a trusted certificate or CRL (e.g. a timestamp-preserving sync).
+        /// </summary>
+        private static readonly TimeSpan kCacheMaxAge = TimeSpan.FromSeconds(30);
+        private readonly Lock m_crlCacheLock = new();
+        private volatile CrlCacheEntry? m_crlCache;
     }
 }
