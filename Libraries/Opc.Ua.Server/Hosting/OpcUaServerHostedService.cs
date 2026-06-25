@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -232,6 +233,16 @@ namespace Opc.Ua.Server.Hosting
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+
+            // Run post-start tasks (e.g. distributed address-space wiring)
+            // now that the server is fully initialized and CurrentInstance is
+            // available. Features register these without subclassing the server.
+            foreach (IServerStartupTask startupTask in m_services.GetServices<IServerStartupTask>())
+            {
+                await startupTask
+                    .OnServerStartedAsync(m_server.CurrentInstance, stoppingToken)
+                    .ConfigureAwait(false);
+            }
 
             foreach (string url in urls)
             {

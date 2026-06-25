@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -49,7 +50,8 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable
+    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable,
+        Distributed.ILocalAddressSpaceSource
     {
         /// <summary>
         /// Initializes the node manager.
@@ -209,6 +211,12 @@ namespace Opc.Ua.Server
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
             return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        Distributed.ILocalAddressSpace Distributed.ILocalAddressSpaceSource.CreateLocalAddressSpace()
+        {
+            return new PredefinedNodesAddressSpace(this);
         }
 
         /// <summary>
@@ -5617,6 +5625,71 @@ namespace Opc.Ua.Server
 
                 return node;
             }
+        }
+
+        private sealed class PredefinedNodesAddressSpace : Distributed.ILocalAddressSpace
+        {
+            public PredefinedNodesAddressSpace(CustomNodeManager2 owner)
+            {
+                m_owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            }
+
+            public ISystemContext Context => m_owner.SystemContext;
+
+            public IEnumerable<NodeState> Nodes
+            {
+                get
+                {
+                    var nodes = new List<NodeState>();
+                    foreach (NodeState node in m_owner.PredefinedNodes.Values)
+                    {
+                        if (node is BaseInstanceState instance &&
+                            instance.Parent != null &&
+                            !instance.Parent.NodeId.IsNull &&
+                            m_owner.PredefinedNodes.ContainsKey(instance.Parent.NodeId))
+                        {
+                            continue;
+                        }
+
+                        nodes.Add(node);
+                    }
+
+                    return nodes;
+                }
+            }
+
+            public event Action<NodeState>? NodeAdded;
+
+            public event Action<NodeId>? NodeRemoved;
+
+            public bool TryGetNode(NodeId nodeId, [NotNullWhen(true)] out NodeState? node)
+            {
+                return m_owner.PredefinedNodes.TryGetValue(nodeId, out node);
+            }
+
+            public void AddOrUpdateNode(NodeState node)
+            {
+                if (node == null)
+                {
+                    throw new ArgumentNullException(nameof(node));
+                }
+
+                m_owner.AddPredefinedNode(m_owner.SystemContext, node);
+                NodeAdded?.Invoke(node);
+            }
+
+            public bool RemoveNode(NodeId nodeId)
+            {
+                bool removed = m_owner.DeleteNode(m_owner.SystemContext, nodeId);
+                if (removed)
+                {
+                    NodeRemoved?.Invoke(nodeId);
+                }
+
+                return removed;
+            }
+
+            private readonly CustomNodeManager2 m_owner;
         }
 
         private IReadOnlyList<string>? m_namespaceUris;

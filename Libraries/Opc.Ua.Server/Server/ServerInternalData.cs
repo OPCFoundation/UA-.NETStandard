@@ -63,6 +63,7 @@ namespace Opc.Ua.Server
         IServerInternal,
         AliasNames.IAliasNameStoreRegistryProvider,
         Historian.IHistorianRegistryProvider,
+        Distributed.INodeStateStoreRegistryProvider,
         ITransportListenerRegistryProvider,
         ITimeProviderProvider
     {
@@ -118,6 +119,7 @@ namespace Opc.Ua.Server
             ServerUris = new StringTable();
             TypeTree = new TypeTable(NamespaceUris);
             HistorianRegistry = new Historian.HistorianProviderRegistry(NamespaceUris);
+            NodeStateStoreRegistry = new Distributed.NodeStateStoreRegistry(NamespaceUris);
 
             // add the server uri to the server table.
             ServerUris.Append(m_configuration.ApplicationUri!);
@@ -156,6 +158,7 @@ namespace Opc.Ua.Server
                 MonitoredItemQueueFactory?.Dispose();
                 (AliasNameStoreRegistry as IDisposable)?.Dispose();
                 (HistorianRegistry as IDisposable)?.Dispose();
+                (NodeStateStoreRegistry as IDisposable)?.Dispose();
             }
         }
 
@@ -208,6 +211,15 @@ namespace Opc.Ua.Server
         /// <see cref="IServerInternal"/>; never <c>null</c>.
         /// </summary>
         public Historian.IHistorianProviderRegistry HistorianRegistry { get; }
+
+        /// <summary>
+        /// The server-wide registry of distributed node state stores.
+        /// Surfaces through the optional
+        /// <see cref="Distributed.INodeStateStoreRegistryProvider"/>
+        /// interface so node managers can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public Distributed.INodeStateStoreRegistry NodeStateStoreRegistry { get; }
 
         /// <summary>
         /// The time provider used for all time / duration calculations
