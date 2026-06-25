@@ -153,9 +153,10 @@ namespace Opc.Ua.Tests
             }
 
             var message = new StringBuilder();
-            message.Append(CultureInfo.InvariantCulture,
-                $"Certificate leak detected: {leaked} instance(s) created but not disposed " +
-                $"(created={Certificate.InstancesCreated}, disposed={Certificate.InstancesDisposed}).");
+            message.Append(string.Format(CultureInfo.InvariantCulture,
+                "Certificate leak detected: {0} instance(s) created but not disposed " +
+                "(created={1}, disposed={2}).",
+                leaked, Certificate.InstancesCreated, Certificate.InstancesDisposed));
 
             if (!string.IsNullOrEmpty(detail))
             {
@@ -180,18 +181,18 @@ namespace Opc.Ua.Tests
             foreach ((string thumbprint, int refCount, DateTime createdAt, string stackTrace) in
                 Certificate.EnumerateLiveCertificates())
             {
-                message.AppendLine(CultureInfo.InvariantCulture,
-                    $"  Thumbprint={thumbprint}, RefCount={refCount}, CreatedAt={createdAt:O}");
-                message.AppendLine(CultureInfo.InvariantCulture, $"  StackTrace:\n{stackTrace}");
+                message.AppendLine(FormattableString.Invariant(
+                    $"  Thumbprint={thumbprint}, RefCount={refCount}, CreatedAt={createdAt:O}"));
+                message.AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
             }
 
             message.AppendLine("FINALIZED-WITH-LEAKED-REF CERTIFICATES (DEBUG):");
             foreach ((string thumbprint, DateTime createdAt, string stackTrace) in
                 Certificate.EnumerateFinalizedLeakedCertificates())
             {
-                message.AppendLine(CultureInfo.InvariantCulture,
-                    $"  Thumbprint={thumbprint}, CreatedAt={createdAt:O}");
-                message.AppendLine(CultureInfo.InvariantCulture, $"  StackTrace:\n{stackTrace}");
+                message.AppendLine(FormattableString.Invariant(
+                    $"  Thumbprint={thumbprint}, CreatedAt={createdAt:O}"));
+                message.AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
             }
 #endif
         }
