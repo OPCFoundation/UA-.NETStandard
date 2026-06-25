@@ -110,11 +110,14 @@
   <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is
        required because CentralPackageTransitivePinningEnabled lets the central pin
        win over PubSub's VersionOverride for transitive consumers (e.g. samples
-       that ProjectReference Opc.Ua.PubSub). See Libraries/Opc.Ua.PubSub.csproj. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
+       that ProjectReference Opc.Ua.PubSub). See Libraries/Opc.Ua.PubSub.csproj.
+       When the solution is pinned to netstandard2.1 (CustomTestTarget=netstandard2.1)
+       the libraries build as netstandard2.1 (MQTTnet v4) while their tests/apps build
+       as net8.0, so the net8.0 consumers must also use v4 to match the libraries. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1' OR '$(CustomTestTarget)' == 'netstandard2.1'">
     <PackageVersion Include="MQTTnet" Version="4.3.7.1207" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1'">
+  <ItemGroup Condition="('$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1') AND '$(CustomTestTarget)' != 'netstandard2.1'">
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
   </ItemGroup>
 </Project>
