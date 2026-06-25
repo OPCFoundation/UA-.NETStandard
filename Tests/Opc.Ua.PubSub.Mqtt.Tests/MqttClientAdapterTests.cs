@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             try
             {
-#if NET8_0_OR_GREATER
+#if MQTTNET_V5
                 var factory = new MqttServerFactory();
 #else
                 var factory = new MQTTnet.MqttFactory();

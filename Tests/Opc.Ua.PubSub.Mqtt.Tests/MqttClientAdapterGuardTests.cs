@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
-#if !NET8_0_OR_GREATER
+#if !MQTTNET_V5
 using MQTTnet.Client;
 #endif
 using NUnit.Framework;
@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttEndpoint wsEndpoint = MqttEndpointParser.Parse("ws://broker.example/mqtt");
             MqttEndpoint wssEndpoint = MqttEndpointParser.Parse("wss://broker.example/mqtt");
 
-#if NET8_0_OR_GREATER
+#if MQTTNET_V5
             var wsOptions = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 wsEndpoint).Build();
@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 new MqttClientOptionsBuilder(),
                 endpoint).Build();
 
-#if NET8_0_OR_GREATER
+#if MQTTNET_V5
             Assert.That(options.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientTcpOptions>());
 #else
             Assert.That(options.ChannelOptions, Is.TypeOf<MQTTnet.Client.MqttClientTcpOptions>());
@@ -208,7 +208,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 .WithTcpServer("broker.example", 8883)
                 .Build();
 
-#if NET8_0_OR_GREATER
+#if MQTTNET_V5
             MqttClientAdapter.ApplyEnhancedAuthentication(mqttOptions, options);
 
             Assert.Multiple(() =>

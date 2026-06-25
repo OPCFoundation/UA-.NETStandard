@@ -28,8 +28,17 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <!-- MQTTnet 5.x (server in a separate MQTTnet.Server package) is only used when the
+       test builds against the v5 packages. net48/net472/netstandard2.1 use MQTTnet 4.x
+       (server bundled in MQTTnet). When the solution is pinned to netstandard2.1
+       (CustomTestTarget=netstandard2.1) the tests build as net8.0 but must still use v4
+       to match the netstandard2.1 libraries, so the v4 branch is selected and the
+       MQTTNET_V5 compile constant is left undefined for that scenario. -->
   <Choose>
-    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
+    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472' AND '$(CustomTestTarget)' != 'netstandard2.1'">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);MQTTNET_V5</DefineConstants>
+      </PropertyGroup>
       <ItemGroup>
         <PackageReference Include="MQTTnet" />
         <PackageReference Include="MQTTnet.Server" />
