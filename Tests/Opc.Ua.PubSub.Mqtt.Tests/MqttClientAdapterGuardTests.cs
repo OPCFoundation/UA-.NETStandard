@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
+#if !NET8_0_OR_GREATER
 using MQTTnet.Client;
+#endif
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Mqtt.Internal;

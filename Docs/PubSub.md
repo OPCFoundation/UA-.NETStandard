@@ -390,17 +390,13 @@ DI extension methods provided by `Opc.Ua.PubSub`:
 
 Transport-specific extensions
 (`Opc.Ua.PubSub.Udp` / `.Mqtt`) supply the matching
-`IPubSubTransportFactory` and now hang off `IPubSubBuilder` — a transport
+`IPubSubTransportFactory` and hang off `IPubSubBuilder` — a transport
 only makes sense together with the PubSub feature:
 
 - `IPubSubBuilder.AddUdpTransport(Action<UdpTransportOptions>?)` — UDP
   unicast / multicast / broadcast.
 - `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
   MQTT 3.1.1 + 5.0 via MQTTnet.
-
-> The legacy `IOpcUaBuilder.AddUdpTransport` / `AddMqttTransport`
-> overloads remain as `[Obsolete]` forwarders for source compatibility;
-> move them into the `AddPubSub(pubsub => …)` callback.
 
 Server-side address space — see
 [Server-side address space](#server-side-address-space):
@@ -969,7 +965,7 @@ The coordinator diffs the previous binding state against the new `PubSubConfigur
 
 Use `AddServerAsPublisher(string name, IConfiguration configuration)`, `AddServerAsSubscriber(string name, IConfiguration configuration)`, or `AddServerAsActionResponder(string name, IConfiguration configuration)` when adapter options should be bound from reloadable configuration. The existing `Action<TOptions>` overloads still work for code-set options. Object-typed members are intentionally code-set, not `IConfiguration`-bound: `ServerConnectionOptions.ApplicationConfiguration`, `ServerConnectionOptions.UserIdentity`, `ServerActionResponderOptions.MethodMap`, and `ServerActionResponderOptions.Targets`.
 
-Known limitation: removing an action target requires a host restart because the core `RegisterActionHandler` API has no unregister counterpart today. Adding targets and changing action mappings are applied live.
+The coordinator diffs the previous binding state against the new `PubSubConfigurationDataType` and named options, then rewires only the affected publisher sources, subscriber sinks, or action responders. Adding, removing, and re-mapping action targets are all applied live: on each reload the coordinator rebuilds the action-handler set through `IPubSubApplication.ClearActionHandlers` and re-registers only the currently configured targets, so a removed target stops being served without a host restart.
 
 #### Pluggable configuration sources (change feed)
 

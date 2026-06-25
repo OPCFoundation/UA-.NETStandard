@@ -176,53 +176,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
-        /// <summary>
-        /// Registers DTLS 1.3 support for <c>opc.dtls://</c> unicast PubSub endpoints.
-        /// </summary>
-        /// <param name="builder">PubSub builder.</param>
-        /// <param name="configure">Optional DTLS options callback.</param>
-        [Obsolete("Call WithDtls on the IUdpTransportBuilder returned by AddUdpTransport().")]
-        public static IPubSubBuilder WithDtls(
-            this IPubSubBuilder builder,
-            Action<DtlsTransportOptions>? configure = null)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-
-            return CreateUdpTransportBuilder(builder).WithDtls(configure).PubSubBuilder;
-        }
-
-        /// <summary>
-        /// Obsolete forwarder kept for source compatibility. Add the UDP
-        /// transport through the <see cref="IPubSubBuilder"/> returned by
-        /// <c>AddPubSub(pubsub =&gt; pubsub.AddUdpTransport())</c> instead.
-        /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
-        /// <param name="configure">Optional options callback.</param>
-        [Obsolete("Add the UDP transport on the IPubSubBuilder: " +
-            "AddPubSub(pubsub => pubsub.AddUdpTransport()).")]
-        public static IOpcUaBuilder AddUdpTransport(
-            this IOpcUaBuilder builder,
-            Action<UdpTransportOptions>? configure = null)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            if (configure is null)
-            {
-                builder.Services.AddOptions<UdpTransportOptions>();
-            }
-            else
-            {
-                builder.Services.AddOptions<UdpTransportOptions>().Configure(configure);
-            }
-            RegisterFactory(builder.Services);
-            return builder;
-        }
-
         private static void RegisterFactory(IServiceCollection services)
         {
             services.TryAddEnumerable(

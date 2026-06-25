@@ -76,6 +76,67 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         private const int PublishingIntervalMs = 1000;
 
         /// <summary>
+        /// Builds the external bridge configuration for the selected publisher,
+        /// subscriber and responder directions.
+        /// </summary>
+        /// <param name="modes">
+        /// The external bridge directions to include.
+        /// </param>
+        /// <param name="pubSubEndpoint">
+        /// The UDP/UADP transport endpoint the bridge uses.
+        /// </param>
+        /// <returns>
+        /// A configuration with one PubSubConnection containing the selected
+        /// writer and reader groups.
+        /// </returns>
+        public static PubSubConfigurationDataType BuildConfiguration(BridgeMode modes, string pubSubEndpoint)
+        {
+            if (modes == BridgeMode.None)
+            {
+                modes = BridgeMode.Publisher;
+            }
+
+            bool includePublisher = modes.HasFlag(BridgeMode.Publisher);
+            bool includeSubscriber = modes.HasFlag(BridgeMode.Subscriber)
+                || modes.HasFlag(BridgeMode.Responder);
+
+            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            if (includePublisher)
+            {
+                AddExternalServerDataSet(builder);
+            }
+
+            builder.AddConnection(ConnectionName(modes), connection =>
+            {
+                connection
+                    .WithPublisherId(new Variant(PublisherId))
+                    .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
+                    .WithAddress(pubSubEndpoint);
+
+                if (includePublisher)
+                {
+                    AddWriterGroup(connection);
+                }
+                if (includeSubscriber)
+                {
+                    AddReaderGroup(connection);
+                }
+            });
+
+            PubSubConfigurationDataType configuration = builder.Build();
+            if (includePublisher)
+            {
+                AttachExternalReadSource(configuration);
+            }
+            if (includeSubscriber)
+            {
+                AttachExternalWriteTargets(configuration);
+            }
+
+            return configuration;
+        }
+
+        /// <summary>
         /// Builds the publisher configuration. The PublishedDataSet fields are
         /// sourced from the external server's <c>Server</c> status nodes so the
         /// sample produces meaningful data against any compliant server without
@@ -90,39 +151,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// </returns>
         public static PubSubConfigurationDataType BuildPublisherConfiguration(string pubSubEndpoint)
         {
-            PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()
-                .AddPublishedDataSet(DataSetName, dataSet => dataSet
-                    .AddField("CurrentTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime)
-                    .AddField("State", (byte)DataTypes.Int32, DataTypeIds.Int32)
-                    .AddField("ServiceLevel", (byte)DataTypes.Byte, DataTypeIds.Byte))
-                .AddConnection("External Server Publisher Connection", connection =>
-                {
-                    connection
-                        .WithPublisherId(new Variant(PublisherId))
-                        .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
-                        .WithAddress(pubSubEndpoint)
-                        .AddWriterGroup("WriterGroup 1", group =>
-                        {
-                            group
-                                .WithWriterGroupId(WriterGroupId)
-                                .WithPublishingInterval(PublishingIntervalMs)
-                                .WithMessageSettings(WriterGroupMessageSettings())
-                                .WithTransportSettings(new DatagramWriterGroupTransportDataType())
-                                .AddDataSetWriter("Writer 1", writer => writer
-                                    .WithDataSetWriterId(DataSetWriterId)
-                                    .WithDataSetName(DataSetName)
-                                    .WithKeyFrameCount(1)
-                                    .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                                    .WithMessageSettings(WriterMessageSettings()));
-                        });
-                })
-                .Build();
-
-            // Attach the external read source: the node ids the publisher adapter
-            // resolves on the external server each publish cycle. The order must
-            // match the PublishedDataSet metadata fields declared above.
-            AttachExternalReadSource(configuration);
-            return configuration;
+            return BuildConfiguration(BridgeMode.Publisher, pubSubEndpoint);
         }
 
         /// <summary>
@@ -141,33 +170,63 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// </returns>
         public static PubSubConfigurationDataType BuildSubscriberConfiguration(string pubSubEndpoint)
         {
-            PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()
-                .AddConnection("External Server Subscriber Connection", connection =>
-                {
-                    connection
-                        .WithPublisherId(new Variant(PublisherId))
-                        .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
-                        .WithAddress(pubSubEndpoint)
-                        .AddReaderGroup("ReaderGroup 1", group => group
-                            .WithMaxNetworkMessageSize(1500)
-                            .AddDataSetReader(ReaderName, reader => reader
-                                .WithFilter(new Variant(PublisherId), WriterGroupId, DataSetWriterId)
-                                .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                                .WithMessageReceiveTimeout(5000)
-                                .WithMessageSettings(ReaderMessageSettings())
-                                .WithDataSetMetaData(DataSetName, metaData => metaData
-                                    .WithoutFieldIds()
-                                    .AddField("CurrentTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime)
-                                    .AddField("State", (byte)DataTypes.Int32, DataTypeIds.Int32)
-                                    .AddField("ServiceLevel", (byte)DataTypes.Byte, DataTypeIds.Byte))));
-                })
-                .Build();
+            return BuildConfiguration(BridgeMode.Subscriber, pubSubEndpoint);
+        }
 
-            // Attach the external write targets: the node ids the subscriber
-            // adapter writes each received field to. The order matches the
-            // DataSetReader metadata fields declared above (positional mapping).
-            AttachExternalWriteTargets(configuration);
-            return configuration;
+        private static void AddExternalServerDataSet(PubSubConfigurationBuilder builder)
+        {
+            builder.AddPublishedDataSet(DataSetName, dataSet => dataSet
+                .AddField("CurrentTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime)
+                .AddField("State", (byte)DataTypes.Int32, DataTypeIds.Int32)
+                .AddField("ServiceLevel", (byte)DataTypes.Byte, DataTypeIds.Byte));
+        }
+
+        private static void AddWriterGroup(PubSubConnectionBuilder connection)
+        {
+            connection.AddWriterGroup("WriterGroup 1", group =>
+            {
+                group
+                    .WithWriterGroupId(WriterGroupId)
+                    .WithPublishingInterval(PublishingIntervalMs)
+                    .WithMessageSettings(WriterGroupMessageSettings())
+                    .WithTransportSettings(new DatagramWriterGroupTransportDataType())
+                    .AddDataSetWriter("Writer 1", writer => writer
+                        .WithDataSetWriterId(DataSetWriterId)
+                        .WithDataSetName(DataSetName)
+                        .WithKeyFrameCount(1)
+                        .WithFieldContentMask(DataSetFieldContentMask.RawData)
+                        .WithMessageSettings(WriterMessageSettings()));
+            });
+        }
+
+        private static void AddReaderGroup(PubSubConnectionBuilder connection)
+        {
+            connection.AddReaderGroup("ReaderGroup 1", group => group
+                .WithMaxNetworkMessageSize(1500)
+                .AddDataSetReader(ReaderName, reader => reader
+                    .WithFilter(new Variant(PublisherId), WriterGroupId, DataSetWriterId)
+                    .WithFieldContentMask(DataSetFieldContentMask.RawData)
+                    .WithMessageReceiveTimeout(5000)
+                    .WithMessageSettings(ReaderMessageSettings())
+                    .WithDataSetMetaData(DataSetName, metaData => metaData
+                        .WithoutFieldIds()
+                        .AddField("CurrentTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime)
+                        .AddField("State", (byte)DataTypes.Int32, DataTypeIds.Int32)
+                        .AddField("ServiceLevel", (byte)DataTypes.Byte, DataTypeIds.Byte))));
+        }
+
+        private static string ConnectionName(BridgeMode modes)
+        {
+            if (modes == BridgeMode.Publisher)
+            {
+                return "External Server Publisher Connection";
+            }
+            if (modes == BridgeMode.Subscriber || modes == BridgeMode.Responder)
+            {
+                return "External Server Subscriber Connection";
+            }
+
+            return "External Server Bridge Connection";
         }
 
         private static void AttachExternalReadSource(PubSubConfigurationDataType configuration)

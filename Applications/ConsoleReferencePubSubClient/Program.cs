@@ -243,7 +243,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         {
             var directionOption = new Option<string>("--mode")
             {
-                Description = "Adapter direction to run: publisher | subscriber | responder.",
+                Description =
+                    "Adapter directions to run, comma- or plus-separated: publisher | subscriber | responder.",
                 DefaultValueFactory = _ => "publisher"
             };
             var readModeOption = new Option<string>("--read-mode")
@@ -289,7 +290,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 {
                     await Console.Error.WriteLineAsync(
                         $"Unknown --mode value '{parseResult.GetValue(directionOption)}'. "
-                        + "Expected one of: publisher, subscriber, responder.")
+                        + "Expected one or more of: publisher, subscriber, responder.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -471,18 +472,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
 
-            switch (mode)
-            {
-                case BridgeMode.Publisher:
-                    ConfigureExternalPublisher(builder, readMode, affinity, externalEndpoint, pubSubEndpoint);
-                    break;
-                case BridgeMode.Subscriber:
-                    ConfigureExternalSubscriber(builder, externalEndpoint, pubSubEndpoint);
-                    break;
-                case BridgeMode.Responder:
-                    ConfigureExternalResponder(builder, externalEndpoint, pubSubEndpoint);
-                    break;
-            }
+            ConfigureExternalBridge(builder, mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
 
             IHost host = builder.Build();
             ILogger logger = host.Services
@@ -498,94 +488,77 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         }
 
         /// <summary>
-        /// Wires the external PUBLISHER direction: a UDP/UADP publisher whose
-        /// PublishedDataSet variables are sampled from an external OPC UA server.
-        /// The PubSub configuration is supplied with <c>UseConfiguration</c>
-        /// before <c>AddServerAsPublisher</c> so the adapter can enumerate
-        /// the configured PublishedDataSets and attach an external read source.
+        /// Wires the selected external bridge directions on one UDP/UADP PubSub
+        /// application and one host.
         /// </summary>
-        private static void ConfigureExternalPublisher(
+        private static void ConfigureExternalBridge(
             HostApplicationBuilder builder,
+            BridgeMode modes,
             ReadMode readMode,
             SubscriptionAffinity affinity,
             string externalEndpoint,
             string pubSubEndpoint)
         {
-            builder.Services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .AddPublisher()
-                .AddUdpTransport()
-                .ConfigureApplication(app =>
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:ExternalPublisher"))
-                .UseConfiguration(
-                    ExternalServerPubSubConfiguration.BuildPublisherConfiguration(pubSubEndpoint))
-                .AddServerAsPublisher(options =>
+            builder.Services.AddOpcUa().AddPubSub(pubsub =>
+            {
+                IPubSubBuilder bridge = pubsub;
+                if (modes.HasFlag(BridgeMode.Publisher))
                 {
-                    options.Connection.EndpointUrl = externalEndpoint;
-                    // The demo connects unsecured for zero-config interop. A
-                    // production bridge must use SignAndEncrypt with a provisioned
-                    // application instance certificate.
-                    options.Connection.SecurityMode = MessageSecurityMode.None;
-                    options.ReadMode = readMode;
-                    options.Affinity = affinity;
-                }));
-        }
+                    bridge = bridge.AddPublisher();
+                }
+                if (modes.HasFlag(BridgeMode.Subscriber) || modes.HasFlag(BridgeMode.Responder))
+                {
+                    bridge = bridge.AddSubscriber();
+                }
 
-        /// <summary>
-        /// Wires the external SUBSCRIBER direction: a UDP/UADP subscriber whose
-        /// received DataSet fields are written back to an external OPC UA server
-        /// through the DataSetReader's TargetVariables.
-        /// </summary>
-        private static void ConfigureExternalSubscriber(
-            HostApplicationBuilder builder,
-            string externalEndpoint,
-            string pubSubEndpoint)
-        {
-            builder.Services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .AddSubscriber()
-                .AddUdpTransport()
-                .ConfigureApplication(app =>
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:ExternalSubscriber"))
-                .UseConfiguration(
-                    ExternalServerPubSubConfiguration.BuildSubscriberConfiguration(pubSubEndpoint))
-                .AddServerAsSubscriber(options =>
-                {
-                    options.Connection.EndpointUrl = externalEndpoint;
-                    options.Connection.SecurityMode = MessageSecurityMode.None;
-                }));
-        }
+                bridge = bridge
+                    .AddUdpTransport()
+                    .ConfigureApplication(app => app.WithApplicationId(
+                        "urn:opcfoundation:ConsoleReferencePubSubClient:ExternalBridge"))
+                    .UseConfiguration(
+                        ExternalServerPubSubConfiguration.BuildConfiguration(modes, pubSubEndpoint));
 
-        /// <summary>
-        /// Wires the external ACTION RESPONDER direction: an inbound PubSub Action
-        /// is mapped to a method call on an external OPC UA server.
-        /// </summary>
-        private static void ConfigureExternalResponder(
-            HostApplicationBuilder builder,
-            string externalEndpoint,
-            string pubSubEndpoint)
-        {
-            builder.Services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .AddSubscriber()
-                .AddUdpTransport()
-                .ConfigureApplication(app =>
-                    app.WithApplicationId("urn:opcfoundation:ConsoleReferencePubSubClient:ExternalResponder"))
-                .UseConfiguration(
-                    ExternalServerPubSubConfiguration.BuildSubscriberConfiguration(pubSubEndpoint))
-                .AddServerAsActionResponder(options =>
+                if (modes.HasFlag(BridgeMode.Publisher))
                 {
-                    options.Connection.EndpointUrl = externalEndpoint;
-                    options.Connection.SecurityMode = MessageSecurityMode.None;
-                    options.AllowUnsecured = true;
-                    // Map the "ResetCounters" action to an external method call.
-                    options.MethodMap.Add(
-                        "ResetCounters",
-                        NodeId.Parse("ns=2;s=Demo.External.Methods"),
-                        NodeId.Parse("ns=2;s=Demo.External.ResetCounters"));
-                    options.Targets.Add(new PubSubActionTarget
+                    bridge = bridge.AddServerAsPublisher(options =>
                     {
-                        DataSetWriterId = 1,
-                        ActionName = "ResetCounters"
+                        options.Connection.EndpointUrl = externalEndpoint;
+                        // The demo connects unsecured for zero-config interop. A
+                        // production bridge must use SignAndEncrypt with a provisioned
+                        // application instance certificate.
+                        options.Connection.SecurityMode = MessageSecurityMode.None;
+                        options.ReadMode = readMode;
+                        options.Affinity = affinity;
                     });
-                }));
+                }
+                if (modes.HasFlag(BridgeMode.Subscriber))
+                {
+                    bridge = bridge.AddServerAsSubscriber(options =>
+                    {
+                        options.Connection.EndpointUrl = externalEndpoint;
+                        options.Connection.SecurityMode = MessageSecurityMode.None;
+                    });
+                }
+                if (modes.HasFlag(BridgeMode.Responder))
+                {
+                    bridge.AddServerAsActionResponder(options =>
+                    {
+                        options.Connection.EndpointUrl = externalEndpoint;
+                        options.Connection.SecurityMode = MessageSecurityMode.None;
+                        options.AllowUnsecured = true;
+                        // Map the "ResetCounters" action to an external method call.
+                        options.MethodMap.Add(
+                            "ResetCounters",
+                            NodeId.Parse("ns=2;s=Demo.External.Methods"),
+                            NodeId.Parse("ns=2;s=Demo.External.ResetCounters"));
+                        options.Targets.Add(new PubSubActionTarget
+                        {
+                            DataSetWriterId = 1,
+                            ActionName = "ResetCounters"
+                        });
+                    });
+                }
+            });
         }
 
         private static bool TryParsePublisherProfile(string? text, out PublisherProfile profile)
@@ -628,21 +601,42 @@ namespace Quickstarts.ConsoleReferencePubSubClient
 
         private static bool TryParseBridgeMode(string? text, out BridgeMode mode)
         {
-            switch (text)
+            mode = BridgeMode.None;
+            if (string.IsNullOrWhiteSpace(text))
             {
-                case "publisher":
-                    mode = BridgeMode.Publisher;
-                    return true;
-                case "subscriber":
-                    mode = BridgeMode.Subscriber;
-                    return true;
-                case "responder":
-                    mode = BridgeMode.Responder;
-                    return true;
-                default:
-                    mode = BridgeMode.Publisher;
-                    return false;
+                mode = BridgeMode.Publisher;
+                return true;
             }
+
+            string[] tokens = text.Split(
+                [',', '+'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (tokens.Length == 0)
+            {
+                mode = BridgeMode.Publisher;
+                return true;
+            }
+
+            foreach (string token in tokens)
+            {
+                switch (token)
+                {
+                    case "publisher":
+                        mode |= BridgeMode.Publisher;
+                        break;
+                    case "subscriber":
+                        mode |= BridgeMode.Subscriber;
+                        break;
+                    case "responder":
+                        mode |= BridgeMode.Responder;
+                        break;
+                    default:
+                        mode = BridgeMode.Publisher;
+                        return false;
+                }
+            }
+
+            return mode != BridgeMode.None;
         }
 
         private static bool TryParseReadMode(string? text, out ReadMode readMode)
@@ -723,21 +717,27 @@ namespace Quickstarts.ConsoleReferencePubSubClient
     /// <summary>
     /// The external-server adapter direction selected via <c>external --mode</c>.
     /// </summary>
+    [Flags]
     public enum BridgeMode
     {
         /// <summary>
+        /// No external bridge direction selected.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
         /// Read an external server and publish its data over PubSub.
         /// </summary>
-        Publisher = 0,
+        Publisher = 1,
 
         /// <summary>
         /// Receive PubSub data and write it back to an external server.
         /// </summary>
-        Subscriber = 1,
+        Subscriber = 2,
 
         /// <summary>
         /// Map an inbound PubSub Action to an external server method call.
         /// </summary>
-        Responder = 2
+        Responder = 4
     }
 }

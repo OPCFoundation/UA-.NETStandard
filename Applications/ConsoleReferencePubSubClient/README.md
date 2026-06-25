@@ -54,9 +54,12 @@ ConsoleReferencePubSubClient external --mode subscriber
 
 # Map an inbound PubSub Action to an external server method call
 ConsoleReferencePubSubClient external --mode responder
+
+# Run a bidirectional bridge in one process
+ConsoleReferencePubSubClient external --mode publisher,subscriber
 ```
 
-Options: `--mode publisher|subscriber|responder`,
+Options: `--mode publisher|subscriber|responder` (comma-separated list accepted),
 `--read-mode cyclic|subscription`, `--affinity writergroup|datasetwriter`,
 `--endpoint <external server>`, `--pubsub-endpoint <udp url>`.
 

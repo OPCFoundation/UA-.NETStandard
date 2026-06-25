@@ -1215,7 +1215,8 @@ your CI pipeline; the project does this as part of its release gate.
 ## 5. PubSub packet capture and dissection
 
 The `OPCFoundation.NetStandard.Opc.Ua.PubSub.Diagnostics` package is the PubSub
-(Part 14) counterpart of the UA-SC capture engine described in section 4. It
+(Part 14) counterpart of the UA-SC capture engine described in
+[§4 Packet capture, dissection, and replay](#4-packet-capture-dissection-and-replay). It
 captures the raw NetworkMessages exchanged over the UDP datagram and MQTT broker
 transports, writes them to `.pcap` / `.pcapng` for Wireshark, and dissects them
 back into structured DataSets &mdash; including **decryption of encrypted UADP
@@ -1224,7 +1225,7 @@ messages** when the matching security keys are available. Targets `net8.0`,
 
 PubSub is connectionless and message-secured, so it uses its own frame and
 key-material abstractions rather than the UA-SC channel/token model, but reuses
-the section-4 `.pcap` / `.pcapng` writers.
+the [§4](#4-packet-capture-dissection-and-replay) `.pcap` / `.pcapng` writers.
 
 ### Architecture &mdash; capturing transport decorator
 

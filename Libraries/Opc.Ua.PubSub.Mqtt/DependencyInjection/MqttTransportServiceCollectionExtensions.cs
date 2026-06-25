@@ -137,35 +137,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
-        /// <summary>
-        /// Obsolete forwarder kept for source compatibility. Add the MQTT
-        /// transport through the <see cref="IPubSubBuilder"/> returned by
-        /// <c>AddPubSub(pubsub =&gt; pubsub.AddMqttTransport())</c> instead.
-        /// </summary>
-        /// <param name="builder">OPC UA builder.</param>
-        /// <param name="configure">Optional options callback.</param>
-        [Obsolete("Add the MQTT transport on the IPubSubBuilder: " +
-            "AddPubSub(pubsub => pubsub.AddMqttTransport()).")]
-        public static IOpcUaBuilder AddMqttTransport(
-            this IOpcUaBuilder builder,
-            Action<MqttConnectionOptions>? configure = null)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            if (configure is null)
-            {
-                builder.Services.AddOptions<MqttConnectionOptions>();
-            }
-            else
-            {
-                builder.Services.AddOptions<MqttConnectionOptions>().Configure(configure);
-            }
-            RegisterShared(builder.Services);
-            return builder;
-        }
-
         private static void RegisterShared(IServiceCollection services)
         {
             services.TryAddSingleton<IMqttClientFactory, MqttClientAdapterFactory>();
