@@ -101,6 +101,10 @@ namespace Opc.Ua.PubSub.Eth
                 throw new ArgumentOutOfRangeException(nameof(payloadLength));
             }
             int header = vlanTagged ? VlanTaggedHeaderLength : HeaderLength;
+            if (payloadLength > int.MaxValue - header)
+            {
+                throw new ArgumentOutOfRangeException(nameof(payloadLength));
+            }
             return Math.Max(header + payloadLength, MinFrameLength);
         }
 

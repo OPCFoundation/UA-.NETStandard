@@ -216,7 +216,8 @@ namespace Opc.Ua.PubSub.Eth.Channels
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int fd;
+            byte[] buffer = frame.ToArray();
+            byte[] destination = BuildSockAddr(buffer);
             lock (m_sync)
             {
                 if (m_disposed)
@@ -227,16 +228,16 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 {
                     throw new InvalidOperationException("AF_PACKET channel is not open.");
                 }
-                fd = m_socket;
-            }
-            byte[] buffer = frame.ToArray();
-            byte[] destination = BuildSockAddr(buffer);
-            nint sent = NativeMethods.sendto(
-                fd, buffer, (nint)buffer.Length, 0, destination, destination.Length);
-            if (sent < 0)
-            {
-                throw new InvalidOperationException(
-                    $"AF_PACKET sendto() failed (errno={Marshal.GetLastWin32Error()}).");
+                // Hold the lock across the syscall so CloseAsync cannot close
+                // the descriptor (and let the OS reuse it) mid-send, which
+                // would send on an unrelated fd (fd-reuse race, ETH-SEC-03).
+                nint sent = NativeMethods.sendto(
+                    m_socket, buffer, (nint)buffer.Length, 0, destination, destination.Length);
+                if (sent < 0)
+                {
+                    throw new InvalidOperationException(
+                        $"AF_PACKET sendto() failed (errno={Marshal.GetLastWin32Error()}).");
+                }
             }
             return default;
         }

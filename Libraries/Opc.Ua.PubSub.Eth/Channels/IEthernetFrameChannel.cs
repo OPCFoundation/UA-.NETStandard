@@ -47,10 +47,10 @@ namespace Opc.Ua.PubSub.Eth.Channels
     /// loopback) implement this abstraction; the transport owns the
     /// framing. Implementations must be safe to call
     /// <see cref="CloseAsync"/> concurrently with an in-flight
-    /// <see cref="SendFrameAsync"/>. A frame yielded by
-    /// <see cref="ReceiveFramesAsync"/> is owned by the channel and only
-    /// valid until the next iteration; consumers must copy or parse it
-    /// before requesting the next frame.
+    /// <see cref="SendFrameAsync"/>. Each buffer yielded by
+    /// <see cref="ReceiveFramesAsync"/> is a distinct, single-use array
+    /// that the channel does not reuse, so the consumer may take
+    /// ownership of it (e.g. slice it into a frame) without copying.
     /// </remarks>
     public interface IEthernetFrameChannel : IAsyncDisposable
     {

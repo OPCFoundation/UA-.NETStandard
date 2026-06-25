@@ -179,6 +179,7 @@ namespace Opc.Ua.PubSub.Eth
                 m_connection.Name,
                 m_endpoint.Address,
                 m_direction);
+            WarnIfUnsecured();
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
 
@@ -311,7 +312,10 @@ namespace Opc.Ua.PubSub.Eth
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buffer);
+                // The buffer holds the full NetworkMessage, which may carry
+                // plaintext DataSet values when SecurityMode is None; clear it
+                // before returning to the shared pool (ETH-SEC-02).
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
             }
         }
 
@@ -327,9 +331,12 @@ namespace Opc.Ua.PubSub.Eth
                     {
                         continue;
                     }
-                    byte[] copy = raw.Slice(payloadOffset).ToArray();
+                    // The backend yields a distinct single-use array per
+                    // frame, so the payload slice can be adopted without a
+                    // second copy (ETH-SEC-01).
+                    ReadOnlyMemory<byte> payload = raw.Slice(payloadOffset);
                     var frame = new PubSubTransportFrame(
-                        copy,
+                        payload,
                         topic: null,
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                         sourceEndpoint: null);
@@ -368,6 +375,58 @@ namespace Opc.Ua.PubSub.Eth
         }
 
         private bool HasReceiveDirection => (m_direction & PubSubTransportDirection.Receive) != 0;
+
+        private void WarnIfUnsecured()
+        {
+            if (!HasUnsecuredGroup())
+            {
+                return;
+            }
+            m_logger.LogWarning(
+                "OPC UA PubSub Ethernet connection '{Connection}' has one or more groups configured with " +
+                "SecurityMode=None. The Ethernet (Layer 2) mapping provides NO transport-level authentication, " +
+                "integrity, or confidentiality: NetworkMessages are sent in clear and any node on the broadcast " +
+                "domain can read, inject, replay, or spoof them. Configure message-level security (SignAndEncrypt " +
+                "with a SecurityGroup / SKS) to protect the data.",
+                m_connection.Name);
+        }
+
+        private bool HasUnsecuredGroup()
+        {
+            if (!m_connection.WriterGroups.IsNull)
+            {
+                foreach (WriterGroupDataType group in m_connection.WriterGroups)
+                {
+                    if (group is not null && IsUnsecured(group.SecurityMode))
+                    {
+                        return true;
+                    }
+                }
+            }
+            if (!m_connection.ReaderGroups.IsNull)
+            {
+                foreach (ReaderGroupDataType readerGroup in m_connection.ReaderGroups)
+                {
+                    if (readerGroup is null || readerGroup.DataSetReaders.IsNull)
+                    {
+                        continue;
+                    }
+                    foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
+                    {
+                        if (reader is not null && IsUnsecured(reader.SecurityMode))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool IsUnsecured(MessageSecurityMode securityMode)
+        {
+            return securityMode is not (MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt);
+        }
 
         private void RaiseStateChanged(bool connected, StatusCode status, string? reason)
         {

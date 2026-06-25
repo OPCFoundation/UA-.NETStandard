@@ -161,6 +161,14 @@ namespace Opc.Ua.PubSub.Eth.Tests
             });
         }
 
+        [Test]
+        public void GetRequiredLengthRejectsOverflowPayload()
+        {
+            Assert.That(
+                () => EthernetFrameCodec.GetRequiredLength(int.MaxValue, vlanTagged: true),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
         private static byte[] MakePayload(int length)
         {
             var payload = new byte[length];

@@ -209,7 +209,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int fd;
+            byte[] buffer = frame.ToArray();
             lock (m_sync)
             {
                 if (m_disposed)
@@ -220,14 +220,15 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 {
                     throw new InvalidOperationException("BPF channel is not open.");
                 }
-                fd = m_device;
-            }
-            byte[] buffer = frame.ToArray();
-            nint written = NativeMethods.write(fd, buffer, (nint)buffer.Length);
-            if (written < 0)
-            {
-                throw new InvalidOperationException(
-                    $"BPF write() failed (errno={Marshal.GetLastWin32Error()}).");
+                // Hold the lock across the syscall so CloseAsync cannot close
+                // the descriptor (and let the OS reuse it) mid-send, which
+                // would write on an unrelated fd (fd-reuse race, ETH-SEC-03).
+                nint written = NativeMethods.write(m_device, buffer, (nint)buffer.Length);
+                if (written < 0)
+                {
+                    throw new InvalidOperationException(
+                        $"BPF write() failed (errno={Marshal.GetLastWin32Error()}).");
+                }
             }
             return default;
         }
@@ -335,7 +336,10 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 int caplen = BitConverter.ToInt32(buffer, offset + BpfCaplenOffset);
                 ushort hdrlen = BitConverter.ToUInt16(buffer, offset + BpfHdrlenOffset);
                 int dataStart = offset + hdrlen;
-                if (caplen <= 0 || dataStart + caplen > length)
+                // caplen / hdrlen come from the (kernel-supplied) BPF buffer;
+                // validate without integer overflow before using them as a
+                // length and offset (defence-in-depth, ETH-SEC-04).
+                if (caplen <= 0 || dataStart > length || caplen > length - dataStart)
                 {
                     break;
                 }
