@@ -170,13 +170,20 @@ namespace Opc.Ua.Security.Certificates
             // load certificate chain.
             var certificateChain = new X509Certificate2Collection(certificate);
             var issuers = new List<Ua.CertificateIdentifier>();
-            if (await m_certificateValidator.GetIssuersAsync(certificate, issuers)
-                .ConfigureAwait(false))
+
+            // GetIssuersAsync returns isTrusted (true only when the issuer is in
+            // the trusted store) but populates issuers from the trusted -> issuer
+            // -> untrusted stores regardless. The chain must include every
+            // resolved issuer independent of trust state, so the boolean return
+            // is intentionally ignored - a server must send its chain even when
+            // the issuing CA lives in the issuer store. (Regression #3896:
+            // gating on the return value dropped issuer-store CAs.)
+            _ = await m_certificateValidator.GetIssuersAsync(certificate, issuers)
+                .ConfigureAwait(false);
+
+            for (int i = 0; i < issuers.Count; i++)
             {
-                for (int i = 0; i < issuers.Count; i++)
-                {
-                    certificateChain.Add(issuers[i].Certificate);
-                }
+                certificateChain.Add(issuers[i].Certificate);
             }
 
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);

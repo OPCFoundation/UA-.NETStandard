@@ -742,7 +742,9 @@ namespace Opc.Ua.Server
                 }
 
                 ISession session = ServerInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken)
+                    ?? throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;

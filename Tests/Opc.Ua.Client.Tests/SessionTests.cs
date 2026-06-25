@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     Results =
                     [
-                        new (new Variant(0u))
+                        new (new Variant(0))
                     ],
                     DiagnosticInfos = []
                 }))
