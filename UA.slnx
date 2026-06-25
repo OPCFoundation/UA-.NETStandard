@@ -69,6 +69,7 @@
     <Project Path="Libraries/Opc.Ua.PubSub.Adapter/Opc.Ua.PubSub.Adapter.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Diagnostics/Opc.Ua.PubSub.Diagnostics.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Mqtt/Opc.Ua.PubSub.Mqtt.csproj" />
+    <Project Path="Libraries/Opc.Ua.PubSub.Schema/Opc.Ua.PubSub.Schema.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Server/Opc.Ua.PubSub.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Udp/Opc.Ua.PubSub.Udp.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
@@ -191,11 +192,13 @@
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
     <Project Path="Stack/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
+    <Project Path="Stack/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj" />
     <Project Path="Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
@@ -218,6 +221,7 @@
     <Project Path="Tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Mqtt.Tests/Opc.Ua.PubSub.Mqtt.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
