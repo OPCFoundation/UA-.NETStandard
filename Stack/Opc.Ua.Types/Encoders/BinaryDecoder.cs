@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
@@ -79,9 +81,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(buffer));
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryDecoder>();
             var stream = new MemoryStream(buffer, start, count, false);
             m_reader = new BinaryReader(stream);
+            m_buffer = new ReadOnlyMemory<byte>(buffer, start, count);
+            m_hasBuffer = true;
         }
 
         /// <summary>
@@ -101,7 +104,6 @@ namespace Opc.Ua
                 throw new ArgumentException("Stream must be seekable and readable.");
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryDecoder>();
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
         }
 
@@ -185,7 +187,20 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the stream that the decoder is reading from.
         /// </summary>
-        public Stream BaseStream => m_reader?.BaseStream!;
+        public Stream BaseStream
+        {
+            get
+            {
+                if (m_hasBuffer && !m_baseStreamExposed)
+                {
+                    m_reader.BaseStream.Position = m_bufferPosition;
+                    m_synchronizedStreamPosition = m_bufferPosition;
+                    m_baseStreamExposed = true;
+                }
+
+                return m_reader?.BaseStream!;
+            }
+        }
 
         /// <summary>
         /// Decodes a message from a stream.
@@ -626,25 +641,31 @@ namespace Opc.Ua
                 return DataValue.Null;
             }
 
-            var value = new DataValue();
+            // read the fields of the DataValue structure into locals so the
+            // DataValue is constructed once instead of via a chain of
+            // intermediate "With..." struct copies.
+            Variant wrappedValue = Variant.Null;
+            StatusCode statusCode = StatusCodes.Good;
+            DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
+            DateTimeUtc serverTimestamp = DateTimeUtc.MinValue;
+            ushort sourcePicoseconds = 0;
+            ushort serverPicoseconds = 0;
 
-            // read the fields of the DataValue structure.
             if ((encodingByte & (byte)DataValueEncodingBits.Value) != 0)
             {
-                value = value.WithWrappedValue(ReadVariant(null));
+                wrappedValue = ReadVariant(null);
             }
 
             if ((encodingByte & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                value = value.WithStatus(ReadStatusCode(null));
+                statusCode = ReadStatusCode(null);
             }
 
-            ushort sourcePicoseconds = 0;
             bool hasPicoseconds = (encodingByte &
                 (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
-                value = value.WithSourceTimestamp(ReadDateTime(null));
+                sourceTimestamp = ReadDateTime(null);
                 if (hasPicoseconds)
                 {
                     sourcePicoseconds = ReadUInt16(null);
@@ -654,13 +675,11 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            value = value.WithSourcePicoseconds(sourcePicoseconds);
 
-            ushort serverPicoseconds = 0;
             hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
-                value = value.WithServerTimestamp(ReadDateTime(null));
+                serverTimestamp = ReadDateTime(null);
                 if (hasPicoseconds)
                 {
                     serverPicoseconds = ReadUInt16(null);
@@ -670,7 +689,14 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            return value.WithServerPicoseconds(serverPicoseconds);
+
+            return new DataValue(
+                wrappedValue,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                sourcePicoseconds,
+                serverPicoseconds);
         }
 
         /// <inheritdoc/>
@@ -685,7 +711,7 @@ namespace Opc.Ua
 
             if (!typeId.IsNull && extension.TypeId.IsNull)
             {
-                m_logger.LogWarning(
+                Logger.LogWarning(
                     "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
                     typeId);
             }
@@ -714,7 +740,7 @@ namespace Opc.Ua
                 extension.TypeId,
                 out IEncodeableType? activator))
             {
-                m_logger.LogDebug("Failed to retrieve activator for extension object.");
+                Logger.LogDebug("Failed to retrieve activator for extension object.");
                 // Continue without registered type by reading the binary blob for later.
             }
 
@@ -746,7 +772,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
+                        Logger.LogError(
                             "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
                             activator.XmlName,
                             e.Message,
@@ -835,7 +861,7 @@ namespace Opc.Ua
                     else if (m_encodeablesRecovered == 0)
                     {
                         // log the error only once to avoid flooding the log.
-                        m_logger.LogWarning(
+                        Logger.LogWarning(
                             exception,
                             "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
@@ -844,7 +870,7 @@ namespace Opc.Ua
                     }
 
                     // reset the stream to the begin of the ExtensionObject body.
-                    m_reader.BaseStream.Position = start;
+                    SetPosition(start);
                     encodeable = null;
 
                     // count number of recoveries
@@ -991,14 +1017,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            sbyte[] values = new sbyte[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadSByte();
-            }
-
-            return values;
+            return ReadFixedWidthArray<sbyte>(length);
         }
 
         /// <inheritdoc/>
@@ -1011,12 +1030,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            byte[] values = new byte[length];
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadByte();
-            }
-            return values;
+            return ReadFixedWidthArray<byte>(length);
         }
 
         /// <inheritdoc/>
@@ -1029,14 +1043,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            short[] values = new short[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadInt16(null);
-            }
-
-            return values;
+            return ReadFixedWidthArray<short>(length);
         }
 
         /// <inheritdoc/>
@@ -1049,14 +1056,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            ushort[] values = new ushort[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadUInt16(null);
-            }
-
-            return values;
+            return ReadFixedWidthArray<ushort>(length);
         }
 
         /// <inheritdoc/>
@@ -1069,14 +1069,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            int[] values = new int[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadInt32();
-            }
-
-            return values;
+            return ReadFixedWidthArray<int>(length);
         }
 
         /// <inheritdoc/>
@@ -1089,14 +1082,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            uint[] values = new uint[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadUInt32();
-            }
-
-            return values;
+            return ReadFixedWidthArray<uint>(length);
         }
 
         /// <inheritdoc/>
@@ -1109,14 +1095,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            long[] values = new long[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadInt64();
-            }
-
-            return values;
+            return ReadFixedWidthArray<long>(length);
         }
 
         /// <inheritdoc/>
@@ -1129,14 +1108,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            ulong[] values = new ulong[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadUInt64();
-            }
-
-            return values;
+            return ReadFixedWidthArray<ulong>(length);
         }
 
         /// <inheritdoc/>
@@ -1149,14 +1121,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            float[] values = new float[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadFloat();
-            }
-
-            return values;
+            return ReadFixedWidthArray<float>(length);
         }
 
         /// <inheritdoc/>
@@ -1169,14 +1134,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            double[] values = new double[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = SafeReadDouble();
-            }
-
-            return values;
+            return ReadFixedWidthArray<double>(length);
         }
 
         /// <inheritdoc/>
@@ -2004,6 +1962,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reads a fixed-width unmanaged numeric array from raw little-endian bytes.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged element type.</typeparam>
+        /// <param name="length">The number of elements to read.</param>
+        private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
+        {
+            T[] values = new T[length];
+            Span<byte> bytes = MemoryMarshal.AsBytes(values.AsSpan());
+            ReadRawBytes(bytes);
+
+            if (!BitConverter.IsLittleEndian)
+            {
+                ReverseFixedWidthElements(values);
+            }
+
+            return values;
+        }
+
+        private static void ReverseFixedWidthElements<T>(Span<T> values) where T : unmanaged
+        {
+            int size = Unsafe.SizeOf<T>();
+            Span<byte> bytes = MemoryMarshal.AsBytes(values);
+            for (int offset = 0; offset < bytes.Length; offset += size)
+            {
+                bytes.Slice(offset, size).Reverse();
+            }
+        }
+
+        /// <summary>
         /// Reads the body of a node id.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2044,6 +2031,70 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Try to read contiguous buffer bytes for optimized bulk decoders.
+        /// </summary>
+        /// <param name="length">The number of bytes to read.</param>
+        /// <param name="bytes">The buffer span, if this decoder is buffer backed.</param>
+        /// <param name="functionName">The name of the calling function.</param>
+        /// <returns>True if the bytes were read from the buffer; otherwise false for stream-backed decoders.</returns>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool TryReadBufferBytes(
+            int length,
+            out ReadOnlySpan<byte> bytes,
+            [CallerMemberName] string? functionName = null)
+        {
+            if (!m_hasBuffer)
+            {
+                bytes = default;
+                return false;
+            }
+
+            bytes = SafeReadSpan(length, functionName);
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ReadRawBytes(Span<byte> destination, [CallerMemberName] string? functionName = null)
+        {
+            if (destination.Length == 0)
+            {
+                return;
+            }
+
+            if (TryReadBufferBytes(destination.Length, out ReadOnlySpan<byte> source, functionName))
+            {
+                source.CopyTo(destination);
+                return;
+            }
+
+            int offset = 0;
+            while (offset < destination.Length)
+            {
+                int length;
+#if NET6_0_OR_GREATER
+                length = m_reader.Read(destination[offset..]);
+#else
+                byte[] buffer = m_reader.ReadBytes(destination.Length - offset);
+                length = buffer.Length;
+                buffer.AsSpan().CopyTo(destination.Slice(offset));
+#endif
+
+                if (length == 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                        destination.Length,
+                        functionName ?? string.Empty,
+                        offset);
+                }
+
+                offset += length;
+            }
+        }
+
+        /// <summary>
         /// Read bytes from stream and validate the length of the returned buffer.
         /// Throws decoding error if less than the expected number of bytes were read.
         /// </summary>
@@ -2056,6 +2107,11 @@ namespace Opc.Ua
             if (length == 0)
             {
                 return [];
+            }
+
+            if (m_hasBuffer)
+            {
+                return SafeReadSpan(length, functionName).ToArray();
             }
 
             byte[] bytes = m_reader.ReadBytes(length);
@@ -2071,6 +2127,153 @@ namespace Opc.Ua
             return bytes;
         }
 
+        /// <summary>
+        /// Read bytes into a caller-provided span.
+        /// </summary>
+        /// <param name="bytes">The destination span.</param>
+        /// <param name="functionName">The name of the calling function.</param>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SafeReadBytes(
+            Span<byte> bytes,
+            [CallerMemberName] string? functionName = null)
+        {
+            if (bytes.Length == 0)
+            {
+                return;
+            }
+
+            if (m_hasBuffer)
+            {
+                _ = SafeReadBufferBytes(bytes, functionName);
+                return;
+            }
+
+            int length;
+#if NET6_0_OR_GREATER
+            length = m_reader.Read(bytes);
+#else
+            byte[] buffer = m_reader.ReadBytes(bytes.Length);
+            length = buffer.Length;
+            buffer.CopyTo(bytes);
+#endif
+
+            if (bytes.Length != length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                    length,
+                    functionName ?? string.Empty,
+                    bytes.Length);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int SafeReadBufferBytes(Span<byte> bytes, string? functionName)
+        {
+            ReadOnlySpan<byte> source = SafeReadSpan(bytes.Length, functionName);
+            source.CopyTo(bytes);
+            return bytes.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ReadOnlySpan<byte> SafeReadSpan(int length, string? functionName)
+        {
+            SynchronizeBufferPosition();
+
+            int available = m_bufferPosition <= m_buffer.Length
+                ? m_buffer.Length - m_bufferPosition
+                : 0;
+            if (length > available)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                    length,
+                    functionName ?? string.Empty,
+                    available);
+            }
+
+            ReadOnlySpan<byte> bytes = m_buffer.Span.Slice(m_bufferPosition, length);
+            m_bufferPosition += length;
+            SynchronizeBaseStreamPosition();
+            return bytes;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ReadOnlySpan<byte> SafeReadPrimitiveSpan(
+            int length,
+            string dataTypeName,
+            string? functionName)
+        {
+            SynchronizeBufferPosition();
+
+            if (m_bufferPosition > m_buffer.Length || length > m_buffer.Length - m_bufferPosition)
+            {
+                throw CreateDecodingError(dataTypeName, functionName);
+            }
+
+            ReadOnlySpan<byte> bytes = m_buffer.Span.Slice(m_bufferPosition, length);
+            m_bufferPosition += length;
+            SynchronizeBaseStreamPosition();
+            return bytes;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SynchronizeBufferPosition()
+        {
+            if (!m_baseStreamExposed)
+            {
+                return;
+            }
+
+            long position = m_reader.BaseStream.Position;
+            if (position == m_synchronizedStreamPosition)
+            {
+                return;
+            }
+
+            if (position > int.MaxValue)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Stream Position exceeds int.MaxValue or int.MinValue.");
+            }
+
+            m_bufferPosition = (int)position;
+            m_synchronizedStreamPosition = position;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SynchronizeBaseStreamPosition()
+        {
+            if (!m_baseStreamExposed)
+            {
+                return;
+            }
+
+            m_reader.BaseStream.Position = m_bufferPosition;
+            m_synchronizedStreamPosition = m_bufferPosition;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetPosition(int position)
+        {
+            if (m_hasBuffer)
+            {
+                m_bufferPosition = position;
+                if (m_baseStreamExposed)
+                {
+                    m_reader.BaseStream.Position = position;
+                    m_synchronizedStreamPosition = position;
+                }
+                return;
+            }
+
+            m_reader.BaseStream.Position = position;
+        }
+
 #if NET6_0_OR_GREATER
         /// <summary>
         /// Read char bytes from the stream and validate the length of the returned buffer.
@@ -2084,6 +2287,12 @@ namespace Opc.Ua
             Span<byte> bytes,
             [CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                int bytesRead = SafeReadBufferBytes(bytes, functionName);
+                return bytesRead;
+            }
+
             int length = m_reader.Read(bytes);
 
             if (bytes.Length != length)
@@ -2107,6 +2316,11 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool SafeReadBoolean([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return SafeReadPrimitiveSpan(1, nameof(ReadBoolean), functionName)[0] != 0;
+            }
+
             try
             {
                 return m_reader.ReadBoolean();
@@ -2124,6 +2338,11 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private sbyte SafeReadSByte([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return unchecked((sbyte)SafeReadPrimitiveSpan(1, nameof(ReadSByte), functionName)[0]);
+            }
+
             try
             {
                 return m_reader.ReadSByte();
@@ -2141,6 +2360,11 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte SafeReadByte([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return SafeReadPrimitiveSpan(1, nameof(ReadByte), functionName)[0];
+            }
+
             try
             {
                 return m_reader.ReadByte();
@@ -2158,6 +2382,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private short SafeReadInt16([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return BinaryPrimitives.ReadInt16LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(short), nameof(ReadInt16), functionName));
+            }
+
             try
             {
                 return m_reader.ReadInt16();
@@ -2175,6 +2405,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ushort SafeReadUInt16([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return BinaryPrimitives.ReadUInt16LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(ushort), nameof(ReadUInt16), functionName));
+            }
+
             try
             {
                 return m_reader.ReadUInt16();
@@ -2192,6 +2428,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int SafeReadInt32([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return BinaryPrimitives.ReadInt32LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(int), nameof(ReadInt32), functionName));
+            }
+
             try
             {
                 return m_reader.ReadInt32();
@@ -2209,6 +2451,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint SafeReadUInt32([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return BinaryPrimitives.ReadUInt32LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(uint), nameof(ReadUInt32), functionName));
+            }
+
             try
             {
                 return m_reader.ReadUInt32();
@@ -2226,6 +2474,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private long SafeReadInt64([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return BinaryPrimitives.ReadInt64LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(long), nameof(ReadInt64), functionName));
+            }
+
             try
             {
                 return m_reader.ReadInt64();
@@ -2243,6 +2497,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ulong SafeReadUInt64([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                return BinaryPrimitives.ReadUInt64LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(ulong), nameof(ReadUInt64), functionName));
+            }
+
             try
             {
                 return m_reader.ReadUInt64();
@@ -2260,6 +2520,13 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private float SafeReadFloat([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                int bits = BinaryPrimitives.ReadInt32LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(float), nameof(ReadFloat), functionName));
+                return Unsafe.As<int, float>(ref bits);
+            }
+
             try
             {
                 return m_reader.ReadSingle();
@@ -2277,6 +2544,13 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private double SafeReadDouble([CallerMemberName] string? functionName = null)
         {
+            if (m_hasBuffer)
+            {
+                long bits = BinaryPrimitives.ReadInt64LittleEndian(
+                    SafeReadPrimitiveSpan(sizeof(double), nameof(ReadDouble), functionName));
+                return Unsafe.As<long, double>(ref bits);
+            }
+
             try
             {
                 return m_reader.ReadDouble();
@@ -2323,8 +2597,14 @@ namespace Opc.Ua
         private BinaryReader m_reader;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
+        private ReadOnlyMemory<byte> m_buffer;
+        private int m_bufferPosition;
+        private long m_synchronizedStreamPosition;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
-        private readonly ILogger m_logger;
+        private bool m_hasBuffer;
+        private bool m_baseStreamExposed;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();
+        private ILogger? m_logger;
     }
 }

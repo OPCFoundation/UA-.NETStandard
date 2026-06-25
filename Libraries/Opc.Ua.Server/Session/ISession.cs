@@ -155,6 +155,18 @@ namespace Opc.Ua.Server
         SessionDiagnosticsDataType SessionDiagnostics { get; }
 
         /// <summary>
+        /// Completes the asynchronous part of session creation by registering
+        /// the session diagnostics node in the address space and setting
+        /// <see cref="Id"/>. Called once by the session manager after the
+        /// session is constructed, before it is activated.
+        /// </summary>
+        /// <param name="context">The operation context of the create request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask InitializeAsync(
+            OperationContext context,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
         bool Activate(

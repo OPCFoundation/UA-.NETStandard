@@ -42,7 +42,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Xml;
-using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
@@ -56,8 +55,7 @@ namespace Opc.Ua.Core.TestFramework
     public enum MemoryStreamType
     {
         MemoryStream,
-        ArraySegmentStream,
-        RecyclableMemoryStream
+        ArraySegmentStream
     }
 
     /// <summary>
@@ -88,7 +86,6 @@ namespace Opc.Ua.Core.TestFramework
         protected NamespaceTable NameSpaceUris { get; private set; }
         protected StringTable ServerUris { get; private set; }
         protected BufferManager BufferManager { get; private set; }
-        protected RecyclableMemoryStreamManager RecyclableMemoryManager { get; private set; }
         protected ITelemetryContext Telemetry { get; private set; }
 
         [OneTimeSetUp]
@@ -105,8 +102,6 @@ namespace Opc.Ua.Core.TestFramework
             NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
             BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize, Telemetry);
-            RecyclableMemoryManager = new RecyclableMemoryStreamManager(
-                new RecyclableMemoryStreamManager.Options { BlockSize = kTestBlockSize });
         }
 
         [OneTimeTearDown]
@@ -566,8 +561,6 @@ namespace Opc.Ua.Core.TestFramework
                     return new MemoryStream(kTestBlockSize);
                 case MemoryStreamType.ArraySegmentStream:
                     return new ArraySegmentStream(BufferManager);
-                case MemoryStreamType.RecyclableMemoryStream:
-                    return new RecyclableMemoryStream(RecyclableMemoryManager);
                 default:
                     throw new ArgumentOutOfRangeException(
                         nameof(memoryStreamType),

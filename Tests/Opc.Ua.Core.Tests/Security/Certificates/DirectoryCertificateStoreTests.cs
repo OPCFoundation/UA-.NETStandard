@@ -33,6 +33,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -394,6 +395,199 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Directory.Delete(tempDir2, true);
                 }
             }
+        }
+
+        [Test]
+        public async Task IsRevokedAsyncReflectsCrlAddedAfterCacheWarmupAsync()
+        {
+            // Part C regression: IsRevokedAsync caches parsed CRLs. A CRL added
+            // after the cache is warmed must be observed on the next check so a
+            // newly revoked certificate is not accepted from a stale cache.
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir);
+
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=CrlCacheIssuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CrlCacheLeaf")
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            // AddCRLAsync requires the issuer cert to already be in the store.
+            await store.AddAsync(issuer).ConfigureAwait(false);
+
+            // Warm the CRL cache while no CRL is present.
+            StatusCode before = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(before.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown));
+
+            // Add a CRL that revokes the leaf.
+            var crl = new X509CRL(CrlBuilder
+                .Create(issuer.SubjectName)
+                .AddRevokedCertificate(leaf)
+                .CreateForRSA(issuer));
+            await store.AddCRLAsync(crl).ConfigureAwait(false);
+
+            // The cache must be invalidated so the new CRL is observed.
+            StatusCode after = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(after.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked),
+                "A CRL added after the cache was warmed must revoke the certificate.");
+        }
+
+        [Test]
+        public async Task IsRevokedAsyncReflectsCrlRemovedAfterCacheWarmupAsync()
+        {
+            // Part C regression: removing a CRL must also invalidate the cache.
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir);
+
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=CrlRemoveIssuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CrlRemoveLeaf")
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            await store.AddAsync(issuer).ConfigureAwait(false);
+
+            var crl = new X509CRL(CrlBuilder
+                .Create(issuer.SubjectName)
+                .AddRevokedCertificate(leaf)
+                .CreateForRSA(issuer));
+            await store.AddCRLAsync(crl).ConfigureAwait(false);
+
+            // Warm the cache with the revoking CRL present.
+            StatusCode before = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(before.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked));
+
+            // Remove the CRL; the next check must no longer see it.
+            bool deleted = await store.DeleteCRLAsync(crl).ConfigureAwait(false);
+            Assert.That(deleted, Is.True);
+
+            StatusCode after = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(after.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown),
+                "A CRL removed after the cache was warmed must no longer be observed.");
+        }
+
+        [Test]
+        public async Task IsRevokedAsyncReflectsCrlAddedAndRemovedViaFileSystemAsync()
+        {
+            // Part C: the CRL cache must also detect CRLs added / removed
+            // directly on the file system (out of band — NOT via
+            // AddCRLAsync / DeleteCRLAsync), via the per-file freshness
+            // signature rather than the explicit cache invalidation.
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir);
+
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=CrlFsIssuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CrlFsLeaf")
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            await store.AddAsync(issuer).ConfigureAwait(false);
+
+            // Warm the cache with no CRL present.
+            StatusCode before = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(before.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown));
+
+            // Write a revoking CRL straight onto the file system, bypassing the
+            // store's AddCRLAsync cache invalidation.
+            var crl = new X509CRL(CrlBuilder
+                .Create(issuer.SubjectName)
+                .AddRevokedCertificate(leaf)
+                .CreateForRSA(issuer));
+            string crlDir = Path.Combine(m_tempDir, "crl");
+            Directory.CreateDirectory(crlDir);
+            string crlFile = Path.Combine(crlDir, "external.crl");
+            File.WriteAllBytes(crlFile, crl.RawData);
+
+            StatusCode afterAdd = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(afterAdd.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked),
+                "A CRL written directly to the file system must be observed.");
+
+            // Remove the CRL file directly.
+            File.Delete(crlFile);
+
+            StatusCode afterRemove = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(afterRemove.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown),
+                "A CRL removed from the file system must no longer be observed.");
+        }
+
+        [Test]
+        public async Task IsRevokedAsyncCrlCacheIsBoundedByMaxAgeAsync()
+        {
+            // Security (F2): even when the CRL file's (name, length, last-write-
+            // time) signature is unchanged, the cache must re-read from disk
+            // once the snapshot exceeds its max age, so an out-of-band, same-
+            // signature in-place CRL replacement cannot keep serving a stale
+            // revocation result indefinitely.
+            var time = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            using var store = new DirectoryCertificateStore(noSubDirs: false, m_telemetry, time);
+            store.Open(m_tempDir);
+
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=CrlTtlIssuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CrlTtlLeaf")
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            await store.AddAsync(issuer).ConfigureAwait(false);
+
+            // Write a CRL that revokes the leaf, directly on disk.
+            var crl = new X509CRL(CrlBuilder
+                .Create(issuer.SubjectName)
+                .AddRevokedCertificate(leaf)
+                .CreateForRSA(issuer));
+            string crlDir = Path.Combine(m_tempDir, "crl");
+            Directory.CreateDirectory(crlDir);
+            string crlFile = Path.Combine(crlDir, "ttl.crl");
+            File.WriteAllBytes(crlFile, crl.RawData);
+            var fileInfo = new FileInfo(crlFile);
+            long length = fileInfo.Length;
+            DateTime writeTimeUtc = fileInfo.LastWriteTimeUtc;
+
+            // Warm the cache: the leaf is revoked.
+            StatusCode warm = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(warm.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked));
+
+            // Replace the CRL content in place with same-length bytes and reset
+            // the last-write-time so the (name, length, mtime) signature is
+            // unchanged. The new content is not a valid CRL.
+            var sameLengthGarbage = new byte[length];
+            sameLengthGarbage.AsSpan().Fill(0xEE);
+            File.WriteAllBytes(crlFile, sameLengthGarbage);
+            File.SetLastWriteTimeUtc(crlFile, writeTimeUtc);
+
+            // Within the max age the unchanged signature keeps serving the
+            // cached (stale) CRL.
+            StatusCode stale = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(stale.Code, Is.EqualTo(StatusCodes.BadCertificateRevoked),
+                "within the max age, the unchanged signature serves the cached CRL");
+
+            // After the max age the cache re-reads: the now-invalid CRL no
+            // longer revokes the leaf.
+            time.Advance(TimeSpan.FromSeconds(31));
+            StatusCode refreshed = await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false);
+            Assert.That(refreshed.Code, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown),
+                "after the max age the cache must re-read the CRL from disk");
         }
     }
 }

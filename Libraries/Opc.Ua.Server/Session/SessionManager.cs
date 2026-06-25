@@ -295,6 +295,20 @@ namespace Opc.Ua.Server
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
 
+                // complete the asynchronous part of session creation
+                // (registers the session diagnostics node and sets Id).
+                try
+                {
+                    await session.InitializeAsync(context, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    serverNonceObject.Dispose();
+                    session.Dispose();
+                    throw;
+                }
+
                 // get the session id.
                 sessionId = session.Id;
                 serverNonce = serverNonceObject.Data.ToByteString();
