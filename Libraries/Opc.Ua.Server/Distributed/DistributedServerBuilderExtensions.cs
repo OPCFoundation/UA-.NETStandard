@@ -134,5 +134,56 @@ namespace Opc.Ua.Server.Distributed
 
             return builder;
         }
+
+        /// <summary>
+        /// Registers a distributed session manager so a client can fail over to
+        /// a standby replica and reconnect by re-running <c>ActivateSession</c>
+        /// (OPC UA HotAndMirrored fast reconnect).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This shares the same <see cref="ISharedKeyValueStore"/> and
+        /// <see cref="IRecordProtector"/> as
+        /// <see cref="UseDistributedAddressSpace"/> when composed with it; used
+        /// on its own it falls back to an in-memory store and a no-op protector
+        /// (suitable for development only). The mirrored session record is
+        /// encrypted at rest and the server nonce is single-use across the
+        /// replica set.
+        /// </para>
+        /// <para>
+        /// The safe default is re-authentication on failover. Set
+        /// <see cref="DistributedSessionOptions.EnableFastReconnect"/> to opt
+        /// into the mirrored fast reconnect; even then a reconnect performs the
+        /// full <c>ActivateSession</c> client-signature validation — the token
+        /// is never an authenticator on its own. See
+        /// <c>Docs/HighAvailabilitySecurity.md</c>.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Optional distributed session options.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder UseDistributedSessions(
+            this IOpcUaServerBuilder builder,
+            Action<DistributedSessionOptions>? configure = null)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            var options = new DistributedSessionOptions();
+            configure?.Invoke(options);
+
+            builder.Services.TryAddSingleton<ISharedKeyValueStore>(_ => new InMemorySharedKeyValueStore());
+
+            builder.Services.TryAddSingleton<ISessionManagerFactory>(sp =>
+                new DistributedSessionManagerFactory(
+                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    sp.GetService<IRecordProtector>(),
+                    options));
+
+            return builder;
+        }
     }
 }

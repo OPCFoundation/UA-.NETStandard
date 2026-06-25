@@ -3951,6 +3951,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// An optional factory used to build the server's session manager. When
+        /// <c>null</c> (the default), the built-in <see cref="SessionManager"/>
+        /// is used. Set this before the server starts (the hosting layer wires
+        /// it from dependency injection) to plug in a custom session manager,
+        /// e.g. a distributed one for high availability.
+        /// </summary>
+        public ISessionManagerFactory? SessionManagerFactory { get; set; }
+
+        /// <summary>
         /// Creates the session manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -3960,7 +3969,21 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
+            if (SessionManagerFactory != null)
+            {
+                return SessionManagerFactory.Create(
+                    server, configuration, TimeProvider, GetInstanceCertificateForPolicy);
+            }
             return new SessionManager(server, configuration, TimeProvider);
+        }
+
+        /// <summary>
+        /// Resolves the server's instance certificate for a security policy URI,
+        /// for use by a custom session manager factory.
+        /// </summary>
+        private Certificate? GetInstanceCertificateForPolicy(string securityPolicyUri)
+        {
+            return CertificateManager?.GetInstanceCertificate(securityPolicyUri)?.Certificate;
         }
 
         /// <summary>

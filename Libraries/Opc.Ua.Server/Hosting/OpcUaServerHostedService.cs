@@ -217,6 +217,7 @@ namespace Opc.Ua.Server.Hosting
             }
 
             m_server = new StandardServer(m_telemetry, m_timeProvider);
+            m_server.SessionManagerFactory = m_services.GetService<ISessionManagerFactory>();
             foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
             {
                 if (reg.AsyncFactory is not null)

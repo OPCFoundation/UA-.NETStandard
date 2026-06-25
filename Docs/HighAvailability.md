@@ -14,7 +14,7 @@ The design follows the high-availability goals of the stack: running servers in 
 - Both **active/passive** and **active/active** are supported out of the box through a leader-election model (shared read, master write — or better).
 - A variable's read/write callbacks can participate in the distributed store: cache the last value they read and serve the last value with a freshness bound.
 - Monitored items are unchanged — they read through the normal pipeline and therefore participate in shared state only when the read path participates.
-- Session state can be shared across active/passive for fast reconnect using just the session `AuthenticationToken`.
+- Session state can be shared across active/passive for fast reconnect: after a failover a client re-runs `ActivateSession` on the promoted replica, validated by the standard client-certificate signature check against a single-use mirrored `serverNonce`. The `AuthenticationToken` is only a lookup key, never an authenticator on its own.
 
 ## Architecture
 
@@ -81,7 +81,7 @@ Computes the value of the server's `ServiceLevel` variable (0–255). In a redun
 
 ### Session sharing — `ISharedSessionStore`
 
-Shares session context across replicas keyed by the session `AuthenticationToken`, enabling fast active/passive reconnect: after a failover a client re-activates against the promoted replica using only its token, without a full re-handshake. This is analogous to `ISubscriptionStore` for subscriptions. The default `SharedKeyValueSessionStore` persists entries in the same shared key/value backend. The `SecretMaterial` field is an opaque, caller-encrypted blob — the store never sees plaintext secrets. Certificate stores are assumed to be shared independently.
+Shares session context across replicas keyed by the session `AuthenticationToken` so a client can fail over to a standby and reconnect by re-running `ActivateSession` on a new SecureChannel (OPC UA HotAndMirrored fast reconnect, Part 4 §6.6). The token is a **lookup key only**: the standby still performs the full `ActivateSession` client-certificate signature check against the mirrored, **single-use** `serverNonce`, so a captured activation cannot be replayed and the token alone cannot resume a session. The default `SharedKeyValueSessionStore` persists entries in the same shared key/value backend, **encrypted and integrity-protected** by an `IRecordProtector` (the store never sees plaintext secrets). The server-side integration is the `DistributedSessionManager` (opt-in; the safe default is re-authentication on failover). Certificate stores are assumed to be shared independently. See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md).
 
 ## Usage
 
@@ -143,6 +143,23 @@ services.AddOpcUa()
 
 The wiring runs through the additive `IServerStartupTask` hosting seam, so no `StandardServer` subclass is required.
 
+### Session fast reconnect
+
+Add `UseDistributedSessions(...)` to mirror session state across replicas. It composes with `UseDistributedAddressSpace` over the same shared store and record protector:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(o => { /* ... */ })
+    .UseDistributedAddressSpace(d => { d.UseLeaderElection = true; })
+    .UseDistributedSessions(s =>
+    {
+        // Opt into mirrored fast reconnect; the default is re-auth on failover.
+        s.EnableFastReconnect = true;
+    });
+```
+
+`UseDistributedSessions` registers an `ISessionManagerFactory` that the server uses to build a `DistributedSessionManager`. On `CreateSession` / `ActivateSession` it mirrors the encrypted session record — including the last `serverNonce` — to the shared store. On a failover reconnect the standby restores the record, **consumes the nonce single-use across the replica set** (replay defence), enforces the same SecurityPolicy/Mode (REQ-UA-7), and runs the standard `ActivateSession` client-signature validation. The `AuthenticationToken` is never an authenticator on its own. The safe default (`EnableFastReconnect = false`) re-authenticates on failover and needs no shared session state. See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md) for the threat model and the key / transport requirements.
+
 ### Transparent redundancy
 
 Transparent redundancy (a single virtual endpoint that hides failover) is achieved by fronting the replicas with a single network endpoint — for example a Kubernetes `Service` or load balancer — and transferring subscriptions on failover (see [TransferSubscription](TransferSubscription.md)). The shared session store enables the fast reconnect that makes this transparent to clients. This deployment-level approach is documented here rather than implemented as a distinct transport.
@@ -162,7 +179,7 @@ A typical replicaset deployment:
 - The shared key/value store, node-state store, synchronizer, leader election, value cache/participation, service-level provider and shared session store are implemented and unit/integration tested (including two-replica topology-and-value replication).
 - Server integration is wired through the additive **`IServerStartupTask`** hosting seam: **`UseDistributedAddressSpace(...)`** attaches a synchronizer to every `CustomNodeManager2`-derived node manager and drives `Server.ServiceLevel`; **`AddServerRedundancy(...)`** populates `Server.ServerRedundancy`; **`AddServerServiceLevel(...)`** drives `ServiceLevel` from a custom provider. Active/passive redundancy can be advertised and consumed end-to-end today.
 - Async node managers deriving from `AsyncCustomNodeManager` do not yet opt into replication (only `CustomNodeManager2`-derived managers do).
-- **Session fast-reconnect** (`ISharedSessionStore` integration into `SessionManager` for token-only reconnect) is not yet wired: it is security-sensitive (server-nonce sharing) and needs a `SessionManager` factory seam plus a security review. The building blocks (`ISharedSessionStore` / `SharedKeyValueSessionStore`) exist and are tested.
+- **Session fast-reconnect** is wired through **`UseDistributedSessions(...)`** plus the additive **`ISessionManagerFactory`** seam on `StandardServer`: the `DistributedSessionManager` mirrors encrypted session state and, when `EnableFastReconnect` is enabled, restores a session on a standby with a full `ActivateSession` client-signature check, the same SecurityPolicy/Mode (REQ-UA-7), and a single-use `serverNonce` (cross-replica replay defence). The safe default is re-authentication on failover. The store, manager, factory and security-decision logic (policy match + nonce single-use) are unit-tested; the full two-server reconnect end-to-end test is tracked as follow-up. See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md).
 - **Active/active** on the simple key/value store relies on compare-and-swap / last-writer-wins with a single elected writer; conflict-free multi-writer merge is provided later by the deferred CRDT store.
 - A **Redis** store and a **CRDT** store are planned providers of the same `ISharedKeyValueStore` / `INodeStateStore` contracts and are deferred.
 

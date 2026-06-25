@@ -109,6 +109,14 @@ namespace Opc.Ua.Server.Distributed
             encoder.WriteString(null, entry.SessionName);
             encoder.WriteInt64(null, entry.CreatedAt);
             encoder.WriteInt64(null, entry.LastActivatedAt);
+            encoder.WriteByteString(null, entry.ServerNonce);
+            encoder.WriteByteString(null, entry.ClientNonce);
+            encoder.WriteByteString(null, entry.ClientCertificateChain);
+            encoder.WriteString(null, entry.SecurityPolicyUri);
+            encoder.WriteInt32(null, entry.SecurityMode);
+            encoder.WriteString(null, entry.EndpointUrl);
+            encoder.WriteDouble(null, entry.SessionTimeout);
+            encoder.WriteEncodeable(null, entry.ClientDescription ?? new ApplicationDescription());
             encoder.WriteByteString(null, entry.SecretMaterial);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
@@ -124,6 +132,14 @@ namespace Opc.Ua.Server.Distributed
                 SessionName = decoder.ReadString(null) ?? string.Empty,
                 CreatedAt = decoder.ReadInt64(null),
                 LastActivatedAt = decoder.ReadInt64(null),
+                ServerNonce = decoder.ReadByteString(null),
+                ClientNonce = decoder.ReadByteString(null),
+                ClientCertificateChain = decoder.ReadByteString(null),
+                SecurityPolicyUri = decoder.ReadString(null) ?? string.Empty,
+                SecurityMode = decoder.ReadInt32(null),
+                EndpointUrl = decoder.ReadString(null) ?? string.Empty,
+                SessionTimeout = decoder.ReadDouble(null),
+                ClientDescription = decoder.ReadEncodeable<ApplicationDescription>(null),
                 SecretMaterial = decoder.ReadByteString(null)
             };
         }

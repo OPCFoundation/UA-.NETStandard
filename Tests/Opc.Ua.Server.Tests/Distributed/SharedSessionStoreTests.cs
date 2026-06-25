@@ -80,6 +80,31 @@ namespace Opc.Ua.Server.Tests.Distributed
         }
 
         [Test]
+        public async Task FullEntryRoundTripsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-full");
+
+            await store.PutAsync(entry);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.ServerNonce.ToArray(), Is.EqualTo(entry.ServerNonce.ToArray()));
+            Assert.That(loaded.ClientNonce.ToArray(), Is.EqualTo(entry.ClientNonce.ToArray()));
+            Assert.That(
+                loaded.ClientCertificateChain.ToArray(),
+                Is.EqualTo(entry.ClientCertificateChain.ToArray()));
+            Assert.That(loaded.SecurityPolicyUri, Is.EqualTo(entry.SecurityPolicyUri));
+            Assert.That(loaded.SecurityMode, Is.EqualTo(entry.SecurityMode));
+            Assert.That(loaded.EndpointUrl, Is.EqualTo(entry.EndpointUrl));
+            Assert.That(loaded.SessionTimeout, Is.EqualTo(entry.SessionTimeout));
+            Assert.That(
+                loaded.ClientDescription.ApplicationUri,
+                Is.EqualTo(entry.ClientDescription.ApplicationUri));
+        }
+
+        [Test]
         public async Task TryGetMissingReturnsNullAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -131,13 +156,15 @@ namespace Opc.Ua.Server.Tests.Distributed
             await store.PutAsync(entry);
             SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
 
-            // Secret material must not be persisted in cleartext.
+            // Secret material and the server nonce must not be persisted in cleartext.
             (bool rawFound, ByteString raw) = await kv.TryGetAsync("session/" + entry.AuthenticationToken);
             Assert.That(rawFound, Is.True);
             Assert.That(Contains(raw.ToArray(), entry.SecretMaterial.ToArray()), Is.False);
+            Assert.That(Contains(raw.ToArray(), entry.ServerNonce.ToArray()), Is.False);
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded!.SecretMaterial.ToArray(), Is.EqualTo(entry.SecretMaterial.ToArray()));
+            Assert.That(loaded.ServerNonce.ToArray(), Is.EqualTo(entry.ServerNonce.ToArray()));
         }
 
         [Test]
@@ -198,6 +225,19 @@ namespace Opc.Ua.Server.Tests.Distributed
                 SessionName = "Session " + token,
                 CreatedAt = DateTimeUtc.Now,
                 LastActivatedAt = DateTimeUtc.Now,
+                ServerNonce = ByteString.From(new byte[] { 40, 50, 60, 70 }),
+                ClientNonce = ByteString.From(new byte[] { 1, 2, 3, 4 }),
+                ClientCertificateChain = ByteString.From(new byte[] { 5, 6, 7, 8, 9 }),
+                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+                SecurityMode = (int)MessageSecurityMode.SignAndEncrypt,
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SessionTimeout = 60000,
+                ClientDescription = new ApplicationDescription
+                {
+                    ApplicationName = new LocalizedText("Test Client"),
+                    ApplicationUri = "urn:test:client:" + token,
+                    ApplicationType = ApplicationType.Client
+                },
                 SecretMaterial = ByteString.From(new byte[] { 10, 20, 30 })
             };
         }

@@ -91,6 +91,18 @@ o.RecordProtectorFactory = sp => new KeyRingRecordProtector(
 
 `AesCbcHmacRecordProtector` derives distinct AES and MAC subkeys from the master key, zeroizes the master immediately after derivation, and zeroizes both subkeys on `Dispose` (`CryptographicOperations.ZeroMemory` on net8+, `Array.Clear` on the down-level frameworks).
 
+### Session sharing — `DistributedSessionManager` (S5, done; fast reconnect opt-in)
+
+`DistributedSessionManager` (a `SessionManager` subclass, wired via `UseDistributedSessions(...)` and the additive `ISessionManagerFactory` seam on `StandardServer`) mirrors the encrypted session record — including the last `serverNonce` — to the shared session store on `CreateSession` / `ActivateSession`, and removes it on close. On a failover reconnect to a standby, the base `SessionManager` calls the additive `RestoreSessionAsync` hook, which:
+
+1. enforces the same SecurityPolicy/Mode as the original session (REQ-UA-7);
+2. **consumes the mirrored `serverNonce` exactly once across the replica set** via `ISingleUseNonceRegistry` — a replayed or already-consumed nonce is rejected (Finding 1);
+3. reconstructs the session and lets the **standard** activation path run the full client-certificate signature validation against that nonce (REQ-UA-6/7).
+
+The `AuthenticationToken` is therefore only a lookup key — it never admits a session without a valid client signature, closing the token-only hijack (Finding 2). The safe default is `EnableFastReconnect = false` (re-authentication on failover, no shared session state). Restores are logged with a one-way token digest for provenance (Finding 9 / Finding 6 hygiene).
+
+A residual, intentional trade-off: an attacker who can open a SecureChannel to a standby and replays a token can cause that session's mirrored nonce to be consumed, degrading a legitimate client's fast reconnect to a full re-authentication (the secure default) — it never grants access. The full two-server reconnect end-to-end test is tracked as follow-up; the security-decision logic (policy match + single-use nonce) is unit-tested.
+
 ## Deployment guidance (operator responsibilities)
 
 These mitigations are **not** enforced by the in-process default and must be supplied by the deployment. They are mandatory before any production / networked-store use.
