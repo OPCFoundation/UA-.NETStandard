@@ -266,11 +266,20 @@ namespace Opc.Ua.Bindings
                     }
                     finally
                     {
-                        channel.Dispose();
+                        try
+                        {
+                            channel.Dispose();
+                        }
+                        finally
+                        {
+                            DisposeSettingsCertificates();
+                        }
                     }
                 }
-
-                DisposeSettingsCertificates();
+                else
+                {
+                    DisposeSettingsCertificates();
+                }
             }
             finally
             {
@@ -399,6 +408,8 @@ namespace Opc.Ua.Bindings
                     // Reset as not opened to allow OpenAsync again.
                     m_channel = null;
                     m_url = null;
+                    channel.Dispose();
+                    DisposeSettingsCertificates();
                     throw;
                 }
                 finally

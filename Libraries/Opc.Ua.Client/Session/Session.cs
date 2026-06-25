@@ -1309,50 +1309,59 @@ namespace Opc.Ua.Client
             CreateSessionResponse? response = null;
 
             // if security none, first try to connect without certificate
-            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+            try
             {
-                // first try to connect with client certificate NULL
-                try
+                if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+                {
+                    // first try to connect with client certificate NULL
+                    try
+                    {
+                        response = await base.CreateSessionAsync(
+                            null,
+                            clientDescription,
+                            m_endpoint.Description.Server.ApplicationUri,
+                            m_endpoint.EndpointUrl!.ToString(),
+                            sessionName,
+                            clientNonce,
+                            default,
+                            sessionTimeout,
+                            maxMessageSize,
+                            ct).ConfigureAwait(false);
+
+                        successCreateSession = true;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.LogWarning(ex, "Create session failed with client certificate NULL.");
+                        successCreateSession = false;
+                    }
+                }
+
+                if (!successCreateSession)
                 {
                     response = await base.CreateSessionAsync(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
-                        default,
+                        clientCertificateChainData.IsEmpty ?
+                            clientCertificateData :
+                            clientCertificateChainData,
                         sessionTimeout,
                         maxMessageSize,
                         ct).ConfigureAwait(false);
-
-                    successCreateSession = true;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    m_logger.LogWarning(ex, "Create session failed with client certificate NULL.");
-                    successCreateSession = false;
                 }
             }
-
-            if (!successCreateSession)
+            catch
             {
-                response = await base.CreateSessionAsync(
-                    requestHeader,
-                    clientDescription,
-                    m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl!.ToString(),
-                    sessionName,
-                    clientNonce,
-                    clientCertificateChainData.IsEmpty ?
-                        clientCertificateData :
-                        clientCertificateChainData,
-                    sessionTimeout,
-                    maxMessageSize,
-                    ct).ConfigureAwait(false);
+                serverCertificate?.Dispose();
+                throw;
             }
             if (response is null || response.SessionId.IsNull)
             {
+                serverCertificate?.Dispose();
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
             }

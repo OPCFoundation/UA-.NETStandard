@@ -1228,7 +1228,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        await client.CloseAsync(ct).ConfigureAwait(false);
+                        await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                     }
                     finally
                     {

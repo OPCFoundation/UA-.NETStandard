@@ -497,14 +497,22 @@ namespace Opc.Ua.Server.TestFramework
                 RunSyncWithTeardownWatchdog(
                     () => Server.Dispose(),
                     nameof(Server) + "." + nameof(Server.Dispose));
+                DisposeCertificateManagers();
                 Server = null;
             }
             if (Application != null)
             {
-                await RunWithTeardownWatchdogAsync(
-                    () => Application.DisposeAsync().AsTask(),
-                    nameof(Application) + "." + nameof(Application.DisposeAsync)).ConfigureAwait(false);
-                Application = null;
+                try
+                {
+                    await RunWithTeardownWatchdogAsync(
+                        () => Application.DisposeAsync().AsTask(),
+                        nameof(Application) + "." + nameof(Application.DisposeAsync)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    DisposeCertificateManagers();
+                    Application = null;
+                }
             }
             Config = null;
             ActivityListener?.Dispose();
@@ -514,12 +522,19 @@ namespace Opc.Ua.Server.TestFramework
 
         private void DisposeCertificateManagers()
         {
-            IDisposable applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable
-                ?? Config?.CertificateManager as IDisposable;
+            IDisposable applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable;
             applicationManager?.Dispose();
 
+            IDisposable configManager = Config?.CertificateManager as IDisposable;
+            if (configManager != null &&
+                !ReferenceEquals(configManager, applicationManager))
+            {
+                configManager.Dispose();
+            }
+
             if (Server?.CertificateManager is IDisposable serverManager &&
-                !ReferenceEquals(serverManager, applicationManager))
+                !ReferenceEquals(serverManager, applicationManager) &&
+                !ReferenceEquals(serverManager, configManager))
             {
                 serverManager.Dispose();
             }
