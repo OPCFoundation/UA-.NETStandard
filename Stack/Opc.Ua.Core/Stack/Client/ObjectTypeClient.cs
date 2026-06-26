@@ -171,7 +171,7 @@ namespace Opc.Ua
             // Bad_MethodInvalid. Resolve the instance MethodId via
             // HasComponent, cache it, and retry once.
             if (usedTypeMethodId &&
-                response.Results[0].StatusCode.Code == StatusCodes.BadMethodInvalid)
+                response.Results[0].StatusCode.CodeBits == StatusCodes.BadMethodInvalid)
             {
                 NodeId instanceMethodId = await ResolveChildNodeIdAsync(
                     methodNamespaceUri,
