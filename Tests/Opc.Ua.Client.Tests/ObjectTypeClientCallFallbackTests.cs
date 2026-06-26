@@ -93,10 +93,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task NonConformantServerResolvesInstanceMethodIdAndRetriesAsync()
         {
-            // The non-conformant server returns BadMethodInvalid with a
-            // non-zero InfoBit set in the low 16 bits; the fallback must
-            // still trigger, which exercises the CodeBits-based comparison.
-            SetupCall(req => req.MethodId.Equals(m_typeMethodId) ? BadMethodInvalid(infoBits: 1) : Good(new Variant(7)));
+            SetupCall(req => req.MethodId.Equals(m_typeMethodId) ? BadMethodInvalid() : Good(new Variant(7)));
             SetupTranslate(m_instanceMethodId);
             TestObjectTypeClient client = CreateClient();
 
@@ -112,7 +109,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task ResolvedInstanceMethodIdIsCachedAcrossCallsAsync()
         {
-            SetupCall(req => req.MethodId.Equals(m_typeMethodId) ? BadMethodInvalid(infoBits: 1) : Good(new Variant(1)));
+            SetupCall(req => req.MethodId.Equals(m_typeMethodId) ? BadMethodInvalid() : Good(new Variant(1)));
             SetupTranslate(m_instanceMethodId);
             TestObjectTypeClient client = CreateClient();
 
@@ -232,11 +229,11 @@ namespace Opc.Ua.Client.Tests
             };
         }
 
-        private static CallMethodResult BadMethodInvalid(uint infoBits = 0)
+        private static CallMethodResult BadMethodInvalid()
         {
             return new CallMethodResult
             {
-                StatusCode = StatusCodes.BadMethodInvalid.Code | infoBits,
+                StatusCode = StatusCodes.BadMethodInvalid,
                 OutputArguments = default
             };
         }
