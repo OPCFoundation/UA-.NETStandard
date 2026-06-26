@@ -1955,46 +1955,55 @@ namespace Opc.Ua.Gds.Server
             // chain is built from the in-memory CertificateGroup state to
             // avoid contending with concurrent SigningRequestAsync /
             // NewKeyPairRequestAsync writes against the AuthoritiesStore.
-            result.IssuerCertificates = BuildIssuerCertificateChain(
-                certificate,
-                certificateGroup,
-                certificateTypeNodeId);
-
-            // store new app certificate
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);
-            using (ICertificateStore store = certificateStoreIdentifier.OpenStore(Server.Telemetry))
+            try
             {
-                if (store != null)
+                result.IssuerCertificates = BuildIssuerCertificateChain(
+                    certificate,
+                    certificateGroup,
+                    certificateTypeNodeId);
+
+                // store new app certificate
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);
+                using (ICertificateStore store = certificateStoreIdentifier.OpenStore(Server.Telemetry))
                 {
-                    await store.AddAsync(certificate, null, cancellationToken).ConfigureAwait(false);
+                    if (store != null)
+                    {
+                        await store.AddAsync(certificate, null, cancellationToken).ConfigureAwait(false);
+                    }
                 }
+
+                m_database.SetApplicationCertificate(
+                    applicationId,
+                    m_certTypeMap[certificateTypeNodeId],
+                    result.Certificate);
+
+                m_database.SetApplicationTrustLists(
+                    applicationId,
+                    m_certTypeMap[certificateTypeNodeId],
+                    certificateGroup.Configuration.TrustedListPath);
+
+                m_request.AcceptRequest(requestId, result.Certificate);
+
+                // Per OPC 10000-12 §7.6.6 the FinishRequest method takes
+                // only (applicationId, requestId) as input. The previous
+                // implementation included the returned PrivateKey in the audit
+                // payload, which would leak the secret. Only true input
+                // arguments are recorded; if a private key needs to be reflected
+                // in audit it must be passed via the redacted placeholder.
+                ArrayOf<Variant> inputArguments = [applicationId, requestId];
+                Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
+
+                result.ServiceResult = ServiceResult.Good;
+                return result;
             }
-
-            m_database.SetApplicationCertificate(
-                applicationId,
-                m_certTypeMap[certificateTypeNodeId],
-                result.Certificate);
-
-            m_database.SetApplicationTrustLists(
-                applicationId,
-                m_certTypeMap[certificateTypeNodeId],
-                certificateGroup.Configuration.TrustedListPath);
-
-            m_request.AcceptRequest(requestId, result.Certificate);
-
-            // Per OPC 10000-12 §7.6.6 the FinishRequest method takes
-            // only (applicationId, requestId) as input. The previous
-            // implementation included the returned PrivateKey in the audit
-            // payload, which would leak the secret. Only true input
-            // arguments are recorded; if a private key needs to be reflected
-            // in audit it must be passed via the redacted placeholder.
-            ArrayOf<Variant> inputArguments = [applicationId, requestId];
-            Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
-
-            result.ServiceResult = ServiceResult.Good;
-            certificate?.Dispose();
-            return result;
+            finally
+            {
+                // Dispose the local owning handle even if any of the store /
+                // database / audit operations above throw (the certificate's
+                // raw data was already copied into result.Certificate).
+                certificate?.Dispose();
+            }
         }
 
         public ServiceResult OnGetCertificateGroups(

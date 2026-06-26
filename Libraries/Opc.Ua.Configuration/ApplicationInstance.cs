@@ -346,10 +346,15 @@ namespace Opc.Ua.Configuration
             // existing manager (created eagerly by ApplicationConfiguration.ValidateAsync)
             // when present, so we do not orphan it — its disposal is otherwise
             // overwritten below and the certificates it loaded would leak.
+            // CA2000: the created manager is stored in the CertificateManager
+            // property which this instance owns and disposes in DisposeAsync
+            // (see above); ownership is retained, not leaked.
+#pragma warning disable CA2000
             CertificateManager ??= configuration.CertificateManager as CertificateManager
                 ?? CertificateManagerFactory.Create(
                     securityConfiguration,
                     m_telemetry!);
+#pragma warning restore CA2000
 
             // Make the manager visible via the configuration so consumers
             // that only see ApplicationConfiguration (e.g. Session) can

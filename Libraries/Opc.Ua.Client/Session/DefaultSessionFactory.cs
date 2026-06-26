@@ -299,9 +299,7 @@ namespace Opc.Ua.Client
                         clientCertificate,
                         ct).ConfigureAwait(false);
                     channelClientCertificate = clientCertificate.AddRef();
-                    channelClientCertificateChain = clientCertificateChain == null
-                        ? null
-                        : new CertificateCollection(clientCertificateChain);
+                    channelClientCertificateChain = clientCertificateChain?.AddRef();
                 }
 
                 // initialize the channel which will be created with the server.
