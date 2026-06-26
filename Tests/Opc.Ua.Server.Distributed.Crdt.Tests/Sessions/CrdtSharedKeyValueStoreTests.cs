@@ -93,6 +93,26 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
         }
 
         [Test]
+        public async Task ScanReturnsOnlyEntriesWithMatchingPrefixAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            await using var store = CreateStore(network, 1);
+
+            await store.SetAsync("session/a", new ByteString(new byte[] { 1 }));
+            await store.SetAsync("session/b", new ByteString(new byte[] { 2 }));
+            await store.SetAsync("other/c", new ByteString(new byte[] { 3 }));
+
+            var found = new System.Collections.Generic.List<string>();
+            await foreach (System.Collections.Generic.KeyValuePair<string, ByteString> pair in
+                store.ScanAsync("session/"))
+            {
+                found.Add(pair.Key);
+            }
+
+            Assert.That(found, Is.EquivalentTo(new[] { "session/a", "session/b" }));
+        }
+
+        [Test]
         public async Task WatchThrowsNotSupported()
         {
             await using var network = new InMemoryNetwork();

@@ -30,6 +30,8 @@
 #nullable enable
 
 using System;
+using System.Buffers;
+using System.Text.Json;
 using Crdt;
 using NUnit.Framework;
 
@@ -65,6 +67,35 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
 
             Assert.That(restored.TryGetValue("null", out ByteString nul), Is.True);
             Assert.That(nul.IsNull, Is.True, "a null ByteString must decode as null");
+        }
+
+        [Test]
+        public void RoundTripsJsonNullAndDataValues()
+        {
+            ByteString data = JsonRoundTrip(new ByteString(new byte[] { 4, 5, 6 }));
+            Assert.That(data.IsNull, Is.False);
+            Assert.That(data.ToArray(), Is.EqualTo(new byte[] { 4, 5, 6 }));
+
+            ByteString empty = JsonRoundTrip(new ByteString(Array.Empty<byte>()));
+            Assert.That(empty.IsNull, Is.False, "an empty ByteString must not decode as null");
+            Assert.That(empty.ToArray(), Is.Empty);
+
+            ByteString nul = JsonRoundTrip(default);
+            Assert.That(nul.IsNull, Is.True, "a null ByteString must decode as null");
+        }
+
+        private static ByteString JsonRoundTrip(ByteString value)
+        {
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                ByteStringCrdtSerializer.Instance.WriteJson(writer, value);
+                writer.Flush();
+            }
+
+            var reader = new Utf8JsonReader(buffer.WrittenSpan);
+            reader.Read();
+            return ByteStringCrdtSerializer.Instance.ReadJson(ref reader);
         }
     }
 }
