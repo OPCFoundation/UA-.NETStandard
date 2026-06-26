@@ -157,11 +157,15 @@ jobs:
       # diagnostic info (observed on mac PR build 14598 log 933: 28 min of silence
       # after the previous test before the step timeout fired). LongRunning/Stress
       # tests are already filtered out, so 10 min is well above any legitimate run.
-      # --blame-hang-dump-type mini: capture a minidump on hang so we can root-cause
+      # --blame-hang-dump-type full: capture a full dump on hang so we can root-cause
       # teardown / shutdown hangs (observed on mac PR build 14799: 11m55s of silent
-      # teardown after the last test event, with no actionable info because the
-      # previous "none" setting suppressed the dump). Mini dumps are small (<50MB)
-      # and travel through the trx logger automatically.
+      # teardown after the last test event, and again on builds 14977/14983 for
+      # Opc.Ua.History.Tests). A full dump (vs mini) includes the managed heap and
+      # sync blocks so the stuck thread AND what it is blocked on (lock owner,
+      # finalizer, socket) are visible. It is only produced when a hang actually
+      # fires, so the size cost is paid rarely; the dump is published as a
+      # downloadable pipeline artifact below (it is otherwise only reachable via
+      # the auth-gated test attachments API).
       # --logger trx + --results-directory: emit trx ourselves because we set
       # publishTestResults: false below to decouple "ran tests" from "published
       # results to AzDO" - the inline publish step inside DotNetCoreCLI@2 fails
@@ -169,7 +173,7 @@ jobs:
       # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
       # all 707 tests passed, then post-test publish errored with
       # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type full --logger trx --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
@@ -190,3 +194,27 @@ jobs:
     condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
+  # On a failed job, collect any --blame-hang-dump-type mini dump(s) written
+  # under the results directory ($(Agent.TempDirectory)) and publish them as a
+  # downloadable pipeline artifact. The blame collector otherwise only attaches
+  # the dump to the trx, which is reachable solely through the auth-gated test
+  # attachments API; publishing it as a build artifact makes the teardown /
+  # shutdown hang dump (e.g. the macOS Opc.Ua.History.Tests 10-minute teardown
+  # hang) downloadable for root-cause analysis. The artifact name embeds the
+  # unique job id so parallel matrix entries never collide.
+  - task: CopyFiles@2
+    displayName: 'Stage hang dumps on failure'
+    condition: failed()
+    continueOnError: true
+    inputs:
+      SourceFolder: '$(Agent.TempDirectory)'
+      Contents: '**/*.dmp'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/hangdumps'
+      flattenFolders: true
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish hang dumps on failure'
+    condition: failed()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/hangdumps'
+      artifact: 'hangdump-$(System.JobId)'
