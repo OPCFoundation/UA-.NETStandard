@@ -33,6 +33,7 @@ using System.Linq;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 // Apply leak tracking action to all test fixtures in the assembly.
 [assembly: Opc.Ua.Core.Tests.CoreLeakDetectionFixtureAction]
@@ -59,12 +60,11 @@ namespace Opc.Ua.Core.Tests
         public void GlobalTeardown()
         {
             // The certificate leak count is driven by explicit Dispose, not by
-            // finalizers, so it is deterministic at teardown and needs no forced
-            // GC/finalizer sweep. A forced sweep here is a no-op for the count
-            // and, in a process that has hosted OPC UA servers, can block on
-            // unrelated finalizers (sockets, SslStream, listeners) and hang the
-            // test host on a slow CI agent.
-            long leaked = Certificate.InstancesLeaked;
+            // finalizers, so it needs no forced GC/finalizer sweep (a no-op for
+            // the count that can hang on unrelated server/socket finalizers).
+            // A positive count is re-checked over a short bounded poll first so
+            // an in-flight background disposal is not misreported as a leak.
+            long leaked = LeakDetectionHelpers.WaitForOutstandingDisposals();
             string summary = $"CoreLeakDetectionSetup: tracked {s_fixtureLeaks.Count} fixtures, " +
                 $"created={Certificate.InstancesCreated}, " +
                 $"disposed={Certificate.InstancesDisposed}, leaked={leaked}";

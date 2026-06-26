@@ -48,10 +48,17 @@ namespace Opc.Ua.Aot.Tests
         public static void GlobalTeardown(AssemblyHookContext context)
         {
             // The certificate leak count is driven by explicit Dispose, not by
-            // finalizers, so it is deterministic at teardown and needs no forced
-            // GC/finalizer sweep (which would be a no-op for the count and can
-            // hang the test host on unrelated server/socket finalizers).
+            // finalizers, so it needs no forced GC/finalizer sweep (a no-op for
+            // the count that can hang on unrelated server/socket finalizers).
+            // A positive count is re-checked over a short, hard-bounded poll
+            // first so an in-flight background disposal is not misreported as a
+            // leak (no finalizer wait, so it cannot hang).
             long leaked = Certificate.InstancesLeaked;
+            for (int i = 0; leaked > 0 && i < 50; i++)
+            {
+                System.Threading.Thread.Sleep(100);
+                leaked = Certificate.InstancesLeaked;
+            }
             if (leaked > 0)
             {
                 // TUnit has no Assert.Warn; throwing from the assembly hook

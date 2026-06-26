@@ -130,12 +130,19 @@ namespace Opc.Ua.Tests
         /// <para>
         /// The leak count is driven exclusively by explicit construction versus
         /// <c>Dispose</c> (the disposed counter is incremented in
-        /// <c>CertificateCore.Release</c>, never by a finalizer). It is therefore
-        /// deterministic at teardown and requires <b>no</b> forced GC /
-        /// <see cref="GC.WaitForPendingFinalizers"/> sweep — which would be a
-        /// no-op for the count and, in a process that hosts OPC UA servers, can
-        /// block on unrelated finalizers (sockets, <c>SslStream</c>, listeners)
-        /// and hang the test host on a slow CI agent.
+        /// <c>CertificateCore.Release</c>, never by a finalizer). It therefore
+        /// requires <b>no</b> forced GC / <see cref="GC.WaitForPendingFinalizers"/>
+        /// sweep — which would be a no-op for the count and, in a process that
+        /// hosts OPC UA servers, can block on unrelated finalizers (sockets,
+        /// <c>SslStream</c>, listeners) and hang the test host on a slow CI agent.
+        /// </para>
+        /// <para>
+        /// Some certificate disposals run on background cleanup tasks (for
+        /// example fire-and-forget channel / session teardown) that may not have
+        /// completed the instant the assembly teardown executes. To avoid
+        /// misreporting such an in-flight disposal as a leak, a positive count is
+        /// re-checked over a short, bounded poll (no finalizer wait, so it cannot
+        /// hang). A genuine leak stays positive across the poll and still fails.
         /// </para>
         /// <para>
         /// In <c>DEBUG</c> builds the failure message additionally includes
@@ -150,7 +157,7 @@ namespace Opc.Ua.Tests
         /// message.</param>
         public static void AssertNoCertificateLeaks(string detail = null)
         {
-            long leaked = Certificate.InstancesLeaked;
+            long leaked = WaitForOutstandingDisposals();
             if (leaked <= 0)
             {
                 return;
@@ -170,6 +177,28 @@ namespace Opc.Ua.Tests
 
             AppendDebugLeakDumps(message);
             Assert.Fail(message.ToString());
+        }
+
+        /// <summary>
+        /// Returns <see cref="Certificate.InstancesLeaked"/>, but when it is
+        /// positive, re-reads it over a short bounded poll first so that an
+        /// in-flight background disposal (fire-and-forget channel / session
+        /// cleanup) is given a brief moment to complete. The poll exits as soon
+        /// as the count reaches zero and is hard-bounded (no
+        /// <see cref="GC.WaitForPendingFinalizers"/>), so it can never hang the
+        /// test host. Suites with no leak return immediately.
+        /// </summary>
+        public static long WaitForOutstandingDisposals(
+            int maxAttempts = 50,
+            int delayMilliseconds = 100)
+        {
+            long leaked = Certificate.InstancesLeaked;
+            for (int i = 0; leaked > 0 && i < maxAttempts; i++)
+            {
+                Thread.Sleep(delayMilliseconds);
+                leaked = Certificate.InstancesLeaked;
+            }
+            return leaked;
         }
 
         /// <summary>
