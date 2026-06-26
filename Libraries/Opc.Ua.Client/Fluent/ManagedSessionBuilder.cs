@@ -334,6 +334,28 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Opt into token-reuse fast reconnect on failover (OPC UA Part 4 §6.6,
+        /// REQ-UA-13). When enabled, a failover to a redundant server
+        /// re-activates the existing session by reusing the current
+        /// <c>AuthenticationToken</c> instead of creating a new session, and
+        /// falls back to re-authentication if the standby rejects the token.
+        /// </summary>
+        /// <remarks>
+        /// Disabled by default (re-authentication on failover). Requires the
+        /// server side to mirror session state; the standby still performs the
+        /// full <c>ActivateSession</c> signature validation, so the token alone
+        /// never admits a session.
+        /// </remarks>
+        public ManagedSessionBuilder WithTokenReuseFailover(bool enable = true)
+        {
+            m_options = m_options with
+            {
+                EnableTokenReuseFailover = enable
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Enable activator-level pooling of V2 subscription
         /// notification payload instances. When enabled, the V2
         /// subscription dispatcher calls
@@ -475,6 +497,7 @@ namespace Opc.Ua.Client
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
                 opts.PoolNotifications,
+                opts.EnableTokenReuseFailover,
                 opts.IdentityProvider,
                 opts.TimeProvider,
                 channelManager,

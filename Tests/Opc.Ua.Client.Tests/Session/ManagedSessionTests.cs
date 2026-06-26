@@ -400,6 +400,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     typeof(bool),
                     typeof(bool),
                     typeof(bool),
+                    typeof(bool),
                     typeof(IClientChannelManager)
                 ],
                 null);
@@ -420,6 +421,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 default(ArrayOf<string>),
                 "TestManagedSession",
                 60000u,
+                false,
                 false,
                 false,
                 false,

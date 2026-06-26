@@ -102,6 +102,18 @@ namespace Opc.Ua.Client
         public bool EnableServerRedundancy { get; init; }
 
         /// <summary>
+        /// When <c>true</c>, a failover to a redundant server re-activates the
+        /// existing session on the new server by reusing the current
+        /// <c>AuthenticationToken</c> (OPC UA Part 4 §6.6, REQ-UA-13) instead of
+        /// creating a new session, falling back to re-authentication if the
+        /// standby rejects the token. Default: <c>false</c> (re-auth on
+        /// failover). Requires the server side to mirror session state; the
+        /// standby still performs the full <c>ActivateSession</c> signature
+        /// validation, so the token alone never admits a session.
+        /// </summary>
+        public bool EnableTokenReuseFailover { get; init; }
+
+        /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
         /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so
         /// <see cref="ManagedSession.SubscriptionManager"/> is available.

@@ -175,6 +175,7 @@ namespace Opc.Ua.Client
             m_defaultSubscription = template.m_defaultSubscription;
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
+            EnableTokenReuseFailover = template.EnableTokenReuseFailover;
             PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
@@ -763,6 +764,22 @@ namespace Opc.Ua.Client
         /// be transferred after reconnect. Service must be supported by server.
         /// </remarks>
         public bool TransferSubscriptionsOnReconnect { get; set; }
+
+        /// <summary>
+        /// When set, a failover to a redundant server re-activates the existing
+        /// session on the new server by reusing the current
+        /// <c>AuthenticationToken</c> (OPC UA Part 4 §6.6, REQ-UA-13) instead of
+        /// creating a new session, and falls back to re-authentication
+        /// (a fresh <c>CreateSession</c>) if the standby rejects the token.
+        /// </summary>
+        /// <remarks>
+        /// Default <c>false</c> (re-authentication on failover). Requires the
+        /// server side to mirror session state (see the distributed
+        /// high-availability feature); the standby still performs the full
+        /// <c>ActivateSession</c> signature validation, so the token alone never
+        /// admits a session.
+        /// </remarks>
+        public bool EnableTokenReuseFailover { get; set; }
 
         /// <summary>
         /// Whether the endpoint Url domain is checked in the certificate.
@@ -1805,6 +1822,30 @@ namespace Opc.Ua.Client
                     preferredLocales;
             }
 
+            await ReactivateExistingSessionAsync(identity, preferredLocales, serverNonce, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Re-activates the existing server-side session on the current
+        /// transport channel, reusing the stored authentication token and the
+        /// supplied server nonce (it does not call CreateSession). Shared by
+        /// <see cref="UpdateSessionAsync"/> and the token-reuse failover path
+        /// in <see cref="RecreateInPlaceCoreAsync"/>.
+        /// </summary>
+        /// <param name="identity">The user identity to activate with.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="serverNonce">
+        /// The last server nonce the client holds; the activation signature is
+        /// computed over it and the current channel.
+        /// </param>
+        /// <param name="ct">A cancellation token.</param>
+        private async Task ReactivateExistingSessionAsync(
+            IUserIdentity? identity,
+            ArrayOf<string> preferredLocales,
+            ByteString serverNonce,
+            CancellationToken ct)
+        {
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
@@ -2872,33 +2913,82 @@ namespace Opc.Ua.Client
                     TransportChannel = newChannel;
                 }
 
-                // Clear server-assigned identity so OpenAsync below
-                // performs a full CreateSession rather than a re-
-                // activation of the (now invalid) prior session id.
-                lock (m_lock)
-                {
-                    SessionCreated(default, default);
-                }
-
-                // Reset the reconnecting flag so OpenAsync (which
-                // checks/raises its own state) can proceed.
+                // Reset the reconnecting flag so the reactivation / OpenAsync
+                // (which check/raise their own state) can proceed.
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 Reconnecting = false;
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
-                UserIdentity? tempIdentity = m_identity == null
-                    ? new UserIdentity()
-                    : null;
-                await OpenAsync(
-                        m_sessionName,
-                        (uint)m_sessionTimeout,
-                        m_identity ?? tempIdentity!,
-                        m_preferredLocales,
-                        m_checkDomain,
-                        true,
-                        ct)
-                    .ConfigureAwait(false);
+                // Token-reuse fast reconnect (REQ-UA-13): re-activate the
+                // existing session on the failover server by reusing the current
+                // AuthenticationToken instead of CreateSession. Any failure
+                // falls through to the full re-authentication below.
+                bool reused = false;
+                if (EnableTokenReuseFailover && !SessionId.IsNull && !m_serverNonce.IsNull)
+                {
+                    try
+                    {
+                        // Adopt the failover server's certificate for the reused
+                        // activation (the new channel to it is already built).
+                        ByteString failoverCertData = m_endpoint.Description.ServerCertificate;
+                        if (failoverCertData.Length > 0)
+                        {
+                            using CertificateCollection failoverChain =
+                                Utils.ParseCertificateChainBlob(failoverCertData, m_telemetry);
+                            if (failoverChain.Count > 0)
+                            {
+                                Certificate adopted = failoverChain[0].AddRef();
+                                lock (m_lock)
+                                {
+                                    m_serverCertificate?.Dispose();
+                                    m_serverCertificate = adopted;
+                                }
+                            }
+                        }
+
+                        await ReactivateExistingSessionAsync(
+                                m_identity ?? new UserIdentity(),
+                                m_preferredLocales,
+                                m_serverNonce,
+                                ct)
+                            .ConfigureAwait(false);
+                        reused = true;
+                        m_logger.LogInformation(
+                            "Session TOKEN-REUSE FAILOVER {SessionId} succeeded.",
+                            SessionId);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.LogInformation(
+                            ex,
+                            "Token-reuse failover reactivation failed; falling back to re-authentication.");
+                    }
+                }
+
+                if (!reused)
+                {
+                    // Clear server-assigned identity so OpenAsync below
+                    // performs a full CreateSession rather than a re-
+                    // activation of the (now invalid) prior session id.
+                    lock (m_lock)
+                    {
+                        SessionCreated(default, default);
+                    }
+
+                    UserIdentity? tempIdentity = m_identity == null
+                        ? new UserIdentity()
+                        : null;
+                    await OpenAsync(
+                            m_sessionName,
+                            (uint)m_sessionTimeout,
+                            m_identity ?? tempIdentity!,
+                            m_preferredLocales,
+                            m_checkDomain,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                }
 
 #if OPCUA_V1_CLIENT
                 // V1: drive the classic template-based recreate using

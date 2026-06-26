@@ -79,6 +79,7 @@ namespace Opc.Ua.Client
             bool checkDomain,
             bool transferSubscriptionsOnRecreate,
             bool poolNotifications,
+            bool enableTokenReuseFailover,
             IClientChannelManager? channelManager)
         {
             m_configuration = configuration
@@ -104,6 +105,7 @@ namespace Opc.Ua.Client
             m_checkDomain = checkDomain;
             m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
             m_poolNotifications = poolNotifications;
+            m_enableTokenReuseFailover = enableTokenReuseFailover;
             m_channelManager = channelManager;
 
             StateMachine = new ConnectionStateMachine(
@@ -156,6 +158,11 @@ namespace Opc.Ua.Client
         /// release them back to their activator pools. Default
         /// <c>false</c>. See <c>ManagedSessionOptions.PoolNotifications</c>
         /// for the retain-by-copy contract.</param>
+        /// <param name="enableTokenReuseFailover">When <c>true</c>, a failover
+        /// to a redundant server re-activates the existing session by reusing
+        /// the current <c>AuthenticationToken</c> (REQ-UA-13) instead of
+        /// creating a new session, falling back to re-authentication if the
+        /// standby rejects the token. Default <c>false</c>.</param>
         /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="timeProvider">Optional time provider for proactive refresh.</param>
         /// <param name="channelManager">Optional central
@@ -180,6 +187,7 @@ namespace Opc.Ua.Client
             ISubscriptionEngineFactory? engineFactory = null,
             bool transferSubscriptionsOnRecreate = false,
             bool poolNotifications = false,
+            bool enableTokenReuseFailover = false,
             IClientIdentityProvider? identityProvider = null,
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
@@ -223,6 +231,7 @@ namespace Opc.Ua.Client
                 checkDomain,
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
+                enableTokenReuseFailover,
                 channelManager)
             {
                 m_engineFactory = engineFactory
@@ -990,6 +999,11 @@ namespace Opc.Ua.Client
                     StartIdentityRefreshLoop();
                 }
 
+                // Propagate token-reuse failover (REQ-UA-13) to the inner
+                // session so a redundancy failover re-activates the existing
+                // session instead of creating a new one.
+                session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
+
                 // Apply opt-in V2 transfer-on-recreate. The V2 engine
                 // and SubscriptionManager survive in-place re-creates
                 // (failover via Session.RecreateInPlaceAsync), so this
@@ -1725,6 +1739,7 @@ namespace Opc.Ua.Client
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
+        private readonly bool m_enableTokenReuseFailover;
         private readonly IClientChannelManager? m_channelManager;
         private ISubscriptionEngineFactory? m_engineFactory;
         private int m_channelReconnectInProgress;
