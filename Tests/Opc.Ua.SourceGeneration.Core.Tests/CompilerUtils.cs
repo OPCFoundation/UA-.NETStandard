@@ -531,6 +531,13 @@ namespace Opc.Ua.SourceGeneration
                         CancellationToken ct,
                         params Variant[] args)
                         => default;
+                    protected ValueTask<ArrayOf<Variant>> CallMethodAsync(
+                        NodeId methodId,
+                        string methodNamespaceUri,
+                        string methodBrowseName,
+                        CancellationToken ct,
+                        params Variant[] args)
+                        => default;
                     protected ValueTask<NodeId> ResolveChildNodeIdAsync(
                         string namespaceUri,
                         string browseName,
@@ -986,6 +993,15 @@ namespace Opc.Ua.SourceGeneration
                     protected ITelemetryContext Telemetry { get; }
                     protected System.Threading.Tasks.ValueTask<ArrayOf<Variant>> CallMethodAsync(
                         NodeId methodId,
+                        System.Threading.CancellationToken ct,
+                        params Variant[] inputArguments)
+                    {
+                        return default;
+                    }
+                    protected System.Threading.Tasks.ValueTask<ArrayOf<Variant>> CallMethodAsync(
+                        NodeId methodId,
+                        string methodNamespaceUri,
+                        string methodBrowseName,
                         System.Threading.CancellationToken ct,
                         params Variant[] inputArguments)
                     {
