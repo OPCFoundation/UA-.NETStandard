@@ -11,6 +11,17 @@
 - Secure session sharing: `DistributedSessionManager` (mirror on create/activate, restore with REQ-UA-7 + single-use nonce + full ActivateSession signature; token = lookup key) via the `ISessionManagerFactory` seam + `UseDistributedSessions(...)`. Safe default = re-auth on failover.
 - Real-server mirror integration test.
 
+## Implementation status (this follow-up)
+
+- **A — DONE** (commit `245b6237a`): F6 session-key hashing (`SharedKeyValueSessionStore.KeyFor`), F9 restore audit (`IAuditEventServer.ReportAuditSessionRestoredEvent` + wired in the manager), F7 analyzed (no extra plaintext copy in the manager; `Nonce.Data` zeroization is a pre-existing server-wide Core concern, tracked separately). 99 Distributed tests pass (net10 + net48).
+- **FG — DONE** (commit `f6acbdc7d`): `Docs/KubernetesDeployment.md` (linked from `Docs/README.md` + `HighAvailability.md`); the `HighAvailabilityServer` sample now wires `UseDistributedSessions` + an optional `AesCbcHmacRecordProtector` from `HA_RECORD_KEY`.
+- **B — DESIGNED, not yet implemented.** Full validated design below (gated `OpenAsync` reuse + `RecreateInPlaceCoreAsync` try-then-fallback + opt-in flag). It is a security-critical change to the central client connect path and is recommended as a focused, separately-reviewed step.
+- **C — pending B.** Two-server secured failover e2e (now known to need **no shared cert** between replicas).
+- **D / E — deferred** (D blocked offline; E long-term).
+
+All A/FG work is committed and pushed to the draft PR `OPCFoundation/UA-.NETStandard#3918`.
+
+
 ## Remaining work (security findings still open)
 
 From [Plan 30](30-distributed-ha-session-security.md)'s findings, these are **not yet fully closed in code**:
@@ -36,6 +47,18 @@ Independent, fully testable in this environment, closes the residual findings.
 Today this stack's client does **re-auth on failover** (fresh `CreateSession`), so the server-side mirrored fast-reconnect is never exercised by it.
 
 - **B1 — Token-reuse failover in the client.** Add an opt-in path in `ManagedSession` (and/or `Session`) so that on failover to a higher-`ServiceLevel` redundant server it opens a new SecureChannel and re-runs **`ActivateSession` reusing the existing `AuthenticationToken`** (signing over the new channel + last `serverNonce`), per OPC UA Part 4 §6.6.2.4.5.5 / REQ-UA-13, instead of `CreateSession`. Falls back to re-auth when the standby rejects the token. This is the client counterpart to the server-side `DistributedSessionManager` and unblocks workstream C.
+
+#### B1 — validated implementation design (ready to build)
+
+Investigated and de-risked against the current client (file:line are `Libraries/Opc.Ua.Client/Session/Session.cs` unless noted):
+
+- **No shared certificate needed.** The failover client signs the activation over the certificate of the server it is *currently* connecting to (`OpenAsync` parses + validates `m_endpoint.Description.ServerCertificate` at `:1247-1278`, before `CreateSession`), and the standby's restored session validates with **its own** instance certificate (from the `serverCertificateProvider`). Only the `serverNonce` (+ client cert + policy) is mirrored, not the server cert — so replicas may have different certs for non-transparent redundancy.
+- **Failover path:** `ManagedSession.HandleFailoverAsync` (`ManagedSession.cs:1091-1158`) → `Session.RecreateInPlaceAsync` → `RecreateInPlaceCoreAsync` (`:2711`). The new channel is built at `:2872`; the session id/token is then **cleared** at `:2878-2881` to force a fresh `CreateSession` in `OpenAsync` (`:2893`).
+- **Safest change (gated, fallback built-in):** add `bool reuseExistingSession = false` to `OpenAsync` (`:1220`). Default `false` ⇒ every existing caller is byte-for-byte unchanged. The reuse branch skips only the `CreateSession` block (`:1281-1398`) + its response-validation (`:1385-1401`), keeps the existing `m_clientNonce`, sets `serverNonce = m_serverNonce`, and falls through to the **unchanged** activation code (`:1403-1520`) which signs over the new channel and calls `ActivateSession` reusing the base-held `AuthenticationToken`.
+- In `RecreateInPlaceCoreAsync`, **before** the clear at `:2878`, when the opt-in flag is set and a valid token + `m_serverNonce` exist, `try { await OpenAsync(..., reuseExistingSession: true) }`; on **any** exception fall through to the existing clear + `OpenAsync(reuseExistingSession:false)` (the built-in re-auth fallback) — so failover always succeeds.
+- **Opt-in surface:** `ManagedSessionOptions.EnableTokenReuseFailover` (`ManagedSessionOptions.cs:91-129`) + `ManagedSessionBuilder.WithTokenReuseFailover(...)` (`Fluent/ManagedSessionBuilder.cs`), plumbed to a `Session` field. Default off ⇒ no behaviour change.
+
+**Risk:** `OpenAsync` is the central connect method; the gating (defaulted param + the create block left intact inside the gate) provably preserves the default path, and the fresh-`CreateSession` fallback preserves failover. Still warrants careful review + the full client `SessionTests` regression run.
 
 ### C. Secured two-server end-to-end test (depends on B) — completes S6
 
