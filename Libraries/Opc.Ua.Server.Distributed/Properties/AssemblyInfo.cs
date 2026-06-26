@@ -27,34 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Distributed
-{
-    /// <summary>
-    /// A no-op <see cref="IRecordProtector"/> that passes records through
-    /// unchanged. It is the default for single-process / in-memory demos and
-    /// tests. Production deployments backed by a network store (e.g. Redis)
-    /// must configure an authenticated-encryption protector
-    /// (<see cref="AesCbcHmacRecordProtector"/>); see
-    /// <c>Docs/HighAvailabilitySecurity.md</c>.
-    /// </summary>
-    public sealed class NullRecordProtector : IRecordProtector
-    {
-        /// <summary>
-        /// The shared singleton instance.
-        /// </summary>
-        public static NullRecordProtector Instance { get; } = new();
+using System;
 
-        /// <inheritdoc/>
-        public ByteString Protect(ByteString plaintext)
-        {
-            return plaintext;
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
-        {
-            plaintext = protectedRecord;
-            return true;
-        }
-    }
-}
+[assembly: CLSCompliant(false)]

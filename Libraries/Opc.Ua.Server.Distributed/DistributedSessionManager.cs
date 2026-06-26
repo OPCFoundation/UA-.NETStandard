@@ -44,17 +44,17 @@ namespace Opc.Ua.Server.Distributed
     /// A <see cref="SessionManager"/> that mirrors session state to a shared
     /// store so a client can fail over to a standby replica and reconnect by
     /// re-running <c>ActivateSession</c> on a new SecureChannel — the OPC UA
-    /// HotAndMirrored fast reconnect (Part 4 §6.6, REQ-UA-12/13).
+    /// HotAndMirrored fast reconnect (Part 4 §6.6).
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Security model (see <c>Docs/HighAvailabilitySecurity.md</c>): the
+    /// Security model (see <c>Docs/HighAvailability.md</c>): the
     /// <c>AuthenticationToken</c> is only a lookup key. On restore the standard
     /// activation path still performs the full client-certificate signature
     /// check against the mirrored <c>serverNonce</c>, the nonce is consumed
     /// exactly once across the replica set (so a captured activation cannot be
-    /// replayed), and the SecurityPolicy/Mode must match the original
-    /// (REQ-UA-7). The mirrored record is encrypted and integrity-protected at
+    /// replayed), and the SecurityPolicy/Mode must match the original.
+    /// The mirrored record is encrypted and integrity-protected at
     /// rest by the <see cref="ISharedSessionStore"/>'s record protector.
     /// </para>
     /// <para>
@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Distributed
         /// <param name="nonceRegistry">The cross-replica single-use nonce registry.</param>
         /// <param name="serverCertificateProvider">
         /// Resolves the shared server <c>ApplicationInstanceCertificate</c> for a
-        /// security policy URI (REQ-UA-14). The returned certificate must be
+        /// security policy URI. The returned certificate must be
         /// long-lived (owned by the caller); the session does not dispose it.
         /// </param>
         /// <param name="options">The distributed session options.</param>
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Distributed
                     session.Id);
 
                 // Security-relevant provenance: a session materialized on this
-                // replica from shared state (audit, not just a log) — F9.
+                // replica from shared state (audit, not just a log).
                 m_server.ReportAuditSessionRestoredEvent(
                     TokenDigest(authenticationToken), session, m_logger);
             }
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Distributed
             /// <summary>The restore is authorized and the nonce was consumed.</summary>
             Authorized,
 
-            /// <summary>The SecurityPolicy/Mode does not match the original (REQ-UA-7).</summary>
+            /// <summary>The SecurityPolicy/Mode does not match the original.</summary>
             PolicyMismatch,
 
             /// <summary>The mirrored nonce is missing or was already consumed (replay).</summary>
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server.Distributed
         }
 
         /// <summary>
-        /// Enforces the REQ-UA-7 cross-channel checks and consumes the mirrored
+        /// Enforces the cross-channel security checks and consumes the mirrored
         /// <c>serverNonce</c> exactly once. Factored out so the security policy
         /// is unit-testable without constructing a live session.
         /// </summary>

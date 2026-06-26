@@ -69,6 +69,7 @@
     <Project Path="Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+    <Project Path="Libraries/Opc.Ua.Server.Distributed/Opc.Ua.Server.Distributed.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />

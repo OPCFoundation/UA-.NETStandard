@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             using var kv = new InMemorySharedKeyValueStore();
             var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
-            writerSpace.AddOrUpdateNode(NewVariable("seed", 1.0));
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("seed", 1.0));
 
             await using var writer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
             await writer.SeedOrHydrateAsync();
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             using var kv = new InMemorySharedKeyValueStore();
             var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
-            readerSpace.AddOrUpdateNode(NewVariable("local", 1.0));
+            await readerSpace.AddOrUpdateNodeAsync(NewVariable("local", 1.0));
 
             await using var reader = new AddressSpaceSynchronizer(store, readerSpace, () => false);
             await reader.SeedOrHydrateAsync();
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
 
             BaseDataVariableState nodeX = NewVariable("X", 1.0);
-            writerSpace.AddOrUpdateNode(nodeX);
+            await writerSpace.AddOrUpdateNodeAsync(nodeX);
 
             await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
             await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             BaseDataVariableState nodeY = NewVariable("Y", 7.0);
             Task<bool> addApplied = WaitForInboundAsync(
                 reader, c => c.Kind == NodeStateChangeKind.Upsert && c.NodeId == nodeY.NodeId);
-            writerSpace.AddOrUpdateNode(nodeY);
+            await writerSpace.AddOrUpdateNodeAsync(nodeY);
             await AwaitWithTimeoutAsync(addApplied);
 
             Assert.That(readerSpace.TryGetNode(nodeY.NodeId, out _), Is.True, "reader received added node Y");
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             // Removing a node on the writer propagates to the reader.
             Task<bool> deleteApplied = WaitForInboundAsync(
                 reader, c => c.Kind == NodeStateChangeKind.Delete && c.NodeId == nodeX.NodeId);
-            writerSpace.RemoveNode(nodeX.NodeId);
+            await writerSpace.RemoveNodeAsync(nodeX.NodeId);
             await AwaitWithTimeoutAsync(deleteApplied);
 
             Assert.That(readerSpace.TryGetNode(nodeX.NodeId, out _), Is.False, "reader removed node X");

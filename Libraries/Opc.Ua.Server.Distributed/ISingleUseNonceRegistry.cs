@@ -27,18 +27,37 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Opt-in interface implemented by node managers that expose their local
-    /// address space to the distributed address space synchronizer.
+    /// Records server nonces as single-use across the whole replica set so a
+    /// captured <c>ActivateSession</c> signature cannot be replayed on another
+    /// replica during a mirrored fast-reconnect. A nonce may be consumed
+    /// <em>exactly once</em> by exactly one replica; every later attempt (on any
+    /// replica) is rejected.
     /// </summary>
-    public interface ILocalAddressSpaceSource
+    /// <remarks>
+    /// OPC UA Part 4 §5.7.3.1 requires the <c>serverNonce</c> to be single-use.
+    /// In a shared / mirrored session deployment that guarantee must hold across
+    /// replicas, otherwise a Sign-mode <c>ActivateSession</c> captured against
+    /// one replica replays against a standby. This
+    /// registry provides the cross-replica single-use check.
+    /// </remarks>
+    public interface ISingleUseNonceRegistry
     {
         /// <summary>
-        /// Creates an adapter over the node manager's local address space.
+        /// Atomically marks <paramref name="nonce"/> as consumed.
         /// </summary>
-        /// <returns>The local address space adapter.</returns>
-        ILocalAddressSpace CreateLocalAddressSpace();
+        /// <param name="nonce">The server nonce being consumed.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// <c>true</c> when this call was the first to consume the nonce (the
+        /// caller may proceed); <c>false</c> when the nonce was already consumed
+        /// (the caller must reject the request as a replay).
+        /// </returns>
+        ValueTask<bool> TryConsumeAsync(ByteString nonce, CancellationToken ct = default);
     }
 }

@@ -160,7 +160,7 @@ namespace Opc.Ua.Client
         /// for the retain-by-copy contract.</param>
         /// <param name="enableTokenReuseFailover">When <c>true</c>, a failover
         /// to a redundant server re-activates the existing session by reusing
-        /// the current <c>AuthenticationToken</c> (REQ-UA-13) instead of
+        /// the current <c>AuthenticationToken</c> instead of
         /// creating a new session, falling back to re-authentication if the
         /// standby rejects the token. Default <c>false</c>.</param>
         /// <param name="identityProvider">Optional lazy identity provider.</param>
@@ -999,7 +999,7 @@ namespace Opc.Ua.Client
                     StartIdentityRefreshLoop();
                 }
 
-                // Propagate token-reuse failover (REQ-UA-13) to the inner
+                // Propagate token-reuse failover to the inner
                 // session so a redundancy failover re-activates the existing
                 // session instead of creating a new one.
                 session.EnableTokenReuseFailover = m_enableTokenReuseFailover;

@@ -1132,5 +1132,50 @@ namespace Opc.Ua
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
+
+        /// <summary>
+        /// Overwrites the supplied buffer with zeros so that secret material
+        /// does not linger in memory. Polyfills
+        /// <c>CryptographicOperations.ZeroMemory</c> on target frameworks that
+        /// do not provide it.
+        /// </summary>
+        /// <param name="buffer">The buffer to clear; a no-op when empty.</param>
+        public static void ZeroMemory(Span<byte> buffer)
+        {
+#if NET8_0_OR_GREATER
+            CryptographicOperations.ZeroMemory(buffer);
+#else
+            buffer.Clear();
+#endif
+        }
+
+        /// <summary>
+        /// Compares two byte spans in an amount of time that does not depend on
+        /// their contents, defending against timing side-channel attacks.
+        /// Polyfills <c>CryptographicOperations.FixedTimeEquals</c> on target
+        /// frameworks that do not provide it.
+        /// </summary>
+        /// <param name="left">The first span.</param>
+        /// <param name="right">The second span.</param>
+        /// <returns><c>true</c> when both spans have equal length and content.</returns>
+        public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
+        {
+#if NET8_0_OR_GREATER
+            return CryptographicOperations.FixedTimeEquals(left, right);
+#else
+            if (left.Length != right.Length)
+            {
+                return false;
+            }
+
+            int difference = 0;
+            for (int ii = 0; ii < left.Length; ii++)
+            {
+                difference |= left[ii] ^ right[ii];
+            }
+
+            return difference == 0;
+#endif
+        }
     }
 }

@@ -34,6 +34,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Distributed;
@@ -54,7 +55,7 @@ namespace Opc.Ua.Server.Tests.Distributed
         private const string NamespaceUri = "urn:test:custom-node-manager-address-space";
 
         [Test]
-        public void CreateLocalAddressSpaceAdaptsPredefinedNodes()
+        public async Task CreateLocalAddressSpaceAdaptsPredefinedNodes()
         {
             Mock<IServerInternal> server = CreateServer();
             using var nodeManager = new TestNodeManager(server.Object, NamespaceUri);
@@ -83,7 +84,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             NodeState? addedEventNode = null;
             addressSpace.NodeAdded += node => addedEventNode = node;
 
-            addressSpace.AddOrUpdateNode(added);
+            await addressSpace.AddOrUpdateNodeAsync(added);
 
             Assert.That(addedEventNode, Is.SameAs(added));
             Assert.That(addressSpace.TryGetNode(added.NodeId, out NodeState? addedFound), Is.True);
@@ -92,12 +93,12 @@ namespace Opc.Ua.Server.Tests.Distributed
             NodeId? removedEventNodeId = null;
             addressSpace.NodeRemoved += nodeId => removedEventNodeId = nodeId;
 
-            bool removed = addressSpace.RemoveNode(added.NodeId);
+            bool removed = await addressSpace.RemoveNodeAsync(added.NodeId);
 
             Assert.That(removed, Is.True);
             Assert.That(removedEventNodeId, Is.EqualTo(added.NodeId));
             Assert.That(addressSpace.TryGetNode(added.NodeId, out _), Is.False);
-            Assert.That(addressSpace.RemoveNode(added.NodeId), Is.False);
+            Assert.That(await addressSpace.RemoveNodeAsync(added.NodeId), Is.False);
         }
 
         private static BaseDataVariableState NewVariable(string id, NodeState? parent)

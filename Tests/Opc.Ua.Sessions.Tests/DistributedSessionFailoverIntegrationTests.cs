@@ -51,7 +51,7 @@ namespace Opc.Ua.Sessions.Tests
     /// <summary>
     /// End-to-end secured failover test for the distributed-HA feature: two
     /// servers share one session store via <see cref="DistributedSessionManager"/>,
-    /// and a client with token-reuse failover (REQ-UA-13) fails over from the
+    /// and a client with token-reuse failover fails over from the
     /// active to the standby. The standby restores the mirrored session and
     /// re-activates it with the reused authentication token, so the client's
     /// <c>SessionId</c> is preserved (a fresh re-authentication would change it).

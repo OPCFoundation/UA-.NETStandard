@@ -41,8 +41,7 @@ namespace Opc.Ua.Server.Distributed
     /// compare-and-swap that creates a marker key only when it is absent, so the
     /// store's atomicity guarantees exactly one replica wins the race to consume
     /// a given nonce. The nonce itself is never stored: the key is the SHA-256
-    /// digest of the nonce, so the secret-bearing keyspace stays one-way
-    /// (security-review Finding 6 hygiene).
+    /// digest of the nonce, so the secret-bearing keyspace stays one-way.
     /// </summary>
     public sealed class SharedSingleUseNonceRegistry : ISingleUseNonceRegistry
     {

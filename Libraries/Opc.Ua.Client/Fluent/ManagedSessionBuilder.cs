@@ -334,8 +334,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Opt into token-reuse fast reconnect on failover (OPC UA Part 4 §6.6,
-        /// REQ-UA-13). When enabled, a failover to a redundant server
+        /// Opt into token-reuse fast reconnect on failover (OPC UA Part 4 §6.6).
+        /// When enabled, a failover to a redundant server
         /// re-activates the existing session by reusing the current
         /// <c>AuthenticationToken</c> instead of creating a new session, and
         /// falls back to re-authentication if the standby rejects the token.

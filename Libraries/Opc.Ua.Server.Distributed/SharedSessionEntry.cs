@@ -41,7 +41,7 @@ namespace Opc.Ua.Server.Distributed
     /// store, so the secret-bearing fields (<see cref="ServerNonce"/>,
     /// <see cref="ClientNonce"/>) are never written in cleartext. Certificate
     /// stores are assumed to be shared independently; the shared
-    /// <c>ApplicationInstanceCertificate</c> (REQ-UA-14) is supplied by the
+    /// <c>ApplicationInstanceCertificate</c> is supplied by the
     /// server, not this entry.
     /// </remarks>
     public sealed record SharedSessionEntry
@@ -89,20 +89,20 @@ namespace Opc.Ua.Server.Distributed
         /// The client certificate chain (leaf first, then issuers) as a single
         /// blob (see <see cref="Utils.CreateCertificateChainBlob"/>). Used to
         /// reconstruct the session and to enforce that a failover reconnect
-        /// presents the same client certificate (REQ-UA-7).
+        /// presents the same client certificate.
         /// </summary>
         public ByteString ClientCertificateChain { get; init; }
 
         /// <summary>
         /// The security policy URI in force for the session — needed to rebuild
         /// the typed <c>serverNonce</c> and to enforce that a failover reconnect
-        /// uses the same SecurityPolicy (REQ-UA-7).
+        /// uses the same SecurityPolicy.
         /// </summary>
         public string SecurityPolicyUri { get; init; } = string.Empty;
 
         /// <summary>
         /// The message security mode (cast of <see cref="MessageSecurityMode"/>)
-        /// in force for the session (REQ-UA-7).
+        /// in force for the session.
         /// </summary>
         public int SecurityMode { get; init; }
 

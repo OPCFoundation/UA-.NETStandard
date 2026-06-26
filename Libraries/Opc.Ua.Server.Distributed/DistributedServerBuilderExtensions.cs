@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Distributed
         /// into the mirrored fast reconnect; even then a reconnect performs the
         /// full <c>ActivateSession</c> client-signature validation — the token
         /// is never an authenticator on its own. See
-        /// <c>Docs/HighAvailabilitySecurity.md</c>.
+        /// <c>Docs/HighAvailability.md</c>.
         /// </para>
         /// </remarks>
         /// <param name="builder">The server builder.</param>

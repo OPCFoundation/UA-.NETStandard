@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.Distributed
             // A node manager that opts in and exposes a one-node address space.
             var addressSpace = new DictionaryAddressSpace(systemContext);
             var nodeId = new NodeId("seeded", NamespaceIndex);
-            addressSpace.AddOrUpdateNode(new BaseDataVariableState(null)
+            await addressSpace.AddOrUpdateNodeAsync(new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("Seeded", NamespaceIndex),
@@ -87,14 +87,11 @@ namespace Opc.Ua.Server.Tests.Distributed
             var masterNodeManager = new Mock<IMasterNodeManager>();
             masterNodeManager.Setup(m => m.NodeManagers).Returns(new[] { nodeManager.Object });
 
-            var registry = new NodeStateStoreRegistry(messageContext.NamespaceUris);
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.MessageContext).Returns(messageContext);
+            server.Setup(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
             server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
-            server.As<INodeStateStoreRegistryProvider>()
-                .Setup(p => p.NodeStateStoreRegistry)
-                .Returns(registry);
 
             using var kv = new InMemorySharedKeyValueStore();
             var election = new StaticLeaderElection(true);
@@ -103,12 +100,13 @@ namespace Opc.Ua.Server.Tests.Distributed
             await task.OnServerStartedAsync(server.Object);
 
             // The writer must have seeded the node into the shared store, and
-            // registered a default store in the server registry.
+            // registered a default store in the task-owned registry.
             var verifyStore = new InMemoryNodeStateStore(kv, messageContext);
             IStoredNode? stored = await verifyStore.TryGetNodeAsync(nodeId);
 
             Assert.That(stored, Is.Not.Null, "writer should have seeded the opted-in node manager's address space");
-            Assert.That(registry.Resolve(nodeId), Is.Not.Null, "a default node state store should be registered");
+            Assert.That(task.NodeStateStoreRegistry, Is.Not.Null);
+            Assert.That(task.NodeStateStoreRegistry!.Resolve(nodeId), Is.Not.Null, "a default node state store should be registered");
 
             await task.DisposeAsync();
         }

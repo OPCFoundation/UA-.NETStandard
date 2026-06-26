@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Distributed
     /// key first and then any number of <em>retired</em> keys still present in
     /// the store. This lets an operator introduce a new key fleet-wide, let
     /// records re-write under it over time, and only then drop the old key —
-    /// without a flag-day re-encryption (IEC 62443 CR4.3 / Microsoft SDL key
+    /// without a flag-day re-encryption (staged key
     /// rotation). Each member key is identified by its <c>keyId</c>, so a record
     /// is only ever decrypted by the key version that produced it.
     /// </summary>

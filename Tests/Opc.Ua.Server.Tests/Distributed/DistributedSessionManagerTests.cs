@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests.Distributed
 {
     /// <summary>
     /// Unit tests for the security decision logic of
-    /// <see cref="DistributedSessionManager"/>: the REQ-UA-7 SecurityPolicy/Mode
+    /// <see cref="DistributedSessionManager"/>: the SecurityPolicy/Mode
     /// check and the single-use server-nonce consumption (replay defence) that
     /// gate a mirrored fast-reconnect. The full reconstruct + signature path is
     /// exercised by the two-server end-to-end test.

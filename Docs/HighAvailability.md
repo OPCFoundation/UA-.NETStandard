@@ -81,7 +81,7 @@ Computes the value of the server's `ServiceLevel` variable (0–255). In a redun
 
 ### Session sharing — `ISharedSessionStore`
 
-Shares session context across replicas keyed by the session `AuthenticationToken` so a client can fail over to a standby and reconnect by re-running `ActivateSession` on a new SecureChannel (OPC UA HotAndMirrored fast reconnect, Part 4 §6.6). The token is a **lookup key only**: the standby still performs the full `ActivateSession` client-certificate signature check against the mirrored, **single-use** `serverNonce`, so a captured activation cannot be replayed and the token alone cannot resume a session. The default `SharedKeyValueSessionStore` persists entries in the same shared key/value backend, **encrypted and integrity-protected** by an `IRecordProtector` (the store never sees plaintext secrets). The server-side integration is the `DistributedSessionManager` (opt-in; the safe default is re-authentication on failover). Certificate stores are assumed to be shared independently. See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md).
+Shares session context across replicas keyed by the session `AuthenticationToken` so a client can fail over to a standby and reconnect by re-running `ActivateSession` on a new SecureChannel (OPC UA HotAndMirrored fast reconnect, Part 4 §6.6). The token is a **lookup key only**: the standby still performs the full `ActivateSession` client-certificate signature check against the mirrored, **single-use** `serverNonce`, so a captured activation cannot be replayed and the token alone cannot resume a session. The default `SharedKeyValueSessionStore` persists entries in the same shared key/value backend, **encrypted and integrity-protected** by an `IRecordProtector` (the store never sees plaintext secrets). The server-side integration is the `DistributedSessionManager` (opt-in; the safe default is re-authentication on failover). Certificate stores are assumed to be shared independently. See [Security & threat model](#security--threat-model).
 
 ## Usage
 
@@ -158,17 +158,17 @@ services.AddOpcUa()
     });
 ```
 
-`UseDistributedSessions` registers an `ISessionManagerFactory` that the server uses to build a `DistributedSessionManager`. On `CreateSession` / `ActivateSession` it mirrors the encrypted session record — including the last `serverNonce` — to the shared store. On a failover reconnect the standby restores the record, **consumes the nonce single-use across the replica set** (replay defence), enforces the same SecurityPolicy/Mode (REQ-UA-7), and runs the standard `ActivateSession` client-signature validation. The `AuthenticationToken` is never an authenticator on its own. The safe default (`EnableFastReconnect = false`) re-authenticates on failover and needs no shared session state. See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md) for the threat model and the key / transport requirements.
+`UseDistributedSessions` registers an `ISessionManagerFactory` that the server uses to build a `DistributedSessionManager`. On `CreateSession` / `ActivateSession` it mirrors the encrypted session record — including the last `serverNonce` — to the shared store. On a failover reconnect the standby restores the record, **consumes the nonce single-use across the replica set** (replay defence), enforces the same SecurityPolicy/Mode, and runs the standard `ActivateSession` client-signature validation. The `AuthenticationToken` is never an authenticator on its own. The safe default (`EnableFastReconnect = false`) re-authenticates on failover and needs no shared session state. See [Security & threat model](#security--threat-model) for the threat model and the key / transport requirements.
 
 #### Client side
 
-To consume the mirrored fast reconnect, the client opts in to token-reuse failover (REQ-UA-13). On failover to a redundant server, the managed session re-activates the existing session by reusing its `AuthenticationToken` (signing over the new channel + last `serverNonce`) instead of creating a new one, falling back to re-authentication if the standby rejects it:
+To consume the mirrored fast reconnect, the client opts in to token-reuse failover. On failover to a redundant server, the managed session re-activates the existing session by reusing its `AuthenticationToken` (signing over the new channel + last `serverNonce`) instead of creating a new one, falling back to re-authentication if the standby rejects it:
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
     .UseEndpoint(endpoint)
     .WithServerRedundancy()        // fail over to the highest ServiceLevel replica
-    .WithTokenReuseFailover()      // REQ-UA-13 fast reconnect (default: re-auth on failover)
+    .WithTokenReuseFailover()      // fast reconnect (default: re-auth on failover)
     .ConnectAsync(ct);
 ```
 
@@ -193,9 +193,133 @@ See [KubernetesDeployment.md](KubernetesDeployment.md) for a worked replicaset d
 - The shared key/value store, node-state store, synchronizer, leader election, value cache/participation, service-level provider and shared session store are implemented and unit/integration tested (including two-replica topology-and-value replication).
 - Server integration is wired through the additive **`IServerStartupTask`** hosting seam: **`UseDistributedAddressSpace(...)`** attaches a synchronizer to every `CustomNodeManager2`-derived node manager and drives `Server.ServiceLevel`; **`AddServerRedundancy(...)`** populates `Server.ServerRedundancy`; **`AddServerServiceLevel(...)`** drives `ServiceLevel` from a custom provider. Active/passive redundancy can be advertised and consumed end-to-end today.
 - Async node managers deriving from `AsyncCustomNodeManager` do not yet opt into replication (only `CustomNodeManager2`-derived managers do).
-- **Session fast-reconnect** is wired through **`UseDistributedSessions(...)`** plus the additive **`ISessionManagerFactory`** seam on `StandardServer`: the `DistributedSessionManager` mirrors encrypted session state and, when `EnableFastReconnect` is enabled, restores a session on a standby with a full `ActivateSession` client-signature check, the same SecurityPolicy/Mode (REQ-UA-7), and a single-use `serverNonce` (cross-replica replay defence). The client opts in with **`ManagedSessionBuilder.WithTokenReuseFailover()`** (REQ-UA-13); the safe default on both sides is re-authentication on failover. Validated end-to-end by `DistributedSessionFailoverIntegrationTests` (two secured servers sharing one store; token-reuse preserves the `SessionId`). See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md).
+- **Session fast-reconnect** is wired through **`UseDistributedSessions(...)`** plus the additive **`ISessionManagerFactory`** seam on `StandardServer`: the `DistributedSessionManager` mirrors encrypted session state and, when `EnableFastReconnect` is enabled, restores a session on a standby with a full `ActivateSession` client-signature check, the same SecurityPolicy/Mode, and a single-use `serverNonce` (cross-replica replay defence). The client opts in with **`ManagedSessionBuilder.WithTokenReuseFailover()`**; the safe default on both sides is re-authentication on failover. Validated end-to-end by `DistributedSessionFailoverIntegrationTests` (two secured servers sharing one store; token-reuse preserves the `SessionId`). See [Security & threat model](#security--threat-model).
 - **Active/active** on the simple key/value store relies on compare-and-swap / last-writer-wins with a single elected writer; conflict-free multi-writer merge is provided later by the deferred CRDT store.
 - A **Redis** store and a **CRDT** store are planned providers of the same `ISharedKeyValueStore` / `INodeStateStore` contracts and are deferred.
+
+
+## Security & threat model
+
+High-availability deployments introduce trust boundaries that a single-instance server does not have: the shared store conduit and peer replicas. The design treats the shared store as an untrusted conduit and preserves the OPC UA session security model when address-space and session state are shared across replicas.
+
+### Assets
+
+- **Process data integrity** — variable values and address-space topology served to clients, which can be safety-relevant in an industrial server.
+- **Session credentials** — the `AuthenticationToken` (a secret per OPC UA Part 4 §7.35), the `serverNonce` / `ClientNonce`, the client `ApplicationInstanceCertificate`, and the user identity token.
+- **Availability** — the server must keep serving and fail over.
+
+### Data-flow diagram and trust boundaries
+
+```
+            ┌──────────── replica (server) trust boundary ────────────┐
+ Client ──TLS/UA-SC──▶  OPC UA endpoint ─▶ NodeManager / SessionManager │
+                       │            │                                   │
+                       ▼            ▼                                   │
+                AddressSpaceSynchronizer   DistributedSessionManager    │
+                       │            │                                   │
+            ───────────┼────────────┼─── shared-store conduit ─────────┐│  ← new trust boundary
+                       ▼            ▼                                   ││
+                 ISharedKeyValueStore  (in-memory / Redis)             ││
+                       ▲            ▲                                   ││
+            ───────────┼────────────┼───────────────────────────────── ┘│
+                       │            │                                    │
+                 peer replica  peer replica   ← new trust boundary (rogue replica)
+            └──────────────────────────────────────────────────────────┘
+```
+
+The store conduit and peer replicas are outside the single replica's trust boundary. The store must be treated as an untrusted conduit, with zero trust between replicas.
+
+### STRIDE analysis
+
+| Element / flow | Threat (STRIDE) | Risk | Mitigation |
+|----------------|-----------------|------|------------|
+| Client → standby reconnect | **S**poofing / Elevation: token-only reconnect impersonates a session | CRITICAL | Full `ActivateSession` signature validation; token = lookup key only |
+| `serverNonce` in shared record | **T**ampering / replay: reuse a captured `ActivateSession` | CRITICAL | Single-use nonce, compare-and-swap invalidated on consume; fresh nonce per activation |
+| Node/value/session records in store | **T**ampering: rogue replica or compromised store forges values, topology, or sessions applied to the live graph | HIGH | Authenticated encryption and MAC on every record, verify-before-apply, fail-closed |
+| Secrets at rest in store | **I**nformation disclosure: nonce, identity, or token readable from Redis dump / monitoring | HIGH | Authenticated encryption at rest; envelope DEK/KEK |
+| Store keys = raw token | **I**nformation disclosure via keyspace enumeration or slow logs | MEDIUM | HMAC or hash the sensitive key part; redact tokens from logs |
+| Decrypted secrets in memory | **I**nformation disclosure through heap dumps | MEDIUM | `CryptographicOperations.ZeroMemory` after use where practical |
+| Replica ↔ store link | **S**poofing / **T**ampering / **I**nformation disclosure on the wire | HIGH | Mutual TLS and authenticated access to the store, fail-closed in production |
+| Cross-replica session restore | **R**epudiation: no audit trail for a session appearing on a standby | MEDIUM | Emit `AuditActivateSession` and restored-from-store provenance |
+| Shared store growth | **D**enial of service: unbounded sessions, nodes, or watchers | LOW | TTL / eviction, bounded channels, and caps |
+| Encryption key | **E**levation: single static fleet key causes fleet-wide compromise | HIGH | Per-session HKDF keys, rotation, and KMS provisioning |
+
+### Security principles adopted
+
+1. **The shared store is untrusted.** Every record is authenticated and confidential; unverified records are rejected fail-closed. A compromised store or rogue replica cannot forge state served to clients.
+2. **The OPC UA session security model is preserved on failover.** Reconnect always performs a full `ActivateSession`: the standby verifies the client-certificate signature, the same `ClientUserId`, and the same SecurityPolicy/Mode (OPC UA Part 4 §5.7.3). The `AuthenticationToken` is never an authenticator, only a lookup key.
+3. **Secrets are encrypted at rest and zeroized in memory where practical**, keyed by rotation-capable, least-privilege keys provisioned from a secret store — never a static constant.
+4. **Secure by default / fail closed.** Production transport to the store must be authenticated TLS; absence fails closed.
+5. **Auditable.** Cross-replica session restore emits audit events with provenance.
+
+### Implemented mitigations and usage
+
+The store-hardening mitigations are implemented and unit-tested; session-mirroring fast reconnect is gated behind them and is opt-in. The safe default is re-authentication on failover, which requires no shared session state.
+
+#### Record protection — `IRecordProtector`
+
+Every record the shared store persists — node payloads (`n/…`), encoded values (`v/…`), and session entries (`session/…`) — is wrapped in an authenticated-encryption envelope before it leaves the replica, and is verified-then-decrypted on the way back in. `AesCbcHmacRecordProtector` uses AES-256-CBC with HMAC-SHA256 in Encrypt-then-MAC order; the MAC is checked **before** any decryption (no padding oracle), so a tampered or forged record is rejected fail-closed and never reaches `LoadAsBinary` / the live graph. The default `NullRecordProtector` is a pass-through for the single-process in-memory case, so that path keeps its zero-overhead behavior.
+
+Wire it through DI:
+
+```csharp
+services.AddOpcUaServer(...)
+    .UseDistributedAddressSpace(o =>
+    {
+        // 32-byte master key provisioned from a secret store / KMS — never a constant.
+        o.RecordProtectorFactory = sp => new AesCbcHmacRecordProtector(masterKey, keyId: 2);
+    });
+```
+
+This treats the store as an untrusted conduit by adding integrity and confidentiality to shared records.
+
+#### Key rotation — `KeyRingRecordProtector`
+
+`KeyRingRecordProtector` writes new records under a single *active* key while still verifying reads against any number of *retired* keys. An operator can roll out a new key fleet-wide, let records re-write under it over time, and only then drop the old key — no flag-day re-encryption. Each key carries a `keyId`, so a record is only ever decrypted by the key version that produced it.
+
+```csharp
+o.RecordProtectorFactory = sp => new KeyRingRecordProtector(
+    active:  new AesCbcHmacRecordProtector(newKey, keyId: 3),
+    retired: new AesCbcHmacRecordProtector(oldKey, keyId: 2));
+```
+
+#### Single-use server nonce — `ISingleUseNonceRegistry`
+
+`SharedSingleUseNonceRegistry` records each consumed `serverNonce` as a compare-and-swap marker in the shared store, so a nonce can be consumed **exactly once across the whole replica set**. This is the cross-replica enforcement of OPC UA Part 4 §5.7.3.1's single-use requirement and the replay defense that mirrored fast reconnect needs: a Sign-mode `ActivateSession` captured against one replica is rejected when replayed against a standby. The nonce is never stored; the key is its SHA-256 digest, keeping the secret-bearing keyspace one-way.
+
+#### Secret zeroization
+
+`AesCbcHmacRecordProtector` derives distinct AES and MAC subkeys from the master key, zeroizes the master immediately after derivation, and zeroizes both subkeys on `Dispose` (`CryptographicOperations.ZeroMemory` on net8+ and `Array.Clear` on down-level frameworks).
+
+#### Secure session sharing — `DistributedSessionManager`
+
+`DistributedSessionManager` (a `SessionManager` subclass, wired via `UseDistributedSessions(...)` and the additive `ISessionManagerFactory` seam on `StandardServer`) mirrors the encrypted session record — including the last `serverNonce` — to the shared session store on `CreateSession` / `ActivateSession`, and removes it on close. On a failover reconnect to a standby, the base `SessionManager` calls the additive `RestoreSessionAsync` hook, which:
+
+1. enforces the same SecurityPolicy/Mode as the original session;
+2. **consumes the mirrored `serverNonce` exactly once across the replica set** via `ISingleUseNonceRegistry` — a replayed or already-consumed nonce is rejected;
+3. reconstructs the session and lets the **standard** activation path run the full client-certificate signature validation against that nonce.
+
+The `AuthenticationToken` is therefore only a lookup key — it never admits a session without a valid client signature. The safe default is `EnableFastReconnect = false` (re-authentication on failover, no shared session state).
+
+**Keyspace hygiene.** The session store keys entries by the **SHA-256 digest of the authentication token** (`SharedKeyValueSessionStore.KeyFor`), not the raw token, so a backend's key enumeration, monitoring, or dumps never expose the token. The consumed-nonce registry does the same.
+
+**Restore audit.** A successful cross-replica restore emits a distinct `AuditSessionEventState` (`Session/RestoredFromSharedStore`, via `IAuditEventServer.ReportAuditSessionRestoredEvent`) in addition to the standard `AuditActivateSession`, carrying a one-way token digest for provenance; restores are also logged.
+
+**Restore-path secrets.** The decrypted `serverNonce` becomes the restored session's working `Nonce` (retained, not copied), so the manager holds no extra plaintext copy to zeroize; zeroizing the live nonce would break activation. Zeroizing `Nonce.Data` on dispose is a pre-existing, server-wide Core concern because it affects every session, not just HA.
+
+A residual, intentional trade-off remains: an attacker who can open a SecureChannel to a standby and replays a token can cause that session's mirrored nonce to be consumed, degrading a legitimate client's fast reconnect to a full re-authentication (the secure default), but it never grants access. The client opts into token-reuse failover with `ManagedSessionBuilder.WithTokenReuseFailover()`; on the wire the standby still runs the full `ActivateSession` signature check, so a token-reuse failover that succeeds preserves the client's `SessionId` while a rejected one transparently re-authenticates. This is validated end-to-end by `DistributedSessionFailoverIntegrationTests` (two secured servers sharing one store) and `DistributedSessionMirrorIntegrationTests` (encrypted mirror-on-activate / remove-on-close); the security-decision logic (policy match + single-use nonce) is unit-tested.
+
+### Deployment guidance and operator responsibilities
+
+These mitigations are not enforced by the in-process default and must be supplied by the deployment. They are mandatory before any production or networked-store use.
+
+- **Key provisioning.** Provision the `AesCbcHmacRecordProtector` master key (the KEK) from a secret store or KMS — a Kubernetes Secret mounted via the CSI Secrets Store driver, or an external KMS — never a compiled-in constant. Give each replica the **same** key (required so any replica can read shared records) but the **least** privilege needed. Rotate with the key-ring above.
+- **Authenticated, encrypted store transport.** When the `ISharedKeyValueStore` is a network backend (for example Redis), require mutual TLS with authentication on the conduit and **fail closed** if it is unavailable. Use a least-privilege, per-replica credential. Treat the store conduit as a zone boundary; do not run it in the clear.
+- **Availability caps.** Apply a TTL / eviction policy to `session/` and consumed-`nonce/` entries, bound the watch channels, and cap the shared keyspace so a faulty or hostile replica cannot exhaust it.
+- **Token redaction.** The shared keyspace no longer contains the raw token because it is keyed by the token's SHA-256 digest; additionally ensure `AuthenticationToken` values are excluded from logs, metrics, and traces and treat the keyspace as sensitive.
+- **Transparent redundancy.** Spec-transparent redundancy requires an identical `ApplicationInstanceCertificate` and private key across replicas. Provision the shared key material through the certificate / secret store; this is a deployment decision.
+
+For historical remediation details, severities, OPC UA Part 2/4/5 citations, phased remediation, and open decisions such as default failover mode, KEK provisioning, and transparent-redundancy shared certificate provisioning, see [distributed HA session security plan](../plans/30-distributed-ha-session-security.md).
 
 ## See also
 

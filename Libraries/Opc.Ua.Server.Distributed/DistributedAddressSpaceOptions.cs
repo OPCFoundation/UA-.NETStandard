@@ -48,7 +48,7 @@ namespace Opc.Ua.Server.Distributed
         /// encryption or integrity protection (a no-op protector). Production
         /// deployments backed by a network store MUST configure an
         /// <see cref="AesCbcHmacRecordProtector"/>; see
-        /// <c>Docs/HighAvailabilitySecurity.md</c>.
+        /// <c>Docs/HighAvailability.md</c>.
         /// </remarks>
         public Func<IServiceProvider, IRecordProtector>? RecordProtectorFactory { get; set; }
 

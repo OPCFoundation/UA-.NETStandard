@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Distributed
 {
@@ -82,7 +83,7 @@ namespace Opc.Ua.Server.Distributed
         }
 
         /// <inheritdoc/>
-        public void AddOrUpdateNode(NodeState node)
+        public ValueTask AddOrUpdateNodeAsync(NodeState node, CancellationToken cancellationToken = default)
         {
             if (node == null)
             {
@@ -94,10 +95,11 @@ namespace Opc.Ua.Server.Distributed
                 m_nodes[node.NodeId] = node;
             }
             NodeAdded?.Invoke(node);
+            return default;
         }
 
         /// <inheritdoc/>
-        public bool RemoveNode(NodeId nodeId)
+        public ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             bool removed;
             lock (m_lock)
@@ -108,7 +110,7 @@ namespace Opc.Ua.Server.Distributed
             {
                 NodeRemoved?.Invoke(nodeId);
             }
-            return removed;
+            return new ValueTask<bool>(removed);
         }
 
         private readonly Lock m_lock = new();

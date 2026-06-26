@@ -30,15 +30,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Opc.Ua.Server.Distributed
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Abstraction over the in-process node graph that an
-    /// <see cref="IAddressSpaceSynchronizer"/> reads from (outbound capture)
-    /// and writes to (inbound apply). A node manager adapts its
-    /// <c>PredefinedNodes</c> dictionary to this interface; tests use a
-    /// dictionary-backed implementation.
+    /// Abstraction over the in-process node graph that a distributed
+    /// address-space synchronizer reads from (outbound capture) and writes to
+    /// (inbound apply). A node manager adapts its <c>PredefinedNodes</c>
+    /// dictionary to this interface; tests use a dictionary-backed
+    /// implementation.
     /// </summary>
     public interface ILocalAddressSpace
     {
@@ -74,13 +76,15 @@ namespace Opc.Ua.Server.Distributed
         /// Adds or replaces a node, raising <see cref="NodeAdded"/>.
         /// </summary>
         /// <param name="node">The node to add or replace.</param>
-        void AddOrUpdateNode(NodeState node);
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask AddOrUpdateNodeAsync(NodeState node, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Removes a node, raising <see cref="NodeRemoved"/> when present.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns><c>true</c> when a node was removed.</returns>
-        bool RemoveNode(NodeId nodeId);
+        ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default);
     }
 }

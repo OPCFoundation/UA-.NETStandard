@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Distributed
             await foreach (IStoredNode stored in m_store.EnumerateAsync(ct).ConfigureAwait(false))
             {
                 any = true;
-                TryApplyUpsert(stored.NodeId, stored.Payload);
+                await TryApplyUpsertAsync(stored.NodeId, stored.Payload, ct).ConfigureAwait(false);
             }
 
             if (any)
@@ -182,6 +182,13 @@ namespace Opc.Ua.Server.Distributed
             await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
             await AwaitQuietlyAsync(m_inboundTask).ConfigureAwait(false);
 
+            // The inbound loop has finished; dispose the enumerator it owned.
+            if (m_inboundEnumerator != null)
+            {
+                await m_inboundEnumerator.DisposeAsync().ConfigureAwait(false);
+                m_inboundEnumerator = null;
+            }
+
             m_addressSpace.NodeAdded -= m_onNodeAdded;
             m_addressSpace.NodeRemoved -= m_onNodeRemoved;
             DetachAll();
@@ -280,7 +287,7 @@ namespace Opc.Ua.Server.Distributed
                     NodeStateChange change = m_inboundEnumerator!.Current;
                     try
                     {
-                        ApplyInbound(change);
+                        await ApplyInboundAsync(change, m_cts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -295,27 +302,21 @@ namespace Opc.Ua.Server.Distributed
             {
                 // shutdown
             }
-            finally
-            {
-                if (m_inboundEnumerator != null)
-                {
-                    await m_inboundEnumerator.DisposeAsync().ConfigureAwait(false);
-                }
-            }
         }
 
-        private void ApplyInbound(NodeStateChange change)
+        private async ValueTask ApplyInboundAsync(NodeStateChange change, CancellationToken cancellationToken)
         {
             switch (change.Kind)
             {
                 case NodeStateChangeKind.Upsert:
                     if (change.Node != null)
                     {
-                        TryApplyUpsert(change.NodeId, change.Node.Payload);
+                        await TryApplyUpsertAsync(change.NodeId, change.Node.Payload, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     break;
                 case NodeStateChangeKind.Delete:
-                    m_addressSpace.RemoveNode(change.NodeId);
+                    await m_addressSpace.RemoveNodeAsync(change.NodeId, cancellationToken).ConfigureAwait(false);
                     break;
                 case NodeStateChangeKind.Value:
                     ApplyValue(change.NodeId, change.Value);
@@ -323,10 +324,10 @@ namespace Opc.Ua.Server.Distributed
             }
         }
 
-        private void TryApplyUpsert(NodeId nodeId, ByteString payload)
+        private async ValueTask TryApplyUpsertAsync(NodeId nodeId, ByteString payload, CancellationToken cancellationToken)
         {
             NodeState node = NodeStateSerializer.Deserialize(m_addressSpace.Context, payload);
-            m_addressSpace.AddOrUpdateNode(node);
+            await m_addressSpace.AddOrUpdateNodeAsync(node, cancellationToken).ConfigureAwait(false);
         }
 
         private void ApplyValue(NodeId nodeId, DataValue value)

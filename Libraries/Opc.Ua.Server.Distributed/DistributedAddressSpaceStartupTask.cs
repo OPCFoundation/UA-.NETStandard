@@ -68,6 +68,13 @@ namespace Opc.Ua.Server.Distributed
             m_protector = protector ?? NullRecordProtector.Instance;
         }
 
+        /// <summary>
+        /// The registry of <see cref="INodeStateStore"/> instances built by
+        /// this task; populated once the server has started, <c>null</c>
+        /// before then.
+        /// </summary>
+        public INodeStateStoreRegistry? NodeStateStoreRegistry { get; private set; }
+
         /// <inheritdoc/>
         public async ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
         {
@@ -81,10 +88,14 @@ namespace Opc.Ua.Server.Distributed
             // Build the store with the server's populated message context so
             // NodeId namespace indices resolve correctly.
             var store = new InMemoryNodeStateStore(m_keyValueStore, server.MessageContext, m_protector);
-            if (server is INodeStateStoreRegistryProvider registryProvider)
-            {
-                registryProvider.NodeStateStoreRegistry.RegisterDefault(store);
-            }
+
+            // Own the node state store registry; nothing in the core server
+            // surface holds it. The default store is the fallback for every
+            // node that does not have a more specific binding.
+            var registry = new NodeStateStoreRegistry(server.NamespaceUris);
+            registry.RegisterDefault(store);
+            m_registry = registry;
+            NodeStateStoreRegistry = registry;
 
             // Settle leadership before seeding so the writer seeds the store and
             // standbys hydrate from it, then keep renewing in the background.
@@ -127,6 +138,7 @@ namespace Opc.Ua.Server.Distributed
                 await synchronizer.DisposeAsync().ConfigureAwait(false);
             }
             await m_election.DisposeAsync().ConfigureAwait(false);
+            m_registry?.Dispose();
         }
 
         private readonly ISharedKeyValueStore m_keyValueStore;
@@ -134,5 +146,6 @@ namespace Opc.Ua.Server.Distributed
         private readonly IRecordProtector m_protector;
         private readonly Lock m_lock = new();
         private readonly List<AddressSpaceSynchronizer> m_synchronizers = [];
+        private NodeStateStoreRegistry? m_registry;
     }
 }

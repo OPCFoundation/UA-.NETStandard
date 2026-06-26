@@ -90,19 +90,4 @@ namespace Opc.Ua.Server.Distributed
         /// </summary>
         IReadOnlyCollection<INodeStateStore> Stores { get; }
     }
-
-    /// <summary>
-    /// Optional opt-in interface that hosts a server's
-    /// <see cref="INodeStateStoreRegistry"/>. <c>ServerInternalData</c>
-    /// implements this so node managers can resolve the registry without any
-    /// <see cref="IServerInternal"/> surface change; external/mocked
-    /// implementations remain unaffected.
-    /// </summary>
-    public interface INodeStateStoreRegistryProvider
-    {
-        /// <summary>
-        /// Gets the server's node state store registry; never <c>null</c>.
-        /// </summary>
-        INodeStateStoreRegistry NodeStateStoreRegistry { get; }
-    }
 }

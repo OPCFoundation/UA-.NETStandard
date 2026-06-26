@@ -69,11 +69,10 @@ namespace HighAvailability
             _ = configuration;
             _ = cancellationToken;
 
-#pragma warning disable CA2000 // ownership transfers to the server through the returned adapter
+#pragma warning disable CA2000 // ownership transfers to the server
             var manager = new HaSampleNodeManager(server, m_leaderElection, m_replicaInfo, [.. NamespacesUris]);
-            IAsyncNodeManager asyncManager = manager.ToAsyncNodeManager();
 #pragma warning restore CA2000
-            return new ValueTask<IAsyncNodeManager>(asyncManager);
+            return new ValueTask<IAsyncNodeManager>(manager);
         }
     }
 
@@ -98,9 +97,9 @@ namespace HighAvailability
     }
 
     /// <summary>
-    /// Minimal <see cref="CustomNodeManager2"/> address space that participates in distributed replication.
+    /// Minimal <see cref="AsyncCustomNodeManager"/> address space that participates in distributed replication.
     /// </summary>
-    public sealed class HaSampleNodeManager : CustomNodeManager2
+    public sealed class HaSampleNodeManager : AsyncCustomNodeManager
     {
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
@@ -130,7 +129,9 @@ namespace HighAvailability
         }
 
         /// <inheritdoc/>
-        public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
             if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
             {
@@ -150,7 +151,7 @@ namespace HighAvailability
                 DataTypeIds.String,
                 Variant.From("unknown"));
 
-            AddPredefinedNode(SystemContext, folder);
+            await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken).ConfigureAwait(false);
             StartSimulation();
         }
 

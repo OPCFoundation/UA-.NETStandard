@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Distributed
             }
             finally
             {
-                ZeroMemory(master);
+                CryptoUtils.ZeroMemory(master);
             }
         }
 
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Distributed
             // Verify the MAC before decrypting (Encrypt-then-MAC).
             byte[] expectedTag = ComputeTag(envelope, headerLength + cipherLength);
             var actualTag = new ReadOnlySpan<byte>(envelope, headerLength + cipherLength, TagLength);
-            if (!FixedTimeEquals(expectedTag, actualTag))
+            if (!CryptoUtils.FixedTimeEquals(expectedTag, actualTag))
             {
                 return false;
             }
@@ -161,8 +161,8 @@ namespace Opc.Ua.Server.Distributed
         /// </summary>
         public void Dispose()
         {
-            ZeroMemory(m_aesKey);
-            ZeroMemory(m_macKey);
+            CryptoUtils.ZeroMemory(m_aesKey);
+            CryptoUtils.ZeroMemory(m_macKey);
         }
 
         private byte[] ComputeTag(byte[] buffer, int length)
@@ -175,33 +175,6 @@ namespace Opc.Ua.Server.Distributed
         {
             using var hmac = new HMACSHA256(masterKey);
             return hmac.ComputeHash(Encoding.ASCII.GetBytes(label));
-        }
-
-        private static void ZeroMemory(byte[] buffer)
-        {
-#if NET8_0_OR_GREATER
-            CryptographicOperations.ZeroMemory(buffer);
-#else
-            Array.Clear(buffer, 0, buffer.Length);
-#endif
-        }
-
-        private static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
-        {
-#if NET8_0_OR_GREATER
-            return CryptographicOperations.FixedTimeEquals(left, right);
-#else
-            if (left.Length != right.Length)
-            {
-                return false;
-            }
-            int difference = 0;
-            for (int i = 0; i < left.Length; i++)
-            {
-                difference |= left[i] ^ right[i];
-            }
-            return difference == 0;
-#endif
         }
 
         private const byte Version = 1;

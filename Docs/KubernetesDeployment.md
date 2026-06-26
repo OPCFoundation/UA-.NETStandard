@@ -1,6 +1,6 @@
 # Kubernetes Deployment for High Availability
 
-This guide shows how to run the OPC UA server as a high-availability replicaset on Kubernetes using the distributed building blocks described in [HighAvailability.md](HighAvailability.md) and secured per [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md). The worked sample is `Applications/HighAvailabilityServer`.
+This guide shows how to run the OPC UA server as a high-availability replicaset on Kubernetes using the distributed building blocks described in [HighAvailability.md](HighAvailability.md) and secured per [HighAvailability.md](HighAvailability.md#security--threat-model). The worked sample is `Applications/HighAvailabilityServer`.
 
 There are two redundancy shapes (see [HighAvailability.md](HighAvailability.md)):
 
@@ -105,4 +105,4 @@ For transparent redundancy / session fast-reconnect, mount the **same** `Applica
 - Session fast-reconnect (`HA_FAST_RECONNECT=true`) is opt-in; the standby still performs the full `ActivateSession` signature check and the server nonce is single-use across the replica set. The default is re-authentication on failover.
 - Apply TTL / eviction and keyspace caps on the shared store (`session/`, `nonce/`) so a faulty or hostile replica cannot exhaust it.
 
-See [HighAvailabilitySecurity.md](HighAvailabilitySecurity.md) for the full threat model and the operator responsibilities.
+See [HighAvailability.md](HighAvailability.md#security--threat-model) for the full threat model and the operator responsibilities.

@@ -27,36 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Distributed
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Protects records written to a shared store with authenticated
-    /// encryption (confidentiality + integrity). The shared store is treated
-    /// as an untrusted conduit: every persisted record (node payloads, encoded
-    /// values, session entries) is encrypted and authenticated, and a tampered
-    /// or forged record fails verification so it is never decrypted or applied.
+    /// Opt-in interface implemented by node managers that expose their local
+    /// address space to a distributed address-space synchronizer.
     /// </summary>
-    /// <remarks>
-    /// This closes the confidentiality (IEC 62443 FR4) and integrity (FR3)
-    /// gaps for distributed-HA state at rest and against a rogue replica /
-    /// compromised store. See <c>Docs/HighAvailabilitySecurity.md</c>.
-    /// </remarks>
-    public interface IRecordProtector
+    public interface ILocalAddressSpaceSource
     {
         /// <summary>
-        /// Encrypts and authenticates <paramref name="plaintext"/>, returning a
-        /// self-describing protected envelope.
+        /// Creates an adapter over the node manager's local address space.
         /// </summary>
-        /// <param name="plaintext">The record to protect.</param>
-        ByteString Protect(ByteString plaintext);
-
-        /// <summary>
-        /// Verifies and decrypts a protected envelope. Returns <c>false</c>
-        /// (fail-closed) when the record is missing its envelope, fails the
-        /// integrity check, or was produced under a different key.
-        /// </summary>
-        /// <param name="protectedRecord">The protected envelope.</param>
-        /// <param name="plaintext">The recovered plaintext on success.</param>
-        bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext);
+        /// <returns>The local address space adapter.</returns>
+        ILocalAddressSpace CreateLocalAddressSpace();
     }
 }

@@ -27,37 +27,36 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Records server nonces as single-use across the whole replica set so a
-    /// captured <c>ActivateSession</c> signature cannot be replayed on another
-    /// replica during a mirrored fast-reconnect. A nonce may be consumed
-    /// <em>exactly once</em> by exactly one replica; every later attempt (on any
-    /// replica) is rejected.
+    /// Protects records written to a shared store with authenticated
+    /// encryption (confidentiality + integrity). The shared store is treated
+    /// as an untrusted conduit: every persisted record (node payloads, encoded
+    /// values, session entries) is encrypted and authenticated, and a tampered
+    /// or forged record fails verification so it is never decrypted or applied.
     /// </summary>
     /// <remarks>
-    /// OPC UA Part 4 §5.7.3.1 requires the <c>serverNonce</c> to be single-use.
-    /// In a shared / mirrored session deployment that guarantee must hold across
-    /// replicas, otherwise a Sign-mode <c>ActivateSession</c> captured against
-    /// one replica replays against a standby (security-review Finding 1). This
-    /// registry provides the cross-replica single-use check.
+    /// This closes the confidentiality and integrity
+    /// gaps for distributed-HA state at rest and against a rogue replica /
+    /// compromised store. See <c>Docs/HighAvailability.md</c>.
     /// </remarks>
-    public interface ISingleUseNonceRegistry
+    public interface IRecordProtector
     {
         /// <summary>
-        /// Atomically marks <paramref name="nonce"/> as consumed.
+        /// Encrypts and authenticates <paramref name="plaintext"/>, returning a
+        /// self-describing protected envelope.
         /// </summary>
-        /// <param name="nonce">The server nonce being consumed.</param>
-        /// <param name="ct">Cancellation token.</param>
-        /// <returns>
-        /// <c>true</c> when this call was the first to consume the nonce (the
-        /// caller may proceed); <c>false</c> when the nonce was already consumed
-        /// (the caller must reject the request as a replay).
-        /// </returns>
-        ValueTask<bool> TryConsumeAsync(ByteString nonce, CancellationToken ct = default);
+        /// <param name="plaintext">The record to protect.</param>
+        ByteString Protect(ByteString plaintext);
+
+        /// <summary>
+        /// Verifies and decrypts a protected envelope. Returns <c>false</c>
+        /// (fail-closed) when the record is missing its envelope, fails the
+        /// integrity check, or was produced under a different key.
+        /// </summary>
+        /// <param name="protectedRecord">The protected envelope.</param>
+        /// <param name="plaintext">The recovered plaintext on success.</param>
+        bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext);
     }
 }

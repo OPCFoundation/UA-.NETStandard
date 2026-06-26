@@ -768,7 +768,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// When set, a failover to a redundant server re-activates the existing
         /// session on the new server by reusing the current
-        /// <c>AuthenticationToken</c> (OPC UA Part 4 §6.6, REQ-UA-13) instead of
+        /// <c>AuthenticationToken</c> (OPC UA Part 4 §6.6) instead of
         /// creating a new session, and falls back to re-authentication
         /// (a fresh <c>CreateSession</c>) if the standby rejects the token.
         /// </summary>
@@ -2920,7 +2920,7 @@ namespace Opc.Ua.Client
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
-                // Token-reuse fast reconnect (REQ-UA-13): re-activate the
+                // Token-reuse fast reconnect: re-activate the
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
