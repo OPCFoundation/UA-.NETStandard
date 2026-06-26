@@ -178,6 +178,31 @@ When token-reuse succeeds the client keeps the same `SessionId` across the failo
 
 Transparent redundancy (a single virtual endpoint that hides failover) is achieved by fronting the replicas with a single network endpoint — for example a Kubernetes `Service` or load balancer — and transferring subscriptions on failover (see [TransferSubscription](TransferSubscription.md)). The shared session store enables the fast reconnect that makes this transparent to clients. This deployment-level approach is documented here rather than implemented as a distinct transport.
 
+## Active/active with CRDTs
+
+The active/passive model above elects a single writer. For **active/active** — where every replica accepts writes concurrently — the `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` package models the address space as conflict-free replicated data types (CRDTs) and gossips them between replicas, so concurrent edits converge without a leader. It builds on the `Crdt` and `Crdt.Transport` packages and ships `net8.0`+ only (the gossip transport requires .NET 8+); the base distributed package keeps active/passive on all of its target frameworks.
+
+Node topology (additions, removals, references) and variable values are each modelled as a last-writer-wins map keyed by node id and gossiped as state over an in-memory transport (tests / single process) or TCP/UDP gossip with optional TLS (real deployments). Every replica is a writer: a local change mutates the local CRDT replica and broadcasts it, and received state is merged and the resulting differences are applied to the local graph. Because values are versioned by their own entries, a topology merge never regresses a value that a concurrent value update already advanced.
+
+Opt in with the fluent API (active/passive remains the default):
+
+```csharp
+services.AddOpcUa()
+    .AddServer(...)
+    .AddNodeManager<MyNodeManagerFactory>()
+    .UseCrdtAddressSpace(crdt =>
+    {
+        crdt.ReplicaId = ReplicaId.New();                 // stable per replica
+        crdt.UseTcpGossip(IPAddress.Any, port: 4840);     // or UseUdpGossip / TLS
+        crdt.AddPeer(new IPEndPoint(peerAddress, 4840));
+    })
+    .UseCrdtSessions();
+```
+
+### Session active/active and the single-use-nonce boundary
+
+`UseCrdtSessions(...)` replicates mirrored session entries active/active by gossiping them as a CRDT, reusing the existing `DistributedSessionManager` over a CRDT-backed key/value store. The **single-use server nonce is deliberately not a CRDT**: enforcing that a nonce is consumed exactly once is a uniqueness/consensus guarantee that conflict-free (AP) types cannot provide — two partitioned replicas could each accept the same captured activation. The session manager therefore keeps the nonce on a strongly-consistent `ISingleUseNonceRegistry` (compare-and-swap), resolved from the container (for example the address-space backend or a Redis adapter); the CRDT key/value store rejects compare-and-swap for exactly this reason. The result: session metadata converges active/active while the cross-replica replay defence retains its strong guarantee.
+
 ## Kubernetes deployment
 
 See [KubernetesDeployment.md](KubernetesDeployment.md) for a worked replicaset deployment (StatefulSet, headless `Service`, leader election, readiness tied to `ServiceLevel`, and KEK / shared-certificate provisioning via Secrets). In summary, a typical replicaset deployment:
@@ -192,10 +217,10 @@ See [KubernetesDeployment.md](KubernetesDeployment.md) for a worked replicaset d
 
 - The shared key/value store, node-state store, synchronizer, leader election, value cache/participation, service-level provider and shared session store are implemented and unit/integration tested (including two-replica topology-and-value replication).
 - Server integration is wired through the additive **`IServerStartupTask`** hosting seam: **`UseDistributedAddressSpace(...)`** attaches a synchronizer to every `CustomNodeManager2`-derived node manager and drives `Server.ServiceLevel`; **`AddServerRedundancy(...)`** populates `Server.ServerRedundancy`; **`AddServerServiceLevel(...)`** drives `ServiceLevel` from a custom provider. Active/passive redundancy can be advertised and consumed end-to-end today.
-- Async node managers deriving from `AsyncCustomNodeManager` do not yet opt into replication (only `CustomNodeManager2`-derived managers do).
+- Async node managers deriving from `AsyncCustomNodeManager` opt into replication on the same `ILocalAddressSpaceSource` seam as `CustomNodeManager2`-derived managers.
 - **Session fast-reconnect** is wired through **`UseDistributedSessions(...)`** plus the additive **`ISessionManagerFactory`** seam on `StandardServer`: the `DistributedSessionManager` mirrors encrypted session state and, when `EnableFastReconnect` is enabled, restores a session on a standby with a full `ActivateSession` client-signature check, the same SecurityPolicy/Mode, and a single-use `serverNonce` (cross-replica replay defence). The client opts in with **`ManagedSessionBuilder.WithTokenReuseFailover()`**; the safe default on both sides is re-authentication on failover. Validated end-to-end by `DistributedSessionFailoverIntegrationTests` (two secured servers sharing one store; token-reuse preserves the `SessionId`). See [Security & threat model](#security--threat-model).
-- **Active/active** on the simple key/value store relies on compare-and-swap / last-writer-wins with a single elected writer; conflict-free multi-writer merge is provided later by the deferred CRDT store.
-- A **Redis** store and a **CRDT** store are planned providers of the same `ISharedKeyValueStore` / `INodeStateStore` contracts and are deferred.
+- **Active/active** is available two ways: the simple key/value store with last-writer-wins plus a single elected writer (active/passive promotion), and true multi-writer **CRDT** replication in the `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` package (`UseCrdtAddressSpace(...)` / `UseCrdtSessions(...)`), where every replica accepts writes and converges by gossip. See [Active/active with CRDTs](#activeactive-with-crdts).
+- A **Redis** store is a planned provider of the same `ISharedKeyValueStore` / `INodeStateStore` contracts (and the strongly-consistent backend for the single-use nonce under CRDT sessions) and is deferred.
 
 
 ## Security & threat model

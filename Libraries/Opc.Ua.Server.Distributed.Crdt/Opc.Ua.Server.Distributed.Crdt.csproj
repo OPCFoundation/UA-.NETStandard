@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- CRDT active/active uses Crdt.Transport (gossip), which ships net8.0+ only.
+         Multi-target when not pinned by CI; otherwise follow $(CustomTestTarget).
+         For legacy CI runs (net472/net48/netstandard2.x) Directory.Build.targets
+         strips this project to an empty no-op shell via $(RestrictForLegacyTfm). -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PackageId>$(PackagePrefix).Opc.Ua.Server.Distributed.Crdt</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Server.Distributed.Crdt</AssemblyName>
+    <RootNamespace>Opc.Ua.Server.Distributed.Crdt</RootNamespace>
+    <Description>OPC UA active/active distributed server replication backed by CRDTs.</Description>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Server.Distributed.Crdt.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Server.Distributed\Opc.Ua.Server.Distributed.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Crdt" />
+    <PackageReference Include="Crdt.Transport" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
