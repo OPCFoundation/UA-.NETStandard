@@ -45,17 +45,8 @@ namespace Opc.Ua.Tests
         /// <summary>
         /// Default total time budget for <see cref="TryRunFinalizerSweep"/>.
         /// </summary>
-        /// <remarks>
-        /// A genuinely stuck finalizer blocks
-        /// <see cref="GC.WaitForPendingFinalizers"/> indefinitely, so any
-        /// finite budget still catches it — it merely waits longer before
-        /// failing. The budget therefore only needs to be large enough that a
-        /// slow-but-healthy sweep over a large accumulated heap on a heavily
-        /// loaded CI agent (observed: macOS agents exceeded 30s on the heavier
-        /// integration suites) never produces a false watchdog failure.
-        /// </remarks>
         public static readonly TimeSpan DefaultFinalizerSweepTimeout =
-            TimeSpan.FromSeconds(180);
+            TimeSpan.FromSeconds(30);
 
         /// <summary>
         /// Runs <paramref name="cycles"/> consecutive
@@ -65,21 +56,25 @@ namespace Opc.Ua.Tests
         /// </summary>
         /// <remarks>
         /// <para>
-        /// <see cref="GC.WaitForPendingFinalizers"/> blocks
-        /// indefinitely if any finalizer is stuck (waiting on a thread
-        /// or lock that is itself stuck). Running it on a background
-        /// thread that the caller joins with a timeout converts a
-        /// process-killing hang during assembly teardown into a
-        /// recoverable, observable event: the caller can emit a soft
-        /// warning and let the test host shut down promptly (the
-        /// runtime applies its own bounded finalizer execution at
-        /// process exit).
+        /// This is an <b>opt-in best-effort</b> helper for callers that need to
+        /// drain finalizers before taking a measurement (for example a memory
+        /// snapshot in a soak test). It is deliberately <b>not</b> used by
+        /// <see cref="AssertNoCertificateLeaks"/>: the certificate leak count is
+        /// driven exclusively by explicit <c>Dispose</c> (it is incremented in
+        /// <c>CertificateCore.Release</c>), never by a finalizer, so forcing a
+        /// finalizer sweep cannot change <see cref="Certificate.InstancesLeaked"/>.
+        /// Worse, in a process that hosts OPC UA servers the forced sweep blocks
+        /// on unrelated finalizers (sockets, <c>SslStream</c>, listeners) and on a
+        /// slow CI agent can hang the test host past the test platform's hang-dump
+        /// timeout. Never call this from an assembly cert-leak teardown.
         /// </para>
         /// <para>
-        /// When the timeout is exceeded the sweep thread is left
-        /// running (it is a background thread, so it does not prevent
-        /// process exit) and any subsequent leak counters may be
-        /// inaccurate.
+        /// <see cref="GC.WaitForPendingFinalizers"/> blocks indefinitely if any
+        /// finalizer is stuck (waiting on a thread or lock that is itself stuck).
+        /// Running it on a background thread that the caller joins with a timeout
+        /// bounds the wait; on timeout the sweep thread is left running (it is a
+        /// background thread, so it does not prevent process exit) and any
+        /// subsequent measurement may be inaccurate.
         /// </para>
         /// </remarks>
         /// <param name="timeout">Total time budget for all cycles. When
@@ -122,17 +117,25 @@ namespace Opc.Ua.Tests
         }
 
         /// <summary>
-        /// Runs the bounded finalizer sweep and then asserts that no
-        /// <see cref="Certificate"/> instances were leaked during the test
-        /// run (i.e. <see cref="Certificate.InstancesLeaked"/> is zero).
+        /// Asserts that no <see cref="Certificate"/> instances were leaked
+        /// during the test run (i.e. <see cref="Certificate.InstancesLeaked"/>
+        /// is zero).
         /// </summary>
         /// <remarks>
         /// <para>
         /// Intended to be called from an assembly-level
-        /// <c>[OneTimeTearDown]</c>. Both a stuck-finalizer watchdog timeout
-        /// and a positive leak count are reported as hard test failures via
-        /// <see cref="Assert.Fail(string)"/> (a sweep timeout makes the leak
-        /// counters unreliable, so it cannot be treated as a pass).
+        /// <c>[OneTimeTearDown]</c>. A positive leak count is reported as a hard
+        /// test failure via <see cref="Assert.Fail(string)"/>.
+        /// </para>
+        /// <para>
+        /// The leak count is driven exclusively by explicit construction versus
+        /// <c>Dispose</c> (the disposed counter is incremented in
+        /// <c>CertificateCore.Release</c>, never by a finalizer). It is therefore
+        /// deterministic at teardown and requires <b>no</b> forced GC /
+        /// <see cref="GC.WaitForPendingFinalizers"/> sweep — which would be a
+        /// no-op for the count and, in a process that hosts OPC UA servers, can
+        /// block on unrelated finalizers (sockets, <c>SslStream</c>, listeners)
+        /// and hang the test host on a slow CI agent.
         /// </para>
         /// <para>
         /// In <c>DEBUG</c> builds the failure message additionally includes
@@ -147,14 +150,6 @@ namespace Opc.Ua.Tests
         /// message.</param>
         public static void AssertNoCertificateLeaks(string detail = null)
         {
-            if (!TryRunFinalizerSweep())
-            {
-                Assert.Fail(
-                    $"Finalizer sweep exceeded {DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Certificate leak counts are " +
-                    "unreliable, so the run cannot be considered leak-free.");
-            }
-
             long leaked = Certificate.InstancesLeaked;
             if (leaked <= 0)
             {

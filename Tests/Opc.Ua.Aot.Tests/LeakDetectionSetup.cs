@@ -38,9 +38,6 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public static class LeakDetectionSetup
     {
-        private static readonly TimeSpan s_finalizerSweepTimeout =
-            TimeSpan.FromSeconds(30);
-
         [Before(Assembly)]
         public static void GlobalSetup(AssemblyHookContext context)
         {
@@ -50,21 +47,10 @@ namespace Opc.Ua.Aot.Tests
         [After(Assembly)]
         public static void GlobalTeardown(AssemblyHookContext context)
         {
-            // Force GC to finalize any abandoned certificates. Multiple
-            // cycles ensure that finalizable objects whose finalizer
-            // creates new garbage are themselves collected. The sweep
-            // is bounded by a watchdog so a stuck finalizer cannot hang
-            // the test host indefinitely during assembly teardown.
-            // (The AOT project doesn't reference Opc.Ua.Test.Common, so
-            // the same watchdog primitive is inlined here.)
-            if (!TryRunFinalizerSweep(s_finalizerSweepTimeout))
-            {
-                throw new InvalidOperationException(
-                    $"Finalizer sweep exceeded {s_finalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Certificate leak counts are " +
-                    "unreliable, so the run cannot be considered leak-free.");
-            }
-
+            // The certificate leak count is driven by explicit Dispose, not by
+            // finalizers, so it is deterministic at teardown and needs no forced
+            // GC/finalizer sweep (which would be a no-op for the count and can
+            // hang the test host on unrelated server/socket finalizers).
             long leaked = Certificate.InstancesLeaked;
             if (leaked > 0)
             {
@@ -75,27 +61,6 @@ namespace Opc.Ua.Aot.Tests
                     $"but not disposed (created={Certificate.InstancesCreated}, " +
                     $"disposed={Certificate.InstancesDisposed}).");
             }
-        }
-
-        private static bool TryRunFinalizerSweep(TimeSpan timeout)
-        {
-            var sweep = new Thread(() =>
-            {
-                for (int i = 0; i < 5; i++)
-                {
-                    GC.Collect(
-                        GC.MaxGeneration,
-                        GCCollectionMode.Forced,
-                        blocking: true);
-                    GC.WaitForPendingFinalizers();
-                }
-            })
-            {
-                IsBackground = true,
-                Name = "LeakDetection.FinalizerSweep"
-            };
-            sweep.Start();
-            return sweep.Join(timeout);
         }
     }
 }
