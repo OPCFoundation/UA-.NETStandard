@@ -166,7 +166,7 @@ Transparent redundancy (a single virtual endpoint that hides failover) is achiev
 
 ## Kubernetes deployment
 
-A typical replicaset deployment:
+See [KubernetesDeployment.md](KubernetesDeployment.md) for a worked replicaset deployment (StatefulSet, headless `Service`, leader election, readiness tied to `ServiceLevel`, and KEK / shared-certificate provisioning via Secrets). In summary, a typical replicaset deployment:
 
 - Run the server as a `Deployment`/`StatefulSet` with several replicas. Each replica is its own OPC UA endpoint for non-transparent redundancy, or all replicas sit behind one `Service` for transparent redundancy.
 - Use a **headless `Service`** for peer discovery when peers gossip directly, or a shared store (Redis) reachable by all pods.

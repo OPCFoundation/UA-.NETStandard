@@ -49,6 +49,18 @@ string applicationUri = $"urn:localhost:OPCFoundation:HighAvailabilityServer:{no
 
 builder.Services.AddSingleton(new HaSampleReplicaInfo(nodeId));
 
+// Optional: a base64 32-byte master key shared by all replicas (provisioned
+// from a Kubernetes Secret / KMS in production). When present, every record
+// written to the shared store is encrypted + integrity-protected at rest.
+string? recordKeyBase64 = builder.Configuration["HA_RECORD_KEY"];
+byte[]? recordKey = string.IsNullOrWhiteSpace(recordKeyBase64)
+    ? null
+    : Convert.FromBase64String(recordKeyBase64);
+
+// Opt into mirrored fast reconnect (default is the safe re-auth-on-failover).
+bool enableFastReconnect =
+    bool.TryParse(builder.Configuration["HA_FAST_RECONNECT"], out bool fr) && fr;
+
 builder.Services
     .AddOpcUa()
     .AddServer(o =>
@@ -64,6 +76,16 @@ builder.Services
     {
         d.UseLeaderElection = true;
         d.NodeId = nodeId;
+        if (recordKey != null)
+        {
+            d.RecordProtectorFactory = _ => new AesCbcHmacRecordProtector(recordKey);
+        }
+    })
+    .UseDistributedSessions(s =>
+    {
+        // Mirror session state across replicas; the standby still runs the full
+        // ActivateSession signature check on a token-reuse reconnect.
+        s.EnableFastReconnect = enableFastReconnect;
     })
     .AddServerRedundancy(r =>
     {
