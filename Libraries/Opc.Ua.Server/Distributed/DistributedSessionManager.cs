@@ -258,6 +258,11 @@ namespace Opc.Ua.Server.Distributed
                     "Distributed session restored from shared store for {Token} (session {SessionId}).",
                     TokenDigest(authenticationToken),
                     session.Id);
+
+                // Security-relevant provenance: a session materialized on this
+                // replica from shared state (audit, not just a log) — F9.
+                m_server.ReportAuditSessionRestoredEvent(
+                    TokenDigest(authenticationToken), session, m_logger);
             }
             return session;
         }

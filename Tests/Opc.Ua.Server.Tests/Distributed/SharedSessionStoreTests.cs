@@ -33,6 +33,8 @@
 
 #nullable enable
 
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Distributed;
@@ -157,7 +159,8 @@ namespace Opc.Ua.Server.Tests.Distributed
             SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
 
             // Secret material and the server nonce must not be persisted in cleartext.
-            (bool rawFound, ByteString raw) = await kv.TryGetAsync("session/" + entry.AuthenticationToken);
+            (bool rawFound, ByteString raw) = await kv.TryGetAsync(
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken));
             Assert.That(rawFound, Is.True);
             Assert.That(Contains(raw.ToArray(), entry.SecretMaterial.ToArray()), Is.False);
             Assert.That(Contains(raw.ToArray(), entry.ServerNonce.ToArray()), Is.False);
@@ -177,12 +180,35 @@ namespace Opc.Ua.Server.Tests.Distributed
             await store.PutAsync(entry);
 
             await kv.SetAsync(
-                "session/" + entry.AuthenticationToken,
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken),
                 ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6 }));
 
             SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
 
             Assert.That(loaded, Is.Null);
+        }
+
+        [Test]
+        public async Task KeyspaceDoesNotExposeRawTokenAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-keyspace");
+            await store.PutAsync(entry);
+
+            string tokenText = entry.AuthenticationToken.ToString();
+            await foreach (KeyValuePair<string, ByteString> pair in kv.ScanAsync("session/"))
+            {
+                Assert.That(
+                    pair.Key.IndexOf(tokenText, StringComparison.Ordinal),
+                    Is.LessThan(0),
+                    "the raw authentication token must not appear in the keyspace");
+            }
+
+            // The legacy raw-token key does not exist; the hashed key resolves the entry.
+            (bool legacyFound, _) = await kv.TryGetAsync("session/" + tokenText);
+            Assert.That(legacyFound, Is.False);
+            Assert.That(await store.TryGetAsync(entry.AuthenticationToken), Is.Not.Null);
         }
 
         private static bool Contains(byte[] haystack, byte[] needle)

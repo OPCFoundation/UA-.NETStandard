@@ -99,7 +99,13 @@ o.RecordProtectorFactory = sp => new KeyRingRecordProtector(
 2. **consumes the mirrored `serverNonce` exactly once across the replica set** via `ISingleUseNonceRegistry` — a replayed or already-consumed nonce is rejected (Finding 1);
 3. reconstructs the session and lets the **standard** activation path run the full client-certificate signature validation against that nonce (REQ-UA-6/7).
 
-The `AuthenticationToken` is therefore only a lookup key — it never admits a session without a valid client signature, closing the token-only hijack (Finding 2). The safe default is `EnableFastReconnect = false` (re-authentication on failover, no shared session state). Restores are logged with a one-way token digest for provenance (Finding 9 / Finding 6 hygiene).
+The `AuthenticationToken` is therefore only a lookup key — it never admits a session without a valid client signature, closing the token-only hijack (Finding 2). The safe default is `EnableFastReconnect = false` (re-authentication on failover, no shared session state).
+
+**Keyspace hygiene (Finding 6, closed).** The session store keys entries by the **SHA-256 digest of the authentication token** (`SharedKeyValueSessionStore.KeyFor`), not the raw token, so a backend's key enumeration / monitoring / dumps never expose the token. The consumed-nonce registry does the same.
+
+**Restore audit (Finding 9, closed).** A successful cross-replica restore emits a distinct `AuditSessionEventState` (`Session/RestoredFromSharedStore`, via `IAuditEventServer.ReportAuditSessionRestoredEvent`) in addition to the standard `AuditActivateSession`, carrying a one-way token digest for provenance; restores are also logged.
+
+**Restore-path secrets (Finding 7).** The decrypted `serverNonce` becomes the restored session's working `Nonce` (retained, not copied), so the manager holds no extra plaintext copy to zeroize; zeroizing the live nonce would break activation. Zeroizing `Nonce.Data` on dispose is a pre-existing, server-wide Core concern (it affects every session, not just HA) and is tracked separately rather than changed here.
 
 A residual, intentional trade-off: an attacker who can open a SecureChannel to a standby and replays a token can cause that session's mirrored nonce to be consumed, degrading a legitimate client's fast reconnect to a full re-authentication (the secure default) — it never grants access. A real-server integration test (`DistributedSessionMirrorIntegrationTests`) verifies that a fully-started server using the `ISessionManagerFactory` mirrors a session **encrypted** on activate (a wrong-key reader fails closed) and removes it on close. The full secured two-server token-reuse reconnect end-to-end test is tracked as follow-up; the security-decision logic (policy match + single-use nonce) is unit-tested.
 
@@ -110,7 +116,7 @@ These mitigations are **not** enforced by the in-process default and must be sup
 - **Key provisioning (S3 / Finding 5).** Provision the `AesCbcHmacRecordProtector` master key (the KEK) from a secret store or KMS — a Kubernetes Secret mounted via the CSI Secrets Store driver, or an external KMS — never a compiled-in constant. Give each replica the **same** key (required so any replica can read shared records) but the **least** privilege needed. Rotate with the key-ring above.
 - **Authenticated, encrypted store transport (S4 / Finding 8).** When the `ISharedKeyValueStore` is a network backend (e.g. Redis), require mutual-TLS with authentication on the conduit and **fail closed** if it is unavailable. Use a least-privilege, per-replica credential. The store conduit is a 62443 zone boundary; do not run it in the clear.
 - **Availability caps (S4 / Finding 10).** Apply a TTL / eviction policy to `session/` and consumed-`nonce/` entries, bound the watch channels, and cap the shared keyspace so a faulty or hostile replica cannot exhaust it.
-- **Token redaction (Finding 6).** Ensure `AuthenticationToken` values are excluded from logs, metrics, and traces; treat the shared keyspace as sensitive.
+- **Token redaction (Finding 6).** The shared keyspace no longer contains the raw token (it is keyed by the token's SHA-256 digest); additionally ensure `AuthenticationToken` values are excluded from logs, metrics, and traces and treat the keyspace as sensitive.
 - **Transparent redundancy (REQ-UA-14).** Spec-transparent redundancy requires an identical `ApplicationInstanceCertificate` and private key across replicas. Provision the shared key material through the certificate/secret store; this is a deployment decision (see [HighAvailability.md](HighAvailability.md)).
 
 

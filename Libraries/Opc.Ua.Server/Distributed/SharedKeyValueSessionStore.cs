@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,6 +41,9 @@ namespace Opc.Ua.Server.Distributed
     /// then passed through an <see cref="IRecordProtector"/> so the session
     /// secret material is encrypted and integrity-protected at rest; a tampered
     /// or forged entry fails verification and is treated as absent (fail-closed).
+    /// The store key is the SHA-256 digest of the authentication token, not the
+    /// token itself, so the secret-bearing keyspace stays one-way (the raw token
+    /// is never exposed via a backend's key enumeration / monitoring / dumps).
     /// </summary>
     public sealed class SharedKeyValueSessionStore : ISharedSessionStore
     {
@@ -77,7 +82,7 @@ namespace Opc.Ua.Server.Distributed
                     nameof(entry));
             }
             return m_store.SetAsync(
-                Prefix + entry.AuthenticationToken, m_protector.Protect(Encode(entry)), ct);
+                KeyFor(entry.AuthenticationToken), m_protector.Protect(Encode(entry)), ct);
         }
 
         /// <inheritdoc/>
@@ -86,7 +91,7 @@ namespace Opc.Ua.Server.Distributed
             CancellationToken ct = default)
         {
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(Prefix + authenticationToken, ct)
+                .TryGetAsync(KeyFor(authenticationToken), ct)
                 .ConfigureAwait(false);
             if (found && m_protector.TryUnprotect(value, out ByteString payload))
             {
@@ -98,7 +103,29 @@ namespace Opc.Ua.Server.Distributed
         /// <inheritdoc/>
         public ValueTask<bool> RemoveAsync(NodeId authenticationToken, CancellationToken ct = default)
         {
-            return m_store.DeleteAsync(Prefix + authenticationToken, ct);
+            return m_store.DeleteAsync(KeyFor(authenticationToken), ct);
+        }
+
+        /// <summary>
+        /// Computes the shared-store key for an authentication token: the
+        /// configured prefix followed by the SHA-256 digest of the token, so the
+        /// raw token never appears in the keyspace.
+        /// </summary>
+        /// <param name="authenticationToken">The session authentication token.</param>
+        /// <returns>The opaque store key.</returns>
+        internal static string KeyFor(NodeId authenticationToken)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(authenticationToken.ToString());
+#if NET8_0_OR_GREATER
+            byte[] hash = SHA256.HashData(data);
+#else
+            byte[] hash;
+            using (var sha = SHA256.Create())
+            {
+                hash = sha.ComputeHash(data);
+            }
+#endif
+            return Prefix + Convert.ToBase64String(hash);
         }
 
         private ByteString Encode(SharedSessionEntry entry)
