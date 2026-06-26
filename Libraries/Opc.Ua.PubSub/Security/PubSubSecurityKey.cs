@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 
 namespace Opc.Ua.PubSub.Security
 {
@@ -164,11 +163,7 @@ namespace Opc.Ua.PubSub.Security
             }
 
             Span<byte> span = segment.Array.AsSpan(segment.Offset, segment.Count);
-#if NET6_0_OR_GREATER
-            CryptographicOperations.ZeroMemory(span);
-#else
-            span.Clear();
-#endif
+            CryptoUtils.ZeroMemory(span);
         }
 
         private bool m_disposed;

@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Security.Policies
             {
                 Span<byte> computed = rented.AsSpan(0, SignatureLength);
                 HmacSha256.HashData(signingKey, data, computed);
-                return SecureComparison.FixedTimeEquals(computed, signature);
+                return CryptoUtils.FixedTimeEquals(computed, signature);
             }
             finally
             {

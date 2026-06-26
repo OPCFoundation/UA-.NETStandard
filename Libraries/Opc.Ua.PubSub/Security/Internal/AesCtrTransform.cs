@@ -253,11 +253,7 @@ namespace Opc.Ua.PubSub.Security.Internal
 
         private static void ClearSensitiveBuffer(byte[] buffer)
         {
-#if NET6_0_OR_GREATER
-            CryptographicOperations.ZeroMemory(buffer);
-#else
-            Array.Clear(buffer, 0, buffer.Length);
-#endif
+            CryptoUtils.ZeroMemory(buffer);
         }
 
         /// <summary>
