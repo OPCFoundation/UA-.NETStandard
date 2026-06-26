@@ -30,23 +30,11 @@
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Options for CRDT active/active session replication. Mirrored session
-    /// entries are gossiped between replicas as a CRDT; the gossip configuration
-    /// is inherited from <see cref="CrdtGossipOptions"/>.
+    /// Options for CRDT active/active address-space replication. Topology and
+    /// variable values are modelled as a last-writer-wins map and gossiped
+    /// between replicas; every replica is a writer.
     /// </summary>
-    /// <remarks>
-    /// The single-use server nonce is <b>not</b> replicated as a CRDT — it
-    /// requires a strongly-consistent compare-and-swap that CRDTs cannot
-    /// provide. The session manager keeps the nonce on a separate
-    /// strongly-consistent <see cref="ISharedKeyValueStore"/> resolved from the
-    /// container (defaulting to an in-process store for development).
-    /// </remarks>
-    public sealed class CrdtSessionOptions : CrdtGossipOptions
+    public sealed class ReplicatedAddressSpaceOptions : ReplicatedGossipOptions
     {
-        /// <summary>
-        /// Gets the distributed session behavior (fast-reconnect opt-in). The
-        /// safe default re-authenticates on failover.
-        /// </summary>
-        public DistributedSessionOptions Session { get; } = new();
     }
 }

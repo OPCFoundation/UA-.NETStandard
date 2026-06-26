@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         /// </summary>
         /// <param name="services">The application service provider.</param>
         /// <param name="options">The CRDT session options.</param>
-        public CrdtSessionManagerFactory(IServiceProvider services, CrdtSessionOptions options)
+        public CrdtSessionManagerFactory(IServiceProvider services, ReplicatedSessionOptions options)
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         }
 
         private readonly IServiceProvider m_services;
-        private readonly CrdtSessionOptions m_options;
+        private readonly ReplicatedSessionOptions m_options;
         private readonly Lock m_lock = new();
         private readonly List<CrdtSharedKeyValueStore> m_entryStores = [];
         private readonly List<InMemoryNetwork> m_defaultNetworks = [];

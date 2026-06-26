@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
     /// Shared CRDT gossip configuration: replica identity, time source, the
     /// transport that disseminates state between replicas, and decoding limits.
     /// </summary>
-    public abstract class CrdtGossipOptions
+    public abstract class ReplicatedGossipOptions
     {
         /// <summary>
         /// Gets or sets this replica's stable CRDT identity. Defaults to a new

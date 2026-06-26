@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         /// </summary>
         /// <param name="services">The application service provider (for the transport factory).</param>
         /// <param name="options">The CRDT address-space options.</param>
-        public CrdtAddressSpaceStartupTask(IServiceProvider services, CrdtAddressSpaceOptions options)
+        public CrdtAddressSpaceStartupTask(IServiceProvider services, ReplicatedAddressSpaceOptions options)
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         }
 
         private readonly IServiceProvider m_services;
-        private readonly CrdtAddressSpaceOptions m_options;
+        private readonly ReplicatedAddressSpaceOptions m_options;
         private readonly Lock m_lock = new();
         private readonly List<CrdtAddressSpaceSynchronizer> m_synchronizers = [];
         private readonly List<InMemoryNetwork> m_defaultNetworks = [];

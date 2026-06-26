@@ -38,7 +38,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
     /// Fluent registration of CRDT active/active replication features on the
     /// <see cref="IOpcUaServerBuilder"/>.
     /// </summary>
-    public static class CrdtServerBuilderExtensions
+    public static class ReplicatedServerBuilderExtensions
     {
         /// <summary>
         /// Registers active/active (multi-writer) replication of the address
@@ -50,16 +50,16 @@ namespace Opc.Ua.Server.Distributed.Crdt
         /// <param name="configure">Optional CRDT address-space options.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
-        public static IOpcUaServerBuilder UseCrdtAddressSpace(
+        public static IOpcUaServerBuilder UseReplicatedAddressSpace(
             this IOpcUaServerBuilder builder,
-            Action<CrdtAddressSpaceOptions>? configure = null)
+            Action<ReplicatedAddressSpaceOptions>? configure = null)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            var options = new CrdtAddressSpaceOptions();
+            var options = new ReplicatedAddressSpaceOptions();
             configure?.Invoke(options);
 
             builder.Services.AddSingleton<IServerStartupTask>(
@@ -80,16 +80,16 @@ namespace Opc.Ua.Server.Distributed.Crdt
         /// <param name="configure">Optional CRDT session options.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
-        public static IOpcUaServerBuilder UseCrdtSessions(
+        public static IOpcUaServerBuilder UseReplicatedSessions(
             this IOpcUaServerBuilder builder,
-            Action<CrdtSessionOptions>? configure = null)
+            Action<ReplicatedSessionOptions>? configure = null)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            var options = new CrdtSessionOptions();
+            var options = new ReplicatedSessionOptions();
             configure?.Invoke(options);
 
             builder.Services.TryAddSingleton<ISessionManagerFactory>(

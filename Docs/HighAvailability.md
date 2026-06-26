@@ -65,7 +65,7 @@ Bridges a local node graph (`ILocalAddressSpace`) to its `INodeStateStore`. It r
 
 `SeedOrHydrateAsync` seeds the store from the local graph when the store is empty and this replica is the writer, otherwise hydrates the local graph from the store. `Start` begins background replication. A node manager adapts its `PredefinedNodes` to `ILocalAddressSpace`; the bundled `DictionaryAddressSpace` is a ready-to-use flat implementation.
 
-> Single-writer is the active/passive default. Active/active with conflict-free multi-writer merge is layered on top later (CRDT, deferred). On the simple key/value store, active/active uses compare-and-swap / last-writer-wins with a master writer elected per partition.
+> Single-writer is the active/passive default: only the elected writer writes to the shared store, and standbys are readers. A write made directly to a **standby** (non-leader) replica's local graph is never propagated — the reader never writes to the store, and the change is overwritten the next time that replica applies an inbound change or re-hydrates, so an out-of-band write to a non-leader is effectively discarded. For true multi-writer **active/active**, where every replica accepts writes and concurrent edits converge without a leader, use the `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` package — see [Active/active with CRDTs](#activeactive-with-crdts).
 
 ### Leader election — `ILeaderElection`
 
@@ -73,7 +73,7 @@ Determines whether this replica is the writer. `StaticLeaderElection` is a fixed
 
 ### Read/write callback participation — `IDistributedValueCache`
 
-Lets a variable's read/write callbacks cache the last value they observe and serve the last value with a freshness bound from the shared store. `DistributedValueParticipation.ReadThroughAsync` returns the cached value while it is fresh (within `maxAge`), otherwise reads the live value and caches it; the `EnableDistributedValueParticipation` extension wires a variable's asynchronous read/write callbacks to do this automatically. Monitored items continue to read through the normal pipeline and therefore observe the cached value only when the read path participates — exactly the "can or cannot participate" behavior intended.
+Lets a variable's read/write callbacks cache the last value they observe and serve the last value with a freshness bound from the shared store. `DistributedValueParticipation.ReadThroughAsync` returns the cached value while it is fresh (within `maxAge`), otherwise reads the live value and caches it; the `EnableDistributedValueParticipation` extension wires a variable's asynchronous read/write callbacks to do this automatically. Monitored items always read through the normal read pipeline, so they observe the cached value only on variables whose read callback opts in (via `EnableDistributedValueParticipation`) and read the live value otherwise. Participation is therefore decided per variable: a variable that does not wire it up is read live on every sample, while one that does serves the cached value until it ages past `maxAge` and is then re-read live.
 
 ### Service level — `IServiceLevelProvider`
 
@@ -190,18 +190,18 @@ Opt in with the fluent API (active/passive remains the default):
 services.AddOpcUa()
     .AddServer(...)
     .AddNodeManager<MyNodeManagerFactory>()
-    .UseCrdtAddressSpace(crdt =>
+    .UseReplicatedAddressSpace(crdt =>
     {
         crdt.ReplicaId = ReplicaId.New();                 // stable per replica
         crdt.UseTcpGossip(IPAddress.Any, port: 4840);     // or UseUdpGossip / TLS
         crdt.AddPeer(new IPEndPoint(peerAddress, 4840));
     })
-    .UseCrdtSessions();
+    .UseReplicatedSessions();
 ```
 
 ### Session active/active and the single-use-nonce boundary
 
-`UseCrdtSessions(...)` replicates mirrored session entries active/active by gossiping them as a CRDT, reusing the existing `DistributedSessionManager` over a CRDT-backed key/value store. The **single-use server nonce is deliberately not a CRDT**: enforcing that a nonce is consumed exactly once is a uniqueness/consensus guarantee that conflict-free (AP) types cannot provide — two partitioned replicas could each accept the same captured activation. The session manager therefore keeps the nonce on a strongly-consistent `ISingleUseNonceRegistry` (compare-and-swap), resolved from the container (for example the address-space backend or a Redis adapter); the CRDT key/value store rejects compare-and-swap for exactly this reason. The result: session metadata converges active/active while the cross-replica replay defence retains its strong guarantee.
+`UseReplicatedSessions(...)` replicates mirrored session entries active/active by gossiping them as a CRDT, reusing the existing `DistributedSessionManager` over a CRDT-backed key/value store. The **single-use server nonce is deliberately not a CRDT**: enforcing that a nonce is consumed exactly once is a uniqueness/consensus guarantee that conflict-free (AP) types cannot provide — two partitioned replicas could each accept the same captured activation. The session manager therefore keeps the nonce on a strongly-consistent `ISingleUseNonceRegistry` (compare-and-swap), resolved from the container (for example the address-space backend or a Redis adapter); the CRDT key/value store rejects compare-and-swap for exactly this reason. The result: session metadata converges active/active while the cross-replica replay defence retains its strong guarantee.
 
 ## Kubernetes deployment
 
@@ -219,7 +219,7 @@ See [KubernetesDeployment.md](KubernetesDeployment.md) for a worked replicaset d
 - Server integration is wired through the additive **`IServerStartupTask`** hosting seam: **`UseDistributedAddressSpace(...)`** attaches a synchronizer to every `CustomNodeManager2`-derived node manager and drives `Server.ServiceLevel`; **`AddServerRedundancy(...)`** populates `Server.ServerRedundancy`; **`AddServerServiceLevel(...)`** drives `ServiceLevel` from a custom provider. Active/passive redundancy can be advertised and consumed end-to-end today.
 - Async node managers deriving from `AsyncCustomNodeManager` opt into replication on the same `ILocalAddressSpaceSource` seam as `CustomNodeManager2`-derived managers.
 - **Session fast-reconnect** is wired through **`UseDistributedSessions(...)`** plus the additive **`ISessionManagerFactory`** seam on `StandardServer`: the `DistributedSessionManager` mirrors encrypted session state and, when `EnableFastReconnect` is enabled, restores a session on a standby with a full `ActivateSession` client-signature check, the same SecurityPolicy/Mode, and a single-use `serverNonce` (cross-replica replay defence). The client opts in with **`ManagedSessionBuilder.WithTokenReuseFailover()`**; the safe default on both sides is re-authentication on failover. Validated end-to-end by `DistributedSessionFailoverIntegrationTests` (two secured servers sharing one store; token-reuse preserves the `SessionId`). See [Security & threat model](#security--threat-model).
-- **Active/active** is available two ways: the simple key/value store with last-writer-wins plus a single elected writer (active/passive promotion), and true multi-writer **CRDT** replication in the `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` package (`UseCrdtAddressSpace(...)` / `UseCrdtSessions(...)`), where every replica accepts writes and converges by gossip. See [Active/active with CRDTs](#activeactive-with-crdts).
+- **Active/active** is available two ways: the simple key/value store with last-writer-wins plus a single elected writer (active/passive promotion), and true multi-writer **CRDT** replication in the `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` package (`UseReplicatedAddressSpace(...)` / `UseReplicatedSessions(...)`), where every replica accepts writes and converges by gossip. See [Active/active with CRDTs](#activeactive-with-crdts).
 - A **Redis** store is a planned provider of the same `ISharedKeyValueStore` / `INodeStateStore` contracts (and the strongly-consistent backend for the single-use nonce under CRDT sessions) and is deferred.
 
 

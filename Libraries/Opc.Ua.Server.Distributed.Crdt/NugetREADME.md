@@ -12,13 +12,13 @@ Where the base distributed package replicates a shared address space with a sing
 services.AddOpcUa()
     .AddServer(...)
     .AddNodeManager<MyNodeManagerFactory>()
-    .UseCrdtAddressSpace(crdt =>
+    .UseReplicatedAddressSpace(crdt =>
     {
         crdt.ReplicaId = Crdt.ReplicaId.New();
         crdt.UseTcpGossip(IPAddress.Loopback, port: 0);
         crdt.AddPeer(peerEndpoint);
     })
-    .UseCrdtSessions();
+    .UseReplicatedSessions();
 ```
 
 ## Target frameworks

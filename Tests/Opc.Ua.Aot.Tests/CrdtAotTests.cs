@@ -66,7 +66,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task CrdtOptionsConfigureTransportUnderAotAsync()
         {
-            var options = new CrdtAddressSpaceOptions
+            var options = new ReplicatedAddressSpaceOptions
             {
                 ReplicaId = ReplicaId.New()
             };

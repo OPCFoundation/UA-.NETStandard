@@ -1,6 +1,6 @@
 # High Availability Server
 
-This sample is a minimal Generic Host based OPC UA server that demonstrates the distributed high-availability server building blocks in `Opc.Ua.Server.Distributed`. It registers an `AsyncCustomNodeManager`-derived node manager so the local address space participates in active/passive replication, enables leader election so only the active replica writes sample values, drives `Server.ServiceLevel` from the leader state, and publishes `Server.ServerRedundancy` metadata in hot-redundancy mode.
+This sample is a minimal Generic Host based OPC UA server that demonstrates the distributed high-availability server building blocks in `Opc.Ua.Server.Distributed` and the active/active building blocks in `Opc.Ua.Server.Distributed.Crdt`. It registers an `AsyncCustomNodeManager`-derived node manager so the local address space participates in replication, and selects its topology with the `HA_MODE` environment variable: **active/passive** (`ap`, the default — leader election so only the active replica writes) or **active/active** (`aa` — every replica writes and converges by CRDT gossip). It drives `Server.ServiceLevel` from the replica state and publishes `Server.ServerRedundancy` metadata.
 
 The bundled configuration uses the default in-memory shared key/value store. That is useful for understanding the DI wiring and for single-process experimentation, but separate OS processes do not share memory. A real multi-process or multi-host deployment needs a shared backend for `ISharedKeyValueStore` such as Redis; that backend is intentionally deferred from this small sample.
 
@@ -75,7 +75,31 @@ builder.Services
 
 ## Active/passive vs active/active
 
-Both topologies are supported out of the box and differ only in the redundancy mode reported to clients and whether session state is mirrored — the shared store and leader election are the same in both:
+The sample selects its redundancy topology with the `HA_MODE` environment variable — `ap` (active/passive, the default) or `aa` (active/active) — and references both `Opc.Ua.Server.Distributed` and `Opc.Ua.Server.Distributed.Crdt`:
 
-- **Active/passive** — set `r.Mode = RedundancySupport.Hot` (or `Warm` / `Cold`). One replica is the active server that clients use; standbys hydrate from the shared store and take over on failover. Leader election selects the single active writer, and clients follow `Server.ServiceLevel` / `Server.ServerRedundancy` to find it.
-- **Active/active** — set `r.Mode = RedundancySupport.HotAndMirrored` and enable `UseDistributedSessions(s => s.EnableFastReconnect = true)`. Every replica serves clients concurrently from the shared, mirrored state; the elected leader remains the single writer for replicated nodes while all replicas serve reads. Because session state is mirrored, a session created on one replica can be resumed on another with `ManagedSessionBuilder.WithTokenReuseFailover()` on the client, reconnecting by reusing the authentication token after a full `ActivateSession` check.
+- **Active/passive (`HA_MODE=ap`)** — `UseDistributedAddressSpace` + `UseDistributedSessions` with leader election. One replica is the active writer; standbys hydrate from the shared store and take over on failover. Redundancy is reported as `RedundancySupport.Hot`, and clients follow `Server.ServiceLevel` / `Server.ServerRedundancy` to find the active replica.
+- **Active/active (`HA_MODE=aa`)** — `UseReplicatedAddressSpace` + `UseReplicatedSessions` (CRDT gossip). Every replica accepts writes and converges without a leader; redundancy is reported as `RedundancySupport.HotAndMirrored`. Replicas gossip over TCP: set `HA_GOSSIP_PORT` (default `4840`; session entries gossip on `port + 1`) and `HA_GOSSIP_PEERS` (a comma/semicolon list of `host:port` for the other replicas' address-space gossip). A session created on one replica can be resumed on another with `ManagedSessionBuilder.WithTokenReuseFailover()` on the client.
+
+### Run two active/active replicas
+
+```powershell
+# replica A
+$env:HA_NODE_ID = "replica-a"
+$env:HA_MODE = "aa"
+$env:HA_GOSSIP_PORT = "4840"
+$env:HA_GOSSIP_PEERS = "127.0.0.1:4842"
+dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.csproj -- --port 62543
+```
+
+In a second terminal:
+
+```powershell
+# replica B
+$env:HA_NODE_ID = "replica-b"
+$env:HA_MODE = "aa"
+$env:HA_GOSSIP_PORT = "4842"
+$env:HA_GOSSIP_PEERS = "127.0.0.1:4840"
+dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.csproj -- --port 62544
+```
+
+Both replicas now accept writes to `Counter` and converge: a write on either endpoint propagates to the other by gossip, and the per-second increment runs on every replica, with CRDT last-writer-wins resolving the concurrent updates. Unlike the active/passive store-backed setup, active/active needs no shared `ISharedKeyValueStore` between processes — the gossip transport carries the state.
