@@ -126,29 +126,40 @@ namespace Opc.Ua.PubSub.Tests.Application
                 return;
             }
 
-            PubSubDiscoveryResult metaData = await subscriber.RequestDiscoveryAsync(
-                new PubSubDiscoveryRequest
-                {
-                    DiscoveryType = UadpDiscoveryType.DataSetMetaData,
-                    DataSetWriterIds = [DataSetWriterIdValue]
-                },
-                TimeSpan.FromSeconds(1),
-                cts.Token).ConfigureAwait(false);
-            PubSubDiscoveryResult writerConfiguration = await subscriber.RequestDiscoveryAsync(
-                new PubSubDiscoveryRequest
-                {
-                    DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
-                    DataSetWriterIds = [DataSetWriterIdValue]
-                },
-                TimeSpan.FromSeconds(1),
-                cts.Token).ConfigureAwait(false);
-            PubSubDiscoveryResult endpoints = await subscriber.RequestDiscoveryAsync(
-                new PubSubDiscoveryRequest
-                {
-                    DiscoveryType = UadpDiscoveryType.PublisherEndpoints
-                },
-                TimeSpan.FromSeconds(1),
-                cts.Token).ConfigureAwait(false);
+            PubSubDiscoveryResult metaData;
+            PubSubDiscoveryResult writerConfiguration;
+            PubSubDiscoveryResult endpoints;
+            try
+            {
+                metaData = await subscriber.RequestDiscoveryAsync(
+                    new PubSubDiscoveryRequest
+                    {
+                        DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                        DataSetWriterIds = [DataSetWriterIdValue]
+                    },
+                    TimeSpan.FromSeconds(1),
+                    cts.Token).ConfigureAwait(false);
+                writerConfiguration = await subscriber.RequestDiscoveryAsync(
+                    new PubSubDiscoveryRequest
+                    {
+                        DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
+                        DataSetWriterIds = [DataSetWriterIdValue]
+                    },
+                    TimeSpan.FromSeconds(1),
+                    cts.Token).ConfigureAwait(false);
+                endpoints = await subscriber.RequestDiscoveryAsync(
+                    new PubSubDiscoveryRequest
+                    {
+                        DiscoveryType = UadpDiscoveryType.PublisherEndpoints
+                    },
+                    TimeSpan.FromSeconds(1),
+                    cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (IsUdpEnvironmentFailure(ex))
+            {
+                Assert.Ignore("UDP multicast loopback is not available in this environment: " + ex.Message);
+                return;
+            }
 
             if (metaData.DataSetMetaDataEntries.Count == 0
                 || writerConfiguration.WriterConfigurations.Count == 0

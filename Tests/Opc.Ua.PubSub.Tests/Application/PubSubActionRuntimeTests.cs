@@ -135,6 +135,11 @@ namespace Opc.Ua.PubSub.Tests.Application
                     TimeSpan.FromSeconds(2),
                     cts.Token).ConfigureAwait(false);
             }
+            catch (Exception ex) when (IsUdpEnvironmentFailure(ex))
+            {
+                Assert.Ignore("UDP multicast loopback is not available in this environment: " + ex.Message);
+                return;
+            }
             catch (TimeoutException)
             {
                 Assert.Ignore("UDP multicast loopback did not deliver Action responses.");
