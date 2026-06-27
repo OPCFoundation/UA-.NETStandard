@@ -216,7 +216,22 @@ jobs:
         $dir = "$(Agent.TempDirectory)"
         $trx = @(Get-ChildItem -Path $dir -Filter *.trx -ErrorAction SilentlyContinue)
         if ($trx.Count -eq 0) {
-            Write-Host "##vso[task.logissue type=error]No TRX result files found in $dir; the test host did not produce results."
+            # No VSTest TRX in the results directory. This is expected for
+            # Microsoft.Testing.Platform (MTP) test projects, which do not emit a
+            # VSTest-style TRX there. For those, defer to the test host's own exit
+            # code as reflected by Agent.JobStatus: 'Succeeded' means the test step
+            # (and every prior step) exited cleanly -> pass; anything else (the
+            # continueOnError test step exited non-zero, or an earlier step failed)
+            # -> fail. This preserves the original exit-code behaviour for MTP
+            # projects while the TRX path below tolerates the VSTest macOS at-exit
+            # stall.
+            $jobStatus = $env:AGENT_JOBSTATUS
+            Write-Host "No VSTest TRX found in $dir; deferring to the test host exit (Agent.JobStatus=$jobStatus)."
+            if ($jobStatus -eq 'Succeeded') {
+                Write-Host "Test host exited cleanly; treating the run as successful."
+                exit 0
+            }
+            Write-Host "##vso[task.logissue type=error]Test host did not exit cleanly and produced no TRX results."
             exit 1
         }
         $passed = 0
