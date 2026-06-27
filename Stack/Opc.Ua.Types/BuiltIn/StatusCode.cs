@@ -617,6 +617,24 @@ namespace Opc.Ua
             return CodeBits.GetHashCode();
         }
 
+        /// <summary>
+        /// Returns a hash code for this status code using the specified
+        /// comparison mode.
+        /// </summary>
+        /// <remarks>
+        /// The hash code is consistent with
+        /// <see cref="Equals(StatusCode, StatusCodeComparison)"/> using the
+        /// same comparison mode.
+        /// </remarks>
+        /// <param name="comparison">Determines whether the hash is computed
+        /// from only the code bits or all bits.</param>
+        public int GetHashCode(StatusCodeComparison comparison)
+        {
+            return comparison == StatusCodeComparison.AllBits
+                ? Code.GetHashCode()
+                : CodeBits.GetHashCode();
+        }
+
         /// <inheritdoc/>
         public override string ToString()
         {
@@ -1003,5 +1021,27 @@ namespace Opc.Ua
         /// values at different timestamps within the same interval)
         /// </summary>
         MultipleValues = 0x10
+    }
+
+    /// <summary>
+    /// Specifies how two <see cref="StatusCode"/> values are compared for equality.
+    /// </summary>
+    public enum StatusCodeComparison
+    {
+        /// <summary>
+        /// Compare only the 16 code bits (bits 16 - 31) of the status code.
+        /// The info, flag and additional bits are ignored. This is the
+        /// comparison used by the equality operators and the default
+        /// <see cref="StatusCode.Equals(StatusCode)"/> overload, because the
+        /// non-code bits are almost never relevant when comparing against a
+        /// well known <c>StatusCodes</c> value.
+        /// </summary>
+        CodeBitsOnly,
+
+        /// <summary>
+        /// Compare the entire 32-bit status value, including the info, flag and
+        /// additional bits. Use this when an exact match of all bits is required.
+        /// </summary>
+        AllBits
     }
 }

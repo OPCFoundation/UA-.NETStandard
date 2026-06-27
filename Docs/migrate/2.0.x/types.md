@@ -176,6 +176,8 @@ if (statusCode == StatusCodes.Good) { /* ... */ }
 if (statusCode.Equals(other, StatusCodeComparison.AllBits)) { /* ... */ }
 ```
 
+A matching `GetHashCode(StatusCodeComparison comparison)` overload is available when an all-bits hash is required (for example when using `StatusCode` keys in a dictionary that must distinguish flag bits).
+
 When migrating code that compared `statusCode.Code` (the raw `uint`) against a `StatusCodes.XXX` constant, prefer the `==` operator (`statusCode == StatusCodes.XXX`) so the comparison ignores the non-code bits. Likewise replace comparisons against `statusCode.CodeBits` with the `==` operator.
 
 ### NodeId/ExpandedNodeId

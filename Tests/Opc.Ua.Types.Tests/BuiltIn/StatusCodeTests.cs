@@ -672,6 +672,32 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void GetHashCodeWithComparisonMatchesEquals()
+        {
+            var sc1 = new StatusCode(0x80010001);
+            var sc2 = new StatusCode(0x80010002);
+
+            // Code bits only -> equal hash codes (and consistent with default).
+            Assert.That(
+                sc1.GetHashCode(StatusCodeComparison.CodeBitsOnly),
+                Is.EqualTo(sc2.GetHashCode(StatusCodeComparison.CodeBitsOnly)));
+            Assert.That(
+                sc1.GetHashCode(StatusCodeComparison.CodeBitsOnly),
+                Is.EqualTo(sc1.GetHashCode()));
+
+            // All bits -> different hash codes because the flag bits differ.
+            Assert.That(
+                sc1.GetHashCode(StatusCodeComparison.AllBits),
+                Is.Not.EqualTo(sc2.GetHashCode(StatusCodeComparison.AllBits)));
+
+            // Identical full codes hash equally for both comparison modes.
+            var sc3 = new StatusCode(0x80010001);
+            Assert.That(
+                sc1.GetHashCode(StatusCodeComparison.AllBits),
+                Is.EqualTo(sc3.GetHashCode(StatusCodeComparison.AllBits)));
+        }
+
+        [Test]
         public void EqualityOperatorComparesCodeBitsOnly()
         {
             var sc1 = new StatusCode(0x80010001);
