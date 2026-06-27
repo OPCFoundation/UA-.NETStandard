@@ -439,6 +439,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(
                 info.RedundantServers[0].Endpoint!.Description.EndpointUrl,
                 Is.EqualTo("opc.tcp://server-uri:4840"));
+            VerifyBatchedRedundancyRead(mockSession);
         }
 
         [Test]
@@ -485,6 +486,42 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(info.RedundantServers[0].ServiceLevel, Is.EqualTo(ServiceLevels.NoData));
             Assert.That(target, Is.SameAs(resolvedEndpoint));
+        }
+
+        [Test]
+        public async Task FetchRedundancyInfoFallsBackToUnknownServerUriOnlyPeerAsync()
+        {
+            var serverData = new RedundantServerDataType
+            {
+                ServerId = "urn:nodata",
+                ServiceLevel = ServiceLevels.NoData,
+                ServerState = ServerState.Running
+            };
+            ConfiguredEndpoint noDataEndpoint = CreateEndpoint("urn:nodata", "opc.tcp://nodata:4840");
+            ConfiguredEndpoint unknownEndpoint = CreateEndpoint("urn:server-uri", "opc.tcp://server-uri:4840");
+            m_resolver.Setup(r => r.ResolveAsync(
+                    "urn:nodata",
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(noDataEndpoint);
+            m_resolver.Setup(r => r.ResolveAsync(
+                    "urn:server-uri",
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(unknownEndpoint);
+            Mock<ISession> mockSession = CreateMockSession(
+                redundancySupport: (int)RedundancySupport.Hot,
+                serviceLevel: ServiceLevels.DegradedMaximum,
+                redundantServers: [serverData],
+                serverUris: ["urn:nodata", "urn:server-uri"]);
+
+            ServerRedundancyInfo info = await m_handler.FetchRedundancyInfoAsync(
+                mockSession.Object).ConfigureAwait(false);
+            ConfiguredEndpoint? target = m_handler.SelectFailoverTarget(
+                info, CreateCurrentEndpoint("urn:current"));
+
+            Assert.That(info.RedundantServers, Has.Count.EqualTo(2));
+            Assert.That(target, Is.SameAs(unknownEndpoint));
         }
 
         [Test]
@@ -622,7 +659,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     It.IsAny<RequestHeader>(),
                     It.IsAny<double>(),
                     It.IsAny<TimestampsToReturn>(),
-                    It.Is<ArrayOf<ReadValueId>>(r => r.Count == 3),
+                    It.Is<ArrayOf<ReadValueId>>(r => r.Count == 5),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadResponse
                 {
@@ -630,23 +667,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     [
                         new DataValue(new Variant(redundancySupport), StatusCodes.Good),
                         new DataValue(new Variant(serviceLevel), StatusCodes.Good),
+                        redundantServers == null
+                            ? new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)
+                            : CreateRedundantServerArrayValue(redundantServers),
+                        serverUris == null
+                            ? new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)
+                            : new DataValue(new Variant(new ArrayOf<string>(serverUris)), StatusCodes.Good),
                         new DataValue(new Variant(DateTime.MinValue), StatusCodes.Good)
                     ],
                     DiagnosticInfos = []
                 });
 
-            SetupSingleNodeRead(
-                mock,
-                VariableIds.Server_ServerRedundancy_RedundantServerArray,
-                redundantServers == null
-                    ? new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)
-                    : CreateRedundantServerArrayValue(redundantServers));
-            SetupSingleNodeRead(
-                mock,
-                VariableIds.Server_ServerRedundancy_ServerUriArray,
-                serverUris == null
-                    ? new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)
-                    : new DataValue(new Variant(new ArrayOf<string>(serverUris)), StatusCodes.Good));
             SetupSingleNodeRead(
                 mock,
                 VariableIds.Server_ServerRedundancy_CurrentServerId,
@@ -675,6 +706,25 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 });
         }
 
+        private static void VerifyBatchedRedundancyRead(Mock<ISession> mock)
+        {
+            mock.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<double>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.Is<ArrayOf<ReadValueId>>(r => r.Count == 5),
+                It.IsAny<CancellationToken>()), Times.Once);
+            mock.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<double>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.Is<ArrayOf<ReadValueId>>(r =>
+                    r.Count == 1 &&
+                    (r[0].NodeId == VariableIds.Server_ServerRedundancy_RedundantServerArray ||
+                        r[0].NodeId == VariableIds.Server_ServerRedundancy_ServerUriArray)),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static DataValue CreateRedundantServerArrayValue(
             RedundantServerDataType[] redundantServers)
         {
@@ -692,12 +742,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     It.IsAny<RequestHeader>(),
                     It.IsAny<double>(),
                     It.IsAny<TimestampsToReturn>(),
-                    It.Is<ArrayOf<ReadValueId>>(r => r.Count == 3),
+                    It.Is<ArrayOf<ReadValueId>>(r => r.Count == 5),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadResponse
                 {
                     Results =
                     [
+                        new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
+                        new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
                         new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
                         new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
                         new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)
@@ -714,13 +766,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 redundancySupport: (int)RedundancySupport.Hot,
                 serviceLevel: ServiceLevels.NoData);
 
-            mock.Setup(s => s.ReadAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<double>(),
-                    It.IsAny<TimestampsToReturn>(),
-                    It.Is<ArrayOf<ReadValueId>>(r => r.Count == 1),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new ServiceResultException(StatusCodes.BadNodeIdUnknown));
             return mock;
         }
 

@@ -14,7 +14,7 @@
 ## Implementation status (this follow-up)
 
 - **A — DONE** (commit `245b6237a`): F6 session-key hashing (`SharedKeyValueSessionStore.KeyFor`), F9 restore audit (`IAuditEventServer.ReportAuditSessionRestoredEvent` + wired in the manager), F7 analyzed (no extra plaintext copy in the manager; `Nonce.Data` zeroization is a pre-existing server-wide Core concern, tracked separately). 99 Distributed tests pass (net10 + net48).
-- **FG — DONE** (commit `f6acbdc7d`): `Docs/KubernetesDeployment.md` (linked from `Docs/README.md` + `HighAvailability.md`); the `HighAvailabilityServer` sample now wires `UseDistributedSessions` + an optional `AesCbcHmacRecordProtector` from `HA_RECORD_KEY`.
+- **FG — DONE** (commit `f6acbdc7d`): `Docs/KubernetesDeployment.md` (linked from `Docs/README.md` + `HighAvailability.md`); the `RedundantServer` sample now wires `UseDistributedSessions` + an optional `AesCbcHmacRecordProtector` from `HA_RECORD_KEY`.
 - **B — DONE** (commit `652c85a1f`): opt-in client token-reuse failover (REQ-UA-13). `Session.EnableTokenReuseFailover` + extracted `ReactivateExistingSessionAsync` (shared with `UpdateSessionAsync`); `RecreateInPlaceCoreAsync` tries token-reuse against the failover server (adopting its cert) before the existing fresh-`CreateSession` fallback; `ManagedSessionBuilder.WithTokenReuseFailover()` + option. `OpenAsync` untouched. No regression (57 client SessionTests + 135 reconnect/failover integration tests pass).
 - **C — DONE** (commit pending): `DistributedSessionFailoverIntegrationTests` — two secured servers sharing one store via `DistributedSessionManager`, a client with token-reuse failover fails over from A to B; the standby restores the mirrored session and re-activates with the reused token, so the client's `SessionId` is **preserved** (proving restore, not fresh `CreateSession`). Passes on net10 + net48.
 - **D / E — deferred** (D blocked offline; E long-term).
@@ -68,7 +68,7 @@ Investigated and de-risked against the current client (file:line are `Libraries/
 
 `StackExchange.Redis` is **not in the offline NuGet cache**; this workstream needs network access or a pre-populated cache.
 
-- **D1 — `Opc.Ua.Server.Distributed.Redis` package.** `RedisSharedKeyValueStore : ISharedKeyValueStore` — `TryGet/Set/Delete` → string ops; `CompareAndSwap` → atomic Lua (set-if-absent / compare-and-set); `ScanAsync` → `SCAN` by prefix; `WatchAsync` → keyspace-notification pub/sub. Add `StackExchange.Redis` (MIT) to `Directory.Packages.props`. Separate package keeps core dependency-free.
+- **D1 — `Opc.Ua.Server.Redundancy.Redis` package.** `RedisSharedKeyValueStore : ISharedKeyValueStore` — `TryGet/Set/Delete` → string ops; `CompareAndSwap` → atomic Lua (set-if-absent / compare-and-set); `ScanAsync` → `SCAN` by prefix; `WatchAsync` → keyspace-notification pub/sub. Add `StackExchange.Redis` (MIT) to `Directory.Packages.props`. Separate package keeps core dependency-free.
 - **D2 — Transport + availability (F8, F10).** Require mutual-TLS + auth, fail-closed when absent in production; least-privilege per-replica credential; native Redis **TTL** for `session/` + `nonce/` entries; bounded watch channels / keyspace caps.
 - **D3 — AOT + tests.** StackExchange.Redis reflection may not be AOT-safe → AOT tests in `Opc.Ua.Aot.Tests` exercising the Redis paths, or mark non-AOT + document. Integration tests gated on a `REDIS_URL` / testcontainers.
 
@@ -83,7 +83,7 @@ Investigated and de-risked against the current client (file:line are `Libraries/
 ### G. Docs / sample (polish)
 
 - **G1 — `Docs/KubernetesDeployment.md`.** Replicaset, headless `Service`, Lease election, readiness tied to `ServiceLevel`, Redis wiring, shared cert/KEK provisioning.
-- **G2 — Sample extension.** Extend `Applications/HighAvailabilityServer` to demonstrate `UseDistributedSessions` (+ Redis when D lands).
+- **G2 — Sample extension.** Extend `Applications/RedundantServer` to demonstrate `UseDistributedSessions` (+ Redis when D lands).
 
 ## Recommended order & dependencies
 

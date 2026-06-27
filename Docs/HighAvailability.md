@@ -1,10 +1,10 @@
 # High Availability and OPC UA Redundancy
 
-This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 §6.6 Redundancy. It documents the implemented server, client, subscription, session, Kubernetes, and active/active extension seams; the worked examples are `Applications/HighAvailabilityServer` and `Applications/RedundantClient`.
+This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 §6.6 Redundancy. It documents the implemented server, client, subscription, session, Kubernetes, and active/active extension seams; the worked examples are `Applications/RedundantServer` and `Applications/RedundantClient`.
 
 ## 6.6.1 Redundancy overview
 
-OPC UA defines three independent but composable redundancy dimensions: **server redundancy** gives clients multiple servers that expose the same data, **client redundancy** lets backup clients take over work from an active client, and **network redundancy** gives a client and server more than one communication path. The stack implements standardized discovery and failover metadata in the core server/client packages, and adds opt-in distributed state through `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed`.
+OPC UA defines three independent but composable redundancy dimensions: **server redundancy** gives clients multiple servers that expose the same data, **client redundancy** lets backup clients take over work from an active client, and **network redundancy** gives a client and server more than one communication path. The stack implements standardized discovery and failover metadata in the core server/client packages, and adds opt-in distributed state through `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy`.
 
 Server redundancy is either **transparent** or **non-transparent**. In transparent redundancy, the redundant set looks like one server and failover is hidden from the client. In non-transparent redundancy, each server has its own identity and endpoint, and the client reads `Server.ServerRedundancy` plus `Server.ServiceLevel` to decide what to do.
 
@@ -29,6 +29,12 @@ For non-transparent redundancy, set `RedundantPeers` when clients should resolve
 
 All servers in a `RedundantServerSet` must have identical application AddressSpaces: identical NodeIds, browse paths, AddressSpace structure, and `ServiceLevel` algorithm. Only local server diagnostics may differ. `UseDistributedAddressSpace(...)` helps satisfy this by mirroring node topology and values through `INodeStateStore`/`ISharedKeyValueStore`, but application-specific method handlers and callbacks still need to be attached by each node manager.
 
+### Add* and Use* API convention
+
+High-availability builder methods follow the stack's standard `Add*`/`Use*` convention. `Add*` methods wire OPC 10000-4 §6.6 nodes and methods that are part of the standardized server model, such as `AddServerRedundancy(...)` for `Server.ServerRedundancy`, `AddServerServiceLevel(...)` for `Server.ServiceLevel`, and `AddRequestServerStateChange(...)` for `Server.RequestServerStateChange`. `Use*` methods register beyond-spec extension building blocks that make a redundant deployment work, such as `UseDistributedAddressSpace(...)`, `UseDistributedSessions(...)`, `UseDistributedSubscriptionMirroring(...)`, `UseReplicatedAddressSpace(...)`, `UseReplicatedSessions(...)`, and the Kubernetes helpers.
+
+`AddServerRedundancy(...)` only publishes the redundancy metadata. It does not calculate or drive `Server.ServiceLevel`; register a ServiceLevel provider with `AddServerServiceLevel(...)`, or register an `IServiceLevelProvider` plus `ServiceLevelStartupTask`, when clients and Kubernetes readiness need live health or leader-state values.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(server =>
@@ -50,7 +56,8 @@ services.AddOpcUa()
             new ArrayOf<string>(["opc.tcp://ha-server-2:4840"]));
         options.PeerServiceLevel = ServiceLevels.DegradedMaximum;
     })
-    .AddManualFailover(options =>
+    .AddServerServiceLevel(new LeaderServiceLevelProvider(leaderElection, RedundancySupport.Warm))
+    .AddRequestServerStateChange(options =>
     {
         options.ServiceLevelSelector = state => state == ServerState.Running
             ? ServiceLevels.Maximum
@@ -164,7 +171,7 @@ RedundantManagedClient mirroredClient = await new ManagedSessionBuilder(configur
 
 ## 6.6.5 Manual failover and Maintenance
 
-OPC 10000-4 §6.6.5 allows a server to be taken out of the set by shutdown or by moving `ServiceLevel` to Maintenance, either through a vendor tool or `Server.RequestServerStateChange`. `AddManualFailover(...)` wires the standard method and validates administrative access through `IConfigurationNodeManager.HasApplicationSecureAdminAccess` unless `RequestServerStateChangeOptions.AdminAccessValidator` is supplied.
+OPC 10000-4 §6.6.5 allows a server to be taken out of the set by shutdown or by moving `ServiceLevel` to Maintenance, either through a vendor tool or `Server.RequestServerStateChange`. `AddRequestServerStateChange(...)` wires the standard method and validates administrative access through `IConfigurationNodeManager.HasApplicationSecureAdminAccess` unless `RequestServerStateChangeOptions.AdminAccessValidator` is supplied.
 
 The startup task updates `Server.ServiceLevel`, `Server.ServerStatus.State`, `Server.ServerStatus.SecondsTillShutdown`, `Server.ServerStatus.ShutdownReason`, and `Server.EstimatedReturnTime`. The current implementation publishes the requested maintenance/no-data state so clients back off; it does **not** install a transport-level hook that rejects newly created sessions.
 
@@ -191,6 +198,14 @@ Documented limitations:
 - `SharedKeyValueSubscriptionStore` restores definitions and retransmission state, but monitored-item data/event queues are not restored by `RestoreDataChangeMonitoredItemQueue` or `RestoreEventMonitoredItemQueue`.
 - Continuation-point mirroring is best-effort. Built-in node-manager `ContinuationPoint.Data` is opaque and is not reconstructed on a backup; after failover a client may receive `BadContinuationPointInvalid` and re-issue Browse or HistoryRead, which OPC 10000-4 §6.6.2.2 permits. Node managers that can serialize their own continuation-point data may opt in through `IContinuationPointStore`.
 - Deterministic EventIds are optional and only as stable as the event fields used. Alarms & Conditions clients should still call `ConditionRefresh` after failover as required by OPC UA.
+
+## Security considerations
+
+Distributed high-availability deployments protect the shared store as part of the OPC UA trust boundary. Use an authenticated and encrypted channel to the store, protect serialized records with `IRecordProtector`, provision record-protection keys through a key ring or secret manager, apply TTLs and quotas to session/nonce/subscription keys, and fail closed if a required strongly consistent store is unavailable.
+
+Transparent redundancy uses one logical application identity. Every replica that serves the transparent virtual endpoint must use the same endpoint URL, ApplicationUri, application instance certificate, and private key so clients can validate one server identity and complete `ActivateSession` against any replica. The compromise blast radius of that shared private key is the entire transparent set: an attacker can impersonate the virtual server, terminate or redirect client trust, and participate in failover until the certificate is revoked and trust lists are updated. Prefer non-transparent redundancy with per-replica certificates when that shared-key risk is unacceptable.
+
+Rotate the transparent shared application certificate/key as a coordinated replica-set operation. Issue the replacement certificate with the same virtual identity and endpoint subject alternative names, distribute the new private key through the certificate store or a secret manager without baking it into images, stage client and GDS trust-list updates so both old and new certificates are trusted during the overlap, restart or hot-reload replicas in a controlled window, verify every replica presents the new certificate at the virtual endpoint, then revoke/remove the old certificate and securely delete the old private key from all nodes and secret versions. Treat an emergency rotation after suspected compromise as a fail-closed event: drain or stop replicas that still hold the old key before restoring client access.
 
 ## 6.6.3 Client redundancy
 
@@ -228,7 +243,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 The base package uses `ISharedKeyValueStore` as the common seam for address-space, session, subscription, retransmission, nonce, and lease records. The in-memory implementation is for tests and single-process samples; multi-pod production deployments need a networked, authenticated, encrypted, and capacity-bounded backend. `IRecordProtector` protects serialized records before they reach the store.
 
-`OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
+`OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy.Crdt` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
 
 The package is available on all stack TFMs (`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, and `net10.0`); `netstandard2.1` is not NativeAOT-published.
 
@@ -245,20 +260,14 @@ services.AddOpcUa()
     .UseReplicatedSessions();
 ```
 
-Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS
-(`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote
-certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with
-`AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but
-LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
+Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
 
-For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies.
-Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port
-closed to clients, other namespaces, and infrastructure that is not part of the replica set.
+For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
 ## Kubernetes deployment
 
-Use the consolidated [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide for the `Opc.Ua.Server.Distributed.Kubernetes` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
+Use the consolidated [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide for the `Opc.Ua.Server.Redundancy.K8s` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
 
 ## Samples
 
-`Applications/HighAvailabilityServer` demonstrates the server-side distributed and redundancy registrations. `Applications/RedundantClient` demonstrates reading server redundancy metadata, comparing requested client failover behavior with the server's reported `RedundancySupport`, and running the client failover modes from the command line.
+`Applications/RedundantServer` demonstrates the server-side distributed and redundancy registrations. `Applications/RedundantClient` demonstrates reading server redundancy metadata, comparing requested client failover behavior with the server's reported `RedundancySupport`, and running the client failover modes from the command line.

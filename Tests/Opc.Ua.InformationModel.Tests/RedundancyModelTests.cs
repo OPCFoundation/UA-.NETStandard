@@ -168,9 +168,22 @@ namespace Opc.Ua.InformationModel.Tests
                 response.Results[0].References[0].NodeId,
                 Session.NamespaceUris);
 
-            // Should be ServerRedundancyType or a subtype
             Assert.That(typeDefId, Is.Not.Null,
                 "Type definition NodeId should not be null.");
+
+            DataValue redundancySupport = await ReadValueAsync(
+                VariableIds.Server_ServerRedundancy_RedundancySupport)
+                .ConfigureAwait(false);
+
+            var expectedTypeDefinition = redundancySupport.WrappedValue.GetInt32() switch
+            {
+                4 => TransparentRedundancyTypeId,
+                1 or 2 or 3 or 5 => NonTransparentRedundancyTypeId,
+                _ => ServerRedundancyTypeId
+            };
+
+            Assert.That(typeDefId, Is.EqualTo(expectedTypeDefinition),
+                "ServerRedundancy type definition must match the configured redundancy mode.");
         }
 
         [Test]
@@ -380,5 +393,9 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             return response.Results[0];
         }
+
+        private static readonly NodeId ServerRedundancyTypeId = new(2034);
+        private static readonly NodeId TransparentRedundancyTypeId = new(2036);
+        private static readonly NodeId NonTransparentRedundancyTypeId = new(2039);
     }
 }

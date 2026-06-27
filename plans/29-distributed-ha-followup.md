@@ -14,7 +14,7 @@
 | `f-serverredundancy` (F-A3) | ✅ done | `ServerRedundancyStartupTask` sets `RedundancySupport` + populates `RedundantServerArray` (`ArrayOf<RedundantServerDataType>` via `Variant.FromStructure`); `AddServerRedundancy(...)` fluent + `ServerRedundancyOptions`. |
 | `f-fluent-di` (F-B2) | ✅ done | `UseDistributedAddressSpace(...)` + `DistributedAddressSpaceOptions` register store, election, service-level provider + startup tasks. |
 | `f-wire-synchronizers` (F-B3) | ✅ done | `DistributedAddressSpaceStartupTask` builds the store with the server message context, registers it, starts election, and attaches a synchronizer to every `ILocalAddressSpaceSource` node manager. Integration-tested (seeds an opted-in manager into the shared store). |
-| `f-sample` (F-E) | ✅ done | `Applications/HighAvailabilityServer` (Program + `HaSampleNodeManager` + README), added to `UA.slnx`; builds clean. |
+| `f-sample` (F-E) | ✅ done | `Applications/RedundantServer` (Program + `HaSampleNodeManager` + README), added to `UA.slnx`; builds clean. |
 | `f-docs` (F-Docs) | ✅ done | `Docs/HighAvailability.md` updated with the working DI API (`UseDistributedAddressSpace`/`AddServerRedundancy`) + status; Kubernetes section present. |
 | `f-e2e-test` (F-C) | ◑ covered → **superseded** | Core wiring is integration-tested (`DistributedAddressSpaceStartupTaskTests`; `AddressSpaceSynchronizerTests`; client `ServerRedundancyHandlerTests`). The full two-server harness + **required security tests** is replanned as `f-e2e-test-secure` in **[Plan 30](30-distributed-ha-session-security.md)**. |
 | `f-session-sharing` (F-A4) | ⛔ **superseded** | Security review found the token-only reconnect is **unsafe (session hijack / nonce replay)** and the shared store lacks integrity/encryption. Redesigned + gated in **[Plan 30](30-distributed-ha-session-security.md)** (`f-session-sharing-secure` + `sec-*` store hardening). |
@@ -90,7 +90,7 @@ Two in-process server instances (hosted or `StandardServer`) sharing one `InMemo
 
 ### D. Redis provider
 
-New package **`Opc.Ua.Server.Distributed.Redis`** (`Libraries/Opc.Ua.Server.Distributed.Redis`) referencing `Opc.Ua.Server` + **StackExchange.Redis** (MIT — license-compatible; add to `Directory.Packages.props`). `RedisSharedKeyValueStore : ISharedKeyValueStore`:
+New package **`Opc.Ua.Server.Redundancy.Redis`** (`Libraries/Opc.Ua.Server.Redundancy.Redis`) referencing `Opc.Ua.Server` + **StackExchange.Redis** (MIT — license-compatible; add to `Directory.Packages.props`). `RedisSharedKeyValueStore : ISharedKeyValueStore`:
 
 - `TryGet`/`Set`/`Delete` → `StringGet`/`StringSet`/`KeyDelete`.
 - `CompareAndSwap` → a Lua script (atomic compare-and-set / set-if-absent).
@@ -101,7 +101,7 @@ Keeping it in a separate package keeps the core `Opc.Ua.Server` dependency-free.
 
 ### E. Sample
 
-A worked HA reference server — either a new `Applications/HighAvailabilityServer` or an `--ha` mode in `ConsoleReferenceServer` — wiring `UseDistributedAddressSpace` + lease election + `LeaderServiceLevelProvider`, with README instructions to run two instances against a shared store (in-memory single-process demo and Redis multi-process).
+A worked HA reference server — either a new `Applications/RedundantServer` or an `--ha` mode in `ConsoleReferenceServer` — wiring `UseDistributedAddressSpace` + lease election + `LeaderServiceLevelProvider`, with README instructions to run two instances against a shared store (in-memory single-process demo and Redis multi-process).
 
 ## Redundancy modes (both)
 
@@ -138,7 +138,7 @@ A worked HA reference server — either a new `Applications/HighAvailabilityServ
 | F-B3 | `f-wire-synchronizers` | Startup task wires store + per-node-manager synchronizers (writer = leader) + seed/hydrate/start. | f-nm-adapter, f-fluent-di |
 | F-A4 | `f-session-sharing` | Session-manager factory seam + `DistributedSessionManager` persist/restore via `ISharedSessionStore` (encrypted nonce); re-auth fallback. Security review. | f-startup-seam |
 | F-C | `f-e2e-test` | Two-server end-to-end test: replication, `ManagedSession` failover, subscription transfer, fast reconnect. | f-servicelevel, f-serverredundancy, f-wire-synchronizers, f-session-sharing |
-| F-D | `f-redis` | `Opc.Ua.Server.Distributed.Redis` package: `RedisSharedKeyValueStore` (CAS Lua, keyspace-notification watch) + tests; add StackExchange.Redis. | — |
+| F-D | `f-redis` | `Opc.Ua.Server.Redundancy.Redis` package: `RedisSharedKeyValueStore` (CAS Lua, keyspace-notification watch) + tests; add StackExchange.Redis. | — |
 | F-E | `f-sample` | HA reference sample wiring the fluent API + lease election + service level. | f-wire-synchronizers |
 | F-Docs | `f-docs` | HighAvailability/Kubernetes/Migration/README + package NugetREADME. | f-wire-synchronizers, f-session-sharing |
 

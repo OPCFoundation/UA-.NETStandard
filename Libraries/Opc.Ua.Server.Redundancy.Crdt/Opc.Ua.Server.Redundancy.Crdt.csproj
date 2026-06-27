@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Server.Redundancy.Crdt</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Server.Redundancy.Crdt</AssemblyName>
+    <RootNamespace>Opc.Ua.Server.Redundancy.Crdt</RootNamespace>
+    <Description>OPC UA active/active distributed server replication backed by CRDTs.</Description>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</EnableConfigurationBindingGenerator>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Server.Redundancy.Crdt.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Server.Redundancy\Opc.Ua.Server.Redundancy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Crdt" />
+    <PackageReference Include="Crdt.Transport" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

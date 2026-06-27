@@ -6,8 +6,8 @@ Run against two or three servers that expose the same non-transparent `Redundant
 
 ```powershell
 dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- `
-  --server opc.tcp://localhost:62543/HighAvailabilityServer `
-  --server opc.tcp://localhost:62544/HighAvailabilityServer `
+  --server opc.tcp://localhost:62543/RedundantServer `
+  --server opc.tcp://localhost:62544/RedundantServer `
   --mode hot-b --autoaccept --nosecurity --duration 00:05:00
 ```
 

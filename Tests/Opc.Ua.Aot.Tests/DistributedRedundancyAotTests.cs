@@ -34,8 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Distributed;
-using Opc.Ua.Server.Distributed.Kubernetes;
+using Opc.Ua.Server.Redundancy;
+using Opc.Ua.Server.Redundancy.K8s;
 
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007

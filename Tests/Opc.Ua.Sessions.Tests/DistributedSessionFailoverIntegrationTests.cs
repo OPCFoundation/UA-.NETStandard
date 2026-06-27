@@ -41,7 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Distributed;
+using Opc.Ua.Server.Redundancy;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
@@ -246,7 +246,7 @@ namespace Opc.Ua.Sessions.Tests
             {
                 return new ValueTask<ServerRedundancyInfo>(new ServerRedundancyInfo
                 {
-                    Mode = RedundancyMode.Hot,
+                    Mode = RedundancySupport.Hot,
                     ServiceLevel = 200,
                     RedundantServers =
                     [
@@ -258,6 +258,16 @@ namespace Opc.Ua.Sessions.Tests
                         }
                     ]
                 });
+            }
+
+            public ServerFailoverDecision ShouldFailover(
+                ServerRedundancyInfo redundancyInfo,
+                ConfiguredEndpoint currentEndpoint)
+            {
+                return new ServerFailoverDecision(
+                    isFailoverWarranted: true,
+                    DateTime.MinValue,
+                    "Test handler warrants failover to the configured standby.");
             }
 
             public ConfiguredEndpoint SelectFailoverTarget(

@@ -89,11 +89,13 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(session));
             }
 
-            // Read redundancy support mode, service level, and return time in one call.
+            // Read redundancy status and peer discovery nodes in one call.
             ArrayOf<NodeId> nodeIds =
             [
                 VariableIds.Server_ServerRedundancy_RedundancySupport,
                 VariableIds.Server_ServiceLevel,
+                VariableIds.Server_ServerRedundancy_RedundantServerArray,
+                VariableIds.Server_ServerRedundancy_ServerUriArray,
                 VariableIds.Server_EstimatedReturnTime
             ];
 
@@ -114,17 +116,21 @@ namespace Opc.Ua.Client
             }
 
             DateTime estimatedReturnTime = DateTime.MinValue;
-            if (StatusCode.IsGood(errors[2].StatusCode))
+            if (StatusCode.IsGood(errors[4].StatusCode))
             {
-                estimatedReturnTime = values[2].GetValue(DateTime.MinValue);
+                estimatedReturnTime = values[4].GetValue(DateTime.MinValue);
             }
 
             var redundantServers = new ArrayOf<RedundantServer>();
             string currentServerId = string.Empty;
             if (mode != RedundancySupport.None)
             {
-                redundantServers = await ReadRedundantServersAsync(
-                    session, mode, ct).ConfigureAwait(false);
+                redundantServers = ReadRedundantServers(
+                    mode,
+                    values[2],
+                    errors[2],
+                    values[3],
+                    errors[3]);
                 currentServerId = mode == RedundancySupport.Transparent
                     ? await ReadCurrentServerIdAsync(session, ct).ConfigureAwait(false)
                     : string.Empty;
@@ -199,6 +205,7 @@ namespace Opc.Ua.Client
 
             if (redundancyInfo.ServiceLevelAccessible &&
                 ServiceLevels.IsDegraded(redundancyInfo.ServiceLevel) &&
+                best.ServiceLevelKnown &&
                 !ServiceLevels.IsHealthy(best.ServiceLevel))
             {
                 return NoFailover("Current server is Degraded and no Healthy peer is available.");
@@ -280,93 +287,77 @@ namespace Opc.Ua.Client
             return endpoint;
         }
 
-        private static async Task<ArrayOf<RedundantServer>> ReadRedundantServersAsync(
-            ISession session,
+        private static ArrayOf<RedundantServer> ReadRedundantServers(
             RedundancySupport mode,
-            CancellationToken ct)
+            DataValue redundantServerArrayValue,
+            ServiceResult redundantServerArrayError,
+            DataValue serverUriArrayValue,
+            ServiceResult serverUriArrayError)
         {
-            ArrayOf<RedundantServer> redundantServers =
-                await ReadRedundantServerArrayAsync(session, ct).ConfigureAwait(false);
+            ArrayOf<RedundantServer> redundantServers = ReadRedundantServerArray(
+                redundantServerArrayValue,
+                redundantServerArrayError);
 
             if (mode != RedundancySupport.Transparent)
             {
-                ArrayOf<string> serverUris = await ReadServerUriArrayAsync(session, ct)
-                    .ConfigureAwait(false);
+                ArrayOf<string> serverUris = ReadServerUriArray(
+                    serverUriArrayValue,
+                    serverUriArrayError);
                 redundantServers = AddMissingServerUris(redundantServers, serverUris);
             }
 
             return redundantServers;
         }
 
-        private static async Task<ArrayOf<RedundantServer>> ReadRedundantServerArrayAsync(
-            ISession session,
-            CancellationToken ct)
+        private static ArrayOf<RedundantServer> ReadRedundantServerArray(
+            DataValue dataValue,
+            ServiceResult error)
         {
             var result = new List<RedundantServer>();
 
-            try
+            if (StatusCode.IsBad(error.StatusCode) ||
+                StatusCode.IsBad(dataValue.StatusCode))
             {
-                DataValue dataValue = await session.ReadValueAsync(
-                    VariableIds.Server_ServerRedundancy_RedundantServerArray,
-                    ct).ConfigureAwait(false);
+                return new ArrayOf<RedundantServer>(result.ToArray());
+            }
 
-                if (StatusCode.IsBad(dataValue.StatusCode))
+            if (dataValue.WrappedValue.TryGetValue(
+                out ArrayOf<ExtensionObject> extensionObjects))
+            {
+                foreach (ExtensionObject extensionObject in extensionObjects)
                 {
-                    return new ArrayOf<RedundantServer>(result.ToArray());
-                }
-
-                if (dataValue.WrappedValue.TryGetValue(
-                    out ArrayOf<ExtensionObject> extensionObjects))
-                {
-                    foreach (ExtensionObject extensionObject in extensionObjects)
+                    if (extensionObject.TryGetValue(
+                        out RedundantServerDataType? serverData))
                     {
-                        if (extensionObject.TryGetValue(
-                            out RedundantServerDataType? serverData))
+                        result.Add(new RedundantServer
                         {
-                            result.Add(new RedundantServer
-                            {
-                                ServerUri = serverData.ServerId
-                                    ?? string.Empty,
-                                ServiceLevel = serverData.ServiceLevel,
-                                ServerState = serverData.ServerState
-                            });
-                        }
+                            ServerUri = serverData.ServerId
+                                ?? string.Empty,
+                            ServiceLevel = serverData.ServiceLevel,
+                            ServerState = serverData.ServerState
+                        });
                     }
                 }
-            }
-            catch (ServiceResultException)
-            {
-                // Node may not exist; return empty list.
             }
 
             return new ArrayOf<RedundantServer>(result.ToArray());
         }
 
-        private static async Task<ArrayOf<string>> ReadServerUriArrayAsync(
-            ISession session,
-            CancellationToken ct)
+        private static ArrayOf<string> ReadServerUriArray(
+            DataValue dataValue,
+            ServiceResult error)
         {
             var result = new ArrayOf<string>();
 
-            try
+            if (StatusCode.IsBad(error.StatusCode) ||
+                StatusCode.IsBad(dataValue.StatusCode))
             {
-                DataValue dataValue = await session.ReadValueAsync(
-                    VariableIds.Server_ServerRedundancy_ServerUriArray,
-                    ct).ConfigureAwait(false);
-
-                if (StatusCode.IsBad(dataValue.StatusCode))
-                {
-                    return result;
-                }
-
-                if (dataValue.WrappedValue.TryGetValue(out ArrayOf<string> serverUris))
-                {
-                    return serverUris;
-                }
+                return result;
             }
-            catch (ServiceResultException)
+
+            if (dataValue.WrappedValue.TryGetValue(out ArrayOf<string> serverUris))
             {
-                // Node may not exist; return empty list.
+                return serverUris;
             }
 
             return result;

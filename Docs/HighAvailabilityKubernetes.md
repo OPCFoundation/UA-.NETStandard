@@ -1,8 +1,10 @@
 # Kubernetes High Availability Deployment
 
-This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Kubernetes` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
+This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy.K8s` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
 
-See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `Applications/HighAvailabilityServer`.
+See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `Applications/RedundantServer`.
+
+The API names distinguish standardized OPC UA model wiring from deployment extensions. `AddServerRedundancy(...)`, `AddServerServiceLevel(...)`, and `AddRequestServerStateChange(...)` publish or maintain OPC 10000-4 §6.6 nodes/methods; `UseDistributedAddressSpace(...)`, `UseDistributedSessions(...)`, `UseDistributedSubscriptionMirroring(...)`, `UseKubernetesLeaderElection(...)`, `UseKubernetesPeerDiscovery(...)`, and `UseKubernetesReadiness(...)` register beyond-spec extension services. `AddServerRedundancy(...)` does not drive `Server.ServiceLevel` by itself, so Kubernetes readiness must also register a ServiceLevel provider, commonly with `AddServerServiceLevel(...)` or the leader-aware provider used by the sample.
 
 ## Redundancy shapes on Kubernetes
 
@@ -238,6 +240,10 @@ data:
 ```
 
 For transparent redundancy or session fast reconnect, mount the same `ApplicationInstanceCertificate` and private key into every replica because the client signs an `ActivateSession` challenge against one logical application. For non-transparent redundancy, each server may have its own ApplicationUri and certificate and is managed independently by the certificate manager. Never bake private keys, trust lists, or shared store credentials into images.
+
+The shared transparent-mode private key has replica-set-wide blast radius: compromise of one pod or mounted secret compromises the virtual OPC UA server identity for every replica behind the Service. Store the key in a Kubernetes Secret only when that matches the cluster's threat model; otherwise use a CSI-backed secret store or HSM/KMS integration with strict RBAC, audit, and node access controls.
+
+Rotate the shared transparent-mode certificate/key with an overlap window. Issue a replacement certificate for the same virtual endpoint identity, update client/GDS trust lists to trust the replacement before rollout, update the mounted secret or CSI version, restart or reload pods until every ready replica presents the new certificate, then revoke/remove the old certificate and delete old secret versions. For suspected key compromise, mark readiness unhealthy or drain the Service before any replica with the old key can continue serving clients.
 
 ## Time synchronization
 

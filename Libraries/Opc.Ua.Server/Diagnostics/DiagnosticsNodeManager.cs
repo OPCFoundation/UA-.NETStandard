@@ -452,6 +452,29 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Applies the OPC 10000-5 subtype model for <c>Server.ServerRedundancy</c>.
+        /// </summary>
+        /// <param name="serverRedundancy">The ServerRedundancy instance.</param>
+        private static void ApplyServerRedundancyTypeDefinition(ServerRedundancyState serverRedundancy)
+        {
+            if (serverRedundancy == null)
+            {
+                throw new ArgumentNullException(nameof(serverRedundancy));
+            }
+
+            RedundancySupport mode = serverRedundancy.RedundancySupport?.Value ?? RedundancySupport.None;
+            serverRedundancy.TypeDefinitionId = mode switch
+            {
+                RedundancySupport.Transparent => TransparentRedundancyTypeId,
+                RedundancySupport.Cold or
+                    RedundancySupport.Warm or
+                    RedundancySupport.Hot or
+                    RedundancySupport.HotAndMirrored => NonTransparentRedundancyTypeId,
+                _ => ServerRedundancyTypeId
+            };
+        }
+
         private void AddServerSdkOptionalChildren(
             ISystemContext context,
             ServerObjectState serverObject)
@@ -484,6 +507,7 @@ namespace Opc.Ua.Server
             }
             if (serverObject.ServerRedundancy != null)
             {
+                ApplyServerRedundancyTypeDefinition(serverObject.ServerRedundancy);
                 AddServerRedundancySdkOptionalChildren(
                     context, serverObject.ServerRedundancy);
             }
@@ -2611,6 +2635,10 @@ namespace Opc.Ua.Server
                 ServerTimestampSupported = serverTimestampSupported,
             };
         }
+
+        private static readonly NodeId ServerRedundancyTypeId = new(2034);
+        private static readonly NodeId TransparentRedundancyTypeId = new(2036);
+        private static readonly NodeId NonTransparentRedundancyTypeId = new(2039);
 
         private static readonly NodeId[] s_kWellKnownRoles =
         [
