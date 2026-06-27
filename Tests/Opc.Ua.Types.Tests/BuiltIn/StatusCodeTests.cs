@@ -676,8 +676,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var statusCode = new StatusCode(0x80010001);
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(statusCode.Equals((object)0x80010000u), Is.True);
             Assert.That(statusCode.Equals((object)0x80010006u), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
