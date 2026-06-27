@@ -678,7 +678,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteStatusCode(string? fieldName, StatusCode value)
         {
-            if (value == StatusCodes.Good && m_options.IgnoreDefaultValues)
+            if (value.Equals(StatusCodes.Good, StatusCodeComparison.AllBits) &&
+                m_options.IgnoreDefaultValues)
             {
                 return;
             }
@@ -1050,7 +1051,7 @@ namespace Opc.Ua
                 }
             }
             // Now write the remainder of the data value fields
-            if (value.StatusCode != StatusCodes.Good)
+            if (!value.StatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteStatusCode(JsonProperties.StatusCode, value.StatusCode);
             }
@@ -1165,7 +1166,8 @@ namespace Opc.Ua
             {
                 WriteString(JsonProperties.AdditionalInfo, value.AdditionalInfo);
             }
-            if (value.InnerStatusCode != StatusCodes.Good)
+            if (!value.InnerStatusCode.Equals(
+                StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteStatusCode(JsonProperties.InnerStatusCode, value.InnerStatusCode);
             }
@@ -1609,7 +1611,7 @@ namespace Opc.Ua
             // the default (Good) is represented by an empty object
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.2
             StartObject();
-            if (value != StatusCodes.Good)
+            if (!value.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteUInt32(JsonProperties.Code, value.Code);
                 if (m_options == JsonEncoderOptions.Verbose)

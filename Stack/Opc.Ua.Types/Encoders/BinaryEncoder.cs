@@ -879,7 +879,7 @@ namespace Opc.Ua
             }
 
             StatusCode statusCode = value.StatusCode;
-            if (statusCode != StatusCodes.Good)
+            if (!statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
             }
@@ -2111,7 +2111,8 @@ namespace Opc.Ua
                     encoding |= (byte)DiagnosticInfoEncodingBits.AdditionalInfo;
                 }
 
-                if (value.InnerStatusCode != StatusCodes.Good)
+                if (!value.InnerStatusCode.Equals(
+                    StatusCodes.Good, StatusCodeComparison.AllBits))
                 {
                     encoding |= (byte)DiagnosticInfoEncodingBits.InnerStatusCode;
                 }

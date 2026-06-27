@@ -729,7 +729,7 @@ namespace Opc.Ua
                 encoder.WriteVariant("Value", Value);
             }
 
-            if (StatusCode != StatusCodes.Good)
+            if (!StatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 encoder.WriteStatusCode("StatusCode", StatusCode);
             }
@@ -856,7 +856,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.Value;
             }
 
-            if (m_statusCode != StatusCodes.Good)
+            if (!m_statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 attributesToSave |= AttributesToSave.StatusCode;
             }
@@ -1329,7 +1329,8 @@ namespace Opc.Ua
                 }
 
                 // return the correct status code if no errors.
-                if (ServiceResult.IsGood(result) && statusCode != StatusCodes.Good)
+                if (ServiceResult.IsGood(result) &&
+                    !statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                 {
                     result = statusCode;
                 }
@@ -1365,7 +1366,8 @@ namespace Opc.Ua
             }
 
             // return the correct status code if no errors.
-            if (ServiceResult.IsGood(result) && statusCode != StatusCodes.Good)
+            if (ServiceResult.IsGood(result) &&
+                !statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 result = statusCode;
             }
@@ -1863,7 +1865,8 @@ namespace Opc.Ua
 
                         // mirror sync OnReadValue status-code fixup.
                         if (ServiceResult.IsGood(result) &&
-                            readResult.StatusCode != StatusCodes.Good)
+                            !readResult.StatusCode.Equals(
+                                StatusCodes.Good, StatusCodeComparison.AllBits))
                         {
                             result = readResult.StatusCode;
                         }
@@ -1897,7 +1900,8 @@ namespace Opc.Ua
                                     valueToRead = CoreUtils.Clone(valueToRead);
                                 }
 
-                                if (cachedStatusCode != StatusCodes.Good)
+                                if (!cachedStatusCode.Equals(
+                                    StatusCodes.Good, StatusCodeComparison.AllBits))
                                 {
                                     result = cachedStatusCode;
                                 }
