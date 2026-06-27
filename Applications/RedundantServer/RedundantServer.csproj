@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework Condition="'$(CustomTestTarget)' == ''">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFramework>
     <OutputType>Exe</OutputType>
     <AssemblyName>RedundantServer</AssemblyName>
     <PackageId>RedundantServer</PackageId>
