@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Bridges a local node graph (<see cref="ILocalAddressSpace"/>) to a
+    /// Extension beyond OPC 10000-4 §6.6: bridges a local node graph (<see cref="ILocalAddressSpace"/>) to a
     /// shared <see cref="INodeStateStore"/> so address-space topology and
     /// variable values replicate across server replicas.
     /// </summary>

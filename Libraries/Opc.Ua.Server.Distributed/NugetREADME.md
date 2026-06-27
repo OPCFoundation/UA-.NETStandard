@@ -8,7 +8,7 @@ The core server library stays a self-contained, single-instance server. This pac
 
 - A shared, integrity-protected key/value backend (`ISharedKeyValueStore`) that mirrors node additions, removals, references, and values across replicas.
 - Leader election (`ILeaderElection`) for the shared-read / leader-write redundancy model, surfaced to clients through the standard OPC UA `ServiceLevel` and redundancy nodes.
-- An opt-in `DistributedSessionManager` that mirrors encrypted, integrity-protected session state for fast reconnect on a standby, always running a full `ActivateSession` (the authentication token is only a lookup key).
+- Opt-in mirrors for HotAndMirrored/Transparent failover: encrypted session state with single-use nonce validation, subscription definitions, retransmission queues for `Republish`, best-effort continuation-point envelopes, and deterministic EventIds when an `IEventIdProvider` such as `DeterministicEventIdProvider` is configured.
 
 ## Getting started
 
@@ -32,4 +32,4 @@ The single-instance defaults remain in effect until a shared store is supplied, 
 
 ## Additional documentation
 
-See the [High Availability guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailability.md) for the architecture, the security and threat model, and the [Kubernetes deployment guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/KubernetesDeployment.md) for running the server as a replica set.
+See the [High Availability guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailability.md) for the OPC UA redundancy mapping and the [Kubernetes deployment guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailabilityKubernetes.md) for running the server as a replica set.

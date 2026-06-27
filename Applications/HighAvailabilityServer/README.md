@@ -1,6 +1,6 @@
 # High Availability Server
 
-This sample is a minimal Generic Host based OPC UA server that demonstrates the distributed high-availability server building blocks in `Opc.Ua.Server.Distributed` and the active/active building blocks in `Opc.Ua.Server.Distributed.Crdt`. It registers an `AsyncCustomNodeManager`-derived node manager so the local address space participates in replication, and selects its topology with the `HA_MODE` environment variable: **active/passive** (`ap`, the default — leader election so only the active replica writes) or **active/active** (`aa` — every replica writes and converges by CRDT gossip). It drives `Server.ServiceLevel` from the replica state and publishes `Server.ServerRedundancy` metadata.
+This sample is a minimal Generic Host based OPC UA server that demonstrates the distributed high-availability server building blocks in `Opc.Ua.Server.Distributed` and the active/active building blocks in `Opc.Ua.Server.Distributed.Crdt`. It registers an `AsyncCustomNodeManager`-derived node manager so the local address space participates in replication, and selects its topology with the `HA_MODE` environment variable: **active/passive** (`ap`, the default — leader election so only the active replica writes) or **active/active** (`aa` — every replica writes and converges by CRDT gossip). It drives `Server.ServiceLevel` from the replica state and publishes OPC 10000-4 §6.6 `Server.ServerRedundancy` metadata, including non-transparent discovery and manual failover.
 
 The bundled configuration uses the default in-memory shared key/value store. That is useful for understanding the DI wiring and for single-process experimentation, but separate OS processes do not share memory. A real multi-process or multi-host deployment needs a shared backend for `ISharedKeyValueStore` such as Redis; that backend is intentionally deferred from this small sample.
 
@@ -14,18 +14,26 @@ Connect an OPC UA client to `opc.tcp://localhost:62543/HighAvailabilityServer` a
 
 ## Run two instances
 
-Use distinct ports and stable `HA_NODE_ID` values. The `peerServerUris` setting is a comma- or semicolon-separated list published in `Server.ServerRedundancy.RedundantServerArray`.
+Use distinct ports and stable `HA_NODE_ID` values. `REDUNDANCY_MODE` selects the OPC UA redundancy model. `HA_REDUNDANT_PEERS` provides the peer set used for `ServerUriArray`, `RedundantServerArray`, NTRS discovery registration, and `FindServers` peer results. Each peer entry is:
+
+```text
+applicationUri|applicationName|discoveryUrl1+discoveryUrl2
+```
 
 ```powershell
 $env:HA_NODE_ID = "replica-a"
-dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.csproj -- --port 62543 --peerServerUris "urn:localhost:OPCFoundation:HighAvailabilityServer:replica-b"
+$env:REDUNDANCY_MODE = "hot"
+$env:HA_REDUNDANT_PEERS = "urn:localhost:OPCFoundation:HighAvailabilityServer:replica-b|HighAvailabilityServer replica-b|opc.tcp://localhost:62544/HighAvailabilityServer"
+dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.csproj -- --port 62543
 ```
 
 In a second terminal:
 
 ```powershell
 $env:HA_NODE_ID = "replica-b"
-dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.csproj -- --port 62544 --peerServerUris "urn:localhost:OPCFoundation:HighAvailabilityServer:replica-a"
+$env:REDUNDANCY_MODE = "hot"
+$env:HA_REDUNDANT_PEERS = "urn:localhost:OPCFoundation:HighAvailabilityServer:replica-a|HighAvailabilityServer replica-a|opc.tcp://localhost:62543/HighAvailabilityServer"
+dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.csproj -- --port 62544
 ```
 
 With the default in-memory store, each process elects against its own private store, so this two-terminal setup demonstrates endpoint, node id, service-level, and redundancy metadata configuration rather than cross-process state transfer. To turn it into a real HA pair, register a shared `ISharedKeyValueStore` that both processes can reach, as shown below.
@@ -58,6 +66,7 @@ builder.Services
 
         d.UseLeaderElection = true;   // lease-based leader = the single writer
         d.NodeId = nodeId;            // unique per replica
+        d.RedundancyMode = RedundancySupport.HotAndMirrored;
     })
     .UseDistributedSessions(s =>
     {
@@ -69,9 +78,37 @@ builder.Services
     .AddServerRedundancy(r =>
     {
         r.Mode = RedundancySupport.HotAndMirrored;
-        r.PeerServerUris.Add("urn:host-b:OPCFoundation:HighAvailabilityServer:replica-b");
-    });
+        r.CurrentServerId = nodeId;
+        r.RedundantPeers.Add(new RedundantPeer(
+            "urn:host-b:OPCFoundation:HighAvailabilityServer:replica-b",
+            new ArrayOf<string>("opc.tcp://host-b:62543/HighAvailabilityServer"))
+        {
+            ApplicationName = new LocalizedText("HighAvailabilityServer replica-b")
+        });
+    })
+    .AddManualFailover();
 ```
+
+## Redundancy mode and discovery settings
+
+| Setting | Values | Description |
+| --- | --- | --- |
+| `REDUNDANCY_MODE` | `none`, `cold`, `warm`, `hot`, `hotandmirrored`, `transparent` | Selects the `Server.ServerRedundancy.RedundancySupport` value. If unset, active/passive defaults to `hot` and active/active defaults to `hotandmirrored`. |
+| `HA_NODE_ID` | stable replica id | Used as this replica's `ApplicationUri` suffix and as `CurrentServerId` for transparent redundancy. |
+| `HA_REDUNDANT_PEERS` | `applicationUri|applicationName|discoveryUrl1+discoveryUrl2`, separated by comma or semicolon | Defines the peer `RedundantPeer` set. Non-transparent modes publish peer `ApplicationUri` values in `ServerUriArray`, advertise the `NTRS` server capability, and return these peers from `FindServers`. |
+| `peerServerUris` | comma/semicolon-separated application URIs | Legacy shorthand for `RedundantServerArray`; prefer `HA_REDUNDANT_PEERS` when clients must resolve peers through `FindServers`. |
+| `HA_MODE` | `ap`, `aa` | Chooses active/passive shared-store replication or active/active CRDT gossip. |
+| `HA_FAST_RECONNECT` | `true`, `false` | Allows token-reuse reconnect for mirrored sessions. The default requires full `ActivateSession` re-authentication after failover. |
+
+The sample also enables `RequestServerStateChange` with `AddManualFailover()`. An administrator client can call the standard method on `Server` to request Maintenance or NoData behavior and set `Server.EstimatedReturnTime`; the server updates `Server.ServiceLevel` into the appropriate OPC UA subrange so clients back off or fail over.
+
+Mode-specific nodes shown by the sample:
+
+- `none` — leaves redundancy metadata in its single-server defaults.
+- `cold`, `warm`, `hot`, `hotandmirrored` — publish `ServerUriArray` from `HA_REDUNDANT_PEERS`, retain `RedundantServerArray`, advertise `NTRS`, and return the peer `ApplicationDescription` values from `FindServers`.
+- `transparent` — publishes `CurrentServerId` and `RedundantServerArray` for the transparent set.
+
+`Server.ServiceLevel` is driven by the sub-range-aware provider: leaders report Healthy, warm standby reports Degraded, hot/hot-and-mirrored replicas report Healthy, and cold standby reports NoData. The console prints the selected mode, server id, peer set, and initial service-level subrange at startup.
 
 ## Active/passive vs active/active
 
@@ -103,3 +140,5 @@ dotnet run --project Applications\HighAvailabilityServer\HighAvailabilityServer.
 ```
 
 Both replicas now accept writes to `Counter` and converge: a write on either endpoint propagates to the other by gossip, and the per-second increment runs on every replica, with CRDT last-writer-wins resolving the concurrent updates. Unlike the active/passive store-backed setup, active/active needs no shared `ISharedKeyValueStore` between processes — the gossip transport carries the state.
+
+For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [HighAvailabilityKubernetes.md](..\..\Docs\HighAvailabilityKubernetes.md).

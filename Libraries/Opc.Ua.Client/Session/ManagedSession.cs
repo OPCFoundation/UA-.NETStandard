@@ -80,6 +80,7 @@ namespace Opc.Ua.Client
             bool transferSubscriptionsOnRecreate,
             bool poolNotifications,
             bool enableTokenReuseFailover,
+            NetworkRedundancyOptions? networkRedundancy,
             IClientChannelManager? channelManager)
         {
             m_configuration = configuration
@@ -106,6 +107,12 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
             m_poolNotifications = poolNotifications;
             m_enableTokenReuseFailover = enableTokenReuseFailover;
+            m_networkEndpointSelector = networkRedundancy == null ||
+                networkRedundancy.AlternateEndpoints.IsEmpty
+                    ? null
+                    : new NetworkRedundancyEndpointSelector(
+                        endpoint,
+                        networkRedundancy.AlternateEndpoints);
             m_channelManager = channelManager;
 
             StateMachine = new ConnectionStateMachine(
@@ -170,6 +177,10 @@ namespace Opc.Ua.Client
         /// inner Session shares its transport channel with any other
         /// session/discovery client targeting the same endpoint, and
         /// channel reconnect is coordinated centrally.</param>
+        /// <param name="networkRedundancy">
+        /// Optional alternate Endpoints for OPC 10000-4 §6.6.4 non-transparent network redundancy. Transparent network
+        /// redundancy is handled by the infrastructure endpoint and does not require alternates.
+        /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -191,6 +202,7 @@ namespace Opc.Ua.Client
             IClientIdentityProvider? identityProvider = null,
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
+            NetworkRedundancyOptions? networkRedundancy = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -232,6 +244,7 @@ namespace Opc.Ua.Client
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
                 enableTokenReuseFailover,
+                networkRedundancy,
                 channelManager)
             {
                 m_engineFactory = engineFactory
@@ -1074,11 +1087,22 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
                             session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
                         {
-                            m_logger.LogInformation(
-                                sre,
-                                "ManagedSession: managed channel is faulted; recreating session in place.");
+                            ConfiguredEndpoint? alternateEndpoint =
+                                SelectNextNetworkEndpoint(session.ConfiguredEndpoint);
+                            if (alternateEndpoint == null)
+                            {
+                                m_logger.LogInformation(
+                                    sre,
+                                    "ManagedSession: managed channel is faulted; recreating session in place.");
+                            }
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    sre,
+                                    "ManagedSession: managed channel is faulted; recreating session on alternate endpoint.");
+                            }
                             await session.RecreateInPlaceAsync(
-                                    endpoint: null,
+                                    endpoint: alternateEndpoint,
                                     budget: budget,
                                     ct: ct)
                                 .ConfigureAwait(false);
@@ -1100,6 +1124,32 @@ namespace Opc.Ua.Client
                     "ManagedSession: Reconnect attempt failed.");
                 return new ServiceResult(ex);
             }
+        }
+
+        private ConfiguredEndpoint? SelectNextNetworkEndpoint(
+            ConfiguredEndpoint currentEndpoint)
+        {
+            return m_networkEndpointSelector?.SelectNext(currentEndpoint);
+        }
+
+        internal async ValueTask ReactivateMirroredSessionAsync(
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct = default)
+        {
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            using (await m_serviceLock.WriterLockAsync(ct)
+                .ConfigureAwait(false))
+            {
+                await InnerSession
+                    .ReactivateMirroredSessionAsync(endpoint, ct)
+                    .ConfigureAwait(false);
+            }
+
+            m_reconnectPolicy.Reset();
         }
 
         private async Task<ServiceResult> HandleFailoverAsync(
@@ -1740,6 +1790,7 @@ namespace Opc.Ua.Client
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
         private readonly bool m_enableTokenReuseFailover;
+        private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
         private ISubscriptionEngineFactory? m_engineFactory;
         private int m_channelReconnectInProgress;

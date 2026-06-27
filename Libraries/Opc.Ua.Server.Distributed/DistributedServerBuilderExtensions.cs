@@ -35,16 +35,17 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Fluent registration of distributed / high-availability server
-    /// features on the <see cref="IOpcUaServerBuilder"/>.
+    /// Fluent registration of OPC 10000-4 §6.6 redundancy and value-add distributed-server extensions on the
+    /// <see cref="IOpcUaServerBuilder"/>.
     /// </summary>
     public static class DistributedServerBuilderExtensions
     {
         /// <summary>
         /// Drives the live <c>Server.ServiceLevel</c> node from the supplied
         /// <see cref="IServiceLevelProvider"/> (e.g.
-        /// <see cref="LeaderServiceLevelProvider"/> for active/passive). Use a
-        /// <see cref="ConstantServiceLevelProvider"/> to report a fixed level.
+        /// <see cref="LeaderServiceLevelProvider"/> for non-transparent Failover). Use a
+        /// <see cref="ConstantServiceLevelProvider"/> to report a fixed level. See OPC 10000-4 §6.6.2.4.2 and
+        /// §6.6.2.4.3.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="serviceLevelProvider">The service-level source.</param>
@@ -67,8 +68,8 @@ namespace Opc.Ua.Server.Distributed
         }
 
         /// <summary>
-        /// Registers dependency-injection building blocks for a distributed
-        /// address space.
+        /// Extension beyond OPC 10000-4 §6.6: registers dependency-injection building blocks for a distributed
+        /// AddressSpace used by a <c>RedundantServerSet</c>.
         /// </summary>
         /// <remarks>
         /// This registers the shared key/value store, leader election,
@@ -114,8 +115,9 @@ namespace Opc.Ua.Server.Distributed
             builder.Services.TryAddSingleton<IServiceLevelProvider>(sp =>
                 new LeaderServiceLevelProvider(
                     sp.GetRequiredService<ILeaderElection>(),
-                    options.LeaderServiceLevel,
-                    options.StandbyServiceLevel));
+                    options.RedundancyMode,
+                    options.ServiceLevelLoadMetric,
+                    options.HealthServiceLevel));
 
             // The service-level startup task updates Server.ServiceLevel from
             // the provider.
@@ -130,15 +132,15 @@ namespace Opc.Ua.Server.Distributed
                 new DistributedAddressSpaceStartupTask(
                     sp.GetRequiredService<ISharedKeyValueStore>(),
                     sp.GetRequiredService<ILeaderElection>(),
-                    sp.GetService<IRecordProtector>()));
+                    RecordProtectionGuard.ResolveProtectorOrThrow(sp)));
 
             return builder;
         }
 
         /// <summary>
-        /// Registers a distributed session manager so a client can fail over to
+        /// Registers a distributed session manager so a client can Failover to
         /// a standby replica and reconnect by re-running <c>ActivateSession</c>
-        /// (OPC UA HotAndMirrored fast reconnect).
+        /// (OPC UA HotAndMirrored fast reconnect, OPC 10000-4 §6.6.2.4.5.5).
         /// </summary>
         /// <remarks>
         /// <para>
@@ -180,7 +182,7 @@ namespace Opc.Ua.Server.Distributed
             builder.Services.TryAddSingleton<ISessionManagerFactory>(sp =>
                 new DistributedSessionManagerFactory(
                     sp.GetRequiredService<ISharedKeyValueStore>(),
-                    sp.GetService<IRecordProtector>(),
+                    RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     options));
 
             return builder;

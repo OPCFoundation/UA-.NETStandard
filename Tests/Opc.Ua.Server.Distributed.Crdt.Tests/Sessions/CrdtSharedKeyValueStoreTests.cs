@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
                 found.Add(pair.Key);
             }
 
-            Assert.That(found, Is.EquivalentTo(new[] { "session/a", "session/b" }));
+            Assert.That(found, Is.EquivalentTo(s_sessionKeys));
         }
 
         [Test]
@@ -143,5 +143,7 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
             }
             Assert.Fail(message);
         }
+
+        private static readonly string[] s_sessionKeys = ["session/a", "session/b"];
     }
 }

@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// A portable, serialized representation of a single node held in an
+    /// Extension beyond OPC 10000-4 §6.6: a portable, serialized representation of a single node held in an
     /// <see cref="INodeStateStore"/>. The <see cref="Payload"/> is produced
     /// by <c>NodeState.SaveAsBinary</c> and consumed by
     /// <c>NodeState.LoadAsBinary</c>, so the store never needs to reason

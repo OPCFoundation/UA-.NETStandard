@@ -34,7 +34,7 @@ using System.IO;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Serializes a <see cref="NodeState"/> to a portable, self-describing
+    /// Extension beyond OPC 10000-4 §6.6: serializes a <see cref="NodeState"/> to a portable, self-describing
     /// payload and reconstructs it. The payload is framed as a 4-byte
     /// little-endian <see cref="NodeClass"/> followed by the standard
     /// <c>NodeState.SaveAsBinary</c> encoding, so a replica can reconstruct

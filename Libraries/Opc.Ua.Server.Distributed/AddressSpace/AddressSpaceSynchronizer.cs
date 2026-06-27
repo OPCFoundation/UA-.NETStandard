@@ -37,7 +37,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Default <see cref="IAddressSpaceSynchronizer"/>. See the interface for
+    /// Extension beyond OPC 10000-4 §6.6: default <see cref="IAddressSpaceSynchronizer"/>. See the interface for
     /// the writer/reader role model.
     /// </summary>
     public sealed class AddressSpaceSynchronizer : IAddressSpaceSynchronizer

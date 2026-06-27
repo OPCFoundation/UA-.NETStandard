@@ -39,7 +39,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Active/active (multi-writer) <see cref="IAddressSpaceSynchronizer"/>.
+    /// Extension beyond OPC 10000-4 §6.6: active/active (multi-writer) <see cref="IAddressSpaceSynchronizer"/>.
     /// Models the node manager's address space as a last-writer-wins CRDT map
     /// (keyed by node id, with separate topology and value entries) and
     /// gossips full state through an <see cref="ITransport"/>. Every replica is

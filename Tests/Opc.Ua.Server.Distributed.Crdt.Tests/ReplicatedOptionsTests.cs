@@ -33,6 +33,7 @@
 
 using System;
 using System.Net;
+using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
 using Moq;
@@ -85,7 +86,7 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
         }
 
         [Test]
-        public void UseTcpGossipConfiguresTransportFactory()
+        public async Task UseTcpGossipConfiguresTransportFactoryAsync()
         {
             var options = new ReplicatedAddressSpaceOptions();
             options.AddPeer(new IPEndPoint(IPAddress.Loopback, 4999));
@@ -100,12 +101,16 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
             }
             finally
             {
-                transport.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                await transport.DisposeAsync();
+                if (network != null)
+                {
+                    await network.DisposeAsync();
+                }
             }
         }
 
         [Test]
-        public void UseUdpGossipConfiguresTransportFactory()
+        public async Task UseUdpGossipConfiguresTransportFactoryAsync()
         {
             var options = new ReplicatedSessionOptions();
             options.AddPeer(new IPEndPoint(IPAddress.Loopback, 4998));
@@ -120,7 +125,11 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
             }
             finally
             {
-                transport.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                await transport.DisposeAsync();
+                if (network != null)
+                {
+                    await network.DisposeAsync();
+                }
             }
         }
 

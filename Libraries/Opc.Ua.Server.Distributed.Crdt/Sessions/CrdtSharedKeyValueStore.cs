@@ -37,7 +37,7 @@ using Crdt.Transport;
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// A CRDT-backed <see cref="ISharedKeyValueStore"/>: a last-writer-wins map
+    /// Extension beyond OPC 10000-4 §6.6: a CRDT-backed <see cref="ISharedKeyValueStore"/>: a last-writer-wins map
     /// gossiped between replicas so every replica converges on the same
     /// key/value state without a leader. Reads, writes, and deletes are local;
     /// the merged state propagates by gossip.

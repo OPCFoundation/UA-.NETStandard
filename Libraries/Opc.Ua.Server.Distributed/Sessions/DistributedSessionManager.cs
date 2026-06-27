@@ -248,6 +248,12 @@ namespace Opc.Ua.Server.Distributed
                 try
                 {
                     await session.InitializeAsync(context, cancellationToken).ConfigureAwait(false);
+                    if (session is Session restoredSession)
+                    {
+                        await restoredSession
+                            .LoadMirroredContinuationPointsAsync(entry.SessionId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch
                 {
@@ -258,6 +264,7 @@ namespace Opc.Ua.Server.Distributed
                     "Distributed session restored from shared store for {Token} (session {SessionId}).",
                     TokenDigest(authenticationToken),
                     session.Id);
+                m_tokensBySession[session.Id] = authenticationToken;
 
                 // Security-relevant provenance: a session materialized on this
                 // replica from shared state (audit, not just a log).
@@ -315,7 +322,11 @@ namespace Opc.Ua.Server.Distributed
             NodeId authenticationToken,
             OperationContext context)
         {
-            if (entry.ClientCertificateChain.IsNull || entry.ClientCertificateChain.IsEmpty)
+            bool requiresClientCertificate =
+                entry.SecurityMode != (int)MessageSecurityMode.None ||
+                !string.Equals(entry.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal);
+            if (requiresClientCertificate &&
+                (entry.ClientCertificateChain.IsNull || entry.ClientCertificateChain.IsEmpty))
             {
                 m_logger.LogWarning("Mirrored session has no client certificate; cannot restore.");
                 return null;
@@ -330,9 +341,11 @@ namespace Opc.Ua.Server.Distributed
                 return null;
             }
 
-            using CertificateCollection parsed = Utils.ParseCertificateChainBlob(
-                entry.ClientCertificateChain.ToArray(), m_telemetry);
-            if (parsed.Count == 0)
+            using CertificateCollection parsed = entry.ClientCertificateChain.IsNull ||
+                entry.ClientCertificateChain.IsEmpty
+                    ? []
+                    : Utils.ParseCertificateChainBlob(entry.ClientCertificateChain.ToArray(), m_telemetry);
+            if (requiresClientCertificate && parsed.Count == 0)
             {
                 return null;
             }
@@ -347,7 +360,7 @@ namespace Opc.Ua.Server.Distributed
             Nonce? serverNonce = null;
             try
             {
-                clientCertificate = parsed[0].AddRef();
+                clientCertificate = parsed.Count == 0 ? null : parsed[0].AddRef();
                 issuers = new CertificateCollection();
                 serverNonce = Nonce.CreateNonce(entry.SecurityPolicyUri, entry.ServerNonce.ToArray());
                 ISession session = CreateSession(
@@ -360,7 +373,7 @@ namespace Opc.Ua.Server.Distributed
                     entry.SessionName,
                     entry.ClientDescription,
                     entry.EndpointUrl,
-                    clientCertificate,
+                    clientCertificate!,
                     issuers,
                     entry.SessionTimeout,
                     0,

@@ -114,6 +114,16 @@ namespace Opc.Ua.Client
         public bool EnableTokenReuseFailover { get; init; }
 
         /// <summary>
+        /// Non-transparent network redundancy endpoints for the same logical
+        /// server. On network reconnect, <see cref="ManagedSession"/> can
+        /// recreate the secure channel against the next endpoint while keeping
+        /// the same logical session and subscriptions. Transparent network
+        /// redundancy is handled by the network infrastructure and should not
+        /// be configured here.
+        /// </summary>
+        public NetworkRedundancyOptions NetworkRedundancy { get; init; } = new();
+
+        /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
         /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so
         /// <see cref="ManagedSession.SubscriptionManager"/> is available.

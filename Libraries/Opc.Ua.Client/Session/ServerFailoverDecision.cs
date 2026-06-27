@@ -27,45 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Redundancy support mode reported by the server.
+    /// Describes whether a redundant client should fail over.
     /// </summary>
-    /// <remarks>
-    /// Maps to the OPC UA <c>RedundancySupport</c> enumeration
-    /// defined in Part 5 §6.3.7.
-    /// </remarks>
-    public enum RedundancyMode
+    public sealed class ServerFailoverDecision
     {
         /// <summary>
-        /// No redundancy.
+        /// Initializes a new instance of the <see cref="ServerFailoverDecision"/> class.
         /// </summary>
-        None = 0,
+        public ServerFailoverDecision(
+            bool isFailoverWarranted,
+            DateTime retryAfter,
+            string reason)
+        {
+            IsFailoverWarranted = isFailoverWarranted;
+            RetryAfter = retryAfter;
+            Reason = reason;
+        }
 
         /// <summary>
-        /// Cold redundancy – backup servers are available but not running.
+        /// Gets a value indicating whether a failover is warranted.
         /// </summary>
-        Cold = 1,
+        public bool IsFailoverWarranted { get; }
 
         /// <summary>
-        /// Warm redundancy – backup servers are running but not processing.
+        /// Gets the time after which a deferred failover may be retried.
         /// </summary>
-        Warm = 2,
+        public DateTime RetryAfter { get; }
 
         /// <summary>
-        /// Hot redundancy – backup servers are running and processing.
+        /// Gets the decision reason.
         /// </summary>
-        Hot = 3,
-
-        /// <summary>
-        /// Transparent redundancy – handled by infrastructure, invisible to clients.
-        /// </summary>
-        Transparent = 4,
-
-        /// <summary>
-        /// Hot and mirrored redundancy.
-        /// </summary>
-        HotAndMirrored = 5
+        public string Reason { get; }
     }
 }

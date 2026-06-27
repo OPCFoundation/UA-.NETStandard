@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Default <see cref="IDistributedValueCache"/> over an
+    /// Extension beyond OPC 10000-4 §6.6: default <see cref="IDistributedValueCache"/> over an
     /// <see cref="INodeStateStore"/>. Freshness is evaluated against the
     /// value's <see cref="DataValue.SourceTimestamp"/> using an injectable
     /// <see cref="TimeProvider"/>.

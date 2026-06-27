@@ -34,21 +34,19 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Minimal shared key/value backend used by the distributed address
-    /// space to replicate node topology and value state across server
-    /// replicas.
+    /// Extension beyond OPC 10000-4 §6.6: minimal shared key/value backend used to replicate state across a
+    /// <c>RedundantServerSet</c>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the lowest-level abstraction in the distributed address
-    /// space stack. The in-process default
-    /// (<see cref="InMemorySharedKeyValueStore"/>) backs both
-    /// active/active and active/passive deployments; a Redis or other
-    /// shared backend is a thin adapter over the same contract.
+    /// OPC 10000-4 §6.6 standardizes redundancy behaviour, discovery data, ServiceLevel selection, and Failover
+    /// actions; it does not define a shared storage protocol. This value-add extension is the lowest-level abstraction
+    /// used by the distributed AddressSpace, session, subscription, continuation-point, nonce, and lease mirrors.
     /// </para>
     /// <para>
     /// Keys are opaque, ordinal strings. Values are <see cref="ByteString"/>
-    /// payloads. Implementations must be safe for concurrent calls.
+    /// payloads. Implementations must be safe for concurrent calls. External shared stores must be paired with an
+    /// <see cref="IRecordProtector"/> for mirrored records that contain secrets or notifications.
     /// </para>
     /// </remarks>
     public interface ISharedKeyValueStore

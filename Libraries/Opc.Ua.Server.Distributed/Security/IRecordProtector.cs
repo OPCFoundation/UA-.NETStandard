@@ -30,16 +30,13 @@
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Protects records written to a shared store with authenticated
-    /// encryption (confidentiality + integrity). The shared store is treated
-    /// as an untrusted conduit: every persisted record (node payloads, encoded
-    /// values, session entries) is encrypted and authenticated, and a tampered
-    /// or forged record fails verification so it is never decrypted or applied.
+    /// Protects extension state written to a shared store with authenticated encryption.
     /// </summary>
     /// <remarks>
-    /// This closes the confidentiality and integrity
-    /// gaps for distributed-HA state at rest and against a rogue replica /
-    /// compromised store. See <c>Docs/HighAvailability.md</c>.
+    /// OPC 10000-4 §6.6 defines redundant-server behaviour but not a shared-store protection format. The shared store
+    /// is treated as an untrusted conduit: persisted records are encrypted and authenticated, and a tampered or forged
+    /// record fails closed so it is never decrypted or applied. External shared stores used for mirrored sessions,
+    /// subscriptions, retransmission queues, continuation points, or CRDT session records require a protector.
     /// </remarks>
     public interface IRecordProtector
     {

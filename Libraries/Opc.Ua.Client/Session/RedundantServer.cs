@@ -30,27 +30,32 @@
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Information about a server in a redundant server set.
+    /// Information about a Server in a <c>RedundantServerSet</c>.
     /// </summary>
     /// <remarks>
-    /// Corresponds to the OPC UA <c>RedundantServerDataType</c>
-    /// defined in Part 5 §12.5.
+    /// Corresponds to the OPC UA <c>RedundantServerDataType</c> defined in OPC 10000-5 §12.5 and used by
+    /// OPC 10000-4 §6.6.2 server redundancy.
     /// </remarks>
     public sealed class RedundantServer
     {
         /// <summary>
-        /// The URI that identifies the server.
+        /// The ServerUri that identifies the Server.
         /// </summary>
         public string ServerUri { get; init; } = string.Empty;
 
         /// <summary>
-        /// Service level (0–255, higher is better).
+        /// <c>ServiceLevel</c> (0–255, higher is better; see OPC 10000-4 §6.6.2.4.2 Table 105).
         /// </summary>
         public byte ServiceLevel { get; init; }
 
         /// <summary>
-        /// The current state of the server.
+        /// The current state of the Server.
         /// </summary>
         public ServerState ServerState { get; init; }
+
+        /// <summary>
+        /// The resolved endpoint for this redundant server.
+        /// </summary>
+        public ConfiguredEndpoint? Endpoint { get; init; }
     }
 }

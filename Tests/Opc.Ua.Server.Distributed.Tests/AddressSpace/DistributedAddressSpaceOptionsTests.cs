@@ -57,8 +57,9 @@ namespace Opc.Ua.Server.Tests.Distributed
             Assert.That(options.NodeId, Is.EqualTo(Environment.MachineName));
             Assert.That(options.LeaseDuration, Is.EqualTo(TimeSpan.FromSeconds(30)));
             Assert.That(options.RenewInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
-            Assert.That(options.LeaderServiceLevel, Is.EqualTo((byte)255));
-            Assert.That(options.StandbyServiceLevel, Is.EqualTo((byte)1));
+            Assert.That(options.RedundancyMode, Is.EqualTo(RedundancySupport.Warm));
+            Assert.That((object?)options.ServiceLevelLoadMetric, Is.Null);
+            Assert.That((object?)options.HealthServiceLevel, Is.Null);
         }
 
         [Test]
@@ -69,8 +70,8 @@ namespace Opc.Ua.Server.Tests.Distributed
                 .AddServer(_ => { })
                 .UseDistributedAddressSpace(options =>
                 {
-                    options.LeaderServiceLevel = 200;
-                    options.StandbyServiceLevel = 2;
+                    options.RedundancyMode = RedundancySupport.Hot;
+                    options.ServiceLevelLoadMetric = () => 2;
                 });
             await using ServiceProvider provider = services.BuildServiceProvider();
 
@@ -83,7 +84,7 @@ namespace Opc.Ua.Server.Tests.Distributed
 
             IServiceLevelProvider serviceLevelProvider = provider.GetRequiredService<IServiceLevelProvider>();
             Assert.That(serviceLevelProvider, Is.InstanceOf<LeaderServiceLevelProvider>());
-            Assert.That(serviceLevelProvider.GetServiceLevel(), Is.EqualTo((byte)200));
+            Assert.That(serviceLevelProvider.GetServiceLevel(), Is.EqualTo((byte)(ServiceLevels.Maximum - 2)));
             Assert.That(
                 provider.GetServices<IServerStartupTask>(),
                 Has.Some.InstanceOf<ServiceLevelStartupTask>());

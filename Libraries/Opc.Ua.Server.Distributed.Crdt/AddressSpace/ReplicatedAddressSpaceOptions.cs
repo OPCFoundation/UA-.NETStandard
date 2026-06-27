@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Options for CRDT active/active address-space replication. Topology and
+    /// Extension beyond OPC 10000-4 §6.6: options for CRDT active/active address-space replication. Topology and
     /// variable values are modelled as a last-writer-wins map and gossiped
     /// between replicas; every replica is a writer.
     /// </summary>

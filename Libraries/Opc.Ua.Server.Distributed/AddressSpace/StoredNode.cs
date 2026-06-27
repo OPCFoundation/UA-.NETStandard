@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Default immutable <see cref="IStoredNode"/> implementation.
+    /// Extension beyond OPC 10000-4 §6.6: default immutable <see cref="IStoredNode"/> implementation.
     /// </summary>
     public sealed class StoredNode : IStoredNode
     {

@@ -474,6 +474,7 @@ namespace Opc.Ua.Server
                 .AddNamespaces(context)
                 .AddUrisVersion(context)
                 .AddEstimatedReturnTime(context)
+                .AddRequestServerStateChange(context)
                 .AddLocalTime(context);
 
             if (serverObject.ServerCapabilities != null)
@@ -537,6 +538,74 @@ namespace Opc.Ua.Server
             // Opc.Ua.Client) keep working even when no redundancy provider
             // populates it.
             serverRedundancy.AddRedundantServerArray(context);
+            AddServerRedundancyStringProperty(
+                context,
+                serverRedundancy,
+                BrowseNames.CurrentServerId,
+                VariableIds.Server_ServerRedundancy_CurrentServerId,
+                ValueRanks.Scalar);
+            AddServerRedundancyStringArrayProperty(
+                context,
+                serverRedundancy,
+                BrowseNames.ServerUriArray,
+                VariableIds.Server_ServerRedundancy_ServerUriArray,
+                ValueRanks.OneDimension);
+        }
+
+        private static void AddServerRedundancyStringProperty(
+            ISystemContext context,
+            ServerRedundancyState serverRedundancy,
+            string browseName,
+            NodeId nodeId,
+            int valueRank)
+        {
+            if (serverRedundancy.FindChild(context, new QualifiedName(browseName, 0)) != null)
+            {
+                return;
+            }
+
+            var property = new PropertyState<string>.Implementation<VariantBuilder>(serverRedundancy)
+            {
+                SymbolicName = browseName,
+                NodeId = nodeId,
+                BrowseName = new QualifiedName(browseName, 0),
+                DisplayName = new LocalizedText(browseName),
+                DataType = DataTypeIds.String,
+                ValueRank = valueRank,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                TypeDefinitionId = VariableTypeIds.PropertyType
+            };
+            serverRedundancy.AddChild(property);
+        }
+
+        private static void AddServerRedundancyStringArrayProperty(
+            ISystemContext context,
+            ServerRedundancyState serverRedundancy,
+            string browseName,
+            NodeId nodeId,
+            int valueRank)
+        {
+            if (serverRedundancy.FindChild(context, new QualifiedName(browseName, 0)) != null)
+            {
+                return;
+            }
+
+            var property = new PropertyState<ArrayOf<string>>.Implementation<VariantBuilder>(serverRedundancy)
+            {
+                SymbolicName = browseName,
+                NodeId = nodeId,
+                BrowseName = new QualifiedName(browseName, 0),
+                DisplayName = new LocalizedText(browseName),
+                DataType = DataTypeIds.String,
+                ValueRank = valueRank,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                TypeDefinitionId = VariableTypeIds.PropertyType
+            };
+            serverRedundancy.AddChild(property);
         }
 
         private static void AddHistoryCapabilitiesSdkOptionalChildren(

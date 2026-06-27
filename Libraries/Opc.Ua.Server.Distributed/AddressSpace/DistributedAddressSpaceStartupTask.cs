@@ -37,7 +37,7 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Server startup task that wires the distributed address space once the
+    /// Extension beyond OPC 10000-4 §6.6: server startup task that wires the distributed address space once the
     /// server is running: it builds the <see cref="INodeStateStore"/> with the
     /// server's populated message context, registers it as the default in the
     /// server's <see cref="INodeStateStoreRegistry"/>, starts leader election,

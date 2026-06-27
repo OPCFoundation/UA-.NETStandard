@@ -60,7 +60,11 @@ namespace Opc.Ua.Aot.Tests
             (bool found, ByteString stored) = await store.TryGetAsync("session/aot");
 
             await Assert.That(found).IsTrue();
-            await Assert.That(stored.ToArray()).IsEquivalentTo(new byte[] { 10, 20, 30 });
+            byte[] bytes = stored.ToArray();
+            await Assert.That(bytes.Length).IsEqualTo(3);
+            await Assert.That(bytes[0]).IsEqualTo((byte)10);
+            await Assert.That(bytes[1]).IsEqualTo((byte)20);
+            await Assert.That(bytes[2]).IsEqualTo((byte)30);
         }
 
         [Test]

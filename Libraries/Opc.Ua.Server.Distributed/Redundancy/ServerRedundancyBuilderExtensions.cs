@@ -29,18 +29,20 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Configuration;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Fluent registration of server redundancy metadata publishing on the
+    /// Fluent registration of OPC 10000-4 §6.6 server redundancy metadata publishing on the
     /// <see cref="IOpcUaServerBuilder"/>.
     /// </summary>
     public static class ServerRedundancyBuilderExtensions
     {
         /// <summary>
-        /// Populates the live <c>Server.ServerRedundancy</c> nodes from the
+        /// Populates the live <c>Server.ServerRedundancy</c> model from the
         /// supplied configuration after the hosted server starts.
         /// </summary>
         /// <param name="builder">The server builder.</param>
@@ -56,9 +58,57 @@ namespace Opc.Ua.Server.Distributed
 
             var options = new ServerRedundancyOptions();
             configure?.Invoke(options);
+            AddDiscoveryCapabilityConfiguration(builder, options);
+            builder.Services.AddSingleton(options);
+            builder.Services.AddSingleton<IRedundantServerSetProvider>(
+                new ConfiguredRedundantServerSetProvider(options));
             builder.Services.AddSingleton<IServerStartupTask>(
                 new ServerRedundancyStartupTask(options));
             return builder;
+        }
+
+        /// <summary>
+        /// Wires the standard <c>Server.RequestServerStateChange</c> method for OPC 10000-4 §6.6.5
+        /// administrator-driven Maintenance or NoData Failover.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Optional method wiring configuration.</param>
+        public static IOpcUaServerBuilder AddManualFailover(
+            this IOpcUaServerBuilder builder,
+            Action<RequestServerStateChangeOptions>? configure = null)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            var options = new RequestServerStateChangeOptions();
+            configure?.Invoke(options);
+            builder.Services.AddSingleton<IServerStartupTask>(sp =>
+                new RequestServerStateChangeStartupTask(
+                    options,
+                    sp.GetService<IServiceLevelProvider>() as IServiceLevelController));
+            return builder;
+        }
+
+        private static void AddDiscoveryCapabilityConfiguration(
+            IOpcUaServerBuilder builder,
+            ServerRedundancyOptions redundancyOptions)
+        {
+            builder.Services.AddOptions<OpcUaServerOptions>().Configure(serverOptions =>
+            {
+                Action<IApplicationConfigurationBuilderServerSelected>? previous =
+                    serverOptions.ConfigureBuilder;
+                serverOptions.ConfigureBuilder = configurationBuilder =>
+                {
+                    previous?.Invoke(configurationBuilder);
+                    if (redundancyOptions.IsNonTransparentMode &&
+                        redundancyOptions.AdvertiseNtrsCapability)
+                    {
+                        configurationBuilder.AddServerCapabilities("NTRS");
+                    }
+                };
+            });
         }
     }
 }

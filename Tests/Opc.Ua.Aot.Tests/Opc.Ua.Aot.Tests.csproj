@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server.Distributed\Opc.Ua.Server.Distributed.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server.Distributed.Crdt\Opc.Ua.Server.Distributed.Crdt.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server.Distributed.Kubernetes\Opc.Ua.Server.Distributed.Kubernetes.csproj" />
     <ProjectReference Include="..\..\Applications\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />

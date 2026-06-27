@@ -34,7 +34,7 @@ using System.Threading;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Default <see cref="INodeStateStoreRegistry"/> implementation — a
+    /// Extension beyond OPC 10000-4 §6.6: default <see cref="INodeStateStoreRegistry"/> implementation — a
     /// thread-safe lookup keyed by NodeId, namespace URI and a single
     /// default fallback.
     /// </summary>

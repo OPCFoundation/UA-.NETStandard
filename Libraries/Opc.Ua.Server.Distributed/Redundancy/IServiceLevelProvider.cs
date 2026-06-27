@@ -32,10 +32,9 @@ using System;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Computes the value of the server's OPC UA <c>ServiceLevel</c>
-    /// variable (0–255). In a redundant set, clients connect to the server
-    /// reporting the highest service level (see Part 4 §6.6.2 and the
-    /// client-side <c>DefaultServerRedundancyHandler</c>), so a healthy
+    /// Computes the value of the Server's OPC UA <c>ServiceLevel</c>
+    /// variable (0–255). In a <c>RedundantServerSet</c>, Clients select the Server
+    /// reporting the highest <c>ServiceLevel</c> (OPC 10000-4 §6.6.2.4.2 and §6.6.2.4.3), so a healthy
     /// active leader reports the maximum and standbys report a lower value.
     /// </summary>
     /// <remarks>
@@ -48,7 +47,7 @@ namespace Opc.Ua.Server.Distributed
     public interface IServiceLevelProvider
     {
         /// <summary>
-        /// The current service level (0 = out of service, 255 = highest).
+        /// The current <c>ServiceLevel</c> (Table 105: Maintenance 0, NoData 1, Degraded 2-199, Healthy 200-255).
         /// </summary>
         byte GetServiceLevel();
 

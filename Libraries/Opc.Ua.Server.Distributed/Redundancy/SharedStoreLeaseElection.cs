@@ -37,7 +37,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Lease-based <see cref="ILeaderElection"/> over an
+    /// Extension beyond OPC 10000-4 §6.6: lease-based <see cref="ILeaderElection"/> over an
     /// <see cref="ISharedKeyValueStore"/>. A single lease key holds the
     /// current leader's id and an expiry; leadership is acquired and renewed
     /// atomically with <see cref="ISharedKeyValueStore.CompareAndSwapAsync"/>

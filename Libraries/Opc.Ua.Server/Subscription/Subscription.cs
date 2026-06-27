@@ -110,6 +110,7 @@ namespace Opc.Ua.Server
             m_lifetimeCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
+            m_retransmissionStore = m_server.SubscriptionStore as ISubscriptionRetransmissionStore;
             m_sentMessages = [];
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
@@ -189,6 +190,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             var subscription = new Subscription(server, storedSubscription, timeProvider);
+            await subscription.LoadRetransmissionStateAsync(cancellationToken).ConfigureAwait(false);
 
             await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
                 .ConfigureAwait(false);
@@ -238,6 +240,7 @@ namespace Opc.Ua.Server
             m_keepAliveCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = storedSubscription.MaxMessageCount;
+            m_retransmissionStore = m_server.SubscriptionStore as ISubscriptionRetransmissionStore;
             m_sentMessages = storedSubscription.SentMessages;
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
@@ -787,6 +790,7 @@ namespace Opc.Ua.Server
                         NotificationMessage removed = m_sentMessages[ii];
                         m_sentMessages.RemoveAt(ii);
                         ReuseNotificationPayloads(removed);
+                        m_retransmissionStore?.AcknowledgeNotification(Id, sequenceNumber);
                         return null;
                     }
                 }
@@ -1163,6 +1167,7 @@ namespace Opc.Ua.Server
             // save new message
             m_lastSentMessage = m_sentMessages.Count;
             m_sentMessages.AddRange(messages);
+            StoreRetransmissionState();
 
             // check if there are more notifications to send.
             moreNotifications = m_waitingForPublish = messages.Count > 1;
@@ -1176,6 +1181,32 @@ namespace Opc.Ua.Server
             // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH NEW MESSAGE");
             availableSequenceNumbers = availableSequenceNumberList;
             return m_sentMessages[m_lastSentMessage++];
+        }
+
+        private void StoreRetransmissionState()
+        {
+            m_retransmissionStore?.StoreRetransmissionState(Id, m_sequenceNumber, [.. m_sentMessages]);
+        }
+
+        private async ValueTask LoadRetransmissionStateAsync(CancellationToken cancellationToken)
+        {
+            if (m_retransmissionStore == null)
+            {
+                return;
+            }
+
+            SubscriptionRetransmissionState? state = await m_retransmissionStore
+                .LoadRetransmissionStateAsync(Id, cancellationToken)
+                .ConfigureAwait(false);
+            if (state == null)
+            {
+                return;
+            }
+
+            m_sentMessages.Clear();
+            m_sentMessages.AddRange(state.SentMessages);
+            m_sequenceNumber = state.NextSequenceNumber;
+            m_lastSentMessage = m_sentMessages.Count;
         }
 
         /// <summary>
@@ -2819,6 +2850,7 @@ namespace Opc.Ua.Server
         private uint m_lifetimeCounter;
         private bool m_waitingForPublish;
         private readonly List<NotificationMessage> m_sentMessages;
+        private readonly ISubscriptionRetransmissionStore? m_retransmissionStore;
         private int m_lastSentMessage;
         private uint m_sequenceNumber;
         private readonly uint m_maxMessageCount;

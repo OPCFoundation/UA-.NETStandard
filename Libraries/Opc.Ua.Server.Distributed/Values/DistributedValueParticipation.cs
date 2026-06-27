@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Helpers that let a variable's read/write callbacks participate in the
+    /// Extension beyond OPC 10000-4 §6.6: helpers that let a variable's read/write callbacks participate in the
     /// distributed value cache: serve the last value with a freshness bound
     /// and cache values on read/write. Monitored items are unaffected — they
     /// continue to read through the normal pipeline and therefore observe the

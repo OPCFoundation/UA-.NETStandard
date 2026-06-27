@@ -55,28 +55,15 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
         [Test]
         public async Task FactoryCreatesDistributedSessionManagerAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
-            var server = new Mock<IServerInternal>();
-            server.Setup(s => s.Telemetry).Returns(telemetry);
-            server.Setup(s => s.MessageContext).Returns(context);
-
-            var configuration = new ApplicationConfiguration
-            {
-                ServerConfiguration = new ServerConfiguration
-                {
-                    MinSessionTimeout = 1000,
-                    MaxSessionTimeout = 3_600_000,
-                    MaxSessionCount = 100
-                }
-            };
+            // In-process gossip unit tests knowingly opt out of record protection.
+            await using ServiceProvider services = ServicesWithNullProtector();
 
             await using var factory = new CrdtSessionManagerFactory(
-                EmptyServices(), new ReplicatedSessionOptions());
+                services, new ReplicatedSessionOptions());
 
             using var manager = factory.Create(
-                server.Object,
-                configuration,
+                NewServer().Object,
+                NewConfiguration(),
                 TimeProvider.System,
                 _ => (Certificate?)null) as DistributedSessionManager;
 
@@ -90,14 +77,75 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
                 () => new CrdtSessionManagerFactory(null!, new ReplicatedSessionOptions()),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => new CrdtSessionManagerFactory(EmptyServices(), null!),
+                () => new CrdtSessionManagerFactory(Mock.Of<IServiceProvider>(), null!),
                 Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task FactoryRejectsReplicatedSessionStoreWithoutProtectorAsync()
+        {
+            await using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
+            await using var factory = new CrdtSessionManagerFactory(
+                services, new ReplicatedSessionOptions());
+
+            Assert.That(
+                () => factory.Create(
+                    NewServer().Object,
+                    NewConfiguration(),
+                    TimeProvider.System,
+                    _ => (Certificate?)null),
+                Throws.InvalidOperationException
+                    .With.Message.Contains(nameof(IRecordProtector)));
+        }
+
+        [Test]
+        public async Task FactoryRejectsFastReconnectWithoutStronglyConsistentNonceStoreAsync()
+        {
+            // Fast reconnect replays a session by AuthenticationToken; the
+            // single-use nonce must be strongly consistent across the replica
+            // set. A record protector alone (no shared nonce store) must fail
+            // closed rather than silently use a per-process registry.
+            await using ServiceProvider services = ServicesWithNullProtector();
+            var options = new ReplicatedSessionOptions();
+            options.Session.EnableFastReconnect = true;
+            await using var factory = new CrdtSessionManagerFactory(services, options);
+
+            Assert.That(
+                () => factory.Create(
+                    NewServer().Object,
+                    NewConfiguration(),
+                    TimeProvider.System,
+                    _ => (Certificate?)null),
+                Throws.InvalidOperationException
+                    .With.Message.Contains(nameof(ISharedKeyValueStore)));
+        }
+
+        [Test]
+        public async Task FactoryCreatesWithFastReconnectAndRegisteredNonceStoreAsync()
+        {
+            await using ServiceProvider services = new ServiceCollection()
+                .AddSingleton<IRecordProtector>(NullRecordProtector.Instance)
+                .AddSingleton<ISharedKeyValueStore>(new InMemorySharedKeyValueStore())
+                .BuildServiceProvider();
+            var options = new ReplicatedSessionOptions();
+            options.Session.EnableFastReconnect = true;
+            await using var factory = new CrdtSessionManagerFactory(services, options);
+
+            using var manager = factory.Create(
+                NewServer().Object,
+                NewConfiguration(),
+                TimeProvider.System,
+                _ => (Certificate?)null) as DistributedSessionManager;
+
+            Assert.That(manager, Is.Not.Null);
         }
 
         [Test]
         public async Task UseReplicatedSessionsRegistersFactoryAsync()
         {
             var services = new ServiceCollection();
+            // In-process gossip unit tests knowingly opt out of record protection.
+            services.AddSingleton<IRecordProtector>(NullRecordProtector.Instance);
             services.AddOpcUa()
                 .AddServer(_ => { })
                 .UseReplicatedSessions(o => o.Session.EnableFastReconnect = true);
@@ -121,9 +169,34 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
                 Has.Some.InstanceOf<CrdtAddressSpaceStartupTask>());
         }
 
-        private static IServiceProvider EmptyServices()
+        private static ServiceProvider ServicesWithNullProtector()
         {
-            return Mock.Of<IServiceProvider>();
+            return new ServiceCollection()
+                .AddSingleton<IRecordProtector>(NullRecordProtector.Instance)
+                .BuildServiceProvider();
+        }
+
+        private static Mock<IServerInternal> NewServer()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.Telemetry).Returns(telemetry);
+            server.Setup(s => s.MessageContext).Returns(context);
+            return server;
+        }
+
+        private static ApplicationConfiguration NewConfiguration()
+        {
+            return new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MinSessionTimeout = 1000,
+                    MaxSessionTimeout = 3_600_000,
+                    MaxSessionCount = 100
+                }
+            };
         }
     }
 }

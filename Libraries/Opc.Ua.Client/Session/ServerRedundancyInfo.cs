@@ -27,32 +27,52 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+using System;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Server redundancy information read from the server's
+    /// Server redundancy information read from the Server's
     /// <c>Server.ServerRedundancy</c> object.
     /// </summary>
     /// <remarks>
-    /// See OPC UA Part 4 §6.6.2 and Part 5 §6.3.7.
+    /// See OPC 10000-4 §6.6.2 and OPC 10000-5 §6.3.7.
     /// </remarks>
     public sealed class ServerRedundancyInfo
     {
         /// <summary>
-        /// The redundancy mode reported by the server
-        /// .</summary>
-        public RedundancyMode Mode { get; init; }
-
-        /// <summary>
-        /// The redundant servers in the set.
+        /// The <c>RedundancySupport</c> mode reported by the Server.
         /// </summary>
-        public IReadOnlyList<RedundantServer> RedundantServers { get; init; } = [];
+        public RedundancySupport Mode { get; init; }
 
         /// <summary>
-        /// The current service level of the connected server.
+        /// The Servers in the <c>RedundantServerSet</c>.
+        /// </summary>
+        public ArrayOf<RedundantServer> RedundantServers { get; init; } = [];
+
+        /// <summary>
+        /// The current <c>ServiceLevel</c> of the connected Server.
         /// </summary>
         public byte ServiceLevel { get; init; }
+
+        /// <summary>
+        /// Whether <see cref="ServiceLevel"/> was read from the server.
+        /// </summary>
+        public bool ServiceLevelAccessible { get; init; }
+
+        /// <summary>
+        /// The OPC 10000-4 §6.6.2.4.2 subrange of the current Server's <c>ServiceLevel</c>.
+        /// </summary>
+        public ServiceLevelSubrange ServiceLevelSubrange { get; init; }
+
+        /// <summary>
+        /// The OPC 10000-4 §6.6.5 estimated time when a Server in Maintenance is expected to return.
+        /// </summary>
+        public DateTime EstimatedReturnTime { get; init; }
+
+        /// <summary>
+        /// The current Server identifier for Transparent redundancy.
+        /// </summary>
+        public string CurrentServerId { get; init; } = string.Empty;
     }
 }

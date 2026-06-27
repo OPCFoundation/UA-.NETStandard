@@ -38,7 +38,8 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Server startup task that attaches a <see cref="CrdtAddressSpaceSynchronizer"/>
+    /// Extension beyond OPC 10000-4 §6.6: server startup task that attaches a
+    /// <see cref="CrdtAddressSpaceSynchronizer"/>
     /// to every node manager that opts in via <see cref="ILocalAddressSpaceSource"/>,
     /// enabling active/active (multi-writer) replication of its address space.
     /// </summary>

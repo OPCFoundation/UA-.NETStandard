@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.Hosting;
@@ -75,26 +76,37 @@ namespace Opc.Ua.Server.Distributed
 
             if (m_options.Mode != RedundancySupport.None)
             {
-                ApplyRedundantServerArray(redundancy, context);
+                ApplyRedundantServerArray(server, redundancy, context);
+                if (m_options.Mode == RedundancySupport.Transparent)
+                {
+                    ApplyCurrentServerId(server, redundancy, context);
+                }
+                else
+                {
+                    ApplyServerUriArray(server, redundancy, context);
+                }
             }
 
             return default;
         }
 
-        private void ApplyRedundantServerArray(ServerRedundancyState redundancy, ISystemContext context)
+        private void ApplyRedundantServerArray(
+            IServerInternal server,
+            ServerRedundancyState redundancy,
+            ISystemContext context)
         {
-            if (redundancy.RedundantServerArray == null)
-            {
-                redundancy.AddRedundantServerArray(context);
-            }
-
-            if (redundancy.RedundantServerArray == null)
+            PropertyState<ArrayOf<RedundantServerDataType>>? redundantServerArray =
+                server.DiagnosticsNodeManager?.FindPredefinedNode<PropertyState<ArrayOf<RedundantServerDataType>>>(
+                    VariableIds.Server_ServerRedundancy_RedundantServerArray) ??
+                redundancy.RedundantServerArray;
+            if (redundantServerArray == null)
             {
                 return;
             }
 
-            var servers = new List<RedundantServerDataType>(m_options.PeerServerUris.Count);
-            foreach (string peerServerUri in m_options.PeerServerUris)
+            ArrayOf<string> peerApplicationUris = m_options.GetPeerApplicationUris();
+            var servers = new List<RedundantServerDataType>(peerApplicationUris.Count);
+            foreach (string peerServerUri in peerApplicationUris)
             {
                 servers.Add(new RedundantServerDataType
                 {
@@ -104,8 +116,49 @@ namespace Opc.Ua.Server.Distributed
                 });
             }
 
-            redundancy.RedundantServerArray.Value = new ArrayOf<RedundantServerDataType>(servers.ToArray());
-            redundancy.RedundantServerArray.ClearChangeMasks(context, false);
+            redundantServerArray.Value = new ArrayOf<RedundantServerDataType>(servers.ToArray());
+            redundantServerArray.ClearChangeMasks(context, false);
+        }
+
+        private void ApplyCurrentServerId(
+            IServerInternal server,
+            ServerRedundancyState redundancy,
+            ISystemContext context)
+        {
+            PropertyState<string>? currentServerId =
+                server.DiagnosticsNodeManager?.FindPredefinedNode<PropertyState<string>>(
+                    VariableIds.Server_ServerRedundancy_CurrentServerId) ??
+                FindProperty<string>(redundancy, context, BrowseNames.CurrentServerId);
+            if (currentServerId != null)
+            {
+                currentServerId.Value = m_options.CurrentServerId;
+                currentServerId.ClearChangeMasks(context, false);
+            }
+        }
+
+        private void ApplyServerUriArray(
+            IServerInternal server,
+            ServerRedundancyState redundancy,
+            ISystemContext context)
+        {
+            PropertyState<ArrayOf<string>>? serverUriArray =
+                server.DiagnosticsNodeManager?.FindPredefinedNode<PropertyState<ArrayOf<string>>>(
+                    VariableIds.Server_ServerRedundancy_ServerUriArray) ??
+                FindProperty<ArrayOf<string>>(redundancy, context, BrowseNames.ServerUriArray);
+            if (serverUriArray != null)
+            {
+                serverUriArray.Value = m_options.GetPeerApplicationUris();
+                serverUriArray.ClearChangeMasks(context, false);
+            }
+        }
+
+        private static PropertyState<T>? FindProperty<T>(
+            ServerRedundancyState redundancy,
+            ISystemContext context,
+            string browseName)
+        {
+            NodeState? child = redundancy.FindChild(context, new QualifiedName(browseName, 0));
+            return child as PropertyState<T>;
         }
 
         private readonly ServerRedundancyOptions m_options;

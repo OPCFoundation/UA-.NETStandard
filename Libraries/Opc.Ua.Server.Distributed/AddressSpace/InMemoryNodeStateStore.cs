@@ -36,7 +36,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Default <see cref="INodeStateStore"/> layered on an
+    /// Extension beyond OPC 10000-4 §6.6: default <see cref="INodeStateStore"/> layered on an
     /// <see cref="ISharedKeyValueStore"/>. Node payloads and encoded values
     /// are stored under distinct key prefixes so topology and value changes
     /// can be routed independently on the change-feed.

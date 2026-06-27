@@ -43,6 +43,12 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+## Redundancy API updates in 2.0
+
+Client redundancy options now use the core OPC UA `Opc.Ua.RedundancySupport` enum instead of the earlier client-local `RedundancyMode` name. Update `RedundancyMode.Cold/Warm/Hot/HotAndMirrored/Transparent` references to `RedundancySupport.Cold/Warm/Hot/HotAndMirrored/Transparent`.
+
+Redundancy behavior is opt-in. On servers, use `AddServerRedundancy(...)` to publish `Server.ServerRedundancy`, `AddManualFailover(...)` to wire `RequestServerStateChange`, `UseDistributedSessions(...)` for mirrored session fast reconnect, and `UseDistributedSubscriptionMirroring(...)` for mirrored subscription definitions/retransmission state. On clients, use `ManagedSessionBuilder.ConnectRedundantAsync(...)` for non-transparent redundant sets, `WithTokenReuseFailover()` for HotAndMirrored-style fast reconnect, and `NetworkRedundancyOptions` for alternate endpoints to the same logical server.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

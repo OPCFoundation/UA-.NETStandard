@@ -53,10 +53,13 @@ namespace Opc.Ua.Server.Tests.Distributed
         private static readonly TimeSpan RenewInterval = TimeSpan.FromSeconds(10);
 
         [Test]
-        public void StaticLeaderElectionReportsFixedRole()
+        public async Task StaticLeaderElectionReportsFixedRoleAsync()
         {
-            Assert.That(new StaticLeaderElection(true).IsLeader, Is.True);
-            Assert.That(new StaticLeaderElection(false).IsLeader, Is.False);
+            await using var leader = new StaticLeaderElection(true);
+            await using var follower = new StaticLeaderElection(false);
+
+            Assert.That(leader.IsLeader, Is.True);
+            Assert.That(follower.IsLeader, Is.False);
         }
 
         [Test]

@@ -35,16 +35,18 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Fluent registration of CRDT active/active replication features on the
+    /// Extension beyond OPC 10000-4 §6.6: fluent registration of CRDT active/active replication features on the
     /// <see cref="IOpcUaServerBuilder"/>.
     /// </summary>
     public static class ReplicatedServerBuilderExtensions
     {
         /// <summary>
-        /// Registers active/active (multi-writer) replication of the address
+        /// Extension beyond OPC 10000-4 §6.6: registers active/active (multi-writer) replication of the address
         /// space using CRDTs gossiped between replicas. Every replica accepts
         /// writes and converges without a leader; this is an alternative to the
         /// leader-write active/passive <c>UseDistributedAddressSpace</c>.
+        /// Configure <c>GossipTlsOptions</c> on the gossip transport when
+        /// address-space updates cross a network boundary.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional CRDT address-space options.</param>
@@ -69,13 +71,20 @@ namespace Opc.Ua.Server.Distributed.Crdt
         }
 
         /// <summary>
-        /// Registers active/active session replication: mirrored session
+        /// Extension beyond OPC 10000-4 §6.6: registers active/active session replication. Mirrored session
         /// entries are gossiped between replicas as a CRDT so a client can fail
         /// over to any replica and fast-reconnect. The single-use server nonce
         /// stays on a strongly-consistent store (resolved from the container),
         /// so the cross-replica replay defence is preserved; the authentication
         /// token is never an authenticator on its own.
         /// </summary>
+        /// <remarks>
+        /// Mirrored session entries contain session nonces and secret material.
+        /// Register an <see cref="IRecordProtector"/> to provide at-rest
+        /// confidentiality and integrity for those CRDT records; startup fails
+        /// closed without one. <c>GossipTlsOptions</c> protects gossip
+        /// traffic in transit but does not replace the record protector.
+        /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional CRDT session options.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>

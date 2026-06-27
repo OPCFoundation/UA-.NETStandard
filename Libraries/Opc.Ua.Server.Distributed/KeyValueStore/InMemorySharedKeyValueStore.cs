@@ -37,7 +37,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// In-process, thread-safe <see cref="ISharedKeyValueStore"/>. A single
+    /// Extension beyond OPC 10000-4 §6.6: in-process, thread-safe <see cref="ISharedKeyValueStore"/>. A single
     /// instance shared by multiple node managers (or multiple in-process
     /// server instances) provides a deterministic backend for both
     /// active/active and active/passive testing and single-process

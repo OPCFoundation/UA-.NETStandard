@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// The kind of mutation reported by a <see cref="KeyValueChange"/>.
+    /// Extension beyond OPC 10000-4 §6.6: the kind of mutation reported by a <see cref="KeyValueChange"/>.
     /// </summary>
     public enum KeyValueChangeKind
     {
@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Distributed
     }
 
     /// <summary>
-    /// A single change observed on an <see cref="ISharedKeyValueStore"/>
+    /// Extension beyond OPC 10000-4 §6.6: a single change observed on an <see cref="ISharedKeyValueStore"/>
     /// change-feed (<see cref="ISharedKeyValueStore.WatchAsync"/>).
     /// </summary>
     public sealed record KeyValueChange

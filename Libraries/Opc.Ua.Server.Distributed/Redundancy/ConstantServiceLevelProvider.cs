@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Distributed
         /// Creates a provider reporting a fixed service level.
         /// </summary>
         /// <param name="level">The fixed service level (default 255).</param>
-        public ConstantServiceLevelProvider(byte level = 255)
+        public ConstantServiceLevelProvider(byte level = ServiceLevels.Maximum)
         {
             m_level = level;
         }

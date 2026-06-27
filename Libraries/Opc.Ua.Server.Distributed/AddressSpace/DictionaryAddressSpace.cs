@@ -36,7 +36,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// A simple dictionary-backed <see cref="ILocalAddressSpace"/>. Suitable
+    /// Extension beyond OPC 10000-4 §6.6: a simple dictionary-backed <see cref="ILocalAddressSpace"/>. Suitable
     /// for hosting a flat set of top-level nodes and for unit/integration
     /// testing the synchronizer; a node manager provides its own adapter
     /// over <c>PredefinedNodes</c> in production.

@@ -36,7 +36,7 @@ using Crdt.Transport;
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Shared CRDT gossip configuration: replica identity, time source, the
+    /// Extension beyond OPC 10000-4 §6.6: shared CRDT gossip configuration: replica identity, time source, the
     /// transport that disseminates state between replicas, and decoding limits.
     /// </summary>
     public abstract class ReplicatedGossipOptions
@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         public int MaxPayloadBytes { get; set; } = 16 * 1024 * 1024;
 
         /// <summary>
-        /// Configures a TCP gossip transport. Peers added via
+        /// Extension beyond OPC 10000-4 §6.6: configures a TCP gossip transport. Peers added via
         /// <see cref="AddPeer"/> are attached to the created transport.
         /// </summary>
         /// <param name="address">The local bind address.</param>
@@ -112,7 +112,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         }
 
         /// <summary>
-        /// Configures a UDP datagram gossip transport. Peers added via
+        /// Extension beyond OPC 10000-4 §6.6: configures a UDP datagram gossip transport. Peers added via
         /// <see cref="AddPeer"/> are attached to the created transport.
         /// </summary>
         /// <param name="address">The local bind address.</param>
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
         }
 
         /// <summary>
-        /// Adds a peer endpoint to gossip with. Applied to the transport
+        /// Extension beyond OPC 10000-4 §6.6: adds a peer endpoint to gossip with. Applied to the transport
         /// created by <see cref="UseTcpGossip"/> / <see cref="UseUdpGossip"/>.
         /// </summary>
         /// <param name="endpoint">The peer endpoint.</param>

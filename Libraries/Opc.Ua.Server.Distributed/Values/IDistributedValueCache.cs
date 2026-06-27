@@ -34,13 +34,14 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// A read/write value cache backed by a distributed
-    /// <see cref="INodeStateStore"/>. Lets a variable's read/write callbacks
-    /// cache the last value they observed and serve the last value with a
-    /// freshness bound from the shared store, so a replica can answer reads
-    /// without re-querying the live source (and a standby can serve the last
-    /// value written by the active replica).
+    /// Extension beyond OPC 10000-4 §6.6: a read/write value cache backed by a distributed
+    /// <see cref="INodeStateStore"/>.
     /// </summary>
+    /// <remarks>
+    /// OPC 10000-4 §6.6.2.2 requires identical NodeIds and AddressSpaces in a <c>RedundantServerSet</c>, but it does
+    /// not standardize how process values are cached between replicas. This provider lets variable callbacks cache the
+    /// last value they observed and serve it with a freshness bound from the shared store.
+    /// </remarks>
     public interface IDistributedValueCache
     {
         /// <summary>

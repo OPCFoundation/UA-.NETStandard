@@ -71,6 +71,12 @@ namespace Opc.Ua.Server
         /// </summary>
         protected TimeProvider TimeProvider { get; }
 
+        /// <summary>
+        /// Gets or sets the optional redundant server-set provider consulted by
+        /// <c>FindServers</c>.
+        /// </summary>
+        public IRedundantServerSetProvider? RedundantServerSetProvider { get; set; }
+
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
@@ -173,6 +179,8 @@ namespace Opc.Ua.Server
                     // add to list of servers to return.
                     servers.Add(application);
                 }
+
+                AddRedundantServerSetDescriptions(serverUris, uniqueServers, servers);
             }
             finally
             {
@@ -184,6 +192,32 @@ namespace Opc.Ua.Server
                 ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                 Servers = servers
             };
+        }
+
+        private void AddRedundantServerSetDescriptions(
+            ArrayOf<string> serverUris,
+            Dictionary<string, ApplicationDescription> uniqueServers,
+            List<ApplicationDescription> servers)
+        {
+            IRedundantServerSetProvider? provider = RedundantServerSetProvider;
+            if (provider == null)
+            {
+                return;
+            }
+
+            foreach (ApplicationDescription peer in provider.GetRedundantServerSet())
+            {
+                string? applicationUri = peer.ApplicationUri;
+                if (string.IsNullOrEmpty(applicationUri) ||
+                    uniqueServers.ContainsKey(applicationUri) ||
+                    (serverUris.Count > 0 && !serverUris.Contains(uri => uri == applicationUri)))
+                {
+                    continue;
+                }
+
+                uniqueServers.Add(applicationUri, peer);
+                servers.Add(peer);
+            }
         }
 
         /// <inheritdoc/>

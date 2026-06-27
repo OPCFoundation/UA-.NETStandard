@@ -21,6 +21,12 @@ services.AddOpcUa()
     .UseReplicatedSessions();
 ```
 
+## Security
+
+CRDT session mirroring gossips `SharedSessionEntry` records that contain session nonces and secret material. Register an `IRecordProtector` (for example an `AesCbcHmacRecordProtector` backed by a managed cluster key, or a `KeyRingRecordProtector` during key rotation) before calling `UseReplicatedSessions`; startup fails closed without one. `GossipTlsOptions` protects gossip traffic in transit, but it does not provide at-rest confidentiality or record integrity if a replica or replicated store is compromised.
+
+Address-space CRDT replication does not require an `IRecordProtector` because mirrored node values are not session secrets. Use `GossipTlsOptions` for the address-space gossip transport whenever updates cross a network boundary.
+
 ## Target frameworks
 
 `net8.0`, `net9.0`, `net10.0` (the gossip transport ships net8.0+). .NET Framework and netstandard consumers use the active/passive features in the base distributed package.

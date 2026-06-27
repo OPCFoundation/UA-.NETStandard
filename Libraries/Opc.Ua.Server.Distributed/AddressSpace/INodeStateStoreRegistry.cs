@@ -32,7 +32,7 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Server-wide registry of <see cref="INodeStateStore"/> instances,
+    /// Extension beyond OPC 10000-4 §6.6: server-wide registry of <see cref="INodeStateStore"/> instances,
     /// resolved per node with the same three-scope precedence as the
     /// historian registry: exact NodeId, then namespace, then a single
     /// default fallback.

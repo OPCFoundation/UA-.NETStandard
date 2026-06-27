@@ -51,6 +51,16 @@ string nodeId = builder.Configuration["HA_NODE_ID"] ?? Guid.NewGuid().ToString("
 string endpointUrl = $"opc.tcp://localhost:{port}/HighAvailabilityServer";
 string applicationUri = $"urn:localhost:OPCFoundation:HighAvailabilityServer:{nodeId}";
 
+// Select the redundancy topology: "ap" (active/passive, default — a single
+// elected writer) or "aa" (active/active — every replica writes and converges
+// by CRDT gossip).
+string haMode = (builder.Configuration["HA_MODE"] ?? "ap").Trim().ToLowerInvariant();
+bool activeActive = haMode is "aa" or "activeactive" or "active-active";
+RedundancySupport redundancyMode = ParseRedundancyMode(
+    builder.Configuration["REDUNDANCY_MODE"],
+    defaultMode: activeActive ? RedundancySupport.HotAndMirrored : RedundancySupport.Hot);
+ArrayOf<RedundantPeer> redundantPeers = ReadRedundantPeers(builder.Configuration);
+
 builder.Services.AddSingleton(new HaSampleReplicaInfo(nodeId));
 
 // Optional: a base64 32-byte master key shared by all replicas (provisioned
@@ -64,12 +74,6 @@ byte[]? recordKey = string.IsNullOrWhiteSpace(recordKeyBase64)
 // Opt into mirrored fast reconnect (default is the safe re-auth-on-failover).
 bool enableFastReconnect =
     bool.TryParse(builder.Configuration["HA_FAST_RECONNECT"], out bool fr) && fr;
-
-// Select the redundancy topology: "ap" (active/passive, default — a single
-// elected writer) or "aa" (active/active — every replica writes and converges
-// by CRDT gossip).
-string haMode = (builder.Configuration["HA_MODE"] ?? "ap").Trim().ToLowerInvariant();
-bool activeActive = haMode is "aa" or "activeactive" or "active-active";
 
 if (activeActive && recordKey != null)
 {
@@ -89,7 +93,6 @@ IOpcUaServerBuilder ua = builder.Services
     })
     .AddNodeManager<HaSampleNodeManagerFactory>();
 
-RedundancySupport redundancyMode;
 if (activeActive)
 {
     // The sample node manager gates writes on leadership; in active/active every
@@ -125,38 +128,155 @@ if (activeActive)
             }
             s.Session.EnableFastReconnect = enableFastReconnect;
         });
-    redundancyMode = RedundancySupport.HotAndMirrored;
+    builder.Services.AddSingleton<IServiceLevelProvider>(sp =>
+        new LeaderServiceLevelProvider(
+            sp.GetRequiredService<ILeaderElection>(),
+            redundancyMode));
+    builder.Services.AddSingleton<IServerStartupTask>(sp =>
+        new ServiceLevelStartupTask(sp.GetRequiredService<IServiceLevelProvider>()));
+}
+else if (redundancyMode == RedundancySupport.None)
+{
+    ua.AddServerServiceLevel(new ConstantServiceLevelProvider());
 }
 else
 {
     ua.UseDistributedAddressSpace(d =>
+    {
+        d.UseLeaderElection = true;
+        d.NodeId = nodeId;
+        d.RedundancyMode = redundancyMode;
+        if (recordKey != null)
         {
-            d.UseLeaderElection = true;
-            d.NodeId = nodeId;
-            if (recordKey != null)
-            {
-                d.RecordProtectorFactory = _ => new AesCbcHmacRecordProtector(recordKey);
-            }
-        })
+            d.RecordProtectorFactory = _ => new AesCbcHmacRecordProtector(recordKey);
+        }
+    })
         .UseDistributedSessions(s =>
         {
             // Mirror session state across replicas; the standby still runs the full
             // ActivateSession signature check on a token-reuse reconnect.
             s.EnableFastReconnect = enableFastReconnect;
         });
-    redundancyMode = RedundancySupport.Hot;
 }
 
 ua.AddServerRedundancy(r =>
 {
     r.Mode = redundancyMode;
+    r.CurrentServerId = nodeId;
+    foreach (RedundantPeer peer in redundantPeers)
+    {
+        r.RedundantPeers.Add(peer);
+    }
     foreach (string peerServerUri in ReadList(builder.Configuration, "peerServerUris"))
     {
         r.PeerServerUris.Add(peerServerUri);
     }
-});
+})
+.AddManualFailover();
+
+byte displayedServiceLevel = redundancyMode == RedundancySupport.None
+    ? ServiceLevels.Maximum
+    : GetDisplayedServiceLevel(activeActive, redundancyMode);
+Console.WriteLine(
+    "HA sample node '{0}' listening at {1}; HA_MODE={2}; REDUNDANCY_MODE={3}; ServiceLevel={4} ({5}).",
+    nodeId,
+    endpointUrl,
+    haMode,
+    redundancyMode,
+    displayedServiceLevel,
+    ServiceLevels.GetSubrange(displayedServiceLevel));
+Console.WriteLine("CurrentServerId: {0}", nodeId);
+Console.WriteLine("Redundant peers: {0}", FormatPeers(redundantPeers));
+if (redundancyMode is RedundancySupport.Cold or
+    RedundancySupport.Warm or
+    RedundancySupport.Hot or
+    RedundancySupport.HotAndMirrored)
+{
+    Console.WriteLine("NTRS discovery capability and FindServers peer-set provider are enabled.");
+}
+Console.WriteLine("RequestServerStateChange is enabled for administrator-driven Maintenance/NoData failover.");
 
 await builder.Build().RunAsync().ConfigureAwait(false);
+
+static RedundancySupport ParseRedundancyMode(string? value, RedundancySupport defaultMode)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return defaultMode;
+    }
+
+    return value.Trim().ToLowerInvariant() switch
+    {
+        "none" => RedundancySupport.None,
+        "cold" => RedundancySupport.Cold,
+        "warm" => RedundancySupport.Warm,
+        "hot" => RedundancySupport.Hot,
+        "hotandmirrored" or "hot-and-mirrored" or "mirrored" => RedundancySupport.HotAndMirrored,
+        "transparent" => RedundancySupport.Transparent,
+        _ => throw new FormatException(
+            $"Invalid REDUNDANCY_MODE '{value}'. Expected none, cold, warm, hot, hotandmirrored, or transparent.")
+    };
+}
+
+static byte GetDisplayedServiceLevel(bool activeActive, RedundancySupport redundancyMode)
+{
+    if (activeActive)
+    {
+        return ServiceLevels.Maximum;
+    }
+
+    return redundancyMode switch
+    {
+        RedundancySupport.Cold => ServiceLevels.NoData,
+        RedundancySupport.Warm => ServiceLevels.DegradedMaximum,
+        RedundancySupport.Hot or RedundancySupport.HotAndMirrored => ServiceLevels.Maximum,
+        _ => ServiceLevels.DegradedMaximum
+    };
+}
+
+static ArrayOf<RedundantPeer> ReadRedundantPeers(IConfiguration configuration)
+{
+    var peers = new List<RedundantPeer>();
+    foreach (string entry in ReadList(configuration, "REDUNDANT_PEERS"))
+    {
+        string[] fields = entry.Split('|', StringSplitOptions.TrimEntries);
+        if (fields.Length is < 1 or > 3 || string.IsNullOrWhiteSpace(fields[0]))
+        {
+            throw new FormatException(
+                $"Invalid REDUNDANT_PEERS entry '{entry}'; expected applicationUri|applicationName|discoveryUrl+...");
+        }
+
+        ArrayOf<string> discoveryUrls = fields.Length >= 3
+            ? new ArrayOf<string>(fields[2].Split(
+                ['+'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            : [];
+        peers.Add(new RedundantPeer(fields[0], discoveryUrls)
+        {
+            ApplicationName = fields.Length >= 2 && !string.IsNullOrWhiteSpace(fields[1])
+                ? new LocalizedText(fields[1])
+                : new LocalizedText(fields[0])
+        });
+    }
+
+    return new ArrayOf<RedundantPeer>(peers.ToArray());
+}
+
+static string FormatPeers(ArrayOf<RedundantPeer> peers)
+{
+    if (peers.IsNull || peers.Count == 0)
+    {
+        return "(none)";
+    }
+
+    var formattedPeers = new List<string>(peers.Count);
+    foreach (RedundantPeer peer in peers)
+    {
+        formattedPeers.Add($"{peer.ApplicationUri} [{string.Join(", ", peer.DiscoveryUrls)}]");
+    }
+
+    return string.Join("; ", formattedPeers);
+}
 
 static IEnumerable<string> ReadList(IConfiguration configuration, string key)
 {

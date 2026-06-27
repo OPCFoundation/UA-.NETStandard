@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// The kind of node-state change reported by an
+    /// Extension beyond OPC 10000-4 §6.6: the kind of node-state change reported by an
     /// <see cref="INodeStateStore"/> change-feed.
     /// </summary>
     public enum NodeStateChangeKind
@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Distributed
     }
 
     /// <summary>
-    /// A single change observed on an <see cref="INodeStateStore"/>
+    /// Extension beyond OPC 10000-4 §6.6: a single change observed on an <see cref="INodeStateStore"/>
     /// change-feed. Topology changes (<see cref="NodeStateChangeKind.Upsert"/>
     /// / <see cref="NodeStateChangeKind.Delete"/>) are applied live to every
     /// replica; <see cref="NodeStateChangeKind.Value"/> changes carry the

@@ -38,13 +38,21 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// An <see cref="ISessionManagerFactory"/> that builds a
+    /// Extension beyond OPC 10000-4 §6.6: an <see cref="ISessionManagerFactory"/> that builds a
     /// <see cref="DistributedSessionManager"/> whose mirrored session entries
     /// are replicated active/active by a <see cref="CrdtSharedKeyValueStore"/>
     /// (gossip). The single-use server nonce stays on a strongly-consistent
     /// store resolved from the container, preserving cross-replica replay
     /// defence.
     /// </summary>
+    /// <remarks>
+    /// CRDT session mirroring stores <see cref="SharedSessionEntry"/> records in
+    /// a gossip-replicated store. Those records carry session nonces and secret
+    /// material, so startup fails closed unless an <see cref="IRecordProtector"/>
+    /// is registered. <see cref="GossipTlsOptions"/> protects the transport in
+    /// transit; the record protector is still required for at-rest
+    /// confidentiality and integrity.
+    /// </remarks>
     public sealed class CrdtSessionManagerFactory : ISessionManagerFactory, IAsyncDisposable
     {
         /// <summary>
@@ -74,16 +82,31 @@ namespace Opc.Ua.Server.Distributed.Crdt
             var entryStore = new CrdtSharedKeyValueStore(
                 m_options.ReplicaId, transport, m_options.TimeProvider, m_options.CreateReaderOptions());
 
-            IRecordProtector? protector = m_services.GetService<IRecordProtector>();
+            IRecordProtector? protector = RecordProtectionGuard.ResolveProtectorOrThrow(
+                m_services,
+                typeof(CrdtSharedKeyValueStore));
             var sessionStore = new SharedKeyValueSessionStore(entryStore, server.MessageContext, protector);
 
             // The single-use nonce must be strongly consistent — never the CRDT
-            // store. Use a registered shared store (e.g. the address-space
-            // backend or a Redis adapter) or an in-process fallback.
+            // store (whose CompareAndSwapAsync is not supported) and never a
+            // per-process fallback when fast reconnect is enabled, otherwise the
+            // cross-replica session-restore replay defence is silently defeated.
             ISharedKeyValueStore? nonceStore = m_services.GetService<ISharedKeyValueStore>();
             InMemorySharedKeyValueStore? ownedNonceStore = null;
             if (nonceStore == null)
             {
+                if (m_options.Session.EnableFastReconnect)
+                {
+                    throw new InvalidOperationException(
+                        "CRDT active/active fast reconnect requires a strongly-consistent, cross-replica " +
+                        "ISharedKeyValueStore for the single-use server-nonce registry. The eventually-" +
+                        "consistent CRDT gossip store cannot enforce single-use (CompareAndSwapAsync is not " +
+                        "supported), so without a strongly-consistent registry shared by every replica the " +
+                        "cross-replica session-restore replay defence is defeated. Register a strongly-" +
+                        "consistent backend (for example a Redis ISharedKeyValueStore adapter) shared across " +
+                        "the replica set, or disable DistributedSessionOptions.EnableFastReconnect.");
+                }
+
                 ownedNonceStore = new InMemorySharedKeyValueStore();
                 nonceStore = ownedNonceStore;
             }

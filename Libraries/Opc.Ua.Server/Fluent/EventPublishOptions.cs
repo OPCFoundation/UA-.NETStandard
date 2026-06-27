@@ -71,6 +71,13 @@ namespace Opc.Ua.Server.Fluent
         public bool SkipDefaultPopulation { get; init; }
 
         /// <summary>
+        /// Optional provider used to populate <c>EventId</c> when the event did
+        /// not set one explicitly. Default <c>null</c> keeps the current random
+        /// UUID behavior.
+        /// </summary>
+        public IEventIdProvider? EventIdProvider { get; init; }
+
+        /// <summary>
         /// When <c>true</c>, the notifier node is added to the manager's
         /// root-notifier collection so its events propagate to clients that
         /// subscribe to the <c>Server</c> object. Default <c>false</c>:

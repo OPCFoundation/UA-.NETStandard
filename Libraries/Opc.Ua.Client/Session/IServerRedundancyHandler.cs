@@ -55,6 +55,21 @@ namespace Opc.Ua.Client
             CancellationToken ct = default);
 
         /// <summary>
+        /// Determines whether a failover is warranted for the current server.
+        /// </summary>
+        /// <param name="redundancyInfo">
+        /// The redundancy information previously obtained via
+        /// <see cref="FetchRedundancyInfoAsync"/>.
+        /// </param>
+        /// <param name="currentEndpoint">
+        /// The endpoint the session is currently connected to.
+        /// </param>
+        /// <returns>The failover decision.</returns>
+        ServerFailoverDecision ShouldFailover(
+            ServerRedundancyInfo redundancyInfo,
+            ConfiguredEndpoint currentEndpoint);
+
+        /// <summary>
         /// Selects the best server to fail over to from the redundant
         /// server set.
         /// </summary>

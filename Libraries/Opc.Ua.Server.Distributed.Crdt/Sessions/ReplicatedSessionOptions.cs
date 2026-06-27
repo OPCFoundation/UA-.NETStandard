@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Distributed.Crdt
 {
     /// <summary>
-    /// Options for CRDT active/active session replication. Mirrored session
+    /// Extension beyond OPC 10000-4 §6.6: options for CRDT active/active session replication. Mirrored session
     /// entries are gossiped between replicas as a CRDT; the gossip configuration
     /// is inherited from <see cref="ReplicatedGossipOptions"/>.
     /// </summary>
@@ -40,6 +40,10 @@ namespace Opc.Ua.Server.Distributed.Crdt
     /// provide. The session manager keeps the nonce on a separate
     /// strongly-consistent <see cref="ISharedKeyValueStore"/> resolved from the
     /// container (defaulting to an in-process store for development).
+    /// CRDT session entries themselves require an <see cref="IRecordProtector"/>
+    /// because they are gossiped and contain session nonces and secret material.
+    /// Startup fails closed unless a protector is registered; use
+    /// <c>GossipTlsOptions</c> separately to protect the gossip transport.
     /// </remarks>
     public sealed class ReplicatedSessionOptions : ReplicatedGossipOptions
     {

@@ -2749,12 +2749,33 @@ namespace Opc.Ua.Client
                 ct);
         }
 
+        internal Task ReactivateMirroredSessionAsync(
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct = default)
+        {
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            return RecreateInPlaceCoreAsync(
+                endpoint,
+                connection: null,
+                channel: null,
+                budget: null,
+                ct,
+                recreateSubscriptions: false,
+                requireTokenReuse: true);
+        }
+
         private async Task RecreateInPlaceCoreAsync(
             ConfiguredEndpoint? endpoint,
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
             IRetryBudget? budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool recreateSubscriptions = true,
+            bool requireTokenReuse = false)
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
@@ -2963,7 +2984,18 @@ namespace Opc.Ua.Client
                         m_logger.LogInformation(
                             ex,
                             "Token-reuse failover reactivation failed; falling back to re-authentication.");
+                        if (requireTokenReuse)
+                        {
+                            throw;
+                        }
                     }
+                }
+
+                if (!reused && requireTokenReuse)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "HotAndMirrored failover requires token-reuse session reactivation.");
                 }
 
                 if (!reused)
@@ -2990,23 +3022,26 @@ namespace Opc.Ua.Client
                         .ConfigureAwait(false);
                 }
 
+                if (recreateSubscriptions)
+                {
 #if OPCUA_V1_CLIENT
-                // V1: drive the classic template-based recreate using
-                // the subscriptions still attached to this Session.
-                await RecreateSubscriptionsAsync(
-                        TransferSubscriptionsOnReconnect,
-                        Subscriptions,
-                        ct)
-                    .ConfigureAwait(false);
+                    // V1: drive the classic template-based recreate using
+                    // the subscriptions still attached to this Session.
+                    await RecreateSubscriptionsAsync(
+                            TransferSubscriptionsOnReconnect,
+                            Subscriptions,
+                            ct)
+                        .ConfigureAwait(false);
 #endif
 
-                // V2: hand the previous session id to the engine so
-                // configured subscriptions can attempt transfer or
-                // fall back to recreate against the new session id.
-                await m_engine.RecreateSubscriptionsAsync(
-                        previousSessionId,
-                        ct)
-                    .ConfigureAwait(false);
+                    // V2: hand the previous session id to the engine so
+                    // configured subscriptions can attempt transfer or
+                    // fall back to recreate against the new session id.
+                    await m_engine.RecreateSubscriptionsAsync(
+                            previousSessionId,
+                            ct)
+                        .ConfigureAwait(false);
+                }
 
                 managedLeaseActivated = true;
                 if (newManagedLease != null &&
@@ -5310,12 +5345,14 @@ namespace Opc.Ua.Client
         protected IUserIdentity m_identity;
 
         /// <summary>
-        /// Factor applied to the <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
+        /// Factor applied to the <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set
+        /// to true.
         /// </summary>
         protected int m_keepAliveIntervalFactor = 1;
 
-        /// <summary>m
-        /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
+        /// <summary>
+        /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/>
+        /// is set to true.
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
 

@@ -34,7 +34,7 @@ using System;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Options for dependency-injection registration of distributed address
+    /// Extension beyond OPC 10000-4 §6.6: options for dependency-injection registration of distributed address
     /// space building blocks.
     /// </summary>
     public sealed class DistributedAddressSpaceOptions
@@ -95,14 +95,21 @@ namespace Opc.Ua.Server.Distributed
         public TimeSpan RenewInterval { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
-        /// Gets or sets the OPC UA service level reported by the elected
-        /// leader.
+        /// Gets or sets the configured redundancy failover mode used for
+        /// service-level subrange mapping.
         /// </summary>
-        public byte LeaderServiceLevel { get; set; } = 255;
+        public RedundancySupport RedundancyMode { get; set; } = RedundancySupport.Warm;
 
         /// <summary>
-        /// Gets or sets the OPC UA service level reported by standby replicas.
+        /// Gets or sets a function that returns the connected-client load used
+        /// to decrement healthy service levels for load balancing.
         /// </summary>
-        public byte StandbyServiceLevel { get; set; } = 1;
+        public Func<uint>? ServiceLevelLoadMetric { get; set; }
+
+        /// <summary>
+        /// Gets or sets a function that returns the health-derived maximum
+        /// service level for this replica.
+        /// </summary>
+        public Func<byte>? HealthServiceLevel { get; set; }
     }
 }

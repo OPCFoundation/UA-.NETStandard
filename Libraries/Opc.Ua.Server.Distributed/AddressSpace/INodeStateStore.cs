@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server.Distributed
 {
     /// <summary>
-    /// Authoritative, shareable store of a node manager's address-space
+    /// Extension beyond OPC 10000-4 §6.6: authoritative, shareable store of a node manager's address-space
     /// state — node topology and variable values — used to replicate state
     /// across server replicas for high availability.
     /// </summary>
