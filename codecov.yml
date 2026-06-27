@@ -37,6 +37,15 @@ ignore:
   - "**/obj/**"
   - "**/bin/**"
   - "**/*.g.cs"
+  # Integration-only Kubernetes IO: real HTTP to the API server and the readiness
+  # HTTP listener / cluster-bound startup tasks are exercised by integration, not
+  # unit tests (mirrors the Applications/** exemption). The Kubernetes logic
+  # (models, factory, lease election, peer-slice parsing, readiness mapping,
+  # builder wiring) stays measured.
+  - "Libraries/Opc.Ua.Server.Redundancy.K8s/Client/KubernetesHttpApiClient.cs"
+  - "Libraries/Opc.Ua.Server.Redundancy.K8s/Health/KubernetesReadinessServer.cs"
+  - "Libraries/Opc.Ua.Server.Redundancy.K8s/Health/KubernetesReadinessStartupTask.cs"
+  - "Libraries/Opc.Ua.Server.Redundancy.K8s/PeerDiscovery/KubernetesPeerDiscoveryStartupTask.cs"
 
 comment:
   layout: "reach, diff, flags, files"
