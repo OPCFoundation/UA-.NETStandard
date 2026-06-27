@@ -62,8 +62,9 @@ namespace Opc.Ua.Server.Distributed
                 throw new ArgumentNullException(nameof(serviceLevelProvider));
             }
 
+            builder.Services.AddSingleton(serviceLevelProvider);
             builder.Services.AddSingleton<IServerStartupTask>(
-                new ServiceLevelStartupTask(serviceLevelProvider));
+                sp => new ServiceLevelStartupTask(sp.GetRequiredService<IServiceLevelProvider>()));
             return builder;
         }
 

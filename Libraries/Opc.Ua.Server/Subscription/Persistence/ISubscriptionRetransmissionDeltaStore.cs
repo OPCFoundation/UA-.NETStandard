@@ -27,40 +27,28 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Information about a Server in a <c>RedundantServerSet</c>.
+    /// Optional delta path for live retransmission mirrors.
     /// </summary>
     /// <remarks>
-    /// Corresponds to the OPC UA <c>RedundantServerDataType</c> defined in OPC 10000-5 §12.5 and used by
-    /// OPC 10000-4 §6.6.2 server redundancy.
+    /// Implementations avoid per-publish full retransmission queue snapshots by accepting only the notifications
+    /// added to and removed from the queue since the previous mirror update.
     /// </remarks>
-    public sealed class RedundantServer
+    public interface ISubscriptionRetransmissionDeltaStore : ISubscriptionRetransmissionStore
     {
         /// <summary>
-        /// The ServerUri that identifies the Server.
+        /// Stores a retransmission queue delta for a subscription.
         /// </summary>
-        public string ServerUri { get; init; } = string.Empty;
-
-        /// <summary>
-        /// <c>ServiceLevel</c> (0–255, higher is better; see OPC 10000-4 §6.6.2.4.2 Table 105).
-        /// </summary>
-        public byte ServiceLevel { get; init; }
-
-        /// <summary>
-        /// Gets a value indicating whether <see cref="ServiceLevel"/> was read from the Server.
-        /// </summary>
-        internal bool ServiceLevelKnown { get; init; } = true;
-
-        /// <summary>
-        /// The current state of the Server.
-        /// </summary>
-        public ServerState ServerState { get; init; }
-
-        /// <summary>
-        /// The resolved endpoint for this redundant server.
-        /// </summary>
-        public ConfiguredEndpoint? Endpoint { get; init; }
+        /// <param name="subscriptionId">The subscription id.</param>
+        /// <param name="nextSequenceNumber">The next sequence number to assign.</param>
+        /// <param name="addedMessages">The newly sent notifications available for republish.</param>
+        /// <param name="removedSequenceNumbers">Sequence numbers no longer available for republish.</param>
+        void StoreRetransmissionStateDelta(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            ArrayOf<NotificationMessage> addedMessages,
+            ArrayOf<uint> removedSequenceNumbers);
     }
 }

@@ -197,8 +197,8 @@ namespace RedundantClient
                         WarnIfModeDiffers(mode, client.Mode);
                         client.NotificationReceived += OnNotificationReceived;
 
-                        // RedundantManagedClient owns the template for later failover re-application.
-                        // TODO: replace this with a non-disposable subscription-template abstraction.
+                        // Ownership of the subscription template transfers to the redundant client,
+                        // which disposes it together with the client (see AddSubscriptionAsync remarks).
 #pragma warning disable CA2000
                         await client.AddSubscriptionAsync(
                             kSubscriptionKey,

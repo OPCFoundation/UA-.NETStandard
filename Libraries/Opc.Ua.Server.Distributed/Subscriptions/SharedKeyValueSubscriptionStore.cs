@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Distributed
     /// </remarks>
     public sealed class SharedKeyValueSubscriptionStore :
         ISubscriptionStore,
-        ISubscriptionRetransmissionStore,
+        ISubscriptionRetransmissionDeltaStore,
         IContinuationPointStore,
         IAsyncDisposable
     {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Distributed
 
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version != FormatVersion)
+            if (version is not RetransmissionStateFormatVersion and not LegacyRetransmissionStateFormatVersion)
             {
                 return null;
             }
@@ -202,6 +202,14 @@ namespace Opc.Ua.Server.Distributed
             {
                 NextSequenceNumber = decoder.ReadUInt32(null)
             };
+            NamespaceTable? namespaceUris = null;
+            StringTable? serverUris = null;
+            if (version == RetransmissionStateFormatVersion)
+            {
+                namespaceUris = CreateNamespaceTable(decoder.ReadStringArray(null));
+                serverUris = CreateStringTable(decoder.ReadStringArray(null));
+            }
+
             var messages = new List<NotificationMessage>();
             await foreach (KeyValuePair<string, ByteString> pair in m_store
                 .ScanAsync(RetransmissionMessagePrefixFor(subscriptionId), cancellationToken)
@@ -209,7 +217,7 @@ namespace Opc.Ua.Server.Distributed
             {
                 if (m_protector.TryUnprotect(pair.Value, out ByteString messagePayload))
                 {
-                    NotificationMessage message = DecodeNotificationMessage(messagePayload);
+                    NotificationMessage message = DecodeNotificationMessage(messagePayload, namespaceUris, serverUris);
                     messages.Add(message);
                 }
             }
@@ -249,6 +257,37 @@ namespace Opc.Ua.Server.Distributed
                         state.PendingMessages.Remove(known);
                         state.PendingDeletes.Add(known);
                     }
+                }
+            }
+
+            SignalDrain();
+        }
+
+        /// <inheritdoc/>
+        public void StoreRetransmissionStateDelta(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            ArrayOf<NotificationMessage> addedMessages,
+            ArrayOf<uint> removedSequenceNumbers)
+        {
+            lock (m_retransmissionLock)
+            {
+                PendingRetransmissionState state = GetPendingState(subscriptionId);
+                state.NextSequenceNumber = nextSequenceNumber;
+                state.StateDirty = true;
+
+                foreach (uint sequenceNumber in removedSequenceNumbers)
+                {
+                    state.KnownMessages.Remove(sequenceNumber);
+                    state.PendingMessages.Remove(sequenceNumber);
+                    state.PendingDeletes.Add(sequenceNumber);
+                }
+
+                foreach (NotificationMessage message in addedMessages)
+                {
+                    state.KnownMessages.Add(message.SequenceNumber);
+                    state.PendingMessages[message.SequenceNumber] = message;
+                    state.PendingDeletes.Remove(message.SequenceNumber);
                 }
             }
 
@@ -442,22 +481,24 @@ namespace Opc.Ua.Server.Distributed
                             .ConfigureAwait(false);
                     }
 
+                    var operations = new List<Task>(batch.Messages.Length + batch.Deletes.Length);
                     foreach (NotificationMessage message in batch.Messages)
                     {
-                        await m_store.SetAsync(
+                        operations.Add(m_store.SetAsync(
                                 RetransmissionMessageKeyFor(batch.SubscriptionId, message.SequenceNumber),
                                 m_protector.Protect(EncodeNotificationMessage(message)),
                                 cancellationToken)
-                            .ConfigureAwait(false);
+                            .AsTask());
                     }
 
                     foreach (uint sequenceNumber in batch.Deletes)
                     {
-                        await m_store.DeleteAsync(
+                        operations.Add(m_store.DeleteAsync(
                                 RetransmissionMessageKeyFor(batch.SubscriptionId, sequenceNumber),
                                 cancellationToken)
-                            .ConfigureAwait(false);
+                            .AsTask());
                     }
+                    await RunBatchOperationsAsync(operations).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -714,10 +755,20 @@ namespace Opc.Ua.Server.Distributed
             }
         }
 
+        private static async ValueTask RunBatchOperationsAsync(List<Task> operations)
+        {
+            if (operations.Count == 0)
+            {
+                return;
+            }
+
+            await Task.WhenAll(operations).ConfigureAwait(false);
+        }
+
         private ByteString Encode(StoredSubscription subscription)
         {
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, FormatVersion);
+            encoder.WriteInt32(null, DefinitionFormatVersion);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
             EncodeSubscription(encoder, subscription);
@@ -728,8 +779,10 @@ namespace Opc.Ua.Server.Distributed
         private ByteString EncodeRetransmissionState(uint nextSequenceNumber)
         {
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, FormatVersion);
+            encoder.WriteInt32(null, RetransmissionStateFormatVersion);
             encoder.WriteUInt32(null, nextSequenceNumber);
+            encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -737,8 +790,7 @@ namespace Opc.Ua.Server.Distributed
         private ByteString EncodeNotificationMessage(NotificationMessage message)
         {
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
-            encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
+            encoder.WriteInt32(null, NotificationMessageFormatVersion);
             encoder.WriteEncodeable(null, message);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
@@ -747,7 +799,7 @@ namespace Opc.Ua.Server.Distributed
         private ByteString EncodeContinuationPointEnvelope(ContinuationPointEnvelope envelope)
         {
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, FormatVersion);
+            encoder.WriteInt32(null, ContinuationPointFormatVersion);
             encoder.WriteByteString(null, ByteString.From(envelope.Id.ToByteArray()));
             encoder.WriteNodeId(null, envelope.OwnerSessionId);
             encoder.WriteEnumerated(null, envelope.Kind);
@@ -768,22 +820,41 @@ namespace Opc.Ua.Server.Distributed
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
 
-        private NotificationMessage DecodeNotificationMessage(ByteString payload)
+        private NotificationMessage DecodeNotificationMessage(
+            ByteString payload,
+            NamespaceTable? namespaceUris,
+            StringTable? serverUris)
         {
-            using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
-            ArrayOf<string?> namespaceUris = decoder.ReadStringArray(null);
-            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
-            decoder.SetMappingTables(
-                new NamespaceTable(namespaceUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray()),
-                new StringTable(serverUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray()));
-            return decoder.ReadEncodeable<NotificationMessage>(null);
+            try
+            {
+                using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
+                int version = decoder.ReadInt32(null);
+                if (version != NotificationMessageFormatVersion ||
+                    namespaceUris == null ||
+                    serverUris == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+                decoder.SetMappingTables(namespaceUris, serverUris);
+                return decoder.ReadEncodeable<NotificationMessage>(null);
+            }
+            catch (Exception ex) when (ex is ServiceResultException or ArgumentException or InvalidOperationException)
+            {
+                using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
+                ArrayOf<string?> legacyNamespaceUris = decoder.ReadStringArray(null);
+                ArrayOf<string?> legacyServerUris = decoder.ReadStringArray(null);
+                decoder.SetMappingTables(
+                    CreateNamespaceTable(legacyNamespaceUris),
+                    CreateStringTable(legacyServerUris));
+                return decoder.ReadEncodeable<NotificationMessage>(null);
+            }
         }
 
         private ContinuationPointEnvelope? DecodeContinuationPointEnvelope(ByteString payload)
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version != FormatVersion)
+            if (version != ContinuationPointFormatVersion)
             {
                 return null;
             }
@@ -815,16 +886,14 @@ namespace Opc.Ua.Server.Distributed
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version != FormatVersion)
+            if (version != DefinitionFormatVersion)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
 
             var namespaceUris = decoder.ReadStringArray(null);
             var serverUris = decoder.ReadStringArray(null);
-            decoder.SetMappingTables(
-                new NamespaceTable(namespaceUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray()),
-                new StringTable(serverUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray()));
+            decoder.SetMappingTables(CreateNamespaceTable(namespaceUris), CreateStringTable(serverUris));
             return DecodeSubscription(decoder);
         }
 
@@ -1011,6 +1080,16 @@ namespace Opc.Ua.Server.Distributed
             return null!;
         }
 
+        private static NamespaceTable CreateNamespaceTable(ArrayOf<string?> namespaceUris)
+        {
+            return new NamespaceTable(namespaceUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray());
+        }
+
+        private static StringTable CreateStringTable(ArrayOf<string?> serverUris)
+        {
+            return new StringTable(serverUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray());
+        }
+
         private static string RetransmissionMessagePrefixFor(uint subscriptionId)
         {
             return RetransmissionPrefix +
@@ -1025,7 +1104,11 @@ namespace Opc.Ua.Server.Distributed
                 "/";
         }
 
-        private const int FormatVersion = 1;
+        private const int DefinitionFormatVersion = 1;
+        private const int ContinuationPointFormatVersion = 1;
+        private const int LegacyRetransmissionStateFormatVersion = 1;
+        private const int RetransmissionStateFormatVersion = 2;
+        private const int NotificationMessageFormatVersion = 2;
         private const int FilterKindNone = 0;
         private const int FilterKindDataChange = 1;
         private const int FilterKindEvent = 2;

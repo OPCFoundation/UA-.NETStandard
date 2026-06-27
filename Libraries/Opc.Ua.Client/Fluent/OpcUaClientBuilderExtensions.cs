@@ -792,12 +792,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     builder.WithPoolNotifications();
                 }
-                if (!options.Session.NetworkRedundancy.AlternateEndpoints.IsEmpty)
-                {
-                    builder.WithNetworkRedundancy(
-                        options.Session.NetworkRedundancy.AlternateEndpoints);
-                }
-
                 IClientChannelManager? mgr = m_sp.GetService<IClientChannelManager>();
                 if (mgr != null)
                 {
@@ -918,6 +912,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (options.Session.PoolNotifications)
                 {
                     builder.WithPoolNotifications();
+                }
+                if (!options.Session.NetworkRedundancy.AlternateEndpoints.IsEmpty)
+                {
+                    builder.WithNetworkRedundancy(
+                        options.Session.NetworkRedundancy.AlternateEndpoints);
                 }
 
                 IClientChannelManager? mgr = m_sp.GetService<IClientChannelManager>();

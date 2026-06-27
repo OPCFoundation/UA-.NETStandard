@@ -48,14 +48,15 @@ namespace Opc.Ua.Server.Distributed
         public RedundancySupport Mode { get; set; } = RedundancySupport.None;
 
         /// <summary>
-        /// Gets the redundant peer ServerUris published in
-        /// <c>Server.ServerRedundancy.RedundantServerArray</c>.
+        /// Gets URI-only fallback peer ServerUris for legacy configuration that cannot provide discovery URLs.
+        /// Prefer <see cref="RedundantPeers"/> or <see cref="AddRedundantPeer"/> as the canonical redundancy
+        /// peer input; those entries drive both <c>FindServers</c> and the flat redundancy URI variables.
         /// </summary>
         public IList<string> PeerServerUris { get; } = new List<string>();
 
         /// <summary>
-        /// Gets the rich peer descriptions used by <c>FindServers</c> for a non-transparent
-        /// <c>RedundantServerSet</c> (OPC 10000-4 §6.6.2.4.5.1).
+        /// Gets the canonical rich peer descriptions used by <c>FindServers</c> for a non-transparent
+        /// <c>RedundantServerSet</c> (OPC 10000-4 §6.6.2.4.5.1) and by the flat redundancy URI variables.
         /// </summary>
         public IList<RedundantPeer> RedundantPeers { get; } = new List<RedundantPeer>();
 
@@ -86,7 +87,7 @@ namespace Opc.Ua.Server.Distributed
                 RedundancySupport.HotAndMirrored;
 
         /// <summary>
-        /// Adds a redundant peer description.
+        /// Adds a canonical redundant peer description.
         /// </summary>
         /// <param name="applicationUri">The peer application URI.</param>
         /// <param name="discoveryUrls">The peer discovery URLs.</param>
@@ -99,7 +100,8 @@ namespace Opc.Ua.Server.Distributed
         }
 
         /// <summary>
-        /// Gets the peer application URIs used for redundancy variables.
+        /// Gets the peer application URIs used for redundancy variables, derived from the canonical
+        /// <see cref="RedundantPeers"/> list plus the URI-only <see cref="PeerServerUris"/> fallback.
         /// </summary>
         /// <returns>The configured peer application URIs.</returns>
         public ArrayOf<string> GetPeerApplicationUris()

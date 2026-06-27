@@ -15,7 +15,7 @@ services.AddOpcUa()
     .UseReplicatedAddressSpace(crdt =>
     {
         crdt.ReplicaId = Crdt.ReplicaId.New();
-        crdt.UseTcpGossip(IPAddress.Loopback, port: 0);
+        crdt.UseTcpGossip(IPAddress.Loopback, port: 0, tls: mutualTlsOptions);
         crdt.AddPeer(peerEndpoint);
     })
     .UseReplicatedSessions();
@@ -25,11 +25,11 @@ services.AddOpcUa()
 
 CRDT session mirroring gossips `SharedSessionEntry` records that contain session nonces and secret material. Register an `IRecordProtector` (for example an `AesCbcHmacRecordProtector` backed by a managed cluster key, or a `KeyRingRecordProtector` during key rotation) before calling `UseReplicatedSessions`; startup fails closed without one. `GossipTlsOptions` protects gossip traffic in transit, but it does not provide at-rest confidentiality or record integrity if a replica or replicated store is compromised.
 
-Address-space CRDT replication does not require an `IRecordProtector` because mirrored node values are not session secrets. Use `GossipTlsOptions` for the address-space gossip transport whenever updates cross a network boundary.
+Address-space CRDT replication does not require an `IRecordProtector` because mirrored node values are not session secrets. It does require authenticated gossip for networked replicas: TCP gossip must be configured with mutual TLS by default, and UDP gossip requires an explicit `AllowUnauthenticatedGossip` opt-out for isolated development/test fabrics. This protects integrity/authenticity so an adjacent host cannot inject a higher-clock LWW update and forge served node values.
 
 ## Target frameworks
 
-`net8.0`, `net9.0`, `net10.0` (the gossip transport ships net8.0+). .NET Framework and netstandard consumers use the active/passive features in the base distributed package.
+Available on the stack target frameworks: `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, and `net10.0`. `netstandard2.1` assets are not NativeAOT-published.
 
 ## Additional documentation
 

@@ -149,6 +149,32 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public void ShouldFailoverSwitchesFromMaintenanceToOperationalPeer()
+        {
+            var info = new ServerRedundancyInfo
+            {
+                Mode = RedundancySupport.Hot,
+                ServiceLevel = ServiceLevels.Maintenance,
+                ServiceLevelAccessible = true,
+                ServiceLevelSubrange = ServiceLevelSubrange.Maintenance,
+                EstimatedReturnTime = s_now.AddMinutes(10),
+                RedundantServers =
+                [
+                    CreateServerInfo("urn:healthy", 230, ServerState.Running)
+                ]
+            };
+
+            ServerFailoverDecision decision = m_handler.ShouldFailover(
+                info, CreateCurrentEndpoint("urn:current"));
+            ConfiguredEndpoint? target = m_handler.SelectFailoverTarget(
+                info, CreateCurrentEndpoint("urn:current"));
+
+            Assert.That(decision.IsFailoverWarranted, Is.True);
+            Assert.That(target, Is.Not.Null);
+            Assert.That(target!.Description.Server.ApplicationUri, Is.EqualTo("urn:healthy"));
+        }
+
+        [Test]
         public void ShouldFailoverHonorsMaintenanceEstimatedReturnTime()
         {
             DateTime estimatedReturnTime = s_now.AddMinutes(10);
@@ -161,7 +187,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 EstimatedReturnTime = estimatedReturnTime,
                 RedundantServers =
                 [
-                    CreateServerInfo("urn:healthy", 230, ServerState.Running)
+                    CreateServerInfo("urn:shutdown", 230, ServerState.Shutdown)
                 ]
             };
 
@@ -184,7 +210,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 EstimatedReturnTime = s_now.AddMinutes(-1),
                 RedundantServers =
                 [
-                    CreateServerInfo("urn:healthy", 230, ServerState.Running)
+                    CreateServerInfo("urn:shutdown", 230, ServerState.Shutdown)
                 ]
             };
 
@@ -209,7 +235,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 EstimatedReturnTime = DateTime.MinValue,
                 RedundantServers =
                 [
-                    CreateServerInfo("urn:healthy", 230, ServerState.Running)
+                    CreateServerInfo("urn:shutdown", 230, ServerState.Shutdown)
                 ]
             };
 
@@ -439,7 +465,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public async Task FetchRedundancyInfoDoesNotSelectServerUriOnlyPeerWithUnknownServiceLevelAsync()
+        public async Task FetchRedundancyInfoSelectsServerUriOnlyPeerWithUnknownServiceLevelAsync()
         {
             ConfiguredEndpoint resolvedEndpoint = CreateEndpoint("urn:server-uri", "opc.tcp://server-uri:4840");
             m_resolver.Setup(r => r.ResolveAsync(
@@ -458,7 +484,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 info, CreateCurrentEndpoint("urn:current"));
 
             Assert.That(info.RedundantServers[0].ServiceLevel, Is.EqualTo(ServiceLevels.NoData));
-            Assert.That(target, Is.Null);
+            Assert.That(target, Is.SameAs(resolvedEndpoint));
         }
 
         [Test]

@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             RedundantManagedClient client = CreateClient(handler.Object, primary, backup);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
                 await client.FailoverAsync().ConfigureAwait(false);
@@ -91,9 +91,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 backup);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
+                Assert.That(backup.LastMonitoringMode, Is.EqualTo(MonitoringMode.Disabled));
+                Assert.That(backup.LastPublishingEnabled, Is.False);
                 primary.ServiceLevelValue = 100;
                 backup.ServiceLevelValue = 240;
                 await client.FailoverAsync().ConfigureAwait(false);
@@ -103,7 +105,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 await client.DisposeAsync().ConfigureAwait(false);
             }
 
-            Assert.That(primary.LastMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
+            Assert.That(primary.LastMonitoringMode, Is.EqualTo(MonitoringMode.Disabled));
             Assert.That(primary.LastPublishingEnabled, Is.False);
             Assert.That(backup.LastMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
             Assert.That(backup.LastPublishingEnabled, Is.True);
@@ -121,7 +123,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 backup);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
                 primary.ServiceLevelValue = 100;
@@ -156,7 +158,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             client.NotificationReceived += (_, e) => received.Add(e);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
                 DateTime sourceTimestamp = new(2026, 6, 27, 9, 0, 0, DateTimeKind.Utc);
@@ -190,13 +192,45 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             client.NotificationReceived += (_, e) => received.Add(e);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
                 DateTime first = new(2026, 6, 27, 9, 0, 0, DateTimeKind.Utc);
                 DateTime second = first.AddMilliseconds(100);
                 primary.RaiseNotification("sub", clientHandle: 1, sequenceNumber: 10, first, 42);
                 primary.RaiseNotification("sub", clientHandle: 1, sequenceNumber: 10, second, 43);
+            }
+            finally
+            {
+                await client.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(received, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task HotReportingMergeDeliversDistinctValuesWithSameHandleAndTimestampAsync()
+        {
+            FakeRedundantSession primary = new("urn:primary", 240);
+            FakeRedundantSession backup = new("urn:backup", 220);
+            RedundantManagedClient client = CreateClient(
+                CreateHandler(RedundancySupport.Hot, backup.Endpoint).Object,
+                new RedundantManagedClientOptions
+                {
+                    HotNotificationMode = HotRedundancyNotificationMode.ReportingMerge
+                },
+                primary,
+                backup);
+            var received = new List<RedundantManagedClientNotificationEventArgs>();
+            client.NotificationReceived += (_, e) => received.Add(e);
+            try
+            {
+                var subscription = new Subscription((ITelemetryContext)null!);
+                await client.StartAsync().ConfigureAwait(false);
+                await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
+                DateTime sourceTimestamp = new(2026, 6, 27, 9, 0, 0, DateTimeKind.Utc);
+                primary.RaiseNotification("sub", clientHandle: 1, sequenceNumber: 10, sourceTimestamp, 42);
+                backup.RaiseNotification("sub", clientHandle: 1, sequenceNumber: 27, sourceTimestamp, 43);
             }
             finally
             {
@@ -230,7 +264,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             };
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
                 DateTime sourceTimestamp = new(2026, 6, 27, 9, 0, 0, DateTimeKind.Utc);
@@ -311,7 +345,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 backup);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
             }
@@ -327,6 +361,24 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task DisposeDisposesOwnedSubscriptionTemplateAsync()
+        {
+            FakeRedundantSession primary = new("urn:primary", 240);
+            FakeRedundantSession backup = new("urn:backup", 220);
+            var subscription = new TrackingSubscription();
+            RedundantManagedClient client = CreateClient(
+                CreateHandler(RedundancySupport.Hot, backup.Endpoint).Object,
+                primary,
+                backup);
+
+            await client.StartAsync().ConfigureAwait(false);
+            await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
+            await client.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(subscription.DisposeCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task HotAndMirroredFailoverActivatesBackupWithoutRecreatingSubscriptionsAsync()
         {
             FakeRedundantSession primary = new("urn:primary", 240);
@@ -337,7 +389,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 backup);
             try
             {
-                using var subscription = new Subscription((ITelemetryContext)null!);
+                var subscription = new Subscription((ITelemetryContext)null!);
                 await client.StartAsync().ConfigureAwait(false);
                 await client.AddSubscriptionAsync("sub", subscription).ConfigureAwait(false);
                 backup.ServiceLevelValue = 250;
@@ -495,8 +547,33 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             FieldInfo field = typeof(RedundantManagedClient).GetField(
                 "m_seenNotifications",
                 BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var seen = (HashSet<string>)field.GetValue(client)!;
-            return seen.Count;
+            var seen = (System.Collections.IEnumerable)field.GetValue(client)!;
+            int count = 0;
+            foreach (object _ in seen)
+            {
+                count++;
+            }
+            return count;
+        }
+
+        private sealed class TrackingSubscription : Subscription
+        {
+            public TrackingSubscription()
+                : base((ITelemetryContext)null!)
+            {
+            }
+
+            public int DisposeCount { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+
+                base.Dispose(disposing);
+            }
         }
 
         private sealed class FakeRedundantSession : IRedundantManagedClientSession

@@ -30,7 +30,7 @@
 #nullable enable
 
 using System;
-using System.Buffers;
+using System.IO;
 using System.Text.Json;
 using Crdt;
 using NUnit.Framework;
@@ -86,14 +86,14 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
 
         private static ByteString JsonRoundTrip(ByteString value)
         {
-            var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer))
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
             {
                 ByteStringCrdtSerializer.Instance.WriteJson(writer, value);
                 writer.Flush();
             }
 
-            var reader = new Utf8JsonReader(buffer.WrittenSpan);
+            var reader = new Utf8JsonReader(stream.ToArray());
             reader.Read();
             return ByteStringCrdtSerializer.Instance.ReadJson(ref reader);
         }

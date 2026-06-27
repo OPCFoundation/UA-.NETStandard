@@ -488,18 +488,27 @@ namespace Opc.Ua.Client
                     : null);
 
             IClientChannelManager? channelManager = m_channelManager;
-#pragma warning disable CA2000 // Ownership follows the managed session lifetime; TODO: model owned disposal explicitly.
-            if (channelManager == null && m_httpsResilience != null)
+            ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
+            try
             {
-                ServiceProviderHttpClientFactory httpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
-                channelManager = new ClientChannelManager(
-                    m_configuration,
-                    m_telemetry,
-                    new HttpsTransportChannelBindings(httpClientFactory),
-                    reconnectPolicy: null,
-                    timeProvider: opts.TimeProvider);
-            }
+                if (channelManager == null && m_httpsResilience != null)
+                {
+                    ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
+#pragma warning disable CA2000 // Channel manager lifetime follows the managed session; TODO: model owned disposal explicitly.
+                    channelManager = new ClientChannelManager(
+                        m_configuration,
+                        m_telemetry,
+                        new HttpsTransportChannelBindings(ownedHttpClientFactory),
+                        reconnectPolicy: null,
+                        timeProvider: opts.TimeProvider);
 #pragma warning restore CA2000
+                    ownedHttpClientFactory = null;
+                }
+            }
+            finally
+            {
+                ownedHttpClientFactory?.Dispose();
+            }
 
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)
@@ -582,18 +591,27 @@ namespace Opc.Ua.Client
                     opts.TimeProvider);
 
             IClientChannelManager? channelManager = m_channelManager;
-#pragma warning disable CA2000 // Ownership follows the redundant client session lifetime; TODO: model owned disposal.
-            if (channelManager == null && m_httpsResilience != null)
+            ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
+            try
             {
-                ServiceProviderHttpClientFactory httpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
-                channelManager = new ClientChannelManager(
-                    m_configuration,
-                    m_telemetry,
-                    new HttpsTransportChannelBindings(httpClientFactory),
-                    reconnectPolicy: null,
-                    timeProvider: opts.TimeProvider);
-            }
+                if (channelManager == null && m_httpsResilience != null)
+                {
+                    ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
+#pragma warning disable CA2000 // Channel manager lifetime follows the managed session; TODO: model owned disposal explicitly.
+                    channelManager = new ClientChannelManager(
+                        m_configuration,
+                        m_telemetry,
+                        new HttpsTransportChannelBindings(ownedHttpClientFactory),
+                        reconnectPolicy: null,
+                        timeProvider: opts.TimeProvider);
 #pragma warning restore CA2000
+                    ownedHttpClientFactory = null;
+                }
+            }
+            finally
+            {
+                ownedHttpClientFactory?.Dispose();
+            }
 
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)

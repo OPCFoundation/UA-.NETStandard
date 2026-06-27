@@ -62,6 +62,26 @@ namespace Opc.Ua.Server.Distributed.Crdt
         public Func<IServiceProvider, ITransport>? TransportFactory { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether a custom <see cref="TransportFactory"/> authenticates peers.
+        /// </summary>
+        /// <remarks>
+        /// This only applies when assigning <see cref="TransportFactory"/> directly. The built-in
+        /// <see cref="UseTcpGossip"/> helper sets the authentication state from its mutual-TLS options.
+        /// </remarks>
+        public bool TransportFactoryProvidesAuthenticatedGossip { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether network gossip may start without authenticated transport.
+        /// </summary>
+        /// <remarks>
+        /// Leave this at the secure default (<c>false</c>) for production. Set it to <c>true</c> only for
+        /// isolated development or test fabrics where forged CRDT frames cannot be injected by another host.
+        /// TCP gossip is considered authenticated when mutual TLS is configured; UDP gossip has no built-in
+        /// peer authentication and therefore requires this explicit opt-out.
+        /// </remarks>
+        public bool AllowUnauthenticatedGossip { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum number of replicated map entries accepted
         /// when decoding received state.
         /// </summary>
@@ -80,7 +100,8 @@ namespace Opc.Ua.Server.Distributed.Crdt
         /// <param name="address">The local bind address.</param>
         /// <param name="port">The local bind port (<c>0</c> for an OS-assigned port).</param>
         /// <param name="gossipInterval">Optional anti-entropy gossip interval.</param>
-        /// <param name="tls">Optional TLS / mutual-TLS configuration.</param>
+        /// <param name="tls">Optional TLS / mutual-TLS configuration. Mutual TLS is required unless
+        /// <see cref="AllowUnauthenticatedGossip"/> is explicitly enabled.</param>
         public void UseTcpGossip(
             IPAddress address,
             int port,
@@ -109,6 +130,9 @@ namespace Opc.Ua.Server.Distributed.Crdt
                 transport.AddPeers(m_peers);
                 return transport;
             };
+            m_transportSecurityMode = IsMutualTlsConfigured(tls) ?
+                GossipTransportSecurityMode.AuthenticatedNetwork :
+                GossipTransportSecurityMode.UnauthenticatedNetwork;
         }
 
         /// <summary>
@@ -132,6 +156,7 @@ namespace Opc.Ua.Server.Distributed.Crdt
                 transport.AddPeers(m_peers);
                 return transport;
             };
+            m_transportSecurityMode = GossipTransportSecurityMode.UnauthenticatedNetwork;
         }
 
         /// <summary>
@@ -170,6 +195,11 @@ namespace Opc.Ua.Server.Distributed.Crdt
         {
             if (TransportFactory != null)
             {
+                if (TransportFactoryProvidesAuthenticatedGossip)
+                {
+                    m_transportSecurityMode = GossipTransportSecurityMode.AuthenticatedNetwork;
+                }
+                ThrowIfUnauthenticatedNetworkGossip();
                 defaultNetwork = null;
                 return TransportFactory(services);
             }
@@ -179,6 +209,40 @@ namespace Opc.Ua.Server.Distributed.Crdt
             return network.CreateTransport();
         }
 
+        private void ThrowIfUnauthenticatedNetworkGossip()
+        {
+            if (m_transportSecurityMode == GossipTransportSecurityMode.AuthenticatedNetwork ||
+                AllowUnauthenticatedGossip)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                "CRDT network gossip is configured without authenticated transport. Address-space CRDT entries " +
+                "are last-writer-wins; an unauthenticated peer can forge a higher-clock frame and replace values " +
+                "served to clients. Configure TCP gossip with mutual TLS (server certificate, required client " +
+                "certificates, client certificate, and remote certificate validation), or explicitly set " +
+                $"{nameof(TransportFactoryProvidesAuthenticatedGossip)} for authenticated custom transports, or set " +
+                $"{nameof(AllowUnauthenticatedGossip)} to true for isolated development/test fabrics.");
+        }
+
+        private static bool IsMutualTlsConfigured(GossipTlsOptions? tls)
+        {
+            return tls?.ServerCertificate != null &&
+                tls.RequireClientCertificate &&
+                tls.ClientCertificates != null &&
+                tls.ClientCertificates.Count > 0 &&
+                tls.RemoteCertificateValidationCallback != null;
+        }
+
+        private enum GossipTransportSecurityMode
+        {
+            InProcess,
+            AuthenticatedNetwork,
+            UnauthenticatedNetwork
+        }
+
         private readonly List<IPEndPoint> m_peers = [];
+        private GossipTransportSecurityMode m_transportSecurityMode = GossipTransportSecurityMode.InProcess;
     }
 }

@@ -38,6 +38,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -220,6 +221,46 @@ namespace Opc.Ua.Server.Tests.Distributed
             Assert.That(
                 state.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
                 Is.EqualTo(new uint[] { 3, 4 }));
+        }
+
+        [Test]
+        public async Task RetransmissionDeltaAddsAndRemovesOnlyChangedMessagesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+
+            store.StoreRetransmissionStateDelta(708, 4, [NewNotification(1), NewNotification(2)], []);
+            await store.FlushAsync();
+            store.StoreRetransmissionStateDelta(708, 5, [NewNotification(3)], [1]);
+            await store.FlushAsync();
+            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(708);
+
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(5));
+            Assert.That(
+                state.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
+                Is.EqualTo(new uint[] { 2, 3 }));
+        }
+
+        [Test]
+        public async Task RetransmissionMessagesDoNotRepeatNamespaceTablesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            store.StoreRetransmissionStateDelta(709, 2, [NewNotification(1)], []);
+            await store.FlushAsync();
+            (bool stateFound, ByteString stateRaw) = await kv.TryGetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(709));
+            (bool messageFound, ByteString messageRaw) = await kv.TryGetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(709, 1));
+
+            byte[] namespaceBytes = Encoding.UTF8.GetBytes("urn:test:subscriptions");
+            Assert.That(stateFound, Is.True);
+            Assert.That(messageFound, Is.True);
+            Assert.That(Contains(stateRaw.ToArray(), namespaceBytes), Is.True);
+            Assert.That(Contains(messageRaw.ToArray(), namespaceBytes), Is.False);
         }
 
         [Test]

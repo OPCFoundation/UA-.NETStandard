@@ -45,8 +45,9 @@ namespace Opc.Ua.Server.Distributed.Crdt
         /// space using CRDTs gossiped between replicas. Every replica accepts
         /// writes and converges without a leader; this is an alternative to the
         /// leader-write active/passive <c>UseDistributedAddressSpace</c>.
-        /// Configure <c>GossipTlsOptions</c> on the gossip transport when
-        /// address-space updates cross a network boundary.
+        /// Configure mutual TLS on the TCP gossip transport when address-space updates cross a network
+        /// boundary. Startup fails closed for unauthenticated TCP/UDP gossip unless the deployment explicitly
+        /// sets <see cref="ReplicatedGossipOptions.AllowUnauthenticatedGossip"/> for an isolated test fabric.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional CRDT address-space options.</param>

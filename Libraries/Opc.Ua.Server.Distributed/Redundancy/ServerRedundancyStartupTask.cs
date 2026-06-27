@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Distributed
@@ -47,9 +48,15 @@ namespace Opc.Ua.Server.Distributed
         /// Creates the task.
         /// </summary>
         /// <param name="options">The server redundancy options.</param>
-        public ServerRedundancyStartupTask(ServerRedundancyOptions options)
+        /// <param name="warnIfServiceLevelProviderMissing">
+        /// Whether to warn when non-transparent redundancy has no registered service-level provider.
+        /// </param>
+        public ServerRedundancyStartupTask(
+            ServerRedundancyOptions options,
+            bool warnIfServiceLevelProviderMissing = false)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_warnIfServiceLevelProviderMissing = warnIfServiceLevelProviderMissing;
         }
 
         /// <inheritdoc/>
@@ -59,6 +66,8 @@ namespace Opc.Ua.Server.Distributed
             {
                 throw new ArgumentNullException(nameof(server));
             }
+
+            WarnIfServiceLevelProviderMissing(server);
 
             ServerObjectState? serverObject = server.ServerObject;
             ServerRedundancyState? redundancy = serverObject?.ServerRedundancy;
@@ -88,6 +97,21 @@ namespace Opc.Ua.Server.Distributed
             }
 
             return default;
+        }
+
+        private void WarnIfServiceLevelProviderMissing(IServerInternal server)
+        {
+            if (!m_warnIfServiceLevelProviderMissing || !m_options.IsNonTransparentMode)
+            {
+                return;
+            }
+
+            ILogger logger = server.Telemetry.CreateLogger<ServerRedundancyStartupTask>();
+            logger.LogWarning(
+                "Non-transparent server redundancy mode {RedundancyMode} is configured without a registered " +
+                "IServiceLevelProvider. Register AddServerServiceLevel(...) or an IServiceLevelProvider so " +
+                "Server.ServiceLevel reflects failover health.",
+                m_options.Mode);
         }
 
         private void ApplyRedundantServerArray(
@@ -162,5 +186,6 @@ namespace Opc.Ua.Server.Distributed
         }
 
         private readonly ServerRedundancyOptions m_options;
+        private readonly bool m_warnIfServiceLevelProviderMissing;
     }
 }

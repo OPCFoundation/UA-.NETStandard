@@ -128,6 +128,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds a logical subscription and replicates it according to the current mode.
         /// </summary>
+        /// <remarks>
+        /// The redundant client owns the supplied template and disposes it with the client.
+        /// </remarks>
         public async ValueTask AddSubscriptionAsync(
             string subscriptionKey,
             Subscription template,
@@ -141,6 +144,12 @@ namespace Opc.Ua.Client
             if (template is null)
             {
                 throw new ArgumentNullException(nameof(template));
+            }
+
+            if (m_subscriptionTemplates.TryGetValue(subscriptionKey, out Subscription? existing) &&
+                !ReferenceEquals(existing, template))
+            {
+                existing.Dispose();
             }
 
             m_subscriptionTemplates[subscriptionKey] = template;
@@ -201,6 +210,13 @@ namespace Opc.Ua.Client
                 m_sessions[ii].NotificationReceived -= OnSessionNotificationReceived;
                 await m_sessions[ii].DisposeAsync().ConfigureAwait(false);
             }
+
+            foreach (Subscription template in m_subscriptionTemplates.Values)
+            {
+                template.Dispose();
+            }
+
+            m_subscriptionTemplates.Clear();
         }
 
         private async ValueTask FailoverHotAndMirroredAsync(CancellationToken ct)
@@ -294,7 +310,7 @@ namespace Opc.Ua.Client
 
             if (Mode == RedundancySupport.Warm)
             {
-                await ApplyReportingHandoffStateAsync(ct).ConfigureAwait(false);
+                await ApplyWarmStateAsync(ct).ConfigureAwait(false);
                 return;
             }
 
@@ -354,6 +370,11 @@ namespace Opc.Ua.Client
             }
 
             IRedundantManagedClientSession? current = CurrentRedundantSession;
+            if (Mode == RedundancySupport.Warm && !ReferenceEquals(session, current))
+            {
+                return (MonitoringMode.Disabled, false);
+            }
+
             return ReferenceEquals(session, current)
                 ? (MonitoringMode.Reporting, true)
                 : (MonitoringMode.Sampling, false);
@@ -384,6 +405,26 @@ namespace Opc.Ua.Client
                 await m_sessions[ii]
                     .SetSubscriptionStateAsync(
                         isActive ? MonitoringMode.Reporting : MonitoringMode.Sampling,
+                        isActive,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask ApplyWarmStateAsync(CancellationToken ct)
+        {
+            for (int ii = 0; ii < m_sessions.Count; ii++)
+            {
+                if (!m_sessions[ii].IsConnected)
+                {
+                    continue;
+                }
+
+                IRedundantManagedClientSession? current = CurrentRedundantSession;
+                bool isActive = ReferenceEquals(m_sessions[ii], current);
+                await m_sessions[ii]
+                    .SetSubscriptionStateAsync(
+                        isActive ? MonitoringMode.Reporting : MonitoringMode.Disabled,
                         isActive,
                         ct)
                     .ConfigureAwait(false);
@@ -547,7 +588,7 @@ namespace Opc.Ua.Client
             if (Mode == RedundancySupport.Hot &&
                 m_options.HotNotificationMode == HotRedundancyNotificationMode.ReportingMerge)
             {
-                string key = CreateNotificationIdentityKey(e);
+                var key = new NotificationIdentity(e);
                 lock (m_syncRoot)
                 {
                     if (!m_seenNotifications.Add(key))
@@ -558,7 +599,7 @@ namespace Opc.Ua.Client
                     m_seenNotificationOrder.Enqueue(key);
                     while (m_seenNotificationOrder.Count > MaxSeenNotifications)
                     {
-                        string evicted = m_seenNotificationOrder.Dequeue();
+                        NotificationIdentity evicted = m_seenNotificationOrder.Dequeue();
                         _ = m_seenNotifications.Remove(evicted);
                     }
                 }
@@ -572,22 +613,57 @@ namespace Opc.Ua.Client
             NotificationReceived?.Invoke(this, e);
         }
 
-        private static string CreateNotificationIdentityKey(
-            RedundantManagedClientNotificationEventArgs e)
+        private readonly struct NotificationIdentity : IEquatable<NotificationIdentity>
         {
-            DataValue value = e.Value;
-            return string.Concat(
-                e.SubscriptionKey,
-                ":",
-                e.ClientHandle.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ":",
-                value.SourceTimestamp.ToDateTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ":",
-                value.StatusCode.Code.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ":",
-                value.WrappedValue.TypeInfo.ToString(),
-                ":",
-                value.WrappedValue.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture));
+            public NotificationIdentity(RedundantManagedClientNotificationEventArgs e)
+            {
+                m_subscriptionKey = e.SubscriptionKey;
+                m_clientHandle = e.ClientHandle;
+                m_value = e.Value.WrappedValue;
+                m_statusCode = e.Value.StatusCode;
+                m_sourceTimestamp = e.Value.SourceTimestamp;
+                m_sourcePicoseconds = e.Value.SourcePicoseconds;
+            }
+
+            public bool Equals(NotificationIdentity other)
+            {
+                return string.Equals(m_subscriptionKey, other.m_subscriptionKey, StringComparison.Ordinal) &&
+                    m_clientHandle == other.m_clientHandle &&
+                    m_statusCode == other.m_statusCode &&
+                    m_sourceTimestamp == other.m_sourceTimestamp &&
+                    m_sourcePicoseconds == other.m_sourcePicoseconds &&
+                    m_value.TypeInfo.BuiltInType == other.m_value.TypeInfo.BuiltInType &&
+                    m_value.TypeInfo.ValueRank == other.m_value.TypeInfo.ValueRank &&
+                    m_value == other.m_value;
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is NotificationIdentity other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = StringComparer.Ordinal.GetHashCode(m_subscriptionKey);
+                    hash = (hash * 397) ^ (int)m_clientHandle;
+                    hash = (hash * 397) ^ m_statusCode.GetHashCode();
+                    hash = (hash * 397) ^ m_sourceTimestamp.GetHashCode();
+                    hash = (hash * 397) ^ m_sourcePicoseconds.GetHashCode();
+                    hash = (hash * 397) ^ m_value.TypeInfo.BuiltInType.GetHashCode();
+                    hash = (hash * 397) ^ m_value.TypeInfo.ValueRank.GetHashCode();
+                    hash = (hash * 397) ^ m_value.GetHashCode();
+                    return hash;
+                }
+            }
+
+            private readonly string m_subscriptionKey;
+            private readonly uint m_clientHandle;
+            private readonly Variant m_value;
+            private readonly StatusCode m_statusCode;
+            private readonly DateTimeUtc m_sourceTimestamp;
+            private readonly ushort m_sourcePicoseconds;
         }
 
         private readonly IServerRedundancyHandler m_redundancyHandler;
@@ -595,8 +671,8 @@ namespace Opc.Ua.Client
         private readonly RedundantManagedClientOptions m_options;
         private readonly Dictionary<string, Subscription> m_subscriptionTemplates = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_appliedSubscriptions = new(StringComparer.Ordinal);
-        private readonly HashSet<string> m_seenNotifications = new(StringComparer.Ordinal);
-        private readonly Queue<string> m_seenNotificationOrder = new();
+        private readonly HashSet<NotificationIdentity> m_seenNotifications = new();
+        private readonly Queue<NotificationIdentity> m_seenNotificationOrder = new();
         private readonly object m_syncRoot = new();
         private CancellationTokenSource? m_hotAndMirroredStatusCts;
         private Task? m_hotAndMirroredStatusPolling;

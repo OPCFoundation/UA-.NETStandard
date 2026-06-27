@@ -167,12 +167,8 @@ ua.AddServerRedundancy(r =>
     {
         r.RedundantPeers.Add(peer);
     }
-    foreach (string peerServerUri in ReadList(builder.Configuration, "peerServerUris"))
-    {
-        r.PeerServerUris.Add(peerServerUri);
-    }
 })
-.AddManualFailover();
+.AddRequestServerStateChange();
 
 byte displayedServiceLevel = redundancyMode == RedundancySupport.None
     ? ServiceLevels.Maximum
@@ -256,6 +252,13 @@ static ArrayOf<RedundantPeer> ReadRedundantPeers(IConfiguration configuration)
             ApplicationName = fields.Length >= 2 && !string.IsNullOrWhiteSpace(fields[1])
                 ? new LocalizedText(fields[1])
                 : new LocalizedText(fields[0])
+        });
+    }
+    foreach (string peerServerUri in ReadList(configuration, "peerServerUris"))
+    {
+        peers.Add(new RedundantPeer(peerServerUri, [])
+        {
+            ApplicationName = new LocalizedText(peerServerUri)
         });
     }
 

@@ -1138,6 +1138,8 @@ namespace Opc.Ua.Server
                 messages.RemoveRange(0, overflowCount);
             }
 
+            ArrayOf<uint> removedSequenceNumbers = m_retransmissionStore == null ? default : [];
+
             // remove old messages if queue is full.
             if (m_sentMessages.Count > m_maxMessageCount - messages.Count)
             {
@@ -1148,6 +1150,10 @@ namespace Opc.Ua.Server
 
                 if (m_maxMessageCount <= messages.Count)
                 {
+                    if (m_retransmissionStore != null)
+                    {
+                        removedSequenceNumbers = GetSequenceNumbers(m_sentMessages, m_sentMessages.Count);
+                    }
                     for (int ii = 0; ii < m_sentMessages.Count; ii++)
                     {
                         ReuseNotificationPayloads(m_sentMessages[ii]);
@@ -1156,6 +1162,10 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
+                    if (m_retransmissionStore != null)
+                    {
+                        removedSequenceNumbers = GetSequenceNumbers(m_sentMessages, messages.Count);
+                    }
                     for (int ii = 0; ii < messages.Count; ii++)
                     {
                         ReuseNotificationPayloads(m_sentMessages[ii]);
@@ -1167,7 +1177,7 @@ namespace Opc.Ua.Server
             // save new message
             m_lastSentMessage = m_sentMessages.Count;
             m_sentMessages.AddRange(messages);
-            StoreRetransmissionState();
+            StoreRetransmissionState(messages, removedSequenceNumbers);
 
             // check if there are more notifications to send.
             moreNotifications = m_waitingForPublish = messages.Count > 1;
@@ -1183,9 +1193,37 @@ namespace Opc.Ua.Server
             return m_sentMessages[m_lastSentMessage++];
         }
 
-        private void StoreRetransmissionState()
+        private void StoreRetransmissionState(
+            IList<NotificationMessage> addedMessages,
+            ArrayOf<uint> removedSequenceNumbers)
         {
-            m_retransmissionStore?.StoreRetransmissionState(Id, m_sequenceNumber, [.. m_sentMessages]);
+            if (m_retransmissionStore == null)
+            {
+                return;
+            }
+
+            if (m_retransmissionStore is ISubscriptionRetransmissionDeltaStore deltaStore)
+            {
+                deltaStore.StoreRetransmissionStateDelta(
+                    Id,
+                    m_sequenceNumber,
+                    new ArrayOf<NotificationMessage>(addedMessages.ToArray()),
+                    removedSequenceNumbers);
+                return;
+            }
+
+            m_retransmissionStore.StoreRetransmissionState(Id, m_sequenceNumber, [.. m_sentMessages]);
+        }
+
+        private static ArrayOf<uint> GetSequenceNumbers(List<NotificationMessage> messages, int count)
+        {
+            var sequenceNumbers = new uint[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                sequenceNumbers[ii] = messages[ii].SequenceNumber;
+            }
+
+            return new ArrayOf<uint>(sequenceNumbers);
         }
 
         private async ValueTask LoadRetransmissionStateAsync(CancellationToken cancellationToken)

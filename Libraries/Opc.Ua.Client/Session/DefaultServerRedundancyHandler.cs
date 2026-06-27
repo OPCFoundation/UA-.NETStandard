@@ -172,17 +172,26 @@ namespace Opc.Ua.Client
                 return NoFailover("Current server remains in the Healthy service level subrange.");
             }
 
+            RedundantServer? best = SelectBestPeer(redundancyInfo, currentEndpoint);
+
             if (redundancyInfo.ServiceLevelAccessible &&
                 ServiceLevels.IsMaintenance(redundancyInfo.ServiceLevel))
             {
+                if (best != null)
+                {
+                    return new ServerFailoverDecision(
+                        isFailoverWarranted: true,
+                        DateTime.MinValue,
+                        "Current server is in Maintenance and an operational redundant server is available.");
+                }
+
                 DateTime retryAfter = GetMaintenanceRetryTime(redundancyInfo.EstimatedReturnTime);
                 return new ServerFailoverDecision(
                     isFailoverWarranted: false,
                     retryAfter,
-                    "Current server is in Maintenance; defer failover until the return time lapses.");
+                    "Current server is in Maintenance and no operational redundant server is available.");
             }
 
-            RedundantServer? best = SelectBestPeer(redundancyInfo, currentEndpoint);
             if (best == null)
             {
                 return NoFailover("No operational redundant server is available.");
@@ -241,6 +250,7 @@ namespace Opc.Ua.Client
                 {
                     ServerUri = server.ServerUri,
                     ServiceLevel = server.ServiceLevel,
+                    ServiceLevelKnown = server.ServiceLevelKnown,
                     ServerState = server.ServerState,
                     Endpoint = endpoint
                 });
@@ -408,7 +418,8 @@ namespace Opc.Ua.Client
                 {
                     ServerUri = serverUri,
                     ServerState = ServerState.Running,
-                    ServiceLevel = ServiceLevels.NoData
+                    ServiceLevel = ServiceLevels.NoData,
+                    ServiceLevelKnown = false
                 });
             }
 
@@ -426,7 +437,7 @@ namespace Opc.Ua.Client
                 RedundantServer server = redundancyInfo.RedundantServers[ii];
                 if (server.ServerState == ServerState.Running &&
                     server.Endpoint != null &&
-                    ServiceLevels.IsOperational(server.ServiceLevel) &&
+                    (!server.ServiceLevelKnown || ServiceLevels.IsOperational(server.ServiceLevel)) &&
                     !string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal) &&
                     (best == null || server.ServiceLevel > best.ServiceLevel))
                 {

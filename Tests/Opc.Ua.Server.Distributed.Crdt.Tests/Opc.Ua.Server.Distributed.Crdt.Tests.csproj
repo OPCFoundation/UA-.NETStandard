@@ -1,13 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- The CRDT adapter is net8.0+ (Crdt.Transport ships net8.0+). Follow the
-         same CustomTestTarget rule as the library; legacy CI runs build an
-         empty no-op shell via $(RestrictForLegacyTfm). -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
-    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
-    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Server.Distributed.Crdt.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>enable</Nullable>

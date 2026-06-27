@@ -29,9 +29,12 @@
 
 #nullable enable
 
+using System;
+using System.Reflection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Distributed;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Distributed
@@ -53,6 +56,8 @@ namespace Opc.Ua.Server.Tests.Distributed
             BaseObjectState notifier = CreateNotifier();
             BaseEventState eventA = CreateEvent("started");
             BaseEventState eventB = CreateEvent("started");
+            eventA.ReceiveTime!.Value = new DateTimeUtc(638000000000000001);
+            eventB.ReceiveTime!.Value = new DateTimeUtc(638000000000000999);
 
             ByteString idA = providerA.CreateEventId(notifier, context, eventA);
             ByteString idB = providerB.CreateEventId(notifier, context, eventB);
@@ -100,7 +105,7 @@ namespace Opc.Ua.Server.Tests.Distributed
         }
 
         [Test]
-        public void DifferentEventMessageProducesDifferentEventId()
+        public void DistinctEventMessagesProduceDifferentEventIds()
         {
             var provider = new DeterministicEventIdProvider("replica-set");
             ServerSystemContext context = CreateContext();
@@ -112,6 +117,22 @@ namespace Opc.Ua.Server.Tests.Distributed
             ByteString id2 = provider.CreateEventId(notifier, context, event2);
 
             Assert.That(id1.ToArray(), Is.Not.EqualTo(id2.ToArray()));
+        }
+
+        [Test]
+        public void EventSourceRegistryComputesEventIdAfterDefaultDistinguishingFields()
+        {
+            var provider = new CapturingEventIdProvider();
+            ServerSystemContext context = CreateContext();
+            BaseObjectState notifier = CreateNotifier();
+            var e = new BaseEventState(null);
+
+            InvokePopulateDefaults(notifier, context, e, provider);
+
+            Assert.That(provider.ObservedMessage, Is.Not.Null);
+            Assert.That(provider.ObservedSeverity, Is.EqualTo((ushort)EventSeverity.Medium));
+            Assert.That(e.EventId, Is.Not.Null);
+            Assert.That(e.EventId!.Value.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
         }
 
         [Test]
@@ -185,6 +206,36 @@ namespace Opc.Ua.Server.Tests.Distributed
                     new DateTimeUtc(638000000000000000))
             };
             return e;
+        }
+
+        private static void InvokePopulateDefaults(
+            BaseObjectState notifier,
+            ISystemContext context,
+            BaseEventState e,
+            IEventIdProvider provider)
+        {
+            Type registryType = typeof(IEventIdProvider).Assembly.GetType(
+                "Opc.Ua.Server.Fluent.EventSourceRegistry")!;
+            MethodInfo method = registryType.GetMethod(
+                "PopulateDefaults",
+                BindingFlags.Static | BindingFlags.NonPublic)!;
+            method.Invoke(null, new object[] { notifier, context, e, provider });
+        }
+
+        private sealed class CapturingEventIdProvider : IEventIdProvider
+        {
+            public LocalizedText? ObservedMessage { get; private set; }
+
+            public ushort? ObservedSeverity { get; private set; }
+
+            public ByteString CreateEventId(BaseObjectState notifier, ISystemContext context, BaseEventState eventState)
+            {
+                _ = notifier;
+                _ = context;
+                ObservedMessage = eventState.Message?.Value;
+                ObservedSeverity = eventState.Severity?.Value;
+                return ByteString.From(new byte[] { 1, 2, 3, 4 });
+            }
         }
     }
 }

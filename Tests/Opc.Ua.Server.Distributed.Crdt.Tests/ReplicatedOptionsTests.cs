@@ -90,6 +90,7 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
         {
             var options = new ReplicatedAddressSpaceOptions();
             options.AddPeer(new IPEndPoint(IPAddress.Loopback, 4999));
+            options.AllowUnauthenticatedGossip = true;
             options.UseTcpGossip(IPAddress.Loopback, 0, TimeSpan.FromMilliseconds(50));
 
             Assert.That(options.TransportFactory, Is.Not.Null);
@@ -114,6 +115,7 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
         {
             var options = new ReplicatedSessionOptions();
             options.AddPeer(new IPEndPoint(IPAddress.Loopback, 4998));
+            options.AllowUnauthenticatedGossip = true;
             options.UseUdpGossip(IPAddress.Loopback, 0);
 
             Assert.That(options.TransportFactory, Is.Not.Null);
@@ -134,7 +136,7 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
         }
 
         [Test]
-        public void CreateTransportDefaultsToInProcessNetwork()
+        public async Task CreateTransportDefaultsToInProcessNetworkAsync()
         {
             var options = new ReplicatedAddressSpaceOptions();
 
@@ -146,9 +148,36 @@ namespace Opc.Ua.Server.Distributed.Crdt.Tests
             }
             finally
             {
-                transport.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                network!.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                await transport.DisposeAsync();
+                if (network != null)
+                {
+                    await network.DisposeAsync();
+                }
             }
+        }
+
+        [Test]
+        public void UnauthenticatedTcpGossipFailsClosedByDefault()
+        {
+            var options = new ReplicatedAddressSpaceOptions();
+            options.UseTcpGossip(IPAddress.Loopback, 0);
+
+            Assert.That(
+                () => options.CreateTransport(EmptyServices(), out _),
+                Throws.InvalidOperationException
+                    .With.Message.Contains(nameof(ReplicatedGossipOptions.AllowUnauthenticatedGossip)));
+        }
+
+        [Test]
+        public void UnauthenticatedUdpGossipFailsClosedByDefault()
+        {
+            var options = new ReplicatedAddressSpaceOptions();
+            options.UseUdpGossip(IPAddress.Loopback, 0);
+
+            Assert.That(
+                () => options.CreateTransport(EmptyServices(), out _),
+                Throws.InvalidOperationException
+                    .With.Message.Contains(nameof(ReplicatedGossipOptions.AllowUnauthenticatedGossip)));
         }
 
         [Test]

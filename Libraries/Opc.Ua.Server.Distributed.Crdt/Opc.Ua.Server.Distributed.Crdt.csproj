@@ -1,13 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- CRDT active/active uses Crdt.Transport (gossip), which ships net8.0+ only.
-         Multi-target when not pinned by CI; otherwise follow $(CustomTestTarget).
-         For legacy CI runs (net472/net48/netstandard2.x) Directory.Build.targets
-         strips this project to an empty no-op shell via $(RestrictForLegacyTfm). -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
-    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
-    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Server.Distributed.Crdt</PackageId>
     <AssemblyName>$(AssemblyPrefix).Server.Distributed.Crdt</AssemblyName>
     <RootNamespace>Opc.Ua.Server.Distributed.Crdt</RootNamespace>
@@ -17,8 +10,8 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
-    <IsAotCompatible>true</IsAotCompatible>
-    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Server.Distributed.Crdt.Tests" />

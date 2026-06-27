@@ -230,6 +230,8 @@ The base package uses `ISharedKeyValueStore` as the common seam for address-spac
 
 `OPCFoundation.NetStandard.Opc.Ua.Server.Distributed.Crdt` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
 
+The package is available on all stack TFMs (`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, and `net10.0`); `netstandard2.1` is not NativeAOT-published.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(server => { })
@@ -237,11 +239,21 @@ services.AddOpcUa()
     .UseReplicatedAddressSpace(options =>
     {
         options.ReplicaId = Crdt.ReplicaId.New();
-        options.UseTcpGossip(IPAddress.Any, port: 4840);
+        options.UseTcpGossip(IPAddress.Any, port: 4840, tls: mutualTlsOptions);
         options.AddPeer(peerEndpoint);
     })
     .UseReplicatedSessions();
 ```
+
+Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS
+(`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote
+certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with
+`AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but
+LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
+
+For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies.
+Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port
+closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
 ## Kubernetes deployment
 

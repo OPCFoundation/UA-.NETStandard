@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
@@ -43,7 +44,10 @@ namespace Opc.Ua.Server.Distributed
     {
         /// <summary>
         /// Populates the live <c>Server.ServerRedundancy</c> model from the
-        /// supplied configuration after the hosted server starts.
+        /// supplied configuration after the hosted server starts. Non-transparent redundancy depends on
+        /// <c>Server.ServiceLevel</c> changes for client Failover decisions; pair this with
+        /// <c>AddServerServiceLevel(new LeaderServiceLevelProvider(...))</c> or another
+        /// <see cref="IServiceLevelProvider"/> registered in dependency injection.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional server redundancy configuration.</param>
@@ -62,18 +66,20 @@ namespace Opc.Ua.Server.Distributed
             builder.Services.AddSingleton(options);
             builder.Services.AddSingleton<IRedundantServerSetProvider>(
                 new ConfiguredRedundantServerSetProvider(options));
-            builder.Services.AddSingleton<IServerStartupTask>(
-                new ServerRedundancyStartupTask(options));
+            builder.Services.AddSingleton<IServerStartupTask>(sp =>
+                new ServerRedundancyStartupTask(
+                    options,
+                    !sp.GetServices<IServiceLevelProvider>().Any()));
             return builder;
         }
 
         /// <summary>
         /// Wires the standard <c>Server.RequestServerStateChange</c> method for OPC 10000-4 §6.6.5
-        /// administrator-driven Maintenance or NoData Failover.
+        /// administrator-driven manual Failover to Maintenance or NoData.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional method wiring configuration.</param>
-        public static IOpcUaServerBuilder AddManualFailover(
+        public static IOpcUaServerBuilder AddRequestServerStateChange(
             this IOpcUaServerBuilder builder,
             Action<RequestServerStateChangeOptions>? configure = null)
         {
@@ -89,6 +95,23 @@ namespace Opc.Ua.Server.Distributed
                     options,
                     sp.GetService<IServiceLevelProvider>() as IServiceLevelController));
             return builder;
+        }
+
+        /// <summary>
+        /// Wires the standard <c>Server.RequestServerStateChange</c> method for OPC 10000-4 §6.6.5
+        /// administrator-driven manual Failover to Maintenance or NoData.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Optional method wiring configuration.</param>
+        /// <remarks>
+        /// Use <see cref="AddRequestServerStateChange(IOpcUaServerBuilder, Action{RequestServerStateChangeOptions}?)"/>.
+        /// </remarks>
+        [Obsolete("Use AddRequestServerStateChange.")]
+        public static IOpcUaServerBuilder AddManualFailover(
+            this IOpcUaServerBuilder builder,
+            Action<RequestServerStateChangeOptions>? configure = null)
+        {
+            return AddRequestServerStateChange(builder, configure);
         }
 
         private static void AddDiscoveryCapabilityConfiguration(

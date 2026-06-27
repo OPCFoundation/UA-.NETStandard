@@ -43,9 +43,9 @@ namespace Opc.Ua.Server.Distributed
     /// <remarks>
     /// OPC 10000-4 §6.6.2.2 requires EventIds to be synchronized for Transparent and HotAndMirrored
     /// <c>RedundantServerSet</c>s so clients do not double-process events after Failover. This provider is
-    /// deterministic for the same replica-set seed, notifier, event type, source, time, severity, and message.
-    /// Events that lack stable
-    /// distinguishing fields should set <c>EventId</c> explicitly or use a stronger application-level event identity.
+    /// deterministic for the same replica-set seed, notifier, event type, source, source timestamp, severity, and
+    /// message. It intentionally excludes per-replica <c>ReceiveTime</c>. Events that lack stable distinguishing
+    /// fields should set <c>EventId</c> explicitly or use a stronger application-level event identity.
     /// </remarks>
     public sealed class DeterministicEventIdProvider : IEventIdProvider
     {
@@ -88,7 +88,6 @@ namespace Opc.Ua.Server.Distributed
             Append(builder, (eventState.EventType?.Value ?? eventState.GetDefaultTypeDefinitionId(context)).ToString());
             Append(builder, (eventState.SourceNode?.Value ?? notifier.NodeId).ToString());
             Append(builder, eventState.Time?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-            Append(builder, eventState.ReceiveTime?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
             Append(builder, eventState.Severity?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
             Append(builder, eventState.Message?.Value.Text ?? string.Empty);
 
