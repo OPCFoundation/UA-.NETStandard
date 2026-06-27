@@ -209,6 +209,16 @@ namespace Opc.Ua.Server
                         }
                         case ObjectTypes.CertificateGroupFolderType:
                         {
+                            // The standard nodeset contains CertificateGroupFolderType
+                            // instances under several types (e.g. ServerConfigurationType,
+                            // ApplicationConfigurationType, ProvisionableDeviceType). Only
+                            // the Server's own ServerConfiguration certificate groups folder
+                            // is managed here; the others must keep their loaded structure.
+                            if (passiveNode.NodeId != ObjectIds.ServerConfiguration_CertificateGroups)
+                            {
+                                break;
+                            }
+
                             var activeNode = (CertificateGroupFolderState)passiveNode;
 
                             ServerCertificateGroup? applicationGroup =
