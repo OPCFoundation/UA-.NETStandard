@@ -29,7 +29,12 @@
 
 using System.Collections.Generic;
 using System.Threading;
-#if !NET8_0_OR_GREATER
+// MQTTnet 4.x (used on net48/net472 and when the solution is pinned to
+// netstandard2.1, where the libraries build as netstandard2.1) keeps the client
+// option types in the MQTTnet.Client namespace; MQTTnet 5.x (modern TFMs) moved
+// them to MQTTnet. NET_STANDARD_TESTS marks the netstandard CI build of this
+// test project, whose net8.0 consumer resolves MQTTnet 4.x to match the libs.
+#if !NET8_0_OR_GREATER || NET_STANDARD_TESTS
 using MQTTnet.Client;
 #endif
 using NUnit.Framework;

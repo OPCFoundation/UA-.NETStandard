@@ -1536,7 +1536,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
             bool isNull =
                 value.TypeInfo.IsUnknown ||
@@ -1681,7 +1681,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             PushStructure(fieldName);
 
@@ -3040,7 +3040,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
         }
 

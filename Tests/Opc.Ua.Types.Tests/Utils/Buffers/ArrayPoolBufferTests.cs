@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Opc.Ua.Buffers;
 
@@ -155,6 +156,54 @@ namespace Opc.Ua.Types.Buffers.Tests
             for (int i = 0; i < buffer.Length; i++)
             {
                 Assert.That(buffer[i], Is.EqualTo((byte)(i / chunkSize)));
+            }
+        }
+
+        /// <summary>
+        /// Security regression: when constructed with <c>clearArray: true</c>
+        /// the writer must zero the rented backing buffer when it is returned
+        /// to the pool on dispose, so sensitive data (e.g. an encoded secret)
+        /// is not exposed to the next consumer of the shared pool. Guards the
+        /// BinaryEncoder owned-buffer fix. Non-parallel so no other test can
+        /// rent the just-returned buffer before the assertion.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public void ArrayPoolBufferWriterClearArrayZeroesBufferOnReturn()
+        {
+            const int count = 128;
+            const byte sentinel = 0xAB;
+
+            var writer = new ArrayPoolBufferWriter<byte>(clearArray: true);
+            byte[] backing;
+            int offset;
+            try
+            {
+                Span<byte> span = writer.GetSpan(count);
+                span[..count].Fill(sentinel);
+                writer.Advance(count);
+
+                ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
+                Assert.That(
+                    MemoryMarshal.TryGetArray(sequence.First, out ArraySegment<byte> segment),
+                    Is.True);
+                backing = segment.Array!;
+                offset = segment.Offset;
+
+                // sanity: the secret pattern is present before return
+                Assert.That(backing[offset], Is.EqualTo(sentinel));
+            }
+            finally
+            {
+                // Returns the rented buffer to ArrayPool<byte>.Shared with
+                // clearArray:true, which zeroes it synchronously on return.
+                writer.Dispose();
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                Assert.That(backing[offset + i], Is.Zero,
+                    "clearArray:true must zero the pooled buffer on return.");
             }
         }
     }

@@ -520,7 +520,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // defined in OPC 10000-6.
                     encoder.ForceNamespaceUri = false;
                     encoder.UsingAlternateEncoding(
-                        encoder.WriteVariant,
+                        (fn, v) => encoder.WriteVariant(fn, v),
                         fieldName,
                         valueToEncode,
                         PubSubJsonEncoding.Reversible);
@@ -531,7 +531,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // defined in OPC 10000-6
                     encoder.ForceNamespaceUri = true;
                     encoder.UsingAlternateEncoding(
-                        encoder.WriteVariant,
+                        (fn, v) => encoder.WriteVariant(fn, v),
                         fieldName,
                         valueToEncode,
                         PubSubJsonEncoding.NonReversible);
@@ -568,7 +568,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // the field value is a DataValue encoded using the non-reversible OPC UA JSON Data Encoding
                     encoder.ForceNamespaceUri = true;
                     encoder.UsingAlternateEncoding(
-                        encoder.WriteDataValue,
+                        (fn, v) => encoder.WriteDataValue(fn, v),
                         fieldName,
                         dataValue,
                         PubSubJsonEncoding.NonReversible);

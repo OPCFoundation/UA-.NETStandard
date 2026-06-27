@@ -87,6 +87,15 @@ CertificateValidationResult devResult = await manager.ValidateAsync(
     options);
 ```
 
+> **Concurrency & caching:** `ValidateAsync` is designed for highly concurrent
+> use — a single shared `CertificateManager` validates many certificates in
+> parallel without serializing on an internal lock. Each trust-list is backed by
+> an immutable, lock-free state snapshot, and the trusted/issuer stores and their
+> CRLs are cached and reused across validations (re-read only when the backing
+> store changes, e.g. via the trust-list APIs or an out-of-band directory change).
+> Servers that validate a client certificate per incoming secure channel therefore
+> scale across cores instead of bottlenecking on certificate validation.
+
 #### Subscribing to Certificate Changes
 
 ```csharp

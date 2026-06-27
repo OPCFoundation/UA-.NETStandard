@@ -37,7 +37,6 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
-using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Core.TestFramework;
@@ -1154,6 +1153,42 @@ namespace Opc.Ua.Core.Encoders.Tests
         }
 
         /// <summary>
+        /// Use an external stream across multiple dispose cycles and keep output stable.
+        /// </summary>
+        [Test]
+        public void ConstructorExternalStreamProducesSameJsonAcrossDisposeCycles()
+        {
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
+            using var memoryStream = new MemoryStream();
+            string expected = null;
+
+            for (int ii = 0; ii < 4; ii++)
+            {
+                memoryStream.SetLength(0);
+                memoryStream.Position = 0;
+
+                var jsonEncoder = new JsonEncoder(memoryStream, context, JsonEncoderOptions.Compact);
+                TestEncoding(jsonEncoder);
+                jsonEncoder.Dispose();
+                jsonEncoder.Dispose();
+
+                string encoded = Encoding.UTF8.GetString(memoryStream.ToArray());
+                Assert.That(encoded, Is.Not.Empty);
+                Assert.That(memoryStream.CanWrite, Is.True);
+                _ = PrettifyAndValidateJson(encoded);
+
+                if (expected == null)
+                {
+                    expected = encoded;
+                }
+                else
+                {
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
         /// Use a ArraySegmentStream constructor with external Stream,
         /// keep the stream open for more encodings.
         /// </summary>
@@ -1161,22 +1196,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         public void ConstructorArraySegmentStream()
         {
             using var memoryStream = new ArraySegmentStream(BufferManager);
-            ConstructorStream(memoryStream);
-        }
-
-        /// <summary>
-        /// Use a RecylableMemoryStream constructor with external Stream,
-        /// keep the stream open for more encodings.
-        /// </summary>
-        [Test]
-        public void ConstructorRecyclableMemoryStream()
-        {
-            var recyclableMemoryStreamManager = new RecyclableMemoryStreamManager(
-                new RecyclableMemoryStreamManager.Options
-                {
-                    BlockSize = BufferManager.MaxSuggestedBufferSize
-                });
-            using var memoryStream = new RecyclableMemoryStream(recyclableMemoryStreamManager);
             ConstructorStream(memoryStream);
         }
 
@@ -1270,64 +1289,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             // use reflection to return result in external stream
             memoryStream.Position = 0;
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
-            {
-                TestEncoding(jsonEncoder);
-                string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.That(result3, Is.Not.Empty);
-                TestContext.Out.WriteLine("Result3:");
-                _ = PrettifyAndValidateJson(result3);
-                Assert.That(result3, Is.EqualTo(result1));
-            }
-        }
-
-        /// <summary>
-        /// Use a constructor with external RecyclableMemoryStream,
-        /// keep the stream open for more encodings.
-        /// Alternate use of sequence.
-        /// </summary>
-        [Test]
-        public void ConstructorRecyclableMemoryStreamSequence()
-        {
-            var context = Ua.ServiceMessageContext.Create(m_telemetry);
-            using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
-            using (var jsonEncoder = new JsonEncoder((Stream)memoryStream, context))
-            {
-                TestEncoding(jsonEncoder);
-            }
-
-            // get the buffers and save the result
-#if NET5_0_OR_GREATER
-            string result1;
-            {
-                System.Buffers.ReadOnlySequence<byte> sequence = memoryStream.GetReadOnlySequence();
-                result1 = Encoding.UTF8.GetString(in sequence);
-                Assert.IsNotEmpty(result1);
-                TestContext.Out.WriteLine("Result1:");
-                _ = PrettifyAndValidateJson(result1);
-            }
-#else
-            string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.That(result1, Is.Not.Empty);
-            TestContext.Out.WriteLine("Result1:");
-            _ = PrettifyAndValidateJson(result1);
-#endif
-
-            // recycle the memory stream, ensure the result is equal
-            memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder((Stream)memoryStream, context))
-            {
-                TestEncoding(jsonEncoder);
-            }
-            string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.That(result2, Is.Not.Empty);
-            TestContext.Out.WriteLine("Result2:");
-            _ = PrettifyAndValidateJson(result2);
-            Assert.That(result2, Is.EqualTo(result1));
-
-            // recycle the StreamWriter, ensure the result is equal,
-            // use reflection to return result in external stream
-            memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder((Stream)memoryStream, context))
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();

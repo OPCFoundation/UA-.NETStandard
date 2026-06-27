@@ -5036,35 +5036,36 @@ namespace Opc.Ua.Client
         private RequestHeader? CreateRequestHeaderForActivateSession(
             string userTokenSecurityPolicyUri)
         {
-            var requestHeader = new RequestHeader();
-            var parameters = new AdditionalParametersType();
-
-            if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
-            {
-                SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
-
-                if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
-                {
-                    parameters.Parameters =
-                    [
-                        new KeyValuePair
-                        {
-                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                            Value = userTokenSecurityPolicyUri
-                        }
-                    ];
-
-                    m_logger.LogWarning("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
-                }
-            }
-
-            if (parameters.Parameters.Count == 0)
+            if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
                 return null;
             }
 
-            requestHeader.AdditionalHeader = new ExtensionObject(parameters);
-            return requestHeader;
+            SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+
+            if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return null;
+            }
+
+            m_logger.LogInformation("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
+
+            var parameters = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = userTokenSecurityPolicyUri
+                    }
+                ]
+            };
+
+            return new RequestHeader
+            {
+                AdditionalHeader = new ExtensionObject(parameters)
+            };
         }
 
         /// <summary>

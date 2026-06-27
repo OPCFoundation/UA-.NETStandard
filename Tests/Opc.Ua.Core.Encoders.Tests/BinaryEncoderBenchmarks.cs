@@ -30,7 +30,6 @@
 using System.IO;
 using System.Text;
 using BenchmarkDotNet.Attributes;
-using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
@@ -92,16 +91,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         }
 
         /// <summary>
-        /// Test encoding with recyclable memory stream kept open.
-        /// </summary>
-        [Theory]
-        public void BinaryEncoderRecyclableMemoryStream(bool toArray)
-        {
-            using var memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            TestStreamEncode(memoryStream, toArray);
-        }
-
-        /// <summary>
         /// Benchmark encoding with memory stream kept open.
         /// </summary>
         [Benchmark(Baseline = true)]
@@ -112,19 +101,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             BinaryEncoder_StreamLeaveOpen(memoryStream);
             // get buffer for write
             _ = memoryStream.ToArray();
-        }
-
-        /// <summary>
-        /// Benchmark encoding with recyclable memory stream kept open.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void BinaryEncoderRecyclableMemoryStream()
-        {
-            using var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager);
-            BinaryEncoder_StreamLeaveOpen(recyclableMemoryStream);
-            // get buffers for write
-            _ = recyclableMemoryStream.GetReadOnlySequence();
         }
 
         /// <summary>

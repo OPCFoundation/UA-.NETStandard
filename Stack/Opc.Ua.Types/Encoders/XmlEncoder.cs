@@ -49,7 +49,6 @@ namespace Opc.Ua
         public XmlEncoder(IServiceMessageContext context)
         {
             Context = context;
-            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
             m_destination = new StringBuilder();
             m_nestingLevel = 0;
 
@@ -76,7 +75,6 @@ namespace Opc.Ua
         public XmlEncoder(XmlQualifiedName root, XmlWriter writer, IServiceMessageContext context)
         {
             Context = context;
-            m_logger = context.Telemetry.CreateLogger<XmlEncoder>();
             if (writer == null)
             {
                 m_destination = new StringBuilder();
@@ -676,7 +674,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        m_logger.LogWarning(
+                        Logger.LogWarning(
                             "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
@@ -759,7 +757,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
             CheckAndIncrementNestingLevel();
 
@@ -787,7 +785,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             if (BeginField(fieldName, value.IsNull, true))
             {
@@ -1753,9 +1751,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            WriteVariantValue(fieldName, value, true);
+            WriteVariantValue(fieldName, in value, true);
         }
 
         /// <summary>
@@ -1807,7 +1805,7 @@ namespace Opc.Ua
         /// if each encoder call would be called) or as variant encoding
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteVariantValue(string? fieldName, Variant value, bool writeRawValue)
+        private void WriteVariantValue(string? fieldName, in Variant value, bool writeRawValue)
         {
             if (fieldName != null && BeginField(fieldName, false, false))
             {
@@ -2335,7 +2333,8 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        private readonly ILogger m_logger;
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<XmlEncoder>();
+        private ILogger? m_logger;
         private readonly StringBuilder? m_destination;
         private readonly XmlWriter m_writer;
         private readonly Stack<string> m_namespaces = [];

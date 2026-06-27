@@ -255,7 +255,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 jsonEncodingType,
                 useXmlParser,
                 builtInType,
-                MemoryStreamType.RecyclableMemoryStream,
+                MemoryStreamType.MemoryStream,
                 randomData);
         }
 
@@ -359,7 +359,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
-                MemoryStreamType.RecyclableMemoryStream,
+                MemoryStreamType.MemoryStream,
                 randomData,
                 JsonEncodingType.Verbose);
             PrettifyAndValidateJson(json);
@@ -545,7 +545,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 jsonEncodingType,
                 useXmlParser,
                 BuiltInType.Variant,
-                MemoryStreamType.RecyclableMemoryStream,
+                MemoryStreamType.MemoryStream,
                 variant);
         }
 
@@ -658,7 +658,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 jsonEncodingType,
                 useXmlParser,
                 BuiltInType.Variant,
-                MemoryStreamType.RecyclableMemoryStream,
+                MemoryStreamType.MemoryStream,
                 variant);
         }
 
