@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -233,30 +232,8 @@ namespace Opc.Ua.Client.TestFramework
         [OneTimeTearDown]
         public async Task OneTimeTearDown()
         {
-            // Teardown phase watchdog. The dotnet test host on a heavily loaded
-            // macOS CI agent has been observed to hang for ~10 minutes during
-            // fixture teardown after all tests pass (then the blame collector
-            // fires a hang dump and the job fails). The watchdog is silent on a
-            // healthy run (it is disposed within milliseconds of teardown
-            // completing) and, only when a step stalls, writes the stuck phase
-            // name to stderr so the CI log identifies exactly which disposal
-            // hangs. The unprotected synchronous disposals below are additionally
-            // run on a bounded background thread so a hang there cannot pin the
-            // test host past the blame timeout.
-            string phase = "start";
-            var sw = Stopwatch.StartNew();
-            using var watchdog = new Timer(
-                _ => Console.Error.WriteLine(
-                    "[TEARDOWN-WATCHDOG] " + GetType().FullName +
-                    ": still in teardown phase '" + Volatile.Read(ref phase) +
-                    "' after " + sw.Elapsed.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture) + "s"),
-                null,
-                TimeSpan.FromSeconds(30),
-                TimeSpan.FromSeconds(30));
-
             if (Session != null)
             {
-                Volatile.Write(ref phase, "Session.CloseAsync");
                 try
                 {
                     await Session.CloseAsync(5000, true).ConfigureAwait(false);
@@ -265,14 +242,12 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     m_logger.LogError(ex, "Error closing session during teardown.");
                 }
-                Volatile.Write(ref phase, "Session.Dispose");
-                RunSyncBounded(Session.Dispose, "Session.Dispose");
+                Session.Dispose();
                 Session = null;
             }
 
             if (ServerFixture != null)
             {
-                Volatile.Write(ref phase, "ServerFixture.StopAsync");
                 try
                 {
                     await ServerFixture.StopAsync().ConfigureAwait(false);
@@ -284,13 +259,8 @@ namespace Opc.Ua.Client.TestFramework
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            Volatile.Write(ref phase, "ClientFixture.Dispose");
-            if (ClientFixture != null)
-            {
-                RunSyncBounded(ClientFixture.Dispose, "ClientFixture.Dispose");
-            }
+            ClientFixture?.Dispose();
 
-            Volatile.Write(ref phase, "pkiRoot cleanup");
             try
             {
                 if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
@@ -302,59 +272,7 @@ namespace Opc.Ua.Client.TestFramework
             {
                 // best-effort cleanup
             }
-
-            Volatile.Write(ref phase, "done");
         }
-
-        /// <summary>
-        /// Runs a synchronous teardown <paramref name="action"/> on a bounded
-        /// background thread. If it does not finish within the timeout, a warning
-        /// is written to stderr and the action is abandoned (the thread is a
-        /// background thread, so it does not prevent process exit) — converting a
-        /// process-killing teardown hang on a slow CI agent into an observable,
-        /// recoverable event. Used for synchronous <c>Dispose()</c> calls that
-        /// can block on socket shutdown, thread joins or sync-over-async cleanup
-        /// and are otherwise not bounded by their own timeout.
-        /// </summary>
-        private void RunSyncBounded(Action action, string operationName)
-        {
-            using var done = new ManualResetEventSlim(false);
-            Exception captured = null;
-            var thread = new Thread(() =>
-            {
-                try
-                {
-                    action();
-                }
-                catch (Exception ex)
-                {
-                    captured = ex;
-                }
-                finally
-                {
-                    done.Set();
-                }
-            })
-            {
-                IsBackground = true,
-                Name = "TestFixture.Teardown." + operationName
-            };
-            thread.Start();
-            if (!done.Wait(s_teardownStepTimeout))
-            {
-                Console.Error.WriteLine(
-                    "[TEARDOWN-WATCHDOG] " + GetType().FullName + ": " + operationName +
-                    " exceeded " + s_teardownStepTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture) +
-                    "s; abandoning it so the test host can exit.");
-                return;
-            }
-            if (captured != null)
-            {
-                m_logger.LogError(captured, "Error during teardown {Operation}.", operationName);
-            }
-        }
-
-        private static readonly TimeSpan s_teardownStepTimeout = TimeSpan.FromSeconds(30);
 
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
