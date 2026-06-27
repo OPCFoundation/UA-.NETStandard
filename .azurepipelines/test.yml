@@ -148,6 +148,15 @@ jobs:
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 90
+    # continueOnError: a non-zero 'dotnet test' exit code no longer fails the job
+    # directly - the "Evaluate test results" gate below decides pass/fail from the
+    # emitted TRX. This is required because the hosted macOS agent intermittently
+    # stalls the test host during PROCESS EXIT (after every test has already
+    # passed and all teardowns have run; managed threads are frozen so no in-test
+    # mitigation can fire), and the blame collector then kills the host with a
+    # non-zero exit even though the run was functionally green. A real test
+    # failure is still caught: it is recorded in the TRX and fails the gate.
+    continueOnError: true
     inputs:
       command: test
       projects: $(file)
@@ -189,6 +198,53 @@ jobs:
       mergeTestResults: true
       failTaskOnFailedTests: false
       testRunTitle: '${{ parameters.framework }} ${{ parameters.configuration }} - $(Agent.JobName)'
+  - task: PowerShell@2
+    displayName: 'Evaluate test results ${{ parameters.configuration }} (${{ parameters.framework }})'
+    # Result-driven gate: the job's pass/fail is defined by the emitted TRX, not
+    # by the 'dotnet test' exit code (the test step runs with continueOnError).
+    # Fails the job if any test failed/errored/timed-out/aborted, or if no results
+    # were produced at all. Tolerates ONLY a non-zero exit when every recorded
+    # test passed - i.e. the benign macOS test-host process-exit stall that the
+    # blame collector turns into a non-zero exit after a fully green run. This
+    # runs before the failure-only artifact steps below so their failed()
+    # conditions still see a genuine failure.
+    condition: succeededOrFailed()
+    inputs:
+      targetType: inline
+      script: |
+        $ErrorActionPreference = 'Stop'
+        $dir = "$(Agent.TempDirectory)"
+        $trx = @(Get-ChildItem -Path $dir -Filter *.trx -ErrorAction SilentlyContinue)
+        if ($trx.Count -eq 0) {
+            Write-Host "##vso[task.logissue type=error]No TRX result files found in $dir; the test host did not produce results."
+            exit 1
+        }
+        $passed = 0
+        $failed = 0
+        foreach ($f in $trx) {
+            try {
+                [xml]$x = Get-Content -LiteralPath $f.FullName
+            }
+            catch {
+                Write-Host "##vso[task.logissue type=error]Could not parse TRX $($f.Name): $($_.Exception.Message)"
+                exit 1
+            }
+            foreach ($c in $x.GetElementsByTagName('Counters')) {
+                $passed += [int]$c.passed
+                $failed += [int]$c.failed + [int]$c.error + [int]$c.timeout + [int]$c.aborted + [int]$c.passedButRunAborted
+            }
+        }
+        Write-Host "Aggregated test results: passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
+        if ($failed -gt 0) {
+            Write-Host "##vso[task.logissue type=error]$failed test(s) failed or the run was aborted mid-execution."
+            exit 1
+        }
+        if ($passed -le 0) {
+            Write-Host "##vso[task.logissue type=error]No passing tests were recorded."
+            exit 1
+        }
+        Write-Host "All $passed recorded test(s) passed; treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
+        exit 0
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
     condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
