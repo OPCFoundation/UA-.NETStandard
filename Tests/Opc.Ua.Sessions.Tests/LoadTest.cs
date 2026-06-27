@@ -34,10 +34,12 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
+using Opc.Ua.Tests;
 using ISession = Opc.Ua.Client.ISession;
 using MonitoredItem = Opc.Ua.Client.MonitoredItem;
 using Subscription = Opc.Ua.Client.Subscription;
@@ -57,7 +59,7 @@ namespace Opc.Ua.Sessions.Tests
     public class LoadTest : ClientTestFramework
     {
         public LoadTest(string uriScheme)
-            : base(uriScheme)
+            : base(uriScheme, NUnitTelemetryContext.Create(logLevel: LogLevel.Warning))
         {
             SingleSession = false;
         }
@@ -70,6 +72,12 @@ namespace Opc.Ua.Sessions.Tests
         {
             SupportsExternalServerUrl = true;
             UseSamplingGroupsInReferenceNodeManager = false;
+
+            // The many-sessions load test needs head-room above the 500 default
+            // session limit for the additional writer session, and one secure
+            // channel per session.
+            MaxChannelCount = 600;
+            MaxSessionCount = 600;
             return base.OneTimeSetUpAsync();
         }
 
@@ -775,6 +783,272 @@ namespace Opc.Ua.Sessions.Tests
                 })).ToList();
                 await Task.WhenAll(closeTasks).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Load test the server with the default supported number of sessions (500),
+        /// each holding a single slow-publishing subscription that monitors a value.
+        /// This exercises the per-session and per-subscription scaling limits and is the
+        /// basis for the bottleneck analysis documented in <c>Docs/SessionScalability.md</c>.
+        /// </summary>
+        [Test]
+        [Explicit]
+        [Order(130)]
+        public async Task ServerManySessionsLoadTestAsync()
+        {
+            // The session count defaults to the supported 500 sessions but can be scaled
+            // down via the OPCUA_LOADTEST_SESSION_COUNT environment variable for quicker
+            // validation runs on constrained hardware / CI.
+            int sessionCount = GetEnvInt("OPCUA_LOADTEST_SESSION_COUNT", 500);
+            const int publishingInterval = 1000; // slow publishing subscription.
+            const int writerInterval = 500;
+            int testDurationSeconds = GetEnvInt("OPCUA_LOADTEST_DURATION_SECONDS", 60);
+            const int maxConnectAttempts = 5;
+
+            // Each secure-channel + ActivateSession handshake is CPU bound (RSA). Cap the
+            // concurrent handshakes relative to the available cores so they do not thrash
+            // the CPU and time out; larger machines connect the sessions faster.
+            int maxConnectConcurrency = Math.Max(8, Environment.ProcessorCount * 4);
+
+            var sessions = new ConcurrentBag<ISession>();
+            var notificationsPerSession = new ConcurrentDictionary<int, int>();
+            var createErrors = new ConcurrentBag<string>();
+
+            try
+            {
+                IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
+                if (nodeIds.Count == 0)
+                {
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
+                }
+
+                // Use a single shared node so every one of the sessions observes the same
+                // value changes; this keeps the test focused on session/subscription scaling.
+                KeyValuePair<NodeId, Type> monitoredNode = nodeIds.First();
+                NodeId monitoredNodeId = monitoredNode.Key;
+                Type monitoredNodeType = monitoredNode.Value;
+
+                TestContext.Out.WriteLine(
+                    $"Creating {sessionCount} sessions, each with one slow ({publishingInterval} ms) subscription.");
+
+                // Resolve the endpoint once so each session does not repeat endpoint
+                // discovery (GetEndpoints) on connect; doing discovery per session is a
+                // measurable connect-time bottleneck at this scale.
+                ConfiguredEndpoint configuredEndpoint = await ClientFixture
+                    .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
+                    .ConfigureAwait(false);
+
+                // Throttle the concurrent secure-channel handshakes to avoid a connect storm.
+                using var connectThrottle = new SemaphoreSlim(maxConnectConcurrency);
+                var createSessionTasks = new List<Task>();
+                var swConnect = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < sessionCount; i++)
+                {
+                    int sessionIndex = i;
+                    createSessionTasks.Add(Task.Run(async () =>
+                    {
+                        await connectThrottle.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
+                            // Secure-channel handshakes can transiently time out under a
+                            // connect storm; retry a bounded number of times so the test
+                            // can establish the full session count on capable hardware.
+                            for (int attempt = 1; ; attempt++)
+                            {
+                                ISession session = null;
+                                try
+                                {
+                                    session = await ClientFixture
+                                        .ConnectAsync(configuredEndpoint)
+                                        .ConfigureAwait(false);
+
+                                    var subscription = new Subscription(session.DefaultSubscription)
+                                    {
+                                        PublishingInterval = publishingInterval
+                                    };
+
+                                    var item = new MonitoredItem(subscription.DefaultItem)
+                                    {
+                                        StartNodeId = monitoredNodeId,
+                                        AttributeId = Attributes.Value,
+                                        MonitoringMode = MonitoringMode.Reporting,
+                                        SamplingInterval = 0
+                                    };
+
+                                    subscription.FastDataChangeCallback = (sub, notification, _) =>
+                                    {
+                                        notificationsPerSession.AddOrUpdate(
+                                            sessionIndex,
+                                            notification.MonitoredItems.Count,
+                                            (_, count) => count + notification.MonitoredItems.Count);
+                                    };
+
+                                    subscription.AddItem(item);
+                                    session.AddSubscription(subscription);
+                                    await subscription.CreateAsync().ConfigureAwait(false);
+
+                                    sessions.Add(session);
+                                    break;
+                                }
+                                catch (Exception ex)
+                                {
+                                    session?.Dispose();
+                                    if (attempt >= maxConnectAttempts)
+                                    {
+                                        createErrors.Add(ex.Message);
+                                        break;
+                                    }
+
+                                    await Task.Delay(attempt * 250).ConfigureAwait(false);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            connectThrottle.Release();
+                        }
+                    }));
+                }
+                await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
+                swConnect.Stop();
+
+                TestContext.Out.WriteLine(
+                    $"Established {sessions.Count} sessions in {swConnect.ElapsedMilliseconds} ms " +
+                    $"({sessions.Count / Math.Max(swConnect.Elapsed.TotalSeconds, 0.001):F0} sessions/sec).");
+
+                if (!createErrors.IsEmpty)
+                {
+                    foreach (string error in createErrors.Take(10))
+                    {
+                        TestContext.Out.WriteLine($"Session create error: {error}");
+                    }
+                }
+
+                Assert.That(
+                    sessions,
+                    Has.Count.EqualTo(sessionCount),
+                    $"Not all {sessionCount} sessions could be created (errors: {createErrors.Count}).");
+
+                // Writer session changes the monitored value periodically.
+                ISession writerSession = await ClientFixture
+                    .ConnectAsync(configuredEndpoint)
+                    .ConfigureAwait(false);
+                sessions.Add(writerSession);
+
+                short writeCount = 0;
+                using var writerCts = new CancellationTokenSource();
+                var writerTask = Task.Run(async () =>
+                {
+                    while (!writerCts.IsCancellationRequested)
+                    {
+                        writeCount++;
+                        var nodesToWrite = new List<WriteValue>
+                        {
+#pragma warning disable CS0618 // Type or member is obsolete
+                            new WriteValue
+                            {
+                                NodeId = monitoredNodeId,
+                                AttributeId = Attributes.Value,
+                                Value = new DataValue(
+                                    new Variant(
+                                        Convert.ChangeType(
+                                            writeCount,
+                                            monitoredNodeType,
+                                            CultureInfo.InvariantCulture)))
+                            }
+#pragma warning restore CS0618 // Type or member is obsolete
+                        };
+                        try
+                        {
+                            await writerSession.WriteAsync(null, nodesToWrite, writerCts.Token)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                        catch (ServiceResultException sre)
+                        {
+                            TestContext.Out.WriteLine($"Writer session write error: {sre.Message}");
+                        }
+
+                        try
+                        {
+                            await Task.Delay(writerInterval, writerCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                    }
+                }, writerCts.Token);
+
+                // Run the test for the configured duration.
+                await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds)).ConfigureAwait(false);
+
+                // Stop the writer.
+                await writerCts.CancelAsync().ConfigureAwait(false);
+                try
+                {
+                    await writerTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    /* expected */
+                }
+
+                // Allow the slow subscriptions enough publishing cycles to deliver the last writes.
+                await Task.Delay(publishingInterval * 5).ConfigureAwait(false);
+
+                int sessionsWithNotifications = notificationsPerSession.Count;
+                long totalNotifications = notificationsPerSession.Values.Sum(v => (long)v);
+
+                TestContext.Out.WriteLine($"Writer performed {writeCount} writes.");
+                TestContext.Out.WriteLine(
+                    $"{sessionsWithNotifications}/{sessionCount} sessions received notifications " +
+                    $"(total {totalNotifications}).");
+
+                Assert.That(
+                    sessionsWithNotifications,
+                    Is.EqualTo(sessionCount),
+                    "Some sessions did not receive any notifications under load.");
+            }
+            finally
+            {
+                // Cleanup all sessions.
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (session.Connected)
+                        {
+                            await session.CloseAsync().ConfigureAwait(false);
+                        }
+
+                        session.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"Failed to close session: {ex.Message}");
+                    }
+                })).ToList();
+                await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reads a positive integer from an environment variable, returning the
+        /// supplied default when the variable is unset or cannot be parsed.
+        /// </summary>
+        private static int GetEnvInt(string name, int defaultValue)
+        {
+            string value = Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrEmpty(value) &&
+                int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) &&
+                parsed > 0)
+            {
+                return parsed;
+            }
+
+            return defaultValue;
         }
 
         /// <summary>

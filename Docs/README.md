@@ -8,6 +8,7 @@ Here is a list of available documentation for different topics:
 * [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
+* [Server Session Scalability](SessionScalability.md) - The 500-session server load test, the `MaxSessionCount` default of 500, and the bottlenecks (connection-establishment throughput, request-thread saturation, logging overhead) found while profiling the server under load.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.

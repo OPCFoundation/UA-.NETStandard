@@ -62,6 +62,7 @@ namespace Opc.Ua.Client.TestFramework
         public bool SingleSession { get; set; } = true;
         public bool AllNodeManagers { get; set; }
         public int MaxChannelCount { get; set; } = 100;
+        public int MaxSessionCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
@@ -368,6 +369,7 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
+            ServerFixture.Config.ServerConfiguration.MaxSessionCount = MaxSessionCount;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
