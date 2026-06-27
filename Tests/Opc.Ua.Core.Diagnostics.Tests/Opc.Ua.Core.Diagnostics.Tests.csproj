@@ -60,6 +60,7 @@
       reflectively, deliberately).
     -->
     <ProjectReference Include="..\..\Applications\McpServer\Opc.Ua.Mcp.csproj"
+                      Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net10.0'"
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all" />
   </ItemGroup>
