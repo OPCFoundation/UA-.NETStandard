@@ -567,7 +567,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
-            return obj is StatusCode s ? Equals(s) : obj is uint code && Equals(code);
+            return obj is StatusCode s ? Equals(s) :
+                obj is uint code && (code & 0x0000FFFFu) == 0 && Equals(code);
         }
 
         /// <summary>

@@ -672,6 +672,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsObjectWithBoxedUintRequiresNormalizedValue()
+        {
+            var statusCode = new StatusCode(0x80010001);
+
+            Assert.That(statusCode.Equals((object)0x80010000u), Is.True);
+            Assert.That(statusCode.Equals((object)0x80010006u), Is.False);
+        }
+
+        [Test]
         public void GetHashCodeWithComparisonMatchesEquals()
         {
             var sc1 = new StatusCode(0x80010001);
