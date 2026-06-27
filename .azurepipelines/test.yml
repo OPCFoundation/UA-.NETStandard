@@ -214,6 +214,13 @@ jobs:
       script: |
         $ErrorActionPreference = 'Stop'
         $dir = "$(Agent.TempDirectory)"
+
+        function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name) {
+            $raw = $element.GetAttribute($name)
+            if ([string]::IsNullOrEmpty($raw)) { return 0 }
+            return [int]$raw
+        }
+
         $trx = @(Get-ChildItem -Path $dir -Filter *.trx -ErrorAction SilentlyContinue)
         if ($trx.Count -eq 0) {
             # No VSTest TRX in the results directory. This is expected for
@@ -238,17 +245,24 @@ jobs:
         $failed = 0
         $total = 0
         foreach ($f in $trx) {
+            # Use XmlDocument.Load (not [xml](Get-Content ...)) so large TRX
+            # files - PubSub emits ~9400 results, several MB - parse reliably;
+            # the array-of-lines cast fails on big files ("Cannot convert value
+            # System.String[]").
+            $doc = New-Object System.Xml.XmlDocument
             try {
-                [xml]$x = Get-Content -LiteralPath $f.FullName
+                $doc.Load($f.FullName)
             }
             catch {
                 Write-Host "##vso[task.logissue type=error]Could not parse TRX $($f.Name): $($_.Exception.Message)"
                 exit 1
             }
-            foreach ($c in $x.GetElementsByTagName('Counters')) {
-                $passed += [int]$c.passed
-                $total += [int]$c.total
-                $failed += [int]$c.failed + [int]$c.error + [int]$c.timeout + [int]$c.aborted + [int]$c.passedButRunAborted
+            foreach ($c in $doc.GetElementsByTagName('Counters')) {
+                $passed += Get-CounterValue $c 'passed'
+                $total += Get-CounterValue $c 'total'
+                $failed += (Get-CounterValue $c 'failed') + (Get-CounterValue $c 'error') +
+                    (Get-CounterValue $c 'timeout') + (Get-CounterValue $c 'aborted') +
+                    (Get-CounterValue $c 'passedButRunAborted')
             }
         }
         Write-Host "Aggregated test results: total=$total, passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
