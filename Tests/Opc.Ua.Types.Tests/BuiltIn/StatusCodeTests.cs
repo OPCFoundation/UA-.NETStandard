@@ -599,21 +599,22 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualsObjectWithUintComparesFullCode()
+        public void EqualsObjectWithUintComparesCodeBits()
         {
             var sc = new StatusCode(0x80010005);
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            object code = (uint)0x80010005;
+            // Same code bits but different flag bits are still equal.
+            object code = (uint)0x80010000;
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(sc, Is.EqualTo(code));
         }
 
         [Test]
-        public void EqualsObjectWithUintReturnsFalseForDifferentValues()
+        public void EqualsObjectWithUintReturnsFalseForDifferentCodeBits()
         {
             var sc = new StatusCode(0x80010005);
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            object code = (uint)0x80010006;
+            object code = (uint)0x80020005;
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(sc, Is.Not.EqualTo(code));
         }
@@ -623,30 +624,70 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x00000000);
 #pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
-            Assert.That(sc.Equals("string"), Is.False);
-            Assert.That(sc.Equals(42), Is.False);
+            Assert.That(sc.Equals((object)"string"), Is.False);
+            Assert.That(sc.Equals((object)42), Is.False);
 #pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
-        public void EqualsStatusCodeComparesFullCode()
+        public void EqualsStatusCodeComparesCodeBitsOnly()
         {
-            // Same code bits but different flag bits must NOT be equal
+            // Same code bits but different flag bits must be equal.
             var sc1 = new StatusCode(0x80010001);
             var sc2 = new StatusCode(0x80010002);
-            Assert.That(sc1, Is.Not.EqualTo(sc2));
+            Assert.That(sc1, Is.EqualTo(sc2));
 
-            // Identical full codes must be equal
-            var sc3 = new StatusCode(0x80010001);
-            Assert.That(sc1, Is.EqualTo(sc3));
+            // Different code bits must not be equal.
+            var sc3 = new StatusCode(0x80020001);
+            Assert.That(sc1, Is.Not.EqualTo(sc3));
         }
 
         [Test]
-        public void EqualsUintComparesFullCode()
+        public void EqualsUintComparesCodeBitsOnly()
         {
             var sc = new StatusCode(0x80010005);
-            Assert.That(sc, Is.EqualTo(0x80010005));
-            Assert.That(sc, Is.Not.EqualTo(0x80010006));
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+            Assert.That(sc.Equals(0x80010000u), Is.True);
+            Assert.That(sc.Equals(0x80010006u), Is.True);
+            Assert.That(sc.Equals(0x80020000u), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+        }
+
+        [Test]
+        public void EqualsWithAllBitsComparisonComparesFullCode()
+        {
+            var sc1 = new StatusCode(0x80010001);
+            var sc2 = new StatusCode(0x80010002);
+
+            // Code bits only -> equal.
+            Assert.That(sc1.Equals(sc2, StatusCodeComparison.CodeBitsOnly), Is.True);
+
+            // All bits -> not equal because the flag bits differ.
+            Assert.That(sc1.Equals(sc2, StatusCodeComparison.AllBits), Is.False);
+
+            // Identical full codes are equal for both comparison modes.
+            var sc3 = new StatusCode(0x80010001);
+            Assert.That(sc1.Equals(sc3, StatusCodeComparison.AllBits), Is.True);
+            Assert.That(sc1.Equals(sc3, StatusCodeComparison.CodeBitsOnly), Is.True);
+        }
+
+        [Test]
+        public void EqualityOperatorComparesCodeBitsOnly()
+        {
+            var sc1 = new StatusCode(0x80010001);
+            var sc2 = new StatusCode(0x80010002);
+
+            bool equal = sc1 == sc2;
+            bool notEqual = sc1 != sc2;
+            Assert.That(equal, Is.True);
+            Assert.That(notEqual, Is.False);
+
+            // Comparison against a well known numeric value ignores flag bits.
+            var bad = new StatusCode(0x80000001);
+            bool badIsBad = bad == 0x80000000u;
+            bool badIsGood = bad == 0x00000000u;
+            Assert.That(badIsBad, Is.True);
+            Assert.That(badIsGood, Is.False);
         }
 
         [Test]
@@ -654,6 +695,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010000);
             Assert.That(sc.GetHashCode(), Is.EqualTo(0x80010000u.GetHashCode()));
+        }
+
+        [Test]
+        public void GetHashCodeIgnoresFlagBits()
+        {
+            var sc1 = new StatusCode(0x80010000);
+            var sc2 = new StatusCode(0x80010005);
+            Assert.That(sc1.GetHashCode(), Is.EqualTo(sc2.GetHashCode()));
         }
 
         [Test]
@@ -741,16 +790,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualityOperatorStatusCodeComparesFullCode()
+        public void EqualityOperatorStatusCodeComparesCodeBits()
         {
             var sc1 = new StatusCode(0x80010001);
             var sc2 = new StatusCode(0x80010002);
-            // Same code bits, different flag bits -> must NOT be equal after fix
-            Assert.That(sc1, Is.Not.EqualTo(sc2));
+            // Same code bits, different flag bits -> equal (code bits only).
+            Assert.That(sc1, Is.EqualTo(sc2));
 
-            // Identical full codes must be equal
-            var sc3 = new StatusCode(0x80010001);
-            Assert.That(sc1, Is.EqualTo(sc3));
+            // Different code bits -> not equal.
+            var sc3 = new StatusCode(0x80020001);
+            Assert.That(sc1, Is.Not.EqualTo(sc3));
         }
 
         [Test]
@@ -762,21 +811,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void GoodIsNotEqualToGoodWithSemanticsChangedFlag()
+        public void GoodIsEqualToGoodWithSemanticsChangedFlag()
         {
-            // StatusCode.Good (0x00000000) must NOT equal Good with SemanticsChanged bit (0x00004000)
+            // StatusCode.Good (0x00000000) equals Good with SemanticsChanged bit
+            // (0x00004000) because only the code bits are compared.
             StatusCode good = StatusCodes.Good;
             StatusCode goodWithSemanticsChanged = good.SetSemanticsChanged(true);
-            Assert.That(good, Is.Not.EqualTo(goodWithSemanticsChanged));
+            Assert.That(good, Is.EqualTo(goodWithSemanticsChanged));
+
+            // The flags differ when comparing all bits.
+            Assert.That(
+                good.Equals(goodWithSemanticsChanged, StatusCodeComparison.AllBits),
+                Is.False);
         }
 
         [Test]
-        public void GoodIsNotEqualToGoodWithStructureChangedFlag()
+        public void GoodIsEqualToGoodWithStructureChangedFlag()
         {
-            // StatusCode.Good (0x00000000) must NOT equal Good with StructureChanged bit (0x00008000)
+            // StatusCode.Good (0x00000000) equals Good with StructureChanged bit
+            // (0x00008000) because only the code bits are compared.
             StatusCode good = StatusCodes.Good;
             StatusCode goodWithStructureChanged = good.SetStructureChanged(true);
-            Assert.That(good, Is.Not.EqualTo(goodWithStructureChanged));
+            Assert.That(good, Is.EqualTo(goodWithStructureChanged));
+
+            // The flags differ when comparing all bits.
+            Assert.That(
+                good.Equals(goodWithStructureChanged, StatusCodeComparison.AllBits),
+                Is.False);
         }
 
         [Test]
@@ -788,28 +849,34 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void StatusCodeWithFlagsIsNotEqualToSameCodeWithoutFlags()
+        public void StatusCodeWithFlagsIsEqualToSameCodeWithoutFlags()
         {
-            // A Bad code with a flag set must not equal the same Bad code without the flag
+            // A Bad code with a flag set equals the same Bad code without the
+            // flag because only the code bits are compared.
             var bad = new StatusCode(0x80010000);
             StatusCode badWithSemanticsChanged = bad.SetSemanticsChanged(true);
-            Assert.That(bad, Is.Not.EqualTo(badWithSemanticsChanged));
+            Assert.That(bad, Is.EqualTo(badWithSemanticsChanged));
+
+            // The flags differ when comparing all bits.
+            Assert.That(
+                bad.Equals(badWithSemanticsChanged, StatusCodeComparison.AllBits),
+                Is.False);
         }
 
         [Test]
-        public void EqualityOperatorUintComparesByFullCode()
+        public void EqualityOperatorUintComparesByCodeBits()
         {
             var sc = new StatusCode(0x80010005);
-            Assert.That(sc, Is.EqualTo(0x80010005));
-            Assert.That(sc, Is.Not.EqualTo(0x80010006));
+            Assert.That(sc, Is.EqualTo(0x80010000u));
+            Assert.That(sc, Is.Not.EqualTo(0x80020000u));
         }
 
         [Test]
-        public void InequalityOperatorUintComparesByFullCode()
+        public void InequalityOperatorUintComparesByCodeBits()
         {
             var sc = new StatusCode(0x80010005);
-            Assert.That(sc, Is.Not.EqualTo(0x80010006));
-            Assert.That(sc, Is.EqualTo(0x80010005));
+            Assert.That(sc, Is.Not.EqualTo(0x80020000u));
+            Assert.That(sc, Is.EqualTo(0x80010000u));
         }
 
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
