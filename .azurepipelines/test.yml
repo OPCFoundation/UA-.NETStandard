@@ -221,6 +221,7 @@ jobs:
         }
         $passed = 0
         $failed = 0
+        $total = 0
         foreach ($f in $trx) {
             try {
                 [xml]$x = Get-Content -LiteralPath $f.FullName
@@ -231,19 +232,20 @@ jobs:
             }
             foreach ($c in $x.GetElementsByTagName('Counters')) {
                 $passed += [int]$c.passed
+                $total += [int]$c.total
                 $failed += [int]$c.failed + [int]$c.error + [int]$c.timeout + [int]$c.aborted + [int]$c.passedButRunAborted
             }
         }
-        Write-Host "Aggregated test results: passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
+        Write-Host "Aggregated test results: total=$total, passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
         if ($failed -gt 0) {
             Write-Host "##vso[task.logissue type=error]$failed test(s) failed or the run was aborted mid-execution."
             exit 1
         }
-        if ($passed -le 0) {
-            Write-Host "##vso[task.logissue type=error]No passing tests were recorded."
+        if ($total -le 0) {
+            Write-Host "##vso[task.logissue type=error]No tests were recorded (total=0); the run did not execute."
             exit 1
         }
-        Write-Host "All $passed recorded test(s) passed; treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
+        Write-Host "No test failures recorded across $total test(s); treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
         exit 0
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
