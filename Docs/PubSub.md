@@ -574,6 +574,34 @@ var options = new MqttConnectionOptions
 };
 ```
 
+#### MQTT TLS configuration
+
+`MqttConnectionOptions.Tls` (`MqttTlsOptions`) controls the TLS handshake for `mqtts://`
+and `wss://` endpoints. The broker certificate chain can be validated against a configured
+set of certificate authorities via `TrustedIssuerCertificateSubjects` — a list of CA
+subject distinguished names (or thumbprints) resolved from the application's trusted issuer
+certificate store (`SecurityConfiguration.TrustedIssuerCertificates`). Only public CA
+certificates are referenced, so — like `ClientCertificateSubject` — no certificate material
+is embedded in configuration files. The resolved CA chain is supplied to MQTTnet as the
+trust anchor set (the native trust chain on MQTTnet v5; a custom chain validator that
+fails closed on MQTTnet v4). The chain is only consulted while `ValidateServerCertificate`
+is `true`; when no subjects are configured the transport falls back to the platform default
+trust store.
+
+```csharp
+var options = new MqttConnectionOptions
+{
+    Endpoint = "mqtts://broker.example.com",
+    Tls = new MqttTlsOptions
+    {
+        ValidateServerCertificate = true,
+        // Validate the broker certificate against these trusted issuers
+        // (resolved from SecurityConfiguration.TrustedIssuerCertificates).
+        TrustedIssuerCertificateSubjects = ["CN=Corporate Root CA, O=Contoso"]
+    }
+};
+```
+
 ### DTLS transport status
 
 The `opc.dtls://` transport URI is parsed for Part 14 §7.3.2.4 unicast endpoints and wired through the UDP transport factory when `.WithDtls(...)` is registered on the `IUdpTransportBuilder` returned by `AddUdpTransport()`. The DTLS 1.3 handshake is implemented, including ECDHE negotiation, HelloRetryRequest cookies, and certificate authentication. The key schedule/HKDF, AEAD record protection, and anti-replay window are implemented for the registered runtime profiles.

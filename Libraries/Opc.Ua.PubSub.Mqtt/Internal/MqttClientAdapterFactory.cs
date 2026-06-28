@@ -43,6 +43,21 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
     /// </remarks>
     internal sealed class MqttClientAdapterFactory : IMqttClientFactory
     {
+        private readonly IMqttTrustedIssuerResolver? m_trustedIssuerResolver;
+
+        /// <summary>
+        /// Initializes a new <see cref="MqttClientAdapterFactory"/>.
+        /// </summary>
+        /// <param name="trustedIssuerResolver">
+        /// Optional resolver used to materialize the CA trust chain referenced by
+        /// <see cref="MqttTlsOptions.TrustedIssuerCertificateSubjects"/>. When
+        /// <see langword="null"/> the adapter relies on the platform default trust store.
+        /// </param>
+        public MqttClientAdapterFactory(IMqttTrustedIssuerResolver? trustedIssuerResolver = null)
+        {
+            m_trustedIssuerResolver = trustedIssuerResolver;
+        }
+
         /// <inheritdoc/>
         public IMqttClientAdapter CreateAdapter(
             MqttConnectionOptions options,
@@ -61,7 +76,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
-            return new MqttClientAdapter(telemetry, timeProvider);
+            return new MqttClientAdapter(telemetry, timeProvider, m_trustedIssuerResolver);
         }
     }
 }

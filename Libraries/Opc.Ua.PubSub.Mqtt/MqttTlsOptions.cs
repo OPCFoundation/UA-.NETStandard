@@ -72,6 +72,23 @@ namespace Opc.Ua.PubSub.Mqtt
         public string? ClientCertificateSubject { get; set; }
 
         /// <summary>
+        /// Subject DNs of the certificate authority (CA) certificates that form the
+        /// trust chain used to validate the broker certificate. Each entry is resolved
+        /// against the application's trusted issuer certificate store
+        /// (<c>SecurityConfiguration.TrustedIssuerCertificates</c>); the resolved CA
+        /// chain is supplied to the MQTT transport as the trust anchor set.
+        /// </summary>
+        /// <remarks>
+        /// Only public CA certificates are referenced, so — like
+        /// <see cref="ClientCertificateSubject"/> — no certificate material is embedded
+        /// in configuration files. When the list is <see langword="null"/> or empty the
+        /// transport falls back to the platform/runtime default trust store. The chain is
+        /// only consulted while <see cref="ValidateServerCertificate"/> is
+        /// <see langword="true"/>.
+        /// </remarks>
+        public string[]? TrustedIssuerCertificateSubjects { get; set; }
+
+        /// <summary>
         /// Optional allow-list of TLS cipher suites the adapter may
         /// negotiate. <see langword="null"/> defers to the OS / runtime
         /// default policy.

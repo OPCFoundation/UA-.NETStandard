@@ -139,6 +139,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void RegisterShared(IServiceCollection services)
         {
+            services.TryAddSingleton<IMqttTrustedIssuerResolver>(sp =>
+                new TrustedIssuerStoreResolver(sp.GetService<ApplicationConfiguration>()));
             services.TryAddSingleton<IMqttClientFactory, MqttClientAdapterFactory>();
             services.Add(
                 ServiceDescriptor.Singleton<IPubSubTransportFactory>(sp =>

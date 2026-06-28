@@ -32,11 +32,13 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Protocol;
+using Opc.Ua.Security.Certificates;
 #if NET8_0_OR_GREATER
 // MQTTnet v5: client types live in the MQTTnet root namespace.
 #else
@@ -58,13 +60,17 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
     {
         private readonly IMqttClient m_client;
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private readonly IMqttTrustedIssuerResolver? m_trustedIssuerResolver;
         private readonly System.Threading.Lock m_sync = new();
+        private X509Certificate2Collection? m_trustChain;
         private bool m_disposed;
 
         public MqttClientAdapter(
             ITelemetryContext telemetry,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            IMqttTrustedIssuerResolver? trustedIssuerResolver = null)
         {
             if (telemetry is null)
             {
@@ -74,8 +80,10 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
+            m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<MqttClientAdapter>();
             m_timeProvider = timeProvider;
+            m_trustedIssuerResolver = trustedIssuerResolver;
 #if NET8_0_OR_GREATER
             var factory = new MqttClientFactory();
 #else
@@ -125,9 +133,13 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 byte[] passwordBytes = options.PasswordBytes ?? Array.Empty<byte>();
                 builder = builder.WithCredentials(options.UserName, passwordBytes);
             }
+            X509Certificate2Collection? trustChain = useTls
+                ? await ResolveTrustChainAsync(options.Tls, ct).ConfigureAwait(false)
+                : null;
+            SwapTrustChain(trustChain);
             if (useTls)
             {
-                builder = ConfigureTls(builder, options.Tls);
+                builder = ConfigureTls(builder, options.Tls, trustChain);
             }
 
             var mqttOptions = builder.Build();
@@ -349,6 +361,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             m_client.ConnectedAsync -= OnConnectedAsync;
             m_client.DisconnectedAsync -= OnDisconnectedAsync;
             m_client.Dispose();
+            SwapTrustChain(null);
         }
 
         private void ThrowIfDisposed()
@@ -462,37 +475,130 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             };
         }
 
+        private async ValueTask<X509Certificate2Collection?> ResolveTrustChainAsync(
+            MqttTlsOptions? tls,
+            CancellationToken ct)
+        {
+            string[]? subjects = tls?.TrustedIssuerCertificateSubjects;
+            if (m_trustedIssuerResolver is null || subjects is null || subjects.Length == 0)
+            {
+                return null;
+            }
+
+            using CertificateCollection trustedIssuers = await m_trustedIssuerResolver
+                .ResolveAsync(subjects, m_telemetry, ct)
+                .ConfigureAwait(false);
+            if (trustedIssuers.Count == 0)
+            {
+                return null;
+            }
+
+            // AsX509Certificate2Collection returns independent copies the caller owns; the
+            // adapter keeps them alive for the connection and disposes them on Dispose.
+            return trustedIssuers.AsX509Certificate2Collection();
+        }
+
+        private void SwapTrustChain(X509Certificate2Collection? trustChain)
+        {
+            X509Certificate2Collection? previous;
+            lock (m_sync)
+            {
+                previous = m_trustChain;
+                m_trustChain = trustChain;
+            }
+            DisposeTrustChain(previous);
+        }
+
+        private static void DisposeTrustChain(X509Certificate2Collection? trustChain)
+        {
+            if (trustChain is null)
+            {
+                return;
+            }
+            foreach (X509Certificate2 certificate in trustChain)
+            {
+                certificate.Dispose();
+            }
+        }
+
         private static MqttClientOptionsBuilder ConfigureTls(
             MqttClientOptionsBuilder builder,
-            MqttTlsOptions? tls)
+            MqttTlsOptions? tls,
+            X509Certificate2Collection? trustChain)
         {
+            bool allowUntrusted = tls is not null && !tls.ValidateServerCertificate;
+            return builder.WithTlsOptions(o =>
+            {
+                o.UseTls();
+                o.WithAllowUntrustedCertificates(allowUntrusted);
+                if (trustChain is not null && trustChain.Count > 0)
+                {
 #if NET8_0_OR_GREATER
-            return builder.WithTlsOptions(o =>
-            {
-                o.UseTls();
-                if (tls is not null)
-                {
-                    o.WithAllowUntrustedCertificates(!tls.ValidateServerCertificate);
-                }
-                else
-                {
-                    o.WithAllowUntrustedCertificates(false);
-                }
-            });
+                    o.WithTrustChain(trustChain);
 #else
-            return builder.WithTlsOptions(o =>
-            {
-                o.UseTls();
-                if (tls is not null)
-                {
-                    o.WithAllowUntrustedCertificates(!tls.ValidateServerCertificate);
-                }
-                else
-                {
-                    o.WithAllowUntrustedCertificates(false);
+                    bool validate = tls is null || tls.ValidateServerCertificate;
+                    o.WithCertificateValidationHandler(context =>
+                        ValidateAgainstTrustChain(context.Certificate, trustChain, validate));
+#endif
                 }
             });
-#endif
         }
+
+#if !NET8_0_OR_GREATER
+        private static bool ValidateAgainstTrustChain(
+            X509Certificate certificate,
+            X509Certificate2Collection trustChain,
+            bool validate)
+        {
+            if (!validate)
+            {
+                return true;
+            }
+            if (certificate is null)
+            {
+                return false;
+            }
+
+            using var brokerCertificate = new X509Certificate2(certificate);
+            using var chain = new X509Chain();
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+            chain.ChainPolicy.ExtraStore.AddRange(trustChain);
+
+            // Build populates ChainStatus/ChainElements; the return value is ignored because
+            // MQTTnet v4 (net4x / netstandard2.1) cannot set a custom root trust store and a
+            // self-signed configured CA always reports UntrustedRoot.
+            _ = chain.Build(brokerCertificate);
+            foreach (X509ChainStatus status in chain.ChainStatus)
+            {
+                if (status.Status is X509ChainStatusFlags.NoError
+                    or X509ChainStatusFlags.UntrustedRoot
+                    or X509ChainStatusFlags.PartialChain)
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            // Accept the broker certificate only when its chain actually terminates at one of
+            // the configured trusted issuer certificates.
+            foreach (X509ChainElement element in chain.ChainElements)
+            {
+                foreach (X509Certificate2 ca in trustChain)
+                {
+                    if (string.Equals(
+                        element.Certificate.Thumbprint,
+                        ca.Thumbprint,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+#endif
     }
 }
