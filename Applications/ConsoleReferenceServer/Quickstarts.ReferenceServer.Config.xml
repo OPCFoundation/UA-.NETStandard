@@ -323,6 +323,8 @@
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>DA</ua:String>
+      <ua:String>HD</ua:String>
+      <ua:String>AC</ua:String>
       <ua:String>GDS</ua:String>
     </ServerCapabilities>
     <SupportedPrivateKeyFormats>
