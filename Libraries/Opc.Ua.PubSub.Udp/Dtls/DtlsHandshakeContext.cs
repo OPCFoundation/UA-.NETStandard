@@ -200,9 +200,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
                 RequireMessage(certificateFrame, DtlsHandshakeType.Certificate);
                 transcript.Append(ToCompleteFrame(certificateFrame));
-                IReadOnlyList<Certificate> peerChain =
-                    DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
-                try
+                using (CertificateCollection peerChain =
+                    DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment))
                 {
                     await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
                     byte[] certificateVerifyTranscriptHash = transcript.GetHash();
@@ -216,13 +215,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         certificateVerifyFrame.Fragment,
                         isServer: true);
                     transcript.Append(ToCompleteFrame(certificateVerifyFrame));
-                }
-                finally
-                {
-                    foreach (Certificate peerCertificate in peerChain)
-                    {
-                        peerCertificate.Dispose();
-                    }
                 }
                 byte[] finishedTranscriptHash = transcript.GetHash();
                 DtlsHandshakeFrame serverFinishedFrame = await ReceiveFrameAsync(channel, cancellationToken)
@@ -488,9 +480,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 .ConfigureAwait(false);
             RequireMessage(certificateFrame, DtlsHandshakeType.Certificate);
             transcript.Append(ToCompleteFrame(certificateFrame));
-            IReadOnlyList<Certificate> peerChain =
-                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
-            try
+            using (CertificateCollection peerChain =
+                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment))
             {
                 await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
                 byte[] certificateVerifyTranscriptHash = transcript.GetHash();
@@ -504,13 +495,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     certificateVerifyFrame.Fragment,
                     isServer: false);
                 transcript.Append(ToCompleteFrame(certificateVerifyFrame));
-            }
-            finally
-            {
-                foreach (Certificate peerCertificate in peerChain)
-                {
-                    peerCertificate.Dispose();
-                }
             }
         }
 
@@ -591,7 +575,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 
         private async ValueTask ValidatePeerCertificateAsync(
-            IReadOnlyList<Certificate> peerChain,
+            CertificateCollection peerChain,
             CancellationToken cancellationToken)
         {
             if (m_certificateValidator is null)

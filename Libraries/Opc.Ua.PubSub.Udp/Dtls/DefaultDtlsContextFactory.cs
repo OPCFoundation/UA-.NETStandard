@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -137,7 +136,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 connection.Name,
                 endpoint,
                 profile.Name);
-            List<Certificate> resolvedLocalCertificates = await ResolveLocalCertificatesAsync(
+            CertificateCollection resolvedLocalCertificates = await ResolveLocalCertificatesAsync(
                     telemetry,
                     logger,
                     cancellationToken)
@@ -161,7 +160,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             catch
             {
-                DisposeCertificates(resolvedLocalCertificates);
+                resolvedLocalCertificates.Dispose();
                 throw;
             }
 #pragma warning restore CA2000
@@ -179,67 +178,83 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return hasWriters && !hasReaders ? DtlsEndpointRole.Client : DtlsEndpointRole.Server;
         }
 
-        private async ValueTask<List<Certificate>> ResolveLocalCertificatesAsync(
+        private async ValueTask<CertificateCollection> ResolveLocalCertificatesAsync(
             ITelemetryContext telemetry,
             ILogger logger,
             CancellationToken cancellationToken)
         {
-            var resolvedCertificates = new List<Certificate>();
+            var resolvedCertificates = new CertificateCollection();
             if (Options.LocalCertificateIdentifiers.Count == 0)
             {
                 return resolvedCertificates;
             }
 
-            ICertificatePasswordProvider? passwordProvider = ApplicationConfiguration
-                ?.SecurityConfiguration
-                ?.CertificatePasswordProvider;
-            string? applicationUri = ApplicationConfiguration?.ApplicationUri;
-            foreach (CertificateIdentifier identifier in Options.LocalCertificateIdentifiers)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (identifier is null)
+                ICertificatePasswordProvider? passwordProvider = ApplicationConfiguration
+                    ?.SecurityConfiguration
+                    ?.CertificatePasswordProvider;
+                string? applicationUri = ApplicationConfiguration?.ApplicationUri;
+                foreach (CertificateIdentifier identifier in Options.LocalCertificateIdentifiers)
                 {
-                    continue;
-                }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (identifier is null)
+                    {
+                        continue;
+                    }
 
-                try
-                {
-                    Certificate? certificate = CertificateProvider is not null
-                        ? await CertificateProvider
-                            .GetPrivateKeyCertificateAsync(identifier, passwordProvider, applicationUri, cancellationToken)
-                            .ConfigureAwait(false)
-                        : await CertificateIdentifierResolver
-                            .LoadPrivateKeyAsync(identifier, passwordProvider, applicationUri, telemetry, cancellationToken)
-                            .ConfigureAwait(false);
-                    if (certificate?.HasPrivateKey == true)
+                    try
                     {
-                        resolvedCertificates.Add(certificate);
-                        logger.LogInformation(
-                            "Resolved OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
-                            identifier);
+                        Certificate? certificate = CertificateProvider is not null
+                            ? await CertificateProvider
+                                .GetPrivateKeyCertificateAsync(
+                                    identifier, passwordProvider, applicationUri, cancellationToken)
+                                .ConfigureAwait(false)
+                            : await CertificateIdentifierResolver
+                                .LoadPrivateKeyAsync(
+                                    identifier, passwordProvider, applicationUri, telemetry, cancellationToken)
+                                .ConfigureAwait(false);
+                        if (certificate is { HasPrivateKey: true })
+                        {
+                            // CertificateCollection.Add takes its own independent handle (AddRef),
+                            // so the loaded handle is disposed once it has been added.
+                            using (certificate)
+                            {
+                                resolvedCertificates.Add(certificate);
+                            }
+
+                            logger.LogInformation(
+                                "Resolved OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
+                                identifier);
+                        }
+                        else
+                        {
+                            certificate?.Dispose();
+                            logger.LogWarning(
+                                "OPC UA PubSub DTLS local certificate identifier '{Identifier}' did not resolve to a " +
+                                "certificate with a private key.",
+                                identifier);
+                        }
                     }
-                    else
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        certificate?.Dispose();
                         logger.LogWarning(
-                            "OPC UA PubSub DTLS local certificate identifier '{Identifier}' did not resolve to a " +
-                            "certificate with a private key.",
+                            ex,
+                            "Failed to resolve OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
                             identifier);
                     }
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Failed to resolve OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
-                        identifier);
-                }
+            }
+            catch
+            {
+                resolvedCertificates.Dispose();
+                throw;
             }
 
             return resolvedCertificates;
         }
 
-        private DtlsTransportOptions CreateEffectiveOptions(IReadOnlyList<Certificate> resolvedLocalCertificates)
+        private DtlsTransportOptions CreateEffectiveOptions(CertificateCollection resolvedLocalCertificates)
         {
             var options = new DtlsTransportOptions
             {
@@ -264,6 +279,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             foreach (Certificate certificate in resolvedLocalCertificates)
             {
+                // Borrowed alias: the effective options reference the handles owned by
+                // resolvedLocalCertificates, which the ResolvedLocalCertificateDtlsContext
+                // disposes after the inner context (and thus the handshake) has completed.
                 options.LocalCertificates.Add(certificate);
             }
 
@@ -273,11 +291,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private sealed class ResolvedLocalCertificateDtlsContext : IDtlsContext
         {
             private readonly IDtlsContext m_inner;
-            private readonly IReadOnlyList<Certificate> m_resolvedLocalCertificates;
+            private readonly CertificateCollection m_resolvedLocalCertificates;
 
             public ResolvedLocalCertificateDtlsContext(
                 IDtlsContext inner,
-                IReadOnlyList<Certificate> resolvedLocalCertificates)
+                CertificateCollection resolvedLocalCertificates)
             {
                 m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
                 m_resolvedLocalCertificates = resolvedLocalCertificates
@@ -317,16 +335,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 }
                 finally
                 {
-                    DisposeCertificates(m_resolvedLocalCertificates);
+                    m_resolvedLocalCertificates.Dispose();
                 }
-            }
-        }
-
-        private static void DisposeCertificates(IReadOnlyList<Certificate> certificates)
-        {
-            foreach (Certificate certificate in certificates)
-            {
-                certificate.Dispose();
             }
         }
     }

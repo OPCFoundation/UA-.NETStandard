@@ -69,7 +69,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Decodes a TLS 1.3 Certificate message body into the peer certificate chain.
         /// </summary>
-        public static IReadOnlyList<Certificate> DecodeCertificate(ReadOnlySpan<byte> body)
+        /// <remarks>
+        /// The returned <see cref="CertificateCollection"/> owns an independent handle for
+        /// every decoded certificate; the caller is responsible for disposing it (a single
+        /// <c>using</c> releases the whole chain). All partially-decoded handles are released
+        /// if decoding fails part way through.
+        /// </remarks>
+        public static CertificateCollection DecodeCertificate(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
             if (reader.ReadOpaque8().Length != 0)
@@ -79,22 +85,34 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             byte[] certificateList = ReadOpaque24(ref reader);
             var entryReader = new DtlsHandshakeReader(certificateList);
-            var certificates = new List<Certificate>();
-            while (!entryReader.EndOfData)
+            var certificates = new CertificateCollection();
+            try
             {
-                byte[] rawData = ReadOpaque24(ref entryReader);
-                if (entryReader.ReadOpaque16().Length != 0)
+                while (!entryReader.EndOfData)
                 {
-                    throw new DtlsHandshakeException("CertificateEntry extensions are not supported for PubSub DTLS.");
+                    byte[] rawData = ReadOpaque24(ref entryReader);
+                    if (entryReader.ReadOpaque16().Length != 0)
+                    {
+                        throw new DtlsHandshakeException(
+                            "CertificateEntry extensions are not supported for PubSub DTLS.");
+                    }
+
+                    // CertificateCollection.Add takes its own independent handle (AddRef),
+                    // so the freshly created entry handle is disposed once it has been added.
+                    using var entry = new Certificate(rawData);
+                    certificates.Add(entry);
                 }
 
-                certificates.Add(new Certificate(rawData));
+                reader.EnsureComplete();
+                if (certificates.Count == 0)
+                {
+                    throw new DtlsHandshakeException("DTLS peer did not provide a certificate.");
+                }
             }
-
-            reader.EnsureComplete();
-            if (certificates.Count == 0)
+            catch
             {
-                throw new DtlsHandshakeException("DTLS peer did not provide a certificate.");
+                certificates.Dispose();
+                throw;
             }
 
             return certificates;
@@ -183,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         public static async ValueTask ValidatePeerCertificateAsync(
             ICertificateValidatorEx validator,
-            IReadOnlyList<Certificate> chain,
+            CertificateCollection chain,
             CancellationToken cancellationToken)
         {
             if (validator is null)

@@ -85,6 +85,12 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// negotiated profile certificate curve, similar to how secure channels register an application
         /// certificate per certificate type.
         /// </summary>
+        /// <remarks>
+        /// These handles are <b>borrowed</b>: the caller that registers a <see cref="Certificate"/>
+        /// retains ownership and is responsible for disposing it. The DTLS stack does not dispose the
+        /// registered handles; it takes an independent reference (via <see cref="Certificate.AddRef"/>)
+        /// for the duration of any handshake that uses them.
+        /// </remarks>
         public IList<Certificate> LocalCertificates { get; } = [];
 
         /// <summary>

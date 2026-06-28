@@ -29,7 +29,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -58,32 +57,49 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             byte[] transcriptHash = SHA256.HashData(new byte[] { 0x01, 0x02, 0x03 });
 
             byte[] certificateMessage = DtlsCertificateAuthenticator.EncodeCertificate([certificate]);
-            IReadOnlyList<Certificate> decoded = DtlsCertificateAuthenticator.DecodeCertificate(certificateMessage);
-            try
-            {
-                byte[] verifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
-                    certificate,
-                    DtlsCipherSuite.TlsAes128GcmSha256,
-                    transcriptHash);
+            using CertificateCollection decoded =
+                DtlsCertificateAuthenticator.DecodeCertificate(certificateMessage);
+            byte[] verifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
+                certificate,
+                DtlsCipherSuite.TlsAes128GcmSha256,
+                transcriptHash);
 
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded[0].RawData, Is.EqualTo(certificate.RawData));
+                Assert.That(() => DtlsCertificateAuthenticator.VerifyCertificateVerify(
+                    decoded[0],
+                    DtlsCipherSuite.TlsAes128GcmSha256,
+                    transcriptHash,
+                    verifyBody,
+                    isServer: true), Throws.Nothing);
+            });
+        }
+
+        [Test]
+        public void DecodeCertificateDisposesEveryDecodedHandle()
+        {
+            using Certificate first = CreateEcdsaCertificate();
+            using Certificate second = CreateEcdsaCertificate();
+            byte[] certificateMessage = DtlsCertificateAuthenticator.EncodeCertificate([first, second]);
+
+            long liveBefore = Certificate.InstancesCreated - Certificate.InstancesDisposed;
+            using (CertificateCollection decoded =
+                DtlsCertificateAuthenticator.DecodeCertificate(certificateMessage))
+            {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(decoded[0].RawData, Is.EqualTo(certificate.RawData));
-                    Assert.That(() => DtlsCertificateAuthenticator.VerifyCertificateVerify(
-                        decoded[0],
-                        DtlsCipherSuite.TlsAes128GcmSha256,
-                        transcriptHash,
-                        verifyBody,
-                        isServer: true), Throws.Nothing);
+                    Assert.That(decoded, Has.Count.EqualTo(2));
+                    Assert.That(decoded[0].RawData, Is.EqualTo(first.RawData));
+                    Assert.That(decoded[1].RawData, Is.EqualTo(second.RawData));
                 });
             }
-            finally
-            {
-                foreach (Certificate decodedCertificate in decoded)
-                {
-                    decodedCertificate.Dispose();
-                }
-            }
+
+            long liveAfter = Certificate.InstancesCreated - Certificate.InstancesDisposed;
+            Assert.That(
+                liveAfter,
+                Is.EqualTo(liveBefore),
+                "Disposing the decoded chain must release every Certificate handle it created.");
         }
 
         [Test]
@@ -124,6 +140,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public async Task PeerCertificateValidationUsesInjectedValidatorAsync()
         {
             using Certificate certificate = CreateEcdsaCertificate();
+            using CertificateCollection chain = [certificate];
             var validator = new Mock<ICertificateValidatorEx>(MockBehavior.Strict);
             validator.Setup(v => v.ValidateAsync(
                     It.IsAny<Certificate>(),
@@ -133,7 +150,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             await DtlsCertificateAuthenticator.ValidatePeerCertificateAsync(
                 validator.Object,
-                [certificate],
+                chain,
                 CancellationToken.None).ConfigureAwait(false);
 
             validator.VerifyAll();
