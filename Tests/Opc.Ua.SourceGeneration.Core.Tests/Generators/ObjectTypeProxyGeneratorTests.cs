@@ -205,6 +205,53 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void Emit_Method_EmitsBrowseNameAndNamespaceForInteropFallback()
+        {
+            // Regression for the interoperability fallback (issue #3914):
+            // each generated method must pass the method BrowseName and its
+            // namespace URI to CallMethodAsync (after the type-declaration
+            // MethodId) so the runtime can resolve the instance MethodId via
+            // a HasComponent browse path against non-conformant servers.
+            MethodDesign method = CreateMethod(
+                "DoIt",
+                inputs: [
+                    CreateParameter("requestId", BasicDataType.Int32)
+                ]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            using var stream = new MemoryStream();
+            m_mockFileSystem
+                .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
+                .Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            // Happy-path argument: the type-declaration MethodId constant.
+            int methodIdIndex = content.IndexOf(
+                $"global::{kTestNamespacePrefix}.MethodIds.FooType_DoIt",
+                StringComparison.Ordinal);
+            // Fallback arguments: namespace URI literal then BrowseName literal.
+            int namespaceIndex = content.IndexOf(
+                $"\"{kTestNamespaceUri}\"",
+                StringComparison.Ordinal);
+            int browseNameIndex = content.IndexOf(
+                "\"DoIt\"",
+                StringComparison.Ordinal);
+
+            Assert.That(methodIdIndex, Is.GreaterThan(-1));
+            Assert.That(
+                namespaceIndex,
+                Is.GreaterThan(methodIdIndex),
+                "namespace URI literal must follow the type-declaration MethodId argument");
+            Assert.That(
+                browseNameIndex,
+                Is.GreaterThan(namespaceIndex),
+                "BrowseName literal must follow the namespace URI argument");
+        }
+
+        [Test]
         public void Emit_VoidMethod_EmitsAsyncWithoutReturnType()
         {
             MethodDesign method = CreateMethod("Reset");

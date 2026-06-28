@@ -571,6 +571,7 @@ namespace Opc.Ua.Sessions.Tests
             {
                 Assert.That(tcp.Socket, Is.Null);
             }
+            channel.Dispose();
         }
 
         [Theory]
@@ -856,6 +857,8 @@ namespace Opc.Ua.Sessions.Tests
                     Is.EqualTo(StatusCodes.BadNotConnected),
                     sre.Message);
             }
+
+            session1.Dispose();
         }
 
         /// <summary>

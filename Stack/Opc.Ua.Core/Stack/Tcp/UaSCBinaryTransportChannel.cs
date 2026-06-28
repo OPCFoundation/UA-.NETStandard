@@ -103,9 +103,7 @@ namespace Opc.Ua.Bindings
                     m_connecting.Dispose();
                 }
 
-                m_settings?.ServerCertificate?.Dispose();
-                m_settings?.ClientCertificate?.Dispose();
-                m_settings?.ClientCertificateChain?.Dispose();
+                DisposeSettingsCertificates();
             }
         }
 
@@ -266,12 +264,42 @@ namespace Opc.Ua.Bindings
                     {
                         m_logger.LogError(e, "Ignoring error during close of channel.");
                     }
+                    finally
+                    {
+                        try
+                        {
+                            channel.Dispose();
+                        }
+                        finally
+                        {
+                            DisposeSettingsCertificates();
+                        }
+                    }
+                }
+                else
+                {
+                    DisposeSettingsCertificates();
                 }
             }
             finally
             {
                 m_connecting.Release();
             }
+        }
+
+        private void DisposeSettingsCertificates()
+        {
+            if (m_settings == null)
+            {
+                return;
+            }
+
+            m_settings.ServerCertificate?.Dispose();
+            m_settings.ServerCertificate = null;
+            m_settings.ClientCertificate?.Dispose();
+            m_settings.ClientCertificate = null;
+            m_settings.ClientCertificateChain?.Dispose();
+            m_settings.ClientCertificateChain = null;
         }
 
         /// <inheritdoc/>
@@ -380,6 +408,8 @@ namespace Opc.Ua.Bindings
                     // Reset as not opened to allow OpenAsync again.
                     m_channel = null;
                     m_url = null;
+                    channel.Dispose();
+                    DisposeSettingsCertificates();
                     throw;
                 }
                 finally

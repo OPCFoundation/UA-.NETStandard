@@ -77,7 +77,7 @@ namespace Opc.Ua.Gds.Server.Hosting
 
         // CA2213: IApplicationInstance is IAsyncDisposable; the lifecycle here
         // is managed via the async StopAsync override which calls
-        // m_application.StopAsync.
+        // m_application.DisposeAsync.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
@@ -286,6 +286,11 @@ namespace Opc.Ua.Gds.Server.Hosting
                 catch (Exception ex)
                 {
                     m_logger.LogWarning(ex, "Error while stopping GDS server.");
+                }
+                finally
+                {
+                    await m_application.DisposeAsync().ConfigureAwait(false);
+                    m_application = null;
                 }
             }
         }

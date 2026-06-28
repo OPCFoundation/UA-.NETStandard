@@ -313,6 +313,8 @@ namespace Opc.Ua.Gds.Tests
                 m_gdsClient.Dispose();
                 m_selfSignedServerCert.Dispose();
                 m_selfSignedServerCert = null;
+                m_caCert?.Dispose();
+                m_caCert = null;
                 m_gdsClient = null;
                 m_pushClient = null;
                 m_server = null;
@@ -948,35 +950,38 @@ namespace Opc.Ua.Gds.Tests
                     .CreateForRSA();
             }
 
-            byte[] privateKey = null;
-            if (keyFormat == "PFX")
+            using (newCert)
             {
-                Assert.That(newCert.HasPrivateKey, Is.True);
-                privateKey = newCert.Export(X509ContentType.Pfx);
-            }
-            else if (keyFormat == "PEM")
-            {
-                Assert.That(newCert.HasPrivateKey, Is.True);
-                privateKey = PEMWriter.ExportPrivateKeyAsPEM(newCert);
-            }
-            else
-            {
-                Assert.Fail($"Testing unsupported key format {keyFormat}.");
-            }
+                byte[] privateKey = null;
+                if (keyFormat == "PFX")
+                {
+                    Assert.That(newCert.HasPrivateKey, Is.True);
+                    privateKey = newCert.Export(X509ContentType.Pfx);
+                }
+                else if (keyFormat == "PEM")
+                {
+                    Assert.That(newCert.HasPrivateKey, Is.True);
+                    privateKey = PEMWriter.ExportPrivateKeyAsPEM(newCert);
+                }
+                else
+                {
+                    Assert.Fail($"Testing unsupported key format {keyFormat}.");
+                }
 
-            bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
-                m_pushClient.PushClient.DefaultApplicationGroup,
-                m_certificateType,
-                newCert.RawData.ToByteString(),
-                keyFormat,
-                privateKey.ToByteString(),
-                default).ConfigureAwait(false);
+                bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
+                    m_pushClient.PushClient.DefaultApplicationGroup,
+                    m_certificateType,
+                    newCert.RawData.ToByteString(),
+                    keyFormat,
+                    privateKey.ToByteString(),
+                    default).ConfigureAwait(false);
 
-            if (success)
-            {
-                await ApplyChangesIgnoreChannelTearDownAsync().ConfigureAwait(false);
+                if (success)
+                {
+                    await ApplyChangesIgnoreChannelTearDownAsync().ConfigureAwait(false);
+                }
+                await VerifyNewPushServerCertAsync(newCert.RawData.ToByteString()).ConfigureAwait(false);
             }
-            await VerifyNewPushServerCertAsync(newCert.RawData.ToByteString()).ConfigureAwait(false);
         }
 
         [Test]
@@ -1424,81 +1429,91 @@ namespace Opc.Ua.Gds.Tests
             CertificateCollection trustedCertificates = null;
             X509CRLCollection trustedCrls = null;
 
-            // test integrity of all CRLs
-            if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
+            try
             {
-                issuerCertificates = [];
-                foreach (ByteString cert in trustList.IssuerCertificates)
+                // test integrity of all CRLs
+                if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
                 {
-                    issuerCertificates.Add(Certificate.FromRawData(cert.ToArray()));
+                    issuerCertificates = [];
+                    foreach (ByteString cert in trustList.IssuerCertificates)
+                    {
+                        using Certificate parsed = Certificate.FromRawData(cert.ToArray());
+                        issuerCertificates.Add(parsed);
+                    }
                 }
-            }
-            if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
-            {
-                issuerCrls = [];
-                foreach (ByteString crl in trustList.IssuerCrls)
+                if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
                 {
-                    issuerCrls.Add(new X509CRL(crl.ToArray()));
+                    issuerCrls = [];
+                    foreach (ByteString crl in trustList.IssuerCrls)
+                    {
+                        issuerCrls.Add(new X509CRL(crl.ToArray()));
+                    }
                 }
-            }
-            if ((masks & (int)TrustListMasks.TrustedCertificates) != 0)
-            {
-                trustedCertificates = [];
-                foreach (ByteString cert in trustList.TrustedCertificates)
+                if ((masks & (int)TrustListMasks.TrustedCertificates) != 0)
                 {
-                    trustedCertificates.Add(Certificate.FromRawData(cert.ToArray()));
+                    trustedCertificates = [];
+                    foreach (ByteString cert in trustList.TrustedCertificates)
+                    {
+                        using Certificate parsed = Certificate.FromRawData(cert.ToArray());
+                        trustedCertificates.Add(parsed);
+                    }
                 }
-            }
-            if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
-            {
-                trustedCrls = [];
-                foreach (ByteString crl in trustList.TrustedCrls)
+                if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
                 {
-                    trustedCrls.Add(new X509CRL(crl.ToArray()));
+                    trustedCrls = [];
+                    foreach (ByteString crl in trustList.TrustedCrls)
+                    {
+                        trustedCrls.Add(new X509CRL(crl.ToArray()));
+                    }
                 }
-            }
 
-            // update store
-            // test integrity of all CRLs
-            int updateMasks = (int)TrustListMasks.None;
-            if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
-                await UpdateStoreCertificatesAsync(
-                    config.TrustedIssuerCertificates,
-                    issuerCertificates,
-                    telemetry)
-                    .ConfigureAwait(false))
-            {
-                updateMasks |= (int)TrustListMasks.IssuerCertificates;
-            }
-            if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                await UpdateStoreCrlsAsync(
-                    config.TrustedIssuerCertificates,
-                    issuerCrls,
-                    telemetry)
-                    .ConfigureAwait(false))
-            {
-                updateMasks |= (int)TrustListMasks.IssuerCrls;
-            }
-            if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
-                await UpdateStoreCertificatesAsync(
-                    config.TrustedPeerCertificates,
-                    trustedCertificates,
-                    telemetry)
-                    .ConfigureAwait(false))
-            {
-                updateMasks |= (int)TrustListMasks.TrustedCertificates;
-            }
-            if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                await UpdateStoreCrlsAsync(
-                    config.TrustedPeerCertificates,
-                    trustedCrls,
-                    telemetry)
-                    .ConfigureAwait(false))
-            {
-                updateMasks |= (int)TrustListMasks.TrustedCrls;
-            }
+                // update store
+                // test integrity of all CRLs
+                int updateMasks = (int)TrustListMasks.None;
+                if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
+                    await UpdateStoreCertificatesAsync(
+                        config.TrustedIssuerCertificates,
+                        issuerCertificates,
+                        telemetry)
+                        .ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.IssuerCertificates;
+                }
+                if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
+                    await UpdateStoreCrlsAsync(
+                        config.TrustedIssuerCertificates,
+                        issuerCrls,
+                        telemetry)
+                        .ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.IssuerCrls;
+                }
+                if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
+                    await UpdateStoreCertificatesAsync(
+                        config.TrustedPeerCertificates,
+                        trustedCertificates,
+                        telemetry)
+                        .ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.TrustedCertificates;
+                }
+                if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
+                    await UpdateStoreCrlsAsync(
+                        config.TrustedPeerCertificates,
+                        trustedCrls,
+                        telemetry)
+                        .ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.TrustedCrls;
+                }
 
-            return masks == updateMasks;
+                return masks == updateMasks;
+            }
+            finally
+            {
+                issuerCertificates?.Dispose();
+                trustedCertificates?.Dispose();
+            }
         }
 
         private static async Task<bool> UpdateStoreCrlsAsync(
@@ -1541,7 +1556,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 using ICertificateStore store = trustList.OpenStore(telemetry);
-                CertificateCollection storeCerts = await store.EnumerateAsync()
+                using CertificateCollection storeCerts = await store.EnumerateAsync()
                     .ConfigureAwait(false);
                 foreach (Certificate cert in storeCerts)
                 {
@@ -1617,7 +1632,8 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 using ICertificateStore store = storeIdentifier.OpenStore(telemetry);
-                foreach (Certificate cert in store.EnumerateAsync().Result)
+                using CertificateCollection certs = store.EnumerateAsync().Result;
+                foreach (Certificate cert in certs)
                 {
                     if (!store.DeleteAsync(cert.Thumbprint).Result)
                     {

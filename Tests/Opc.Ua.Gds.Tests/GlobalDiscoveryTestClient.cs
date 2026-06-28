@@ -288,9 +288,9 @@ namespace Opc.Ua.Gds.Tests
             ByteString privateKey)
         {
             using var x509 = Certificate.FromRawData(certificate.ToArray());
-            Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
-                    x509,
-                    privateKey.ToArray());
+            using Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
+                x509,
+                privateKey.ToArray());
             CertificateIdentifier oldId = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate;
             var newId = new CertificateIdentifier
             {

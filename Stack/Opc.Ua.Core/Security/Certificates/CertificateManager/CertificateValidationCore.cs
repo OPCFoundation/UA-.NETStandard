@@ -55,7 +55,7 @@ namespace Opc.Ua
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-        private readonly ConcurrentDictionary<string, Certificate> m_validatedCertificates;
+        private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
 
         // Trust-list store instances, cached and reused across validations so
         // that the on-disk trust material (and CRLs) is parsed only once per
@@ -360,11 +360,6 @@ namespace Opc.Ua
         /// </summary>
         private void InternalResetValidatedCertificates()
         {
-            // dispose outdated list
-            foreach (KeyValuePair<string, Certificate> kvp in m_validatedCertificates)
-            {
-                kvp.Value?.Dispose();
-            }
             m_validatedCertificates.Clear();
         }
 
@@ -410,7 +405,7 @@ namespace Opc.Ua
 
                 m_validatedCertificates.GetOrAdd(
                    certificate.Thumbprint,
-                   _ => Certificate.FromRawData(certificate.RawData));
+                   _ => certificate.RawData);
                 return CertificateValidationResult.Success;
             }
             catch (ServiceResultException se)
@@ -596,8 +591,8 @@ namespace Opc.Ua
                 m_useValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(
                     serverCertificate.Thumbprint,
-                    out Certificate? certificate2) &&
-                Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
+                    out byte[]? certificate2) &&
+                Utils.IsEqual(certificate2, serverCertificate.RawData))
             {
                 return;
             }
@@ -712,8 +707,8 @@ namespace Opc.Ua
             if (UseValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(
                     certificate.Thumbprint,
-                    out Certificate? certificate2) &&
-                Utils.IsEqual(certificate2.RawData, certificate.RawData))
+                    out byte[]? certificate2) &&
+                Utils.IsEqual(certificate2, certificate.RawData))
             {
                 return;
             }
@@ -1153,10 +1148,12 @@ namespace Opc.Ua
                     isSuppressible: true);
             }
 
-            // accepted; cache for future fast-path
-            m_validatedCertificates.GetOrAdd(
-                certificate.Thumbprint,
-                _ => Certificate.FromRawData(certificate.RawData));
+            // accepted; cache raw data for future fast-path without adding
+            // another disposable certificate owner to the validation cache.
+            if (!m_validatedCertificates.ContainsKey(certificate.Thumbprint))
+            {
+                m_validatedCertificates.TryAdd(certificate.Thumbprint, certificate.RawData);
+            }
             return CertificateValidationResult.Success;
         }
 
@@ -1484,6 +1481,10 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
             if (srex != null)
             {
+                // GetIssuerNoExceptionAsync may return a resolved (AddRef'd)
+                // issuer reference alongside a revocation error; dispose that
+                // borrowed handle before propagating so it is not leaked.
+                result?.Certificate.Dispose();
                 throw srex;
             }
             return result;

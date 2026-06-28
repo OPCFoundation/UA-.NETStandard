@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.Schema.Model;
+using Opc.Ua.SourceGeneration.Templating;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -531,6 +532,21 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.TargetNamespace.Prefix,
                 method.SymbolicId.Name);
 
+            // The instance-method browse name + namespace are emitted as
+            // string literals so the runtime can perform the
+            // Bad_MethodInvalid interoperability fallback against
+            // non-conformant servers (resolve the instance MethodId via a
+            // HasComponent browse path). Mirrors the child-accessor path.
+            string methodBrowseNamespaceUri = method.SymbolicName?.Namespace;
+            if (string.IsNullOrEmpty(methodBrowseNamespaceUri))
+            {
+                methodBrowseNamespaceUri = targetNamespace;
+            }
+            string methodBrowseNamespaceLiteral =
+                StringLiteralEscaper.AsCSharpStringLiteralContent(methodBrowseNamespaceUri);
+            string methodBrowseNameLiteral =
+                StringLiteralEscaper.AsCSharpStringLiteralContent(methodName);
+
             // Compute the strongly typed return signature.
             string returnTypeAnnotation = GetReturnTypeAnnotation(
                 outputs, targetNamespace, namespaces);
@@ -607,6 +623,8 @@ namespace Opc.Ua.SourceGeneration
             context.Out.WriteLine(
                 "        global::Opc.Ua.ExpandedNodeId.ToNodeId({0}, Session.MessageContext.NamespaceUris),",
                 methodIdConstant);
+            context.Out.WriteLine("        \"{0}\",", methodBrowseNamespaceLiteral);
+            context.Out.WriteLine("        \"{0}\",", methodBrowseNameLiteral);
             context.Out.Write("        ct");
             for (int ii = 0; ii < inputs.Length; ii++)
             {
