@@ -245,8 +245,6 @@ The base package uses `ISharedKeyValueStore` as the common seam for address-spac
 
 `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy.Crdt` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
 
-The package is available on all stack TFMs (`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, and `net10.0`); `netstandard2.1` is not NativeAOT-published.
-
 ```csharp
 services.AddOpcUa()
     .AddServer(server => { })
