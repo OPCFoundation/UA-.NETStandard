@@ -59,19 +59,12 @@ namespace Opc.Ua.Core.Tests
         [OneTimeTearDown]
         public void GlobalTeardown()
         {
-            // Force GC to finalize any abandoned certificates. Multiple
-            // cycles ensure that finalizable objects whose finalizer
-            // creates new garbage are themselves collected. The sweep is
-            // bounded by a watchdog so a stuck finalizer cannot hang the
-            // test host indefinitely during assembly teardown.
-            if (!LeakDetectionHelpers.TryRunFinalizerSweep())
-            {
-                Assert.Warn(
-                    $"Finalizer sweep exceeded {LeakDetectionHelpers.DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
-            }
-
-            long leaked = Certificate.InstancesLeaked;
+            // The certificate leak count is driven by explicit Dispose, not by
+            // finalizers, so it needs no forced GC/finalizer sweep (a no-op for
+            // the count that can hang on unrelated server/socket finalizers).
+            // A positive count is re-checked over a short bounded poll first so
+            // an in-flight background disposal is not misreported as a leak.
+            long leaked = LeakDetectionHelpers.WaitForOutstandingDisposals();
             string summary = $"CoreLeakDetectionSetup: tracked {s_fixtureLeaks.Count} fixtures, " +
                 $"created={Certificate.InstancesCreated}, " +
                 $"disposed={Certificate.InstancesDisposed}, leaked={leaked}";
@@ -125,7 +118,7 @@ namespace Opc.Ua.Core.Tests
                         .OrderByDescending(kv => kv.Value.created - kv.Value.disposed)
                         .Select(kv => $"  {kv.Key}: leaked={kv.Value.created - kv.Value.disposed} (created={kv.Value.created}, disposed={kv.Value.disposed})"));
 
-                Assert.Warn(
+                Assert.Fail(
                     $"Certificate leak detected: {leaked} instance(s) created " +
                     $"but not disposed (created={Certificate.InstancesCreated}, " +
                     $"disposed={Certificate.InstancesDisposed}).\n" +

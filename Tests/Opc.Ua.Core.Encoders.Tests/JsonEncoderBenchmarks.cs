@@ -31,7 +31,6 @@ using System.IO;
 using System.Text;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
-using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
@@ -57,17 +56,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             using var memoryStream = new MemoryStream();
             using var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize, true);
-            test.Flush();
-        }
-
-        /// <summary>
-        /// Benchmark overhead to create StreamWriter and MemoryStream.
-        /// </summary>
-        [Test]
-        public void StreamWriterRecyclableMemoryStream()
-        {
-            using var memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            using var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize);
             test.Flush();
         }
 
@@ -118,16 +106,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         }
 
         /// <summary>
-        /// Test encoding with recyclable memory stream kept open.
-        /// </summary>
-        [Theory]
-        public void JsonEncoderRecyclableMemoryStream(bool toText)
-        {
-            using var memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            TestStreamEncode(memoryStream, toText);
-        }
-
-        /// <summary>
         /// Benchmark encoding with memory stream kept open.
         /// </summary>
         [Benchmark]
@@ -138,19 +116,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             JsonEncoder_StreamLeaveOpen(memoryStream);
             // get buffer for write
             _ = memoryStream.ToArray();
-        }
-
-        /// <summary>
-        /// Benchmark encoding with recyclable memory stream kept open.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void JsonEncoderRecyclableMemoryStream()
-        {
-            using var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager);
-            JsonEncoder_StreamLeaveOpen(recyclableMemoryStream);
-            // get buffers for write
-            _ = recyclableMemoryStream.GetReadOnlySequence();
         }
 
         /// <summary>

@@ -38,9 +38,8 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
-// CA2000: ownership of the rotated certificate copy is transferred to CertificateManager.
 // CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-#pragma warning disable CA2000, CA2007, CA2016
+#pragma warning disable CA2007, CA2016
 
 namespace Opc.Ua.Sessions.Tests
 {
@@ -100,7 +99,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 await certificateManager.UpdateApplicationCertificateAsync(
                     ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                    newCertificate.AddRef(),
+                    newCertificate,
                     issuerChain: null,
                     ct).ConfigureAwait(false);
 

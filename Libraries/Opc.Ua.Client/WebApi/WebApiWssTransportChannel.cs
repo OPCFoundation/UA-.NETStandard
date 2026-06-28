@@ -570,12 +570,17 @@ namespace Opc.Ua.Client.WebApi
 #pragma warning restore CA2025
                     if (!validationResult.IsValid)
                     {
-                        // Throw and let the outer catch log via the
-                        // ServiceResultException; mirrors the production
-                        // HttpsTransportChannel pattern. Avoids logging the raw
-                        // StatusCode field directly (which CodeQL flags as
-                        // CS347 "Clear text storage of sensitive information").
-                        throw new ServiceResultException(validationResult.StatusCode);
+                        // Log a stable, non-tainted message and return false
+                        // directly. Do NOT propagate validationResult.StatusCode
+                        // into a thrown exception that the outer catch will
+                        // log — CodeQL (CS347 "Clear text storage of sensitive
+                        // information") tracks the StatusCode field as
+                        // certificate-derived data and would flag the log
+                        // entry. Mirrors WebApiTransportChannel.
+                        m_logger.LogError(
+                            "{ChannelType} OPC UA certificate validator rejected server certificate.",
+                            nameof(WebApiWssTransportChannel));
+                        return false;
                     }
                     return true;
                 }

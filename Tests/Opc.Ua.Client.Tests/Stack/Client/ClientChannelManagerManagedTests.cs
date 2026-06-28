@@ -1175,11 +1175,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     It.IsAny<Uri>(),
                     It.IsAny<TransportChannelSettings>(),
                     It.IsAny<CancellationToken>()))
+                .Callback<Uri, TransportChannelSettings, CancellationToken>(
+                    (_, settings, _) => DisposeMockOwnedCertificates(settings))
                 .Returns(new ValueTask());
             chMock.Setup(c => c.OpenAsync(
                     It.IsAny<ITransportWaitingConnection>(),
                     It.IsAny<TransportChannelSettings>(),
                     It.IsAny<CancellationToken>()))
+                .Callback<ITransportWaitingConnection, TransportChannelSettings, CancellationToken>(
+                    (_, settings, _) => DisposeMockOwnedCertificates(settings))
                 .Returns(new ValueTask());
             chMock.Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask());
@@ -1197,6 +1201,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 reconnectPolicy,
                 timeProvider);
             return (sut, serverCert, chMock);
+        }
+
+        private static void DisposeMockOwnedCertificates(TransportChannelSettings settings)
+        {
+            settings.ServerCertificate?.Dispose();
+            settings.ServerCertificate = null;
         }
 
         private static ConfiguredEndpoint GetTestEndpoint(Certificate serverCert)

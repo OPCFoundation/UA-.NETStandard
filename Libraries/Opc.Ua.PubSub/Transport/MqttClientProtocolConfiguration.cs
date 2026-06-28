@@ -39,15 +39,12 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// The certificates used by the tls/ssl layer
     /// </summary>
-    // CA1001: public class — adding IDisposable would be a binary breaking change.
-    // The owned Certificate fields are released via finalisation by the underlying
-    // X509Certificate2.
 #pragma warning disable CA1001
     public class MqttTlsCertificates
 #pragma warning restore CA1001
     {
-        private readonly Certificate? m_caCertificate;
-        private readonly Certificate? m_clientCertificate;
+        private Certificate? m_caCertificate;
+        private Certificate? m_clientCertificate;
 
         /// <summary>
         /// Constructor
@@ -60,17 +57,6 @@ namespace Opc.Ua.PubSub.Transport
             CaCertificatePath = caCertificatePath ?? string.Empty;
             ClientCertificatePath = clientCertificatePath ?? string.Empty;
             ClientCertificatePassword = clientCertificatePassword;
-
-            if (!string.IsNullOrEmpty(CaCertificatePath))
-            {
-                m_caCertificate = new Certificate(CaCertificatePath);
-            }
-            if (!string.IsNullOrEmpty(clientCertificatePath))
-            {
-                m_clientCertificate = new Certificate(
-                    clientCertificatePath!,
-                    ClientCertificatePassword);
-            }
 
             KeyValuePairs = [];
 
@@ -129,16 +115,6 @@ namespace Opc.Ua.PubSub.Transport
 
             KeyValuePairs = keyValuePairs;
 
-            if (!string.IsNullOrEmpty(CaCertificatePath))
-            {
-                m_caCertificate = new Certificate(CaCertificatePath);
-            }
-            if (!string.IsNullOrEmpty(ClientCertificatePath))
-            {
-                m_clientCertificate = new Certificate(
-                    ClientCertificatePath,
-                    ClientCertificatePassword);
-            }
         }
 
         internal string CaCertificatePath { get; set; }
@@ -152,6 +128,17 @@ namespace Opc.Ua.PubSub.Transport
             get
             {
                 var values = new List<Certificate>();
+                if (m_caCertificate == null && !string.IsNullOrEmpty(CaCertificatePath))
+                {
+                    m_caCertificate = new Certificate(CaCertificatePath);
+                }
+                if (m_clientCertificate == null && !string.IsNullOrEmpty(ClientCertificatePath))
+                {
+                    m_clientCertificate = new Certificate(
+                        ClientCertificatePath,
+                        ClientCertificatePassword);
+                }
+
                 if (m_caCertificate != null)
                 {
                     values.Add(m_caCertificate);
@@ -162,6 +149,12 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 return values;
             }
+        }
+
+        internal void DisposeCertificates()
+        {
+            m_caCertificate?.Dispose();
+            m_clientCertificate?.Dispose();
         }
     }
 
@@ -415,6 +408,11 @@ namespace Opc.Ua.PubSub.Transport
         internal CertificateStoreIdentifier? TrustedPeerCertificates { get; set; }
         internal CertificateStoreIdentifier? RejectedCertificateStore { get; set; }
         internal ArrayOf<KeyValuePair> KeyValuePairs { get; set; }
+
+        internal void DisposeCertificates()
+        {
+            Certificates?.DisposeCertificates();
+        }
     }
 
     /// <summary>
@@ -591,5 +589,10 @@ namespace Opc.Ua.PubSub.Transport
         /// The key value pairs representing the parameters of a MqttClientProtocolConfiguration
         /// </summary>
         public ArrayOf<KeyValuePair> ConnectionProperties { get; set; }
+
+        internal void DisposeCertificates()
+        {
+            MqttTlsOptions?.DisposeCertificates();
+        }
     }
 }

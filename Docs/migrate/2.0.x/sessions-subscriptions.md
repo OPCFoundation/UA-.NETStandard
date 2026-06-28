@@ -250,7 +250,7 @@ after the handler `await` completes and calls
 their static activator pools. The recorded benchmarks show ~315× fewer
 allocations per `MonitoredItemNotification` and a corresponding drop in
 gen-0 GC pressure
-(see [`Docs/perf/PooledNotificationBenchmarks.md`](../../perf/PooledNotificationBenchmarks.md)).
+(see [`Docs/Benchmarks.md` → *Pooled encodeable*](../../Benchmarks.md#pooled-encodeable)).
 
 **Handler contract change (only when `WithPoolNotifications` is enabled):**
 Handlers must **not** retain references to notification objects past the

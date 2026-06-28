@@ -160,6 +160,7 @@ namespace Opc.Ua.Bindings
                 m_requests?.Clear();
                 m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
+                ServerCertificate?.Dispose();
             }
 
             base.Dispose(disposing);

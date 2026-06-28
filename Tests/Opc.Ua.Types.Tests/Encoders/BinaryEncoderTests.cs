@@ -5850,14 +5850,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<
-#if NET8_0_OR_GREATER
-                ArgumentOutOfRangeException
-#else
-                ArgumentException
-#endif
-            >(
-            () => encoder.WriteRawBytes(buffer, 2, 2));
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => encoder.WriteRawBytes(buffer, 2, 2));
         }
 
         [Test]
@@ -5875,14 +5869,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<
-#if NET8_0_OR_GREATER
-                ArgumentOutOfRangeException
-#else
-                ArgumentException
-#endif
-            >(
-            () => encoder.WriteRawBytes(buffer, 4, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => encoder.WriteRawBytes(buffer, 4, 0));
         }
 
         [Test]
@@ -5899,13 +5887,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<
-#if NET8_0_OR_GREATER
-                ArgumentOutOfRangeException
-#else
-                ArgumentException
-#endif
-                >(
+            Assert.Throws<ArgumentOutOfRangeException>(
                 () => encoder.WriteRawBytes(buffer, 0, 5));
         }
 
@@ -5923,14 +5905,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<
-#if NET8_0_OR_GREATER
-                ArgumentOutOfRangeException
-#else
-                ArgumentException
-#endif
-            >(
-            () => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
         }
 
         [Test]

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
-using Microsoft.IO;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
@@ -128,8 +127,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_context = ServiceMessageContext.Create(m_telemetry);
-            m_memoryManager = new RecyclableMemoryStreamManager(
-                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(
                 nameof(BinaryEncoder),
                 StreamBufferSize,
@@ -140,7 +137,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             m_context = null;
             m_telemetry = null;
-            m_memoryManager = null;
             m_bufferManager = null;
         }
 
@@ -152,8 +148,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_context = ServiceMessageContext.Create(m_telemetry);
-            m_memoryManager = new RecyclableMemoryStreamManager(
-                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(
                 nameof(BinaryEncoder),
                 StreamBufferSize,
@@ -167,7 +161,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             m_context = null;
             m_telemetry = null;
-            m_memoryManager = null;
             m_bufferManager = null;
         }
 
@@ -176,7 +169,6 @@ namespace Opc.Ua.Core.Encoders.Tests
         protected ArrayOf<DataValue> m_values;
         protected ITelemetryContext m_telemetry;
         protected IServiceMessageContext m_context;
-        protected RecyclableMemoryStreamManager m_memoryManager;
         protected BufferManager m_bufferManager;
     }
 

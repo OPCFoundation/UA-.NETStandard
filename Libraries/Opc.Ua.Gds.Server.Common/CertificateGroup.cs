@@ -43,7 +43,7 @@ using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509Aut
 
 namespace Opc.Ua.Gds.Server
 {
-    public class CertificateGroup : ICertificateGroup
+    public class CertificateGroup : ICertificateGroup, IDisposable
     {
         /// <inheritdoc/>
         public NodeId Id { get; set; }
@@ -184,14 +184,14 @@ namespace Opc.Ua.Gds.Server
                                     continue;
                                 }
                             }
-                            Certificates[certificateType] = certificate;
+                            SetCertificate(certificateType, certificate.AddRef());
                         }
                     }
                 }
             }
             finally
             {
-                store?.Close();
+                store?.Dispose();
             }
 
             foreach (KeyValuePair<NodeId, Certificate?> keyValuePair in Certificates)
@@ -209,8 +209,9 @@ namespace Opc.Ua.Gds.Server
                         Configuration.CACertificateKeySize,
                         Configuration.CACertificateHashSize,
                         Configuration.CACertificateLifetime);
-                    await CreateCACertificateAsync(SubjectName, certificateType, ct).ConfigureAwait(
-                        false);
+                    using Certificate createdCertificate =
+                        await CreateCACertificateAsync(SubjectName, certificateType, ct).ConfigureAwait(
+                            false);
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Created CA certificate {Certificate}",
@@ -504,7 +505,7 @@ namespace Opc.Ua.Gds.Server
                 ct).ConfigureAwait(false);
 
             // save only public key
-            Certificates[certificateType] = Certificate.FromRawData(certificate.RawData);
+            SetCertificate(certificateType, Certificate.FromRawData(certificate.RawData));
 
             // initialize revocation list
             X509CRL initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
@@ -524,7 +525,43 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
             }
 
-            return Certificates[certificateType]!;
+            return Certificates[certificateType]!.AddRef();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases certificates owned by the group.
+        /// </summary>
+        /// <param name="disposing"><c>true</c> to release managed resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing)
+            {
+                return;
+            }
+
+            foreach (Certificate? certificate in Certificates.Values)
+            {
+                certificate?.Dispose();
+            }
+
+            Certificates.Clear();
+        }
+
+        private void SetCertificate(NodeId certificateType, Certificate certificate)
+        {
+            if (Certificates.TryGetValue(certificateType, out Certificate? existing))
+            {
+                existing?.Dispose();
+            }
+
+            Certificates[certificateType] = certificate;
         }
 
         /// <summary>
@@ -647,7 +684,7 @@ namespace Opc.Ua.Gds.Server
             }
             finally
             {
-                store.Close();
+                store.Dispose();
             }
         }
 
@@ -720,7 +757,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ArgumentException("Invalid store path/type");
                 }
-                Certificate certCA =
+                using Certificate certCA =
                     await X509Utils
                         .FindIssuerCABySerialNumberAsync(
                             store,
@@ -745,7 +782,7 @@ namespace Opc.Ua.Gds.Server
                     SubjectName = certCA.Subject,
                     CertificateType = CertificateIdentifier.GetCertificateType(certCA)
                 };
-                Certificate certCAWithPrivateKey =
+                using Certificate certCAWithPrivateKey =
                     await CertificateIdentifierResolver.LoadPrivateKeyAsync(
                         certCAIdentifier,
                         new CertificatePasswordProvider(issuerKeyFilePassword),
@@ -787,7 +824,7 @@ namespace Opc.Ua.Gds.Server
             }
             finally
             {
-                store.Close();
+                store.Dispose();
             }
             return updatedCRL!;
         }
@@ -886,8 +923,8 @@ namespace Opc.Ua.Gds.Server
             }
             finally
             {
-                authorityStore.Close();
-                trustedOrIssuerStore.Close();
+                authorityStore.Dispose();
+                trustedOrIssuerStore.Dispose();
             }
         }
 

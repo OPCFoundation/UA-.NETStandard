@@ -60,6 +60,18 @@ namespace Opc.Ua.Buffers
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/>
+        /// class that optionally clears (zeroes) rented buffers when they are
+        /// returned to the pool. Use this when the buffer may hold sensitive
+        /// data (e.g. encoded secrets or credentials) so leftover bytes are not
+        /// exposed to the next consumer of the shared pool.
+        /// </summary>
+        public ArrayPoolBufferWriter(bool clearArray)
+            : this(clearArray, kDefaultChunkSize, kMaxChunkSize)
+        {
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
         public ArrayPoolBufferWriter(int defaultChunksize, int maxChunkSize)

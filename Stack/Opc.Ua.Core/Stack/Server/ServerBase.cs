@@ -152,6 +152,14 @@ namespace Opc.Ua
                 UserTokenPolicys?.Clear();
 
                 m_requestQueue?.Dispose();
+
+                // Dispose the certificate manager only when this server created
+                // it (the configuration did not supply one); an adopted manager
+                // is owned by the surrounding ApplicationInstance / configuration.
+                if (m_ownsCertificateManager)
+                {
+                    CertificateManager?.Dispose();
+                }
             }
         }
 
@@ -1455,6 +1463,13 @@ namespace Opc.Ua
                     CertificateManager = CertificateManagerFactory.Create(
                         configuration.SecurityConfiguration,
                         m_telemetry);
+
+                    // The server created (and therefore owns) this manager
+                    // because the configuration did not supply one; publish it
+                    // back so consumers reading configuration.CertificateManager
+                    // observe it, and remember to dispose it on shutdown.
+                    configuration.CertificateManager = CertificateManager;
+                    m_ownsCertificateManager = true;
                 }
                 await CertificateManager.LoadApplicationCertificatesAsync(
                     configuration.SecurityConfiguration,
@@ -1678,5 +1693,6 @@ namespace Opc.Ua
         private ITransportBindingRegistry? m_transportBindings;
 
         private bool m_disposed;
+        private bool m_ownsCertificateManager;
     }
 }

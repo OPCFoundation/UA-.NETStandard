@@ -1309,50 +1309,59 @@ namespace Opc.Ua.Client
             CreateSessionResponse? response = null;
 
             // if security none, first try to connect without certificate
-            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+            try
             {
-                // first try to connect with client certificate NULL
-                try
+                if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+                {
+                    // first try to connect with client certificate NULL
+                    try
+                    {
+                        response = await base.CreateSessionAsync(
+                            null,
+                            clientDescription,
+                            m_endpoint.Description.Server.ApplicationUri,
+                            m_endpoint.EndpointUrl!.ToString(),
+                            sessionName,
+                            clientNonce,
+                            default,
+                            sessionTimeout,
+                            maxMessageSize,
+                            ct).ConfigureAwait(false);
+
+                        successCreateSession = true;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.LogWarning(ex, "Create session failed with client certificate NULL.");
+                        successCreateSession = false;
+                    }
+                }
+
+                if (!successCreateSession)
                 {
                     response = await base.CreateSessionAsync(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
-                        default,
+                        clientCertificateChainData.IsEmpty ?
+                            clientCertificateData :
+                            clientCertificateChainData,
                         sessionTimeout,
                         maxMessageSize,
                         ct).ConfigureAwait(false);
-
-                    successCreateSession = true;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    m_logger.LogWarning(ex, "Create session failed with client certificate NULL.");
-                    successCreateSession = false;
                 }
             }
-
-            if (!successCreateSession)
+            catch
             {
-                response = await base.CreateSessionAsync(
-                    requestHeader,
-                    clientDescription,
-                    m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl!.ToString(),
-                    sessionName,
-                    clientNonce,
-                    clientCertificateChainData.IsEmpty ?
-                        clientCertificateData :
-                        clientCertificateChainData,
-                    sessionTimeout,
-                    maxMessageSize,
-                    ct).ConfigureAwait(false);
+                serverCertificate?.Dispose();
+                throw;
             }
             if (response is null || response.SessionId.IsNull)
             {
+                serverCertificate?.Dispose();
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
             }
@@ -5036,35 +5045,36 @@ namespace Opc.Ua.Client
         private RequestHeader? CreateRequestHeaderForActivateSession(
             string userTokenSecurityPolicyUri)
         {
-            var requestHeader = new RequestHeader();
-            var parameters = new AdditionalParametersType();
-
-            if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
-            {
-                SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
-
-                if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
-                {
-                    parameters.Parameters =
-                    [
-                        new KeyValuePair
-                        {
-                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                            Value = userTokenSecurityPolicyUri
-                        }
-                    ];
-
-                    m_logger.LogWarning("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
-                }
-            }
-
-            if (parameters.Parameters.Count == 0)
+            if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
                 return null;
             }
 
-            requestHeader.AdditionalHeader = new ExtensionObject(parameters);
-            return requestHeader;
+            SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+
+            if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return null;
+            }
+
+            m_logger.LogInformation("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
+
+            var parameters = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = userTokenSecurityPolicyUri
+                    }
+                ]
+            };
+
+            return new RequestHeader
+            {
+                AdditionalHeader = new ExtensionObject(parameters)
+            };
         }
 
         /// <summary>

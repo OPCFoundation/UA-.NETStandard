@@ -199,26 +199,18 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
         }
 
         /// <summary>
-        /// Strips line-ending and other control characters from a user-supplied
-        /// request path before it is written to a log message. Mitigates the
-        /// CodeQL "Log entries created from user input" finding: a peer may
-        /// include CR/LF in the URL path to forge fake log lines.
+        /// Percent-encodes a user-supplied request path before it is written
+        /// to a log message. Mitigates the CodeQL "Log entries created from
+        /// user input" finding (cs/log-forging): a peer may include CR/LF or
+        /// other control characters in the URL path to forge fake log lines.
+        /// <see cref="Uri.EscapeDataString(string)"/> is recognised by CodeQL
+        /// as a log-forging sanitizer and percent-encodes every control
+        /// character (including CR/LF) along with reserved URI characters.
         /// </summary>
         private static string SanitizePathForLog(PathString path)
         {
             string? value = path.HasValue ? path.Value : null;
-            if (string.IsNullOrEmpty(value))
-            {
-                return string.Empty;
-            }
-            // Replace line endings first, then drop any remaining control chars.
-            value = value.ReplaceLineEndings(string.Empty);
-            var sb = new System.Text.StringBuilder(value.Length);
-            foreach (char ch in value)
-            {
-                sb.Append(char.IsControl(ch) ? '?' : ch);
-            }
-            return sb.ToString();
+            return string.IsNullOrEmpty(value) ? string.Empty : Uri.EscapeDataString(value);
         }
     }
 }

@@ -51,7 +51,9 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using var entry = new CertificateEntry(cert, chain, certType);
 
-            Assert.That(entry.Certificate, Is.SameAs(cert));
+            // CertificateEntry stores an independent AddRef handle (distinct
+            // object, value-equal) rather than the caller's instance.
+            Assert.That(entry.Certificate, Is.EqualTo(cert));
             Assert.That(entry.IssuerChain, Is.Not.SameAs(chain));
             Assert.That(entry.IssuerChain, Has.Count.EqualTo(chain.Count));
             Assert.That(entry.CertificateType, Is.EqualTo(certType));
