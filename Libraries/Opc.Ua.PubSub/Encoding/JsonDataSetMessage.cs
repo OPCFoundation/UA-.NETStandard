@@ -500,7 +500,7 @@ namespace Opc.Ua.PubSub.Encoding
             // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
             if (valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode &&
                 valueToEncode.TryGetValue(out StatusCode statusCode) &&
-                statusCode == StatusCodes.Good &&
+                statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits) &&
                 m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {
                 valueToEncode = Variant.Null;

@@ -440,7 +440,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(DataValue other)
         {
-            return StatusCode == other.StatusCode &&
+            return StatusCode.Equals(other.StatusCode, StatusCodeComparison.AllBits) &&
                 ServerTimestamp == other.ServerTimestamp &&
                 SourceTimestamp == other.SourceTimestamp &&
                 ServerPicoseconds == other.ServerPicoseconds &&
