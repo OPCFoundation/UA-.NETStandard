@@ -1793,7 +1793,7 @@ namespace Opc.Ua.Server
             }
 
             // value changed if any status change occurrs.
-            if (status != lastStatus)
+            if (!status.Equals(lastStatus, StatusCodeComparison.AllBits))
             {
                 return true;
             }

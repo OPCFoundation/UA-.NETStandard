@@ -66,6 +66,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
+            await DisconnectClientAsync().ConfigureAwait(false);
             if (m_application != null)
             {
                 await m_application.DisposeAsync().ConfigureAwait(false);

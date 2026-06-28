@@ -1698,7 +1698,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
             }
 
-            if (value.StatusCode != StatusCodes.Good)
+            if (!value.StatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteStatusCode(
                     "StatusCode",
@@ -2432,7 +2432,8 @@ namespace Opc.Ua.PubSub.Encoding
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!UseReversibleEncoding && values[ii] == StatusCodes.Good)
+                if (!UseReversibleEncoding &&
+                    values[ii].Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                 {
                     WriteSimpleFieldNull(null);
                 }
@@ -2927,7 +2928,7 @@ namespace Opc.Ua.PubSub.Encoding
                 if (mask is not DataSetFieldContentMask.None and not DataSetFieldContentMask.RawData)
                 {
                     if ((mask & DataSetFieldContentMask.StatusCode) != 0 &&
-                        dv.StatusCode != StatusCodes.Good)
+                        !dv.StatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                     {
                         WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
                     }
@@ -3460,7 +3461,7 @@ namespace Opc.Ua.PubSub.Encoding
             StatusCode value,
             EscapeOptions escapeOptions)
         {
-            bool isNull = value == StatusCodes.Good;
+            bool isNull = value.Equals(StatusCodes.Good, StatusCodeComparison.AllBits);
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -3662,7 +3663,8 @@ namespace Opc.Ua.PubSub.Encoding
                         EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
 
-                if (value.InnerStatusCode != StatusCodes.Good)
+                if (!value.InnerStatusCode.Equals(
+                    StatusCodes.Good, StatusCodeComparison.AllBits))
                 {
                     WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
                 }

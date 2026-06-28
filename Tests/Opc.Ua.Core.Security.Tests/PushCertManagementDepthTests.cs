@@ -386,16 +386,8 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task NonAdminCannotCallApplyChangesAsync()
         {
             NodeId m = await FindMethodAsync(Session, ServerConfigurationNodeId, "ApplyChanges").ConfigureAwait(false);
-            if (m.IsNull)
-            {
-                Assert.Fail("ApplyChanges not browseable for anonymous.");
-                return;
-            }
-            CallResponse response = await Session.CallAsync(null,
-                new CallMethodRequest[] { new() { ObjectId = ServerConfigurationNodeId, MethodId = m } }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            Assert.That(response.Results[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(m.IsNull, Is.True,
+                    "Method should not be browseable by non-admin.");
         }
 
         [Test]

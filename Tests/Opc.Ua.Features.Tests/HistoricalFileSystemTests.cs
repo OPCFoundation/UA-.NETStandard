@@ -60,10 +60,8 @@ namespace Opc.Ua.Features.Tests
         private string m_filePath;
 
         [OneTimeSetUp]
-        public new async Task OneTimeSetUp()
+        public async Task InitializeFileSystemNodesAsync()
         {
-            await base.OneTimeSetUp().ConfigureAwait(false);
-
             m_volumeId = await FindFirstVolumeAsync().ConfigureAwait(false);
             if (m_volumeId.IsNull)
             {

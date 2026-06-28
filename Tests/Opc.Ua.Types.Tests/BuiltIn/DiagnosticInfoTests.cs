@@ -448,6 +448,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsDifferentInnerStatusCodeFlagBitsReturnsFalse()
+        {
+            var di1 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerStatusCode = StatusCodes.Good };
+            var di2 = new DiagnosticInfo(1, 2, 3, 4, "test")
+            {
+                InnerStatusCode = StatusCodes.Good.SetStructureChanged(true)
+            };
+
+            Assert.That(di1, Is.Not.EqualTo(di2));
+        }
+
+        [Test]
         public void EqualsWithMatchingInnerDiagnosticInfoReturnsTrue()
         {
             var inner1 = new DiagnosticInfo(10, 20, 30, 40, "inner");
@@ -656,6 +668,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void IsNullDiagnosticInfoReturnsFalseWithNonGoodStatusCode()
         {
             var di = new DiagnosticInfo { InnerStatusCode = StatusCodes.Bad };
+
+            Assert.That(di.IsNullDiagnosticInfo, Is.False);
+        }
+
+        [Test]
+        public void IsNullDiagnosticInfoReturnsFalseWithGoodStatusCodeFlagBits()
+        {
+            var di = new DiagnosticInfo
+            {
+                InnerStatusCode = StatusCodes.Good.SetSemanticsChanged(true)
+            };
 
             Assert.That(di.IsNullDiagnosticInfo, Is.False);
         }
