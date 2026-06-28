@@ -41,7 +41,7 @@ table; loading a single sub-doc keeps the context window small.
 | `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect | [`sessions-subscriptions.md`](sessions-subscriptions.md) |
 | `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator`, `INodeCache.InvalidateNode` triggered by model change | [`alarms-model-change.md`](alarms-model-change.md) |
 | `DateTime.UtcNow`, `Timer`, deterministic time in tests; `System.TimeProvider` adoption | [`timeprovider.md`](timeprovider.md) |
-| `CS1061` on `ITransportListener.Open` / `Close`, `CS8418` on `using var listener = …`, `CS0535` on custom `ITransportListenerFactory.CreateServiceHost`, `ITransportListenerCertificateRotation.CloseChannelsForCertificate` rename | [`transport-listener-async.md`](transport-listener-async.md) |
+| `ITransportListener.Open` / `Close` removed, `using var listener = …` no longer compiles, custom `ITransportListenerFactory` / `ITransportListenerCertificateRotation` implementers need the new async method names | [`transport-listener-async.md`](transport-listener-async.md) |
 
 ## All sub-documents
 

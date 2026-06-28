@@ -1628,30 +1628,13 @@ namespace Opc.Ua
         /// <summary>
         /// Result of <see cref="InitializeServiceHostsAsync"/>.
         /// </summary>
-        protected readonly struct ServiceHostInitializationResult
-        {
-            /// <summary>
-            /// Creates a new instance.
-            /// </summary>
-            public ServiceHostInitializationResult(
-                IList<ServiceHost> hosts,
-                ApplicationDescription? serverDescription,
-                ArrayOf<EndpointDescription> endpoints)
-            {
-                Hosts = hosts;
-                ServerDescription = serverDescription;
-                Endpoints = endpoints;
-            }
-
-            /// <summary>The created service hosts.</summary>
-            public IList<ServiceHost> Hosts { get; }
-
-            /// <summary>The application description aggregated across hosts.</summary>
-            public ApplicationDescription? ServerDescription { get; }
-
-            /// <summary>The endpoint descriptions advertised by the hosts.</summary>
-            public ArrayOf<EndpointDescription> Endpoints { get; }
-        }
+        /// <param name="Hosts">The created service hosts.</param>
+        /// <param name="ServerDescription">The application description aggregated across hosts.</param>
+        /// <param name="Endpoints">The endpoint descriptions advertised by the hosts.</param>
+        protected readonly record struct ServiceHostInitializationResult(
+            IList<ServiceHost> Hosts,
+            ApplicationDescription? ServerDescription,
+            ArrayOf<EndpointDescription> Endpoints);
 
         /// <summary>
         /// Creates the endpoints and creates the hosts.

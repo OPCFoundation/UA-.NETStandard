@@ -943,9 +943,9 @@ namespace Opc.Ua.Client
                 // ConfiguredEndpoint.UpdateFromServer (called when
                 // updateBeforeConnect is true) honours the user's
                 // TransportProfileUri selection in its MatchEndpoints
-                // pipeline (see #3923), so an HTTPS / WSS OpenAPI choice
-                // is no longer swapped for a binary twin. Always refresh
-                // before connecting.
+                // pipeline, so an HTTPS / WSS OpenAPI choice is no longer
+                // swapped for a binary twin. Always refresh before
+                // connecting.
 
                 Session session;
                 if (m_channelManager != null)
