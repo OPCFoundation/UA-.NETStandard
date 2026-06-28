@@ -358,7 +358,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task CleanupStoreAsync(ICertificateStore store)
         {
-            CertificateCollection certs
+            using CertificateCollection certs
                 = await store
                 .EnumerateAsync()
                 .ConfigureAwait(false);

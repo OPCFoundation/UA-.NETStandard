@@ -232,7 +232,14 @@ namespace Opc.Ua
             ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
             if (channel != null)
             {
-                await channel.CloseAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await channel.CloseAsync(ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    channel.Dispose();
+                }
             }
 
             AuthenticationToken = NodeId.Null;
@@ -283,11 +290,15 @@ namespace Opc.Ua
                 try
                 {
                     await channel.CloseAsync(ct).ConfigureAwait(false);
-                    channel.Dispose();
                 }
                 catch
                 {
-                    // ignore errors.
+                    // ignore errors during close; the channel is still
+                    // disposed below so it does not leak its certificates.
+                }
+                finally
+                {
+                    channel.Dispose();
                 }
             }
         }

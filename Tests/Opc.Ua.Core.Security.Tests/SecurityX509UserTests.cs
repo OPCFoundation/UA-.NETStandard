@@ -947,7 +947,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             using ICertificateStore store =
                 userCertStore.OpenStore(Telemetry);
-            await store.AddAsync(cert.AddRef()).ConfigureAwait(false);
+            await store.AddAsync(cert).ConfigureAwait(false);
         }
 
         private async Task RemoveCertFromServerTrustStoreAsync(

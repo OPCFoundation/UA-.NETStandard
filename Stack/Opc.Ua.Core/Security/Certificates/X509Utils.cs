@@ -758,7 +758,7 @@ namespace Opc.Ua
             X500DistinguishedName issuer,
             string serialnumber)
         {
-            CertificateCollection certificates = await store.EnumerateAsync()
+            using CertificateCollection certificates = await store.EnumerateAsync()
                 .ConfigureAwait(false);
 
             foreach (Certificate certificate in certificates)
@@ -766,7 +766,7 @@ namespace Opc.Ua
                 if (CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
-                    return certificate;
+                    return certificate.AddRef();
                 }
             }
 
@@ -781,7 +781,7 @@ namespace Opc.Ua
             X500DistinguishedName issuer,
             string keyIdentifier)
         {
-            CertificateCollection certificates = await store.EnumerateAsync()
+            using CertificateCollection certificates = await store.EnumerateAsync()
                 .ConfigureAwait(false);
             foreach (Certificate certificate in certificates)
             {
@@ -790,7 +790,7 @@ namespace Opc.Ua
                     X509SubjectKeyIdentifierExtension? subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
                     if (subject != null && Utils.IsEqual(subject.SubjectKeyIdentifier, keyIdentifier))
                     {
-                        return certificate;
+                        return certificate.AddRef();
                     }
                 }
             }

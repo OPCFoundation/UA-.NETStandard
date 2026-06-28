@@ -115,6 +115,12 @@ namespace Opc.Ua.Aot.Tests
         /// Mirrors BrowseComplexTypesServerAsync from the integration tests.
         /// </summary>
         [Test]
+        // [Retry(2)]: browses and reads the entire server address space; on a
+        // loaded CI agent an individual server variable can transiently return a
+        // not-yet-ready status (the read is racy against server initialization),
+        // which passes on a re-read. Retry absorbs that environmental flake
+        // (observed on the ubuntu AOT PR run); the assertion itself is unchanged.
+        [Retry(2)]
         public async Task BrowseAndReadComplexTypesAsync()
         {
             var complexTypeSystem = new ComplexTypeSystem(

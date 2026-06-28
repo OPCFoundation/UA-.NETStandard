@@ -1273,9 +1273,13 @@ namespace Opc.Ua
 
             foreach (FileInfo file in files)
             {
+                // Each Certificate.From(...) handle below is owned directly by
+                // the Entry it is placed into (no intermediate collection that
+                // would AddRef and orphan the original handle). Any handle not
+                // yet transferred to an Entry is disposed on failure.
+                var loaded = new List<Certificate>();
                 try
                 {
-                    using var certificatesInFile = new CertificateCollection();
                     if (file.Extension
                         .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1284,26 +1288,31 @@ namespace Opc.Ua
                                 File.ReadAllBytes(file.FullName));
                         foreach (X509Certificate2 pemCert in pemCerts)
                         {
-                            certificatesInFile.Add(Certificate.From(pemCert));
+                            loaded.Add(Certificate.From(pemCert));
                         }
                     }
                     else
                     {
-                        certificatesInFile.Add(
+                        loaded.Add(
                             Certificate.From(
                                 X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
                     }
 
-                    foreach (Certificate certificate in certificatesInFile)
+                    for (int ii = 0; ii < loaded.Count; ii++)
                     {
+                        Certificate certificate = loaded[ii];
                         var entry = new Entry
                         {
+                            // Entry takes sole ownership of this handle.
                             Certificate = certificate,
                             CertificateFile = file,
                             PrivateKeyFile = null!,
                             CertificateWithPrivateKey = null!,
                             LastWriteTimeUtc = file.LastWriteTimeUtc
                         };
+                        // Ownership transferred to the entry; clear the slot so
+                        // the finally-block does not also dispose it.
+                        loaded[ii] = null!;
 
                         if (!NoPrivateKeys && m_privateKeySubdir is { } pkSubdir)
                         {
@@ -1371,6 +1380,15 @@ namespace Opc.Ua
                         e,
                         "Could not load certificate from file: {FilePath}",
                         file.FullName);
+                }
+                finally
+                {
+                    // Dispose any loaded handle that was not transferred to an
+                    // Entry (e.g. an exception occurred mid-iteration).
+                    foreach (Certificate? leftover in loaded)
+                    {
+                        leftover?.Dispose();
+                    }
                 }
             }
 

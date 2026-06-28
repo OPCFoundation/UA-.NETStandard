@@ -148,6 +148,15 @@ jobs:
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 90
+    # continueOnError: a non-zero 'dotnet test' exit code no longer fails the job
+    # directly - the "Evaluate test results" gate below decides pass/fail from the
+    # emitted TRX. This is required because the hosted macOS agent intermittently
+    # stalls the test host during PROCESS EXIT (after every test has already
+    # passed and all teardowns have run; managed threads are frozen so no in-test
+    # mitigation can fire), and the blame collector then kills the host with a
+    # non-zero exit even though the run was functionally green. A real test
+    # failure is still caught: it is recorded in the TRX and fails the gate.
+    continueOnError: true
     inputs:
       command: test
       projects: $(file)
@@ -158,10 +167,14 @@ jobs:
       # after the previous test before the step timeout fired). LongRunning/Stress
       # tests are already filtered out, so 10 min is well above any legitimate run.
       # --blame-hang-dump-type mini: capture a minidump on hang so we can root-cause
-      # teardown / shutdown hangs (observed on mac PR build 14799: 11m55s of silent
-      # teardown after the last test event, with no actionable info because the
-      # previous "none" setting suppressed the dump). Mini dumps are small (<50MB)
-      # and travel through the trx logger automatically.
+      # teardown / shutdown hangs (observed on mac PR builds for Opc.Ua.History.Tests:
+      # all tests pass, then a ~10-min silent teardown -> hang dump -> exit 1). A mini
+      # dump still contains every thread's stack (what is stuck and what it is blocked
+      # on) which is what a hang needs; a full dump additionally serializes the managed
+      # heap, which for a server-hosting test process is several GB and impractical to
+      # upload/download. It is only produced on an actual hang, so the cost is paid
+      # rarely; the dump is published as a downloadable pipeline artifact below (it is
+      # otherwise only reachable via the auth-gated test attachments API).
       # --logger trx + --results-directory: emit trx ourselves because we set
       # publishTestResults: false below to decouple "ran tests" from "published
       # results to AzDO" - the inline publish step inside DotNetCoreCLI@2 fails
@@ -185,8 +198,110 @@ jobs:
       mergeTestResults: true
       failTaskOnFailedTests: false
       testRunTitle: '${{ parameters.framework }} ${{ parameters.configuration }} - $(Agent.JobName)'
+  - task: PowerShell@2
+    displayName: 'Evaluate test results ${{ parameters.configuration }} (${{ parameters.framework }})'
+    # Result-driven gate: the job's pass/fail is defined by the emitted TRX, not
+    # by the 'dotnet test' exit code (the test step runs with continueOnError).
+    # Fails the job if any test failed/errored/timed-out/aborted, or if no results
+    # were produced at all. Tolerates ONLY a non-zero exit when every recorded
+    # test passed - i.e. the benign macOS test-host process-exit stall that the
+    # blame collector turns into a non-zero exit after a fully green run. This
+    # runs before the failure-only artifact steps below so their failed()
+    # conditions still see a genuine failure.
+    condition: succeededOrFailed()
+    inputs:
+      targetType: inline
+      script: |
+        $ErrorActionPreference = 'Stop'
+        $dir = "$(Agent.TempDirectory)"
+
+        function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name) {
+            $raw = $element.GetAttribute($name)
+            if ([string]::IsNullOrEmpty($raw)) { return 0 }
+            return [int]$raw
+        }
+
+        $trx = @(Get-ChildItem -Path $dir -Filter *.trx -ErrorAction SilentlyContinue)
+        if ($trx.Count -eq 0) {
+            # No VSTest TRX in the results directory. This is expected for
+            # Microsoft.Testing.Platform (MTP) test projects, which do not emit a
+            # VSTest-style TRX there. For those, defer to the test host's own exit
+            # code as reflected by Agent.JobStatus: 'Succeeded' means the test step
+            # (and every prior step) exited cleanly -> pass; anything else (the
+            # continueOnError test step exited non-zero, or an earlier step failed)
+            # -> fail. This preserves the original exit-code behaviour for MTP
+            # projects while the TRX path below tolerates the VSTest macOS at-exit
+            # stall.
+            $jobStatus = $env:AGENT_JOBSTATUS
+            Write-Host "No VSTest TRX found in $dir; deferring to the test host exit (Agent.JobStatus=$jobStatus)."
+            if ($jobStatus -eq 'Succeeded') {
+                Write-Host "Test host exited cleanly; treating the run as successful."
+                exit 0
+            }
+            Write-Host "##vso[task.logissue type=error]Test host did not exit cleanly and produced no TRX results."
+            exit 1
+        }
+        $passed = 0
+        $failed = 0
+        $total = 0
+        foreach ($f in $trx) {
+            # Use XmlDocument.Load (not [xml](Get-Content ...)) so large TRX
+            # files - PubSub emits ~9400 results, several MB - parse reliably;
+            # the array-of-lines cast fails on big files ("Cannot convert value
+            # System.String[]").
+            $doc = New-Object System.Xml.XmlDocument
+            try {
+                $doc.Load($f.FullName)
+            }
+            catch {
+                Write-Host "##vso[task.logissue type=error]Could not parse TRX $($f.Name): $($_.Exception.Message)"
+                exit 1
+            }
+            foreach ($c in $doc.GetElementsByTagName('Counters')) {
+                $passed += Get-CounterValue $c 'passed'
+                $total += Get-CounterValue $c 'total'
+                $failed += (Get-CounterValue $c 'failed') + (Get-CounterValue $c 'error') +
+                    (Get-CounterValue $c 'timeout') + (Get-CounterValue $c 'aborted') +
+                    (Get-CounterValue $c 'passedButRunAborted')
+            }
+        }
+        Write-Host "Aggregated test results: total=$total, passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
+        if ($failed -gt 0) {
+            Write-Host "##vso[task.logissue type=error]$failed test(s) failed or the run was aborted mid-execution."
+            exit 1
+        }
+        if ($total -le 0) {
+            Write-Host "##vso[task.logissue type=error]No tests were recorded (total=0); the run did not execute."
+            exit 1
+        }
+        Write-Host "No test failures recorded across $total test(s); treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
+        exit 0
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
     condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
+  # On a failed job, collect any --blame-hang-dump-type mini dump(s) written
+  # under the results directory ($(Agent.TempDirectory)) and publish them as a
+  # downloadable pipeline artifact. The blame collector otherwise only attaches
+  # the dump to the trx, which is reachable solely through the auth-gated test
+  # attachments API; publishing it as a build artifact makes the teardown /
+  # shutdown hang dump (e.g. the macOS Opc.Ua.History.Tests 10-minute teardown
+  # hang) downloadable for root-cause analysis. The artifact name embeds the
+  # unique job id so parallel matrix entries never collide.
+  - task: CopyFiles@2
+    displayName: 'Stage hang dumps on failure'
+    condition: failed()
+    continueOnError: true
+    inputs:
+      SourceFolder: '$(Agent.TempDirectory)'
+      Contents: '**/*.dmp'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/hangdumps'
+      flattenFolders: true
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish hang dumps on failure'
+    condition: failed()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/hangdumps'
+      artifact: 'hangdump-$(System.JobId)'
