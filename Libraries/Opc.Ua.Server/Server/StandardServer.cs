@@ -441,10 +441,20 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        // report audit event for client certificate
-                        ReportAuditCertificateEvent(parsedClientCertificate!, e);
+                        try
+                        {
+                            // report audit event for client certificate
+                            ReportAuditCertificateEvent(parsedClientCertificate!, e);
 
-                        OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+                            OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+                        }
+                        finally
+                        {
+                            parsedClientCertificate?.Dispose();
+                            parsedClientCertificate = null;
+                            clientIssuerCertificates?.Dispose();
+                            clientIssuerCertificates = null;
+                        }
                     }
                 }
 

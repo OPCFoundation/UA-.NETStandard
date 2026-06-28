@@ -63,8 +63,13 @@ namespace Opc.Ua.Gds.Tests
         public async ValueTask DisposeAsync()
         {
             await StopServerAsync().ConfigureAwait(false);
+            DisposeConfigurationCertificateManager(Config);
+            Config = null;
+            DisposeTrackedCertificateManagers();
             if (Application != null)
             {
+                DisposeConfigurationCertificateManager(Application.ApplicationConfiguration);
+                DisposeApplicationCertificateManager(Application);
                 await Application.DisposeAsync().ConfigureAwait(false);
                 Application = null;
             }
@@ -98,6 +103,8 @@ namespace Opc.Ua.Gds.Tests
 
             BasePort = basePort;
             Config = await LoadAsync(Application, basePort, m_maxTrustListSize).ConfigureAwait(false);
+            TrackConfigurationCertificateManager(Config);
+            TrackConfigurationCertificateManager(Application.ApplicationConfiguration);
 
             if (clean)
             {
@@ -133,6 +140,8 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort, m_maxTrustListSize).ConfigureAwait(false);
+                TrackConfigurationCertificateManager(Config);
+                TrackConfigurationCertificateManager(Application.ApplicationConfiguration);
             }
 
             // Inject any additional certificate groups into the configuration.
@@ -234,6 +243,42 @@ namespace Opc.Ua.Gds.Tests
                 m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
             }
             return false;
+        }
+
+        private static void DisposeConfigurationCertificateManager(ApplicationConfiguration? configuration)
+        {
+            if (configuration?.CertificateManager is IDisposable certificateManager)
+            {
+                certificateManager.Dispose();
+                configuration.CertificateManager = null;
+            }
+        }
+
+        private static void DisposeApplicationCertificateManager(IApplicationInstance? application)
+        {
+            if (application is ApplicationInstance applicationInstance)
+            {
+                applicationInstance.CertificateManager?.Dispose();
+            }
+        }
+
+        private void TrackConfigurationCertificateManager(ApplicationConfiguration? configuration)
+        {
+            if (configuration?.CertificateManager is IDisposable certificateManager &&
+                !m_certificateManagers.Contains(certificateManager))
+            {
+                m_certificateManagers.Add(certificateManager);
+            }
+        }
+
+        private void DisposeTrackedCertificateManagers()
+        {
+            foreach (IDisposable certificateManager in m_certificateManagers)
+            {
+                certificateManager.Dispose();
+            }
+
+            m_certificateManagers.Clear();
         }
 
         /// <summary>
@@ -352,5 +397,6 @@ namespace Opc.Ua.Gds.Tests
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly int m_maxTrustListSize;
+        private readonly List<IDisposable> m_certificateManagers = [];
     }
 }

@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Tests
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             Assert.That(
@@ -68,7 +68,7 @@ namespace Opc.Ua.Gds.Tests
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using Certificate certificate = await certificateGroup
@@ -97,7 +97,7 @@ namespace Opc.Ua.Gds.Tests
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using Certificate certificate = await certificateGroup
@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Tests
                 configuration.TrustedListPath);
             var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
                 configuration.BaseStorePath);
-            ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup otherCertGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Tests
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
@@ -230,7 +230,7 @@ namespace Opc.Ua.Gds.Tests
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using Certificate certificate = await certificateGroup
@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Tests
                 configuration.TrustedListPath);
             var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
                 configuration.BaseStorePath);
-            ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup otherCertGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
@@ -286,7 +286,7 @@ namespace Opc.Ua.Gds.Tests
                 BaseStorePath = m_path,
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using Certificate certificate = await certificateGroup
@@ -299,7 +299,7 @@ namespace Opc.Ua.Gds.Tests
                 configuration.TrustedListPath);
             var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
                 configuration.BaseStorePath);
-            ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup otherCertGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
             using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
@@ -351,7 +351,7 @@ namespace Opc.Ua.Gds.Tests
                 SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                 BaseStorePath = m_path
             };
-            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+            using CertificateGroup certificateGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
                 m_path + Path.DirectorySeparatorChar + "authorities",
                 cgConfiguration,
                 applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);

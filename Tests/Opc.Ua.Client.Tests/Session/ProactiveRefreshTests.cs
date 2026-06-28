@@ -84,6 +84,7 @@ namespace Opc.Ua.Client.Tests.Identity
                     .ReadValueAsync<ServerStatusDataType>(VariableIds.Server_ServerStatus)
                     .ConfigureAwait(false);
                 Assert.That(status, Is.Not.Null);
+                await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -112,6 +113,7 @@ namespace Opc.Ua.Client.Tests.Identity
 
                 Assert.That(provider.CallCount, Is.EqualTo(3));
                 Assert.That(session.Connected, Is.True);
+                await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -132,6 +134,8 @@ namespace Opc.Ua.Client.Tests.Identity
             {
                 Assert.Ignore("The test server endpoint does not advertise UserName tokens.");
             }
+
+            endpoint.UpdateBeforeConnect = false;
 
             return await ManagedSessionClass.CreateAsync(
                 ClientFixture.Config,

@@ -321,8 +321,12 @@ namespace Opc.Ua.Bindings
                 if (!ReferenceEquals(copy, serverCertificate))
                 {
                     serverCertificate!.Dispose();
-                    serverCertificate = copy;
-                    serverCertificate.AddRef();
+                    // Take an owned handle over the copy's core; the 'using
+                    // copy' handle is released at block end, so capturing
+                    // AddRef()'s result (rather than aliasing 'copy' and
+                    // discarding the AddRef) keeps the core alive without
+                    // leaking a handle.
+                    serverCertificate = copy.AddRef();
                 }
             }
             catch (CryptographicException ce)

@@ -72,10 +72,13 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.Fail("Invalid private key format");
             }
-            Assert.That(newPrivateKeyCert, Is.Not.Null);
-            // verify the public cert matches the private key
-            Assert.That(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true), Is.True);
-            Assert.That(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true), Is.True);
+            using (newPrivateKeyCert)
+            {
+                Assert.That(newPrivateKeyCert, Is.Not.Null);
+                // verify the public cert matches the private key
+                Assert.That(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true), Is.True);
+                Assert.That(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true), Is.True);
+            }
 
             // Build a temporary directory-backed PKI so we can exercise the
             // modern CertificateManager validation path. The first
@@ -175,8 +178,8 @@ namespace Opc.Ua.Gds.Tests
             byte[] rawSignedCert,
             byte[][] rawIssuerCerts)
         {
-            var signedCert = Certificate.FromRawData(rawSignedCert);
-            var issuerCert = Certificate.FromRawData(rawIssuerCerts[0]);
+            using var signedCert = Certificate.FromRawData(rawSignedCert);
+            using var issuerCert = Certificate.FromRawData(rawIssuerCerts[0]);
 
             TestContext.Out.WriteLine($"Signed cert: {signedCert}");
             TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");
