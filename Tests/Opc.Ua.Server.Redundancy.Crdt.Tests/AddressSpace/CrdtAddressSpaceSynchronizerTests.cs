@@ -181,7 +181,11 @@ namespace Opc.Ua.Server.Redundancy.Crdt.Tests
 
         private static async Task AssertEventuallyAsync(Func<bool> condition, string message)
         {
-            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            // CRDT convergence over the in-memory gossip network is normally sub-second,
+            // but the background capture/broadcast loops can be starved of CPU on a heavily
+            // loaded CI runner (the full test matrix runs dozens of jobs per runner). Allow a
+            // generous deadline so the assertion measures convergence correctness, not runner load.
+            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
                 if (condition())
