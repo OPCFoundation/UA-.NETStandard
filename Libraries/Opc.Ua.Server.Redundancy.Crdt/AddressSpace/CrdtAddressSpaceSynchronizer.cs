@@ -220,6 +220,7 @@ namespace Opc.Ua.Server.Redundancy.Crdt
 
             // Apply outside the lock; the apply path awaits the node manager and
             // suppresses re-capture of its own mutations via m_applyingInbound.
+            bool reconciled = false;
             bool previous = m_applyingInbound.Value;
             m_applyingInbound.Value = true;
             try
@@ -228,20 +229,78 @@ namespace Opc.Ua.Server.Redundancy.Crdt
                 {
                     await ApplyDiffAsync(diff, ct).ConfigureAwait(false);
                 }
+
+                // Convergence guarantee. A value entry that won the LWW merge can fail
+                // to materialize on the node when a local capture and a remote value
+                // apply race: the capture advances m_lastApplied so ComputeDiffs no
+                // longer emits a correcting diff, leaving the materialized node value
+                // stale while the map itself is converged. A frame that produces no
+                // diffs is the point at which the cluster believes it is quiescent, so
+                // reconcile materialized node values against the converged map here.
+                // Re-broadcasting on a correction keeps anti-entropy alive until every
+                // replica's nodes match the map, after which reconciliation is a no-op
+                // and gossip quiesces.
+                if (diffs.Count == 0)
+                {
+                    reconciled = ReconcileMaterializedValues();
+                }
             }
             finally
             {
                 m_applyingInbound.Value = previous;
             }
 
-            // Anti-entropy: when a merge changed our state, re-broadcast the
-            // merged result so it propagates transitively across the cluster.
-            // This terminates once every replica's merge is a no-op (LWW is
-            // idempotent), and complements the transport's own gossip.
-            if (diffs.Count > 0)
+            // Anti-entropy: when a merge changed our state (or a reconciliation
+            // corrected a stale materialized value), re-broadcast so the change
+            // propagates transitively across the cluster. This terminates once every
+            // replica's merge and reconciliation are no-ops (LWW is idempotent), and
+            // complements the transport's own gossip.
+            if (diffs.Count > 0 || reconciled)
             {
                 Broadcast(mergedSnapshot);
             }
+        }
+
+        private bool ReconcileMaterializedValues()
+        {
+            var corrections = new List<(BaseVariableState Node, DataValue Value)>();
+            lock (m_lock)
+            {
+                foreach (string key in m_map.Keys)
+                {
+                    if (!key.StartsWith(ValuePrefix, StringComparison.Ordinal) ||
+                        !m_map.TryGetValue(key, out ByteString mapValue) || mapValue.IsNull ||
+                        !TryParseKey(key, out _, out NodeId nodeId) ||
+                        !m_addressSpace.TryGetNode(nodeId, out NodeState? node) ||
+                        node is not BaseVariableState variable)
+                    {
+                        continue;
+                    }
+
+                    byte[] mapBytes = mapValue.ToArray();
+                    byte[] currentBytes = EncodeValue(
+                        new DataValue(variable.Value, variable.StatusCode, variable.Timestamp)).ToArray();
+                    if (currentBytes.AsSpan().SequenceEqual(mapBytes))
+                    {
+                        continue;
+                    }
+
+                    corrections.Add((variable, DecodeValue(mapValue)));
+                    m_lastApplied[key] = mapBytes;
+                }
+            }
+
+            // Mutate nodes outside the lock; m_applyingInbound is set by the caller so
+            // the resulting ClearChangeMasks does not re-capture or re-enter the lock.
+            foreach ((BaseVariableState node, DataValue value) in corrections)
+            {
+                node.Value = value.WrappedValue;
+                node.StatusCode = value.StatusCode;
+                node.Timestamp = value.SourceTimestamp;
+                node.ClearChangeMasks(m_addressSpace.Context, false);
+            }
+
+            return corrections.Count > 0;
         }
 
         private async ValueTask ApplyDiffAsync(Diff diff, CancellationToken ct)
@@ -262,9 +321,27 @@ namespace Opc.Ua.Server.Redundancy.Crdt
 
             if (isValue)
             {
-                if (m_addressSpace.TryGetNode(nodeId, out NodeState? node) && node is BaseVariableState variable)
+                // Re-read the authoritative LWW value under the lock: the diff was
+                // computed earlier and a concurrent local write may have advanced the
+                // map entry since, so diff.Value can be stale. m_lastApplied is updated
+                // to match so ComputeDiffs stays consistent. A residual race remains
+                // (the node write below is outside the lock and can be overtaken by a
+                // concurrent local write) but is healed by ReconcileMaterializedValues
+                // at gossip quiescence.
+                ByteString authoritative;
+                lock (m_lock)
                 {
-                    DataValue value = DecodeValue(diff.Value);
+                    if (!m_map.TryGetValue(ValueKey(nodeId), out authoritative))
+                    {
+                        return;
+                    }
+                    m_lastApplied[ValueKey(nodeId)] =
+                        authoritative.IsNull ? Array.Empty<byte>() : authoritative.ToArray();
+                }
+                if (m_addressSpace.TryGetNode(nodeId, out NodeState? node) &&
+                    node is BaseVariableState variable)
+                {
+                    DataValue value = DecodeValue(authoritative);
                     variable.Value = value.WrappedValue;
                     variable.StatusCode = value.StatusCode;
                     variable.Timestamp = value.SourceTimestamp;
@@ -275,17 +352,34 @@ namespace Opc.Ua.Server.Redundancy.Crdt
 
             NodeState reconstructed = NodeStateSerializer.Deserialize(m_addressSpace.Context, diff.Value);
 
-            // The topology payload also carries the variable's value, but values
-            // are versioned independently via the value (v|) entries. Preserve
-            // the locally-known value so a topology merge never regresses a value
-            // that a concurrent value entry already advanced.
-            if (reconstructed is BaseVariableState reconstructedVariable &&
-                m_addressSpace.TryGetNode(nodeId, out NodeState? existing) &&
-                existing is BaseVariableState existingVariable)
+            // The topology payload also carries the variable's value, but values are
+            // versioned independently via the value (v|) entries. Preserve the
+            // authoritative value entry (not a racy live-node read) so a topology merge
+            // never regresses or materializes a stale value that a concurrent value entry
+            // already advanced.
+            if (reconstructed is BaseVariableState reconstructedVariable)
             {
-                reconstructedVariable.Value = existingVariable.Value;
-                reconstructedVariable.StatusCode = existingVariable.StatusCode;
-                reconstructedVariable.Timestamp = existingVariable.Timestamp;
+                ByteString authoritativeValue;
+                bool hasValueEntry;
+                lock (m_lock)
+                {
+                    hasValueEntry = m_map.TryGetValue(ValueKey(nodeId), out authoritativeValue) &&
+                        !authoritativeValue.IsNull;
+                }
+                if (hasValueEntry)
+                {
+                    DataValue dv = DecodeValue(authoritativeValue);
+                    reconstructedVariable.Value = dv.WrappedValue;
+                    reconstructedVariable.StatusCode = dv.StatusCode;
+                    reconstructedVariable.Timestamp = dv.SourceTimestamp;
+                }
+                else if (m_addressSpace.TryGetNode(nodeId, out NodeState? existing) &&
+                    existing is BaseVariableState existingVariable)
+                {
+                    reconstructedVariable.Value = existingVariable.Value;
+                    reconstructedVariable.StatusCode = existingVariable.StatusCode;
+                    reconstructedVariable.Timestamp = existingVariable.Timestamp;
+                }
             }
 
             await m_addressSpace.AddOrUpdateNodeAsync(reconstructed, ct).ConfigureAwait(false);
