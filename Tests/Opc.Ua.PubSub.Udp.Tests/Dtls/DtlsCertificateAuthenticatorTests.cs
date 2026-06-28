@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void CertificateMessageRoundTripsAndCertificateVerifyValidates()
         {
             using Certificate certificate = CreateEcdsaCertificate();
-            byte[] transcriptHash = SHA256.HashData(new byte[] { 0x01, 0x02, 0x03 });
+            byte[] transcriptHash = SHA256.HashData([0x01, 0x02, 0x03]);
 
             byte[] certificateMessage = DtlsCertificateAuthenticator.EncodeCertificate([certificate]);
             using CertificateCollection decoded =
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void TamperedCertificateVerifyFailsClosed()
         {
             using Certificate certificate = CreateEcdsaCertificate();
-            byte[] transcriptHash = SHA256.HashData(new byte[] { 0x01, 0x02 });
+            byte[] transcriptHash = SHA256.HashData([0x01, 0x02]);
             byte[] verifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
                 certificate,
                 DtlsCipherSuite.TlsAes128GcmSha256,
@@ -124,16 +124,16 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void RsaCertificateIsRejectedForCertificateVerify()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             var request = new CertificateRequest("CN=dtls-rsa", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using Certificate certificate = Certificate.From(request.CreateSelfSigned(
+            using var certificate = Certificate.From(request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1),
                 DateTimeOffset.UtcNow.AddMinutes(10)));
 
             Assert.That(() => DtlsCertificateAuthenticator.SignCertificateVerify(
                 certificate,
                 DtlsCipherSuite.TlsAes128GcmSha256,
-                SHA256.HashData(Array.Empty<byte>())), Throws.TypeOf<DtlsHandshakeException>());
+                SHA256.HashData([])), Throws.TypeOf<DtlsHandshakeException>());
         }
 
         [Test]
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
         private static Certificate CreateEcdsaCertificate()
         {
-            using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var request = new CertificateRequest("CN=dtls-ecdsa", ecdsa, HashAlgorithmName.SHA256);
             return Certificate.From(request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10)));

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Dtls

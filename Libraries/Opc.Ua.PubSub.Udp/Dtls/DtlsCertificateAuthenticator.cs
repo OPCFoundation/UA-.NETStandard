@@ -75,6 +75,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <c>using</c> releases the whole chain). All partially-decoded handles are released
         /// if decoding fails part way through.
         /// </remarks>
+        /// <exception cref="DtlsHandshakeException">
+        /// Thrown when the Certificate message is malformed, carries unsupported
+        /// CertificateEntry extensions, or contains no certificate.
+        /// </exception>
         public static CertificateCollection DecodeCertificate(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
@@ -41,7 +40,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// <summary>
     /// DTLS 1.3 handshake driver for Part 14 §7.3.2.4 unicast PubSub.
     /// </summary>
-    internal sealed class DtlsHandshakeContext : IDtlsContext, IDisposable
+    internal sealed class DtlsHandshakeContext : IDtlsContext
     {
         /// <summary>
         /// Initializes a new <see cref="DtlsHandshakeContext"/> for the supplied profile,
