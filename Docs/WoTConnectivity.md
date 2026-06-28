@@ -185,6 +185,12 @@ These work on any `FileType` instance, including ones that are not
 anchored under `Server.FileSystem` (e.g. the WoT asset file living
 under `WoTAssetConnectionManagement/<asset>`).
 
+### Method invocation and server interoperability
+
+The generated `…TypeClient` proxies invoke methods through the shared `ObjectTypeClient.CallMethodAsync` helper using the **type-declaration** `MethodId` (the Method node on the `ObjectType`). This is fully spec-conformant: OPC UA Part 4 §5.12.2.2 (v1.04 §5.11.2.2) states that, for a `Call` on an `Object` instance, the `methodId` may be **either** the instance Method's NodeId **or** the NodeId of the Method on the `ObjectType` that defines it. This stack's own server accepts both forms.
+
+A few non-conformant servers only bind the method handler on the instance and reject the type-declaration `MethodId` with `Bad_MethodInvalid`. To interoperate with those servers, `CallMethodAsync` transparently falls back: on `Bad_MethodInvalid` it resolves the instance `MethodId` via a `HasComponent` browse path (`TranslateBrowsePathsToNodeIds`), caches it on the proxy, and retries the call once. Conformant servers never trigger the fallback and therefore pay no extra round-trip; subsequent calls against a non-conformant server reuse the cached instance `MethodId`.
+
 ---
 
 ## 4. Persistence limits

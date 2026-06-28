@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -188,9 +189,26 @@ namespace Opc.Ua.Sessions.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public override Task OneTimeTearDownAsync()
+        public override async Task OneTimeTearDownAsync()
         {
-            return base.OneTimeTearDownAsync();
+            if (Session != null)
+            {
+                await Session.CloseAsync(5000, true).ConfigureAwait(false);
+                Session.Dispose();
+                Session = null;
+            }
+
+            if (ServerFixtureWithLimits != null)
+            {
+                await ServerFixtureWithLimits.StopAsync().ConfigureAwait(false);
+            }
+
+            ClientFixture?.Dispose();
+
+            if (!string.IsNullOrEmpty(PkiRoot) && Directory.Exists(PkiRoot))
+            {
+                Directory.Delete(PkiRoot, true);
+            }
         }
 
         /// <summary>

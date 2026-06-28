@@ -931,6 +931,7 @@ namespace Opc.Ua.PubSub.Transport
                 mqttOptions = mqttClientOptionsBuilder.Build();
             }
 
+            transportProtocolConfiguration.DisposeCertificates();
             return mqttOptions;
         }
 

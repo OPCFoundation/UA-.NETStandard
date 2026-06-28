@@ -43,10 +43,6 @@ namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
     /// Wraps an <see cref="X509Certificate2"/> providing a managed
-    /// lifetime and implementing <see cref="IX509Certificate"/>.
-    /// </summary>
-    /// <summary>
-    /// Wraps an <see cref="X509Certificate2"/> providing a managed
     /// lifetime with reference counting and implementing
     /// <see cref="IX509Certificate"/>.
     /// </summary>
@@ -64,7 +60,8 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="rawData">The DER or PEM encoded certificate data.</param>
         public Certificate(byte[] rawData)
         {
-            X509 = X509CertificateLoader.LoadCertificate(rawData);
+            m_core = new CertificateCore(
+                X509CertificateLoader.LoadCertificate(rawData));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -78,7 +75,8 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="rawData">The DER or PEM encoded certificate data.</param>
         public Certificate(ReadOnlySpan<byte> rawData)
         {
-            X509 = X509CertificateLoader.LoadCertificate(rawData);
+            m_core = new CertificateCore(
+                X509CertificateLoader.LoadCertificate(rawData));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -94,7 +92,8 @@ namespace Opc.Ua.Security.Certificates
         /// </param>
         public Certificate(string fileName)
         {
-            X509 = X509CertificateLoader.LoadCertificateFromFile(fileName);
+            m_core = new CertificateCore(
+                X509CertificateLoader.LoadCertificateFromFile(fileName));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -114,8 +113,8 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = default)
         {
-            X509 = X509CertificateLoader.LoadPkcs12(
-                rawData, password, keyStorageFlags);
+            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
+                rawData, password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -135,8 +134,8 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = default)
         {
-            X509 = X509CertificateLoader.LoadPkcs12FromFile(
-                fileName, password, keyStorageFlags);
+            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12FromFile(
+                fileName, password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -152,9 +151,24 @@ namespace Opc.Ua.Security.Certificates
         /// </param>
         private Certificate(X509Certificate2 certificate)
         {
-            X509 = certificate ??
-                throw new ArgumentNullException(nameof(certificate));
+            m_core = new CertificateCore(certificate ??
+                throw new ArgumentNullException(nameof(certificate)));
             Interlocked.Increment(ref s_instancesCreated);
+#if DEBUG
+            Track();
+#endif
+        }
+
+        /// <summary>
+        /// Private constructor that creates an additional owning handle over
+        /// an existing shared <see cref="CertificateCore"/>. Does NOT create a
+        /// new core and therefore does NOT increment <see cref="InstancesCreated"/>;
+        /// the caller has already incremented the core's reference count.
+        /// </summary>
+        /// <param name="core">The shared certificate core. Must not be <c>null</c>.</param>
+        private Certificate(CertificateCore core)
+        {
+            m_core = core;
 #if DEBUG
             Track();
 #endif
@@ -164,7 +178,7 @@ namespace Opc.Ua.Security.Certificates
         /// The inner <see cref="X509Certificate2"/> instance.
         /// Internal access is available to friends via InternalsVisibleTo.
         /// </summary>
-        internal X509Certificate2 X509 { get; }
+        internal X509Certificate2 X509 => m_core.X509;
 
         /// <summary>
         /// Creates a <see cref="Certificate"/> that takes ownership of the
@@ -318,9 +332,9 @@ namespace Opc.Ua.Security.Certificates
         public Oid SignatureAlgorithm => X509.SignatureAlgorithm;
 
         /// <inheritdoc/>
-        // CA1063: this Dispose() delegates to Dispose(bool); CA1816: SuppressFinalize is
-        // intentionally deferred until the refcount reaches zero (see Dispose(bool) below)
-        // so finalizer-based leak reporting still triggers on AddRef-without-Dispose bugs.
+        // CA1063: this Dispose() delegates to Dispose(bool). CA1816: SuppressFinalize is
+        // called inside Dispose(bool) only on the first disposal of THIS handle, so a
+        // finalizer-based leak reporter still triggers on handles abandoned without Dispose.
 #pragma warning disable CA1063, CA1816
         public void Dispose()
 #pragma warning restore CA1063, CA1816
@@ -329,33 +343,38 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Releases the resources used by the <see cref="Certificate"/>.
-        /// The inner <see cref="X509Certificate2"/> is disposed only
-        /// when the reference count reaches zero.
+        /// Releases this handle's reference to the shared certificate core.
+        /// Idempotent per handle: a second call on the same handle is a safe
+        /// no-op. The inner <see cref="X509Certificate2"/> is disposed only
+        /// when the last owning handle is released (refcount reaches zero).
         /// </summary>
         /// <param name="disposing">
         /// <c>true</c> to release managed resources.
         /// </param>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing)
             {
-                int remaining = Interlocked
-                    .Decrement(ref m_refCount);
-                if (remaining == 0)
-                {
-                    X509.Dispose();
-                    Interlocked.Increment(ref s_instancesDisposed);
-                    // Only suppress finalisation now that the
-                    // refcount has reached zero. Suppressing earlier
-                    // would mask AddRef-without-Dispose leaks: the
-                    // managed wrapper would be reclaimed without
-                    // running our finalizer-based leak reporter.
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-                    GC.SuppressFinalize(this);
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
-                }
+                return;
             }
+
+            // Idempotent per handle: only the first Dispose of THIS handle
+            // releases its reference to the shared core. This prevents a
+            // double-Dispose of one logical owner from over-decrementing the
+            // shared reference count (SA-CERT-01).
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            m_core.Release();
+
+            // Only this handle has been finalised; suppress its finalizer
+            // (the DEBUG leak reporter). Other handles over the same core
+            // remain finalizable until they too are disposed.
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
+            GC.SuppressFinalize(this);
+#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
         }
 
         /// <summary>
@@ -539,23 +558,21 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Increments the reference count on this certificate.
-        /// Each call must be balanced by a call to <see cref="Dispose()"/>.
-        /// The inner <see cref="X509Certificate2"/> is disposed only
-        /// when the last reference is released.
+        /// Increments the reference count on the shared certificate core and
+        /// returns a NEW owning handle over it. Each returned handle is an
+        /// independent owner that must be balanced by exactly one call to
+        /// <see cref="Dispose()"/>. The inner <see cref="X509Certificate2"/>
+        /// is disposed only when the last handle is released. A double-Dispose
+        /// of one handle is a safe no-op and does not affect other handles.
         /// </summary>
-        /// <returns>This certificate instance for fluent usage.</returns>
-        /// <exception cref="ObjectDisposedException"></exception>
+        /// <returns>A new owning handle over the same certificate core.</returns>
+        /// <exception cref="ObjectDisposedException">
+        /// The underlying certificate core has already been fully released.
+        /// </exception>
         public Certificate AddRef()
         {
-            int current = Interlocked.Increment(ref m_refCount);
-            if (current <= 1)
-            {
-                // Was already at 0 (disposed) — undo and throw.
-                Interlocked.Decrement(ref m_refCount);
-                throw new ObjectDisposedException(nameof(Certificate));
-            }
-            return this;
+            m_core.AddRef();
+            return new Certificate(m_core);
         }
 
 #if DEBUG
@@ -575,14 +592,15 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Detects leaked certificates that were never disposed.
-        /// Only compiled in DEBUG builds.
+        /// Detects leaked certificates: a handle that was finalized without
+        /// being disposed (its reference to the shared core was never
+        /// released). Only compiled in DEBUG builds.
         /// </summary>
 #pragma warning disable CA1063 // Implement IDisposable Correctly
         ~Certificate()
 #pragma warning restore CA1063 // Implement IDisposable Correctly
         {
-            if (m_refCount > 0 && m_allocationInfo != null)
+            if (m_disposed == 0 && m_allocationInfo != null)
             {
                 s_finalizedWithLeakedRef.Add(m_allocationInfo);
             }
@@ -640,7 +658,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     yield return (
                         info.Thumbprint ?? "(no thumbprint)",
-                        cert.m_refCount,
+                        cert.m_core.RefCount,
                         info.CreatedAt,
                         info.StackTrace);
                 }
@@ -695,6 +713,85 @@ namespace Opc.Ua.Security.Certificates
             Interlocked.Exchange(ref s_instancesDisposed, 0);
         }
 
-        private int m_refCount = 1;
+#if DEBUG
+        /// <summary>
+        /// Test-only hook used by the leak-detector self-tests to account
+        /// for a certificate that is deliberately abandoned (never disposed)
+        /// in order to exercise the finalizer-based leak tracking. Balances
+        /// the global leak counters so the intentional leak does not trip
+        /// the assembly-level leak assertion. DEBUG-only and visible to
+        /// friend test assemblies via <c>InternalsVisibleTo</c>.
+        /// </summary>
+        internal static void AccountForDeliberatelyLeakedInstanceForTest()
+        {
+            Interlocked.Increment(ref s_instancesDisposed);
+        }
+#endif
+
+        /// <summary>
+        /// The shared, reference-counted state for a logical certificate. One
+        /// core is created per <c>new Certificate(...)</c> and may be owned by
+        /// many <see cref="Certificate"/> handles (each created via
+        /// <see cref="AddRef"/>). The inner <see cref="X509Certificate2"/> is
+        /// disposed exactly once, when the last owning handle is released.
+        /// </summary>
+        private sealed class CertificateCore
+        {
+            public CertificateCore(X509Certificate2 x509)
+            {
+                X509 = x509;
+            }
+
+            /// <summary>
+            /// The wrapped certificate. Valid until the last reference is released.
+            /// </summary>
+            public X509Certificate2 X509 { get; }
+
+            /// <summary>
+            /// The current number of owning handles. For diagnostics only.
+            /// </summary>
+            public int RefCount => Volatile.Read(ref m_refCount);
+
+            /// <summary>
+            /// Adds an owning reference. Each call must be balanced by exactly
+            /// one <see cref="Release"/>.
+            /// </summary>
+            /// <exception cref="ObjectDisposedException">
+            /// The core has already been fully released (refcount was zero).
+            /// </exception>
+            public void AddRef()
+            {
+                int current = Interlocked.Increment(ref m_refCount);
+                if (current <= 1)
+                {
+                    // Was already at 0 (released) — undo and throw.
+                    Interlocked.Decrement(ref m_refCount);
+                    throw new ObjectDisposedException(nameof(Certificate));
+                }
+            }
+
+            /// <summary>
+            /// Releases one owning reference; disposes the inner certificate
+            /// when the last reference is released.
+            /// </summary>
+            public void Release()
+            {
+                int remaining = Interlocked.Decrement(ref m_refCount);
+                if (remaining == 0)
+                {
+                    X509.Dispose();
+                    Interlocked.Increment(ref s_instancesDisposed);
+                }
+            }
+
+            private int m_refCount = 1;
+        }
+
+        // The shared reference-counted core. Many handles may point at one core.
+        private readonly CertificateCore m_core;
+
+        // 0 while this handle is live, 1 once this handle has been disposed.
+        // Makes Dispose idempotent per handle (SA-CERT-01).
+        private int m_disposed;
     }
 }
