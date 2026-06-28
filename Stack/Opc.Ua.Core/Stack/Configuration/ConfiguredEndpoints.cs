@@ -1214,7 +1214,8 @@ namespace Opc.Ua
                     collection,
                     endpointUrl,
                     securityMode,
-                    securityPolicyUri);
+                    securityPolicyUri,
+                    m_description.TransportProfileUri);
 
                 // select best match
                 EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
@@ -1362,7 +1363,8 @@ namespace Opc.Ua
             ArrayOf<EndpointDescription> collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            string? transportProfileUri)
         {
             if (collection.IsEmpty)
             {
@@ -1374,7 +1376,10 @@ namespace Opc.Ua
             // find list of matching endpoints.
             var matches = new List<EndpointDescription>();
 
-            // first pass - match on the requested security parameters.
+            // first pass - match on the requested security parameters AND
+            // the requested transport profile. Profile is honoured so a
+            // refresh of an HTTPS / WSS OpenAPI endpoint cannot silently
+            // swap to a binary twin that ranks higher on security alone.
             foreach (EndpointDescription description in collection)
             {
                 // check for match on security policy.
@@ -1391,6 +1396,16 @@ namespace Opc.Ua
                     continue;
                 }
 
+                // check for match on transport profile.
+                if (!string.IsNullOrEmpty(transportProfileUri) &&
+                    !string.Equals(
+                        transportProfileUri,
+                        description.TransportProfileUri,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 // add to list of matches.
                 matches.Add(description);
             }
@@ -1401,8 +1416,19 @@ namespace Opc.Ua
                 // if specific security parameters were requested, throw appropriate error
                 bool hasSpecificPolicy = !string.IsNullOrEmpty(securityPolicyUri);
                 bool hasSpecificMode = securityMode != MessageSecurityMode.Invalid;
+                bool hasSpecificProfile = !string.IsNullOrEmpty(transportProfileUri);
 
-                if (hasSpecificPolicy && hasSpecificMode)
+                if (hasSpecificProfile)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Server does not advertise the requested transport profile '{0}' " +
+                            "with security policy '{1}' and security mode '{2}'.",
+                        transportProfileUri!,
+                        securityPolicyUri ?? "<any>",
+                        securityMode);
+                }
+                else if (hasSpecificPolicy && hasSpecificMode)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,

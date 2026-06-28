@@ -49,7 +49,7 @@ namespace Opc.Ua.Bindings
     /// instances. Registered against
     /// <see cref="Utils.UriSchemeOpcTcp"/> via the
     /// <see cref="ITransportListenerFactory"/> contract. Inherits
-    /// <see cref="TcpServiceHost.CreateServiceHost"/> from the
+    /// <see cref="TcpServiceHost.CreateServiceHostAsync"/> from the
     /// raw-socket <see cref="TcpServiceHost"/> base so the discovery
     /// endpoint-description list matches the raw-socket factory
     /// exactly; only <see cref="Create"/> differs (returns a Kestrel-
@@ -121,10 +121,11 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CS0067
 
         /// <inheritdoc/>
-        public void Open(
+        public async ValueTask OpenAsync(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback)
+            ITransportListenerCallback callback,
+            CancellationToken ct = default)
         {
             if (baseAddress == null)
             {
@@ -168,29 +169,31 @@ namespace Opc.Ua.Bindings
             m_reverseConnectListener = settings.ReverseConnectListener;
 
             m_host = BuildHost(baseAddress);
-            m_host.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+            await m_host.StartAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public void Close() => Stop();
+        public ValueTask CloseAsync(CancellationToken ct = default) => StopAsync(ct);
 
         /// <inheritdoc/>
-        public void Stop()
+        public async ValueTask StopAsync(CancellationToken ct = default)
         {
-            if (m_host == null)
-            {
-                return;
-            }
-            try
-            {
-                m_host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
-            }
-            catch
-            {
-                // Best-effort shutdown.
-            }
-            m_host.Dispose();
+            IHost? host = m_host;
             m_host = null;
+            if (host != null)
+            {
+                try
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(TimeSpan.FromSeconds(5));
+                    await host.StopAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Best-effort shutdown.
+                }
+                host.Dispose();
+            }
 
             if (m_channels != null)
             {
@@ -203,9 +206,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Stop();
+            await StopAsync().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
@@ -239,8 +242,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string> CloseChannelsForCertificate(
-            Opc.Ua.Security.Certificates.Certificate oldCertificate)
+        public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Opc.Ua.Security.Certificates.Certificate oldCertificate,
+            CancellationToken ct = default)
         {
             if (oldCertificate == null)
             {
@@ -250,7 +254,7 @@ namespace Opc.Ua.Bindings
             string oldThumbprint = oldCertificate.Thumbprint;
             if (string.IsNullOrEmpty(oldThumbprint))
             {
-                return Array.Empty<string>();
+                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
             }
 
             // Snapshot the channel map so we can iterate without holding
@@ -261,7 +265,7 @@ namespace Opc.Ua.Bindings
 
             if (entries.Length == 0)
             {
-                return Array.Empty<string>();
+                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
             }
 
             var closed = new List<string>(entries.Length);
@@ -290,7 +294,7 @@ namespace Opc.Ua.Bindings
                 closed.Count,
                 oldThumbprint);
 
-            return closed;
+            return new ValueTask<IReadOnlyList<string>>(closed);
         }
 
         /// <inheritdoc cref="ITcpChannelListener.ReconnectToExistingChannel"/>
@@ -324,7 +328,7 @@ namespace Opc.Ua.Bindings
         internal uint NextChannelId() => (uint)Interlocked.Increment(ref m_nextChannelId);
 
         /// <summary>
-        /// True when <see cref="Open"/> was called with
+        /// True when <see cref="OpenAsync"/> was called with
         /// <see cref="TransportListenerSettings.ReverseConnectListener"/>
         /// set; controls which kind of channel
         /// <see cref="CreateChannel"/> produces.

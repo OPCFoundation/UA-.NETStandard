@@ -3127,16 +3127,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="bindingFactory">The transport listener binding factory.</param>
-        /// <param name="serverDescription">The server description.</param>
-        /// <param name="endpoints">The endpoints.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>
-        /// Returns IList of a host for a UA service.
+        /// Returns IList of a host for a UA service together with the
+        /// aggregated discovery information.
         /// </returns>
-        protected override IList<ServiceHost> InitializeServiceHosts(
+        protected override async ValueTask<ServiceHostInitializationResult> InitializeServiceHostsAsync(
             ApplicationConfiguration configuration,
             ITransportBindingRegistry bindingFactory,
-            out ApplicationDescription serverDescription,
-            out ArrayOf<EndpointDescription> endpoints)
+            CancellationToken cancellationToken = default)
         {
             var hosts = new Dictionary<string, ServiceHost>();
 
@@ -3157,7 +3156,7 @@ namespace Opc.Ua.Server
             }
 
             // set server description.
-            serverDescription = new ApplicationDescription
+            var serverDescription = new ApplicationDescription
             {
                 ApplicationUri = configuration.ApplicationUri,
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
@@ -3175,7 +3174,7 @@ namespace Opc.Ua.Server
                 ITransportListenerFactory? binding = bindingFactory.GetListenerFactory(scheme);
                 if (binding != null)
                 {
-                    List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(
+                    List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
                         this,
                         hosts,
                         configuration,
@@ -3183,12 +3182,15 @@ namespace Opc.Ua.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         CertificateManager!,
-                        configuration.CertificateManager!);
+                        configuration.CertificateManager!,
+                        cancellationToken).ConfigureAwait(false);
                     endpointsList.AddRange(endpointsForHost);
                 }
             }
-            endpoints = endpointsList;
-            return [.. hosts.Values];
+            return new ServiceHostInitializationResult(
+                [.. hosts.Values],
+                serverDescription,
+                endpointsList);
         }
 
         /// <summary>

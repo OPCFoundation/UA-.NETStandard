@@ -1632,7 +1632,8 @@ namespace Opc.Ua.Server
                             try
                             {
                                 IReadOnlyList<string> closed
-                                    = rotator.CloseChannelsForCertificate(rotation.OldCertificate);
+                                    = await rotator.CloseChannelsForCertificateAsync(rotation.OldCertificate)
+                                        .ConfigureAwait(false);
                                 totalCut += closed.Count;
                             }
                             catch (Exception ex)

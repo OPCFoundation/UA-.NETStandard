@@ -57,13 +57,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private static readonly string[] s_expectedContributorOrder = ["A", "B"];
 
         [Test]
-        public void FactoryPropagatesContributorsToCreatedListeners()
+        public async Task FactoryPropagatesContributorsToCreatedListenersAsync()
         {
             var factory = new HttpsTransportListenerFactory();
             var contributor = new RecordingContributor();
             factory.StartupContributors.Add(contributor);
 
-            using ITransportListener created = factory.Create(new TestTelemetryContext());
+            await using ITransportListener created = factory.Create(new TestTelemetryContext());
             var listener = (HttpsTransportListener)created;
 
             Assert.That(listener.StartupContributors, Has.Count.EqualTo(1));
@@ -73,7 +73,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         [Test]
         public async Task ListenerInvokesContributorsBeforeTerminalDispatcher()
         {
-            using var listener = new HttpsTransportListener(
+            await using var listener = new HttpsTransportListener(
                 Utils.UriSchemeHttps,
                 new TestTelemetryContext());
             var contributor = new RecordingContributor(appBuilder =>
@@ -96,7 +96,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         [Test]
         public async Task MultipleContributorsRunInRegistrationOrder()
         {
-            using var listener = new HttpsTransportListener(
+            await using var listener = new HttpsTransportListener(
                 Utils.UriSchemeHttps,
                 new TestTelemetryContext());
             var order = new List<string>();

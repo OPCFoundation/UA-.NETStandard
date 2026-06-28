@@ -31,6 +31,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -358,12 +360,12 @@ namespace Opc.Ua.Bindings.Tests
         }
 
         [Test]
-        public void CreateListenerReturnsInstanceForKnownScheme()
+        public async Task CreateListenerReturnsInstanceForKnownSchemeAsync()
         {
             DefaultTransportBindingRegistry registry =
                 DefaultTransportBindingRegistry.WithDefaultTcp();
 
-            using ITransportListener? listener =
+            await using ITransportListener? listener =
                 registry.CreateListener(Utils.UriSchemeOpcTcp, m_telemetry);
 
             Assert.That(listener, Is.Not.Null);
@@ -402,7 +404,7 @@ namespace Opc.Ua.Bindings.Tests
                 throw new NotSupportedException("Fake factory does not create listeners.");
             }
 
-            public List<EndpointDescription> CreateServiceHost(
+            public ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
                 ServerBase serverBase,
                 IDictionary<string, ServiceHost> hosts,
                 ApplicationConfiguration configuration,
@@ -410,9 +412,10 @@ namespace Opc.Ua.Bindings.Tests
                 ApplicationDescription serverDescription,
                 ArrayOf<ServerSecurityPolicy> securityPolicies,
                 ICertificateRegistry serverCertificates,
-                ICertificateValidatorEx clientCertificateValidator)
+                ICertificateValidatorEx clientCertificateValidator,
+                CancellationToken ct = default)
             {
-                return [];
+                return new ValueTask<List<EndpointDescription>>([]);
             }
         }
 

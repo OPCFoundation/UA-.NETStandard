@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void CreateListenerSetsUrlProperty()
+        public async Task CreateListenerSetsUrlPropertyAsync()
         {
             var registry = DefaultTransportBindingRegistry.WithDefaultTcp();
             var host = new ReverseConnectHost(m_telemetry, registry);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(host.Url, Is.EqualTo(url));
 
             // Clean up the listener created internally.
-            host.Close();
+            await host.CloseAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -138,8 +138,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             var host = new ReverseConnectHost(m_telemetry);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => host.Open())!;
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await host.OpenAsync().ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
         }
@@ -150,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var host = new ReverseConnectHost(m_telemetry);
 
             // Must not throw even though CreateListener was never called.
-            Assert.That(() => host.Close(), Throws.Nothing);
+            Assert.That(async () => await host.CloseAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         [Test]
@@ -162,15 +162,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             host.CreateListener(new Uri("opc.tcp://localhost:4840"), null!, null!);
 
             // First close: wires down the listener.
-            Assert.That(() => host.Close(), Throws.Nothing);
+            Assert.That(async () => await host.CloseAsync().ConfigureAwait(false), Throws.Nothing);
 
             // A second Close must not throw (m_listener is still non-null but the
-            // event unsubscriptions and inner Close() are idempotent).
-            Assert.That(() => host.Close(), Throws.Nothing);
+            // event unsubscriptions and inner CloseAsync() are idempotent).
+            Assert.That(async () => await host.CloseAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         [Test]
-        public void CreateListenerWithTlsParametersOverloadSetsUrl()
+        public async Task CreateListenerWithTlsParametersOverloadSetsUrlAsync()
         {
             var registry = DefaultTransportBindingRegistry.WithDefaultTcp();
             var host = new ReverseConnectHost(m_telemetry, registry);
@@ -181,7 +181,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.That(host.Url, Is.EqualTo(url));
 
-            host.Close();
+            await host.CloseAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -198,8 +198,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     null!),
                 Throws.Nothing);
 
-            host.Close();
-            await Task.CompletedTask.ConfigureAwait(false);
+            await host.CloseAsync().ConfigureAwait(false);
         }
     }
 }

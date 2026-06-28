@@ -517,11 +517,10 @@ namespace Opc.Ua.Lds.Server
         }
 
         /// <inheritdoc />
-        protected override IList<ServiceHost> InitializeServiceHosts(
+        protected override async ValueTask<ServiceHostInitializationResult> InitializeServiceHostsAsync(
             ApplicationConfiguration configuration,
             ITransportBindingRegistry bindingFactory,
-            out ApplicationDescription serverDescription,
-            out ArrayOf<EndpointDescription> endpoints)
+            CancellationToken cancellationToken = default)
         {
             var hosts = new Dictionary<string, ServiceHost>();
 
@@ -540,7 +539,7 @@ namespace Opc.Ua.Lds.Server
                 configuration.ServerConfiguration.UserTokenPolicies += userTokenPolicy;
             }
 
-            serverDescription = new ApplicationDescription
+            var serverDescription = new ApplicationDescription
             {
                 ApplicationUri = configuration.ApplicationUri,
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
@@ -570,7 +569,7 @@ namespace Opc.Ua.Lds.Server
                 ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme);
                 if (binding != null)
                 {
-                    List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(
+                    List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
                         this,
                         hosts,
                         configuration,
@@ -578,13 +577,16 @@ namespace Opc.Ua.Lds.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         CertificateManager,
-                        configuration.CertificateManager);
+                        configuration.CertificateManager,
+                        cancellationToken).ConfigureAwait(false);
                     endpointsList.AddRange(endpointsForHost);
                 }
             }
 
-            endpoints = endpointsList.ToArray();
-            return [.. hosts.Values];
+            return new ServiceHostInitializationResult(
+                [.. hosts.Values],
+                serverDescription,
+                endpointsList.ToArray());
         }
 
         /// <inheritdoc />

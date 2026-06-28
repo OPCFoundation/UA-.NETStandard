@@ -132,7 +132,21 @@ namespace Opc.Ua
                     for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
                         TransportListeners[ii].ConnectionStatusChanged -= OnConnectionStatusChanged;
-                        TransportListeners[ii]?.Dispose();
+                        // ITransportListener is IAsyncDisposable; bridge to the
+                        // synchronous Dispose path. This is the only spot in the
+                        // server lifecycle that runs sync (the IDisposable contract
+                        // on ServerBase itself).
+                        try
+                        {
+                            TransportListeners[ii]?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                ex,
+                                "Unexpected error disposing transport listener {Name}.",
+                                TransportListeners[ii]?.GetType().FullName);
+                        }
                     }
 
                     TransportListeners.Clear();
@@ -331,15 +345,15 @@ namespace Opc.Ua
 
             // initialize the hosts.
 
-            IList<ServiceHost> hosts = InitializeServiceHosts(
+            ServiceHostInitializationResult init = await InitializeServiceHostsAsync(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription? serverDescription,
-                out ArrayOf<EndpointDescription> endpoints);
+                cancellationToken).ConfigureAwait(false);
+            IList<ServiceHost> hosts = init.Hosts;
 
             // save discovery information.
-            ServerDescription = serverDescription;
-            Endpoints = endpoints;
+            ServerDescription = init.ServerDescription;
+            Endpoints = init.Endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -398,15 +412,15 @@ namespace Opc.Ua
 
             // initialize the hosts.
 
-            IList<ServiceHost> hosts = InitializeServiceHosts(
+            ServiceHostInitializationResult init = await InitializeServiceHostsAsync(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription? serverDescription,
-                out ArrayOf<EndpointDescription> endpoints);
+                cancellationToken).ConfigureAwait(false);
+            IList<ServiceHost> hosts = init.Hosts;
 
             // save discovery information.
-            ServerDescription = serverDescription;
-            Endpoints = endpoints;
+            ServerDescription = init.ServerDescription;
+            Endpoints = init.Endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -609,7 +623,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        listeners[ii].Close();
+                        await listeners[ii].CloseAsync(cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -619,7 +633,20 @@ namespace Opc.Ua
                             listeners[ii].GetType().FullName);
                     }
 
-                    listeners[ii]?.Dispose();
+                    if (listeners[ii] != null)
+                    {
+                        try
+                        {
+                            await listeners[ii].DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.LogError(
+                                e,
+                                "Unexpected error disposing a listener {Name}.",
+                                listeners[ii].GetType().FullName);
+                        }
+                    }
                 }
 
                 listeners.Clear();
@@ -868,13 +895,15 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
         /// <param name="listener">The transport listener.</param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void CreateServiceHostEndpoint(
+        public virtual async ValueTask CreateServiceHostEndpointAsync(
             Uri endpointUri,
             List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidatorEx certificateValidator)
+            ICertificateValidatorEx certificateValidator,
+            CancellationToken ct = default)
         {
             // create the stack listener.
             try
@@ -899,7 +928,8 @@ namespace Opc.Ua
                         .HttpsMutualTls;
                 }
 
-                listener.Open(endpointUri, settings, GetEndpointInstance(this)!);
+                await listener.OpenAsync(endpointUri, settings, GetEndpointInstance(this)!, ct)
+                    .ConfigureAwait(false);
 
                 TransportListeners.Add(listener);
 
@@ -1596,26 +1626,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Result of <see cref="InitializeServiceHostsAsync"/>.
+        /// </summary>
+        protected readonly struct ServiceHostInitializationResult
+        {
+            /// <summary>
+            /// Creates a new instance.
+            /// </summary>
+            public ServiceHostInitializationResult(
+                IList<ServiceHost> hosts,
+                ApplicationDescription? serverDescription,
+                ArrayOf<EndpointDescription> endpoints)
+            {
+                Hosts = hosts;
+                ServerDescription = serverDescription;
+                Endpoints = endpoints;
+            }
+
+            /// <summary>The created service hosts.</summary>
+            public IList<ServiceHost> Hosts { get; }
+
+            /// <summary>The application description aggregated across hosts.</summary>
+            public ApplicationDescription? ServerDescription { get; }
+
+            /// <summary>The endpoint descriptions advertised by the hosts.</summary>
+            public ArrayOf<EndpointDescription> Endpoints { get; }
+        }
+
+        /// <summary>
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable
         /// configuration information for a UA application.</param>
         /// <param name="bindingFactory">The object of a class that manages a
         /// mapping between a URL scheme and a listener.</param>
-        /// <param name="serverDescription">The object of the class that contains
-        /// a description for the ApplicationDescription DataType.</param>
-        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/>
-        /// objects.</param>
-        /// <returns>Returns list of hosts for a UA service.</returns>
-        protected virtual IList<ServiceHost> InitializeServiceHosts(
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The created hosts together with the server description and
+        /// the aggregated endpoint list.</returns>
+        protected virtual ValueTask<ServiceHostInitializationResult> InitializeServiceHostsAsync(
             ApplicationConfiguration configuration,
             ITransportBindingRegistry bindingFactory,
-            out ApplicationDescription? serverDescription,
-            out ArrayOf<EndpointDescription> endpoints)
+            CancellationToken cancellationToken = default)
         {
-            serverDescription = null;
-            endpoints = default;
-            return [];
+            return new ValueTask<ServiceHostInitializationResult>(
+                new ServiceHostInitializationResult([], null, default));
         }
 
         /// <summary>

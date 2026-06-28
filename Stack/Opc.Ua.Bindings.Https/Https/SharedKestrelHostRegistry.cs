@@ -101,10 +101,10 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Process-wide registry of <see cref="SharedKestrelHost"/> instances
     /// keyed by <see cref="SharedHostKey"/>. The first
-    /// <see cref="HttpsTransportListener"/> to <see cref="Acquire"/> a key
+    /// <see cref="HttpsTransportListener"/> to <see cref="AcquireAsync"/> a key
     /// constructs the underlying Kestrel <see cref="IHost"/>; subsequent
     /// listeners that share the same key are registered as additional
-    /// path-prefix handlers on the same host. On <see cref="SharedHostLease.Dispose"/>
+    /// path-prefix handlers on the same host. On <see cref="SharedHostLease.DisposeAsync"/>
     /// the lease is decremented; when the last lease is released the
     /// host is stopped and removed from the registry.
     /// </summary>
@@ -116,6 +116,11 @@ namespace Opc.Ua.Bindings
     /// the registry entirely.
     /// </para>
     /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Design",
+        "CA1001:Types that own disposable fields should be disposable",
+        Justification = "Process-wide singleton; the SemaphoreSlim lives for the lifetime " +
+            "of the process and is released by the OS at exit.")]
     internal sealed class SharedKestrelHostRegistry
     {
         /// <summary>
@@ -127,14 +132,16 @@ namespace Opc.Ua.Bindings
         {
         }
 
-        private readonly System.Threading.Lock m_lock = new();
+        // Async-aware critical section because Acquire awaits AttachAndStartAsync
+        // and Release awaits StopAsync inside the registry-wide barrier.
+        private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = new();
 
         /// <summary>
         /// Acquires (or creates) the shared host for <paramref name="key"/>
         /// and registers <paramref name="listener"/> with it. Returns a
         /// lease that must be disposed when the listener no longer needs
-        /// the host (typically from <c>HttpsTransportListener.Dispose</c>).
+        /// the host (typically from <c>HttpsTransportListener.DisposeAsync</c>).
         /// </summary>
         /// <param name="key">The <c>(host, port)</c> the listener wants to bind to.</param>
         /// <param name="listener">The listener whose dispatcher should be wired in.</param>
@@ -160,12 +167,14 @@ namespace Opc.Ua.Bindings
         /// (single TLS cert per <c>(host, port)</c> per TCP/TLS layering);
         /// a mismatch throws <see cref="InvalidOperationException"/>.
         /// </param>
-        public SharedHostLease Acquire(
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask<SharedHostLease> AcquireAsync(
             SharedHostKey key,
             HttpsTransportListener listener,
             string pathPrefix,
             Func<SharedHostAccessor, IHost> hostFactory,
-            string serverCertificateThumbprint)
+            string serverCertificateThumbprint,
+            CancellationToken ct = default)
         {
             if (hostFactory == null)
             {
@@ -178,7 +187,8 @@ namespace Opc.Ua.Bindings
                     nameof(serverCertificateThumbprint));
             }
 
-            lock (m_lock)
+            await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 if (!m_hosts.TryGetValue(key, out SharedKestrelHost? host))
                 {
@@ -188,7 +198,7 @@ namespace Opc.Ua.Bindings
                     // Build + start the host with the accessor already wired
                     // into DI so the first request can resolve the SharedHost.
                     IHost ihost = hostFactory(accessor);
-                    host.AttachAndStart(ihost);
+                    await host.AttachAndStartAsync(ihost, ct).ConfigureAwait(false);
                     m_hosts[key] = host;
                 }
                 else if (!string.Equals(
@@ -205,6 +215,10 @@ namespace Opc.Ua.Bindings
                 host.AddListener(pathPrefix, listener);
                 return new SharedHostLease(this, key, listener);
             }
+            finally
+            {
+                m_lock.Release();
+            }
         }
 
         /// <summary>
@@ -212,10 +226,14 @@ namespace Opc.Ua.Bindings
         /// <paramref name="key"/>. When the host's last listener is
         /// released the host is stopped and removed from the registry.
         /// </summary>
-        internal void Release(SharedHostKey key, HttpsTransportListener listener)
+        internal async ValueTask ReleaseAsync(
+            SharedHostKey key,
+            HttpsTransportListener listener,
+            CancellationToken ct = default)
         {
             SharedKestrelHost? toStop = null;
-            lock (m_lock)
+            await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 if (!m_hosts.TryGetValue(key, out SharedKestrelHost? host))
                 {
@@ -228,10 +246,17 @@ namespace Opc.Ua.Bindings
                     toStop = host;
                 }
             }
+            finally
+            {
+                m_lock.Release();
+            }
 
-            // Stop outside the lock to avoid blocking other Acquire/Release
-            // calls during shutdown.
-            toStop?.Stop();
+            // Stop outside the registry lock to avoid blocking other
+            // Acquire/Release calls during shutdown.
+            if (toStop != null)
+            {
+                await toStop.StopAsync(ct).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -243,9 +268,14 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
+                m_lock.Wait();
+                try
                 {
                     return m_hosts.Count;
+                }
+                finally
+                {
+                    m_lock.Release();
                 }
             }
         }
@@ -256,11 +286,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal int ListenerCount(SharedHostKey key)
         {
-            lock (m_lock)
+            m_lock.Wait();
+            try
             {
                 return m_hosts.TryGetValue(key, out SharedKestrelHost? host)
                     ? host.ListenerCount
                     : 0;
+            }
+            finally
+            {
+                m_lock.Release();
             }
         }
     }
@@ -271,7 +306,7 @@ namespace Opc.Ua.Bindings
     /// the listener; when the last lease is disposed the underlying host
     /// is stopped.
     /// </summary>
-    internal sealed class SharedHostLease : IDisposable
+    internal sealed class SharedHostLease : IAsyncDisposable
     {
         internal SharedHostLease(
             SharedKestrelHostRegistry registry,
@@ -283,13 +318,13 @@ namespace Opc.Ua.Bindings
             m_listener = listener;
         }
 
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
-                return;
+                return default;
             }
-            m_registry.Release(m_key, m_listener);
+            return m_registry.ReleaseAsync(m_key, m_listener);
         }
 
         private readonly SharedKestrelHostRegistry m_registry;
@@ -336,16 +371,14 @@ namespace Opc.Ua.Bindings
         /// the request pipeline can resolve this instance on first
         /// request.
         /// </summary>
-        internal void AttachAndStart(IHost host)
+        internal async ValueTask AttachAndStartAsync(IHost host, CancellationToken ct = default)
         {
             if (m_host != null)
             {
                 throw new InvalidOperationException("Shared host is already attached.");
             }
             m_host = host;
-            // Start synchronously to keep the existing single-listener
-            // Open() contract (which is also sync via .GetAwaiter().GetResult()).
-            m_host.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+            await m_host.StartAsync(ct).ConfigureAwait(false);
         }
 
         internal void AddListener(string pathPrefix, HttpsTransportListener listener)
@@ -416,7 +449,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        internal void Stop()
+        internal async ValueTask StopAsync(CancellationToken ct = default)
         {
             if (m_host == null)
             {
@@ -424,7 +457,9 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                m_host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                await m_host.StopAsync(cts.Token).ConfigureAwait(false);
             }
             catch
             {

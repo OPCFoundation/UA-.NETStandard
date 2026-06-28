@@ -61,14 +61,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private const string kOtherThumbprint = "1111111111111111111111111111111111111111";
 
         [Test]
-        public void AcquireWithFirstListenerInvokesHostFactory()
+        public async Task AcquireWithFirstListenerInvokesHostFactoryAsync()
         {
             var key = NewKey();
             var listener = (HttpsTransportListener?)null;
             int factoryInvocations = 0;
             try
             {
-                using SharedHostLease lease = SharedKestrelHostRegistry.Instance.Acquire(
+                await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key,
                     listener!,
                     "/test",
@@ -85,17 +85,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void AcquireWithSecondListenerReusesExistingHost()
+        public async Task AcquireWithSecondListenerReusesExistingHostAsync()
         {
             var key = NewKey();
             int factoryInvocations = 0;
-            using SharedHostLease lease1 = SharedKestrelHostRegistry.Instance.Acquire(
+            await using SharedHostLease lease1 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/listenerA",
                 acc => { factoryInvocations++; return MakeStubHost(); },
                 kThumbprint);
-            using SharedHostLease lease2 = SharedKestrelHostRegistry.Instance.Acquire(
+            await using SharedHostLease lease2 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/listenerB",
@@ -106,18 +106,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void AcquireWithMismatchedThumbprintThrows()
+        public async Task AcquireWithMismatchedThumbprintThrowsAsync()
         {
             var key = NewKey();
-            using SharedHostLease lease = SharedKestrelHostRegistry.Instance.Acquire(
+            await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/test",
                 acc => MakeStubHost(),
                 kThumbprint);
 
-            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-                () => SharedKestrelHostRegistry.Instance.Acquire(
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key,
                     (HttpsTransportListener)null!,
                     "/test",
@@ -129,48 +128,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void ReleasingLastLeaseStopsTheHost()
+        public async Task ReleasingLastLeaseStopsTheHostAsync()
         {
             var key = NewKey();
-            SharedHostLease lease = SharedKestrelHostRegistry.Instance.Acquire(
+            SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/test",
                 acc => MakeStubHost(),
                 kThumbprint);
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
-            lease.Dispose();
+            await lease.DisposeAsync().ConfigureAwait(false);
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.Zero);
         }
 
         [Test]
-        public void DoubleDisposeOfLeaseIsIdempotent()
+        public async Task DoubleDisposeOfLeaseIsIdempotentAsync()
         {
             var key = NewKey();
-            SharedHostLease lease = SharedKestrelHostRegistry.Instance.Acquire(
+            SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/test",
                 acc => MakeStubHost(),
                 kThumbprint);
-            lease.Dispose();
-            Assert.DoesNotThrow(() => lease.Dispose());
+            await lease.DisposeAsync().ConfigureAwait(false);
+            Assert.That(async () => await lease.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         [Test]
-        public void AcquireValidatesArguments()
+        public async Task AcquireValidatesArgumentsAsync()
         {
             var key = NewKey();
-            Assert.Throws<ArgumentNullException>(
-                () => SharedKestrelHostRegistry.Instance.Acquire(
+            Assert.ThrowsAsync<ArgumentNullException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key, (HttpsTransportListener)null!, "/test", null!, kThumbprint));
-            Assert.Throws<ArgumentException>(
-                () => SharedKestrelHostRegistry.Instance.Acquire(
+            Assert.ThrowsAsync<ArgumentException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key, (HttpsTransportListener)null!, "/test", acc => MakeStubHost(), string.Empty));
         }
 
         [Test]
-        public void AccessorIsAlreadyWiredWhenFactoryRuns()
+        public async Task AccessorIsAlreadyWiredWhenFactoryRunsAsync()
         {
             // The registry wires SharedHostAccessor.Instance BEFORE calling
             // the hostFactory, so the factory (and the Kestrel Startup that
@@ -178,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             // the synchronous IHost.StartAsync that follows.
             var key = NewKey();
             SharedHostAccessor? captured = null;
-            using SharedHostLease lease = SharedKestrelHostRegistry.Instance.Acquire(
+            await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/test",

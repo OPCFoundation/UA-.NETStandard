@@ -89,9 +89,9 @@ namespace Opc.Ua.Sessions.Tests
         /// (matches the raw-socket TcpTransportListener contract).
         /// </summary>
         [Test]
-        public void KestrelTcpListenerImplementsCertificateRotationCapability()
+        public async Task KestrelTcpListenerImplementsCertificateRotationCapabilityAsync()
         {
-            using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
+            await using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
             Assert.That(listener, Is.InstanceOf<ITransportListenerCertificateRotation>());
         }
 
@@ -102,14 +102,12 @@ namespace Opc.Ua.Sessions.Tests
         /// no-active-channels case.
         /// </summary>
         [Test]
-        public void KestrelTcpCloseChannelsForCertificateOnUnopenedListenerIsSafe()
+        public async Task KestrelTcpCloseChannelsForCertificateOnUnopenedListenerIsSafeAsync()
         {
-            using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
+            await using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
             using Certificate oldCertificate = CertificateBuilder.Create("CN=Old").CreateForRSA();
 
-            System.Collections.Generic.IReadOnlyList<string> closed =
-                ((ITransportListenerCertificateRotation)listener)
-                    .CloseChannelsForCertificate(oldCertificate);
+            System.Collections.Generic.IReadOnlyList<string> closed = await ((ITransportListenerCertificateRotation)listener).CloseChannelsForCertificateAsync(oldCertificate).ConfigureAwait(false);
 
             Assert.That(closed, Is.Not.Null);
             Assert.That(closed, Is.Empty);
@@ -120,18 +118,17 @@ namespace Opc.Ua.Sessions.Tests
         /// instead of corrupting the channel map.
         /// </summary>
         [Test]
-        public void KestrelTcpCloseChannelsForCertificateRejectsNull()
+        public async Task KestrelTcpCloseChannelsForCertificateRejectsNullAsync()
         {
-            using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
+            await using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
 
             Assert.That(
-                () => ((ITransportListenerCertificateRotation)listener)
-                    .CloseChannelsForCertificate(null!),
+                async () => await ((ITransportListenerCertificateRotation)listener).CloseChannelsForCertificateAsync(null!).ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
         [Test]
-        public void KestrelTcpListenerOpensAndAcceptsTcpConnectionsAsync()
+        public async Task KestrelTcpListenerOpensAndAcceptsTcpConnectionsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -139,8 +136,8 @@ namespace Opc.Ua.Sessions.Tests
             var baseAddress = new Uri(
                 $"opc.tcp://localhost:{port.ToString(CultureInfo.InvariantCulture)}/KestrelTcpSmokeTest");
 
-            using var listener = new KestrelTcpTransportListener(telemetry);
-            listener.Open(baseAddress, BuildMinimalSettings(telemetry), callback: null!);
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            await listener.OpenAsync(baseAddress, BuildMinimalSettings(telemetry), callback: null!).ConfigureAwait(false);
 
             // Smoke check: a raw TCP connect to the bound port succeeds.
             // The connection will not complete a UA-SC handshake (we did
@@ -151,11 +148,11 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(client.Connected, Is.True);
             client.Close();
 
-            listener.Close();
+            await listener.CloseAsync().ConfigureAwait(false);
         }
 
         [Test]
-        public void KestrelTcpListenerStartStopDoesNotLeakPort()
+        public async Task KestrelTcpListenerStartStopDoesNotLeakPortAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             int port = ServerFixtureUtils.GetNextFreeIPPort();
@@ -163,9 +160,9 @@ namespace Opc.Ua.Sessions.Tests
 
             for (int i = 0; i < 3; i++)
             {
-                using var listener = new KestrelTcpTransportListener(telemetry);
-                listener.Open(baseAddress, BuildMinimalSettings(telemetry), callback: null!);
-                listener.Close();
+                await using var listener = new KestrelTcpTransportListener(telemetry);
+                await listener.OpenAsync(baseAddress, BuildMinimalSettings(telemetry), callback: null!).ConfigureAwait(false);
+                await listener.CloseAsync().ConfigureAwait(false);
             }
         }
 

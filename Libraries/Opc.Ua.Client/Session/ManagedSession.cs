@@ -940,28 +940,12 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
-                // The Web API (Profiles.HttpsOpenApiTransport /
-                // Profiles.WssOpenApiTransport) endpoint is now
-                // advertised by HttpsServiceHost-based servers (the
-                // discovery emission lands as a SecurityMode=None
-                // twin per binary HTTPS endpoint, see
-                // HttpsServiceHost.cs OpenApiTransportProfileUri).
-                // However ConfiguredEndpoint.UpdateFromServer's
-                // matching pipeline (MatchEndpoints +
-                // SelectBestMatch) filters and ranks by security
-                // mode/policy/level only — it does NOT honour the
-                // user's TransportProfileUri selection — so the
-                // refresh would silently swap the user's Web API
-                // (or WSS-OpenAPI) choice for the highest-security
-                // binary entry and break downstream channel
-                // dispatch (which IS profile-aware). Skip the
-                // refresh for either OpenAPI profile until
-                // MatchEndpoints learns to honour the requested
-                // transport profile (tracked as a separate
-                // follow-up).
-                string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
-                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
-                    && !Profiles.IsWssOpenApi(profile);
+                // ConfiguredEndpoint.UpdateFromServer (called when
+                // updateBeforeConnect is true) honours the user's
+                // TransportProfileUri selection in its MatchEndpoints
+                // pipeline (see #3923), so an HTTPS / WSS OpenAPI choice
+                // is no longer swapped for a binary twin. Always refresh
+                // before connecting.
 
                 Session session;
                 if (m_channelManager != null)
@@ -974,7 +958,7 @@ namespace Opc.Ua.Client
                         m_channelManager,
                         m_configuration,
                         ConfiguredEndpoint,
-                        updateBeforeConnect,
+                        true,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,
@@ -989,7 +973,7 @@ namespace Opc.Ua.Client
                     session = (Session)await SessionFactory.CreateAsync(
                         m_configuration,
                         ConfiguredEndpoint,
-                        updateBeforeConnect,
+                        true,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,

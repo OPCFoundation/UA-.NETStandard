@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -76,15 +79,17 @@ namespace Opc.Ua.Bindings
         /// The validator used by the listener to validate inbound client
         /// certificates.
         /// </param>
-        System.Collections.Generic.List<EndpointDescription> CreateServiceHost(
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
             ServerBase serverBase,
-            System.Collections.Generic.IDictionary<string, ServiceHost> hosts,
+            IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
             ICertificateRegistry serverCertificates,
-            ICertificateValidatorEx clientCertificateValidator);
+            ICertificateValidatorEx clientCertificateValidator,
+            CancellationToken ct = default);
     }
 
     /// <summary>

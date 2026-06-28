@@ -284,10 +284,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+            return default;
         }
 
         /// <summary>
@@ -340,13 +341,17 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddress">The base address.</param>
         /// <param name="settings">The settings to use when creating the listener.</param>
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(
+        public ValueTask OpenAsync(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback)
+            ITransportListenerCallback callback,
+            CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
 
@@ -394,15 +399,19 @@ namespace Opc.Ua.Bindings
 
             // start the listener.
             Start();
+            return default;
         }
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Close()
+        public ValueTask CloseAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             Stop();
+            return default;
         }
 
         /// <inheritdoc/>
@@ -852,7 +861,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+        public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Certificate oldCertificate,
+            CancellationToken ct = default)
         {
             if (oldCertificate == null)
             {
@@ -862,7 +873,7 @@ namespace Opc.Ua.Bindings
             string oldThumbprint = oldCertificate.Thumbprint;
             if (string.IsNullOrEmpty(oldThumbprint))
             {
-                return [];
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             // Snapshot the channel map so we can iterate without holding
@@ -876,7 +887,7 @@ namespace Opc.Ua.Bindings
 
             if (channels.Length == 0)
             {
-                return [];
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             var closed = new List<string>(channels.Length);
@@ -908,7 +919,7 @@ namespace Opc.Ua.Bindings
                 closed.Count,
                 oldThumbprint);
 
-            return closed;
+            return new ValueTask<IReadOnlyList<string>>(closed);
         }
 
         /// <summary>

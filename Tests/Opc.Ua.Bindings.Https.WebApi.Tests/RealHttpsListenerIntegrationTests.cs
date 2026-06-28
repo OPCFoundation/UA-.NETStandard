@@ -90,7 +90,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
             m_telemetry = new TestTelemetryContext();
             IServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
@@ -112,10 +112,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             int port = FindAvailableTcpPort();
-            m_listener.Open(
+            await m_listener.OpenAsync(
                 new Uri($"https://localhost:{port}/"),
                 CreateListenerSettings(m_certificateRegistry, port),
-                m_callback);
+                m_callback).ConfigureAwait(false);
 
             m_clientHandler = new HttpClientHandler
             {
@@ -128,15 +128,18 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
             m_client?.Dispose();
             m_client = null;
             m_clientHandler?.Dispose();
             m_clientHandler = null;
-            m_listener?.Close();
-            m_listener?.Dispose();
-            m_listener = null;
+            if (m_listener != null)
+            {
+                await m_listener.CloseAsync().ConfigureAwait(false);
+                await m_listener.DisposeAsync().ConfigureAwait(false);
+                m_listener = null;
+            }
 
             m_certificateRegistry?.Dispose();
             m_certificateRegistry = null;

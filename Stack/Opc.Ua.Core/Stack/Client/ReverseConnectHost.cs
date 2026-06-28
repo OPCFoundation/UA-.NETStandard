@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 
@@ -90,7 +92,7 @@ namespace Opc.Ua
         /// Creates a new reverse listener host for a client. The
         /// optional <paramref name="serverCertificates"/> /
         /// <paramref name="certificateValidator"/> are forwarded to the
-        /// underlying <see cref="ITransportListener.Open"/> via
+        /// underlying <see cref="ITransportListener.OpenAsync"/> via
         /// <see cref="TransportListenerSettings"/> and are required by
         /// listener bindings that terminate TLS - in particular the WSS
         /// reverse-connect listener provided by
@@ -138,16 +140,17 @@ namespace Opc.Ua
         /// <summary>
         /// Opens a reverse listener host.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException">
-        /// CreateListener has not been called before Open.
+        /// CreateListener has not been called before OpenAsync.
         /// </exception>
-        public void Open()
+        public async ValueTask OpenAsync(CancellationToken ct = default)
         {
             if (m_listener == null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
-                    "CreateListener must be called before Open.");
+                    "CreateListener must be called before OpenAsync.");
             }
 
             // create the UA listener.
@@ -167,7 +170,7 @@ namespace Opc.Ua
 
                 m_logger.LogInformation("Open reverse connect listener for {Url}.", Url);
 
-                m_listener.Open(Url!, settings, null!);
+                await m_listener.OpenAsync(Url!, settings, null!, ct).ConfigureAwait(false);
 
                 m_listener.ConnectionWaiting += m_onConnectionWaiting;
                 m_listener.ConnectionStatusChanged += m_onConnectionStatusChanged;
@@ -182,7 +185,8 @@ namespace Opc.Ua
         /// <summary>
         /// Close the reverse connect listener.
         /// </summary>
-        public void Close()
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask CloseAsync(CancellationToken ct = default)
         {
             if (m_listener == null)
             {
@@ -190,7 +194,7 @@ namespace Opc.Ua
             }
             m_listener.ConnectionWaiting -= m_onConnectionWaiting;
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
-            m_listener.Close();
+            await m_listener.CloseAsync(ct).ConfigureAwait(false);
         }
 
         private ITransportListener? m_listener;

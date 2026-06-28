@@ -264,7 +264,7 @@ namespace Opc.Ua.Bindings
         /// <param name="accessor">
         /// Late-bound accessor that resolves to the
         /// <see cref="SharedKestrelHost"/> serving this Kestrel host.
-        /// Set by <see cref="SharedKestrelHostRegistry.Acquire"/> before
+        /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync"/> before
         /// the host is started.
         /// </param>
         public void Configure(IApplicationBuilder appBuilder, SharedHostAccessor accessor)
@@ -329,27 +329,59 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
+            Dispose(false);
             GC.SuppressFinalize(this);
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Asynchronously releases the shared-host lease and shuts down the
+        /// owned Kestrel host before the synchronous cleanup runs.
+        /// </summary>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            ConnectionStatusChanged = null;
+            ConnectionWaiting = null;
+
+            SharedHostLease? lease = m_sharedHostLease;
+            m_sharedHostLease = null;
+            if (lease != null)
+            {
+                await lease.DisposeAsync().ConfigureAwait(false);
+            }
+
+#if NET8_0_OR_GREATER
+            IHost? host = m_host;
+#else
+            IWebHost? host = m_host;
+#endif
+            m_host = null;
+            if (host != null)
+            {
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await host.StopAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Best-effort shutdown.
+                }
+                host.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose. Unmanaged-resource
+        /// cleanup only; the async path (<see cref="DisposeAsyncCore"/>)
+        /// handles the shared-host lease and the owned Kestrel host.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
-                ConnectionStatusChanged = null;
-                ConnectionWaiting = null;
-                // Release the shared-host lease first; if this was the last
-                // listener on the (host, port) the registry stops the host.
-                m_sharedHostLease?.Dispose();
-                m_sharedHostLease = null;
-                m_host?.Dispose();
-                m_host = null;
                 m_pinnedServerCertX509?.Dispose();
                 m_pinnedServerCertX509 = null;
                 m_pinnedServerCert?.Dispose();
@@ -378,7 +410,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// The transport callback wired in by
-        /// <see cref="Open(System.Uri, TransportListenerSettings, ITransportListenerCallback)"/>.
+        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
         /// Exposed to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations so they can forward requests through the same
         /// dispatcher used by the binary / JSON paths.
@@ -388,7 +420,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The encoding context (namespace / server tables, quotas,
         /// telemetry) populated by
-        /// <see cref="Open(System.Uri, TransportListenerSettings, ITransportListenerCallback)"/>.
+        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
         /// Available to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations after the listener is opened.
         /// </summary>
@@ -397,7 +429,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The endpoint descriptions advertised by this listener,
         /// populated by
-        /// <see cref="Open(System.Uri, TransportListenerSettings, ITransportListenerCallback)"/>.
+        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
         /// Available to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations so they can pick a default endpoint
         /// (typically the first <see cref="MessageSecurityMode.None"/>
@@ -427,12 +459,14 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddress">The base address.</param>
         /// <param name="settings">The settings to use when creating the listener.</param>
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(
+        public async ValueTask OpenAsync(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback)
+            ITransportListenerCallback callback,
+            CancellationToken ct = default)
         {
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
@@ -483,16 +517,17 @@ namespace Opc.Ua.Bindings
                 m_telemetry);
 
             // start the listener
-            Start();
+            await StartAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Close()
+        public async ValueTask CloseAsync(CancellationToken ct = default)
         {
-            Stop();
+            await StopAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -692,7 +727,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
-        public void Start()
+        public async ValueTask StartAsync(CancellationToken ct = default)
         {
             // 1) Prepare the TLS certificate up front so the registry can
             //    key on its thumbprint when matching shared hosts.
@@ -708,12 +743,13 @@ namespace Opc.Ua.Bindings
                 string thumbprint = m_pinnedServerCertX509.Thumbprint;
                 try
                 {
-                    m_sharedHostLease = SharedKestrelHostRegistry.Instance.Acquire(
+                    m_sharedHostLease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                         key,
                         this,
                         EndpointUrl.AbsolutePath,
                         BuildSharedHostInstance,
-                        thumbprint);
+                        thumbprint,
+                        ct).ConfigureAwait(false);
                     return;
                 }
                 catch (InvalidOperationException ex)
@@ -726,7 +762,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            StartOwnHost();
+            await StartOwnHostAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -829,17 +865,18 @@ namespace Opc.Ua.Bindings
             webHostBuilder.UseStartup<SharedHostStartup>();
         }
 
-        private void StartOwnHost()
+        private async ValueTask StartOwnHostAsync(CancellationToken ct)
         {
 #if NET8_0_OR_GREATER
             m_host = new HostBuilder()
                 .ConfigureWebHostDefaults(ConfigureWebHost)
                 .Build();
-            m_host.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+            await m_host.StartAsync(ct).ConfigureAwait(false);
 #else
             var hostBuilder = new WebHostBuilder();
             ConfigureWebHost(hostBuilder);
             m_host = hostBuilder.Start(Utils.ReplaceLocalhost(EndpointUrl.ToString()));
+            await Task.CompletedTask.ConfigureAwait(false);
 #endif
         }
 
@@ -976,9 +1013,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Stops listening.
         /// </summary>
-        public void Stop()
+        public ValueTask StopAsync(CancellationToken ct = default)
         {
-            Dispose();
+            return DisposeAsync();
         }
 
         /// <summary>
@@ -2113,7 +2150,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an UpdateCertificate event occurred. Performs the
         /// soft fan-out (refresh validator, registry, and per-endpoint
-        /// blobs); see <see cref="CloseChannelsForCertificate"/> for the
+        /// blobs); see <see cref="CloseChannelsForCertificateAsync"/> for the
         /// post-ApplyChanges connection teardown that actually rebinds
         /// the Kestrel TLS certificate.
         /// </summary>
@@ -2134,7 +2171,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+        public async ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Certificate oldCertificate,
+            CancellationToken ct = default)
         {
             if (oldCertificate == null)
             {
@@ -2152,12 +2191,12 @@ namespace Opc.Ua.Bindings
             // HTTPS owns the server certificate at the Kestrel / HTTP.sys
             // listener level, so we can't surgically close individual TLS
             // connections without restarting the host. Per OPC UA Part 12
-            // §7.10.9 a Stop()/Start() cycle satisfies the "force
-            // renegotiate" requirement; existing Sessions remain valid
-            // and the client's reconnect logic re-binds them over the
-            // freshly-issued TLS endpoint.
-            Stop();
-            Start();
+            // §7.10.9 a StopAsync()/StartAsync() cycle satisfies the
+            // "force renegotiate" requirement; existing Sessions remain
+            // valid and the client's reconnect logic re-binds them over
+            // the freshly-issued TLS endpoint.
+            await StopAsync(ct).ConfigureAwait(false);
+            await StartAsync(ct).ConfigureAwait(false);
 
             // The HTTPS listener does not track per-channel ids that map
             // to OPC UA SecureChannels (the binding is request-scoped via

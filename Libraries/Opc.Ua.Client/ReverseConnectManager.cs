@@ -356,26 +356,28 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Open host ports.
         /// </summary>
-        private void OpenHosts()
+        private async ValueTask OpenHostsAsync(CancellationToken ct = default)
         {
+            List<ReverseConnectInfo> snapshot;
             lock (m_lock)
             {
-                foreach (KeyValuePair<Uri, ReverseConnectInfo> host in m_endpointUrls)
+                snapshot = new List<ReverseConnectInfo>(m_endpointUrls.Values);
+            }
+
+            foreach (ReverseConnectInfo value in snapshot)
+            {
+                try
                 {
-                    ReverseConnectInfo value = host.Value;
-                    try
+                    if (value.State < ReverseConnectHostState.Open)
                     {
-                        if (host.Value.State < ReverseConnectHostState.Open)
-                        {
-                            value.ReverseConnectHost.Open();
-                            value.State = ReverseConnectHostState.Open;
-                        }
+                        await value.ReverseConnectHost.OpenAsync(ct).ConfigureAwait(false);
+                        value.State = ReverseConnectHostState.Open;
                     }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(e, "Failed to Open {Uri}.", host.Key);
-                        value.State = ReverseConnectHostState.Errored;
-                    }
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Failed to Open {Uri}.", value.ReverseConnectHost.Url);
+                    value.State = ReverseConnectHostState.Errored;
                 }
             }
         }
@@ -383,26 +385,28 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Close host ports.
         /// </summary>
-        private void CloseHosts()
+        private async ValueTask CloseHostsAsync(CancellationToken ct = default)
         {
+            List<ReverseConnectInfo> snapshot;
             lock (m_lock)
             {
-                foreach (KeyValuePair<Uri, ReverseConnectInfo> host in m_endpointUrls)
+                snapshot = new List<ReverseConnectInfo>(m_endpointUrls.Values);
+            }
+
+            foreach (ReverseConnectInfo value in snapshot)
+            {
+                try
                 {
-                    ReverseConnectInfo value = host.Value;
-                    try
+                    if (value.State == ReverseConnectHostState.Open)
                     {
-                        if (value.State == ReverseConnectHostState.Open)
-                        {
-                            value.ReverseConnectHost.Close();
-                            value.State = ReverseConnectHostState.Closed;
-                        }
+                        await value.ReverseConnectHost.CloseAsync(ct).ConfigureAwait(false);
+                        value.State = ReverseConnectHostState.Closed;
                     }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(e, "Failed to Close {Uri}.", host.Key);
-                        value.State = ReverseConnectHostState.Errored;
-                    }
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Failed to Close {Uri}.", value.ReverseConnectHost.Url);
+                    value.State = ReverseConnectHostState.Errored;
                 }
             }
         }
@@ -412,9 +416,12 @@ namespace Opc.Ua.Client
         /// </summary>
         private void DisposeHosts()
         {
+            // Snapshot under lock, await close outside the lock (CloseHostsAsync
+            // does this internally). Sync bridge at the IDisposable boundary
+            // keeps existing 'using var manager = ...' callers working.
+            CloseHostsAsync().AsTask().GetAwaiter().GetResult();
             lock (m_lock)
             {
-                CloseHosts();
                 m_endpointUrls.Clear();
             }
         }
@@ -541,7 +548,11 @@ namespace Opc.Ua.Client
                 {
                     m_configurationWatcher = null;
                     OnUpdateConfiguration(configuration);
-                    OpenHosts();
+                    // Sync bridge: OpenHostsAsync snapshots under m_lock and
+                    // awaits OpenAsync() outside, so calling it from inside
+                    // this lock does not deadlock — the inner lock acquisition
+                    // happens reentrantly on the same thread.
+                    OpenHostsAsync().AsTask().GetAwaiter().GetResult();
                     m_state = ReverseConnectManagerState.Started;
                 }
                 catch (Exception e)
@@ -694,9 +705,15 @@ namespace Opc.Ua.Client
         private void StopService()
         {
             ClearWaitingConnections();
+            // CloseHostsAsync snapshots the host list under the registry
+            // lock and then awaits CloseAsync() on each listener outside
+            // the lock — safe to bridge to sync here because the public
+            // StopService boundary stays synchronous for backward
+            // compatibility. The listener-layer work itself is fully
+            // async (issue #3923).
+            CloseHostsAsync().AsTask().GetAwaiter().GetResult();
             lock (m_lock)
             {
-                CloseHosts();
                 m_state = ReverseConnectManagerState.Stopped;
             }
         }
@@ -706,9 +723,13 @@ namespace Opc.Ua.Client
         /// </summary>
         private void StartService()
         {
+            // OpenHostsAsync snapshots under lock then awaits OpenAsync()
+            // outside — sync bridge at the existing public StartService
+            // boundary keeps callers (samples, builder, tests) source-
+            // compatible.
+            OpenHostsAsync().AsTask().GetAwaiter().GetResult();
             lock (m_lock)
             {
-                OpenHosts();
                 m_state = ReverseConnectManagerState.Started;
             }
         }

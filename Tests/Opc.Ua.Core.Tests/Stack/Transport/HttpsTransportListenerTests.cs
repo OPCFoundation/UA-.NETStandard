@@ -78,9 +78,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify constructor with https scheme creates a valid instance.
         /// </summary>
         [Test]
-        public void ConstructorWithHttpsSchemeCreatesInstance()
+        public async Task ConstructorWithHttpsSchemeCreatesInstanceAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.That(listener, Is.Not.Null);
         }
 
@@ -88,9 +88,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify constructor with opc.https scheme creates a valid instance.
         /// </summary>
         [Test]
-        public void ConstructorWithOpcHttpsSchemeCreatesInstance()
+        public async Task ConstructorWithOpcHttpsSchemeCreatesInstanceAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeOpcHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeOpcHttps, m_telemetry);
             Assert.That(listener, Is.Not.Null);
         }
 
@@ -98,9 +98,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify UriScheme property returns the scheme passed to the constructor.
         /// </summary>
         [Test]
-        public void UriSchemeReturnsHttpsWhenConstructedWithHttps()
+        public async Task UriSchemeReturnsHttpsWhenConstructedWithHttpsAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.That(listener.UriScheme, Is.EqualTo("https"));
         }
 
@@ -108,9 +108,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify UriScheme property returns opc.https when constructed with that scheme.
         /// </summary>
         [Test]
-        public void UriSchemeReturnsOpcHttpsWhenConstructedWithOpcHttps()
+        public async Task UriSchemeReturnsOpcHttpsWhenConstructedWithOpcHttpsAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeOpcHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeOpcHttps, m_telemetry);
             Assert.That(listener.UriScheme, Is.EqualTo("opc.https"));
         }
 
@@ -118,9 +118,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify ListenerId is null before Open is called.
         /// </summary>
         [Test]
-        public void ListenerIdIsNullBeforeOpen()
+        public async Task ListenerIdIsNullBeforeOpenAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.That(listener.ListenerId, Is.Null);
         }
 
@@ -128,9 +128,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify EndpointUrl is null before Open is called.
         /// </summary>
         [Test]
-        public void EndpointUrlIsNullBeforeOpen()
+        public async Task EndpointUrlIsNullBeforeOpenAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.That(listener.EndpointUrl, Is.Null);
         }
 
@@ -138,42 +138,42 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify Close on an unopened listener does not throw.
         /// </summary>
         [Test]
-        public void CloseOnUnopenedListenerDoesNotThrow()
+        public async Task CloseOnUnopenedListenerDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(listener.Close);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            Assert.That(async () => await listener.CloseAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         /// <summary>
         /// Verify Dispose on an unopened listener does not throw.
         /// </summary>
         [Test]
-        public void DisposeOnUnopenedListenerDoesNotThrow()
+        public async Task DisposeOnUnopenedListenerDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(listener.Dispose);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            Assert.That(async () => await listener.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         /// <summary>
         /// Verify calling Dispose twice does not throw.
         /// </summary>
         [Test]
-        public void DoubleDisposeDoesNotThrow()
+        public async Task DoubleDisposeDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            listener.Dispose();
-            Assert.DoesNotThrow(listener.Dispose);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await listener.DisposeAsync().ConfigureAwait(false);
+            Assert.That(async () => await listener.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         /// <summary>
         /// Verify Close followed by Dispose does not throw.
         /// </summary>
         [Test]
-        public void CloseFollowedByDisposeDoesNotThrow()
+        public async Task CloseFollowedByDisposeDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            listener.Close();
-            Assert.DoesNotThrow(listener.Dispose);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await listener.CloseAsync().ConfigureAwait(false);
+            Assert.That(async () => await listener.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         /// <summary>
@@ -182,9 +182,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// reverse connect for HTTPS-uabinary or HTTPS-JSON).
         /// </summary>
         [Test]
-        public void CreateReverseConnectionThrowsNotImplementedException()
+        public async Task CreateReverseConnectionThrowsNotImplementedExceptionAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var uri = new Uri("https://localhost:4840");
             Assert.Throws<NotImplementedException>(() => listener.CreateReverseConnection(uri, 30000));
         }
@@ -195,9 +195,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// (m_bufferManager/m_quotas are still null).
         /// </summary>
         [Test]
-        public void CreateReverseConnectionForWssRequiresOpenedListener()
+        public async Task CreateReverseConnectionForWssRequiresOpenedListenerAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeOpcWss, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeOpcWss, m_telemetry);
             var uri = new Uri("opc.wss://localhost:4840/SomeClient");
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => listener.CreateReverseConnection(uri, 30000))!;
@@ -209,9 +209,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// regardless of scheme.
         /// </summary>
         [Test]
-        public void CreateReverseConnectionRejectsNullUrl()
+        public async Task CreateReverseConnectionRejectsNullUrlAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeOpcWss, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeOpcWss, m_telemetry);
             Assert.Throws<ArgumentNullException>(
                 () => listener.CreateReverseConnection(null!, 30000));
         }
@@ -220,9 +220,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify UpdateChannelLastActiveTime does not throw on unopened listener.
         /// </summary>
         [Test]
-        public void UpdateChannelLastActiveTimeDoesNotThrow()
+        public async Task UpdateChannelLastActiveTimeDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime("test-channel-id"));
         }
 
@@ -230,9 +230,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify UpdateChannelLastActiveTime with null does not throw.
         /// </summary>
         [Test]
-        public void UpdateChannelLastActiveTimeWithNullDoesNotThrow()
+        public async Task UpdateChannelLastActiveTimeWithNullDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime(null));
         }
 
@@ -240,9 +240,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify UpdateChannelLastActiveTime with empty string does not throw.
         /// </summary>
         [Test]
-        public void UpdateChannelLastActiveTimeWithEmptyStringDoesNotThrow()
+        public async Task UpdateChannelLastActiveTimeWithEmptyStringDoesNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime(string.Empty));
         }
 
@@ -250,9 +250,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify the listener implements ITransportListener.
         /// </summary>
         [Test]
-        public void ListenerImplementsITransportListener()
+        public async Task ListenerImplementsITransportListenerAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.That(listener, Is.InstanceOf<ITransportListener>());
         }
 
@@ -260,20 +260,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify the listener implements IDisposable.
         /// </summary>
         [Test]
-        public void ListenerImplementsIDisposable()
+        public async Task ListenerImplementsIAsyncDisposableAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.That(listener, Is.InstanceOf<IDisposable>());
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            Assert.That(listener, Is.InstanceOf<IAsyncDisposable>());
         }
 
         /// <summary>
         /// Verify HttpsTransportListenerFactory creates an instance with correct scheme.
         /// </summary>
         [Test]
-        public void HttpsTransportListenerFactoryCreatesListener()
+        public async Task HttpsTransportListenerFactoryCreatesListenerAsync()
         {
             var factory = new HttpsTransportListenerFactory();
-            using ITransportListener listener = factory.Create(m_telemetry);
+            await using ITransportListener listener = factory.Create(m_telemetry);
             Assert.That(listener, Is.Not.Null);
             Assert.That(listener.UriScheme, Is.EqualTo("https"));
         }
@@ -282,7 +282,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify HttpsTransportListenerFactory UriScheme property.
         /// </summary>
         [Test]
-        public void HttpsTransportListenerFactoryUriSchemeIsHttps()
+        public async Task HttpsTransportListenerFactoryUriSchemeIsHttpsAsync()
         {
             var factory = new HttpsTransportListenerFactory();
             Assert.That(factory.UriScheme, Is.EqualTo("https"));
@@ -292,10 +292,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify OpcHttpsTransportListenerFactory creates an instance with correct scheme.
         /// </summary>
         [Test]
-        public void OpcHttpsTransportListenerFactoryCreatesListener()
+        public async Task OpcHttpsTransportListenerFactoryCreatesListenerAsync()
         {
             var factory = new OpcHttpsTransportListenerFactory();
-            using ITransportListener listener = factory.Create(m_telemetry);
+            await using ITransportListener listener = factory.Create(m_telemetry);
             Assert.That(listener, Is.Not.Null);
             Assert.That(listener.UriScheme, Is.EqualTo("opc.https"));
         }
@@ -304,7 +304,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify OpcHttpsTransportListenerFactory UriScheme property.
         /// </summary>
         [Test]
-        public void OpcHttpsTransportListenerFactoryUriSchemeIsOpcHttps()
+        public async Task OpcHttpsTransportListenerFactoryUriSchemeIsOpcHttpsAsync()
         {
             var factory = new OpcHttpsTransportListenerFactory();
             Assert.That(factory.UriScheme, Is.EqualTo("opc.https"));
@@ -314,10 +314,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify factory-created listener has null ListenerId before Open.
         /// </summary>
         [Test]
-        public void FactoryCreatedListenerHasNullListenerId()
+        public async Task FactoryCreatedListenerHasNullListenerIdAsync()
         {
             var factory = new HttpsTransportListenerFactory();
-            using ITransportListener listener = factory.Create(m_telemetry);
+            await using ITransportListener listener = factory.Create(m_telemetry);
             Assert.That(listener.ListenerId, Is.Null);
         }
 
@@ -327,9 +327,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// scheme/unsupported-scheme NotImplementedException check).
         /// </summary>
         [Test]
-        public void CreateReverseConnectionWithNullUriThrowsArgumentNullException()
+        public async Task CreateReverseConnectionWithNullUriThrowsArgumentNullExceptionAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.Throws<ArgumentNullException>(() => listener.CreateReverseConnection(null!, 0));
         }
 
@@ -337,20 +337,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify multiple Close calls on an unopened listener do not throw.
         /// </summary>
         [Test]
-        public void MultipleCloseCallsDoNotThrow()
+        public async Task MultipleCloseCallsDoNotThrowAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            listener.Close();
-            Assert.DoesNotThrow(listener.Close);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await listener.CloseAsync().ConfigureAwait(false);
+            Assert.That(async () => await listener.CloseAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         /// <summary>
         /// Verify Open throws when ServerCertificates is null.
         /// </summary>
         [Test]
-        public void OpenThrowsWhenCertProviderIsNull()
+        public async Task OpenThrowsWhenCertProviderIsNullAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var baseAddress = new Uri("https://localhost:51000");
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
@@ -363,18 +363,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Factory = null
             };
 
-            Assert.That(
-                () => listener.Open(baseAddress, settings, callback.Object),
-                Throws.Exception);
+            Assert.That(async () => await listener.OpenAsync(baseAddress, settings, callback.Object).ConfigureAwait(false), Throws.Exception);
         }
 
         /// <summary>
         /// Verify Open sets ListenerId and EndpointUrl before Start fails.
         /// </summary>
         [Test]
-        public void OpenSetsFieldsBeforeStartFails()
+        public async Task OpenSetsFieldsBeforeStartFailsAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var baseAddress = new Uri("https://localhost:51001");
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
@@ -387,7 +385,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Factory = null
             };
 
-            Assert.Catch(() => listener.Open(baseAddress, settings, callback.Object));
+            Assert.CatchAsync(async () => await listener.OpenAsync(baseAddress, settings, callback.Object).ConfigureAwait(false));
 
             Assert.That(listener.ListenerId, Is.Not.Null.And.Not.Empty);
             Assert.That(listener.EndpointUrl, Is.EqualTo(baseAddress));
@@ -397,11 +395,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Verify Stop is equivalent to Dispose.
         /// </summary>
         [Test]
-        public void StopDoesNotThrowOnUnopenedListener()
+        public async Task StopDoesNotThrowOnUnopenedListenerAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            listener.Stop();
-            Assert.DoesNotThrow(listener.Dispose);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await listener.StopAsync().ConfigureAwait(false);
+            Assert.That(async () => await listener.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
 #if NET8_0_OR_GREATER
@@ -412,7 +410,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Response.Body = new MemoryStream();
@@ -429,7 +427,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsBadRequestForWrongContentTypeAsync()
         {
-            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "text/xml";
@@ -447,7 +445,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsBadRequestForBufferLengthMismatchAsync()
         {
-            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
@@ -467,7 +465,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsInternalServerErrorForInvalidBodyAsync()
         {
-            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
@@ -487,7 +485,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncWritesErrorMessageForWrongContentTypeAsync()
         {
-            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "text/html";
@@ -509,7 +507,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendJsonAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = Profiles.OpcUaJsonContentType;
@@ -527,7 +525,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendJsonAsyncRespondsWithServiceFaultForMalformedBodyAsync()
         {
-            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = Profiles.OpcUaJsonContentType;
@@ -558,7 +556,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task AcceptWebSocketAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var context = new DefaultHttpContext();
             context.Response.Body = new MemoryStream();
 
@@ -584,7 +582,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             try
             {
-                listener.Open(baseAddress, settings, callback.Object);
+                listener.OpenAsync(baseAddress, settings, callback.Object).AsTask().GetAwaiter().GetResult();
             }
             catch (NullReferenceException)
             {
