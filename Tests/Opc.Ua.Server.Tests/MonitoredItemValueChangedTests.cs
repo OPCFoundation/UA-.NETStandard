@@ -50,6 +50,17 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ValueChangedStatusFlagChangedReturnsTrue()
+        {
+            var lastValue = new DataValue(new Variant(1), StatusCodes.Good);
+            var value = new DataValue(new Variant(1), StatusCodes.Good.SetSemanticsChanged(true));
+
+            Assert.That(
+                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                Is.True);
+        }
+
+        [Test]
         public void ValueChangedSameValueReturnsFalse()
         {
             var lastValue = new DataValue(new Variant(1));

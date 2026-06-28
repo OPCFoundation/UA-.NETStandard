@@ -207,6 +207,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsReturnsFalseForDifferentStatusCodeFlagBits()
+        {
+            var dv1 = new DataValue(new Variant(42), StatusCodes.Good);
+            var dv2 = new DataValue(new Variant(42), StatusCodes.Good.SetSemanticsChanged(true));
+
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
+        }
+
+        [Test]
         public void EqualsReturnsFalseForDifferentServerTimestamps()
         {
             DataValue dv1 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2024, 1, 1));

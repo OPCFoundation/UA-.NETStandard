@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 return true;
             }
-            if (!previous.StatusCode.Equals(current.StatusCode))
+            if (!previous.StatusCode.Equals(current.StatusCode, StatusCodeComparison.AllBits))
             {
                 return true;
             }
