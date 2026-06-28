@@ -2,7 +2,12 @@
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <!-- netstandard2.0/2.1 can't host the empty $(RestrictForLegacyTfm) shell
+         (CS8021 - no reference assembly defines System.Object), so build those
+         shells as net10.0. net472/net48 shells compile empty fine. -->
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.Bindings.Https.WebApi.Tests</RootNamespace>
     <Nullable>enable</Nullable>
