@@ -796,13 +796,11 @@ namespace Opc.Ua.Sessions.Tests
         [Order(130)]
         public async Task ServerManySessionsLoadTestAsync()
         {
-            // The session count defaults to the supported 500 sessions but can be scaled
-            // down via the OPCUA_LOADTEST_SESSION_COUNT environment variable for quicker
-            // validation runs on constrained hardware / CI.
-            int sessionCount = GetEnvInt("OPCUA_LOADTEST_SESSION_COUNT", 500);
+            // Exercise the supported default of 500 concurrent sessions.
+            const int sessionCount = 500;
             const int publishingInterval = 1000; // slow publishing subscription.
             const int writerInterval = 500;
-            int testDurationSeconds = GetEnvInt("OPCUA_LOADTEST_DURATION_SECONDS", 60);
+            const int testDurationSeconds = 60;
             const int maxConnectAttempts = 5;
 
             // Each secure-channel + ActivateSession handshake is CPU bound (RSA). Cap the
@@ -838,6 +836,8 @@ namespace Opc.Ua.Sessions.Tests
                     .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
 
+                var sessionFactory = new DefaultSessionFactory(Telemetry);
+
                 // Throttle the concurrent secure-channel handshakes to avoid a connect storm.
                 using var connectThrottle = new SemaphoreSlim(maxConnectConcurrency);
                 var createSessionTasks = new List<Task>();
@@ -855,37 +855,39 @@ namespace Opc.Ua.Sessions.Tests
                             // can establish the full session count on capable hardware.
                             for (int attempt = 1; ; attempt++)
                             {
-                                ISession session = null;
+                                ManagedSession session = null;
                                 try
                                 {
-                                    session = await ClientFixture
-                                        .ConnectAsync(configuredEndpoint)
+                                    session = await ManagedSession.CreateAsync(
+                                        ClientFixture.Config,
+                                        configuredEndpoint,
+                                        sessionFactory,
+                                        engineFactory: DefaultSubscriptionEngineFactory.Instance)
                                         .ConfigureAwait(false);
 
-                                    var subscription = new Subscription(session.DefaultSubscription)
-                                    {
-                                        PublishingInterval = publishingInterval
-                                    };
+                                    var handler = new ManySessionsNotificationHandler(
+                                        sessionIndex,
+                                        notificationsPerSession);
 
-                                    var item = new MonitoredItem(subscription.DefaultItem)
-                                    {
-                                        StartNodeId = monitoredNodeId,
-                                        AttributeId = Attributes.Value,
-                                        MonitoringMode = MonitoringMode.Reporting,
-                                        SamplingInterval = 0
-                                    };
+                                    Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                                        handler,
+                                        o => o with
+                                        {
+                                            PublishingInterval = TimeSpan.FromMilliseconds(publishingInterval),
+                                            PublishingEnabled = true
+                                        });
 
-                                    subscription.FastDataChangeCallback = (sub, notification, _) =>
-                                    {
-                                        notificationsPerSession.AddOrUpdate(
-                                            sessionIndex,
-                                            notification.MonitoredItems.Count,
-                                            (_, count) => count + notification.MonitoredItems.Count);
-                                    };
-
-                                    subscription.AddItem(item);
-                                    session.AddSubscription(subscription);
-                                    await subscription.CreateAsync().ConfigureAwait(false);
+                                    subscription.TryAddMonitoredItem(
+                                        monitoredNodeId.ToString(),
+                                        monitoredNodeId,
+                                        o => o with
+                                        {
+                                            AttributeId = Attributes.Value,
+                                            MonitoringMode = MonitoringMode.Reporting,
+                                            SamplingInterval = TimeSpan.Zero,
+                                            QueueSize = 1
+                                        },
+                                        out _);
 
                                     sessions.Add(session);
                                     break;
@@ -1035,23 +1037,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
-        /// Reads a positive integer from an environment variable, returning the
-        /// supplied default when the variable is unset or cannot be parsed.
-        /// </summary>
-        private static int GetEnvInt(string name, int defaultValue)
-        {
-            string value = Environment.GetEnvironmentVariable(name);
-            if (!string.IsNullOrEmpty(value) &&
-                int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) &&
-                parsed > 0)
-            {
-                return parsed;
-            }
-
-            return defaultValue;
-        }
-
-        /// <summary>
         /// Notification handler for the V2 SubscriptionManager path in load tests.
         /// Routes each <see cref="DataValueChange"/> back to the shared
         /// <paramref name="valueChanges"/> counter dict via <paramref name="clientHandles"/>.
@@ -1095,6 +1080,73 @@ namespace Opc.Ua.Sessions.Tests
                     {
                         m_valueChanges.AddOrUpdate(nodeId, 1, (_, count) => count + 1);
                     }
+                }
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                Client.Subscriptions.PublishState publishStateMask)
+            {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+        }
+
+        /// <summary>
+        /// Per-session notification handler for the many-sessions load test.
+        /// Counts the data-value changes delivered to a single session so the
+        /// test can assert every session receives notifications under load.
+        /// </summary>
+        private sealed class ManySessionsNotificationHandler : Client.Subscriptions.ISubscriptionNotificationHandler
+        {
+            private readonly int m_sessionIndex;
+            private readonly ConcurrentDictionary<int, int> m_notificationsPerSession;
+
+            public ManySessionsNotificationHandler(
+                int sessionIndex,
+                ConcurrentDictionary<int, int> notificationsPerSession)
+            {
+                m_sessionIndex = sessionIndex;
+                m_notificationsPerSession = notificationsPerSession;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                int count = notification.Length;
+                if (count > 0)
+                {
+                    m_notificationsPerSession.AddOrUpdate(
+                        m_sessionIndex,
+                        count,
+                        (_, existing) => existing + count);
                 }
                 return default;
             }
