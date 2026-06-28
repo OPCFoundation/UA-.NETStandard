@@ -120,7 +120,11 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
             try
             {
                 decoded = await WebApiBodyCodec
-                    .DecodeBodyAsync<TRequest>(request.Body, messageContext, ct: ct)
+                    .DecodeBodyAsync<TRequest>(
+                        request.Body,
+                        messageContext,
+                        contentLengthHint: request.ContentLength ?? -1,
+                        ct: ct)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException sre)

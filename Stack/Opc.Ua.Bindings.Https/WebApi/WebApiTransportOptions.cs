@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 #if NET8_0_OR_GREATER
-using System;
-
 namespace Opc.Ua.Bindings.WebApi
 {
     /// <summary>
@@ -79,46 +77,6 @@ namespace Opc.Ua.Bindings.WebApi
         /// </summary>
         public WebApiEncoding DefaultEncoding { get; set; }
             = WebApiMediaType.DefaultEncoding;
-
-        /// <summary>
-        /// Configures the listener used when
-        /// <see cref="HostingMode"/> is
-        /// <see cref="WebApiHostingMode.OwnListener"/>.
-        /// </summary>
-        /// <remarks>
-        /// Not yet implemented — the standalone listener mode is a
-        /// follow-up. Setting this throws <see cref="NotSupportedException"/>
-        /// during host startup. Use the default shared hosting mode
-        /// (<see cref="WebApiHostingMode.SharedWithHttpsListener"/>)
-        /// which mounts the REST surface inside the existing
-        /// <c>HttpsTransportListener</c> Kestrel pipeline.
-        /// </remarks>
-        public Action<object>? OwnListenerConfiguration { get; set; }
-
-        /// <summary>
-        /// Switches the hosting mode to
-        /// <see cref="WebApiHostingMode.OwnListener"/> with the supplied
-        /// configuration callback.
-        /// </summary>
-        /// <remarks>
-        /// The standalone listener mode is reserved for a follow-up;
-        /// callers should rely on the default shared hosting mode for
-        /// now. The setter is provided so consumer code that opts in
-        /// today still compiles unchanged when the implementation
-        /// lands.
-        /// </remarks>
-        /// <param name="configure">Listener configuration callback.</param>
-        /// <returns>The same options instance.</returns>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="configure"/> is <c>null</c>.
-        /// </exception>
-        public WebApiTransportOptions UseOwnListener(Action<object> configure)
-        {
-            ArgumentNullException.ThrowIfNull(configure);
-            HostingMode = WebApiHostingMode.OwnListener;
-            OwnListenerConfiguration = configure;
-            return this;
-        }
     }
 }
 #endif

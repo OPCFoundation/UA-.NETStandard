@@ -235,13 +235,5 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         {
             Assert.That(Profiles.IsHttpsOpenApi(uri), Is.False);
         }
-
-        [Test]
-        [Obsolete("Validating the obsolete HttpsWebApiTransport alias works.")]
-        public void HttpsWebApiTransportAliasResolvesToHttpsOpenApiTransport()
-        {
-            Assert.That(Profiles.HttpsWebApiTransport, Is.EqualTo(Profiles.HttpsOpenApiTransport));
-            Assert.That(Profiles.IsHttpsWebApi(Profiles.HttpsOpenApiTransport), Is.True);
-        }
     }
 }

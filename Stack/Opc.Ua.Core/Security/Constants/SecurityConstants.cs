@@ -189,20 +189,6 @@ namespace Opc.Ua
             = "http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi";
 
         /// <summary>
-        /// Renamed to <see cref="HttpsOpenApiTransport"/> for alignment with the
-        /// OPC UA spec profile name (Part 6 §G.3 / profile/2338). The .NET
-        /// binding surface (<c>WebApiClient</c>, <c>WebApiServer</c>, etc.)
-        /// keeps the <c>WebApi*</c> prefix to match the OPC Foundation
-        /// <c>UA-WebApi-StarterKit</c> reference. This obsolete alias maps
-        /// to the same URI so consumers compiled against it continue to
-        /// work.
-        /// </summary>
-        [Obsolete("Renamed to HttpsOpenApiTransport. The .NET binding surface (WebApiClient, " +
-            "WebApiServer, WebApiBodyCodec, …) keeps the WebApi* prefix; only the OPC UA " +
-            "Profiles constants align with the spec OpenAPI naming.")]
-        public const string HttpsWebApiTransport = HttpsOpenApiTransport;
-
-        /// <summary>
         /// Uri for "PubSub UDP UADP" Profile.
         /// This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping
         /// </summary>
@@ -330,16 +316,6 @@ namespace Opc.Ua
         public static bool IsWssOpenApi(string? transportProfileUri)
         {
             return string.Equals(transportProfileUri, WssOpenApiTransport, StringComparison.Ordinal);
-        }
-
-        /// <summary>
-        /// Renamed to <see cref="IsHttpsOpenApi(string)"/>.
-        /// </summary>
-        /// <param name="transportProfileUri">The transport profile URI to test.</param>
-        [Obsolete("Renamed to IsHttpsOpenApi.")]
-        public static bool IsHttpsWebApi(string? transportProfileUri)
-        {
-            return IsHttpsOpenApi(transportProfileUri);
         }
 
         /// <summary>

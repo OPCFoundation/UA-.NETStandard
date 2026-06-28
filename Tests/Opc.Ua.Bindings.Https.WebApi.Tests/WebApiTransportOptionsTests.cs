@@ -40,7 +40,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// Smoke tests for <see cref="WebApiTransportOptions"/>: POCO default
-    /// values, property round-trips, and the <c>UseOwnListener</c> helper.
+    /// values and property round-trips.
     /// </summary>
     [TestFixture]
     [Category("DIExtensionsBatch1")]
@@ -68,14 +68,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void OwnListenerConfigurationDefaultsToNull()
-        {
-            var options = new WebApiTransportOptions();
-
-            Assert.That(options.OwnListenerConfiguration, Is.Null);
-        }
-
-        [Test]
         public void HostingModePropertyRoundtrips()
         {
             var options = new WebApiTransportOptions
@@ -95,59 +87,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             };
 
             Assert.That(options.DefaultEncoding, Is.EqualTo(WebApiEncoding.Verbose));
-        }
-
-        [Test]
-        public void OwnListenerConfigurationPropertyRoundtrips()
-        {
-            Action<object> callback = _ => { };
-            var options = new WebApiTransportOptions
-            {
-                OwnListenerConfiguration = callback
-            };
-
-            Assert.That(options.OwnListenerConfiguration, Is.SameAs(callback));
-        }
-
-        [Test]
-        public void UseOwnListenerSetsHostingModeToOwnListener()
-        {
-            var options = new WebApiTransportOptions();
-
-            options.UseOwnListener(_ => { });
-
-            Assert.That(options.HostingMode, Is.EqualTo(WebApiHostingMode.OwnListener));
-        }
-
-        [Test]
-        public void UseOwnListenerSetsCallback()
-        {
-            Action<object> callback = _ => { };
-            var options = new WebApiTransportOptions();
-
-            options.UseOwnListener(callback);
-
-            Assert.That(options.OwnListenerConfiguration, Is.SameAs(callback));
-        }
-
-        [Test]
-        public void UseOwnListenerReturnsSameOptionsInstance()
-        {
-            var options = new WebApiTransportOptions();
-
-            WebApiTransportOptions returned = options.UseOwnListener(_ => { });
-
-            Assert.That(returned, Is.SameAs(options));
-        }
-
-        [Test]
-        public void UseOwnListenerThrowsForNullConfigure()
-        {
-            var options = new WebApiTransportOptions();
-
-            Assert.That(
-                () => options.UseOwnListener(null!),
-                Throws.ArgumentNullException);
         }
 
         [Test]

@@ -254,7 +254,13 @@ namespace Opc.Ua.Client.WebApi
 #endif
 
             IEncodeable decoded = await WebApiBodyCodec
-                .DecodeBodyAsync(route.ResponseType, stream, m_messageContext, s_clientDecoderOptions, ct)
+                .DecodeBodyAsync(
+                    route.ResponseType,
+                    stream,
+                    m_messageContext,
+                    s_clientDecoderOptions,
+                    contentLengthHint: response.Content.Headers.ContentLength ?? -1,
+                    ct: ct)
                 .ConfigureAwait(false);
             return (IServiceResponse)decoded;
         }

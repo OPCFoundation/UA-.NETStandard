@@ -53,7 +53,7 @@ namespace Opc.Ua.Bindings
     /// <para>
     /// This codec exposes the same primitives without the envelope:
     /// <list type="bullet">
-    /// <item><see cref="DecodeBodyAsync{T}(Stream, IServiceMessageContext, JsonDecoderOptions?, CancellationToken)"/>
+    /// <item><see cref="DecodeBodyAsync{T}(Stream, IServiceMessageContext, JsonDecoderOptions?, long, CancellationToken)"/>
     /// constructs <c>T</c> via its parameterless constructor
     /// and reads its fields directly from the JSON root object using
     /// <see cref="JsonDecoder"/>.</item>
@@ -103,6 +103,15 @@ namespace Opc.Ua.Bindings
         /// Optional decoder options. Defaults to a fresh
         /// <see cref="JsonDecoderOptions"/> instance.
         /// </param>
+        /// <param name="contentLengthHint">
+        /// Optional total length of <paramref name="body"/> in bytes (e.g. the
+        /// HTTP <c>Content-Length</c> header). When non-negative the buffer is
+        /// pre-allocated to the exact size and the rent-and-grow loop is
+        /// avoided. Pass <c>-1</c> when the size is unknown (chunked /
+        /// streamed). Set to a value above
+        /// <see cref="IServiceMessageContext.MaxMessageSize"/> to short-circuit
+        /// oversized requests before any read is issued.
+        /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The decoded value.</returns>
         /// <exception cref="ArgumentNullException">
@@ -118,6 +127,7 @@ namespace Opc.Ua.Bindings
             Stream body,
             IServiceMessageContext context,
             JsonDecoderOptions? options = null,
+            long contentLengthHint = -1,
             CancellationToken ct = default) where T : IEncodeable, new()
         {
             if (body == null)
@@ -134,7 +144,8 @@ namespace Opc.Ua.Bindings
             // before the in-buffer decode call enforces the quota.
             // Throws BadRequestTooLarge the moment the quota is exceeded,
             // before allocating the full payload.
-            byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
+            byte[] payload = await ReadAllBoundedAsync(
+                body, context.MaxMessageSize, contentLengthHint, ct)
                 .ConfigureAwait(false);
 
             return DecodeBody<T>(payload, context, options);
@@ -142,10 +153,13 @@ namespace Opc.Ua.Bindings
 
         // Mirrors JsonRequestMapper.ReadAllBoundedAsync: caps the buffered
         // body length at MaxMessageSize. A non-positive maxLength disables
-        // the cap.
+        // the cap. When contentLengthHint >= 0 the read path skips the
+        // ArrayPool rent-and-grow loop and reads directly into an exact-
+        // sized buffer.
         internal static async ValueTask<byte[]> ReadAllBoundedAsync(
             Stream body,
             int maxLength,
+            long contentLengthHint,
             CancellationToken ct)
         {
             if (body == null)
@@ -153,6 +167,57 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(body));
             }
 
+            // Reject oversized requests before any I/O is issued.
+            if (maxLength > 0 && contentLengthHint > maxLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestTooLarge,
+                    "Request body exceeds the configured MaxMessageSize ({0} bytes).",
+                    maxLength);
+            }
+
+            // Fast path: Content-Length known and within budget — allocate
+            // exact buffer and read directly. Avoids ArrayPool rental,
+            // MemoryStream growth, and the final ToArray() copy.
+            if (contentLengthHint >= 0)
+            {
+                if (contentLengthHint == 0)
+                {
+                    return Array.Empty<byte>();
+                }
+                var exact = new byte[contentLengthHint];
+                int total = 0;
+                while (total < exact.Length)
+                {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                    int n = await body
+                        .ReadAsync(exact.AsMemory(total, exact.Length - total), ct)
+                        .ConfigureAwait(false);
+#else
+                    int n = await body
+                        .ReadAsync(exact, total, exact.Length - total, ct)
+                        .ConfigureAwait(false);
+#endif
+                    if (n == 0)
+                    {
+                        break;
+                    }
+                    total += n;
+                }
+                if (total == exact.Length)
+                {
+                    return exact;
+                }
+                // Truncated body — return the actually-read prefix so callers
+                // surface a decoding error rather than a length mismatch.
+                var truncated = new byte[total];
+                Buffer.BlockCopy(exact, 0, truncated, 0, total);
+                return truncated;
+            }
+
+            // Unknown length: rent a working buffer and grow into a
+            // MemoryStream, capping at MaxMessageSize as soon as the cap is
+            // exceeded.
             using var buffer = new MemoryStream();
             byte[] rented = System.Buffers.ArrayPool<byte>.Shared.Rent(81920);
             try
@@ -289,7 +354,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Non-generic counterpart of
-        /// <see cref="DecodeBodyAsync{T}(Stream, IServiceMessageContext, JsonDecoderOptions?, CancellationToken)"/>
+        /// <see cref="DecodeBodyAsync{T}(Stream, IServiceMessageContext, JsonDecoderOptions?, long, CancellationToken)"/>
         /// that constructs the result via the parameterless constructor of
         /// <paramref name="bodyType"/>. Used by transport channels that
         /// dispatch on a runtime <see cref="Type"/> (e.g.
@@ -308,6 +373,12 @@ namespace Opc.Ua.Bindings
         /// <param name="options">
         /// Optional decoder options. Defaults to a fresh
         /// <see cref="JsonDecoderOptions"/> instance.
+        /// </param>
+        /// <param name="contentLengthHint">
+        /// Optional total length of <paramref name="body"/> in bytes (HTTP
+        /// <c>Content-Length</c> header when present). When non-negative the
+        /// buffer is pre-allocated to the exact size and the rent-and-grow
+        /// loop is avoided. Pass <c>-1</c> when the size is unknown.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The decoded value as <see cref="IEncodeable"/>.</returns>
@@ -335,6 +406,7 @@ namespace Opc.Ua.Bindings
             Stream body,
             IServiceMessageContext context,
             JsonDecoderOptions? options = null,
+            long contentLengthHint = -1,
             CancellationToken ct = default)
         {
             if (body == null)
@@ -347,7 +419,8 @@ namespace Opc.Ua.Bindings
             }
 
             // Bounded read enforces MaxMessageSize before allocation.
-            byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
+            byte[] payload = await ReadAllBoundedAsync(
+                body, context.MaxMessageSize, contentLengthHint, ct)
                 .ConfigureAwait(false);
 
             return DecodeBody(bodyType, payload, context, options);

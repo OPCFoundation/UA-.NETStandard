@@ -36,9 +36,6 @@ The OPC UA Profiles surface exposes the two OpenAPI profile URIs as
 emits the HTTPS twin as a discovery-only `EndpointDescription`
 alongside each `SecurityMode.None` HTTPS-binary endpoint so discovery
 clients see the OpenAPI route without hard-coding the URL.
-`Profiles.HttpsWebApiTransport` is an `[Obsolete]` alias retained for
-binary compatibility — new code should reference
-`Profiles.HttpsOpenApiTransport`.
 
 ## Assembly layout
 
