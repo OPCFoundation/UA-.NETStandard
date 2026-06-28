@@ -48,7 +48,11 @@ builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62543;
 string nodeId = builder.Configuration["HA_NODE_ID"] ?? Guid.NewGuid().ToString("N");
-string endpointUrl = $"opc.tcp://localhost:{port}/RedundantServer";
+// Host advertised in the endpoint URL. Defaults to localhost; set HA_HOST to the
+// reachable hostname (for example the container/service name) for containerized or
+// multi-host deployments so peers and clients can connect across the network.
+string host = builder.Configuration["HA_HOST"] ?? "localhost";
+string endpointUrl = $"opc.tcp://{host}:{port}/RedundantServer";
 string applicationUri = $"urn:localhost:OPCFoundation:RedundantServer:{nodeId}";
 
 // Select the redundancy topology: "ap" (active/passive, default — a single

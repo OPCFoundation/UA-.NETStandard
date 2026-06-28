@@ -1,0 +1,63 @@
+# Active/active redundant OPC UA servers (CRDT gossip) plus a managed client.
+#
+# Two server replicas accept writes and converge their address space over the gossip
+# transport, so NO shared store is required across containers. The managed client
+# connects to one replica and transparently discovers / fails over to the other
+# using the server-published redundant set.
+#
+# The build context is the repository root. Run from the repo root:
+#   docker compose -f Applications/RedundantServer/docker-compose.active-active.yml up --build
+#
+# OPC UA endpoints exposed on the host: replica-a opc.tcp://localhost:62543/RedundantServer
+# and replica-b opc.tcp://localhost:62544/RedundantServer.
+
+services:
+  server-a:
+    build:
+      context: ../..
+      dockerfile: Applications/RedundantServer/Dockerfile
+    image: opcua-redundant-server
+    hostname: server-a
+    environment:
+      HA_HOST: server-a
+      HA_NODE_ID: replica-a
+      HA_MODE: aa
+      HA_GOSSIP_PORT: "4840"
+      HA_GOSSIP_PEERS: server-b:4840
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://server-b:62543/RedundantServer"
+    command: ["--port", "62543"]
+    ports:
+      - "62543:62543"
+
+  server-b:
+    build:
+      context: ../..
+      dockerfile: Applications/RedundantServer/Dockerfile
+    image: opcua-redundant-server
+    hostname: server-b
+    environment:
+      HA_HOST: server-b
+      HA_NODE_ID: replica-b
+      HA_MODE: aa
+      HA_GOSSIP_PORT: "4840"
+      HA_GOSSIP_PEERS: server-a:4840
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://server-a:62543/RedundantServer"
+    command: ["--port", "62543"]
+    ports:
+      - "62544:62543"
+
+  client:
+    build:
+      context: ../..
+      dockerfile: Applications/RedundantClient/Dockerfile
+    image: opcua-redundant-client
+    depends_on:
+      - server-a
+      - server-b
+    command:
+      - "--server"
+      - "opc.tcp://server-a:62543/RedundantServer"
+      - "--autoaccept"
+      - "--nosecurity"
+      - "--duration"
+      - "00:10:00"

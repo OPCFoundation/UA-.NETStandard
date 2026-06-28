@@ -30,7 +30,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Threading;
@@ -39,13 +38,11 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
-using Opc.Ua.Identity;
-using Opc.Ua.Security.Certificates;
 
 namespace RedundantClient
 {
     /// <summary>
-    /// Entry point for the redundant managed client sample.
+    /// Entry point for the managed client sample.
     /// </summary>
     public static class Program
     {
@@ -54,14 +51,10 @@ namespace RedundantClient
         /// </summary>
         public static Task<int> Main(string[] args)
         {
-            var serverOption = new Option<string[]>("--server", "-s")
+            var serverOption = new Option<string>("--server", "-s")
             {
-                Description = "Server discovery URL. Repeat for each known member of the redundant set."
-            };
-            var modeOption = new Option<string>("--mode", "-m")
-            {
-                Description = "Expected failover behavior: cold, warm, hot-a, or hot-b.",
-                DefaultValueFactory = _ => "hot-a"
+                Description = "Discovery URL of any server in the (optionally) redundant set.",
+                DefaultValueFactory = _ => "opc.tcp://localhost:62543/RedundantServer"
             };
             var noSecurityOption = new Option<bool>("--nosecurity")
             {
@@ -76,44 +69,23 @@ namespace RedundantClient
                 Description = "How long to monitor before exiting. Use 00:00:00 to run until Ctrl+C.",
                 DefaultValueFactory = _ => TimeSpan.FromMinutes(2)
             };
-            var pollIntervalOption = new Option<TimeSpan>("--poll-interval")
-            {
-                Description = "ServiceLevel refresh interval.",
-                DefaultValueFactory = _ => TimeSpan.FromSeconds(5)
-            };
 
-            var rootCommand = new RootCommand("OPC UA non-transparent redundant managed client sample")
+            var rootCommand = new RootCommand(
+                "OPC UA managed client sample that transparently handles server redundancy")
             {
                 serverOption,
-                modeOption,
                 noSecurityOption,
                 autoAcceptOption,
-                durationOption,
-                pollIntervalOption
+                durationOption
             };
 
             rootCommand.SetAction(async (parseResult, cancellationToken) =>
             {
-                string[] serverUrls = parseResult.GetValue(serverOption) ?? [];
-                if (serverUrls.Length == 0)
-                {
-                    Console.Error.WriteLine("At least one --server discovery URL is required.");
-                    return;
-                }
-
-                ClientFailoverMode mode = ParseMode(parseResult.GetValue(modeOption)!);
-                bool noSecurity = parseResult.GetValue(noSecurityOption);
-                bool autoAccept = parseResult.GetValue(autoAcceptOption);
-                TimeSpan duration = parseResult.GetValue(durationOption);
-                TimeSpan pollInterval = parseResult.GetValue(pollIntervalOption);
-
                 await RunAsync(
-                    serverUrls,
-                    mode,
-                    noSecurity,
-                    autoAccept,
-                    duration,
-                    pollInterval,
+                    parseResult.GetValue(serverOption)!,
+                    parseResult.GetValue(noSecurityOption),
+                    parseResult.GetValue(autoAcceptOption),
+                    parseResult.GetValue(durationOption),
                     cancellationToken).ConfigureAwait(false);
             });
 
@@ -122,12 +94,10 @@ namespace RedundantClient
         }
 
         private static async Task RunAsync(
-            string[] serverUrls,
-            ClientFailoverMode mode,
+            string serverUrl,
             bool noSecurity,
             bool autoAccept,
             TimeSpan duration,
-            TimeSpan pollInterval,
             CancellationToken ct)
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder =>
@@ -135,101 +105,125 @@ namespace RedundantClient
                 builder.SetMinimumLevel(LogLevel.Information);
             });
             using IDisposable? telemetryDisposable = telemetry as IDisposable;
+
+            var application = new ApplicationInstance(telemetry)
             {
-                var application = new ApplicationInstance(telemetry)
+                ApplicationName = kApplicationName,
+                ApplicationType = ApplicationType.Client,
+                ConfigSectionName = kConfigSectionName,
+                CertificatePasswordProvider = new CertificatePasswordProvider([])
+            };
+
+            await using (application.ConfigureAwait(false))
+            {
+                ApplicationConfiguration configuration = await application
+                    .LoadApplicationConfigurationAsync(silent: false, ct: ct)
+                    .ConfigureAwait(false);
+                if (autoAccept)
                 {
-                    ApplicationName = kApplicationName,
-                    ApplicationType = ApplicationType.Client,
-                    ConfigSectionName = kConfigSectionName,
-                    CertificatePasswordProvider = new CertificatePasswordProvider([])
-                };
+                    configuration.CertificateManager.AcceptError = (_, _) => true;
+                }
 
-                await using (application.ConfigureAwait(false))
+                bool haveCertificate = await application
+                    .CheckApplicationInstanceCertificatesAsync(silent: false, ct: ct)
+                    .ConfigureAwait(false);
+                if (!haveCertificate)
                 {
-                    ApplicationConfiguration configuration = await application
-                        .LoadApplicationConfigurationAsync(silent: false, ct: ct)
-                        .ConfigureAwait(false);
-                    if (autoAccept)
-                    {
-                        configuration.CertificateManager.AcceptError = AutoAcceptError;
-                    }
+                    throw new InvalidOperationException("Application instance certificate invalid.");
+                }
 
-                    bool haveCertificate = await application
-                        .CheckApplicationInstanceCertificatesAsync(silent: false, ct: ct)
-                        .ConfigureAwait(false);
-                    if (!haveCertificate)
-                    {
-                        throw new InvalidOperationException("Application instance certificate invalid.");
-                    }
+                EndpointDescription selectedEndpoint = await CoreClientUtils
+                    .SelectEndpointAsync(configuration, serverUrl, useSecurity: !noSecurity, telemetry, ct)
+                    .ConfigureAwait(false)
+                    ?? throw new InvalidOperationException(
+                        $"No endpoint could be selected for '{serverUrl}'.");
+                var endpoint = new ConfiguredEndpoint(
+                    null,
+                    selectedEndpoint,
+                    EndpointConfiguration.Create(configuration));
 
-                    EndpointDescription selectedEndpoint = await CoreClientUtils
-                        .SelectEndpointAsync(
-                            configuration,
-                            serverUrls[0],
-                            useSecurity: !noSecurity,
-                            telemetry,
-                            ct)
-                        .ConfigureAwait(false)
-                        ?? throw new InvalidOperationException(
-                            $"No endpoint could be selected for '{serverUrls[0]}'.");
-                    var configuredEndpoint = new ConfiguredEndpoint(
-                        null,
-                        selectedEndpoint,
-                        EndpointConfiguration.Create(configuration));
+                Console.WriteLine("Connecting managed client to {0}", serverUrl);
 
-                    var resolver = new SeededRedundantServerEndpointResolver(serverUrls, telemetry);
-                    var redundancyHandler = new DefaultServerRedundancyHandler(resolver);
-                    RedundantManagedClientOptions options = CreateOptions(mode);
+                // A single ManagedSession is the managed client. WithServerRedundancy() lets it
+                // discover the redundant set (if any) from the connected server and fail over
+                // transparently; against a server that is not configured for redundancy it simply
+                // behaves as a resilient reconnecting session. The caller does not need to know the
+                // server topology before connecting.
+                ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+                    .UseEndpoint(endpoint)
+                    .WithSessionName(kApplicationName)
+                    .WithUserIdentity(new UserIdentity())
+                    .WithServerRedundancy()
+                    .ConnectAsync(ct)
+                    .ConfigureAwait(false);
 
-                    Console.WriteLine("Connecting to redundant set with initial endpoint {0}", serverUrls[0]);
-                    RedundantManagedClient client = await new ManagedSessionBuilder(
-                            configuration,
-                            telemetry)
-                        .UseEndpoint(configuredEndpoint)
-                        .WithSessionName(kApplicationName)
-                        .WithUserIdentity(new UserIdentity())
-                        .WithServerRedundancy(redundancyHandler)
-                        .ConnectRedundantAsync(options, ct)
-                        .ConfigureAwait(false);
-                    await using (client.ConfigureAwait(false))
-                    {
-                        await LogRedundancyInfoAsync(client, redundancyHandler, ct).ConfigureAwait(false);
-                        WarnIfModeDiffers(mode, client.Mode);
-                        client.NotificationReceived += OnNotificationReceived;
+                await using (session.ConfigureAwait(false))
+                {
+                    session.ConnectionStateChanged += OnConnectionStateChanged;
 
-                        // Ownership of the subscription template transfers to the redundant client,
-                        // which disposes it together with the client (see AddSubscriptionAsync remarks).
-#pragma warning disable CA2000
-                        await client.AddSubscriptionAsync(
-                            kSubscriptionKey,
-                            CreateCurrentTimeSubscription(client),
-                            ct).ConfigureAwait(false);
-#pragma warning restore CA2000
+                    await LogRedundancyInfoAsync(session, ct).ConfigureAwait(false);
+                    await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
 
-                        Console.WriteLine("Monitoring ServerStatus.CurrentTime. Press Ctrl+C to stop.");
-                        await MonitorFailoverAsync(
-                            client,
-                            duration,
-                            pollInterval,
-                            ct).ConfigureAwait(false);
-                    }
+                    Console.WriteLine("Monitoring ServerStatus.CurrentTime. Press Ctrl+C to stop.");
+                    await RunForDurationAsync(duration, ct).ConfigureAwait(false);
+
+                    session.ConnectionStateChanged -= OnConnectionStateChanged;
                 }
             }
         }
 
-        private static Subscription CreateCurrentTimeSubscription(RedundantManagedClient client)
+        private static async Task LogRedundancyInfoAsync(ManagedSession session, CancellationToken ct)
         {
-            ManagedSession session = client.CurrentSession
-                ?? throw new InvalidOperationException("Redundant client has no active session.");
+            var handler = new DefaultServerRedundancyHandler();
+            ServerRedundancyInfo info = await handler
+                .FetchRedundancyInfoAsync(session, ct)
+                .ConfigureAwait(false);
+            if (info.Mode == RedundancySupport.None)
+            {
+                Console.WriteLine(
+                    "Server is not configured for redundancy (RedundancySupport=None); " +
+                    "running as a single resilient session.");
+                return;
+            }
+
+            Console.WriteLine(
+                "Server reports RedundancySupport={0}, ServiceLevel={1} ({2}), CurrentServerId={3}.",
+                info.Mode,
+                info.ServiceLevel,
+                info.ServiceLevelSubrange,
+                info.CurrentServerId);
+            for (int ii = 0; ii < info.RedundantServers.Count; ii++)
+            {
+                RedundantServer server = info.RedundantServers[ii];
+                Console.WriteLine(
+                    "Peer {0}: uri={1}, state={2}, serviceLevel={3}, endpoint={4}",
+                    ii + 1,
+                    server.ServerUri,
+                    server.ServerState,
+                    server.ServiceLevel,
+                    server.Endpoint?.EndpointUrl?.ToString() ?? "(unresolved)");
+            }
+        }
+
+        private static async Task SubscribeToCurrentTimeAsync(ManagedSession session, CancellationToken ct)
+        {
+            // Ownership of the subscription transfers to the session via AddSubscription;
+            // the session disposes its subscriptions when it is disposed.
+#pragma warning disable CA2000
             var subscription = new Subscription(session.DefaultSubscription)
             {
                 DisplayName = "RedundantClient CurrentTime",
                 PublishingEnabled = true,
                 PublishingInterval = 1000,
-                KeepAliveCount = 5,
+                KeepAliveCount = 10,
                 LifetimeCount = 0,
-                MinLifetimeInterval = 10_000
+                MinLifetimeInterval = 10_000,
+                FastDataChangeCallback = OnDataChange
             };
+            session.AddSubscription(subscription);
+#pragma warning restore CA2000
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
             var currentTime = new MonitoredItem(subscription.DefaultItem)
             {
                 StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
@@ -240,185 +234,44 @@ namespace RedundantClient
                 DiscardOldest = true
             };
             subscription.AddItem(currentTime);
-            return subscription;
+            await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
         }
 
-        private static async Task MonitorFailoverAsync(
-            RedundantManagedClient client,
-            TimeSpan duration,
-            TimeSpan pollInterval,
-            CancellationToken ct)
+        private static void OnDataChange(
+            Subscription subscription,
+            DataChangeNotification notification,
+            ArrayOf<string> stringTable)
         {
-            DateTime endTime = duration <= TimeSpan.Zero
-                ? DateTime.MaxValue
-                : DateTime.UtcNow.Add(duration);
-            string lastActive = GetActiveServerName(client);
-            Console.WriteLine("Active server: {0}", lastActive);
-
-            while (DateTime.UtcNow < endTime && !ct.IsCancellationRequested)
+            for (int ii = 0; ii < notification.MonitoredItems.Count; ii++)
             {
-                await Task.Delay(pollInterval, ct).ConfigureAwait(false);
-                try
-                {
-                    await client.RefreshServiceLevelsAsync(ct).ConfigureAwait(false);
-                    IRedundantManagedClientSession? active = client.CurrentRedundantSession;
-                    if (active != null && !ServiceLevels.IsHealthy(active.ServiceLevel))
-                    {
-                        Console.WriteLine(
-                            "Active server {0} has ServiceLevel {1} ({2}); requesting failover.",
-                            GetServerName(active),
-                            active.ServiceLevel,
-                            ServiceLevels.GetSubrange(active.ServiceLevel));
-                        await client.FailoverAsync(ct).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await client.FailoverAsync(ct).ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex) when (ex is ServiceResultException or TimeoutException)
-                {
-                    Console.WriteLine("Refresh failed ({0}); requesting failover.", ex.Message);
-                    if (client.CurrentRedundantSession != null)
-                    {
-                        await client.CurrentRedundantSession.CloseAsync(ct).ConfigureAwait(false);
-                    }
-
-                    await client.FailoverAsync(ct).ConfigureAwait(false);
-                }
-
-                string activeServer = GetActiveServerName(client);
-                if (!string.Equals(activeServer, lastActive, StringComparison.Ordinal))
-                {
-                    Console.WriteLine("Failover complete. New active server: {0}", activeServer);
-                    lastActive = activeServer;
-                }
-                else if (client.CurrentRedundantSession != null)
-                {
-                    Console.WriteLine(
-                        "Active server remains {0}; ServiceLevel={1} ({2}).",
-                        activeServer,
-                        client.CurrentRedundantSession.ServiceLevel,
-                        ServiceLevels.GetSubrange(client.CurrentRedundantSession.ServiceLevel));
-                }
-            }
-        }
-
-        private static async Task LogRedundancyInfoAsync(
-            RedundantManagedClient client,
-            DefaultServerRedundancyHandler redundancyHandler,
-            CancellationToken ct)
-        {
-            ManagedSession session = client.CurrentSession
-                ?? throw new InvalidOperationException("Redundant client has no active session.");
-            ServerRedundancyInfo info = await redundancyHandler
-                .FetchRedundancyInfoAsync(session, ct)
-                .ConfigureAwait(false);
-            Console.WriteLine(
-                "Server reports RedundancySupport={0}, ServiceLevel={1} ({2}).",
-                info.Mode,
-                info.ServiceLevel,
-                info.ServiceLevelSubrange);
-            for (int ii = 0; ii < info.RedundantServers.Count; ii++)
-            {
-                RedundantServer server = info.RedundantServers[ii];
+                MonitoredItemNotification item = notification.MonitoredItems[ii];
                 Console.WriteLine(
-                    "Peer {0}: uri={1}, state={2}, serviceLevel={3} ({4}), endpoint={5}",
-                    ii + 1,
-                    server.ServerUri,
-                    server.ServerState,
-                    server.ServiceLevel,
-                    ServiceLevels.GetSubrange(server.ServiceLevel),
-                    server.Endpoint?.EndpointUrl?.ToString() ?? "(unresolved)");
+                    "CurrentTime={0:o} Status={1}",
+                    item.Value.GetValue(DateTime.MinValue),
+                    item.Value.StatusCode);
             }
         }
 
-        private static void OnNotificationReceived(
-            object? sender,
-            RedundantManagedClientNotificationEventArgs e)
+        private static void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
         {
-            Console.WriteLine(
-                "Notification from {0}: {1:o} Status={2}",
-                e.ServerUri,
-                e.Value.GetValue(DateTime.MinValue),
-                e.Value.StatusCode);
+            Console.WriteLine("Connection state: {0} -> {1}", e.PreviousState, e.NewState);
         }
 
-        private static RedundantManagedClientOptions CreateOptions(ClientFailoverMode mode)
+        private static async Task RunForDurationAsync(TimeSpan duration, CancellationToken ct)
         {
-            return new RedundantManagedClientOptions
+            try
             {
-                HotNotificationMode = mode == ClientFailoverMode.HotB
-                    ? HotRedundancyNotificationMode.ReportingMerge
-                    : HotRedundancyNotificationMode.ReportingHandoff
-            };
-        }
-
-        private static void WarnIfModeDiffers(ClientFailoverMode requestedMode, RedundancySupport reportedMode)
-        {
-            RedundancySupport expected = requestedMode switch
-            {
-                ClientFailoverMode.Cold => RedundancySupport.Cold,
-                ClientFailoverMode.Warm => RedundancySupport.Warm,
-                ClientFailoverMode.HotA or ClientFailoverMode.HotB => RedundancySupport.Hot,
-                _ => RedundancySupport.Hot
-            };
-            if (reportedMode != expected)
-            {
-                Console.WriteLine(
-                    "Warning: --mode {0} expects server RedundancySupport={1}, but the server reports {2}.",
-                    FormatMode(requestedMode),
-                    expected,
-                    reportedMode);
+                await Task.Delay(
+                    duration <= TimeSpan.Zero ? Timeout.InfiniteTimeSpan : duration,
+                    ct).ConfigureAwait(false);
             }
-        }
-
-        private static ClientFailoverMode ParseMode(string? value)
-        {
-            return (value ?? "hot-a").Trim().ToLowerInvariant() switch
+            catch (OperationCanceledException)
             {
-                "cold" => ClientFailoverMode.Cold,
-                "warm" => ClientFailoverMode.Warm,
-                "hot-a" or "hota" or "hot" => ClientFailoverMode.HotA,
-                "hot-b" or "hotb" => ClientFailoverMode.HotB,
-                _ => throw new ArgumentException("Mode must be cold, warm, hot-a, or hot-b.", nameof(value))
-            };
-        }
-
-        private static string FormatMode(ClientFailoverMode mode)
-        {
-            return mode switch
-            {
-                ClientFailoverMode.Cold => "cold",
-                ClientFailoverMode.Warm => "warm",
-                ClientFailoverMode.HotA => "hot-a",
-                ClientFailoverMode.HotB => "hot-b",
-                _ => "hot-a"
-            };
-        }
-
-        private static string GetActiveServerName(RedundantManagedClient client)
-        {
-            return client.CurrentRedundantSession == null
-                ? "(none)"
-                : GetServerName(client.CurrentRedundantSession);
-        }
-
-        private static string GetServerName(IRedundantManagedClientSession session)
-        {
-            return session.Endpoint.Description.Server?.ApplicationUri ??
-                session.Endpoint.Description.EndpointUrl ??
-                session.Endpoint.EndpointUrl?.ToString() ??
-                "(unknown)";
-        }
-
-        private static bool AutoAcceptError(Certificate certificate, ServiceResult error)
-        {
-            return true;
+                // Ctrl+C or the run duration elapsed; exit cleanly.
+            }
         }
 
         private const string kApplicationName = "RedundantClient";
         private const string kConfigSectionName = "RedundantClient";
-        private const string kSubscriptionKey = "server-current-time";
     }
 }

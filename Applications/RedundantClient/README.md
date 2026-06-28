@@ -1,21 +1,24 @@
-# Redundant client sample
+# Managed client sample
 
-This console sample demonstrates the non-transparent redundant managed client in `Opc.Ua.Client`. It connects to one seed server, reads `Server.ServiceLevel` and `Server.ServerRedundancy`, resolves peer application URIs with `FindServers`, creates a redundant subscription to `Server_ServerStatus_CurrentTime`, and logs the active server selected by highest `ServiceLevel`.
+This console sample shows the recommended way to connect an OPC UA client: build a single `ManagedSession` with `WithServerRedundancy()`. The same code works whether or not the target server is configured for redundancy, because a client is almost never aware of the server topology until it has connected.
 
-Run against two or three servers that expose the same non-transparent `RedundantServerSet`:
+- Against a redundant server, the managed session reads `Server.ServerRedundancy` / `Server.ServiceLevel`, discovers the redundant set from the connected server, and fails over transparently. There is no client-side failover-mode selection and no hand-maintained seed list — the peer set comes from the server.
+- Against a server that is not configured for redundancy, the same session simply runs as a resilient, automatically reconnecting client (`RedundancySupport=None`).
+
+## Run
 
 ```powershell
 dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- `
-  --server opc.tcp://localhost:62543/RedundantServer `
-  --server opc.tcp://localhost:62544/RedundantServer `
-  --mode hot-b --autoaccept --nosecurity --duration 00:05:00
+  --server opc.tcp://localhost:62543/RedundantServer --autoaccept --nosecurity --duration 00:05:00
 ```
 
-Modes:
+| Option | Default | Description |
+| --- | --- | --- |
+| `--server`, `-s` | `opc.tcp://localhost:62543/RedundantServer` | Discovery URL of any server in the (optionally) redundant set. |
+| `--nosecurity` | off | Select endpoints with `MessageSecurityMode.None`. |
+| `--autoaccept` | off | Automatically accept untrusted server certificates (sample only). |
+| `--duration`, `-d` | `00:02:00` | How long to monitor before exiting; `00:00:00` runs until Ctrl+C. |
 
-- `cold`: connect initially to one server; on failover, connect the selected standby and create the subscription there.
-- `warm`: keep all resolved peer sessions connected; only the active server publishes while standbys sample.
-- `hot-a`: hot redundancy with reporting handoff; all peers host the subscription, but only the active server publishes notifications.
-- `hot-b`: hot redundancy with reporting merge; all peers publish and `RedundantManagedClient` suppresses duplicate notifications.
+The sample connects, logs the server's reported `RedundancySupport` (or notes that the server is not redundant), subscribes to `Server.ServerStatus.CurrentTime`, and logs the values together with any transparent connection-state changes (reconnect or failover). To observe failover, lower the active server's service level (for example with the `RedundantServer` sample's manual failover support) or stop the active server; the managed session reconnects to a healthy peer on its own.
 
-The server reports the actual OPC UA `RedundancySupport` mode. The `--mode` option selects the client-side hot notification behavior and documents the expected server topology; the sample warns if the server reports a different mode. To observe failover, lower the active server's service level (for example by using the HA sample's manual failover support) or stop the active server. The client periodically refreshes service levels and calls `FailoverAsync`, then logs the newly active session.
+See [HighAvailability.md](../../Docs/HighAvailability.md) for the redundancy design and the [RedundantServer](../RedundantServer/README.md) sample for the server side.

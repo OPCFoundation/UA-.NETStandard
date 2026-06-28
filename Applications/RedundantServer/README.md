@@ -187,4 +187,18 @@ dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --po
 
 Both replicas now accept writes to `Counter` and converge: a write on either endpoint propagates to the other by gossip, and the per-second increment runs on every replica, with CRDT last-writer-wins resolving the concurrent updates. Unlike the active/passive store-backed setup, active/active needs no shared `ISharedKeyValueStore` between processes — the gossip transport carries the state.
 
+## Docker Compose
+
+Two compose files run the sample as containers (the build context is the repository root):
+
+```powershell
+# Active/active: two replicas converge by CRDT gossip (no shared store), plus a client.
+docker compose -f Applications\RedundantServer\docker-compose.active-active.yml up --build
+
+# Active/passive: leader-election wiring demonstration, plus a client.
+docker compose -f Applications\RedundantServer\docker-compose.active-passive.yml up --build
+```
+
+Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer` and `opc.tcp://localhost:62544/RedundantServer`), and the bundled `RedundantClient` connects to one replica and follows the redundant set. Set `HA_HOST` to the reachable hostname (the compose files use the container/service name) so peers and clients can connect across the container network. The active/passive compose is a wiring demonstration only, because the default in-memory store is not shared across containers; see "Wire up a shared store for real HA" above for a real deployment.
+
 For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [HighAvailabilityKubernetes.md](..\..\Docs\HighAvailabilityKubernetes.md).

@@ -262,10 +262,23 @@ Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP
 
 For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
+### Client-side high availability (planned extension)
+
+OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss.
+
+The intended design reuses the building blocks already provided here:
+
+- **Leader election** among the client replicas, using the same lease/leader-election seam as the server side, so exactly one replica is the active client at a time.
+- **Shared session secret via CRDT / shared store.** The active client persists the `AuthenticationToken` and the mirrored session secrets through `ISharedKeyValueStore` (in-memory for tests, CRDT gossip or a networked store in production, protected by `IRecordProtector`). A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session when the server does not mirror state.
+- **Subscription transfer to the leader.** On promotion the new leader transfers or recreates the subscriptions through the existing `TransferSubscriptionsAsync` / recreate paths, so monitoring continues with minimal gap.
+- **Shared abstractions** for the client coordinator live in `Opc.Ua.Core` under a `Redundancy` namespace, so the client and server redundancy features share one set of seams (leader election, shared store, record protection).
+
+This client replica-set capability is a planned follow-up. The server-side redundancy, the mirrored-session fast-reconnect token reuse (`ManagedSessionBuilder.WithTokenReuseFailover`), and the shared-store / record-protection seams it builds on are already provided in this work.
+
 ## Kubernetes deployment
 
 Use the consolidated [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide for the `Opc.Ua.Server.Redundancy.K8s` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
 
 ## Samples
 
-`Applications/RedundantServer` demonstrates the server-side distributed and redundancy registrations. `Applications/RedundantClient` demonstrates reading server redundancy metadata, comparing requested client failover behavior with the server's reported `RedundancySupport`, and running the client failover modes from the command line.
+`Applications/RedundantServer` demonstrates the server-side distributed and redundancy registrations, with `docker-compose` files for active/active and active/passive replica sets. `Applications/RedundantClient` shows the recommended managed-client pattern: a single `ManagedSession` with `WithServerRedundancy()` that connects to any server, reads its redundancy metadata, and fails over transparently — the same code works whether or not the server is configured for redundancy.
