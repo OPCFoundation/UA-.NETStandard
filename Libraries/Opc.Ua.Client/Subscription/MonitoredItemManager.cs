@@ -1331,7 +1331,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             // otherwise default to
                             // BadMonitoredItemIdInvalid.
                             StatusCode propagated = trig.Error == null ||
-                                trig.Error.StatusCode.Code == StatusCodes.Good
+                                trig.Error.StatusCode == StatusCodes.Good
                                     ? StatusCodes.BadMonitoredItemIdInvalid
                                     : trig.Error.StatusCode;
                             FailOperation(o, trig, propagated);
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                                 }
                             }
                         }
-                        else if (serviceResult.Code ==
+                        else if (serviceResult ==
                             StatusCodes.BadSubscriptionIdInvalid)
                         {
                             // Recoverable via subscription recreate:
@@ -1565,7 +1565,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         StatusCode failStatus = ex is ServiceResultException sre
                             ? sre.StatusCode
                             : StatusCodes.BadCommunicationError;
-                        if (failStatus.Code ==
+                        if (failStatus ==
                             StatusCodes.BadSubscriptionIdInvalid)
                         {
                             // Recoverable: KEEP desired-state and

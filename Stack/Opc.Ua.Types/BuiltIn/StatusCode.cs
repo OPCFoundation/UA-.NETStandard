@@ -567,25 +567,73 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
-            return obj is StatusCode s ? Equals(s) : obj is uint code && Equals(code);
+            return obj is StatusCode s ? Equals(s) :
+                obj is uint code && (code & 0x0000FFFFu) == 0 && Equals(code);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Compares the code bits of this status code with another status code.
+        /// </summary>
+        /// <remarks>
+        /// Only the 16 code bits (bits 16 - 31) are compared; the info, flag and
+        /// additional bits are ignored. Use
+        /// <see cref="Equals(StatusCode, StatusCodeComparison)"/> with
+        /// <see cref="StatusCodeComparison.AllBits"/> to compare the entire
+        /// 32-bit value.
+        /// </remarks>
         public bool Equals(StatusCode other)
         {
-            return Code == other.Code;
+            return CodeBits == other.CodeBits;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Compares the code bits of this status code with a numeric status code.
+        /// </summary>
+        /// <remarks>
+        /// Only the 16 code bits (bits 16 - 31) are compared; the info, flag and
+        /// additional bits are ignored.
+        /// </remarks>
         public bool Equals(uint other)
         {
-            return Code == other;
+            return CodeBits == (other & 0xFFFF0000);
+        }
+
+        /// <summary>
+        /// Compares this status code with another status code using the
+        /// specified comparison mode.
+        /// </summary>
+        /// <param name="other">The status code to compare with.</param>
+        /// <param name="comparison">Determines whether only the code bits or
+        /// all bits are compared.</param>
+        public bool Equals(StatusCode other, StatusCodeComparison comparison)
+        {
+            return comparison == StatusCodeComparison.AllBits
+                ? Code == other.Code
+                : CodeBits == other.CodeBits;
         }
 
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return Code.GetHashCode();
+            return CodeBits.GetHashCode();
+        }
+
+        /// <summary>
+        /// Returns a hash code for this status code using the specified
+        /// comparison mode.
+        /// </summary>
+        /// <remarks>
+        /// The hash code is consistent with
+        /// <see cref="Equals(StatusCode, StatusCodeComparison)"/> using the
+        /// same comparison mode.
+        /// </remarks>
+        /// <param name="comparison">Determines whether the hash is computed
+        /// from only the code bits or all bits.</param>
+        public int GetHashCode(StatusCodeComparison comparison)
+        {
+            return comparison == StatusCodeComparison.AllBits
+                ? Code.GetHashCode()
+                : CodeBits.GetHashCode();
         }
 
         /// <inheritdoc/>
@@ -627,25 +675,40 @@ namespace Opc.Ua
             return code.Code;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Returns true if the code bits of the two status codes are equal.
+        /// Only the 16 code bits (bits 16 - 31) are compared; the info, flag and
+        /// additional bits are ignored. Use
+        /// <see cref="Equals(StatusCode, StatusCodeComparison)"/> with
+        /// <see cref="StatusCodeComparison.AllBits"/> to compare all bits.
+        /// </summary>
         public static bool operator ==(StatusCode a, StatusCode b)
         {
             return a.Equals(b);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Returns true if the code bits of the two status codes are not equal.
+        /// </summary>
         public static bool operator !=(StatusCode a, StatusCode b)
         {
             return !(a == b);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Returns true if the code bits of the status code are equal to the
+        /// code bits of the numeric status code. Only the 16 code bits
+        /// (bits 16 - 31) are compared.
+        /// </summary>
         public static bool operator ==(StatusCode a, uint b)
         {
             return a.Equals(b);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Returns true if the code bits of the status code are not equal to the
+        /// code bits of the numeric status code.
+        /// </summary>
         public static bool operator !=(StatusCode a, uint b)
         {
             return !(a == b);
@@ -959,5 +1022,27 @@ namespace Opc.Ua
         /// values at different timestamps within the same interval)
         /// </summary>
         MultipleValues = 0x10
+    }
+
+    /// <summary>
+    /// Specifies how two <see cref="StatusCode"/> values are compared for equality.
+    /// </summary>
+    public enum StatusCodeComparison
+    {
+        /// <summary>
+        /// Compare only the 16 code bits (bits 16 - 31) of the status code.
+        /// The info, flag and additional bits are ignored. This is the
+        /// comparison used by the equality operators and the default
+        /// <see cref="StatusCode.Equals(StatusCode)"/> overload, because the
+        /// non-code bits are almost never relevant when comparing against a
+        /// well known <c>StatusCodes</c> value.
+        /// </summary>
+        CodeBitsOnly,
+
+        /// <summary>
+        /// Compare the entire 32-bit status value, including the info, flag and
+        /// additional bits. Use this when an exact match of all bits is required.
+        /// </summary>
+        AllBits
     }
 }
