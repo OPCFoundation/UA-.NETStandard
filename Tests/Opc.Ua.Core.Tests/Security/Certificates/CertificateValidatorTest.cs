@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 string subject = app.Subject;
-                Certificate appCert = s_factory
+                using Certificate appCert = s_factory
                     .CreateApplicationCertificate(
                         app.ApplicationUri,
                         app.ApplicationName,
@@ -198,7 +198,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 string subject = app.Subject;
-                Certificate appCert = s_factory
+                using Certificate appCert = s_factory
                     .CreateApplicationCertificate(
                         app.ApplicationUri,
                         app.ApplicationName,
@@ -220,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_notYetValidCertsApplicationTestSet)
             {
                 string subject = app.Subject;
-                Certificate expiredappcert = s_factory
+                using Certificate expiredappcert = s_factory
                     .CreateApplicationCertificate(
                         app.ApplicationUri,
                         app.ApplicationName,

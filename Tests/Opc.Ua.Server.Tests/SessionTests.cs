@@ -13,12 +13,15 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer server = null;
+            SecureChannelContext secureChannelContext = null;
+            RequestHeader requestHeader = null;
 
             try
             {
-                StandardServer server = fixture.Server;
+                server = fixture.Server;
 
-                (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersTest").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
@@ -39,6 +42,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -56,12 +60,15 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer server = null;
+            SecureChannelContext secureChannelContext = null;
+            RequestHeader requestHeader = null;
 
             try
             {
-                StandardServer server = fixture.Server;
+                server = fixture.Server;
 
-                (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersIgnoredTest").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
@@ -87,6 +94,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -100,10 +108,13 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer server = null;
+            SecureChannelContext secureChannelContext = null;
+            RequestHeader requestHeader = null;
             try
             {
-                StandardServer server = fixture.Server;
-                (RequestHeader requestHeader, _) =
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("StaleFresh").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
@@ -114,6 +125,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -123,10 +135,13 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer server = null;
+            SecureChannelContext secureChannelContext = null;
+            RequestHeader requestHeader = null;
             try
             {
-                StandardServer server = fixture.Server;
-                (RequestHeader requestHeader, _) =
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("StaleFlag").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
@@ -150,6 +165,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -159,10 +175,13 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer server = null;
+            SecureChannelContext secureChannelContext = null;
+            RequestHeader requestHeader = null;
             try
             {
-                StandardServer server = fixture.Server;
-                (RequestHeader requestHeader, _) =
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("StaleArg").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
@@ -174,8 +193,24 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        private static async Task CloseSessionAsync(
+            StandardServer server,
+            SecureChannelContext secureChannelContext,
+            RequestHeader requestHeader)
+        {
+            if (server == null || secureChannelContext == null || requestHeader == null)
+            {
+                return;
+            }
+
+            await server
+                .CloseSessionAsync(secureChannelContext, requestHeader, true, RequestLifetime.None)
+                .ConfigureAwait(false);
         }
     }
 }

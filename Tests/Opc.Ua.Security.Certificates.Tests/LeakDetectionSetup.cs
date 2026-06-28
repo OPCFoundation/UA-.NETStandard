@@ -48,26 +48,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeTearDown]
         public void GlobalTeardown()
         {
-            // Force GC to finalize any abandoned certificates. Multiple
-            // cycles ensure that finalizable objects whose finalizer
-            // creates new garbage are themselves collected. The sweep is
-            // bounded by a watchdog so a stuck finalizer cannot hang the
-            // test host indefinitely during assembly teardown.
-            if (!LeakDetectionHelpers.TryRunFinalizerSweep())
-            {
-                Assert.Warn(
-                    $"Finalizer sweep exceeded {LeakDetectionHelpers.DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
-            }
-
-            long leaked = Certificate.InstancesLeaked;
-            if (leaked > 0)
-            {
-                Assert.Warn(
-                    $"Certificate leak detected: {leaked} instance(s) created " +
-                    $"but not disposed (created={Certificate.InstancesCreated}, " +
-                    $"disposed={Certificate.InstancesDisposed}).");
-            }
+            LeakDetectionHelpers.AssertNoCertificateLeaks();
         }
     }
 }
