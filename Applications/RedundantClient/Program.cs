@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Threading;
@@ -37,7 +38,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Redundancy;
 using Opc.Ua.Configuration;
+using Opc.Ua.Redundancy;
 
 namespace RedundantClient
 {
@@ -69,6 +72,11 @@ namespace RedundantClient
                 Description = "How long to monitor before exiting. Use 00:00:00 to run until Ctrl+C.",
                 DefaultValueFactory = _ => TimeSpan.FromMinutes(2)
             };
+            var replicasOption = new Option<int>("--replicas")
+            {
+                Description = "Run an in-process client replica set of this size (leader holds the session).",
+                DefaultValueFactory = _ => 1
+            };
 
             var rootCommand = new RootCommand(
                 "OPC UA managed client sample that transparently handles server redundancy")
@@ -76,7 +84,8 @@ namespace RedundantClient
                 serverOption,
                 noSecurityOption,
                 autoAcceptOption,
-                durationOption
+                durationOption,
+                replicasOption
             };
 
             rootCommand.SetAction(async (parseResult, cancellationToken) =>
@@ -86,6 +95,7 @@ namespace RedundantClient
                     parseResult.GetValue(noSecurityOption),
                     parseResult.GetValue(autoAcceptOption),
                     parseResult.GetValue(durationOption),
+                    parseResult.GetValue(replicasOption),
                     cancellationToken).ConfigureAwait(false);
             });
 
@@ -98,6 +108,7 @@ namespace RedundantClient
             bool noSecurity,
             bool autoAccept,
             TimeSpan duration,
+            int replicas,
             CancellationToken ct)
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder =>
@@ -143,6 +154,13 @@ namespace RedundantClient
                     EndpointConfiguration.Create(configuration));
 
                 Console.WriteLine("Connecting managed client to {0}", serverUrl);
+
+                if (replicas > 1)
+                {
+                    await RunReplicaSetAsync(
+                        configuration, endpoint, telemetry, replicas, duration, ct).ConfigureAwait(false);
+                    return;
+                }
 
                 // A single ManagedSession is the managed client. WithServerRedundancy() lets it
                 // discover the redundant set (if any) from the connected server and fail over
@@ -268,6 +286,62 @@ namespace RedundantClient
             catch (OperationCanceledException)
             {
                 // Ctrl+C or the run duration elapsed; exit cleanly.
+            }
+        }
+
+        private static async Task RunReplicaSetAsync(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry,
+            int replicas,
+            TimeSpan duration,
+            CancellationToken ct)
+        {
+            // A shared store + lease election make exactly one replica the leader that holds the
+            // session; followers stand by and take over on leader loss. This runs in-process with an
+            // in-memory store; a multi-process deployment uses a CAS-capable shared store (Redis) or
+            // Kubernetes Lease election with the same coordinator.
+            using var store = new InMemorySharedKeyValueStore();
+            var coordinators = new List<ClientReplicaCoordinator>();
+            try
+            {
+                for (int i = 0; i < replicas; i++)
+                {
+                    string nodeId = $"replica-{i + 1}";
+                    // Ownership of the election transfers to the coordinator, which disposes it.
+#pragma warning disable CA2000
+                    var election = new SharedStoreLeaseElection(
+                        store, "client-replica/leader", nodeId,
+                        TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(5), TimeProvider.System);
+#pragma warning restore CA2000
+                    var options = new ClientReplicaOptions
+                    {
+                        NodeId = nodeId,
+                        Mode = ClientStandbyMode.Cold,
+                        CreateSessionAsync = token => new ValueTask<ManagedSession>(
+                            new ManagedSessionBuilder(configuration, telemetry)
+                                .UseEndpoint(endpoint)
+                                .WithSessionName(nodeId)
+                                .WithUserIdentity(new UserIdentity())
+                                .ConnectAsync(token))
+                    };
+                    var coordinator = new ClientReplicaCoordinator(
+                        options, election, store, NullRecordProtector.Instance, telemetry);
+                    coordinator.RoleChanged += isLeader =>
+                        Console.WriteLine("{0} is now {1}", nodeId, isLeader ? "LEADER" : "follower");
+                    coordinators.Add(coordinator);
+                    await coordinator.StartAsync(ct).ConfigureAwait(false);
+                }
+
+                Console.WriteLine("Client replica set of {0} started; the leader holds the session.", replicas);
+                await RunForDurationAsync(duration, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                foreach (ClientReplicaCoordinator coordinator in coordinators)
+                {
+                    await coordinator.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
