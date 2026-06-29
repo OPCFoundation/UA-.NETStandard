@@ -614,11 +614,14 @@ namespace Opc.Ua
                 ServerError = new ServiceResult(e);
             }
 
-            // close and dispose any listeners. CloseAsync chains to
-            // DisposeAsync (StopAsync → DisposeAsync) so a single CloseAsync
-            // call suffices for orderly shutdown including released cert
-            // handles. We still snapshot the list and clear it after the
-            // loop to drop our owning references.
+            // close and dispose any listeners. Some listeners (HTTPS)
+            // chain CloseAsync -> StopAsync -> DisposeAsync internally so
+            // CloseAsync alone covers the full teardown; others
+            // (TcpTransportListener, KestrelTcpTransportListener) treat
+            // CloseAsync as a soft stop and only release tracked
+            // resources from DisposeAsync. Calling both unconditionally
+            // covers both contracts; DisposeAsync is idempotent on
+            // already-disposed listeners.
             List<ITransportListener>? listeners = TransportListeners;
 
             if (listeners != null)
@@ -635,6 +638,21 @@ namespace Opc.Ua
                             e,
                             "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
+                    }
+
+                    if (listeners[ii] != null)
+                    {
+                        try
+                        {
+                            await listeners[ii].DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.LogError(
+                                e,
+                                "Unexpected error disposing a listener {Name}.",
+                                listeners[ii].GetType().FullName);
+                        }
                     }
                 }
 
