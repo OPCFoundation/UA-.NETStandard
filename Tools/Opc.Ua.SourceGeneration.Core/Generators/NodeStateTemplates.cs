@@ -1203,18 +1203,26 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.BaseInstanceState replacement)
             {
-                if ({{Tokens.ChildName}} == null)
+                if (replacement is {{Tokens.ClassName}} typedReplacement)
                 {
-                    {{Tokens.ClassName}}? child = replacement as {{Tokens.ClassName}};
-                    if (child == null)
+                    // a replacement of the matching type is used directly,
+                    // replacing any child that may already exist.
+                    {{Tokens.ChildName}} = typedReplacement;
+                }
+                else if ({{Tokens.ChildName}} == null)
+                {
+                    {{Tokens.ClassName}} child = {{Tokens.ClassFactory}}(this);
+                    if (replacement != null)
                     {
-                        child = {{Tokens.ClassFactory}}(this);
-                        if (replacement != null)
-                        {
-                            child.Create(context, replacement);
-                        }
+                        child.Create(context, replacement);
                     }
                     {{Tokens.ChildName}} = child;
+                }
+                else if (replacement != null)
+                {
+                    // an existing child is replaced by copying the replacement
+                    // onto it, keeping the strongly typed instance.
+                    {{Tokens.ChildName}}.Create(context, replacement);
                 }
                 return {{Tokens.ChildName}};
             }
