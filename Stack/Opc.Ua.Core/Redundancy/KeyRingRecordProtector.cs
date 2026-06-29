@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// An <see cref="IRecordProtector"/> that supports staged, zero-downtime

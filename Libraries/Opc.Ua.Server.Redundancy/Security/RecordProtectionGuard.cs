@@ -29,6 +29,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

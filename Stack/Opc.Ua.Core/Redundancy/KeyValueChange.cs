@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: the kind of mutation reported by a <see cref="KeyValueChange"/>.

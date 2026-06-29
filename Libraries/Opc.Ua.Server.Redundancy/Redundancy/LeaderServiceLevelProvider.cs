@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

@@ -47,6 +47,7 @@ using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy.Integration.Tests
 {

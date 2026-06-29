@@ -33,6 +33,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Redundancy;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {

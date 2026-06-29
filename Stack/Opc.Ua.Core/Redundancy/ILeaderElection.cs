@@ -27,34 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Redundancy
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
-    /// A no-op <see cref="IRecordProtector"/> that passes records through
-    /// unchanged. It is the default for single-process / in-memory demos and
-    /// tests. Production deployments backed by a network store (e.g. Redis)
-    /// must configure an authenticated-encryption protector
-    /// (<see cref="AesCbcHmacRecordProtector"/>); see
-    /// <c>Docs/HighAvailability.md</c>.
+    /// Determines whether this replica is the writer (leader) in an
+    /// active/passive or single-writer active/active deployment. Supply the
+    /// <see cref="IsLeader"/> predicate to an address-space synchronizer so
+    /// only the leader writes to the shared store ("shared read, master
+    /// write"), and to an <c>IServiceLevelProvider</c> so the leader advertises
+    /// the highest OPC UA <c>ServiceLevel</c>.
     /// </summary>
-    public sealed class NullRecordProtector : IRecordProtector
+    public interface ILeaderElection : IAsyncDisposable
     {
         /// <summary>
-        /// The shared singleton instance.
+        /// <c>true</c> when this replica currently holds leadership.
         /// </summary>
-        public static NullRecordProtector Instance { get; } = new();
+        bool IsLeader { get; }
 
-        /// <inheritdoc/>
-        public ByteString Protect(ByteString plaintext)
-        {
-            return plaintext;
-        }
+        /// <summary>
+        /// Raised when leadership is gained (<c>true</c>) or lost
+        /// (<c>false</c>).
+        /// </summary>
+        event Action<bool>? LeadershipChanged;
 
-        /// <inheritdoc/>
-        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
-        {
-            plaintext = protectedRecord;
-            return true;
-        }
+        /// <summary>
+        /// Attempts to acquire or renew leadership once and returns the
+        /// resulting leadership state. Safe to call repeatedly.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Starts the background acquire/renew loop (if any).
+        /// </summary>
+        void Start();
     }
 }

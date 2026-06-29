@@ -37,6 +37,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server.Redundancy;
 using Opc.Ua.Server.Redundancy.Crdt;
 using Opc.Ua.Server.Hosting;

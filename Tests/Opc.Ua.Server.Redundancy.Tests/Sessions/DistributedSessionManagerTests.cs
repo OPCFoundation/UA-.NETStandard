@@ -40,6 +40,7 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.Redundancy;
 using Opc.Ua.Tests;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {

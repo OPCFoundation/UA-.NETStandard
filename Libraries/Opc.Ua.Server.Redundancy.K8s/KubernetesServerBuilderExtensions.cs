@@ -33,6 +33,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.Redundancy;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy.K8s
 {

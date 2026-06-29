@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Redundancy;
 

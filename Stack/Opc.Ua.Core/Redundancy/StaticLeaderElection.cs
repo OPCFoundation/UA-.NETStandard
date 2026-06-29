@@ -31,7 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// A fixed-role <see cref="ILeaderElection"/> for static deployments

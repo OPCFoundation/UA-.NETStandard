@@ -38,6 +38,7 @@ using NUnit.Framework;
 using Opc.Ua.Server.Redundancy;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {

@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: lease-based <see cref="ILeaderElection"/> over an

@@ -29,6 +29,7 @@
 
 using NUnit.Framework;
 using Opc.Ua.Server.Redundancy;
+using Opc.Ua.Redundancy;
 
 // CS0618: ServiceMessageContext.GlobalContext is obsolete, but obsolete APIs
 // are permitted in test code (repo rule) and the context is never used for

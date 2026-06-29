@@ -33,6 +33,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

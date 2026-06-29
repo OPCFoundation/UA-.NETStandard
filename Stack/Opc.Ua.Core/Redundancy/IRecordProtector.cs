@@ -27,44 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
-    /// Determines whether this replica is the writer (leader) in an
-    /// active/passive or single-writer active/active deployment. Supply the
-    /// <see cref="IsLeader"/> predicate to an
-    /// <see cref="AddressSpaceSynchronizer"/> so only the leader writes to
-    /// the shared store ("shared read, master write"), and to an
-    /// <c>IServiceLevelProvider</c> so the leader advertises the highest
-    /// OPC UA <c>ServiceLevel</c>.
+    /// Protects extension state written to a shared store with authenticated encryption.
     /// </summary>
-    public interface ILeaderElection : IAsyncDisposable
+    /// <remarks>
+    /// OPC 10000-4 §6.6 defines redundant-server behaviour but not a shared-store protection format. The shared store
+    /// is treated as an untrusted conduit: persisted records are encrypted and authenticated, and a tampered or forged
+    /// record fails closed so it is never decrypted or applied. External shared stores used for mirrored sessions,
+    /// subscriptions, retransmission queues, continuation points, or CRDT session records require a protector.
+    /// </remarks>
+    public interface IRecordProtector
     {
         /// <summary>
-        /// <c>true</c> when this replica currently holds leadership.
+        /// Encrypts and authenticates <paramref name="plaintext"/>, returning a
+        /// self-describing protected envelope.
         /// </summary>
-        bool IsLeader { get; }
+        /// <param name="plaintext">The record to protect.</param>
+        ByteString Protect(ByteString plaintext);
 
         /// <summary>
-        /// Raised when leadership is gained (<c>true</c>) or lost
-        /// (<c>false</c>).
+        /// Verifies and decrypts a protected envelope. Returns <c>false</c>
+        /// (fail-closed) when the record is missing its envelope, fails the
+        /// integrity check, or was produced under a different key.
         /// </summary>
-        event Action<bool>? LeadershipChanged;
-
-        /// <summary>
-        /// Attempts to acquire or renew leadership once and returns the
-        /// resulting leadership state. Safe to call repeatedly.
-        /// </summary>
-        /// <param name="ct">Cancellation token.</param>
-        ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default);
-
-        /// <summary>
-        /// Starts the background acquire/renew loop (if any).
-        /// </summary>
-        void Start();
+        /// <param name="protectedRecord">The protected envelope.</param>
+        /// <param name="plaintext">The recovered plaintext on success.</param>
+        bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext);
     }
 }

@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

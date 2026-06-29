@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy.Crdt
 {

@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: minimal shared key/value backend used to replicate state across a

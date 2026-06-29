@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

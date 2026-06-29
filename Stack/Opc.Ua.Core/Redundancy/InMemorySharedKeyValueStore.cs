@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: in-process, thread-safe <see cref="ISharedKeyValueStore"/>. A single

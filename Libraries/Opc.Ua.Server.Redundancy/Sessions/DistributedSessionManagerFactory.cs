@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

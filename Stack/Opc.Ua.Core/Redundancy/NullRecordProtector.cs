@@ -27,33 +27,34 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Redundancy
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
-    /// Protects extension state written to a shared store with authenticated encryption.
+    /// A no-op <see cref="IRecordProtector"/> that passes records through
+    /// unchanged. It is the default for single-process / in-memory demos and
+    /// tests. Production deployments backed by a network store (e.g. Redis)
+    /// must configure an authenticated-encryption protector
+    /// (<see cref="AesCbcHmacRecordProtector"/>); see
+    /// <c>Docs/HighAvailability.md</c>.
     /// </summary>
-    /// <remarks>
-    /// OPC 10000-4 §6.6 defines redundant-server behaviour but not a shared-store protection format. The shared store
-    /// is treated as an untrusted conduit: persisted records are encrypted and authenticated, and a tampered or forged
-    /// record fails closed so it is never decrypted or applied. External shared stores used for mirrored sessions,
-    /// subscriptions, retransmission queues, continuation points, or CRDT session records require a protector.
-    /// </remarks>
-    public interface IRecordProtector
+    public sealed class NullRecordProtector : IRecordProtector
     {
         /// <summary>
-        /// Encrypts and authenticates <paramref name="plaintext"/>, returning a
-        /// self-describing protected envelope.
+        /// The shared singleton instance.
         /// </summary>
-        /// <param name="plaintext">The record to protect.</param>
-        ByteString Protect(ByteString plaintext);
+        public static NullRecordProtector Instance { get; } = new();
 
-        /// <summary>
-        /// Verifies and decrypts a protected envelope. Returns <c>false</c>
-        /// (fail-closed) when the record is missing its envelope, fails the
-        /// integrity check, or was produced under a different key.
-        /// </summary>
-        /// <param name="protectedRecord">The protected envelope.</param>
-        /// <param name="plaintext">The recovered plaintext on success.</param>
-        bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext);
+        /// <inheritdoc/>
+        public ByteString Protect(ByteString plaintext)
+        {
+            return plaintext;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
+        {
+            plaintext = protectedRecord;
+            return true;
+        }
     }
 }

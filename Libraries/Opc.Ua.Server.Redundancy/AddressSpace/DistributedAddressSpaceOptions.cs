@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy
 {

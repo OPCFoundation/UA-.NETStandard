@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Crdt.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Redundancy.Crdt
 {
