@@ -328,6 +328,103 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Encodeable type activator that also exposes the data type definition.
+        /// Used only where a matching DataTypeDefinitions.Create method is emitted.
+        /// </summary>
+        public static readonly TemplateString StructureActivatorClassWithDefinition = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
+            {
+                /// <summary>
+                /// The singleton instance of the activator.
+                /// </summary>
+                public static readonly {{Tokens.ClassName}}Activator Instance
+                    = new {{Tokens.ClassName}}Activator();
+
+                /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.IEncodeable CreateInstance()
+                {
+                    return new {{Tokens.ClassName}}();
+                }
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.DataTypeDefinition? GetDataTypeDefinition(
+                    global::Opc.Ua.NamespaceTable namespaceUris)
+                {
+                    return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Pooled encodeable type activator that also exposes the data type definition.
+        /// </summary>
+        public static readonly TemplateString PooledStructureActivatorClassWithDefinition = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.PooledEncodeableType<{{Tokens.ClassName}}>
+            {
+                /// <summary>
+                /// The singleton instance of the activator.
+                /// </summary>
+                public static readonly {{Tokens.ClassName}}Activator Instance
+                    = new {{Tokens.ClassName}}Activator();
+
+                /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+
+                /// <inheritdoc/>
+                protected override void InitializeRent({{Tokens.ClassName}} instance)
+                {
+                    instance.ClearPooledSentinel();
+                }
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.DataTypeDefinition? GetDataTypeDefinition(
+                    global::Opc.Ua.NamespaceTable namespaceUris)
+                {
+                    return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Enumeration activator that also exposes the data type definition.
+        /// </summary>
+        public static readonly TemplateString EnumerationActivatorClassWithDefinition = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
+            {
+                /// <summary>
+                /// The singleton instance of the activator.
+                /// </summary>
+                public static readonly {{Tokens.ClassName}}Activator Instance
+                    = new {{Tokens.ClassName}}Activator();
+
+                /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.DataTypeDefinition? GetDataTypeDefinition(
+                    global::Opc.Ua.NamespaceTable namespaceUris)
+                {
+                    return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
+                }
+            }
+            """);
+
+        /// <summary>
         /// Enumeration activator builder registration
         /// </summary>
         public static readonly TemplateString EnumerationActivatorRegistration = TemplateString.Parse(
