@@ -348,7 +348,7 @@ namespace Opc.Ua.Bindings
         public async ValueTask DisposeAsync()
         {
             await DisposeAsyncCore().ConfigureAwait(false);
-            Dispose(false);
+            Dispose(true);
             GC.SuppressFinalize(this);
         }
 

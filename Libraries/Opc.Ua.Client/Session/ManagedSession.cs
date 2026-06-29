@@ -941,11 +941,22 @@ namespace Opc.Ua.Client
                     ConfiguredEndpoint.EndpointUrl);
 
                 // ConfiguredEndpoint.UpdateFromServer (called when
-                // updateBeforeConnect is true) honours the user's
+                // updateBeforeConnect is true) now honours the user's
                 // TransportProfileUri selection in its MatchEndpoints
-                // pipeline, so an HTTPS / WSS OpenAPI choice is no longer
-                // swapped for a binary twin. Always refresh before
-                // connecting.
+                // pipeline, so a refresh picks the OpenAPI / JSON twin
+                // over the binary parent. However the discovery-only
+                // OpenAPI / JSON twins emitted by HttpsServiceHost share
+                // the EndpointUrl with their HTTPS-binary parent (scheme
+                // = "https://"), while the client opens the channel
+                // against the OPC UA-prefixed scheme (e.g.
+                // "opc.https://"). Overwriting the client-supplied URL
+                // with the twin's URL would strip the prefix and the
+                // channel manager would fail to resolve a factory for
+                // the bare "https" scheme. Skip the refresh for the
+                // OpenAPI profiles to preserve the caller-supplied URL.
+                string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
+                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
+                    && !Profiles.IsWssOpenApi(profile);
 
                 Session session;
                 if (m_channelManager != null)
@@ -958,7 +969,7 @@ namespace Opc.Ua.Client
                         m_channelManager,
                         m_configuration,
                         ConfiguredEndpoint,
-                        true,
+                        updateBeforeConnect,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,
@@ -973,7 +984,7 @@ namespace Opc.Ua.Client
                     session = (Session)await SessionFactory.CreateAsync(
                         m_configuration,
                         ConfiguredEndpoint,
-                        true,
+                        updateBeforeConnect,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,
