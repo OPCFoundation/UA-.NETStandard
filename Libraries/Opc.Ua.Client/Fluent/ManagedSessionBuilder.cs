@@ -467,12 +467,13 @@ namespace Opc.Ua.Client
             IReconnectPolicy reconnect =
                 m_reconnectPolicy ?? new ReconnectPolicy(opts.ReconnectPolicy);
 
-            IServerRedundancyHandler? redundancy = m_redundancyHandler ??
-                (opts.EnableServerRedundancy
-                    ? new DefaultServerRedundancyHandler(
-                        new DefaultRedundantServerEndpointResolver(m_telemetry),
-                        opts.TimeProvider)
-                    : null);
+            // Redundancy is transparent and on by default: a non-redundant server simply
+            // reports RedundancySupport.None and no failover occurs, while transparent and
+            // non-transparent redundant servers are handled without any special connect API.
+            IServerRedundancyHandler redundancy = m_redundancyHandler ??
+                new DefaultServerRedundancyHandler(
+                    new DefaultRedundantServerEndpointResolver(m_telemetry),
+                    opts.TimeProvider);
 
             IClientChannelManager? channelManager = m_channelManager;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
