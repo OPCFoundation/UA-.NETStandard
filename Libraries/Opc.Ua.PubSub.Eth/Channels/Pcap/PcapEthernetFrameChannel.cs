@@ -61,10 +61,9 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
     {
         private readonly EthChannelParameters m_parameters;
         private readonly ILogger m_logger;
-        private readonly PhysicalAddress m_interfaceAddress;
         private readonly string m_interfaceName;
         private readonly string m_filter;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private LibPcapLiveDevice? m_device;
         private Channel<byte[]>? m_channel;
@@ -90,7 +89,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
                 ?? parameters.NetworkInterface?.Name
                 ?? throw new ArgumentException(
                     "SharpPcap transport requires an interface name.", nameof(parameters));
-            m_interfaceAddress = parameters.InterfaceAddress
+            InterfaceAddress = parameters.InterfaceAddress
                 ?? parameters.NetworkInterface?.GetPhysicalAddress()
                 ?? PhysicalAddress.None;
             m_filter = string.Format(
@@ -98,7 +97,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
         }
 
         /// <inheritdoc/>
-        public PhysicalAddress InterfaceAddress => m_interfaceAddress;
+        public PhysicalAddress InterfaceAddress { get; }
 
         /// <inheritdoc/>
         public bool IsOpen
@@ -134,7 +133,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
                 {
                     return default;
                 }
-                LibPcapLiveDevice device = SelectDevice(m_interfaceName, m_interfaceAddress);
+                LibPcapLiveDevice device = SelectDevice(m_interfaceName, InterfaceAddress);
                 try
                 {
                     device.Open(
@@ -325,7 +324,7 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             Justification = "SharpPcap dynamically loads native libpcap/Npcap; verified by Opc.Ua.Aot.Tests.")]
         private static LibPcapLiveDevice SelectDevice(string interfaceName, PhysicalAddress address)
         {
-            LibPcapLiveDeviceList devices = LibPcapLiveDeviceList.New();
+            var devices = LibPcapLiveDeviceList.New();
             LibPcapLiveDevice? selected = null;
             foreach (LibPcapLiveDevice device in devices)
             {
@@ -338,8 +337,9 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
                     device.Dispose();
                 }
             }
-            return selected ?? throw new InvalidOperationException(
-                $"SharpPcap could not find interface '{interfaceName}'. Is libpcap / Npcap installed?");
+            return selected ??
+                throw new InvalidOperationException(
+                    $"SharpPcap could not find interface '{interfaceName}'. Is libpcap / Npcap installed?");
         }
 
         private static bool Matches(
@@ -347,13 +347,13 @@ namespace Opc.Ua.PubSub.Eth.Channels.Pcap
             string interfaceName,
             PhysicalAddress address)
         {
-            if (string.Equals(device.Name, interfaceName, StringComparison.Ordinal)
-                || string.Equals(device.Description, interfaceName, StringComparison.Ordinal))
+            if (string.Equals(device.Name, interfaceName, StringComparison.Ordinal) ||
+                string.Equals(device.Description, interfaceName, StringComparison.Ordinal))
             {
                 return true;
             }
-            return !PhysicalAddress.None.Equals(address)
-                && address.Equals(device.MacAddress);
+            return !PhysicalAddress.None.Equals(address) &&
+                address.Equals(device.MacAddress);
         }
     }
 }

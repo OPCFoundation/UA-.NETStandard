@@ -248,7 +248,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition _))
             {
-                NodeId baseNodeId = ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
+                var baseNodeId = ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
                 return baseNodeId == DataTypeIds.Enumeration;
             }
             return false;

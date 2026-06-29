@@ -74,9 +74,9 @@ namespace Opc.Ua.PubSub.Eth
         /// in-range VLAN identifier and priority.
         /// </summary>
         public bool IsValid =>
-            Address is not null
-            && Address.GetAddressBytes().Length == 6
-            && (VlanId is null || VlanId.Value <= 4095)
-            && (Priority is null || Priority.Value <= 7);
+            Address is not null &&
+            Address.GetAddressBytes().Length == 6 &&
+            (VlanId is null || VlanId.Value <= 4095) &&
+            (Priority is null || Priority.Value <= 7);
     }
 }

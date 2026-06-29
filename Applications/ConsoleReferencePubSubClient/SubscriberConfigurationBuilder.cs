@@ -86,9 +86,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             };
 
             return PubSubConfigurationBuilder.Create()
-                .AddConnection("Subscriber Connection", connection =>
-                {
-                    connection
+                .AddConnection("Subscriber Connection", connection => connection
                         .WithPublisherId(new Variant(publisherIdFilter))
                         .WithTransportProfile(transportProfileUri)
                         .WithAddress(endpoint)
@@ -129,8 +127,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                                         });
                                 }
                             });
-                        });
-                })
+                        }))
                 .Build();
         }
 
@@ -141,28 +138,28 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 return new JsonDataSetReaderMessageDataType
                 {
                     NetworkMessageContentMask = (uint)(
-                        JsonNetworkMessageContentMask.NetworkMessageHeader
-                        | JsonNetworkMessageContentMask.DataSetMessageHeader
-                        | JsonNetworkMessageContentMask.PublisherId),
+                        JsonNetworkMessageContentMask.NetworkMessageHeader |
+                        JsonNetworkMessageContentMask.DataSetMessageHeader |
+                        JsonNetworkMessageContentMask.PublisherId),
                     DataSetMessageContentMask = (uint)(
-                        JsonDataSetMessageContentMask.DataSetWriterId
-                        | JsonDataSetMessageContentMask.SequenceNumber
-                        | JsonDataSetMessageContentMask.Status
-                        | JsonDataSetMessageContentMask.Timestamp)
+                        JsonDataSetMessageContentMask.DataSetWriterId |
+                        JsonDataSetMessageContentMask.SequenceNumber |
+                        JsonDataSetMessageContentMask.Status |
+                        JsonDataSetMessageContentMask.Timestamp)
                 };
             }
             return new UadpDataSetReaderMessageDataType
             {
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber),
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
     }

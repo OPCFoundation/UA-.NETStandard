@@ -60,8 +60,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Shade", new NodeId(3103, SchemaTestData.TestNamespaceIndex)));
             ISchemaProvider provider = CreateProvider(inner, color, outer);
 
-            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -83,8 +83,8 @@ namespace Opc.Ua.Schema.Tests
             UaTypeDescription color = SchemaTestData.Enumeration(3103, "Color", ("Red", 0), ("Green", 1));
             ISchemaProvider provider = CreateProvider(color);
 
-            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(color);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(color);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -106,8 +106,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Text", SchemaTestData.BuiltIn(BuiltInType.String)));
             ISchemaProvider provider = CreateProvider(choice);
 
-            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(choice);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(choice);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -132,8 +132,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Child", new NodeId(3102, SchemaTestData.TestNamespaceIndex)));
             ISchemaProvider provider = CreateProvider(inner, outer);
 
-            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(outer, UaSchemaScope.Namespace);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(outer, UaSchemaScope.Namespace);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -158,8 +158,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Child", new NodeId(3131, SchemaTestData.OtherNamespaceIndex)));
             ISchemaProvider provider = CreateProvider(foreign, outer);
 
-            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -198,8 +198,8 @@ namespace Opc.Ua.Schema.Tests
             return document
                 .Descendants(Xsd("element"))
                 .First(x => (string?)x.Attribute("name") == elementName)
-                .Attribute(attributeName)
-                ?.Value;
+                .Attribute(attributeName)?
+                .Value;
         }
 
         private static XName Xsd(string name)

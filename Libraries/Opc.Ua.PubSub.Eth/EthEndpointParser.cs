@@ -218,11 +218,11 @@ namespace Opc.Ua.PubSub.Eth
                 return false;
             }
             char separator = text[2];
-            if (separator != '-' && separator != ':')
+            if (separator is not '-' and not ':')
             {
                 return false;
             }
-            var bytes = new byte[6];
+            byte[] bytes = new byte[6];
             for (int i = 0; i < 6; i++)
             {
                 int offset = i * 3;
@@ -247,10 +247,10 @@ namespace Opc.Ua.PubSub.Eth
             {
                 return false;
             }
-            var bytes = new byte[6];
+            byte[] bytes = new byte[6];
             for (int i = 0; i < 6; i++)
             {
-                if (!TryHex(text[i * 2], out int high) || !TryHex(text[i * 2 + 1], out int low))
+                if (!TryHex(text[i * 2], out int high) || !TryHex(text[(i * 2) + 1], out int low))
                 {
                     return false;
                 }
@@ -316,8 +316,8 @@ namespace Opc.Ua.PubSub.Eth
 
         private static ushort ParseVid(string text)
         {
-            if (!ushort.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out ushort vid)
-                || vid > 4095)
+            if (!ushort.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out ushort vid) ||
+                vid > 4095)
             {
                 throw new FormatException(
                     $"PubSub Ethernet URL has an invalid VLAN id '{text}' (must be 0-4095).");
@@ -327,8 +327,8 @@ namespace Opc.Ua.PubSub.Eth
 
         private static byte ParsePcp(string text)
         {
-            if (!byte.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out byte pcp)
-                || pcp > 7)
+            if (!byte.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out byte pcp) ||
+                pcp > 7)
             {
                 throw new FormatException(
                     $"PubSub Ethernet URL has an invalid priority '{text}' (must be 0-7).");
@@ -338,17 +338,17 @@ namespace Opc.Ua.PubSub.Eth
 
         private static bool TryHex(char c, out int value)
         {
-            if (c >= '0' && c <= '9')
+            if (c is >= '0' and <= '9')
             {
                 value = c - '0';
                 return true;
             }
-            if (c >= 'a' && c <= 'f')
+            if (c is >= 'a' and <= 'f')
             {
                 value = c - 'a' + 10;
                 return true;
             }
-            if (c >= 'A' && c <= 'F')
+            if (c is >= 'A' and <= 'F')
             {
                 value = c - 'A' + 10;
                 return true;

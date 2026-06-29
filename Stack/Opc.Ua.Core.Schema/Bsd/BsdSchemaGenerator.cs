@@ -37,7 +37,7 @@ namespace Opc.Ua.Schema.Bsd
     /// <summary>
     /// Generates OPC Binary schema (BSD) documents for OPC UA data types
     /// according to the OPC UA Part 6 binary encoding. The schema is built using
-    /// the existing <see cref="Opc.Ua.Schema.Binary"/> object model and is
+    /// the existing <see cref="Binary"/> object model and is
     /// serialized with a direct XML writer to remain trimming and NativeAOT
     /// compatible.
     /// </summary>

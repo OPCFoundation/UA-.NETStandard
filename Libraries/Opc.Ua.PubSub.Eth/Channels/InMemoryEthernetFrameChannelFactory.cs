@@ -50,6 +50,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
     public sealed class InMemoryEthernetFrameChannelFactory : IEthernetFrameChannelFactory
     {
         private readonly System.Threading.Lock m_sync = new();
+
         private readonly Dictionary<string, List<InMemoryEthernetFrameChannel>> m_buses
             = new(StringComparer.Ordinal);
 

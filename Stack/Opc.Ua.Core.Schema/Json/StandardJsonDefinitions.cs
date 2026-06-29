@@ -83,7 +83,7 @@ namespace Opc.Ua.Schema.Json
                 {
                     items.Add(name);
                 }
-                schema["required"] = new JsonArray(items.ToArray());
+                schema["required"] = new JsonArray([.. items]);
             }
             return schema;
         }

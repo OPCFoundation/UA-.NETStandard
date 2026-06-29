@@ -79,9 +79,9 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport transport = NewTransport(
                 factory, "opc.eth://01-00-5E-00-00-01", "Pub", PubSubTransportDirection.Send);
 
-            await transport.OpenAsync();
+            await transport.OpenAsync().ConfigureAwait(false);
             Assert.That(transport.IsConnected, Is.True);
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
             Assert.That(transport.IsConnected, Is.False);
         }
 
@@ -92,8 +92,8 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport transport = NewTransport(
                 factory, "opc.eth://01-00-5E-00-00-01", "Pub", PubSubTransportDirection.Send);
 
-            await transport.OpenAsync();
-            await transport.OpenAsync();
+            await transport.OpenAsync().ConfigureAwait(false);
+            await transport.OpenAsync().ConfigureAwait(false);
 
             Assert.That(transport.IsConnected, Is.True);
         }
@@ -105,9 +105,9 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport transport = NewTransport(
                 factory, "opc.eth://01-00-5E-00-00-01", "Pub", PubSubTransportDirection.Send);
 
-            await transport.OpenAsync();
-            await transport.CloseAsync();
-            await transport.CloseAsync();
+            await transport.OpenAsync().ConfigureAwait(false);
+            await transport.CloseAsync().ConfigureAwait(false);
+            await transport.CloseAsync().ConfigureAwait(false);
 
             Assert.That(transport.IsConnected, Is.False);
         }
@@ -122,9 +122,9 @@ namespace Opc.Ua.PubSub.Eth.Tests
             bool? lastConnected = null;
             transport.StateChanged += (_, e) => lastConnected = e.IsConnected;
 
-            await transport.OpenAsync();
+            await transport.OpenAsync().ConfigureAwait(false);
             Assert.That(lastConnected, Is.True);
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
             Assert.That(lastConnected, Is.False);
         }
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
                 factory, "opc.eth://01-00-5E-00-00-01", "Pub", PubSubTransportDirection.Send);
 
             Assert.That(
-                async () => await transport.SendAsync(EthTestHelpers.MakePayload(10)),
+                async () => await transport.SendAsync(EthTestHelpers.MakePayload(10)).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -148,10 +148,10 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport transport = NewTransport(
                 factory, "opc.eth://01-00-5E-00-00-01", "Pub", PubSubTransportDirection.Send, options);
 
-            await transport.OpenAsync();
+            await transport.OpenAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await transport.SendAsync(EthTestHelpers.MakePayload(200)),
+                async () => await transport.SendAsync(EthTestHelpers.MakePayload(200)).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -166,14 +166,14 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport publisher = NewTransport(
                 factory, url, "Pub", PubSubTransportDirection.Send);
 
-            await subscriber.OpenAsync();
-            await publisher.OpenAsync();
+            await subscriber.OpenAsync().ConfigureAwait(false);
+            await publisher.OpenAsync().ConfigureAwait(false);
 
             byte[] payload = EthTestHelpers.MakePayload(64);
-            await publisher.SendAsync(payload);
+            await publisher.SendAsync(payload).ConfigureAwait(false);
 
             PubSubTransportFrame? frame = await EthTestHelpers.ReceiveOneAsync(
-                subscriber, TimeSpan.FromSeconds(5));
+                subscriber, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             Assert.That(frame, Is.Not.Null);
             Assert.That(frame!.Value.Payload.ToArray(), Is.EqualTo(payload));
@@ -190,14 +190,14 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport publisher = NewTransport(
                 factory, url, "Pub", PubSubTransportDirection.Send);
 
-            await subscriber.OpenAsync();
-            await publisher.OpenAsync();
+            await subscriber.OpenAsync().ConfigureAwait(false);
+            await publisher.OpenAsync().ConfigureAwait(false);
 
             byte[] payload = EthTestHelpers.MakePayload(80);
-            await publisher.SendAsync(payload);
+            await publisher.SendAsync(payload).ConfigureAwait(false);
 
             PubSubTransportFrame? frame = await EthTestHelpers.ReceiveOneAsync(
-                subscriber, TimeSpan.FromSeconds(5));
+                subscriber, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             Assert.That(frame, Is.Not.Null);
             Assert.That(frame!.Value.Payload.ToArray(), Is.EqualTo(payload));
@@ -221,16 +221,16 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using EthernetDatagramTransport publisher = NewTransport(
                 factory, url, "Pub", PubSubTransportDirection.Send, options);
 
-            await subscriber.OpenAsync();
-            await publisher.OpenAsync();
+            await subscriber.OpenAsync().ConfigureAwait(false);
+            await publisher.OpenAsync().ConfigureAwait(false);
 
             Assert.That(publisher.DiscoveryAnnounceRate, Is.EqualTo(2000u));
 
             byte[] announcement = EthTestHelpers.MakePayload(48);
-            await publisher.SendDiscoveryAnnouncementAsync(announcement);
+            await publisher.SendDiscoveryAnnouncementAsync(announcement).ConfigureAwait(false);
 
             PubSubTransportFrame? frame = await EthTestHelpers.ReceiveOneAsync(
-                subscriber, TimeSpan.FromSeconds(5));
+                subscriber, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             Assert.That(frame, Is.Not.Null);
             Assert.That(frame!.Value.Payload.ToArray(), Is.EqualTo(announcement));

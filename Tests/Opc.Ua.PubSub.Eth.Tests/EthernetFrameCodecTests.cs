@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         public void BuildAndParseUntaggedRoundTrip()
         {
             byte[] payload = MakePayload(50);
-            var buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, false)];
+            byte[] buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, false)];
 
             int written = EthernetFrameCodec.Build(buffer, s_dst, s_src, null, null, payload);
             Assert.That(written, Is.EqualTo(64));
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         public void BuildAndParseTaggedRoundTrip()
         {
             byte[] payload = MakePayload(50);
-            var buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, true)];
+            byte[] buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, true)];
 
             int written = EthernetFrameCodec.Build(buffer, s_dst, s_src, 5, 6, payload);
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         public void BuildPadsSmallPayloadToMinimum()
         {
             byte[] payload = MakePayload(4);
-            var buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, false)];
+            byte[] buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, false)];
 
             int written = EthernetFrameCodec.Build(buffer, s_dst, s_src, null, null, payload);
 
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         [Test]
         public void TryParseRejectsForeignEtherType()
         {
-            var frame = new byte[60];
+            byte[] frame = new byte[60];
             s_dst.CopyTo(frame, 0);
             s_src.CopyTo(frame, 6);
             // IPv4 EtherType, not OPC UA.
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         [Test]
         public void BuildRejectsWrongMacLength()
         {
-            var buffer = new byte[64];
+            byte[] buffer = new byte[64];
             Assert.That(
                 () => EthernetFrameCodec.Build(buffer, new byte[4], s_src, null, null, MakePayload(10)),
                 Throws.ArgumentException);
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
         public void BuildPriorityOnlyEmitsTagWithVlanZero()
         {
             byte[] payload = MakePayload(50);
-            var buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, true)];
+            byte[] buffer = new byte[EthernetFrameCodec.GetRequiredLength(payload.Length, true)];
 
             int written = EthernetFrameCodec.Build(buffer, s_dst, s_src, null, 3, payload);
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
         private static byte[] MakePayload(int length)
         {
-            var payload = new byte[length];
+            byte[] payload = new byte[length];
             for (int i = 0; i < length; i++)
             {
                 payload[i] = (byte)(i + 1);

@@ -59,8 +59,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Shade", new NodeId(3203, SchemaTestData.TestNamespaceIndex)));
             DefaultSchemaProvider provider = CreateProvider(inner, color, outer);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -83,8 +83,8 @@ namespace Opc.Ua.Schema.Tests
             UaTypeDescription color = SchemaTestData.Enumeration(3203, "Color", ("Red", 0), ("Green", 1));
             DefaultSchemaProvider provider = CreateProvider(color);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(color);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(color);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -105,8 +105,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Text", SchemaTestData.BuiltIn(BuiltInType.String)));
             DefaultSchemaProvider provider = CreateProvider(choice);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(choice);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(choice);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -130,8 +130,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Child", new NodeId(3202, SchemaTestData.TestNamespaceIndex)));
             DefaultSchemaProvider provider = CreateProvider(inner, outer);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(outer, UaSchemaScope.Namespace);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(outer, UaSchemaScope.Namespace);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -153,8 +153,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Note", SchemaTestData.BuiltIn(BuiltInType.String), optional: true));
             DefaultSchemaProvider provider = CreateProvider(type);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(type);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(type);
+            var document = XDocument.Parse(schema.ToSchemaString());
             var fieldNames = document.Descendants(Opc("Field"))
                 .Select(x => (string?)x.Attribute("Name"))
                 .ToList();
@@ -185,8 +185,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Child", new NodeId(3231, SchemaTestData.OtherNamespaceIndex)));
             DefaultSchemaProvider provider = CreateProvider(foreign, outer);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -222,8 +222,8 @@ namespace Opc.Ua.Schema.Tests
             return document
                 .Descendants(Opc(typeElement))
                 .First(x => (string?)x.Attribute("Name") == name)
-                .Attribute(attributeName)
-                ?.Value;
+                .Attribute(attributeName)?
+                .Value;
         }
 
         private static string? FieldAttribute(XDocument document, string name, string attributeName)
@@ -231,8 +231,8 @@ namespace Opc.Ua.Schema.Tests
             return document
                 .Descendants(Opc("Field"))
                 .First(x => (string?)x.Attribute("Name") == name)
-                .Attribute(attributeName)
-                ?.Value;
+                .Attribute(attributeName)?
+                .Value;
         }
 
         private static string? EnumeratedValue(XDocument document, string name)
@@ -240,8 +240,8 @@ namespace Opc.Ua.Schema.Tests
             return document
                 .Descendants(Opc("EnumeratedValue"))
                 .First(x => (string?)x.Attribute("Name") == name)
-                .Attribute("Value")
-                ?.Value;
+                .Attribute("Value")?
+                .Value;
         }
 
         private static XName Opc(string name)

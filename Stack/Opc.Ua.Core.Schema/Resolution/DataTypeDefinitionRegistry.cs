@@ -104,6 +104,7 @@ namespace Opc.Ua.Schema
         }
 
         private readonly Dictionary<NodeId, UaTypeDescription> m_byNodeId = [];
+
         private readonly Dictionary<string, List<UaTypeDescription>> m_byNamespace =
             new(StringComparer.Ordinal);
     }

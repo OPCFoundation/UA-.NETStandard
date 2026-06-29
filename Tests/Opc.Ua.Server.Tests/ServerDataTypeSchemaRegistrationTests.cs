@@ -46,9 +46,9 @@ namespace Opc.Ua.Server.Tests
         {
             const string namespaceUri = "urn:opcfoundation.org:tests:server:schema";
             var namespaceUris = new NamespaceTable();
-            namespaceUris.GetIndexOrAppend(Opc.Ua.Types.Namespaces.OpcUa);
+            namespaceUris.GetIndexOrAppend(Types.Namespaces.OpcUa);
             ushort namespaceIndex = namespaceUris.GetIndexOrAppend(namespaceUri);
-            NodeId typeId = new NodeId(6001, namespaceIndex);
+            var typeId = new NodeId(6001, namespaceIndex);
 
             var dataType = new DataTypeState
             {

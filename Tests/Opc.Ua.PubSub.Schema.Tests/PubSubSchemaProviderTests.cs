@@ -65,9 +65,9 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public void CreateDataSetSchemaWithFieldMaskWrapsDataValueMembers()
         {
             var provider = new PubSubSchemaProvider();
-            DataSetFieldContentMask mask = DataSetFieldContentMask.StatusCode
-                | DataSetFieldContentMask.SourceTimestamp
-                | DataSetFieldContentMask.SourcePicoSeconds;
+            const DataSetFieldContentMask mask = DataSetFieldContentMask.StatusCode |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds;
 
             JsonObject root = CreateRoot(provider, mask);
             JsonObject field = root["properties"]!["Temperature"]!.AsObject();
@@ -155,4 +155,4 @@ namespace Opc.Ua.PubSub.Schema.Tests
             };
         }
     }
-}
+}

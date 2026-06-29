@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.PubSub.Tests;
 
 namespace Opc.Ua.PubSub.Eth.Tests
 {

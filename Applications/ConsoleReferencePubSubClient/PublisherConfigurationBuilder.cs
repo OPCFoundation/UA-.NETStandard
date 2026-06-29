@@ -90,9 +90,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     .AddField("BoolToggle", (byte)DataTypes.Boolean, DataTypeIds.Boolean)
                     .AddField("Int32", (byte)DataTypes.Int32, DataTypeIds.Int32)
                     .AddField("DateTime", (byte)DataTypes.DateTime, DataTypeIds.DateTime))
-                .AddConnection("Publisher Connection", connection =>
-                {
-                    connection
+                .AddConnection("Publisher Connection", connection => connection
                         .WithPublisherId(new Variant(publisherId))
                         .WithTransportProfile(transportProfileUri)
                         .WithAddress(endpoint)
@@ -134,8 +132,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                                         });
                                 }
                             });
-                        });
-                })
+                        }))
                 .Build();
         }
 
@@ -146,21 +143,21 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 return new JsonWriterGroupMessageDataType
                 {
                     NetworkMessageContentMask = (uint)(
-                        JsonNetworkMessageContentMask.NetworkMessageHeader
-                        | JsonNetworkMessageContentMask.DataSetMessageHeader
-                        | JsonNetworkMessageContentMask.PublisherId)
+                        JsonNetworkMessageContentMask.NetworkMessageHeader |
+                        JsonNetworkMessageContentMask.DataSetMessageHeader |
+                        JsonNetworkMessageContentMask.PublisherId)
                 };
             }
             return new UadpWriterGroupMessageDataType
             {
                 DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber)
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber)
             };
         }
 
@@ -171,17 +168,17 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 return new JsonDataSetWriterMessageDataType
                 {
                     DataSetMessageContentMask = (uint)(
-                        JsonDataSetMessageContentMask.DataSetWriterId
-                        | JsonDataSetMessageContentMask.SequenceNumber
-                        | JsonDataSetMessageContentMask.Status
-                        | JsonDataSetMessageContentMask.Timestamp)
+                        JsonDataSetMessageContentMask.DataSetWriterId |
+                        JsonDataSetMessageContentMask.SequenceNumber |
+                        JsonDataSetMessageContentMask.Status |
+                        JsonDataSetMessageContentMask.Timestamp)
                 };
             }
             return new UadpDataSetWriterMessageDataType
             {
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
     }

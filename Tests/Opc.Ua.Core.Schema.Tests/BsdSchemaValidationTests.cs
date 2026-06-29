@@ -68,12 +68,12 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Text", SchemaTestData.BuiltIn(BuiltInType.String)));
             DefaultSchemaProvider provider = CreateProvider(inner, color, outer, choice);
 
-            BinarySchemaDocument structureSchema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
-            BinarySchemaDocument enumSchema = (BinarySchemaDocument)provider.GetBinarySchema(color);
-            BinarySchemaDocument unionSchema = (BinarySchemaDocument)provider.GetBinarySchema(choice);
-            XDocument structureDocument = XDocument.Parse(structureSchema.ToSchemaString());
-            XDocument enumDocument = XDocument.Parse(enumSchema.ToSchemaString());
-            XDocument unionDocument = XDocument.Parse(unionSchema.ToSchemaString());
+            var structureSchema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
+            var enumSchema = (BinarySchemaDocument)provider.GetBinarySchema(color);
+            var unionSchema = (BinarySchemaDocument)provider.GetBinarySchema(choice);
+            var structureDocument = XDocument.Parse(structureSchema.ToSchemaString());
+            var enumDocument = XDocument.Parse(enumSchema.ToSchemaString());
+            var unionDocument = XDocument.Parse(unionSchema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -113,8 +113,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Foreign", new NodeId(4221, foreignNamespaceIndex)));
             DefaultSchemaProvider provider = CreateProvider(foreign, outer);
 
-            BinarySchemaDocument schema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (BinarySchemaDocument)provider.GetBinarySchema(outer);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -154,8 +154,14 @@ namespace Opc.Ua.Schema.Tests
                 namespaceUri);
         }
 
-        // BinarySchemaValidator resolves imports by namespace but the generated standard UA import has no location.
-        // Keeping this test offline is therefore more deterministic with structural XML assertions over the emitted BSD.
+        /// <summary>
+        /// BinarySchemaValidator resolves imports by namespace but the generated standard UA import has no location.
+        /// Keeping this test offline is therefore more deterministic with structural XML assertions over the emitted BSD.
+        /// </summary>
+        /// <param name="document"></param>
+        /// <param name="typeElement"></param>
+        /// <param name="name"></param>
+        /// <returns></returns>
         private static bool HasType(XDocument document, string typeElement, string name)
         {
             return document.Descendants(Opc(typeElement)).Any(x => (string?)x.Attribute("Name") == name);
@@ -166,18 +172,17 @@ namespace Opc.Ua.Schema.Tests
             return document
                 .Descendants(Opc("Field"))
                 .First(x => (string?)x.Attribute("Name") == name)
-                .Attribute(attributeName)
-                ?.Value;
+                .Attribute(attributeName)?
+                .Value;
         }
-
 
         private static string? EnumeratedValue(XDocument document, string name)
         {
             return document
                 .Descendants(Opc("EnumeratedValue"))
                 .First(x => (string?)x.Attribute("Name") == name)
-                .Attribute("Value")
-                ?.Value;
+                .Attribute("Value")?
+                .Value;
         }
 
         private static XName Opc(string name)
@@ -186,4 +191,3 @@ namespace Opc.Ua.Schema.Tests
         }
     }
 }
-

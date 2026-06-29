@@ -63,12 +63,12 @@ namespace Opc.Ua.Aot.Tests
 
                 if (format is UaSchemaFormat.JsonCompact or UaSchemaFormat.JsonVerbose)
                 {
-                    JsonNode? parsed = JsonNode.Parse(text);
+                    var parsed = JsonNode.Parse(text);
                     await Assert.That(parsed).IsNotNull();
                 }
                 else
                 {
-                    XDocument parsed = XDocument.Parse(text);
+                    var parsed = XDocument.Parse(text);
                     await Assert.That(parsed.Root).IsNotNull();
                 }
             }
@@ -95,9 +95,9 @@ namespace Opc.Ua.Aot.Tests
                 Field("Child", new NodeId(7102, TestNamespaceIndex)),
                 Field("Shade", new NodeId(7103, TestNamespaceIndex)));
 
-            registry.Add(inner);
-            registry.Add(color);
-            registry.Add(outer);
+            registry.Add(inner)
+                .Add(color)
+                .Add(outer);
             return provider;
         }
 

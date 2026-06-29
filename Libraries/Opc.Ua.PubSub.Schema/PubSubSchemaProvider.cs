@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Schema
             };
             if (required.Count > 0)
             {
-                root["required"] = new JsonArray(required.ToArray());
+                root["required"] = new JsonArray([.. required]);
             }
             if (definitions.Count > 0)
             {
@@ -326,7 +326,7 @@ namespace Opc.Ua.PubSub.Schema
             DataSetFieldContentMask fieldContentMask,
             bool verbose)
         {
-            JsonNode? node = JsonNode.Parse(CreateDataSetSchema(metaData, fieldContentMask, verbose).ToSchemaString());
+            var node = JsonNode.Parse(CreateDataSetSchema(metaData, fieldContentMask, verbose).ToSchemaString());
             return node?.AsObject() ?? throw new InvalidOperationException("The generated DataSet schema is empty.");
         }
 
@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Schema
         {
             if (dataType.IsNull)
             {
-                return new JsonObject();
+                return [];
             }
 
             if (m_resolver is not null && m_resolver.TryResolve(dataType, out UaTypeDescription? description))
@@ -356,19 +356,19 @@ namespace Opc.Ua.PubSub.Schema
         {
             if (m_schemaProvider is null || typeId.IsNull)
             {
-                return new JsonObject();
+                return [];
             }
 
-            if (!m_schemaProvider.TryGetSchema(typeId, format, UaSchemaScope.Type, out IUaSchema? schema)
-                || schema is null)
+            if (!m_schemaProvider.TryGetSchema(typeId, format, UaSchemaScope.Type, out IUaSchema? schema) ||
+                schema is null)
             {
-                return new JsonObject();
+                return [];
             }
 
             string key = DefinitionKey(keyHint);
             if (!definitions.ContainsKey(key))
             {
-                definitions[key] = JsonNode.Parse(schema.ToSchemaString())?.AsObject() ?? new JsonObject();
+                definitions[key] = JsonNode.Parse(schema.ToSchemaString())?.AsObject() ?? [];
             }
             return Ref(key);
         }
@@ -384,7 +384,7 @@ namespace Opc.Ua.PubSub.Schema
             };
             if ((fieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
             {
-                properties["StatusCode"] = CreateBuiltInSchema(BuiltInType.StatusCode, verbose, new JsonObject());
+                properties["StatusCode"] = CreateBuiltInSchema(BuiltInType.StatusCode, verbose, []);
             }
             if ((fieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
             {
@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Schema
             {
                 ["type"] = "object",
                 ["properties"] = properties,
-                ["required"] = new JsonArray(required.ToArray()),
+                ["required"] = new JsonArray([.. required]),
                 ["additionalProperties"] = false
             };
         }
@@ -476,7 +476,7 @@ namespace Opc.Ua.PubSub.Schema
                 case BuiltInType.DiagnosticInfo:
                     return CreateStandardReference(type, definitions);
                 default:
-                    return new JsonObject();
+                    return [];
             }
         }
 
@@ -496,7 +496,7 @@ namespace Opc.Ua.PubSub.Schema
                     BuiltInType.ExtensionObject => new JsonObject { ["type"] = "object" },
                     BuiltInType.DataValue => new JsonObject { ["type"] = "object" },
                     BuiltInType.DiagnosticInfo => new JsonObject { ["type"] = "object" },
-                    _ => new JsonObject()
+                    _ => []
                 };
             }
             return Ref(key);
@@ -517,7 +517,7 @@ namespace Opc.Ua.PubSub.Schema
                     };
                     return new JsonObject
                     {
-                        ["oneOf"] = new JsonArray(options.ToArray())
+                        ["oneOf"] = new JsonArray([.. options])
                     };
                 case ValueRanks.OneOrMoreDimensions:
                     return ArrayOf(elementFactory());
@@ -582,7 +582,7 @@ namespace Opc.Ua.PubSub.Schema
                 ["title"] = title,
                 ["type"] = "object",
                 ["properties"] = properties,
-                ["required"] = new JsonArray(requiredNodes.ToArray()),
+                ["required"] = new JsonArray([.. requiredNodes]),
                 ["additionalProperties"] = false
             };
         }
@@ -594,7 +594,7 @@ namespace Opc.Ua.PubSub.Schema
                 JsonDataSetMessageTypeKeyFrame,
                 JsonDataSetMessageTypeDeltaFrame
             };
-            return new JsonObject { ["enum"] = new JsonArray(values.ToArray()) };
+            return new JsonObject { ["enum"] = new JsonArray([.. values]) };
         }
 
         private static JsonObject DefinitionObject(JsonObject properties, params string[] required)
@@ -612,7 +612,7 @@ namespace Opc.Ua.PubSub.Schema
                 {
                     requiredNodes.Add(name);
                 }
-                schema["required"] = new JsonArray(requiredNodes.ToArray());
+                schema["required"] = new JsonArray([.. requiredNodes]);
             }
             return schema;
         }
@@ -702,7 +702,7 @@ namespace Opc.Ua.PubSub.Schema
         private static JsonObject TypeArray(string first, string second)
         {
             var types = new List<JsonNode?> { first, second };
-            return new JsonObject { ["type"] = new JsonArray(types.ToArray()) };
+            return new JsonObject { ["type"] = new JsonArray([.. types]) };
         }
 
         private static string CreateDocumentId(string dataSetName)
@@ -753,11 +753,11 @@ namespace Opc.Ua.PubSub.Schema
         private const string JsonNetworkMessageTypeData = "ua-data";
         private const string JsonNetworkMessageTypeMetaData = "ua-metadata";
 
-        private static readonly string[] s_dataSetMessageRequired = { "MessageType", "Payload" };
-        private static readonly string[] s_metaDataMessageRequired = { "MessageType", "MetaData" };
-        private static readonly string[] s_networkMessageRequired = { "MessageType", "Messages" };
+        private static readonly string[] s_dataSetMessageRequired = ["MessageType", "Payload"];
+        private static readonly string[] s_metaDataMessageRequired = ["MessageType", "MetaData"];
+        private static readonly string[] s_networkMessageRequired = ["MessageType", "Messages"];
 
         private readonly ISchemaProvider? m_schemaProvider;
         private readonly IDataTypeDefinitionResolver? m_resolver;
     }
-}
+}

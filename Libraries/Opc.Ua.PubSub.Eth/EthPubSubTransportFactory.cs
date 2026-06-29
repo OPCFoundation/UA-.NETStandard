@@ -110,8 +110,8 @@ namespace Opc.Ua.PubSub.Eth
                 throw new NotSupportedException(
                     "PubSubConnection.Address is required for Ethernet transport.");
             }
-            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress)
-                || networkAddress is null)
+            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress) ||
+                networkAddress is null)
             {
                 throw new NotSupportedException(
                     "Ethernet transport requires a NetworkAddressUrlDataType address payload.");
@@ -201,8 +201,8 @@ namespace Opc.Ua.PubSub.Eth
                     {
                         continue;
                     }
-                    if (entry.Value.TryGetValue(out string? text)
-                        && !string.IsNullOrEmpty(text))
+                    if (entry.Value.TryGetValue(out string? text) &&
+                        !string.IsNullOrEmpty(text))
                     {
                         return text;
                     }

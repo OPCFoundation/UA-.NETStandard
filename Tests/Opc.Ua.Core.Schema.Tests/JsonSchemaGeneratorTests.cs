@@ -445,7 +445,7 @@ namespace Opc.Ua.Schema.Tests
         {
             const string prefix = "#/$defs/";
             Assert.That(reference, Does.StartWith(prefix));
-            return reference.Substring(prefix.Length);
+            return reference[prefix.Length..];
         }
 
         private static List<string> RequiredNames(JsonObject definition)

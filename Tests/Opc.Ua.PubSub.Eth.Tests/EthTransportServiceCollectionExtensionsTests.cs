@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
             IEthernetFrameChannelFactory channelFactory =
                 serviceProvider.GetRequiredService<IEthernetFrameChannelFactory>();
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
             Assert.That(
                 channelFactory,
-                Is.InstanceOf<Opc.Ua.PubSub.Eth.Channels.Pcap.PcapEthernetFrameChannelFactory>());
+                Is.InstanceOf<Channels.Pcap.PcapEthernetFrameChannelFactory>());
         }
 #endif
     }

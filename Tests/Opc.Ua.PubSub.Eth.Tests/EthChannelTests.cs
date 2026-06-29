@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Eth.Channels;
-using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Eth.Tests
@@ -55,13 +54,13 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using IEthernetFrameChannel receiver = factory.Create(
                 EthTestHelpers.LoopbackParameters(), NUnitTelemetryContext.Create(), TimeProvider.System);
 
-            await sender.OpenAsync();
-            await receiver.OpenAsync();
+            await sender.OpenAsync().ConfigureAwait(false);
+            await receiver.OpenAsync().ConfigureAwait(false);
 
             byte[] frame = EthTestHelpers.MakePayload(40);
-            await sender.SendFrameAsync(frame);
+            await sender.SendFrameAsync(frame).ConfigureAwait(false);
 
-            byte[]? received = await ReceiveOneAsync(receiver, TimeSpan.FromSeconds(5));
+            byte[]? received = await ReceiveOneAsync(receiver, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             Assert.That(received, Is.Not.Null);
             Assert.That(received, Is.EqualTo(frame));
@@ -74,10 +73,10 @@ namespace Opc.Ua.PubSub.Eth.Tests
             await using IEthernetFrameChannel sender = factory.Create(
                 EthTestHelpers.LoopbackParameters(), NUnitTelemetryContext.Create(), TimeProvider.System);
 
-            await sender.OpenAsync();
-            await sender.SendFrameAsync(EthTestHelpers.MakePayload(40));
+            await sender.OpenAsync().ConfigureAwait(false);
+            await sender.SendFrameAsync(EthTestHelpers.MakePayload(40)).ConfigureAwait(false);
 
-            byte[]? received = await ReceiveOneAsync(sender, TimeSpan.FromMilliseconds(300));
+            byte[]? received = await ReceiveOneAsync(sender, TimeSpan.FromMilliseconds(300)).ConfigureAwait(false);
 
             Assert.That(received, Is.Null);
         }
@@ -90,7 +89,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
                 EthTestHelpers.LoopbackParameters(), NUnitTelemetryContext.Create(), TimeProvider.System);
 
             Assert.That(
-                async () => await channel.SendFrameAsync(EthTestHelpers.MakePayload(10)),
+                async () => await channel.SendFrameAsync(EthTestHelpers.MakePayload(10)).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 

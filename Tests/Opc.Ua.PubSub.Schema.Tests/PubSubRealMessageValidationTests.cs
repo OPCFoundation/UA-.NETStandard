@@ -36,8 +36,8 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
-using UaSchema = Opc.Ua.Schema.IUaSchema;
 using PubSubJson = Opc.Ua.PubSub.Encoding.Json;
+using UaSchema = Opc.Ua.Schema.IUaSchema;
 
 namespace Opc.Ua.PubSub.Schema.Tests
 {
@@ -52,15 +52,15 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public async Task GeneratedNetworkMessageSchemaValidatesEncoderProducedUaDataAsync()
         {
             DataSetMetaDataType metaData = CreateMetaData();
-            JsonNetworkMessageContentMask networkMask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.PublisherId;
-            JsonDataSetMessageContentMask messageMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Timestamp
-                | JsonDataSetMessageContentMask.Status
-                | JsonDataSetMessageContentMask.MessageType
-                | JsonDataSetMessageContentMask.MetaDataVersion;
+            const JsonNetworkMessageContentMask networkMask = JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.DataSetMessageHeader |
+                JsonNetworkMessageContentMask.PublisherId;
+            const JsonDataSetMessageContentMask messageMask = JsonDataSetMessageContentMask.DataSetWriterId |
+                JsonDataSetMessageContentMask.SequenceNumber |
+                JsonDataSetMessageContentMask.Timestamp |
+                JsonDataSetMessageContentMask.Status |
+                JsonDataSetMessageContentMask.MessageType |
+                JsonDataSetMessageContentMask.MetaDataVersion;
             var provider = new PubSubSchemaProvider();
             UaSchema schema = provider.CreateNetworkMessageSchema(
                 metaData,
@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Schema.Tests
 
         private static EvaluationResults Evaluate(UaSchema schema, JsonNode instance)
         {
-            JsonSchema jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
+            var jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
             return jsonSchema.Evaluate(
                 instance,
                 new EvaluationOptions { OutputFormat = OutputFormat.List });

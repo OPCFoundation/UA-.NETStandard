@@ -39,7 +39,7 @@ namespace Opc.Ua.Schema.Json
     /// Generates JSON Schema (draft 2020-12) documents for OPC UA data types
     /// according to the OPC UA Part 6 JSON encoding (Annex C) in both the
     /// compact (reversible) and verbose flavors. The schema is constructed as a
-    /// <see cref="System.Text.Json.Nodes.JsonObject"/> object model so that no
+    /// <see cref="JsonObject"/> object model so that no
     /// reflection is required and the generator is NativeAOT compatible.
     /// </summary>
     internal sealed class JsonSchemaGenerator : IUaSchemaGenerator
@@ -185,14 +185,14 @@ namespace Opc.Ua.Schema.Json
                         {
                             ["type"] = "object",
                             ["properties"] = properties,
-                            ["required"] = new JsonArray(optionRequired.ToArray()),
+                            ["required"] = new JsonArray([.. optionRequired]),
                             ["additionalProperties"] = false
                         });
                     }
                     return new JsonObject
                     {
                         ["title"] = type.Name,
-                        ["oneOf"] = new JsonArray(options.ToArray())
+                        ["oneOf"] = new JsonArray([.. options])
                     };
                 }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.Schema.Json
                 };
                 if (required.Count > 0)
                 {
-                    schema["required"] = new JsonArray(required.ToArray());
+                    schema["required"] = new JsonArray([.. required]);
                 }
                 return schema;
             }
@@ -255,7 +255,7 @@ namespace Opc.Ua.Schema.Json
                     var verboseSchema = new JsonObject { ["type"] = "string" };
                     if (names.Count > 0)
                     {
-                        verboseSchema["enum"] = new JsonArray(names.ToArray());
+                        verboseSchema["enum"] = new JsonArray([.. names]);
                     }
                     return verboseSchema;
                 }
@@ -274,7 +274,7 @@ namespace Opc.Ua.Schema.Json
                 var schema = new JsonObject { ["type"] = "integer" };
                 if (options.Count > 0)
                 {
-                    schema["oneOf"] = new JsonArray(options.ToArray());
+                    schema["oneOf"] = new JsonArray([.. options]);
                 }
                 return schema;
             }
@@ -300,7 +300,7 @@ namespace Opc.Ua.Schema.Json
                 }
 
                 // Unresolved type: allow any value.
-                return new JsonObject();
+                return [];
             }
 
             private static JsonObject ApplyValueRank(Func<JsonObject> elementFactory, int valueRank)

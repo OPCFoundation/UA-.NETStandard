@@ -62,8 +62,8 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
             Assert.That(
                 provider.Entries.Any(e =>
-                    e.Level == LogLevel.Warning
-                    && e.Message.Contains("SecurityMode=None", StringComparison.Ordinal)),
+                    e.Level == LogLevel.Warning &&
+                    e.Message.Contains("SecurityMode=None", StringComparison.Ordinal)),
                 Is.True);
         }
 
@@ -81,8 +81,8 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
             Assert.That(
                 provider.Entries.Any(e =>
-                    e.Level == LogLevel.Warning
-                    && e.Message.Contains("SecurityMode=None", StringComparison.Ordinal)),
+                    e.Level == LogLevel.Warning &&
+                    e.Message.Contains("SecurityMode=None", StringComparison.Ordinal)),
                 Is.False);
         }
 
@@ -92,7 +92,8 @@ namespace Opc.Ua.PubSub.Eth.Tests
         {
             var factory = new InMemoryEthernetFrameChannelFactory();
             EthEndpoint endpoint = EthEndpointParser.Parse(connection.Address
-                .TryGetValue(out NetworkAddressUrlDataType? address) && address is not null
+                .TryGetValue(out NetworkAddressUrlDataType? address) &&
+                address is not null
                     ? address.Url!
                     : "opc.eth://01-00-5E-00-00-01");
             IEthernetFrameChannel channel = factory.Create(

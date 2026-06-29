@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Schema.Tests
 
         private static EvaluationResults Evaluate(UaSchema schema, JsonNode instance)
         {
-            JsonSchema jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
+            var jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
             return jsonSchema.Evaluate(
                 instance,
                 new EvaluationOptions { OutputFormat = OutputFormat.List });

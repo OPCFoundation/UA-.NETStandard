@@ -30,7 +30,6 @@
 using System.Text.Json.Nodes;
 using Json.Schema;
 using NUnit.Framework;
-using Opc.Ua.Schema.Json;
 
 namespace Opc.Ua.Schema.Tests
 {
@@ -51,7 +50,7 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("High", SchemaTestData.BuiltIn(BuiltInType.Double)));
             IUaSchema schema = SchemaTestData.CreateProvider(rangeType)
                 .CreateSchema(rangeType, UaSchemaFormat.JsonCompact);
-            JsonNode instance = EncodeEncodeable(new Opc.Ua.Range { Low = 1.0, High = 2.0 });
+            JsonNode instance = EncodeEncodeable(new Range { Low = 1.0, High = 2.0 });
 
             EvaluationResults results = Evaluate(schema, instance);
 
@@ -162,7 +161,7 @@ namespace Opc.Ua.Schema.Tests
 
         private static EvaluationResults Evaluate(IUaSchema schema, JsonNode instance)
         {
-            JsonSchema jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
+            var jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
             return jsonSchema.Evaluate(
                 instance,
                 new EvaluationOptions { OutputFormat = OutputFormat.List });

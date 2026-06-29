@@ -65,6 +65,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
     {
         private const string DefaultExternalEndpoint =
             "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+
         private const string ExternalPublisherOptionsName = "ExternalPublisher";
         private const string ExternalSubscriberOptionsName = "ExternalSubscriber";
         private const string ExternalResponderOptionsName = "ExternalResponder";
@@ -74,8 +75,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             int exitCode = 0;
 
             var rootCommand = new RootCommand(
-                "OPC UA Part 14 PubSub Reference sample. "
-                + "Select a mode: publisher | subscriber | external.");
+                "OPC UA Part 14 PubSub Reference sample. " +
+                "Select a mode: publisher | subscriber | external.");
 
             rootCommand.Subcommands.Add(BuildPublisherCommand(code => exitCode = code));
             rootCommand.Subcommands.Add(BuildSubscriberCommand(code => exitCode = code));
@@ -104,23 +105,23 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             var publisherIdOption = new Option<ushort>("--publisher-id")
             {
                 Description = "PublisherId published in every NetworkMessage header.",
-                DefaultValueFactory = _ => (ushort)1
+                DefaultValueFactory = _ => 1
             };
             var writerGroupIdOption = new Option<ushort>("--writer-group-id")
             {
                 Description = "WriterGroupId for the single sample WriterGroup.",
-                DefaultValueFactory = _ => (ushort)100
+                DefaultValueFactory = _ => 100
             };
             var dataSetWriterIdOption = new Option<ushort>("--data-set-writer-id")
             {
                 Description = "DataSetWriterId for the single sample writer.",
-                DefaultValueFactory = _ => (ushort)1
+                DefaultValueFactory = _ => 1
             };
             var endpointOption = new Option<string?>("--endpoint")
             {
                 Description =
-                    "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 (UDP), "
-                    + "mqtt://localhost:1883 (MQTT)."
+                    "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 (UDP), " +
+                    "mqtt://localhost:1883 (MQTT)."
             };
             var intervalOption = new Option<int>("--interval")
             {
@@ -147,8 +148,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParsePublisherProfile(profileArg, out PublisherProfile profile))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --profile value '{profileArg}'. "
-                        + "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
+                        $"Unknown --profile value '{profileArg}'. " +
+                        "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -185,22 +186,22 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             var publisherFilterOption = new Option<ushort>("--publisher-id-filter")
             {
                 Description = "PublisherId filter applied by the reader.",
-                DefaultValueFactory = _ => (ushort)1
+                DefaultValueFactory = _ => 1
             };
             var writerGroupFilterOption = new Option<ushort>("--writer-group-id-filter")
             {
                 Description = "WriterGroupId filter applied by the reader.",
-                DefaultValueFactory = _ => (ushort)100
+                DefaultValueFactory = _ => 100
             };
             var dataSetWriterFilterOption = new Option<ushort>("--data-set-writer-id-filter")
             {
                 Description = "DataSetWriterId filter applied by the reader.",
-                DefaultValueFactory = _ => (ushort)1
+                DefaultValueFactory = _ => 1
             };
             var endpointOption = new Option<string?>("--endpoint")
             {
-                Description = "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 "
-                    + "(UDP), mqtt://localhost:1883 (MQTT)."
+                Description = "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 " +
+                    "(UDP), mqtt://localhost:1883 (MQTT)."
             };
 
             var command = new Command(
@@ -221,8 +222,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParseSubscriberProfile(profileArg, out SubscriberProfile profile))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --profile value '{profileArg}'. "
-                        + "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
+                        $"Unknown --profile value '{profileArg}'. " +
+                        "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -256,22 +257,24 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             var readModeOption = new Option<string>("--read-mode")
             {
                 Description =
-                    "Publisher source strategy: cyclic (Read each cycle) | "
-                    + "subscription (client Subscription cache).",
+                    "Publisher source strategy: cyclic (Read each cycle) | " +
+                    "subscription (client Subscription cache).",
                 DefaultValueFactory = _ => "cyclic"
             };
             var affinityOption = new Option<string>("--affinity")
             {
                 Description =
-                    "Subscription grouping when --read-mode=subscription: "
-                    + "writergroup | datasetwriter.",
+                    "Subscription grouping when --read-mode=subscription: " +
+                    "writergroup | datasetwriter.",
                 DefaultValueFactory = _ => "writergroup"
             };
             var endpointOption = new Option<string?>("--endpoint")
             {
                 Description =
-                    "External OPC UA server endpoint URL. Defaults to "
-                    + "OPCUA_EXTERNAL_ENDPOINT or " + DefaultExternalEndpoint + "."
+                    "External OPC UA server endpoint URL. Defaults to " +
+                    "OPCUA_EXTERNAL_ENDPOINT or " +
+                    DefaultExternalEndpoint +
+                    "."
             };
             var pubSubEndpointOption = new Option<string>("--pubsub-endpoint")
             {
@@ -301,8 +304,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParseBridgeMode(parseResult.GetValue(directionOption), out BridgeMode mode))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --mode value '{parseResult.GetValue(directionOption)}'. "
-                        + "Expected one or more of: publisher, subscriber, responder.")
+                        $"Unknown --mode value '{parseResult.GetValue(directionOption)}'. " +
+                        "Expected one or more of: publisher, subscriber, responder.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -310,8 +313,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParseReadMode(parseResult.GetValue(readModeOption), out ReadMode readMode))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --read-mode value '{parseResult.GetValue(readModeOption)}'. "
-                        + "Expected one of: cyclic, subscription.")
+                        $"Unknown --read-mode value '{parseResult.GetValue(readModeOption)}'. " +
+                        "Expected one of: cyclic, subscription.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -320,8 +323,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     parseResult.GetValue(affinityOption), out SubscriptionAffinity affinity))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --affinity value '{parseResult.GetValue(affinityOption)}'. "
-                        + "Expected one of: writergroup, datasetwriter.")
+                        $"Unknown --affinity value '{parseResult.GetValue(affinityOption)}'. " +
+                        "Expected one of: writergroup, datasetwriter.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -337,7 +340,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     affinity,
                     externalEndpoint,
                     parseResult.GetValue(pubSubEndpointOption)
-                        ?? ExternalServerPubSubConfiguration.DefaultPubSubEndpoint,
+                    ?? ExternalServerPubSubConfiguration.DefaultPubSubEndpoint,
                     parseResult.GetValue(hotReloadOption),
                     cancellationToken).ConfigureAwait(false));
             });
@@ -403,8 +406,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.Publisher");
             logger.LogInformation(
-                "Publisher starting: profile={Profile} endpoint={Endpoint} "
-                + "interval={Interval}ms publisherId={PublisherId} writerGroup={WriterGroupId}",
+                "Publisher starting: profile={Profile} endpoint={Endpoint} " +
+                "interval={Interval}ms publisherId={PublisherId} writerGroup={WriterGroupId}",
                 profile, transportEndpoint, intervalMs, publisherId, writerGroupId);
             logger.LogInformation("Publisher started. Press Ctrl-C to exit.");
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
@@ -470,8 +473,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.Subscriber");
             logger.LogInformation(
-                "Subscriber starting: profile={Profile} endpoint={Endpoint} "
-                + "publisherFilter={PublisherFilter} writerGroupFilter={WriterGroupFilter}",
+                "Subscriber starting: profile={Profile} endpoint={Endpoint} " +
+                "publisherFilter={PublisherFilter} writerGroupFilter={WriterGroupFilter}",
                 profile,
                 transportEndpoint,
                 publisherIdFilter,
@@ -518,16 +521,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.External");
             logger.LogInformation(
-                "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} "
-                + "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}",
+                "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} " +
+                "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}",
                 mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
             if (hotReload)
             {
                 logger.LogInformation(
-                    "Hot reload enabled. Edit {AppSettingsFile} (for example, change "
-                    + "{PublisherOptionsName}:ReadMode to Subscription) or {ConfigFile} "
-                    + "(for example, add or remove a DataSetWriter) and save to reconfigure "
-                    + "the running bridge.",
+                    "Hot reload enabled. Edit {AppSettingsFile} (for example, change " +
+                    "{PublisherOptionsName}:ReadMode to Subscription) or {ConfigFile} " +
+                    "(for example, add or remove a DataSetWriter) and save to reconfigure " +
+                    "the running bridge.",
                     appSettingsFile,
                     ExternalPublisherOptionsName,
                     configFile);

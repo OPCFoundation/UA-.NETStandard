@@ -108,7 +108,7 @@ namespace Opc.Ua.Schema.Json
                     return StandardRef(type, defs);
                 default:
                     // Unknown or abstract: allow any value.
-                    return new JsonObject();
+                    return [];
             }
         }
 

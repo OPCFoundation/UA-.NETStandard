@@ -49,8 +49,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private readonly string m_key;
         private readonly EthChannelParameters m_parameters;
         private readonly ILogger m_logger;
-        private readonly PhysicalAddress m_interfaceAddress;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private Channel<byte[]>? m_channel;
         private bool m_isOpen;
@@ -75,11 +74,11 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 throw new ArgumentNullException(nameof(telemetry));
             }
             m_logger = telemetry.CreateLogger<InMemoryEthernetFrameChannel>();
-            m_interfaceAddress = ResolveInterfaceAddress(parameters);
+            InterfaceAddress = ResolveInterfaceAddress(parameters);
         }
 
         /// <inheritdoc/>
-        public PhysicalAddress InterfaceAddress => m_interfaceAddress;
+        public PhysicalAddress InterfaceAddress { get; }
 
         /// <inheritdoc/>
         public bool IsOpen
@@ -233,7 +232,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private static PhysicalAddress SynthesizeAddress(string? interfaceName)
         {
-            var bytes = new byte[6];
+            byte[] bytes = new byte[6];
             // Locally administered, unicast (bit 1 set, bit 0 clear in the first octet).
             bytes[0] = 0x02;
             int hash = StringComparer.Ordinal.GetHashCode(interfaceName ?? string.Empty);

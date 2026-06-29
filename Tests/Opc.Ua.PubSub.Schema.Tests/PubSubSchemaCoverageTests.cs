@@ -64,11 +64,11 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public void CreateDataSetSchemaWrapsEveryDataValueFieldContentMaskMember()
         {
             var provider = new PubSubSchemaProvider();
-            DataSetFieldContentMask mask = DataSetFieldContentMask.StatusCode
-                | DataSetFieldContentMask.SourceTimestamp
-                | DataSetFieldContentMask.SourcePicoSeconds
-                | DataSetFieldContentMask.ServerTimestamp
-                | DataSetFieldContentMask.ServerPicoSeconds;
+            const DataSetFieldContentMask mask = DataSetFieldContentMask.StatusCode |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.ServerPicoSeconds;
 
             JsonObject root = CreateDataSetRoot(provider, CreateBuiltInMetaData(), mask);
             JsonObject value = root["properties"]!["Int64Value"]!.AsObject();
@@ -93,12 +93,12 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public void CreateDataSetSchemaUsesVerboseStatusCodeObjectAndCompactIntegerStatusCode()
         {
             var provider = new PubSubSchemaProvider();
-            DataSetFieldContentMask mask = DataSetFieldContentMask.StatusCode;
+            const DataSetFieldContentMask mask = DataSetFieldContentMask.StatusCode;
 
-            JsonSchemaDocument compact = (JsonSchemaDocument)provider.CreateDataSetSchema(
+            var compact = (JsonSchemaDocument)provider.CreateDataSetSchema(
                 CreateBuiltInMetaData(),
                 mask);
-            JsonSchemaDocument verbose = (JsonSchemaDocument)provider.CreateDataSetSchema(
+            var verbose = (JsonSchemaDocument)provider.CreateDataSetSchema(
                 CreateBuiltInMetaData(),
                 mask,
                 verbose: true);
@@ -259,21 +259,21 @@ namespace Opc.Ua.PubSub.Schema.Tests
         {
             var provider = new PubSubSchemaProvider();
             DataSetMetaDataType metaData = CreateBuiltInMetaData();
-            JsonDataSetMessageContentMask dataSetMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.DataSetWriterName
-                | JsonDataSetMessageContentMask.PublisherId
-                | JsonDataSetMessageContentMask.WriterGroupName
-                | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.MetaDataVersion
-                | JsonDataSetMessageContentMask.Timestamp
-                | JsonDataSetMessageContentMask.Status
-                | JsonDataSetMessageContentMask.MinorVersion;
-            JsonNetworkMessageContentMask networkMask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.PublisherId
-                | JsonNetworkMessageContentMask.WriterGroupName
-                | JsonNetworkMessageContentMask.DataSetClassId
-                | JsonNetworkMessageContentMask.ReplyTo;
+            const JsonDataSetMessageContentMask dataSetMask = JsonDataSetMessageContentMask.DataSetWriterId |
+                JsonDataSetMessageContentMask.DataSetWriterName |
+                JsonDataSetMessageContentMask.PublisherId |
+                JsonDataSetMessageContentMask.WriterGroupName |
+                JsonDataSetMessageContentMask.SequenceNumber |
+                JsonDataSetMessageContentMask.MetaDataVersion |
+                JsonDataSetMessageContentMask.Timestamp |
+                JsonDataSetMessageContentMask.Status |
+                JsonDataSetMessageContentMask.MinorVersion;
+            const JsonNetworkMessageContentMask networkMask = JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.DataSetMessageHeader |
+                JsonNetworkMessageContentMask.PublisherId |
+                JsonNetworkMessageContentMask.WriterGroupName |
+                JsonNetworkMessageContentMask.DataSetClassId |
+                JsonNetworkMessageContentMask.ReplyTo;
 
             JsonObject dataSetMessage = ((JsonSchemaDocument)provider.CreateDataSetMessageSchema(
                 metaData,

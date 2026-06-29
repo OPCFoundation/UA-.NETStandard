@@ -73,7 +73,7 @@ namespace Opc.Ua.Schema.Xsd
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            using XmlWriter writer = XmlWriter.Create(stream, WriterSettings());
+            using var writer = XmlWriter.Create(stream, WriterSettings());
             WriteSchema(writer);
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Schema.Xsd
                 throw new ArgumentNullException(nameof(writer));
             }
 
-            using XmlWriter xmlWriter = XmlWriter.Create(writer, WriterSettings());
+            using var xmlWriter = XmlWriter.Create(writer, WriterSettings());
             WriteSchema(xmlWriter);
         }
 
@@ -268,9 +268,9 @@ namespace Opc.Ua.Schema.Xsd
             for (int i = 0; i < namespaces.Length; i++)
             {
                 XmlQualifiedName namespaceDeclaration = namespaces[i];
-                if (namespaceDeclaration.Name == "xs" ||
-                    namespaceDeclaration.Name == "ua" ||
-                    namespaceDeclaration.Name == "tns")
+                if (namespaceDeclaration.Name is "xs" or
+                    "ua" or
+                    "tns")
                 {
                     continue;
                 }

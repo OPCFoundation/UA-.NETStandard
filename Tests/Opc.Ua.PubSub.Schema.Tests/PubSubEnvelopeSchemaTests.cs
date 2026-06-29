@@ -40,9 +40,9 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public void CreateDataSetMessageSchemaHonorsHeaderMask()
         {
             var provider = new PubSubSchemaProvider();
-            JsonDataSetMessageContentMask mask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.Timestamp
-                | JsonDataSetMessageContentMask.SequenceNumber;
+            const JsonDataSetMessageContentMask mask = JsonDataSetMessageContentMask.DataSetWriterId |
+                JsonDataSetMessageContentMask.Timestamp |
+                JsonDataSetMessageContentMask.SequenceNumber;
 
             JsonObject root = CreateDataSetMessageRoot(provider, mask);
             JsonObject properties = root["properties"]!.AsObject();
@@ -82,10 +82,10 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public void CreateNetworkMessageSchemaHonorsEnvelopeMask()
         {
             var provider = new PubSubSchemaProvider();
-            JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.PublisherId
-                | JsonNetworkMessageContentMask.DataSetClassId;
+            const JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.DataSetMessageHeader |
+                JsonNetworkMessageContentMask.PublisherId |
+                JsonNetworkMessageContentMask.DataSetClassId;
 
             JsonObject root = CreateNetworkMessageRoot(provider, mask);
             JsonObject properties = root["properties"]!.AsObject();
@@ -106,9 +106,9 @@ namespace Opc.Ua.PubSub.Schema.Tests
         public void CreateNetworkMessageSchemaWithSingleDataSetMessageUsesObjectMessages()
         {
             var provider = new PubSubSchemaProvider();
-            JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.SingleDataSetMessage;
+            const JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.DataSetMessageHeader |
+                JsonNetworkMessageContentMask.SingleDataSetMessage;
 
             JsonObject root = CreateNetworkMessageRoot(provider, mask);
             JsonObject messages = root["properties"]!["Messages"]!.AsObject();

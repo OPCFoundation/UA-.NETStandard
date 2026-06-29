@@ -67,12 +67,12 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Shade", new NodeId(4103, SchemaTestData.TestNamespaceIndex)));
             DefaultSchemaProvider provider = CreateProvider(inner, color, outer);
 
-            XmlSchemaDocument typeSchema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
-            XmlSchemaDocument namespaceSchema = (XmlSchemaDocument)provider.GetXmlSchema(
+            var typeSchema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
+            var namespaceSchema = (XmlSchemaDocument)provider.GetXmlSchema(
                 outer,
                 UaSchemaScope.Namespace);
-            XDocument typeDocument = XDocument.Parse(typeSchema.ToSchemaString());
-            XDocument namespaceDocument = XDocument.Parse(namespaceSchema.ToSchemaString());
+            var typeDocument = XDocument.Parse(typeSchema.ToSchemaString());
+            var namespaceDocument = XDocument.Parse(namespaceSchema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -103,8 +103,8 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Foreign", new NodeId(4111, foreignNamespaceIndex)));
             DefaultSchemaProvider provider = CreateProvider(foreign, outer);
 
-            XmlSchemaDocument schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
-            XDocument document = XDocument.Parse(schema.ToSchemaString());
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(outer);
+            var document = XDocument.Parse(schema.ToSchemaString());
 
             Assert.Multiple(() =>
             {
@@ -177,7 +177,10 @@ namespace Opc.Ua.Schema.Tests
 
         private static string CreateStubSchema(string targetNamespace)
         {
-            return "<xs:schema xmlns:xs=\"" + XmlSchema.Namespace + "\" targetNamespace=\"" + targetNamespace +
+            return "<xs:schema xmlns:xs=\"" +
+                XmlSchema.Namespace +
+                "\" targetNamespace=\"" +
+                targetNamespace +
                 "\" elementFormDefault=\"qualified\" />";
         }
 
@@ -196,8 +199,8 @@ namespace Opc.Ua.Schema.Tests
             return document
                 .Descendants(Xsd("element"))
                 .First(x => (string?)x.Attribute("name") == elementName)
-                .Attribute(attributeName)
-                ?.Value;
+                .Attribute(attributeName)?
+                .Value;
         }
 
         private static XName Xsd(string name)

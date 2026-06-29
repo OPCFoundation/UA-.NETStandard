@@ -171,15 +171,15 @@ namespace Opc.Ua.PubSub.Eth.Tests
             {
                 Assert.That(
                     EthEndpointParser.ClassifyAddress(
-                        new PhysicalAddress(new byte[] { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 })),
+                        new PhysicalAddress([0x00, 0x11, 0x22, 0x33, 0x44, 0x55])),
                     Is.EqualTo(EthAddressType.Unicast));
                 Assert.That(
                     EthEndpointParser.ClassifyAddress(
-                        new PhysicalAddress(new byte[] { 0x01, 0x00, 0x5E, 0x00, 0x00, 0x01 })),
+                        new PhysicalAddress([0x01, 0x00, 0x5E, 0x00, 0x00, 0x01])),
                     Is.EqualTo(EthAddressType.Multicast));
                 Assert.That(
                     EthEndpointParser.ClassifyAddress(
-                        new PhysicalAddress(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })),
+                        new PhysicalAddress([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])),
                     Is.EqualTo(EthAddressType.Broadcast));
             });
         }

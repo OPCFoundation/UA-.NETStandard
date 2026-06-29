@@ -73,7 +73,7 @@ namespace Opc.Ua.Schema.Bsd
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            using XmlWriter writer = XmlWriter.Create(stream, WriterSettings());
+            using var writer = XmlWriter.Create(stream, WriterSettings());
             WriteDictionary(writer);
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Schema.Bsd
                 throw new ArgumentNullException(nameof(writer));
             }
 
-            using XmlWriter xmlWriter = XmlWriter.Create(writer, WriterSettings());
+            using var xmlWriter = XmlWriter.Create(writer, WriterSettings());
             WriteDictionary(xmlWriter);
         }
 

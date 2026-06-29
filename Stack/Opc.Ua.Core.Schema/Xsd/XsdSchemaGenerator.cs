@@ -38,7 +38,7 @@ namespace Opc.Ua.Schema.Xsd
     /// <summary>
     /// Generates XML Schema (XSD) documents for OPC UA data types according to
     /// the OPC UA Part 6 XML encoding. The schema is built using the in-box
-    /// <see cref="System.Xml.Schema.XmlSchema"/> object model so that no
+    /// <see cref="XmlSchema"/> object model so that no
     /// reflection-based serialization is required.
     /// </summary>
     internal sealed class XsdSchemaGenerator : IUaSchemaGenerator
@@ -93,9 +93,9 @@ namespace Opc.Ua.Schema.Xsd
                 Schema = new XmlSchema
                 {
                     TargetNamespace = targetNamespace,
-                    ElementFormDefault = XmlSchemaForm.Qualified
+                    ElementFormDefault = XmlSchemaForm.Qualified,
+                    Namespaces = new XmlSerializerNamespaces()
                 };
-                Schema.Namespaces = new XmlSerializerNamespaces();
                 Schema.Namespaces.Add("xs", XmlSchema.Namespace);
                 Schema.Namespaces.Add("ua", UaTypesNamespace);
                 Schema.Namespaces.Add("tns", targetNamespace);

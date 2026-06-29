@@ -31,7 +31,6 @@ using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.PubSub.Schema;
-using Opc.Ua.Schema;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -58,4 +57,4 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
     }
-}
+}

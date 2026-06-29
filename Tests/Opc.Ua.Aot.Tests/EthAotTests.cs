@@ -167,7 +167,7 @@ namespace Opc.Ua.Aot.Tests
 
         private static byte[] MakePayload(int length)
         {
-            var payload = new byte[length];
+            byte[] payload = new byte[length];
             for (int i = 0; i < length; i++)
             {
                 payload[i] = (byte)(i + 1);

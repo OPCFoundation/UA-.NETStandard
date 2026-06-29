@@ -73,8 +73,8 @@ namespace Opc.Ua.PubSub.Eth
                     if (string.Equals(
                             candidate.Name,
                             preferredInterface,
-                            StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(
+                            StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(
                             candidate.Description,
                             preferredInterface,
                             StringComparison.OrdinalIgnoreCase))
@@ -88,8 +88,8 @@ namespace Opc.Ua.PubSub.Eth
             for (int i = 0; i < interfaces.Length; i++)
             {
                 NetworkInterface candidate = interfaces[i];
-                if (candidate.OperationalStatus == OperationalStatus.Up
-                    && candidate.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                if (candidate.OperationalStatus == OperationalStatus.Up &&
+                    candidate.NetworkInterfaceType != NetworkInterfaceType.Loopback)
                 {
                     return candidate;
                 }

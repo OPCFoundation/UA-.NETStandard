@@ -30,7 +30,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -62,14 +61,13 @@ namespace Opc.Ua.PubSub.Eth
     {
         private readonly PubSubConnectionDataType m_connection;
         private readonly EthEndpoint m_endpoint;
-        private readonly PubSubTransportDirection m_direction;
         private readonly IEthernetFrameChannel m_channel;
         private readonly EthTransportOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly byte[] m_destinationMac;
         private readonly byte[] m_discoveryMac;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private Channel<PubSubTransportFrame>? m_frameChannel;
         private CancellationTokenSource? m_receiveLoopCts;
@@ -109,7 +107,7 @@ namespace Opc.Ua.PubSub.Eth
                 throw new ArgumentException("Ethernet endpoint is not valid.", nameof(endpoint));
             }
             m_endpoint = endpoint;
-            m_direction = direction;
+            Direction = direction;
             m_logger = telemetry.CreateLogger<EthernetDatagramTransport>();
             m_destinationMac = endpoint.Address.GetAddressBytes();
             m_discoveryMac = ResolveDiscoveryMac(options.DiscoveryMulticastAddress, m_destinationMac);
@@ -119,7 +117,7 @@ namespace Opc.Ua.PubSub.Eth
         public string TransportProfileUri => EthProfiles.PubSubEthUadpTransport;
 
         /// <inheritdoc/>
-        public PubSubTransportDirection Direction => m_direction;
+        public PubSubTransportDirection Direction { get; }
 
         /// <inheritdoc/>
         public bool IsConnected
@@ -178,7 +176,7 @@ namespace Opc.Ua.PubSub.Eth
                 "Ethernet transport opened: connection='{Connection}' destination={Mac} direction={Direction}",
                 m_connection.Name,
                 m_endpoint.Address,
-                m_direction);
+                Direction);
             WarnIfUnsecured();
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
@@ -334,7 +332,7 @@ namespace Opc.Ua.PubSub.Eth
                     // The backend yields a distinct single-use array per
                     // frame, so the payload slice can be adopted without a
                     // second copy (ETH-SEC-01).
-                    ReadOnlyMemory<byte> payload = raw.Slice(payloadOffset);
+                    ReadOnlyMemory<byte> payload = raw[payloadOffset..];
                     var frame = new PubSubTransportFrame(
                         payload,
                         topic: null,
@@ -374,7 +372,7 @@ namespace Opc.Ua.PubSub.Eth
             }
         }
 
-        private bool HasReceiveDirection => (m_direction & PubSubTransportDirection.Receive) != 0;
+        private bool HasReceiveDirection => (Direction & PubSubTransportDirection.Receive) != 0;
 
         private void WarnIfUnsecured()
         {
@@ -443,7 +441,7 @@ namespace Opc.Ua.PubSub.Eth
             try
             {
                 EthEndpoint parsed = EthEndpointParser.Parse(
-                    string.Concat("opc.eth://", configured));
+                    $"opc.eth://{configured}");
                 return parsed.Address.GetAddressBytes();
             }
             catch (FormatException)
