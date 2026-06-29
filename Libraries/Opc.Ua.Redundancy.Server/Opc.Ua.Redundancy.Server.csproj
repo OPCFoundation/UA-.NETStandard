@@ -16,7 +16,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server.Crdt.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Crdt" />

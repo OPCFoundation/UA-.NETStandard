@@ -22,6 +22,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Crdt" />
+    <PackageReference Include="Crdt.Transport" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />

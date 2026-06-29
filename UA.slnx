@@ -149,7 +149,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Client.Redundancy.Tests/Opc.Ua.Client.Redundancy.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Redundancy.Client.Tests/Opc.Ua.Redundancy.Client.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
@@ -171,9 +171,7 @@
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Redundancy.Server.Integration.Tests/Opc.Ua.Redundancy.Server.Integration.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Redundancy.Server.Crdt.Tests/Opc.Ua.Redundancy.Server.Crdt.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Redundancy.K8s.Tests/Opc.Ua.Redundancy.K8s.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
