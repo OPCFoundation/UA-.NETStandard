@@ -29,6 +29,7 @@
     <File Path="Fuzzing/Common/Fuzz/FuzzMethods.cs" />
     <File Path="Fuzzing/Common/Fuzz/Program.cs" />
   </Folder>
+  <Folder Name="/Fuzzing/Common/" />
   <Folder Name="/Fuzzing/Common/Fuzz.Tests/">
     <File Path="Fuzzing/Common/Fuzz.Tests/FuzzTargetFunction.cs" />
     <File Path="Fuzzing/Common/Fuzz.Tests/FuzzTargetTestsBase.cs" />
@@ -59,6 +60,7 @@
   </Folder>
   <Folder Name="/Libraries/">
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
+    <Project Path="Libraries/Opc.Ua.Client.Redundancy/Opc.Ua.Client.Redundancy.csproj" />
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
     <Project Path="Libraries/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
