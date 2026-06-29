@@ -68,7 +68,7 @@ Investigated and de-risked against the current client (file:line are `Libraries/
 
 `StackExchange.Redis` is **not in the offline NuGet cache**; this workstream needs network access or a pre-populated cache.
 
-- **D1 — `Opc.Ua.Server.Redundancy.Redis` package.** `RedisSharedKeyValueStore : ISharedKeyValueStore` — `TryGet/Set/Delete` → string ops; `CompareAndSwap` → atomic Lua (set-if-absent / compare-and-set); `ScanAsync` → `SCAN` by prefix; `WatchAsync` → keyspace-notification pub/sub. Add `StackExchange.Redis` (MIT) to `Directory.Packages.props`. Separate package keeps core dependency-free.
+- **D1 — `Opc.Ua.Redundancy.Server.Redis` package.** `RedisSharedKeyValueStore : ISharedKeyValueStore` — `TryGet/Set/Delete` → string ops; `CompareAndSwap` → atomic Lua (set-if-absent / compare-and-set); `ScanAsync` → `SCAN` by prefix; `WatchAsync` → keyspace-notification pub/sub. Add `StackExchange.Redis` (MIT) to `Directory.Packages.props`. Separate package keeps core dependency-free.
 - **D2 — Transport + availability (F8, F10).** Require mutual-TLS + auth, fail-closed when absent in production; least-privilege per-replica credential; native Redis **TTL** for `session/` + `nonce/` entries; bounded watch channels / keyspace caps.
 - **D3 — AOT + tests.** StackExchange.Redis reflection may not be AOT-safe → AOT tests in `Opc.Ua.Aot.Tests` exercising the Redis paths, or mark non-AOT + document. Integration tests gated on a `REDIS_URL` / testcontainers.
 

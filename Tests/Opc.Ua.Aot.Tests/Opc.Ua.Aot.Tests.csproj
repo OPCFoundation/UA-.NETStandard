@@ -22,9 +22,9 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server.Redundancy\Opc.Ua.Server.Redundancy.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server.Redundancy.Crdt\Opc.Ua.Server.Redundancy.Crdt.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server.Redundancy.K8s\Opc.Ua.Server.Redundancy.K8s.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.K8s\Opc.Ua.Redundancy.K8s.csproj" />
     <ProjectReference Include="..\..\Applications\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />

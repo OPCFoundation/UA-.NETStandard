@@ -31,7 +31,7 @@ using System;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
-using Opc.Ua.Server.Redundancy.Crdt;
+using Opc.Ua.Redundancy.Server;
 
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007

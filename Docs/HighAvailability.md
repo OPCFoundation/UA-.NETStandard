@@ -4,7 +4,7 @@ This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 �
 
 ## 6.6.1 Redundancy overview
 
-OPC UA defines three independent but composable redundancy dimensions: **server redundancy** gives clients multiple servers that expose the same data, **client redundancy** lets backup clients take over work from an active client, and **network redundancy** gives a client and server more than one communication path. The stack implements standardized discovery and failover metadata in the core server/client packages, and adds opt-in distributed state through `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy`.
+OPC UA defines three independent but composable redundancy dimensions: **server redundancy** gives clients multiple servers that expose the same data, **client redundancy** lets backup clients take over work from an active client, and **network redundancy** gives a client and server more than one communication path. The stack implements standardized discovery and failover metadata in the core server/client packages, and adds opt-in distributed state through `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`.
 
 Server redundancy is either **transparent** or **non-transparent**. In transparent redundancy, the redundant set looks like one server and failover is hidden from the client. In non-transparent redundancy, each server has its own identity and endpoint, and the client reads `Server.ServerRedundancy` plus `Server.ServiceLevel` to decide what to do.
 
@@ -243,7 +243,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 The base package uses `ISharedKeyValueStore` as the common seam for address-space, session, subscription, retransmission, nonce, and lease records. The in-memory implementation is for tests and single-process samples; multi-pod production deployments need a networked, authenticated, encrypted, and capacity-bounded backend. `IRecordProtector` protects serialized records before they reach the store.
 
-`OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy.Crdt` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
 
 ```csharp
 services.AddOpcUa()
@@ -291,7 +291,7 @@ The full token-reuse fast-activate from shared secrets and subscription recreate
 
 ## Kubernetes deployment
 
-Use the consolidated [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide for the `Opc.Ua.Server.Redundancy.K8s` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
+Use the consolidated [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide for the `Opc.Ua.Redundancy.K8s` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
 
 ## Samples
 

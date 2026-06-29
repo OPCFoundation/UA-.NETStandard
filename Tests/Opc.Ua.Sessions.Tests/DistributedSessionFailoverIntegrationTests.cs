@@ -41,7 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Redundancy;
+using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;

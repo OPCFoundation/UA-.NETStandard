@@ -2,7 +2,7 @@
 
 ## Status
 
-**Partially implemented.** The `Opc.Ua.Server.Redundancy` building blocks (P1–P6 abstractions + default implementations) are implemented and tested (47 unit/integration tests, green on net10.0; cross-compiles net48). The remaining work is the deep server-lifecycle wiring (driving the live `Server.ServiceLevel` node, populating `Server.ServerRedundancy`, integrating the session store into `SessionManager`) and the deferred Redis/CRDT providers. This document remains the architecture and phased plan.
+**Partially implemented.** The `Opc.Ua.Redundancy.Server` building blocks (P1–P6 abstractions + default implementations) are implemented and tested (47 unit/integration tests, green on net10.0; cross-compiles net48). The remaining work is the deep server-lifecycle wiring (driving the live `Server.ServiceLevel` node, populating `Server.ServerRedundancy`, integrating the session store into `SessionManager`) and the deferred Redis/CRDT providers. This document remains the architecture and phased plan.
 
 ### Implementation status (this branch)
 

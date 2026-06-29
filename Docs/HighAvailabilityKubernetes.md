@@ -1,6 +1,6 @@
 # Kubernetes High Availability Deployment
 
-This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Server.Redundancy.K8s` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
+This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.K8s` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
 
 See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `Applications/RedundantServer`.
 

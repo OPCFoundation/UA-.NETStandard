@@ -37,9 +37,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Server;
 using Opc.Ua.Redundancy;
-using Opc.Ua.Server.Redundancy;
-using Opc.Ua.Server.Redundancy.Crdt;
+using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Hosting;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
