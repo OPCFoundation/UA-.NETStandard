@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
             });
         }
 
-#if NET8_0_OR_GREATER
+#if ETH_PCAP
         [Test]
         public async Task WithPcapReplacesChannelFactory()
         {
