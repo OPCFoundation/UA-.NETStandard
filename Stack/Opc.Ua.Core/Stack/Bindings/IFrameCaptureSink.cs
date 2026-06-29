@@ -42,7 +42,7 @@ namespace Opc.Ua.Bindings
     /// <remarks>
     /// <para>
     /// The observer is invoked synchronously on the channel's send /
-    /// receive path by a capturing <see cref="IMessageSocket"/> decorator.
+    /// receive path by a capturing <see cref="IUaSCByteTransport"/> decorator.
     /// Implementations MUST be fast and non-throwing - exceptions are
     /// swallowed by the decorator but observers should not rely on that
     /// behaviour. Heavy work (disk I/O, formatting) must be deferred to a

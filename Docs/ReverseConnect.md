@@ -77,8 +77,80 @@ The Client configuration extension to allow incoming connections for one or more
 </ClientConfiguration>
 ```
 
-## Known limitations and issues
+## WSS reverse-connect (`opc.wss://`)
 
-* Only support for TCP connections is implemented. Https transport is currently out of scope.
+The WSS reverse-connect path covers the same two halves as the
+TCP path but layered over TLS + WebSocket:
+
+* **Server-side outbound** — `HttpsTransportListener.CreateReverseConnection`
+  opens an outbound `ClientWebSocket` to the configured client URI,
+  wraps the resulting `WebSocket` in a `WebSocketClientByteTransport`,
+  and drives the reverse-hello handshake via the same
+  `TcpServerChannel.BeginReverseConnect(... IUaSCByteTransport ...)`
+  overload the TCP path uses. The server's `ReverseConnect` configuration
+  block accepts `opc.wss://...` URIs identical to the TCP form above.
+
+* **Client-side listener** — `ReverseConnectHost.CreateListener` accepts
+  an optional TLS certificate (and validator) pair for `opc.wss://`
+  reverse-connect endpoints. The host wires the cert into the
+  Kestrel-backed `HttpsTransportListener` via
+  `settings.ReverseConnectListener = true`, dispatches each accepted
+  WSS upgrade to a `TcpReverseConnectChannel`, and fires
+  `ConnectionWaiting` via `TransferListenerChannelAsync` when the
+  `ReverseHello` arrives. The application takes ownership of the
+  `ITransportWaitingConnection` exactly as it would for the TCP path.
+
+`ReverseConnectManager.AddEndpoint` gained an additive overload to
+support TLS-terminating listeners:
+
+``` csharp
+// Old: works for opc.tcp:// (no TLS state needed at bind time).
+manager.AddEndpoint(new Uri("opc.tcp://localhost:65300"));
+
+// New: also works for opc.wss:// because the CertificateManager is
+// supplied at AddEndpoint time (m_appConfig is otherwise only set
+// when StartService runs - too late for WSS listeners that need the
+// server certificate at bind time).
+manager.AddEndpoint(new Uri("opc.wss://localhost:65300"), config);
+manager.StartService(config);
+```
+
+The original single-parameter `AddEndpoint(Uri)` is unchanged for
+back-compat (opc.tcp consumers do not need the new overload).
+
+## Kestrel-hosted opc.tcp reverse-connect (opt-in)
+
+The `Opc.Ua.Bindings.Https` package serves the `opc.tcp`
+listener from a Kestrel `IHost` instead of raw `Socket` + SAEA (an
+opt-in alternative on `net8.0`+ to the default raw-socket listener that
+ships in `Opc.Ua.Core`). It
+supports the full forward AND reverse-connect listener modes the
+raw-socket `TcpTransportListener` does. To use it, install the binding
+via DI before opening the listener:
+
+``` csharp
+// Microsoft.Extensions.DependencyInjection consumers:
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()           // raw-socket opc.tcp default
+    .AddKestrelOpcTcpTransport();   // overrides with Kestrel (last-writer-wins)
+
+// Non-DI consumers (e.g. test fixtures):
+DefaultTransportBindingRegistry registry =
+    DefaultTransportBindingRegistry.WithDefaultTcp();
+registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+// Forward the registry to:
+//   - ServerBase via the new ctor overload or .TransportBindings setter
+//     (server-side reverse-connect outbound and forward listeners),
+//   - ReverseConnectManager.TransportBindings (client-side reverse-connect
+//     listener: every AddEndpoint(Uri,...) call constructs a
+//     ReverseConnectHost that resolves the right factory from this registry).
+```
+
+The default raw-socket implementation stays available for
+deployments that want to avoid the ASP.NET Core dependency in
+`Opc.Ua.Core`.
+
+## Known limitations and issues
 
 * Only a limited number of samples is available yet, the Reference Server, the Aggregation Server and the Console server and client.

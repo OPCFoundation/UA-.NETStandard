@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -74,6 +75,54 @@ namespace Opc.Ua.Bindings
         /// The channel name used in trace output.
         /// </summary>
         public override string ChannelName => "TCPREVERSECONNECTCHANNEL";
+
+        /// <summary>
+        /// Reverse-connect channels only need to read the single
+        /// <c>ReverseHello</c> message before the transport is handed off
+        /// to the awaiting application by
+        /// <c>ITcpChannelListener.TransferListenerChannelAsync</c>. A
+        /// long-running receive loop is undesirable here because it would
+        /// otherwise block in <c>ReceiveChunkAsync</c> at the moment of
+        /// handoff; for WebSocket transports a cancel of that blocking
+        /// receive aborts the underlying WebSocket and breaks the
+        /// handoff. By reading exactly one chunk and exiting cleanly
+        /// the channel releases the transport ready for the new owner to
+        /// start its own loop without interruption.
+        /// </summary>
+        protected internal override void StartReceiveLoop()
+        {
+            StartReceiveLoopWithBody(ReadReverseHelloOnceAsync);
+        }
+
+        private async Task ReadReverseHelloOnceAsync(
+            IUaSCByteTransport transport,
+            CancellationToken ct)
+        {
+            ArraySegment<byte> chunk;
+            try
+            {
+                chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (ServiceResultException sre)
+            {
+                OnTransportError(sre.Result);
+                return;
+            }
+            catch (Exception ex)
+            {
+                OnTransportError(ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadTcpInternalError,
+                    ex.Message));
+                return;
+            }
+
+            OnChunkReceived(chunk);
+        }
 
         /// <summary>
         /// Processes an incoming message.

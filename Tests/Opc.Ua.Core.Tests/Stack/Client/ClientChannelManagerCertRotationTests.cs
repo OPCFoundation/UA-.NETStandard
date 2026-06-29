@@ -280,7 +280,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        public interface IChannel : ITransportChannel, ISecureChannel, IMessageSocketChannel;
+        public interface IChannel : ITransportChannel, ISecureChannel;
 
         private sealed class ImmediateReconnectPolicy : IChannelReconnectPolicy
         {

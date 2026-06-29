@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -42,7 +43,7 @@ namespace Opc.Ua
     /// <summary>
     /// This is an interface to a listener which supports UA binary encoding.
     /// </summary>
-    public interface ITransportListener : IDisposable
+    public interface ITransportListener : IAsyncDisposable
     {
         /// <summary>
         /// The Id of the transport listener.
@@ -60,18 +61,21 @@ namespace Opc.Ua
         /// <param name="baseAddress">The base address.</param>
         /// <param name="settings">The settings to use when creating the listener.</param>
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Open(
+        ValueTask OpenAsync(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback);
+            ITransportListenerCallback callback,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Close();
+        ValueTask CloseAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Updates the application certificate for a listener.

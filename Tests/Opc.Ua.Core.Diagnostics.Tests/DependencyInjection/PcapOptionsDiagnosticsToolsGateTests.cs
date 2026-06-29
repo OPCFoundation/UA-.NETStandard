@@ -32,8 +32,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Pcap.DependencyInjection;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
     /// <summary>
@@ -43,36 +41,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapOptionsDiagnosticsToolsGateTests
     {
-        private ITransportChannelFactory? m_previousBinding;
-
-        /// <summary>
-        /// Snapshots the process-wide opc.tcp binding before DI registration
-        /// mutates it.
-        /// </summary>
-        [SetUp]
-        public void CapturePreviousBinding()
-        {
-            var bindings = (ITransportBindings<ITransportChannelFactory>)
-                TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Utils.UriSchemeOpcTcp, new TestTelemetryContext())
-                : null;
-        }
-
-        /// <summary>
-        /// Restores the process-wide opc.tcp binding after tests that call
-        /// AddPcap.
-        /// </summary>
-        [TearDown]
-        public void RestorePreviousBinding()
-        {
-            if (m_previousBinding is not null)
-            {
-                ((ITransportBindings<ITransportChannelFactory>)
-                    TransportBindings.Channels)
-                    .SetBinding(m_previousBinding);
-            }
-        }
 
         [Test]
         public void PcapOptionsEnableDiagnosticsToolsDefaultsToFalse()
