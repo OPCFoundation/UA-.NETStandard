@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : ISession
+    public partial class ManagedSession : IManagedSession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -310,6 +310,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint { get; }
+
+        /// <inheritdoc/>
+        public RedundancySupport RedundancySupport => m_redundancyInfo?.Mode ?? RedundancySupport.None;
 
         /// <inheritdoc/>
         public string SessionName
