@@ -18,7 +18,7 @@ Server redundancy is either **transparent** or **non-transparent**. In transpare
 | `Cold` | Only one server is active at a time; backups may be unavailable or not running. | Client connects to one server and creates a fresh session/subscriptions on failover. |
 | `Warm` | Backup servers are running but have less functionality or no process data. | Client can connect to peers, keep subscriptions created but sampling/publishing inactive on backups, and promote the highest-`ServiceLevel` server. |
 | `Hot` | Multiple servers are running and can independently provide data. | Client connects to peers and either hands reporting over to one active server or merges reporting streams. |
-| `HotAndMirrored` | Hot servers mirror communication state. | `RedundantManagedClient` keeps one active session, may keep lightweight ServiceLevel status-check sessions to backups, and fails over by opening a channel and re-activating the mirrored session with the existing `AuthenticationToken`; subscriptions are not recreated client-side. |
+| `HotAndMirrored` | Hot servers mirror communication state. | `ManagedSession` keeps one active session, may keep lightweight ServiceLevel status-check sessions to backups, and fails over by opening a channel and re-activating the mirrored session with the existing `AuthenticationToken`; subscriptions are not recreated client-side. |
 | `Transparent` | One virtual server identity hides physical failover. | Server publishes `CurrentServerId`; deployment infrastructure supplies the virtual address and shared certificate/endpoint identity. |
 
 ### Server.ServerRedundancy model
@@ -100,9 +100,9 @@ if (decision.IsFailoverWarranted)
 
 ## 6.6.2.4.5 Non-transparent failover modes and client actions
 
-`RedundantManagedClient` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver calls `FindServers` and `GetEndpoints` from the current endpoint's discovery URLs, chooses matching security policy/mode and URL scheme when possible, and caches the result.
+`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver calls `FindServers` and `GetEndpoints` from the current endpoint's discovery URLs, chooses matching security policy/mode and URL scheme when possible, and caches the result.
 
-| Mode | Table 107 actions | `RedundantManagedClient` realization |
+| Mode | Table 107 actions | `ManagedSession` realization |
 | --- | --- | --- |
 | Cold | Initial connection to one active server. At failover open a SecureChannel, create/activate a session, create subscriptions/monitored items, activate sampling, then activate publishing. | Starts with the initial endpoint only. `FailoverAsync` selects a peer, connects it, applies subscriptions only to the current session, and enables reporting/publishing. |
 | Warm | Connect to more than one server and create subscriptions/monitored items on backups; sampling and publishing become active at failover. | Connects all peers, stores templates with `AddSubscriptionAsync`, creates subscriptions on each connected server, and keeps only the selected server in Reporting/publishing while backups are Sampling/publishing disabled. |
@@ -110,10 +110,10 @@ if (decision.IsFailoverWarranted)
 | Hot (b) | Connect to more than one server, create subscriptions everywhere, activate sampling and publishing everywhere; client handles duplicate streams. | `HotRedundancyNotificationMode.ReportingMerge`: all connected peers Report and publish; duplicate suppression/merge is a client responsibility above the event callback. |
 | HotAndMirrored | Client normally connects to one server; optional status sessions only; on failover open a SecureChannel and call `ActivateSession` against the mirrored session. | Keeps a single active session and, when `EnableHotAndMirroredStatusChecks` is set, periodically reads ServiceLevel from backup status sessions. `FailoverAsync` reuses the mirrored `AuthenticationToken` and single-use nonce by calling `ActivateSession` on the backup; it does not recreate subscriptions because the server mirrors session and subscription state. |
 
-`RedundantManagedClient.RefreshServiceLevelsAsync` reads service levels from connected sessions and selects the highest value. The default handler will not fail over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` or a longer default backoff, and selects a Running peer with an operational `ServiceLevel`.
+`ManagedSession.RefreshServiceLevelsAsync` reads service levels from connected sessions and selects the highest value. The default handler will not fail over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` or a longer default backoff, and selects a Running peer with an operational `ServiceLevel`.
 
 ```csharp
-RedundantManagedClient coldClient = await new ManagedSessionBuilder(configuration, telemetry)
+ManagedSession coldClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
     .ConnectRedundantAsync(ct: ct);
 
@@ -122,7 +122,7 @@ await coldClient.FailoverAsync(ct);
 ```
 
 ```csharp
-RedundantManagedClient warmClient = await new ManagedSessionBuilder(configuration, telemetry)
+ManagedSession warmClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
     .ConnectRedundantAsync(ct: ct);
 
@@ -131,10 +131,10 @@ await warmClient.RefreshServiceLevelsAsync(ct);
 ```
 
 ```csharp
-RedundantManagedClient hotHandoffClient = await new ManagedSessionBuilder(configuration, telemetry)
+ManagedSession hotHandoffClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
     .ConnectRedundantAsync(
-        new RedundantManagedClientOptions
+        new ManagedSessionOptions
         {
             HotNotificationMode = HotRedundancyNotificationMode.ReportingHandoff
         },
@@ -142,10 +142,10 @@ RedundantManagedClient hotHandoffClient = await new ManagedSessionBuilder(config
 ```
 
 ```csharp
-RedundantManagedClient hotMergeClient = await new ManagedSessionBuilder(configuration, telemetry)
+ManagedSession hotMergeClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
     .ConnectRedundantAsync(
-        new RedundantManagedClientOptions
+        new ManagedSessionOptions
         {
             HotNotificationMode = HotRedundancyNotificationMode.ReportingMerge
         },
@@ -158,10 +158,10 @@ hotMergeClient.NotificationReceived += (sender, args) =>
 ```
 
 ```csharp
-RedundantManagedClient mirroredClient = await new ManagedSessionBuilder(configuration, telemetry)
+ManagedSession mirroredClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
     .ConnectRedundantAsync(
-        new RedundantManagedClientOptions
+        new ManagedSessionOptions
         {
             EnableHotAndMirroredStatusChecks = true,
             HotAndMirroredStatusCheckInterval = TimeSpan.FromSeconds(5)

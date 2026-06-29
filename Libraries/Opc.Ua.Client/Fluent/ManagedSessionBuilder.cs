@@ -64,7 +64,6 @@ namespace Opc.Ua.Client
         private ManagedSessionOptions m_options = new();
         private IReconnectPolicy? m_reconnectPolicy;
         private IServerRedundancyHandler? m_redundancyHandler;
-        private IRedundantManagedClientSessionFactory? m_redundantSessionFactory;
         private ISessionFactory? m_sessionFactory;
         private IClientChannelManager? m_channelManager;
         private Action<HttpStandardResilienceOptions>? m_httpsResilience;
@@ -293,18 +292,6 @@ namespace Opc.Ua.Client
             return this;
         }
 
-        /// <summary>
-        /// Use a specific redundant managed client session factory.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public ManagedSessionBuilder UseRedundantManagedClientSessionFactory(
-            IRedundantManagedClientSessionFactory factory)
-        {
-            m_redundantSessionFactory = factory
-                ?? throw new ArgumentNullException(nameof(factory));
-            m_options = m_options with { EnableServerRedundancy = true };
-            return this;
-        }
 
         /// <summary>
         /// Use a specific subscription engine factory. Defaults to the V2
@@ -554,151 +541,6 @@ namespace Opc.Ua.Client
             return session;
         }
 
-        /// <summary>
-        /// Construct and connect a redundancy-aware managed client.
-        /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
-        public async Task<RedundantManagedClient> ConnectRedundantAsync(
-            RedundantManagedClientOptions? redundantOptions = null,
-            CancellationToken ct = default)
-        {
-            ManagedSessionOptions opts = m_options with { EnableServerRedundancy = true };
-            if (opts.Endpoint == null)
-            {
-                throw new InvalidOperationException(
-                    "ManagedSessionBuilder.UseEndpoint must be called before ConnectRedundantAsync.");
-            }
-
-            ISubscriptionEngineFactory engineFactory =
-                opts.SubscriptionEngineFactory ??
-                (opts.TimeProvider == null
-                    ? DefaultSubscriptionEngineFactory.Instance
-                    : new DefaultSubscriptionEngineFactory(opts.TimeProvider));
-
-            ISessionFactory sessionFactory = m_sessionFactory ??
-                new DefaultSessionFactory(m_telemetry)
-                {
-                    SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = opts.TimeProvider
-                };
-
-            IReconnectPolicy reconnect =
-                m_reconnectPolicy ?? new ReconnectPolicy(opts.ReconnectPolicy);
-
-            IServerRedundancyHandler redundancy = m_redundancyHandler ??
-                new DefaultServerRedundancyHandler(
-                    new DefaultRedundantServerEndpointResolver(m_telemetry),
-                    opts.TimeProvider);
-
-            IClientChannelManager? channelManager = m_channelManager;
-            ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
-            try
-            {
-                if (channelManager == null && m_httpsResilience != null)
-                {
-                    ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
-#pragma warning disable CA2000 // Channel manager lifetime follows the managed session; TODO: model owned disposal explicitly.
-                    channelManager = new ClientChannelManager(
-                        m_configuration,
-                        m_telemetry,
-                        new HttpsTransportChannelBindings(ownedHttpClientFactory),
-                        reconnectPolicy: null,
-                        timeProvider: opts.TimeProvider);
-#pragma warning restore CA2000
-                    ownedHttpClientFactory = null;
-                }
-            }
-            finally
-            {
-                ownedHttpClientFactory?.Dispose();
-            }
-
-            ArrayOf<string> preferredLocales = default;
-            if (opts.PreferredLocales is { Count: > 0 } locales)
-            {
-                string[] arr = new string[locales.Count];
-                for (int i = 0; i < locales.Count; i++)
-                {
-                    arr[i] = locales[i];
-                }
-                preferredLocales = new ArrayOf<string>(arr);
-            }
-
-#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
-            IUserIdentity? identity = opts.Identity;
-#pragma warning restore CS0618
-
-            async ValueTask<ManagedSession> CreateSessionAsync(
-                ConfiguredEndpoint endpoint,
-                CancellationToken token)
-            {
-                ManagedSession session = await ManagedSession.CreateAsync(
-                    m_configuration,
-                    endpoint,
-                    sessionFactory,
-                    identity,
-                    reconnect,
-                    redundancy,
-                    m_telemetry,
-                    opts.SessionName,
-                    (uint)opts.SessionTimeout.TotalMilliseconds,
-                    preferredLocales,
-                    opts.CheckDomain,
-                    engineFactory,
-                    opts.TransferSubscriptionsOnRecreate,
-                    opts.PoolNotifications,
-                    opts.EnableTokenReuseFailover,
-                    opts.IdentityProvider,
-                    opts.TimeProvider,
-                    channelManager,
-                    opts.NetworkRedundancy,
-                    token).ConfigureAwait(false);
-
-                if (opts.ModelChangeTracking)
-                {
-                    await session.EnableModelChangeTrackingAsync(token).ConfigureAwait(false);
-                }
-
-                return session;
-            }
-
-            IRedundantManagedClientSessionFactory factory = m_redundantSessionFactory ??
-                new DefaultRedundantManagedClientSessionFactory(CreateSessionAsync);
-            IRedundantManagedClientSession initial = await factory.CreateAsync(opts.Endpoint, ct)
-                .ConfigureAwait(false);
-            await initial.ConnectAsync(ct).ConfigureAwait(false);
-            ServerRedundancyInfo info = await initial
-                .FetchRedundancyInfoAsync(redundancy, ct)
-                .ConfigureAwait(false);
-
-            var sessions = new List<IRedundantManagedClientSession> { initial };
-            for (int ii = 0; ii < info.RedundantServers.Count; ii++)
-            {
-                ConfiguredEndpoint? endpoint = info.RedundantServers[ii].Endpoint;
-                if (endpoint == null || IsSameEndpoint(endpoint, opts.Endpoint))
-                {
-                    continue;
-                }
-
-                sessions.Add(await factory.CreateAsync(endpoint, ct).ConfigureAwait(false));
-            }
-
-            var client = new RedundantManagedClient(
-                redundancy,
-                new ArrayOf<IRedundantManagedClientSession>(sessions.ToArray()),
-                redundantOptions);
-            await client.StartAsync(ct).ConfigureAwait(false);
-            return client;
-        }
-
-        private static bool IsSameEndpoint(
-            ConfiguredEndpoint left,
-            ConfiguredEndpoint right)
-        {
-            string? leftUri = left.Description.Server?.ApplicationUri;
-            string? rightUri = right.Description.Server?.ApplicationUri;
-            return string.Equals(leftUri, rightUri, StringComparison.Ordinal);
-        }
 
         private static ServiceProviderHttpClientFactory CreateHttpsHttpClientFactory(
             Action<HttpStandardResilienceOptions> configure)
