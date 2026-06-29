@@ -262,18 +262,32 @@ Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP
 
 For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
-### Client-side high availability (planned extension)
+### Client-side high availability (replica sets)
 
-OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss.
+OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Client.Redundancy`.
 
-The intended design reuses the building blocks already provided here:
+It reuses the same seams as the server, now shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
 
-- **Leader election** among the client replicas, using the same lease/leader-election seam as the server side, so exactly one replica is the active client at a time.
-- **Shared session secret via CRDT / shared store.** The active client persists the `AuthenticationToken` and the mirrored session secrets through `ISharedKeyValueStore` (in-memory for tests, CRDT gossip or a networked store in production, protected by `IRecordProtector`). A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session when the server does not mirror state.
-- **Subscription transfer to the leader.** On promotion the new leader transfers or recreates the subscriptions through the existing `TransferSubscriptionsAsync` / recreate paths, so monitoring continues with minimal gap.
-- **Shared abstractions** for the client coordinator live in `Opc.Ua.Core` under a `Redundancy` namespace, so the client and server redundancy features share one set of seams (leader election, shared store, record protection).
+- **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
+- **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.
+- **Standby modes** (`ClientStandbyMode`): Cold (elect only; connect+activate on promotion), Warm (keep a connected session, create subscriptions on promotion), Hot (keep a connected session with subscriptions sampling-only, enable publishing on promotion).
 
-This client replica-set capability is a planned follow-up. The server-side redundancy, the mirrored-session fast-reconnect token reuse (`ManagedSessionBuilder.WithTokenReuseFailover`), and the shared-store / record-protection seams it builds on are already provided in this work.
+```csharp
+var coordinator = new ClientReplicaSetBuilder(telemetry)
+    .WithNodeId(replicaId)
+    .WithStandbyMode(ClientStandbyMode.Hot)
+    .UseRedundancy(election, sharedStore, recordProtector)
+    .UseSession(ct => new ManagedSessionBuilder(configuration, telemetry)
+        .UseEndpoint(endpoint)
+        .WithServerRedundancy()
+        .WithTokenReuseFailover()
+        .ConnectAsync(ct))
+    .ConfigureLeader((session, fastActivated, ct) => ApplySubscriptionsAsync(session, ct))
+    .Build();
+await coordinator.StartAsync(ct);
+```
+
+The full token-reuse fast-activate from shared secrets and subscription recreate/transfer are exercised by the client replica-set sample and integration tests.
 
 ## Kubernetes deployment
 

@@ -150,6 +150,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Client.Redundancy.Tests/Opc.Ua.Client.Redundancy.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
