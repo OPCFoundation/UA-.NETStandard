@@ -1132,7 +1132,13 @@ namespace Opc.Ua.Client
             return m_networkEndpointSelector?.SelectNext(currentEndpoint);
         }
 
-        internal async ValueTask ReactivateMirroredSessionAsync(
+        /// <summary>
+        /// Reactivates the session against the given endpoint reusing the current
+        /// AuthenticationToken instead of recreating it. Used by client replica sets
+        /// to fast-activate a mirrored session on promotion. The standby still performs
+        /// the full ActivateSession signature validation.
+        /// </summary>
+        public async ValueTask ReactivateMirroredSessionAsync(
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default)
         {

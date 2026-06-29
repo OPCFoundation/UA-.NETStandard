@@ -145,12 +145,33 @@ namespace Opc.Ua.Client.Redundancy
 
         private async ValueTask<bool> EnsureLeaderSessionAsync(CancellationToken ct)
         {
-            if (m_session != null)
+            m_session ??= await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
+            if (!m_options.EnableTokenReuse)
             {
                 return false;
             }
-            m_session = await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
-            return m_options.EnableTokenReuse;
+
+            try
+            {
+                (bool found, ByteString stored) = await m_store
+                    .TryGetAsync(m_options.SessionRecordKey, ct).ConfigureAwait(false);
+                if (found && m_protector.TryUnprotect(stored, out ByteString plaintext) && !plaintext.IsNull)
+                {
+                    using var decoder = new BinaryDecoder(plaintext.ToArray(), m_session.MessageContext);
+                    var config = decoder.ReadEncodeable<SessionConfiguration>(null);
+                    if (m_session.ApplySessionConfiguration(config))
+                    {
+                        await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
+                            .ConfigureAwait(false);
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(ex, "Token-reuse fast-activate failed; using a fresh session.");
+            }
+            return false;
         }
 
         private async ValueTask PublishSecretsAsync(CancellationToken ct)
