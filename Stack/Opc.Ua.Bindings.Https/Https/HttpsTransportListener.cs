@@ -353,6 +353,27 @@ namespace Opc.Ua.Bindings
             ConnectionStatusChanged = null;
             ConnectionWaiting = null;
 
+            // Drain outbound reverse-connect channels first so the
+            // ServerCertificateChain handles loaded during the asymmetric
+            // ChannelOpen handshake are released before m_pinnedServerCert.
+            // Snapshot the set under the concurrent dictionary's enumerator
+            // contract; subsequent OnReverseConnectChannelStatusChanged
+            // callbacks against disposed channels are no-ops because the
+            // dictionary has been cleared.
+            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
+            m_reverseConnectChannels.Clear();
+            foreach (TcpServerChannel channel in reverseChannels)
+            {
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort; teardown must continue regardless.
+                }
+            }
+
             SharedHostLease? lease = m_sharedHostLease;
             m_sharedHostLease = null;
             if (lease != null)
@@ -602,6 +623,7 @@ namespace Opc.Ua.Bindings
 
                 uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
                 channel.StatusChanged += OnReverseConnectChannelStatusChanged;
+                m_reverseConnectChannels.TryAdd(channel, 0);
                 channel.BeginReverseConnect(
                     channelId,
                     url,
@@ -625,6 +647,25 @@ namespace Opc.Ua.Bindings
             ServiceResult status,
             bool closed)
         {
+            if (closed && m_reverseConnectChannels.TryRemove(channel, out _))
+            {
+                // The natural-close path (transport tore down independent
+                // of listener teardown) is the only opportunity to dispose
+                // the channel because there's no other owner: the listener
+                // doesn't hold a strong reference outside the tracking set,
+                // and SetRequestReceivedCallback wires the channel into the
+                // request pipeline but never disposes it. Releases the
+                // ServerCertificateChain handles loaded during the
+                // asymmetric ChannelOpen.
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort.
+                }
+            }
             ConnectionStatusChanged?.Invoke(
                 this,
                 new ConnectionStatusEventArgs(channel.ReverseConnectionUrl!, status, closed));
@@ -666,6 +707,10 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                if (channel != null)
+                {
+                    m_reverseConnectChannels.TryRemove(channel, out _);
+                }
                 channel?.Dispose();
             }
         }
@@ -2123,6 +2168,16 @@ namespace Opc.Ua.Bindings
                     // (when it closes the WS Kestrel fires RequestAborted
                     // which sets m_closed via WaitForChannelClosedAsync's
                     // ct.Register).
+                    //
+                    // Release the now-empty TcpReverseConnectChannel: its
+                    // transport is gone and its only remaining state (the
+                    // ServerCertificateChain loaded during the ReverseHello
+                    // SetEndpointUrl) would otherwise stay alive until the
+                    // request handler's finally clears it. Disposing here
+                    // releases the cert-chain handles deterministically and
+                    // breaks the otherwise hard-to-collect reference graph.
+                    TcpListenerChannel? toDispose = Interlocked.Exchange(ref m_channel, null);
+                    toDispose?.Dispose();
                     return true;
                 }
 
@@ -2333,6 +2388,14 @@ namespace Opc.Ua.Bindings
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private bool m_reverseConnectListener;
+        // Tracks outbound reverse-connect TcpServerChannels owned by this
+        // listener. CreateReverseConnection registers each new channel;
+        // OnHttpsReverseHelloComplete + DisposeAsync drain the set so any
+        // ServerCertificateChain loaded during SetEndpointUrl is released
+        // deterministically — these channels live on outbound WS transports
+        // that are not bound to the Kestrel host lifecycle, so listener
+        // teardown must close them explicitly.
+        private readonly ConcurrentDictionary<TcpServerChannel, byte> m_reverseConnectChannels = new();
         private int m_nextChannelId;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
