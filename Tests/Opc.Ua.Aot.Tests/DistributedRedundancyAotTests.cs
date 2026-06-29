@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Redundancy;
 using Opc.Ua.Server.Redundancy.K8s;
+using Opc.Ua.Redundancy;
 
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007
