@@ -22,6 +22,7 @@
     <PackageReference Include="Crdt" />
     <PackageReference Include="Crdt.Transport" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>

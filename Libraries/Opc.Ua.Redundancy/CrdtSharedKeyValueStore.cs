@@ -35,7 +35,7 @@ using Crdt;
 using Crdt.Transport;
 using Opc.Ua.Redundancy;
 
-namespace Opc.Ua.Redundancy.Client
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: a CRDT-backed <see cref="ISharedKeyValueStore"/>: a last-writer-wins map
@@ -49,7 +49,7 @@ namespace Opc.Ua.Redundancy.Client
     /// Use a strongly-consistent store for primitives that require exactly-once
     /// semantics (for example the single-use session nonce registry).
     /// </remarks>
-    public sealed class CrdtClientKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+    public sealed class CrdtSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
     {
         /// <summary>
         /// Creates a CRDT key/value store.
@@ -58,7 +58,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <param name="transport">The gossip transport (owned by this store).</param>
         /// <param name="timeProvider">The time source for the logical clock.</param>
         /// <param name="readerOptions">Decoding limits for received state.</param>
-        public CrdtClientKeyValueStore(
+        public CrdtSharedKeyValueStore(
             ReplicaId replicaId,
             ITransport transport,
             TimeProvider timeProvider,

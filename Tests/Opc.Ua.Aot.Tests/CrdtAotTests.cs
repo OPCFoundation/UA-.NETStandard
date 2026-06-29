@@ -36,6 +36,8 @@ using Opc.Ua.Redundancy.Server;
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007
 
+using Opc.Ua.Redundancy;
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

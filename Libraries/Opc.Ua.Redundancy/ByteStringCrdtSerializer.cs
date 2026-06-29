@@ -31,7 +31,7 @@ using System;
 using System.Text.Json;
 using Crdt;
 
-namespace Opc.Ua.Redundancy.Client
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// CRDT value serializer for <see cref="ByteString"/> payloads (serialized

@@ -35,6 +35,8 @@ using System.Text.Json;
 using Crdt;
 using NUnit.Framework;
 
+using Opc.Ua.Redundancy;
+
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>

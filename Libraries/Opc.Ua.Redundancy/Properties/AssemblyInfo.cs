@@ -28,32 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Threading.Tasks;
-using Crdt;
-using Crdt.Transport;
-using NUnit.Framework;
-using Opc.Ua.Redundancy;
+using System.Runtime.CompilerServices;
 
-namespace Opc.Ua.Client.Redundancy.Tests
-{
-    /// <summary>
-    /// Coverage for the client-side CRDT shared key/value store.
-    /// </summary>
-    [TestFixture]
-    [Category("ClientRedundancy")]
-    public sealed class CrdtSharedKeyValueStoreTests
-    {
-        [Test]
-        public async Task SetThenGetRoundTripsAsync()
-        {
-            await using var network = new InMemoryNetwork();
-            await using var store = new CrdtSharedKeyValueStore(
-                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            var value = new ByteString(new byte[] { 1, 2, 3, 4 });
-            await store.SetAsync("session/a", value).ConfigureAwait(false);
-            (bool found, ByteString got) = await store.TryGetAsync("session/a").ConfigureAwait(false);
-            Assert.That(found, Is.True);
-            Assert.That(got.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-        }
-    }
-}
+[assembly: CLSCompliant(false)]
+[assembly: InternalsVisibleTo("Opc.Ua.Aot.Tests")]
+[assembly: InternalsVisibleTo("Opc.Ua.Redundancy.Server")]

@@ -28,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.Client\Opc.Ua.Redundancy.Client.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

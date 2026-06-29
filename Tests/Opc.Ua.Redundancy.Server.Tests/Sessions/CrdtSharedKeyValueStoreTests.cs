@@ -37,6 +37,8 @@ using Crdt;
 using Crdt.Transport;
 using NUnit.Framework;
 
+using Opc.Ua.Redundancy;
+
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>

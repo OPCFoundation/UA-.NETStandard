@@ -1,32 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Redundancy.Server</PackageId>
-    <AssemblyName>$(AssemblyPrefix).Redundancy.Server</AssemblyName>
-    <RootNamespace>Opc.Ua.Redundancy.Server</RootNamespace>
-    <Description>OPC UA Distributed / High-Availability Server Class Library</Description>
+    <PackageId>$(PackagePrefix).Opc.Ua.Redundancy</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Redundancy</AssemblyName>
+    <RootNamespace>Opc.Ua.Redundancy</RootNamespace>
+    <Description>OPC UA Redundancy shared CRDT building blocks (serializer + gossip key/value store)</Description>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
-    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Crdt" />
-    <PackageReference Include="Crdt.Transport" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Client.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
+    <PackageReference Include="Crdt" />
+    <PackageReference Include="Crdt.Transport" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>

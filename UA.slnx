@@ -70,6 +70,7 @@
     <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
+    <Project Path="Libraries/Opc.Ua.Redundancy/Opc.Ua.Redundancy.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
