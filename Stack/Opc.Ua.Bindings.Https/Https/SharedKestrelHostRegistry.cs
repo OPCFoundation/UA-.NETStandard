@@ -116,12 +116,9 @@ namespace Opc.Ua.Bindings
     /// the registry entirely.
     /// </para>
     /// </remarks>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Design",
-        "CA1001:Types that own disposable fields should be disposable",
-        Justification = "Process-wide singleton; the SemaphoreSlim lives for the lifetime " +
-            "of the process and is released by the OS at exit.")]
+#pragma warning disable CA1001 // process-wide singleton; SemaphoreSlim lives for the process lifetime and is released by the OS at exit
     internal sealed class SharedKestrelHostRegistry
+#pragma warning restore CA1001
     {
         /// <summary>
         /// Process-wide singleton instance.

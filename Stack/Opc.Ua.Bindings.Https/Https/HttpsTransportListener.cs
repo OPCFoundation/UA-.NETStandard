@@ -74,13 +74,11 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "Listener ownership is transferred to the caller via the returned interface.")]
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
+#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
             return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeHttps, telemetry));
+#pragma warning restore CA2000
         }
     }
 
@@ -105,13 +103,11 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "Listener ownership is transferred to the caller via the returned interface.")]
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
+#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
             return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry));
+#pragma warning restore CA2000
         }
     }
 
@@ -135,13 +131,11 @@ namespace Opc.Ua.Bindings
         protected override string? OpenApiTransportProfileUri => Profiles.WssOpenApiTransport;
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "Listener ownership is transferred to the caller via the returned interface.")]
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
+#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
             return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeWss, telemetry));
+#pragma warning restore CA2000
         }
     }
 
@@ -165,13 +159,11 @@ namespace Opc.Ua.Bindings
         protected override string? OpenApiTransportProfileUri => Profiles.WssOpenApiTransport;
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "Listener ownership is transferred to the caller via the returned interface.")]
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
+#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
             return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry));
+#pragma warning restore CA2000
         }
     }
 
