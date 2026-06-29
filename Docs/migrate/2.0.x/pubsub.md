@@ -29,6 +29,7 @@ assembly ships as its own NuGet package under the
 | ----------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
 | `Opc.Ua.PubSub`         | `OPCFoundation.NetStandard.Opc.Ua.PubSub`        | Core application, encoding, scheduling, security, and DataSets. |
 | `Opc.Ua.PubSub.Udp`     | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Udp`    | UDP datagram transport (Part 14 §7.3.2).                        |
+| `Opc.Ua.PubSub.Eth`     | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Eth`    | Ethernet Layer 2 transport (`opc.eth://`, EtherType 0xB62C).    |
 | `Opc.Ua.PubSub.Mqtt`    | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt`   | MQTT broker transport (Part 14 §7.3.4).                         |
 | `Opc.Ua.PubSub.Server`  | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Server` | Server-side address-space integration (Part 14 §9).             |
 | `Opc.Ua.PubSub.Adapter` | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Adapter` | External-server publisher/subscriber/Action binding over `ManagedSession`. |

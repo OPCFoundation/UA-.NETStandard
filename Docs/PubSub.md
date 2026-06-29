@@ -39,7 +39,7 @@
 - Multi-TFM: `netstandard2.1`, `net48`, `net472`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
-- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), and **MQTT** (3.1.1 + 5.0).
+- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
   with `Verbose` / `Compact` / `RawData` modes.
@@ -397,6 +397,9 @@ only makes sense together with the PubSub feature:
   unicast / multicast / broadcast.
 - `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
   MQTT 3.1.1 + 5.0 via MQTTnet.
+- `IPubSubBuilder.AddEthTransport(Action<EthTransportOptions>?)` —
+  Ethernet Layer 2 (`opc.eth://`); chain `.WithPcap()` for the
+  SharpPcap (libpcap / Npcap) backend.
 
 Server-side address space — see
 [Server-side address space](#server-side-address-space):
@@ -423,6 +426,68 @@ broadcast. The transport honours the
 | `QosCategory`              | Maps to the IPv4/IPv6 DSCP TOS byte applied to outgoing datagrams.   |
 | `MessageRepeatCount`       | How many times the publisher re-sends the same NetworkMessage.       |
 | `MessageRepeatDelay`       | Delay between repeats; receivers deduplicate using `SequenceNumber`. |
+
+
+### Ethernet / UADP (`opc.eth://`)
+
+Implemented in `Opc.Ua.PubSub.Eth`. Wire profile
+[`PubSub Ethernet UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp)
+(`Opc.Ua.PubSub.Eth.EthProfiles.PubSubEthUadpTransport`). OPC UA PubSub NetworkMessages are carried directly inside raw Ethernet II frames (no IP, no UDP), identified by the OPC Foundation EtherType `0xB62C`, with optional IEEE 802.1Q VLAN tagging. The existing UADP message encoding and message-level PubSub security are reused — only the transport binding is new.
+
+**Addressing.** The connection address is a `NetworkAddressUrlDataType.Url` of the form `opc.eth://<mac>[?vid=<0-4095>&pcp=<0-7>]`. The destination MAC accepts the hyphen form (`01-00-5E-7F-00-01`), the colon form (`01:00:5E:7F:00:01`), and the bare twelve hexadecimal digit form (`01005E7F0001`); the legacy `opc.eth://<mac>:<vid>.<pcp>` suffix is also accepted. The MAC is classified as unicast, multicast (I/G bit set), or broadcast (all ones); multicast / broadcast addresses cause the receive backend to join the corresponding group.
+
+```
+opc.eth://01-00-5E-7F-00-01                 # multicast, untagged
+opc.eth://01-00-5E-7F-00-01?vid=5&pcp=6     # multicast, VLAN 5, priority 6
+opc.eth://FF-FF-FF-FF-FF-FF                  # broadcast
+opc.eth://00-11-22-33-44-55                 # unicast
+```
+
+**Frame backends (provider model).** Raw Layer-2 frame I/O is platform-specific and privileged — there is no cross-platform BCL raw-Ethernet support. The transport never touches a socket directly; it resolves the backend through an injectable `IEthernetFrameChannelFactory` and owns the Ethernet / VLAN framing itself.
+
+| Backend | Platforms | Notes |
+| ------- | --------- | ----- |
+| Native (default) | Linux (`AF_PACKET`), macOS (BPF) | libc P/Invoke, no managed dependency, NativeAOT-compatible. Requires `CAP_NET_RAW` / root (Linux) or BPF device access (macOS). |
+| SharpPcap (`WithPcap()`) | Linux, macOS, **Windows** | libpcap / Npcap via SharpPcap. Opt-in; requires the native capture library installed. |
+| In-memory loopback | any | Deterministic, privilege-free; used by the tests and for local diagnostics. |
+
+On Windows the default native factory throws `PlatformNotSupportedException`; register the SharpPcap backend with `WithPcap()` or inject a custom `IEthernetFrameChannelFactory`. The native and in-memory backends are NativeAOT / trim clean; the SharpPcap backend lives in the same package with its SharpPcap-touching members isolated via `[UnconditionalSuppressMessage]` (compiled `net8.0+` because PacketDotNet has no `netstandard` asset), and an AOT smoke test in `Opc.Ua.Aot.Tests` verifies it runs under NativeAOT.
+
+```csharp
+services.AddOpcUa().AddPubSub(pubsub => pubsub
+    .AddPublisher()
+    .AddEthTransport(options =>
+    {
+        options.PreferredNetworkInterface = "eth0";
+        options.DefaultVlanId = 5;
+        options.DefaultPriority = 6;
+    }));
+
+// SharpPcap backend (for example Windows with Npcap installed):
+services.AddOpcUa().AddPubSub(pubsub => pubsub
+    .AddSubscriber()
+    .AddEthTransport()
+    .WithPcap());
+```
+
+`AddEthTransport` also accepts an `IConfiguration` / `IConfigurationSection` (default section `OpcUa:PubSub:Eth`). `EthTransportOptions`:
+
+| Option | Default | Meaning |
+| ------ | ------- | ------- |
+| `ReceiveQueueCapacity` | 1024 | Bounded receive queue depth (frames). |
+| `MaxFrameSize` | 1522 | Maximum accepted frame size (standard Ethernet + 802.1Q tag); raise for jumbo frames. |
+| `PreferredNetworkInterface` | `null` | NIC name fallback when the address does not name an interface. |
+| `DefaultVlanId` | `null` | VLAN id applied when the address URL omits one. |
+| `DefaultPriority` | `null` | 802.1Q priority applied when the address URL omits one. |
+| `Promiscuous` | `false` | Promiscuous receive (multicast is received via group membership without it). |
+| `DiscoveryAnnounceRate` | 0 | Cyclic discovery announcement rate (ms); 0 disables. |
+| `DiscoveryMulticastAddress` | `null` | Destination MAC for discovery announcements; defaults to the data destination MAC. |
+
+`EthernetDatagramTransport` implements `IPubSubDiscoveryAnnouncementTransport`: when `DiscoveryAnnounceRate` is non-zero, announcements are sent to `DiscoveryMulticastAddress` (or the data destination MAC when unset).
+
+Notes: only UADP encoding is defined for the Ethernet mapping (no JSON over `opc.eth://`); frames exceeding `MaxFrameSize` (the link MTU) cannot be sent, so enable UADP chunking or raise the MTU; the native AF_PACKET / BPF backends are exercised by opt-in / manual tests only (they need privileges and real hardware), while CI uses the in-memory loopback backend.
+
+**Security.** The Ethernet mapping provides **no transport-level authentication, integrity, or confidentiality** (unlike `opc.dtls://`): raw Layer 2 frames are unauthenticated and unencrypted, and any node on the broadcast / VLAN domain can sniff, inject, replay, or spoof them. Always configure **message-level PubSub security** (`SecurityMode = SignAndEncrypt` with a SecurityGroup / SKS), exactly as for UDP — the transport applies the same inbound security gate. The transport logs a prominent **warning** when a connection is opened with `SecurityMode = None`. Run the process with the **least privilege** required for raw L2 access — on Linux grant the `CAP_NET_RAW` capability to the binary (`setcap cap_net_raw+ep`) rather than running as root; `Promiscuous` mode is off by default and broadens the receive exposure when enabled. The in-memory loopback backend delivers every frame to all peers on its bus (no destination filtering) and is a test / diagnostic double only — it must not be relied on as a security or isolation boundary. SharpPcap (+ PacketDotNet) are pinned native dependencies tracked under the repository's SDL native-code policy (see `Directory.Packages.props`).
 
 
 ### DTLS / UADP (`opc.dtls://`)

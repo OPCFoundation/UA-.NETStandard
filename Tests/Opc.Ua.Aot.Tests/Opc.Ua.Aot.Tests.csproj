@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
     <ProjectReference Include="..\..\Applications\MinimalBoilerServer\MinimalBoilerServer.csproj">
       <Aliases>boilersample</Aliases>
