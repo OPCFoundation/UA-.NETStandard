@@ -151,6 +151,7 @@
     <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />

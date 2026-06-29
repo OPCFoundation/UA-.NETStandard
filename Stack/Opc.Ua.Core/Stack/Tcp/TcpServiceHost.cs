@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
@@ -51,7 +53,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a new service host for UA TCP.
         /// </summary>
-        public List<EndpointDescription> CreateServiceHost(
+        public async ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
@@ -59,7 +61,8 @@ namespace Opc.Ua.Bindings
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
             ICertificateRegistry serverCertificates,
-            ICertificateValidatorEx clientCertificateValidator)
+            ICertificateValidatorEx clientCertificateValidator,
+            CancellationToken ct = default)
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -131,12 +134,13 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints.Add(description);
                     }
 
-                    serverBase.CreateServiceHostEndpoint(
+                    await serverBase.CreateServiceHostEndpointAsync(
                         uri.Uri,
                         listenerEndpoints,
                         endpointConfiguration,
                         listener,
-                        clientCertificateValidator);
+                        clientCertificateValidator,
+                        ct).ConfigureAwait(false);
 
                     endpoints.AddRange(listenerEndpoints);
                 }

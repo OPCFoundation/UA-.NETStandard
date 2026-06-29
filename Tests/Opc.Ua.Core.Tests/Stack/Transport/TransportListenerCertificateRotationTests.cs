@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
@@ -63,9 +64,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// post-response channel cuts.
         /// </summary>
         [Test]
-        public void TcpTransportListenerImplementsCertificateRotationCapability()
+        public async Task TcpTransportListenerImplementsCertificateRotationCapabilityAsync()
         {
-            using var listener = new TcpTransportListener(m_telemetry);
+            await using var listener = new TcpTransportListener(m_telemetry);
             Assert.That(listener, Is.InstanceOf<ITransportListenerCertificateRotation>());
         }
 
@@ -75,9 +76,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// host that owns the TLS certificate.
         /// </summary>
         [Test]
-        public void HttpsTransportListenerImplementsCertificateRotationCapability()
+        public async Task HttpsTransportListenerImplementsCertificateRotationCapabilityAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.That(listener, Is.InstanceOf<ITransportListenerCertificateRotation>());
         }
 
@@ -87,13 +88,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// return an empty list rather than throwing.
         /// </summary>
         [Test]
-        public void TcpListenerCloseChannelsForCertificateOnEmptyListenerReturnsEmpty()
+        public async Task TcpListenerCloseChannelsForCertificateOnEmptyListenerReturnsEmptyAsync()
         {
-            using var listener = new TcpTransportListener(m_telemetry);
+            await using var listener = new TcpTransportListener(m_telemetry);
             using Certificate oldCertificate = CreateSelfSigned("CN=Old");
 
             System.Collections.Generic.IReadOnlyList<string> closed =
-                CallCloseChannelsForCertificate(listener, oldCertificate);
+                await CallCloseChannelsForCertificateAsync(listener, oldCertificate).ConfigureAwait(false);
 
             Assert.That(closed, Is.Not.Null);
             Assert.That(closed, Is.Empty);
@@ -105,29 +106,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// than corrupting the channel map.
         /// </summary>
         [Test]
-        public void TcpListenerCloseChannelsForCertificateRejectsNull()
+        public async Task TcpListenerCloseChannelsForCertificateRejectsNullAsync()
         {
-            using var listener = new TcpTransportListener(m_telemetry);
+            await using var listener = new TcpTransportListener(m_telemetry);
 
             Assert.That(
-                () => CallCloseChannelsForCertificate(listener, null!),
+                () => CallCloseChannelsForCertificateAsync(listener, null!),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
         /// <summary>
         /// HTTPS rotation is a no-op when the listener is not opened —
-        /// <see cref="HttpsTransportListener.Stop"/> and
-        /// <see cref="HttpsTransportListener.Start"/> must be safe in
+        /// <see cref="HttpsTransportListener.StopAsync"/> and
+        /// <see cref="HttpsTransportListener.StartAsync"/> must be safe in
         /// that state.
         /// </summary>
         [Test]
-        public void HttpsListenerCloseChannelsForCertificateOnUnopenedListenerIsSafe()
+        public async Task HttpsListenerCloseChannelsForCertificateOnUnopenedListenerIsSafeAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             using Certificate oldCertificate = CreateSelfSigned("CN=Old");
 
             System.Collections.Generic.IReadOnlyList<string> closed =
-                CallCloseChannelsForCertificate(listener, oldCertificate);
+                await CallCloseChannelsForCertificateAsync(listener, oldCertificate).ConfigureAwait(false);
 
             Assert.That(closed, Is.Not.Null);
             Assert.That(closed, Is.Empty);
@@ -138,20 +139,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// also a contract violation.
         /// </summary>
         [Test]
-        public void HttpsListenerCloseChannelsForCertificateRejectsNull()
+        public async Task HttpsListenerCloseChannelsForCertificateRejectsNullAsync()
         {
-            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
 
             Assert.That(
-                () => CallCloseChannelsForCertificate(listener, null!),
+                () => CallCloseChannelsForCertificateAsync(listener, null!),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
-        private static System.Collections.Generic.IReadOnlyList<string> CallCloseChannelsForCertificate(
+        private static async Task<System.Collections.Generic.IReadOnlyList<string>> CallCloseChannelsForCertificateAsync(
             ITransportListener listener, Certificate oldCertificate)
         {
             var rotation = (ITransportListenerCertificateRotation)listener;
-            return rotation.CloseChannelsForCertificate(oldCertificate);
+            return await rotation.CloseChannelsForCertificateAsync(oldCertificate).ConfigureAwait(false);
         }
 
         private static Certificate CreateSelfSigned(string subjectName)

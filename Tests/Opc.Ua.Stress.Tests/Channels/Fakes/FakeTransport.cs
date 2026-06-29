@@ -94,7 +94,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
     /// <summary>
     /// Configurable in-memory transport channel for channel-manager stress tests.
     /// </summary>
-    public sealed class FakeTransport : ITransportChannel, ISecureChannel, IMessageSocketChannel
+    public sealed class FakeTransport : ITransportChannel, ISecureChannel
     {
         /// <summary>
         /// Initializes a new fake transport with no telemetry context.
@@ -361,8 +361,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             }
         }
 
-        /// <inheritdoc/>
-        public IMessageSocket? Socket
+        /// <summary>
+        /// Test-only byte transport surface; setting this on the fake lets
+        /// callers exercise diagnostic paths that read
+        /// <c>(channel as UaSCUaBinaryTransportChannel)?.Transport</c>.
+        /// </summary>
+        public IUaSCByteTransport? Socket
         {
             get
             {
@@ -818,7 +822,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         private EndpointConfiguration? m_endpointConfiguration;
         private IServiceMessageContext m_messageContext;
         private ChannelToken? m_currentToken;
-        private IMessageSocket? m_socket;
+        private IUaSCByteTransport? m_socket;
         private ChannelTokenActivatedEventHandler? m_onTokenActivated;
         private static int s_nextChannelId;
 

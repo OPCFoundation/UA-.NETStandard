@@ -130,6 +130,11 @@ namespace Opc.Ua.History.Tests
             collector.Reset();
 
             await WriteAlarmSourceValueAsync(alarmId, new Variant(90)).ConfigureAwait(false);
+            // Request the server to push the current alarm state to the subscription
+            // queue. On slow macOS CI runners the server's natural publish cycle can
+            // be delayed; ConditionRefresh ensures the Active/Unacked state is
+            // delivered promptly rather than relying solely on the 30-second poll.
+            await collector.ConditionRefreshAsync().ConfigureAwait(false);
             EventFieldList unackedEvent = await collector.WaitForEventAsync(
                 alarmId,
                 e => AlarmEventCollector.TryGetBoolean(
@@ -154,6 +159,26 @@ namespace Opc.Ua.History.Tests
                 MethodIds.AcknowledgeableConditionType_Acknowledge,
                 new Variant(eventId),
                 new Variant(new LocalizedText("en", string.Empty))).ConfigureAwait(false);
+
+            // The server may have stamped a new EventId between event-collector
+            // observation and the Acknowledge call (a concurrent condition
+            // refresh races with the test). Re-read the current EventId and
+            // retry once with the freshest value before failing the test.
+            if (callResult.StatusCode == StatusCodes.BadEventIdUnknown)
+            {
+                ByteString refreshedEventId = await ReadEventIdAsync(alarmId)
+                    .ConfigureAwait(false);
+                if (!refreshedEventId.IsNull && !refreshedEventId.Equals(eventId))
+                {
+                    collector.Reset();
+                    callResult = await CallMethodOnAlarmAsync(
+                        alarmId,
+                        MethodIds.AcknowledgeableConditionType_Acknowledge,
+                        new Variant(refreshedEventId),
+                        new Variant(new LocalizedText("en", string.Empty)))
+                        .ConfigureAwait(false);
+                }
+            }
 
             Assert.That(StatusCode.IsGood(callResult.StatusCode), Is.True,
                 $"Acknowledge should succeed: {callResult.StatusCode}");

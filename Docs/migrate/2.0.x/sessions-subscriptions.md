@@ -334,6 +334,96 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 **Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
 
+### `IMessageSocket` abstraction removed
+
+The runtime transport boundary moved from `IMessageSocket` to the new public `IUaSCByteTransport` (`Opc.Ua.Bindings`). This let us share one UASC pipeline across raw TCP and WebSocket connections and let JSON profiles bypass UASC entirely. As part of this change the entire `IMessageSocket` family was **removed** from the public API surface — this is a breaking change versus 1.5.378.
+
+| Removed type | Replacement |
+|---|---|
+| `IMessageSocket`, `IMessageSocketAsyncEventArgs`, `IMessageSink`, `IMessageSocketChannel` | `IUaSCByteTransport` (chunk-level send / receive); typical consumers use `ITransportChannel` instead |
+| `IMessageSocketFactory` | `IUaSCByteTransportFactory` |
+| `MessageSocketExtensions` (e.g. `BeginConnect`) | `IUaSCByteTransport.ConnectAsync` |
+| `TcpMessageSocket`, `TcpMessageSocketFactory`, `TcpMessageSocketAsyncEventArgs` | `TcpByteTransport` (sealed; `TcpByteTransportFactory` for client-side construction). The public `TcpTransportChannel` / `TcpTransportChannelFactory` shapes are unchanged. |
+| `UaSCUaBinaryTransportChannel.Socket` (`IMessageSocket?`) | `UaSCUaBinaryTransportChannel.Transport` (`IUaSCByteTransport?`) |
+| `UaSCUaBinaryClientChannel(..., IMessageSocketFactory, ...)` ctor | `UaSCUaBinaryClientChannel(..., IUaSCByteTransportFactory, ...)` ctor |
+| `ITcpChannelListener.ReconnectToExistingChannel(IMessageSocket, ...)` | `ITcpChannelListener.ReconnectToExistingChannel(IUaSCByteTransport, ...)` |
+
+**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](../../../Stack/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`Docs/Transports.md`](../../Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](../../../Stack/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
+
+### Transport binding registry — `TransportBindings` static API removed
+
+**Source-breaking.** The process-wide `TransportBindings` static class and the `Utils.DefaultBindings` reflection-based assembly auto-load helper have been removed. The new `ITransportBindingRegistry` interface (in `Opc.Ua.Bindings`) is the only public registry surface; it resolves out of the host's `IServiceProvider` so two hosts (e.g. parallel test fixtures or multi-tenant applications) can install different factories without racing on shared global state.
+
+| Removed                                                       | Replacement                                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `TransportBindings.Channels` (static)                         | `ITransportBindingRegistry` (resolved from DI or constructed via `DefaultTransportBindingRegistry.WithDefaultTcp()`) |
+| `TransportBindings.Listeners` (static)                        | Same `ITransportBindingRegistry` — listeners and channels share one keyed registry per scheme               |
+| `TransportBindings.Channels.SetBinding(...)`                  | `ITransportBindingRegistry.RegisterChannelFactory(...)` or the DI extension `AddCustomTransport<,>()`        |
+| `TransportBindings.Listeners.SetBinding(...)`                 | `ITransportBindingRegistry.RegisterListenerFactory(...)` or the DI extension `AddKestrelOpcTcpTransport()`   |
+| `TransportBindings.Channels.GetBinding(scheme, telemetry)`    | `ITransportBindingRegistry.GetChannelFactory(scheme)`                                                        |
+| `TransportBindings.Listeners.GetBinding(scheme, telemetry)`   | `ITransportBindingRegistry.GetListenerFactory(scheme)`                                                       |
+| `TransportBindings.AddBindings(assembly)` (reflection)        | Explicit DI registration via `AddOpcTcpTransport()` / `AddHttpsTransport()` / `AddWssTransport()` / `AddKestrelOpcTcpTransport()` / `AddCustomTransport<,>()` |
+| `Utils.DefaultBindings` dictionary                            | Removed; no replacement needed                                                                               |
+| `ITransportBindings<T>` interface                             | Removed (folded into `ITransportBindingRegistry` per-facet methods)                                           |
+| `TransportBindingsBase` (reflection helper)                   | Removed                                                                                                       |
+
+**`Microsoft.Extensions.DependencyInjection` consumers (recommended path):**
+
+```csharp
+// Before (1.5.378):
+//   TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+
+// After (2.0):
+services
+    .AddOpcUa()
+    .AddOpcTcpTransport()              // raw-socket opc.tcp default
+    .AddHttpsTransport()               // HTTPS + HTTPS-JSON
+    .AddWssTransport()                 // WSS + WSS-JSON
+    .AddKestrelOpcTcpTransport();      // override opc.tcp with Kestrel (last-writer-wins)
+```
+
+> `AddHttpsTransport()`, `AddWssTransport()`, and `AddKestrelOpcTcpTransport()`
+> all ship in the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`
+> package. The Kestrel-hosted `opc.tcp://` listener
+> (`AddKestrelOpcTcpTransport()`) is available on `net8.0`+ only; on the
+> .NET Framework / netstandard targets keep the default raw-socket
+> `opc.tcp` listener that ships in `Opc.Ua.Core`.
+
+Every `Add*Transport()` extension installs an `ITransportBindingConfigurator` instance into the `IServiceCollection`. The `DefaultTransportBindingRegistry` singleton runs every registered configurator in registration order at first resolution time, so the **last** registration for a given URI scheme wins — exactly the same semantics `SetBinding` had, but scoped per `IServiceProvider`.
+
+**Non-DI consumers:**
+
+```csharp
+// Before (1.5.378):
+//   TransportBindings.Listeners.SetBinding(new KestrelTcpTransportListenerFactory());
+//   var server = new MyServer();
+//   server.Start(config); // pre-2.0 sync path
+
+// After (2.0):
+DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
+registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
+var server = new MyServer(telemetry);
+server.TransportBindings = registry;   // public setter; rejected after StartAsync
+await server.StartAsync(config, ct);
+```
+
+`ServerBase` exposes a new constructor overload (`ServerBase(ITelemetryContext, ITransportBindingRegistry?)`) and a publicly-settable `TransportBindings` property (with a started-server guard). Non-DI callers that pass nothing get a `DefaultTransportBindingRegistry.WithDefaultTcp()` on first use — exactly the raw-socket TCP listener the 1.5.378 stack defaulted to.
+
+**Custom transport authors:**
+
+```csharp
+// Before (1.5.378):
+//   TransportBindings.Listeners.SetBinding(new MyCustomListenerFactory());
+//   TransportBindings.Channels.SetBinding(new MyCustomChannelFactory());
+
+// After (2.0):
+services
+    .AddOpcUa()
+    .AddCustomTransport<MyCustomListenerFactory, MyCustomChannelFactory>();
+```
+
+The DI extension resolves both factory types out of the container (so they may have constructor-injected dependencies), and both are registered into the registry under the `UriScheme` exposed by `MyCustomListenerFactory`.
+
 ---
 
 **See also**

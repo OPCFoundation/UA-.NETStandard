@@ -220,27 +220,45 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(socket));
             }
+#pragma warning disable CA2000 // transport ownership is transferred to Attach below
+            var transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+            Attach(channelId, transport);
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Attaches the channel to an existing byte transport (TCP, WebSocket,
+        /// or any other <see cref="IUaSCByteTransport"/> implementation) and
+        /// starts the channel's receive loop.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="transport"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void Attach(uint channelId, IUaSCByteTransport transport)
+        {
+            if (transport == null)
+            {
+                throw new ArgumentNullException(nameof(transport));
+            }
 
             lock (DataLock)
             {
-                // check for existing socket.
-                if (Socket != null)
+                if (Transport != null)
                 {
-                    throw new InvalidOperationException("Channel is already attached to a socket.");
+                    throw new InvalidOperationException("Channel is already attached to a transport.");
                 }
 
                 ChannelId = channelId;
                 State = TcpChannelState.Connecting;
 
-                Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+                Transport = transport;
 
                 m_logger.LogDebug(
-                    "{Channel} SOCKET ATTACHED: {SocketHandle:X8}, ChannelId={ChannelId}",
+                    "{Channel} TRANSPORT ATTACHED: {RemoteEndpoint}, ChannelId={ChannelId}",
                     ChannelName,
-                    Socket.Handle,
+                    Transport.RemoteEndpoint,
                     ChannelId);
 
-                Socket.ReadNextMessage();
+                StartReceiveLoop();
             }
         }
 
@@ -375,7 +393,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadCertificateInvalid,
                     "Server certificate rotated. Renegotiate the SecureChannel.");
 
-                if (Socket != null)
+                if (Transport != null)
                 {
                     try
                     {
@@ -462,13 +480,13 @@ namespace Opc.Ua.Bindings
                 bool close = false;
                 if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
                 {
-                    int? socketHandle = Socket?.Handle;
-                    if (socketHandle is not null and not -1)
+                    EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
+                    if (remoteEndpoint != null)
                     {
                         m_logger.LogError(
-                            "{Channel} ForceChannelFault Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
+                            "{Channel} ForceChannelFault Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
                             ChannelName,
-                            socketHandle,
+                            remoteEndpoint,
                             CurrentToken != null ? CurrentToken.ChannelId : 0,
                             CurrentToken != null ? CurrentToken.TokenId : 0,
                             reason);
@@ -481,7 +499,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // send error and close response.
-                if (Socket != null && m_responseRequired)
+                if (Transport != null && m_responseRequired)
                 {
                     SendErrorMessage(reason);
                 }
@@ -498,8 +516,10 @@ namespace Opc.Ua.Bindings
                             reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
                         var tcpTransportListener = Listener as TcpTransportListener;
-                        tcpTransportListener?.MarkAsPotentialProblematic(
-                            ((IPEndPoint)Socket!.RemoteEndpoint!).Address);
+                        if (Transport?.RemoteEndpoint is IPEndPoint ipEndpoint)
+                        {
+                            tcpTransportListener?.MarkAsPotentialProblematic(ipEndpoint.Address);
+                        }
                     }
 
                     // close channel immediately.
@@ -531,9 +551,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_logger.LogInformation(
-                    "{Channel} Cleanup Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
+                    "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
                     ChannelName,
-                    (Socket?.Handle) ?? 0,
+                    Transport?.RemoteEndpoint,
                     CurrentToken != null ? CurrentToken.ChannelId : 0,
                     CurrentToken != null ? CurrentToken.TokenId : 0,
                     reason.ToString());
@@ -551,7 +571,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Socket?.Close();
+                Transport?.Close();
             }
             finally
             {
@@ -571,7 +591,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Socket?.Close();
+                Transport?.Close();
             }
             finally
             {
@@ -708,7 +728,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
         public virtual void Reconnect(
-            IMessageSocket socket,
+            IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             Certificate clientCertificate,

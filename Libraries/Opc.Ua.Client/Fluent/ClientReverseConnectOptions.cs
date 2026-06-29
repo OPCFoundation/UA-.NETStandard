@@ -53,7 +53,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Local listener endpoints (e.g. <c>opc.tcp://0.0.0.0:4841</c>)
         /// the manager should bind to. Each URL is registered via
-        /// <see cref="ReverseConnectManager.AddEndpoint"/>.
+        /// <see cref="ReverseConnectManager.AddEndpoint(System.Uri)"/>.
         /// </summary>
         public IList<string> ClientEndpointUrls { get; } = [];
 

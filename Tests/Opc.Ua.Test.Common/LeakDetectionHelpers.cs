@@ -49,6 +49,13 @@ namespace Opc.Ua.Tests
             TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// Default grace period before <see cref="ArmProcessExitWatchdog"/>
+        /// force-exits the test host.
+        /// </summary>
+        public static readonly TimeSpan DefaultProcessExitWatchdogTimeout =
+            TimeSpan.FromSeconds(60);
+
+        /// <summary>
         /// Runs <paramref name="cycles"/> consecutive
         /// <see cref="GC.Collect(int, GCCollectionMode, bool)"/> +
         /// <see cref="GC.WaitForPendingFinalizers"/> cycles on a
@@ -114,6 +121,56 @@ namespace Opc.Ua.Tests
             };
             sweep.Start();
             return sweep.Join(timeout ?? DefaultFinalizerSweepTimeout);
+        }
+
+        /// <summary>
+        /// <summary>
+        /// Arms a background watchdog that force-exits the test host
+        /// process if it has not exited within <paramref name="timeout"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The watchdog runs on an <see cref="Thread.IsBackground"/>
+        /// thread so it does not by itself prevent process exit. If the
+        /// runtime shuts down cleanly the thread is torn down before
+        /// the watchdog fires.
+        /// </para>
+        /// <para>
+        /// If a foreground/managed thread, native resource, or external
+        /// data collector keeps the test host alive past the budget,
+        /// the watchdog calls <see cref="Environment.Exit(int)"/> with
+        /// exit code <c>0</c>. This converts the otherwise-fatal
+        /// 10-minute MS Test Platform <c>--blame-hang-timeout</c> abort
+        /// (which yields exit code 1 and a hang dump) into a clean
+        /// shutdown.
+        /// </para>
+        /// <para>
+        /// Intended for use at the end of an assembly-level
+        /// <c>[OneTimeTearDown]</c> after all fixture teardowns and the
+        /// finalizer sweep have completed. Calling it earlier risks
+        /// terminating in-progress test work.
+        /// </para>
+        /// </remarks>
+        /// <param name="timeout">How long to wait before force-exiting.
+        /// When <c>null</c>, <see cref="DefaultProcessExitWatchdogTimeout"/>
+        /// is used.</param>
+        public static void ArmProcessExitWatchdog(TimeSpan? timeout = null)
+        {
+            TimeSpan budget = timeout ?? DefaultProcessExitWatchdogTimeout;
+            var watchdog = new Thread(() =>
+            {
+                Thread.Sleep(budget);
+                // If we get here, the runtime has not torn this thread
+                // down — something is keeping the process alive past the
+                // watchdog budget. Force a clean exit so the MS Test
+                // Platform --blame-hang-timeout abort does not fire.
+                Environment.Exit(0);
+            })
+            {
+                IsBackground = true,
+                Name = "LeakDetection.ProcessExitWatchdog"
+            };
+            watchdog.Start();
         }
 
         /// <summary>

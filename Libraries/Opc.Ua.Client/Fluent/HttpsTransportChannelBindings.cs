@@ -34,12 +34,7 @@ namespace Opc.Ua.Client
 {
     internal sealed class HttpsTransportChannelBindings : ITransportChannelBindings
     {
-        public HttpsTransportChannelBindings(IOpcUaHttpClientFactory httpClientFactory)
-            : this(TransportBindings.Channels, httpClientFactory)
-        {
-        }
-
-        private HttpsTransportChannelBindings(
+        public HttpsTransportChannelBindings(
             ITransportChannelBindings inner,
             IOpcUaHttpClientFactory httpClientFactory)
         {

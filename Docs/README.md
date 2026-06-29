@@ -5,12 +5,14 @@ Here is a list of available documentation for different topics:
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
+* [Transport Profiles](Transports.md) - Developer guide for the wire transports: `opc.tcp` / HTTPS (binary + JSON + REST) / WSS (binary + JSON), including server hosting and client connect examples.
+* [REST Binding (OpenAPI Mapping)](WebApi.md) - OPC UA Part 6 §G.3 OpenAPI mapping: ASP.NET Core MVC controllers for every spec service, Compact / Verbose encoding negotiation, four pluggable auth modes (Anonymous / Bearer JWT / HTTP Basic / Mutual TLS), and the symmetric `IWebApiClient`.
 * [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
-* Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
+* Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
 * [Performance Benchmarks](Benchmarks.md) — BenchmarkDotNet methodology, the 2.0 (`master`) vs 1.5.378 (`master378`) comparison, root-cause analysis of the encoder/decoder/session regressions and their real-world impact, the subscription-notification (pooled encodeable) micro-benchmarks, and planned future work.

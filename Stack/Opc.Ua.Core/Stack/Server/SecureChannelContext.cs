@@ -94,6 +94,26 @@ namespace Opc.Ua
         /// The server certificate used to establsih the secure channel.
         /// </summary>
         public byte[]? ServerChannelCertificate { get; }
+
+        /// <summary>
+        /// Optional upstream user identity established by an outer
+        /// transport-level authentication step (e.g. the JWT bearer
+        /// validator on the WebApi binding, or an mTLS client-cert
+        /// handshake). When set, the OPC UA service pipeline can use
+        /// this as the trusted ambient principal for sessionless
+        /// requests and cross-check it against a session's body-level
+        /// <c>UserIdentityToken</c>. <see langword="null"/> for
+        /// transports that do not carry an upstream identity (binary
+        /// UASC, plain HTTPS-JSON without a registered auth scheme).
+        /// </summary>
+        /// <remarks>
+        /// The setter is exposed so transport handlers can publish the
+        /// identity after constructing the context (the value is
+        /// typically not known until after authentication completes).
+        /// Application code should treat the context as immutable after
+        /// the transport's dispatch path returns.
+        /// </remarks>
+        public IUserIdentity? UpstreamIdentity { get; set; }
     }
 
     /// <summary>

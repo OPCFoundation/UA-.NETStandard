@@ -236,14 +236,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ArrayOf<EndpointDescription> collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            string transportProfileUri = null)
         {
             Type configuredEndpointType = typeof(ConfiguredEndpoint);
             MethodInfo matchEndpointsMethod = configuredEndpointType.GetMethod(
                 "MatchEndpoints",
                 BindingFlags.NonPublic | BindingFlags.Static,
                 null,
-                [typeof(ArrayOf<EndpointDescription>), typeof(Uri), typeof(MessageSecurityMode), typeof(string)],
+                [typeof(ArrayOf<EndpointDescription>), typeof(Uri), typeof(MessageSecurityMode), typeof(string), typeof(string)],
                 null
             );
 
@@ -251,7 +252,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             return (ArrayOf<EndpointDescription>)matchEndpointsMethod.Invoke(
                 null,
-                [collection, endpointUrl, securityMode, securityPolicyUri]
+                [collection, endpointUrl, securityMode, securityPolicyUri, transportProfileUri]
             );
         }
 
