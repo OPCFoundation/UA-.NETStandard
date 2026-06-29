@@ -614,7 +614,11 @@ namespace Opc.Ua
                 ServerError = new ServiceResult(e);
             }
 
-            // close and dispose any listeners.
+            // close and dispose any listeners. CloseAsync chains to
+            // DisposeAsync (StopAsync → DisposeAsync) so a single CloseAsync
+            // call suffices for orderly shutdown including released cert
+            // handles. We still snapshot the list and clear it after the
+            // loop to drop our owning references.
             List<ITransportListener>? listeners = TransportListeners;
 
             if (listeners != null)
@@ -631,21 +635,6 @@ namespace Opc.Ua
                             e,
                             "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
-                    }
-
-                    if (listeners[ii] != null)
-                    {
-                        try
-                        {
-                            await listeners[ii].DisposeAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.LogError(
-                                e,
-                                "Unexpected error disposing a listener {Name}.",
-                                listeners[ii].GetType().FullName);
-                        }
                     }
                 }
 
