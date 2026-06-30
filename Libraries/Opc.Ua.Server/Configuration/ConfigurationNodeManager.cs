@@ -827,7 +827,8 @@ namespace Opc.Ua.Server
                                             newCert,
                                             certificateGroup.TemporaryApplicationCertificate))
                                     {
-                                        // CA2000: disposed in the finally block of the surrounding try.
+                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
+                                        // cannot track disposal across the for-retry loop / try / catch structure.
 #pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certificateGroup.TemporaryApplicationCertificate,
@@ -847,7 +848,8 @@ namespace Opc.Ua.Server
                                             throw new ServiceResultException(
                                                 StatusCodes.BadSecurityChecksFailed,
                                                 "A private key was not found");
-                                        // CA2000: disposed in the finally block of the surrounding try.
+                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
+                                        // cannot track disposal across the for-retry loop / try / catch structure.
 #pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certWithPrivateKey,
@@ -894,12 +896,14 @@ namespace Opc.Ua.Server
                                 // But it seems to work on .net 9 - and we prefer that over files
                                 const bool noEphemeralKeySet = false;
 #endif
-#pragma warning disable CA2000 // Dispose objects before losing scope
+                                // CA2000: certWithPrivateKey is a using declaration (disposed at scope exit);
+                                // the analyzer mis-flags it inside the for-retry loop with break.
+#pragma warning disable CA2000
                                 using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                     privateKey.ToArray(),
                                     passwordProvider?.GetPassword(existingCertIdentifier),
                                     noEphemeralKeySet);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
                                 try
                                 {
                                     updateCertificate.CertificateWithPrivateKey?.Dispose();

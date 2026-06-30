@@ -460,9 +460,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(issuers));
             }
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
             return core.GetIssuersAsync(certificate, issuers, ct);
         }
 
@@ -624,9 +626,11 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(trustList);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
@@ -699,9 +703,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
             try
             {
                 core.ValidateApplicationUri(serverCertificate, endpoint, m_acceptError);
@@ -748,9 +754,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
             try
             {
                 core.ValidateDomains(

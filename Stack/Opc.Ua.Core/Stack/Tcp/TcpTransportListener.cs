@@ -476,22 +476,21 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-#pragma warning disable CA2000 // Channel is disposed in the finally block below
-            if (m_channels?.TryRemove(channelId, out TcpListenerChannel? channel) == true)
-#pragma warning restore CA2000
+            TcpListenerChannel? channel = null;
+            try
             {
-                try
+                if (m_channels?.TryRemove(channelId, out channel) == true)
                 {
                     m_logger.LogInformation("ChannelId {Id}: closed", channelId);
                 }
-                finally
+                else
                 {
-                    channel.Dispose();
+                    m_logger.LogInformation("ChannelId {Id}: closed, but channel was not found", channelId);
                 }
             }
-            else
+            finally
             {
-                m_logger.LogInformation("ChannelId {Id}: closed, but channel was not found", channelId);
+                channel?.Dispose();
             }
         }
 
