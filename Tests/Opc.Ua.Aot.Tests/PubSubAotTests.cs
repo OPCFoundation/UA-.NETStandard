@@ -29,29 +29,24 @@
 
 extern alias pubsubsample;
 
-#nullable enable
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.MetaData;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
 using Opc.Ua.PubSub.Udp.Dtls;
 using DataSetField = Opc.Ua.PubSub.Encoding.DataSetField;
-using PubSubFieldEncoding = Opc.Ua.PubSub.Encoding.PubSubFieldEncoding;
+using PublisherId = Opc.Ua.PubSub.Encoding.PublisherId;
 using PubSubDataSetMessageType = Opc.Ua.PubSub.Encoding.PubSubDataSetMessageType;
+using PubSubFieldEncoding = Opc.Ua.PubSub.Encoding.PubSubFieldEncoding;
 using PubSubNetworkMessage = Opc.Ua.PubSub.Encoding.PubSubNetworkMessage;
 using PubSubNetworkMessageContext = Opc.Ua.PubSub.Encoding.PubSubNetworkMessageContext;
-using PublisherId = Opc.Ua.PubSub.Encoding.PublisherId;
-using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
-using UadpEncoder = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
 using UadpDecoder = Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder;
+using UadpEncoder = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
+using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -189,7 +184,7 @@ namespace Opc.Ua.Aot.Tests
                 $"opcua-pubsub-aot-{Guid.NewGuid():N}.xml");
             try
             {
-                var store = new XmlPubSubConfigurationStore(tempFile, telemetry);
+                using var store = new XmlPubSubConfigurationStore(tempFile, telemetry);
                 await store.SaveAsync(original, CancellationToken.None)
                     .ConfigureAwait(false);
 
@@ -268,8 +263,8 @@ namespace Opc.Ua.Aot.Tests
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromUInt16(4242),
                 DataSetMessages =
                 [
@@ -292,7 +287,7 @@ namespace Opc.Ua.Aot.Tests
                 .EncodeAsync(msg, context).ConfigureAwait(false);
             await Assert.That(bytes.Length).IsGreaterThan(0);
 
-            PubSubNetworkMessage? decoded = await new UadpDecoder()
+            PubSubNetworkMessage decoded = await new UadpDecoder()
                 .TryDecodeAsync(bytes, context).ConfigureAwait(false);
             await Assert.That(decoded).IsNotNull();
             var roundTripped = (UadpNetworkMessage)decoded!;
@@ -339,13 +334,13 @@ namespace Opc.Ua.Aot.Tests
                 meta);
             PubSubNetworkMessageContext context = NewContext(registry);
 
-            var msg = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            var msg = new PubSub.Encoding.Json.JsonNetworkMessage
             {
                 MessageId = "aot-msg",
                 PublisherId = PublisherId.FromUInt16(900),
                 DataSetMessages =
                 [
-                    new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+                    new PubSub.Encoding.Json.JsonDataSetMessage
                     {
                         DataSetWriterId = 1,
                         SequenceNumber = 42,
@@ -368,29 +363,29 @@ namespace Opc.Ua.Aot.Tests
                 ]
             };
 
-            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+            ReadOnlyMemory<byte> bytes = await new PubSub.Encoding.Json.JsonEncoder()
                 .EncodeAsync(msg, context).ConfigureAwait(false);
             await Assert.That(bytes.Length).IsGreaterThan(0);
 
-            PubSubNetworkMessage? decoded = await new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()
+            PubSubNetworkMessage decoded = await new PubSub.Encoding.Json.JsonDecoder()
                 .TryDecodeAsync(bytes, context).ConfigureAwait(false);
             await Assert.That(decoded).IsNotNull();
-            var roundTripped = (Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage)decoded!;
+            var roundTripped = (PubSub.Encoding.Json.JsonNetworkMessage)decoded!;
             await Assert.That(roundTripped.DataSetMessages.Count).IsEqualTo(1);
-            var ds = (Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage)roundTripped.DataSetMessages[0];
+            var ds = (PubSub.Encoding.Json.JsonDataSetMessage)roundTripped.DataSetMessages[0];
             await Assert.That(ds.Fields.Count).IsEqualTo(2);
             await Assert.That(ds.Fields[0].Value).IsEqualTo(new Variant(true));
             await Assert.That(ds.Fields[1].Value).IsEqualTo(new Variant(2026));
         }
 
         private static PubSubNetworkMessageContext NewContext(
-            IDataSetMetaDataRegistry? registry = null)
+            IDataSetMetaDataRegistry registry = null)
         {
             return new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(null!),
                 registry ?? new DataSetMetaDataRegistry(),
-                new Opc.Ua.PubSub.Diagnostics.PubSubDiagnostics(
-                    Opc.Ua.PubSub.Diagnostics.PubSubDiagnosticsLevel.Low),
+                new PubSub.Diagnostics.PubSubDiagnostics(
+                    PubSub.Diagnostics.PubSubDiagnosticsLevel.Low),
                 TimeProvider.System);
         }
     }

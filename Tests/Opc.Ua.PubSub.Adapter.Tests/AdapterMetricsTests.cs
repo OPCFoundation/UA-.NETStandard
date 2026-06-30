@@ -32,7 +32,7 @@ using System.Diagnostics.Metrics;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Diagnostics;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="AdapterMetrics"/> counter instrumentation.

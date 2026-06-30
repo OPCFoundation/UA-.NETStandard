@@ -36,7 +36,7 @@ using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="ServerPublishedDataSetSource"/>: building

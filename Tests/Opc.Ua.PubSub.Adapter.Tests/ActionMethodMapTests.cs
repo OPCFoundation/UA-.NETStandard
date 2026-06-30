@@ -32,7 +32,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Actions;
 using Opc.Ua.PubSub.Application;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="ActionMethodMap"/>: resolution by

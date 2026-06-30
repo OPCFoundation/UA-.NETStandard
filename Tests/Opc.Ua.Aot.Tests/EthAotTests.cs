@@ -27,12 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Eth;
 using Opc.Ua.PubSub.Eth.Channels;
-using Opc.Ua.PubSub.Eth.Channels.Pcap;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -97,7 +94,7 @@ namespace Opc.Ua.Aot.Tests
                 byte[] frame = MakePayload(64);
                 await sender.SendFrameAsync(frame).ConfigureAwait(false);
 
-                byte[]? received = await ReceiveOneAsync(receiver, TimeSpan.FromSeconds(5))
+                byte[] received = await ReceiveOneAsync(receiver, TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
                 await Assert.That(received).IsNotNull();
                 await Assert.That(received!.Length).IsEqualTo(frame.Length);
@@ -175,7 +172,7 @@ namespace Opc.Ua.Aot.Tests
             return payload;
         }
 
-        private static async Task<byte[]?> ReceiveOneAsync(
+        private static async Task<byte[]> ReceiveOneAsync(
             IEthernetFrameChannel channel,
             TimeSpan timeout)
         {

@@ -43,7 +43,7 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Verifies that the PubSub adapter DI extensions run their deferred

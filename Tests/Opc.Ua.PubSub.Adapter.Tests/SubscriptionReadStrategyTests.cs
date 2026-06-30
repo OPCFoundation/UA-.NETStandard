@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Publisher;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="SubscriptionReadStrategy"/>: the latest-value

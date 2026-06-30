@@ -31,7 +31,7 @@ using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Session;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="NodeBrowsePath"/> sentinel creation,

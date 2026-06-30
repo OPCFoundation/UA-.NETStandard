@@ -37,7 +37,7 @@ using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="ServerActionHandler"/>: input/output

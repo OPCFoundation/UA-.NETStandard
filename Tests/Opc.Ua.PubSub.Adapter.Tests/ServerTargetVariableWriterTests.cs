@@ -35,7 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Adapter.Subscriber;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="ServerTargetVariableWriter"/>: it

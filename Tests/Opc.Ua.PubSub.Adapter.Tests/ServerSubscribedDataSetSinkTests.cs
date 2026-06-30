@@ -37,7 +37,7 @@ using Opc.Ua.PubSub.Adapter.Subscriber;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="ServerSubscribedDataSetSink"/>: argument

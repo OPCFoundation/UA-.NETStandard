@@ -32,7 +32,7 @@ using Opc.Ua.PubSub.Adapter.Actions;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for browse-path overloads on <see cref="ActionMethodMap"/>.

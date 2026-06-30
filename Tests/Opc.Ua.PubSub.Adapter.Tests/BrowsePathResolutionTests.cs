@@ -38,7 +38,7 @@ using Opc.Ua.PubSub.Adapter.Subscriber;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests that verify adapter read, write and action-call paths resolve

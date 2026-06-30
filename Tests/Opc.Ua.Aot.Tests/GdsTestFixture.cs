@@ -64,6 +64,7 @@ namespace Opc.Ua.Aot.Tests
         private ApplicationConfiguration m_clientConfiguration;
         private string m_gdsRoot;
         private string m_pkiRoot;
+        private CertificateGroup m_certificateGroup;
 
         public async Task InitializeAsync()
         {
@@ -279,6 +280,9 @@ namespace Opc.Ua.Aot.Tests
                 await server.StopAsync().ConfigureAwait(false);
             }
 
+            m_certificateGroup?.Dispose();
+            m_certificateGroup = null;
+
             if (m_serverApplication != null)
             {
                 await m_serverApplication.DisposeAsync().ConfigureAwait(false);
@@ -414,10 +418,11 @@ namespace Opc.Ua.Aot.Tests
             userDatabase.CreateUser("appuser", "demo"u8,
                 [Role.AuthenticatedUser]);
 
+            m_certificateGroup = new CertificateGroup(Telemetry);
             Server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
-                new CertificateGroup(Telemetry),
+                m_certificateGroup,
                 userDatabase,
                 Telemetry);
             await m_serverApplication.StartAsync(Server)

@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Server.Hosting
         /// to <see langword="true"/>. The matching
         /// <see cref="IPubSubKeyServiceServer"/> implementation must
         /// already be registered (or registered via
-        /// <see cref="PubSubServerBuilderExtensions.WithSecurityKeyServiceServer(IPubSubServerBuilder, Action{InMemoryPubSubKeyServiceServer})"/>).
+        /// <see cref="PubSubServerBuilderExtensions.WithSecurityKeyServiceServer"/>).
         /// </summary>
         /// <returns>The same builder for chaining.</returns>
         IPubSubServerBuilder ExposeSecurityKeyService();

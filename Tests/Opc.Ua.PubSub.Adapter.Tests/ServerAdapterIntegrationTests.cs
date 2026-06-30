@@ -44,7 +44,7 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Integration
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// End-to-end integration tests that stand up a real in-process OPC UA

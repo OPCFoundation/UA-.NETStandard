@@ -33,7 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Adapter.Session;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// In-memory <see cref="IDataChangeSubscription"/> test double that

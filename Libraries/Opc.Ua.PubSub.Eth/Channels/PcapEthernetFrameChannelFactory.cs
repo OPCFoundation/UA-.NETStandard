@@ -33,7 +33,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using Opc.Ua.PubSub.Eth.Channels;
 
-namespace Opc.Ua.PubSub.Eth.Channels.Pcap
+namespace Opc.Ua.PubSub.Eth.Channels
 {
     /// <summary>
     /// <see cref="IEthernetFrameChannelFactory"/> that creates SharpPcap

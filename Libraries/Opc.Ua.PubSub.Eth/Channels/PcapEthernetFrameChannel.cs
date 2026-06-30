@@ -42,7 +42,7 @@ using Microsoft.Extensions.Logging;
 using SharpPcap;
 using SharpPcap.LibPcap;
 
-namespace Opc.Ua.PubSub.Eth.Channels.Pcap
+namespace Opc.Ua.PubSub.Eth.Channels
 {
     /// <summary>
     /// SharpPcap (libpcap / Npcap) <see cref="IEthernetFrameChannel"/>.

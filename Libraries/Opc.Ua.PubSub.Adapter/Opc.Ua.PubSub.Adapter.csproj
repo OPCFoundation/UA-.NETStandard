@@ -33,7 +33,6 @@
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
   </ItemGroup>

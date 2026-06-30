@@ -42,7 +42,7 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     [TestFixture]
     public sealed class ServerAdapterReloadCoordinatorTests

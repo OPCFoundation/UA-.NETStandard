@@ -37,7 +37,7 @@ using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Unit tests for <see cref="SubscriptionCoordinator"/>: affinity

@@ -31,7 +31,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Session;
 
-namespace Opc.Ua.PubSub.Adapter.Tests.Unit
+namespace Opc.Ua.PubSub.Adapter.Tests
 {
     /// <summary>
     /// Tests value equality for <see cref="ServerConnectionOptions"/>.

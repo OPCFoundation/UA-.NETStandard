@@ -66,7 +66,13 @@ namespace Opc.Ua.PubSub.Adapter.Session
         private readonly SemaphoreSlim m_connectLock = new(1, 1);
         private readonly System.Threading.Lock m_disposeGate = new();
         private readonly ConcurrentDictionary<string, NodeId> m_resolvedPaths = new(StringComparer.Ordinal);
-        private ManagedSession? m_session;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1859:Use concrete types when possible for improved performance",
+            Justification = "Intentionally typed as ISession per PR review feedback to avoid coupling " +
+                "to the concrete ManagedSession; the few ManagedSession-only members are downcast " +
+                "where required (tracked by #3925).")]
+        private ISession? m_session;
         private ISubscription? m_modelChangeSubscription;
         private long m_lastModelChangeTicks;
         private int m_modelChangeMonitoringStarted;
@@ -123,7 +129,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct = default)
         {
-            ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
             ReadResponse response = await session.ReadAsync(
                 null,
                 0.0,
@@ -138,7 +144,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken ct = default)
         {
-            ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
             WriteResponse response = await session.WriteAsync(
                 null,
                 nodesToWrite,
@@ -153,7 +159,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             ArrayOf<Variant> inputArguments,
             CancellationToken ct = default)
         {
-            ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
 
             var request = new CallMethodRequest
             {
@@ -181,7 +187,8 @@ namespace Opc.Ua.PubSub.Adapter.Session
             double publishingIntervalMs,
             CancellationToken ct = default)
         {
-            ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            // TODO(#3925): SubscriptionManager is not on ISession yet; downcast required.
+            var session = (ManagedSession)await EnsureConnectedAsync(ct).ConfigureAwait(false);
             return new DataChangeSubscription(
                 session.SubscriptionManager,
                 publishingIntervalMs,
@@ -199,7 +206,8 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             try
             {
-                ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+                // TODO(#3925): SubscriptionManager is not on ISession yet; downcast required.
+                var session = (ManagedSession)await EnsureConnectedAsync(ct).ConfigureAwait(false);
 
                 var subscriptionOptions = new SubscriptionOptions
                 {
@@ -290,7 +298,8 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 return cached;
             }
 
-            ManagedSession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            // TODO(#3925): MessageContext is not on ISession yet; downcast required.
+            var session = (ManagedSession)await EnsureConnectedAsync(ct).ConfigureAwait(false);
 
             var request = new Opc.Ua.BrowsePath
             {
@@ -346,7 +355,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 await DisposeModelChangeSubscriptionAsync(modelChangeSubscription).ConfigureAwait(false);
             }
 
-            ManagedSession? session = m_session;
+            ISession? session = m_session;
             m_session = null;
             if (session != null)
             {
@@ -430,9 +439,9 @@ namespace Opc.Ua.PubSub.Adapter.Session
             ModelChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        private async ValueTask<ManagedSession> EnsureConnectedAsync(CancellationToken ct)
+        private async ValueTask<ISession> EnsureConnectedAsync(CancellationToken ct)
         {
-            ManagedSession? session = m_session;
+            ISession? session = m_session;
             if (session != null)
             {
                 return session;

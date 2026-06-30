@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
             Assert.That(
                 channelFactory,
-                Is.InstanceOf<Channels.Pcap.PcapEthernetFrameChannelFactory>());
+                Is.InstanceOf<Channels.PcapEthernetFrameChannelFactory>());
         }
 #endif
     }

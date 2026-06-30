@@ -32,7 +32,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.PubSub.Eth.Channels;
-using Opc.Ua.PubSub.Eth.Channels.Pcap;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
