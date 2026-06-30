@@ -40,7 +40,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
-    public partial class UaSCUaBinaryChannel : IMessageSink, IDisposable
+    public partial class UaSCUaBinaryChannel : IDisposable
     {
         /// <summary>
         /// Attaches the object to an existing socket.
@@ -279,9 +279,12 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                Socket?.Close();
+                m_receiveLoopCts?.Cancel();
+                IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+                transport?.Close();
                 DiscardTokens();
-                Socket?.Dispose();
+                m_receiveLoopCts?.Dispose();
+                m_receiveLoopCts = null;
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
@@ -543,8 +546,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public virtual bool ChannelFull => m_activeWriteRequests > 100;
 
-        /// <inheritdoc/>
-        public virtual void OnMessageReceived(IMessageSocket source, ArraySegment<byte> message)
+        /// <summary>
+        /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
+        /// transport's receive loop into the channel pipeline.
+        /// </summary>
+        protected virtual void OnChunkReceived(ArraySegment<byte> message)
         {
             try
             {
@@ -552,7 +558,7 @@ namespace Opc.Ua.Bindings
 
                 if (!HandleIncomingMessage(messageType, message))
                 {
-                    BufferManager.ReturnBuffer(message.GetArray(), "OnMessageReceived");
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
                 }
             }
             catch (Exception e)
@@ -561,7 +567,7 @@ namespace Opc.Ua.Bindings
                     e,
                     StatusCodes.BadTcpInternalError,
                     "An error occurred receiving a message.");
-                BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
+                BufferManager.ReturnBuffer(message.Array, "OnChunkReceived");
             }
         }
 
@@ -606,8 +612,11 @@ namespace Opc.Ua.Bindings
         {
         }
 
-        /// <inheritdoc/>
-        public virtual void OnReceiveError(IMessageSocket source, ServiceResult result)
+        /// <summary>
+        /// Reports a fatal transport-level error (connection closed, framing
+        /// error, etc.) from the receive loop into the channel pipeline.
+        /// </summary>
+        protected virtual void OnTransportError(ServiceResult result)
         {
             lock (DataLock)
             {
@@ -623,133 +632,245 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Handles a write complete event.
+        /// Starts the long-running receive loop that pulls UASC chunks from
+        /// the current <see cref="Transport"/> and dispatches them into the
+        /// channel via <see cref="OnChunkReceived"/>. Idempotent: subsequent
+        /// calls are no-ops while a loop is already running on the current
+        /// transport.
         /// </summary>
-        protected virtual void OnWriteComplete(object? sender, IMessageSocketAsyncEventArgs e)
+        protected internal virtual void StartReceiveLoop()
         {
-            ServiceResult error = ServiceResult.Good;
-            try
-            {
-                if (e.BytesTransferred == 0)
-                {
-                    error = ServiceResult.Create(
-                        StatusCodes.BadConnectionClosed,
-                        "The socket was closed by the remote application.");
-                }
-                if (e.Buffer != null)
-                {
-                    BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
-                }
-                HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
-            }
-            catch (Exception ex)
-            {
-                if (ex is InvalidOperationException)
-                {
-                    // suppress chained exception in HandleWriteComplete/ReturnBuffer
-                    e.BufferList = null;
-                }
-                error = ServiceResult.Create(
-                    ex,
-                    StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation.");
-                HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
-            }
-
-            e.Dispose();
+            StartReceiveLoopWithBody(RunReceiveLoopAsync);
         }
 
         /// <summary>
-        /// Queues a write request.
+        /// Sets up the receive-loop state (CTS, task, running flag) and
+        /// runs the supplied <paramref name="loopBody"/> on a background
+        /// task. Used by <see cref="StartReceiveLoop"/> for the default
+        /// long-running loop and by derived classes (e.g.
+        /// <c>TcpReverseConnectChannel</c>) that need a one-shot variant
+        /// (read a single ReverseHello chunk then exit so the transport
+        /// can be handed off without aborting the underlying connection
+        /// on cancellation - critical for WebSocket transports where
+        /// <c>CancellationToken</c> on <c>WebSocket.ReceiveAsync</c>
+        /// aborts the whole connection).
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        protected void StartReceiveLoopWithBody(
+            Func<IUaSCByteTransport, CancellationToken, Task> loopBody)
+        {
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                return;
+            }
+            if (Interlocked.CompareExchange(ref m_receiveLoopRunning, 1, 0) != 0)
+            {
+                return;
+            }
+            m_receiveLoopCts?.Dispose();
+            m_receiveLoopCts = new CancellationTokenSource();
+            CancellationToken ct = m_receiveLoopCts.Token;
+            m_receiveLoopTask = Task.Run(
+                async () =>
+                {
+                    try
+                    {
+                        await loopBody(transport, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref m_receiveLoopRunning, 0);
+                    }
+                },
+                ct);
+        }
+
+        /// <summary>
+        /// Stops the channel's receive loop (if running), detaches the current
+        /// <see cref="Transport"/> from the channel, and returns it. The
+        /// returned transport is the caller's responsibility — the channel's
+        /// own <see cref="Dispose(bool)"/> will no longer close it.
+        /// </summary>
+        /// <remarks>
+        /// Used by the reverse-connect handoff in
+        /// <c>TcpTransportListener.TransferListenerChannelAsync</c> so that
+        /// the listener-side channel releases the socket cleanly before the
+        /// client side starts its own receive loop on the same transport.
+        /// </remarks>
+        internal async ValueTask<IUaSCByteTransport?> DetachTransportAsync()
+        {
+            IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+
+            CancellationTokenSource? cts = m_receiveLoopCts;
+            cts?.Cancel();
+
+            Task? loop = m_receiveLoopTask;
+            if (loop != null)
+            {
+                try
+                {
+                    await loop.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The loop's exit path catches its own exceptions; any escapes
+                    // here are last-resort and must not block the handoff.
+                }
+                m_receiveLoopTask = null;
+            }
+
+            return transport;
+        }
+
+        private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                ArraySegment<byte> chunk;
+                try
+                {
+                    chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (ServiceResultException sre)
+                {
+                    OnTransportError(sre.Result);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    OnTransportError(ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        ex.Message));
+                    return;
+                }
+
+                OnChunkReceived(chunk);
+            }
+        }
+
+        /// <summary>
+        /// Sends one complete UASC <c>MessageChunk</c> as a contiguous buffer
+        /// through the current <see cref="Transport"/>. Returns to the caller
+        /// immediately; the write completes asynchronously and reports its
+        /// result via <see cref="HandleWriteComplete"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown synchronously if no transport is attached.
+        /// </exception>
         protected void BeginWriteMessage(ArraySegment<byte> buffer, object? state)
         {
-            ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args =
-                (Socket?.MessageSocketEventArgs())
+            IUaSCByteTransport transport = m_transport
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
-                    "The socket was closed by the remote application.");
+                    "The transport was closed by the remote application.");
 
-            try
-            {
-                Interlocked.Increment(ref m_activeWriteRequests);
-                args.SetBuffer(buffer.GetArray(), buffer.Offset, buffer.Count);
-                args.Completed += OnWriteComplete;
-                args.UserToken = state;
-                if (!Socket.Send(args))
-                {
-                    // I/O completed synchronously
-                    if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
-                    {
-                        error = ServiceResult.Create(
-                            StatusCodes.BadConnectionClosed,
-                            args.SocketErrorString);
-                        HandleWriteComplete(null, state, args.BytesTransferred, error);
-                        args.Dispose();
-                    }
-                    else
-                    {
-                        // success, call Complete
-                        OnWriteComplete(null, args);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                error = ServiceResult.Create(
-                    ex,
-                    StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation.");
-
-                HandleWriteComplete(null, state, args.BytesTransferred, error);
-                args.Dispose();
-            }
+            Interlocked.Increment(ref m_activeWriteRequests);
+            ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
+            _ = WriteSingleChunkAsync(transport, chunk, buffer.GetArray(), state);
         }
 
         /// <summary>
-        /// Queues a write request.
+        /// Sends one complete UASC <c>MessageChunk</c> gathered from multiple
+        /// buffer segments through the current <see cref="Transport"/>.
+        /// Returns to the caller immediately; the write completes
+        /// asynchronously and reports its result via
+        /// <see cref="HandleWriteComplete"/>.
         /// </summary>
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
-            ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = Socket!.MessageSocketEventArgs();
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                // Mirror the legacy contract: report failure via HandleWriteComplete
+                // rather than throwing synchronously so callers' state is released.
+                HandleWriteComplete(
+                    buffers,
+                    state,
+                    0,
+                    ServiceResult.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "The transport was closed by the remote application."));
+                return;
+            }
 
+            Interlocked.Increment(ref m_activeWriteRequests);
+            _ = WriteBuffersAsync(transport, buffers, state);
+        }
+
+        private async Task WriteSingleChunkAsync(
+            IUaSCByteTransport transport,
+            ReadOnlyMemory<byte> chunk,
+            byte[] backingBuffer,
+            object? state)
+        {
+            ServiceResult result = ServiceResult.Good;
+            int sent = chunk.Length;
             try
             {
-                // m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
-
-                Interlocked.Increment(ref m_activeWriteRequests);
-                args.BufferList = buffers;
-                args.Completed += OnWriteComplete;
-                args.UserToken = state;
-                IMessageSocket? socket = Socket;
-                if (socket == null || !socket.Send(args))
-                {
-                    // I/O completed synchronously
-                    if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))
-                    {
-                        error = ServiceResult.Create(
-                            StatusCodes.BadConnectionClosed,
-                            args.SocketErrorString);
-                        HandleWriteComplete(buffers, state, args.BytesTransferred, error);
-                        args.Dispose();
-                    }
-                    else
-                    {
-                        OnWriteComplete(null, args);
-                    }
-                }
+                await transport.SendChunkAsync(chunk, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+            {
+                sent = 0;
+                result = sre.Result;
             }
             catch (Exception ex)
             {
-                error = ServiceResult.Create(
+                sent = 0;
+                result = ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
                     "Unexpected error during write operation.");
-                HandleWriteComplete(buffers, state, args.BytesTransferred, error);
-                args.Dispose();
+            }
+            finally
+            {
+                try
+                {
+                    if (backingBuffer != null)
+                    {
+                        BufferManager.ReturnBuffer(backingBuffer, "WriteChunkAsync");
+                    }
+                }
+                catch
+                {
+                    // Best-effort: a double-return throws but should not mask the write result.
+                }
+                HandleWriteComplete(null, state, sent, result);
+            }
+        }
+
+        private async Task WriteBuffersAsync(
+            IUaSCByteTransport transport,
+            BufferCollection buffers,
+            object? state)
+        {
+            ServiceResult result = ServiceResult.Good;
+            int sent = buffers.TotalSize;
+            try
+            {
+                await transport.SendChunkAsync(buffers, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+            {
+                sent = 0;
+                result = sre.Result;
+            }
+            catch (Exception ex)
+            {
+                sent = 0;
+                result = ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadTcpInternalError,
+                    "Unexpected error during write operation.");
+            }
+            finally
+            {
+                HandleWriteComplete(buffers, state, sent, result);
             }
         }
 
@@ -887,9 +1008,16 @@ namespace Opc.Ua.Bindings
         protected object DataLock { get; } = new();
 
         /// <summary>
-        /// The socket for the channel.
+        /// The byte-level transport that carries UASC chunks for the channel.
+        /// Set by listener channels after a successful accept/connect, by
+        /// client channels after <c>ConnectAsync</c>, or by reverse-connect
+        /// flows after the inbound TCP handshake completes.
         /// </summary>
-        protected internal IMessageSocket? Socket { get; set; }
+        protected internal IUaSCByteTransport? Transport
+        {
+            get => m_transport;
+            set => m_transport = value;
+        }
 
         /// <summary>
         /// Whether the client channel uses a reverse hello socket.
@@ -1077,6 +1205,11 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
+
+        private IUaSCByteTransport? m_transport;
+        private CancellationTokenSource? m_receiveLoopCts;
+        private Task? m_receiveLoopTask;
+        private int m_receiveLoopRunning;
 
         private TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;

@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -200,6 +201,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Optional <see cref="ITransportBindingRegistry"/> threaded into
+        /// every <see cref="ReverseConnectHost"/> created by this manager.
+        /// When <c>null</c>, the host falls back to a private
+        /// <see cref="DefaultTransportBindingRegistry"/> seeded with the
+        /// raw-socket TCP listener. Set this BEFORE calling
+        /// <see cref="AddEndpoint(System.Uri)"/> /
+        /// <see cref="AddEndpoint(System.Uri, ApplicationConfiguration)"/>
+        /// so the listener picks the right binding for the URI scheme.
+        /// </summary>
+        public ITransportBindingRegistry? TransportBindings { get; set; }
+
+        /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public ReverseConnectManager(ITelemetryContext telemetry)
@@ -284,6 +297,10 @@ namespace Opc.Ua.Client
             // save types for config watcher
             m_applicationType = configuration.ApplicationType;
             m_configType = configuration.GetType();
+            // capture the application configuration so AddEndpointInternal
+            // can plumb the CertificateManager into ReverseConnectHost.CreateListener
+            // for transports that terminate TLS (e.g. opc.wss).
+            m_appConfig = configuration;
 
             // ClientConfiguration and ReverseConnect are nullable on ApplicationConfiguration,
             // but the file watcher is only enabled for client configurations that include a
@@ -339,26 +356,28 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Open host ports.
         /// </summary>
-        private void OpenHosts()
+        private async ValueTask OpenHostsAsync(CancellationToken ct = default)
         {
+            List<ReverseConnectInfo> snapshot;
             lock (m_lock)
             {
-                foreach (KeyValuePair<Uri, ReverseConnectInfo> host in m_endpointUrls)
+                snapshot = new List<ReverseConnectInfo>(m_endpointUrls.Values);
+            }
+
+            foreach (ReverseConnectInfo value in snapshot)
+            {
+                try
                 {
-                    ReverseConnectInfo value = host.Value;
-                    try
+                    if (value.State < ReverseConnectHostState.Open)
                     {
-                        if (host.Value.State < ReverseConnectHostState.Open)
-                        {
-                            value.ReverseConnectHost.Open();
-                            value.State = ReverseConnectHostState.Open;
-                        }
+                        await value.ReverseConnectHost.OpenAsync(ct).ConfigureAwait(false);
+                        value.State = ReverseConnectHostState.Open;
                     }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(e, "Failed to Open {Uri}.", host.Key);
-                        value.State = ReverseConnectHostState.Errored;
-                    }
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Failed to Open {Uri}.", value.ReverseConnectHost.Url);
+                    value.State = ReverseConnectHostState.Errored;
                 }
             }
         }
@@ -366,26 +385,28 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Close host ports.
         /// </summary>
-        private void CloseHosts()
+        private async ValueTask CloseHostsAsync(CancellationToken ct = default)
         {
+            List<ReverseConnectInfo> snapshot;
             lock (m_lock)
             {
-                foreach (KeyValuePair<Uri, ReverseConnectInfo> host in m_endpointUrls)
+                snapshot = new List<ReverseConnectInfo>(m_endpointUrls.Values);
+            }
+
+            foreach (ReverseConnectInfo value in snapshot)
+            {
+                try
                 {
-                    ReverseConnectInfo value = host.Value;
-                    try
+                    if (value.State == ReverseConnectHostState.Open)
                     {
-                        if (value.State == ReverseConnectHostState.Open)
-                        {
-                            value.ReverseConnectHost.Close();
-                            value.State = ReverseConnectHostState.Closed;
-                        }
+                        await value.ReverseConnectHost.CloseAsync(ct).ConfigureAwait(false);
+                        value.State = ReverseConnectHostState.Closed;
                     }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(e, "Failed to Close {Uri}.", host.Key);
-                        value.State = ReverseConnectHostState.Errored;
-                    }
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Failed to Close {Uri}.", value.ReverseConnectHost.Url);
+                    value.State = ReverseConnectHostState.Errored;
                 }
             }
         }
@@ -395,9 +416,12 @@ namespace Opc.Ua.Client
         /// </summary>
         private void DisposeHosts()
         {
+            // Snapshot under lock, await close outside the lock (CloseHostsAsync
+            // does this internally). Sync bridge at the IDisposable boundary
+            // keeps existing 'using var manager = ...' callers working.
+            CloseHostsAsync().AsTask().GetAwaiter().GetResult();
             lock (m_lock)
             {
-                CloseHosts();
                 m_endpointUrls.Clear();
             }
         }
@@ -409,6 +433,28 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public void AddEndpoint(Uri endpointUrl)
         {
+            AddEndpoint(endpointUrl, null);
+        }
+
+        /// <summary>
+        /// Add endpoint for reverse connection. The optional
+        /// <paramref name="configuration"/> overload lets callers provide
+        /// the application configuration up front so that transports
+        /// terminating TLS at the listener (e.g. <c>opc.wss</c>) can pull
+        /// the server certificate and validator from
+        /// <see cref="ApplicationConfiguration.CertificateManager"/> before
+        /// the host is created. Without it the cert is only available after
+        /// <see cref="StartService(ApplicationConfiguration)"/> runs - too
+        /// late for WSS listeners that need TLS state at bind time.
+        /// </summary>
+        /// <param name="endpointUrl">The endpoint url for reverse connections.</param>
+        /// <param name="configuration">Optional configuration whose
+        /// <see cref="ApplicationConfiguration.CertificateManager"/> is used
+        /// for TLS termination on WSS listeners.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpointUrl"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public void AddEndpoint(Uri endpointUrl, ApplicationConfiguration? configuration)
+        {
             if (endpointUrl == null)
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
@@ -419,6 +465,14 @@ namespace Opc.Ua.Client
                 if (m_state == ReverseConnectManagerState.Started)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+
+                // capture the appConfig early so AddEndpointInternal
+                // can plumb the CertificateManager into the listener
+                // when the endpoint URL needs TLS termination (WSS).
+                if (configuration != null && m_appConfig == null)
+                {
+                    m_appConfig = configuration;
                 }
 
                 AddEndpointInternal(endpointUrl, false);
@@ -494,7 +548,11 @@ namespace Opc.Ua.Client
                 {
                     m_configurationWatcher = null;
                     OnUpdateConfiguration(configuration);
-                    OpenHosts();
+                    // Sync bridge: OpenHostsAsync snapshots under m_lock and
+                    // awaits OpenAsync() outside, so calling it from inside
+                    // this lock does not deadlock — the inner lock acquisition
+                    // happens reentrantly on the same thread.
+                    OpenHostsAsync().AsTask().GetAwaiter().GetResult();
                     m_state = ReverseConnectManagerState.Started;
                 }
                 catch (Exception e)
@@ -647,9 +705,15 @@ namespace Opc.Ua.Client
         private void StopService()
         {
             ClearWaitingConnections();
+            // CloseHostsAsync snapshots the host list under the registry
+            // lock and then awaits CloseAsync() on each listener outside
+            // the lock — safe to bridge to sync here because the public
+            // StopService boundary stays synchronous for backward
+            // compatibility. The listener-layer work itself is fully
+            // async (issue #3923).
+            CloseHostsAsync().AsTask().GetAwaiter().GetResult();
             lock (m_lock)
             {
-                CloseHosts();
                 m_state = ReverseConnectManagerState.Stopped;
             }
         }
@@ -659,9 +723,13 @@ namespace Opc.Ua.Client
         /// </summary>
         private void StartService()
         {
+            // OpenHostsAsync snapshots under lock then awaits OpenAsync()
+            // outside — sync bridge at the existing public StartService
+            // boundary keeps callers (samples, builder, tests) source-
+            // compatible.
+            OpenHostsAsync().AsTask().GetAwaiter().GetResult();
             lock (m_lock)
             {
-                OpenHosts();
                 m_state = ReverseConnectManagerState.Started;
             }
         }
@@ -689,15 +757,29 @@ namespace Opc.Ua.Client
         /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
-            var reverseConnectHost = new ReverseConnectHost(m_telemetry);
+            var reverseConnectHost = new ReverseConnectHost(m_telemetry, TransportBindings);
             var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
             try
             {
                 m_endpointUrls[endpointUrl] = info;
+                // Listener bindings that terminate TLS (WSS) need a server
+                // TLS certificate + validator at Open time. Pull them from
+                // the captured ApplicationConfiguration's CertificateManager
+                // when available so the user does not have to plumb them
+                // manually for the common case.
+                ICertificateRegistry? serverCertificates = null;
+                ICertificateValidatorEx? certificateValidator = null;
+                if (Utils.IsUriWssScheme(endpointUrl.AbsoluteUri) && m_appConfig != null)
+                {
+                    serverCertificates = m_appConfig.CertificateManager;
+                    certificateValidator = m_appConfig.CertificateManager;
+                }
                 reverseConnectHost.CreateListener(
                     endpointUrl,
                     new ConnectionWaitingHandlerAsync(OnConnectionWaitingAsync),
-                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
+                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged),
+                    serverCertificates,
+                    certificateValidator);
             }
             catch (ArgumentException ae)
             {
@@ -858,6 +940,7 @@ namespace Opc.Ua.Client
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
+        private ApplicationConfiguration? m_appConfig;
         private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;

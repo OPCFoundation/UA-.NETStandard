@@ -4001,7 +4001,7 @@ namespace Opc.Ua
                         }
                     }
                     if (TryGetNodeIdFromElement(
-                            GetPropertyElement(JsonProperties.TypeId),
+                            GetPropertyElement(JsonProperties.UaTypeId),
                             out NodeId typeId) &&
                         !typeId.IsNull &&
                         TryGetEncodeableFromElement(

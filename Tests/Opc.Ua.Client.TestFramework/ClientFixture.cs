@@ -70,6 +70,16 @@ namespace Opc.Ua.Client.TestFramework
         public ActivityListener ActivityListener { get; private set; }
 
         /// <summary>
+        /// Optional <see cref="Opc.Ua.Bindings.ITransportBindingRegistry"/>
+        /// assigned to <see cref="ReverseConnectManager"/> immediately
+        /// after construction so the listeners
+        /// <see cref="StartReverseConnectHostAsync()"/> creates pick up
+        /// the right factory for the URI scheme (e.g. Kestrel-TCP
+        /// instead of the raw-socket TCP listener).
+        /// </summary>
+        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+
+        /// <summary>
         /// Subscription engine factory to inject into every session
         /// created via <see cref="SessionFactory"/>. <c>null</c> means
         /// the session uses the <see cref="DefaultSessionFactory"/>
@@ -157,6 +167,8 @@ namespace Opc.Ua.Client.TestFramework
             if (disposing)
             {
                 StopActivityListener();
+                ReverseConnectManager?.Dispose();
+                ReverseConnectManager = null;
                 m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 m_application = null;
             }
@@ -215,13 +227,28 @@ namespace Opc.Ua.Client.TestFramework
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            ReverseConnectManager = new ReverseConnectManager(m_telemetry);
+            ReverseConnectManager = new ReverseConnectManager(m_telemetry)
+            {
+                TransportBindings = TransportBindingRegistry
+                    ?? TestTransportBindings.WithAllSchemes()
+            };
         }
 
         /// <summary>
-        /// Start a host for reverse connections on random port.
+        /// Start a host for reverse connections on random port using the
+        /// default <c>opc.tcp://</c> scheme.
         /// </summary>
-        public async Task StartReverseConnectHostAsync()
+        public Task StartReverseConnectHostAsync()
+            => StartReverseConnectHostAsync(Utils.UriSchemeOpcTcp);
+
+        /// <summary>
+        /// Start a host for reverse connections on random port using
+        /// the specified URL scheme. Used by the WSS reverse-connect
+        /// integration tests; the existing parameterless overload
+        /// preserves the opc.tcp default.
+        /// </summary>
+        /// <param name="uriScheme">The URL scheme for the reverse-connect listener.</param>
+        public async Task StartReverseConnectHostAsync(string uriScheme)
         {
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             int serverStartRetries = 25;
@@ -231,8 +258,8 @@ namespace Opc.Ua.Client.TestFramework
                 retryStartServer = false;
                 try
                 {
-                    var reverseConnectUri = new Uri("opc.tcp://localhost:" + testPort);
-                    ReverseConnectManager.AddEndpoint(reverseConnectUri);
+                    var reverseConnectUri = new Uri($"{uriScheme}://localhost:{testPort}");
+                    ReverseConnectManager.AddEndpoint(reverseConnectUri, Config);
                     ReverseConnectManager.StartService(Config);
                     ReverseConnectUri = reverseConnectUri.ToString();
                 }
@@ -542,10 +569,15 @@ namespace Opc.Ua.Client.TestFramework
             var endpointConfiguration = EndpointConfiguration.Create(Config);
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
+            // Use the ApplicationConfiguration overload so the
+            // CertificateManager flows into the discovery channel; the
+            // HTTPS transport needs it to validate the test server's
+            // self-signed certificate (otherwise the channel falls back
+            // to the OS TLS chain check, which rejects untrusted certs).
             using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                Config,
                 url,
                 endpointConfiguration,
-                m_telemetry,
                 ct: ct).ConfigureAwait(false);
             client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             ArrayOf<EndpointDescription> result = await client.GetEndpointsAsync(default, ct)

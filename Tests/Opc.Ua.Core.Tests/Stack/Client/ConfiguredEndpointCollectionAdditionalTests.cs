@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests
             ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create("opc.wss://localhost:4844");
             Assert.That(ep, Is.Not.Null);
-            Assert.That(ep.Description.TransportProfileUri, Is.EqualTo(Profiles.UaTcpTransport));
+            Assert.That(ep.Description.TransportProfileUri, Is.EqualTo(Profiles.UaWssTransport));
         }
 
         [Test]

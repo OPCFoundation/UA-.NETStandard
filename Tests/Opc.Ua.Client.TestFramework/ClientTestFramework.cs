@@ -99,6 +99,18 @@ namespace Opc.Ua.Client.TestFramework
         public ExpandedNodeId[] TestSetHistory { get; }
         public ITelemetryContext Telemetry { get; }
 
+        /// <summary>
+        /// When set before <c>OneTimeSetUpCoreAsync</c>, the underlying
+        /// <see cref="ServerFixture"/> hands this registry to the
+        /// <see cref="ReferenceServer"/> via
+        /// <c>ServerBase.TransportBindings</c> immediately after
+        /// construction. Integration fixtures that test a specific binding
+        /// (Kestrel-TCP listener, custom transport, ...) use this hook to
+        /// override the default <c>opc.tcp</c> factories without touching
+        /// any process-wide state.
+        /// </summary>
+        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+
         private readonly ILogger<ClientTestFramework> m_logger;
 
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp, ITelemetryContext telemetry = null)
@@ -310,7 +322,8 @@ namespace Opc.Ua.Client.TestFramework
                 AutoAccept = true,
                 AllNodeManagers = AllNodeManagers,
                 OperationLimits = true,
-                UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager
+                UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager,
+                TransportBindingRegistry = TransportBindingRegistry
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);

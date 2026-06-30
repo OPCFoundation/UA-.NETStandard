@@ -173,7 +173,7 @@ namespace Opc.Ua
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl
                 ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
-            transportChannelBindings ??= TransportBindings.Channels;
+            transportChannelBindings ??= GetDefaultBindingsLazy();
             ITransportChannel channel =
                 transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
@@ -257,12 +257,16 @@ namespace Opc.Ua
             {
                 Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
                 Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
+                Profiles.HttpsOpenApiTransport => Utils.UriSchemeOpcHttpsWebApi,
                 Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                Profiles.UaWssJsonTransport => "opc.wss+json",
+                Profiles.WssOpenApiTransport => Utils.UriSchemeOpcWssOpenApi,
                 _ => endpointUrl.Scheme
             };
 
             // initialize the channel which will be created with the server.
-            transportChannelBindings ??= TransportBindings.Channels;
+            transportChannelBindings ??= GetDefaultBindingsLazy();
             ITransportChannel channel =
                 transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
                 ?? throw ServiceResultException.Create(
@@ -339,11 +343,11 @@ namespace Opc.Ua
             }
 
             // Get effective ip address and port
-            IMessageSocket? socket = (channel as IMessageSocketChannel)?.Socket;
-            IPAddress? remoteIpAddress = GetIPAddress(socket?.RemoteEndpoint);
-            int remotePort = GetPort(socket?.RemoteEndpoint);
-            IPAddress? localIpAddress = GetIPAddress(socket?.LocalEndpoint);
-            int localPort = GetPort(socket?.LocalEndpoint);
+            IUaSCByteTransport? transport = (channel as UaSCUaBinaryTransportChannel)?.Transport;
+            IPAddress? remoteIpAddress = GetIPAddress(transport?.RemoteEndpoint);
+            int remotePort = GetPort(transport?.RemoteEndpoint);
+            IPAddress? localIpAddress = GetIPAddress(transport?.LocalEndpoint);
+            int localPort = GetPort(transport?.LocalEndpoint);
 
             OnDiagnostics.Invoke(channel, new TransportChannelDiagnostic
             {
@@ -423,7 +427,8 @@ namespace Opc.Ua
         /// <param name="configuration">The application configuration.</param>
         /// <param name="telemetry">Telemetry context for logger creation.</param>
         /// <param name="channelFactory">Optional channel binding registry;
-        /// defaults to the static <see cref="TransportBindings.Channels"/>.</param>
+        /// defaults to a <see cref="Opc.Ua.Bindings.DefaultTransportBindingRegistry"/>
+        /// pre-seeded with the raw-socket TCP factories when none is supplied.</param>
         /// <param name="reconnectPolicy">Optional channel-level retry
         /// policy. Defaults to
         /// <see cref="ExponentialBackoffChannelReconnectPolicy"/> with
@@ -757,14 +762,6 @@ namespace Opc.Ua
                 }
                 catch
                 {
-                    lock (m_entries)
-                    {
-                        if (m_entries.TryGetValue(lease.Key, out ChannelEntry? existing) &&
-                            ReferenceEquals(existing, fresh))
-                        {
-                            m_entries.Remove(lease.Key);
-                        }
-                    }
                     await fresh.DisposeAsync(ChannelCloseReason.Faulted).ConfigureAwait(false);
                     throw;
                 }
@@ -1232,6 +1229,38 @@ namespace Opc.Ua
         {
             CloseChannel(channel);
         }
+
+        /// <summary>
+        /// Returns a lazily-initialized
+        /// <see cref="DefaultTransportBindingRegistry"/> seeded with the
+        /// raw-socket TCP factories AND any optional HTTPS / WSS
+        /// factories from <c>Opc.Ua.Bindings.Https</c> when that
+        /// assembly is already loaded into the current
+        /// <see cref="AppDomain"/>. The fallback is used by the static
+        /// <c>CreateUaBinaryChannelAsync</c> paths when the caller did
+        /// not supply an <see cref="ITransportChannelBindings"/>.
+        /// </summary>
+        /// <remarks>
+        /// DI consumers do not hit this path - they receive a
+        /// dependency-resolved <see cref="ITransportBindingRegistry"/>
+        /// from their own <see cref="System.IServiceProvider"/>.
+        /// </remarks>
+        private static DefaultTransportBindingRegistry GetDefaultBindingsLazy()
+        {
+            return s_defaultBindings.Value;
+        }
+
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+            "Trimming", "IL2026",
+            Justification = "Pre-DI fallback path only; DI consumers receive an explicit registry.")]
+        private static DefaultTransportBindingRegistry CreateDefaultBindingsRegistry()
+        {
+            return DefaultTransportBindingRegistry.WithDefaultBindings();
+        }
+
+        private static readonly Lazy<DefaultTransportBindingRegistry> s_defaultBindings = new(
+            CreateDefaultBindingsRegistry,
+            System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
         private readonly ApplicationConfiguration m_configuration;
         private readonly ClientChannelManagerDiagnostics m_diagnostics = new();

@@ -295,26 +295,56 @@ namespace Opc.Ua.PubSub.Tests
 
             // The first loop iteration runs synchronously (sleepCycle == 0)
             // and queues the action on the thread pool.
-            await WaitForAsync(() => Volatile.Read(ref executionCount) >= 1)
+            // Use a generous 30 s timeout: on loaded net48 Windows CI runners
+            // the thread pool can be saturated by parallel tests, delaying the
+            // Task.Run(action) continuation well beyond the default 5 s.
+            await WaitForAsync(
+                    () => Volatile.Read(ref executionCount) >= 1,
+                    TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
             int afterStart = Volatile.Read(ref executionCount);
+
+            // Give the runner time to complete its current loop iteration and
+            // re-register the next Delay on the fake provider before advancing
+            // the clock. Without this pause, fake.Advance can race ahead of
+            // the runner's Delay registration and the action never fires.
+            // See the loop below for the same pattern.
+            await Task.Delay(500).ConfigureAwait(false);
 
             // Advance the fake clock by one interval; the awaited Delay completes
             // deterministically and the next action fires.
             fake.Advance(TimeSpan.FromMilliseconds(100));
-            await WaitForAsync(() => Volatile.Read(ref executionCount) >= afterStart + 1)
+            await WaitForAsync(
+                    () => Volatile.Read(ref executionCount) >= afterStart + 1,
+                    TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
 
             // Advance three intervals (one at a time) and wait for the runner
             // to register and fire each new Delay; a single Advance(300) would
             // race because each subsequent Delay is only registered after the
             // previous timer's continuation resumes on the thread pool.
+            //
+            // After WaitForAsync returns, the action has fired but the runner's
+            // loop iteration may not yet have called the next Delay on the fake
+            // provider (it queues Task.Run(action) while still inside the lock,
+            // then loops back to register the new Delay outside it). On .NET
+            // Framework 4.8 the thread pool can schedule the action Task before
+            // the runner's continuation completes its current iteration, so a
+            // subsequent Advance finds no pending timer and the runner stalls.
+            // The 500 ms real-time pause gives the runner ample time on a loaded
+            // net48 CI host where thread pool scheduling latency can be hundreds
+            // of milliseconds under heavy parallel-test load.
             int afterFirstAdvance = Volatile.Read(ref executionCount);
             for (int i = 0; i < 3; i++)
             {
                 int before = Volatile.Read(ref executionCount);
+                // Give the runner time to complete its current loop iteration and
+                // re-register the next Delay before advancing the clock.
+                await Task.Delay(500).ConfigureAwait(false);
                 fake.Advance(TimeSpan.FromMilliseconds(100));
-                await WaitForAsync(() => Volatile.Read(ref executionCount) >= before + 1)
+                await WaitForAsync(
+                        () => Volatile.Read(ref executionCount) >= before + 1,
+                        TimeSpan.FromSeconds(30))
                     .ConfigureAwait(false);
             }
             Assert.That(

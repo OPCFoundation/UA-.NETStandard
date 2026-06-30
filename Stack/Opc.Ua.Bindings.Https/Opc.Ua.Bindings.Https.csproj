@@ -20,6 +20,8 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https.WebApi.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
@@ -32,11 +34,23 @@
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" />
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" />
         <PackageReference Include="Microsoft.AspNetCore.Http" />
+        <PackageReference Include="Microsoft.AspNetCore.WebSockets" />
       </ItemGroup>
     </When>
     <Otherwise>
       <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <!--
+          The OPC UA REST binding (Part 6 §G.3 OpenAPI Mapping) folded
+          into this package on net8+ exposes Bearer-JWT and Certificate
+          (mTLS) authentication helpers via
+          OpcUaWebApiAuthenticationBuilderExtensions. The two
+          handler packages are intentionally excluded from the
+          Microsoft.AspNetCore.App shared framework, so they are
+          referenced explicitly.
+        -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" />
       </ItemGroup>
     </Otherwise>
   </Choose>

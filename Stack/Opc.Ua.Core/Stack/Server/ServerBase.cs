@@ -52,11 +52,61 @@ namespace Opc.Ua
         /// Initializes object with default values.
         /// </summary>
         public ServerBase(ITelemetryContext telemetry)
+            : this(telemetry, transportBindings: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a server that uses a specific
+        /// <see cref="ITransportBindingRegistry"/> when opening its
+        /// listeners. The DI registration in
+        /// <c>AddOpcUaServer()</c> wires the host's
+        /// <see cref="ITransportBindingRegistry"/> through this ctor so
+        /// transport bindings registered via
+        /// <c>AddOpcTcpTransport()</c> / <c>AddKestrelOpcTcpTransport()</c> /
+        /// <c>AddHttpsTransport()</c> etc. take effect. Non-DI consumers
+        /// can call the parameterless overload above; the server then
+        /// constructs a <see cref="DefaultTransportBindingRegistry"/>
+        /// pre-seeded with the raw-socket TCP factories on first use.
+        /// </summary>
+        public ServerBase(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
+            m_transportBindings = transportBindings;
+        }
+
+        /// <summary>
+        /// The resolved transport binding registry. Lazily constructs a
+        /// <see cref="DefaultTransportBindingRegistry"/> pre-seeded with the
+        /// raw-socket TCP factories when none was injected at construction
+        /// time. The setter is intended for non-DI consumers (typically test
+        /// fixtures) that need to override the registry between construction
+        /// and <c>StartAsync</c>; once the server is started further
+        /// reassignment is rejected.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">value is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">the server has already started.</exception>
+        public ITransportBindingRegistry TransportBindings
+        {
+            get => m_transportBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
+            set
+            {
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                if (TransportListeners.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Transport bindings cannot be changed after the server has started.");
+                }
+                m_transportBindings = value;
+            }
         }
 
         /// <summary>
@@ -82,7 +132,21 @@ namespace Opc.Ua
                     for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
                         TransportListeners[ii].ConnectionStatusChanged -= OnConnectionStatusChanged;
-                        TransportListeners[ii]?.Dispose();
+                        // ITransportListener is IAsyncDisposable; bridge to the
+                        // synchronous Dispose path. This is the only spot in the
+                        // server lifecycle that runs sync (the IDisposable contract
+                        // on ServerBase itself).
+                        try
+                        {
+                            TransportListeners[ii]?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                ex,
+                                "Unexpected error disposing transport listener {Name}.",
+                                TransportListeners[ii]?.GetType().FullName);
+                        }
                     }
 
                     TransportListeners.Clear();
@@ -271,7 +335,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
-            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportBindingRegistry bindingFactory = TransportBindings;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
@@ -281,15 +345,15 @@ namespace Opc.Ua
 
             // initialize the hosts.
 
-            IList<ServiceHost> hosts = InitializeServiceHosts(
+            ServiceHostInitializationResult init = await InitializeServiceHostsAsync(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription? serverDescription,
-                out ArrayOf<EndpointDescription> endpoints);
+                cancellationToken).ConfigureAwait(false);
+            IList<ServiceHost> hosts = init.Hosts;
 
             // save discovery information.
-            ServerDescription = serverDescription;
-            Endpoints = endpoints;
+            ServerDescription = init.ServerDescription;
+            Endpoints = init.Endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -338,7 +402,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
-            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportBindingRegistry bindingFactory = TransportBindings;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
@@ -348,15 +412,15 @@ namespace Opc.Ua
 
             // initialize the hosts.
 
-            IList<ServiceHost> hosts = InitializeServiceHosts(
+            ServiceHostInitializationResult init = await InitializeServiceHostsAsync(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription? serverDescription,
-                out ArrayOf<EndpointDescription> endpoints);
+                cancellationToken).ConfigureAwait(false);
+            IList<ServiceHost> hosts = init.Hosts;
 
             // save discovery information.
-            ServerDescription = serverDescription;
-            Endpoints = endpoints;
+            ServerDescription = init.ServerDescription;
+            Endpoints = init.Endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -550,7 +614,14 @@ namespace Opc.Ua
                 ServerError = new ServiceResult(e);
             }
 
-            // close and dispose any listeners.
+            // close and dispose any listeners. Some listeners (HTTPS)
+            // chain CloseAsync -> StopAsync -> DisposeAsync internally so
+            // CloseAsync alone covers the full teardown; others
+            // (TcpTransportListener, KestrelTcpTransportListener) treat
+            // CloseAsync as a soft stop and only release tracked
+            // resources from DisposeAsync. Calling both unconditionally
+            // covers both contracts; DisposeAsync is idempotent on
+            // already-disposed listeners.
             List<ITransportListener>? listeners = TransportListeners;
 
             if (listeners != null)
@@ -559,7 +630,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        listeners[ii].Close();
+                        await listeners[ii].CloseAsync(cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -569,7 +640,20 @@ namespace Opc.Ua
                             listeners[ii].GetType().FullName);
                     }
 
-                    listeners[ii]?.Dispose();
+                    if (listeners[ii] != null)
+                    {
+                        try
+                        {
+                            await listeners[ii].DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.LogError(
+                                e,
+                                "Unexpected error disposing a listener {Name}.",
+                                listeners[ii].GetType().FullName);
+                        }
+                    }
                 }
 
                 listeners.Clear();
@@ -818,13 +902,15 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
         /// <param name="listener">The transport listener.</param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void CreateServiceHostEndpoint(
+        public virtual async ValueTask CreateServiceHostEndpointAsync(
             Uri endpointUri,
             List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidatorEx certificateValidator)
+            ICertificateValidatorEx certificateValidator,
+            CancellationToken ct = default)
         {
             // create the stack listener.
             try
@@ -849,7 +935,8 @@ namespace Opc.Ua
                         .HttpsMutualTls;
                 }
 
-                listener.Open(endpointUri, settings, GetEndpointInstance(this)!);
+                await listener.OpenAsync(endpointUri, settings, GetEndpointInstance(this)!, ct)
+                    .ConfigureAwait(false);
 
                 TransportListeners.Add(listener);
 
@@ -1546,26 +1633,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Result of <see cref="InitializeServiceHostsAsync"/>.
+        /// </summary>
+        /// <param name="Hosts">The created service hosts.</param>
+        /// <param name="ServerDescription">The application description aggregated across hosts.</param>
+        /// <param name="Endpoints">The endpoint descriptions advertised by the hosts.</param>
+        protected readonly record struct ServiceHostInitializationResult(
+            IList<ServiceHost> Hosts,
+            ApplicationDescription? ServerDescription,
+            ArrayOf<EndpointDescription> Endpoints);
+
+        /// <summary>
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable
         /// configuration information for a UA application.</param>
         /// <param name="bindingFactory">The object of a class that manages a
         /// mapping between a URL scheme and a listener.</param>
-        /// <param name="serverDescription">The object of the class that contains
-        /// a description for the ApplicationDescription DataType.</param>
-        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/>
-        /// objects.</param>
-        /// <returns>Returns list of hosts for a UA service.</returns>
-        protected virtual IList<ServiceHost> InitializeServiceHosts(
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The created hosts together with the server description and
+        /// the aggregated endpoint list.</returns>
+        protected virtual ValueTask<ServiceHostInitializationResult> InitializeServiceHostsAsync(
             ApplicationConfiguration configuration,
-            ITransportListenerBindings bindingFactory,
-            out ApplicationDescription? serverDescription,
-            out ArrayOf<EndpointDescription> endpoints)
+            ITransportBindingRegistry bindingFactory,
+            CancellationToken cancellationToken = default)
         {
-            serverDescription = null;
-            endpoints = default;
-            return [];
+            return new ValueTask<ServiceHostInitializationResult>(
+                new ServiceHostInitializationResult([], null, default));
         }
 
         /// <summary>
@@ -1640,6 +1734,7 @@ namespace Opc.Ua
         private IServiceMessageContext? m_messageContext;
         private RequestQueue m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
+        private ITransportBindingRegistry? m_transportBindings;
 
         private bool m_disposed;
         private bool m_ownsCertificateManager;
