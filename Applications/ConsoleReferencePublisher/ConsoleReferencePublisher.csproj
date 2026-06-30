@@ -3,6 +3,7 @@
     <TargetFrameworks>$(AppTargetFrameWorks)</TargetFrameworks>
     <AssemblyName>ConsoleReferencePublisher</AssemblyName>
     <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
     <PackageId>ConsoleReferencePublisher</PackageId>
     <Company>OPC Foundation</Company>
     <Description>.NET Console Reference Publisher</Description>

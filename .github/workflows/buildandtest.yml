@@ -61,8 +61,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
-        os: [ubuntu-latest, windows-latest]
+        # Linux + macOS only — Windows is covered by the AzDO testfastpr stage,
+        # so the GH Actions matrix focuses on the platforms AzDO does not.
+        os: [ubuntu-latest, macOS-latest]
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
           - framework: 'net10.0'
@@ -150,10 +151,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Linux + macOS (Intel + Apple Silicon).  Windows AoT is covered by
+        # the AzDO testaot stage.  Each OS maps to the RID that `dotnet
+        # publish` will emit on that host, which the Run step uses to
+        # locate the published executable.
+        os: [ubuntu-latest, macos-13, macos-latest]
+        dotnet-version: ['10.0.x']
+        configuration: ['Release']
         include:
-          - dotnet-version: '10.0.x'
-            configuration: 'Release'
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-13
+            rid: osx-x64
+          - os: macos-latest
+            rid: osx-arm64
 
     env:
       AOTPROJECT: './Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
@@ -175,13 +186,8 @@ jobs:
     - name: Publish NativeAOT
       run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ matrix.configuration }}
 
-    - name: Run NativeAOT Tests (Linux)
-      if: runner.os == 'Linux'
-      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ matrix.configuration }}/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests
-
-    - name: Run NativeAOT Tests (Windows)
-      if: runner.os == 'Windows'
-      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ matrix.configuration }}/net10.0/win-x64/publish/Opc.Ua.Aot.Tests.exe
+    - name: Run NativeAOT Tests
+      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ matrix.configuration }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
