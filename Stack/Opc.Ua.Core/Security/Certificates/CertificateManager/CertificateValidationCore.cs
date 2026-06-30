@@ -373,6 +373,9 @@ namespace Opc.Ua
         /// <see langword="true"/> accepts the error; returning
         /// <see langword="false"/> (or omitting the callback) rejects it.
         /// </param>
+        /// <param name="options">
+        /// Optional per-call certificate validation overrides.
+        /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <returns>
         /// A <see cref="CertificateValidationResult"/> describing the
@@ -382,6 +385,7 @@ namespace Opc.Ua
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             Func<Certificate, ServiceResult, bool>? acceptError,
+            Security.Certificates.CertificateValidationOptions? options,
             CancellationToken ct)
         {
             if (chain == null)
@@ -401,7 +405,7 @@ namespace Opc.Ua
 
             try
             {
-                await InternalValidateAsync(chain, endpoint: null, ct).ConfigureAwait(false);
+                await InternalValidateAsync(chain, endpoint: null, options, ct).ConfigureAwait(false);
 
                 m_validatedCertificates.GetOrAdd(
                    certificate.Thumbprint,
@@ -696,6 +700,7 @@ namespace Opc.Ua
         private async Task InternalValidateAsync(
             CertificateCollection certificates,
             ConfiguredEndpoint? endpoint,
+            Security.Certificates.CertificateValidationOptions? options,
             CancellationToken ct = default)
         {
             Certificate certificate = certificates[0];
@@ -738,9 +743,9 @@ namespace Opc.Ua
                     RevocationMode = X509RevocationMode.NoCheck,
                     VerificationFlags = X509VerificationFlags.NoFlag,
 #if NET5_0_OR_GREATER
-                    DisableCertificateDownloads = true,
+                    DisableCertificateDownloads = options?.DisableCertificateDownloads ?? true,
 #endif
-                    UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
+                    UrlRetrievalTimeout = options?.UrlRetrievalTimeout ?? TimeSpan.FromMilliseconds(1)
                 };
 
                 var extraStoreCerts = new List<X509Certificate2>();

@@ -59,6 +59,19 @@ namespace Opc.Ua.Security.Certificates
         public ushort? MinimumCertificateKeySize { get; set; }
 
         /// <summary>
+        /// Gets or sets whether certificate download retrieval is disabled
+        /// during chain construction. <c>null</c> means the default behavior
+        /// is used.
+        /// </summary>
+        public bool? DisableCertificateDownloads { get; set; }
+
+        /// <summary>
+        /// Gets or sets the URL retrieval timeout used during chain
+        /// construction. <c>null</c> means the default behavior is used.
+        /// </summary>
+        public TimeSpan? UrlRetrievalTimeout { get; set; }
+
+        /// <summary>
         /// Gets or sets a value that overrides the global setting for
         /// automatically accepting untrusted certificates.
         /// <c>null</c> means the global setting is used.
