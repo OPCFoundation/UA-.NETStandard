@@ -186,7 +186,7 @@ namespace Opc.Ua.Lds.Tests
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
 
             using CertificateEntry? instanceEntry = ClientFixture.Config.CertificateManager?
-                .AcquireInstanceCertificate(matching.SecurityPolicyUri ?? SecurityPolicies.None);
+                .AcquireApplicationCertificateBySecurityPolicy(matching.SecurityPolicyUri ?? SecurityPolicies.None);
             Certificate instanceCertificate = instanceEntry?.Certificate?.AddRef();
 
             return await RegistrationClient

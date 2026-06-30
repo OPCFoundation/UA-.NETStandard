@@ -941,14 +941,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void PrepareTlsCertificate()
         {
-            // prepare the server TLS certificate. AcquireInstanceCertificate
+            // prepare the server TLS certificate. AcquireApplicationCertificateBySecurityPolicy
             // returns a caller-owned entry; take an independent handle on the
             // certificate so this listener owns it for its full lifetime,
             // independent of the entry (disposed below) and of any concurrent
             // registry hot-update that would otherwise free the OS handle
             // Kestrel still holds.
             using CertificateEntry? instanceEntry = m_serverCertProvider
-                .AcquireInstanceCertificate(SecurityPolicies.Https);
+                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https);
             Certificate? serverCertificate = instanceEntry?.Certificate?.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try

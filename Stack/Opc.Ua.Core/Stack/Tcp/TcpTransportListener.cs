@@ -843,7 +843,7 @@ namespace Opc.Ua.Bindings
                 if (!description.ServerCertificate.IsEmpty)
                 {
                     using CertificateEntry? instanceEntry = serverCertificates
-                        .AcquireInstanceCertificate(description.SecurityPolicyUri!);
+                        .AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
                     Certificate? serverCertificate = instanceEntry?.Certificate;
                     if (serverCertificates.SendCertificateChain)
                     {

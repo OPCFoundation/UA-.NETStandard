@@ -215,7 +215,7 @@ namespace Opc.Ua.Bindings
                 if (serverCertificates != null)
                 {
                     using CertificateEntry? instanceEntry = serverCertificates
-                        .AcquireInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                        .AcquireApplicationCertificateBySecurityPolicy(bestPolicy.SecurityPolicyUri);
                     Certificate? instanceCertificate = instanceEntry?.Certificate;
                     description.ServerCertificate =
                         instanceCertificate!.RawData.ToByteString();

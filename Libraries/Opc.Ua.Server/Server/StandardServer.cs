@@ -443,7 +443,7 @@ namespace Opc.Ua.Server
                 // takes its own ref-counted handle on the certificate, so the
                 // acquired entry is disposed when this scope exits.
                 using CertificateEntry? instanceEntry = CertificateManager!
-                    .AcquireInstanceCertificate(context.SecurityPolicyUri);
+                    .AcquireApplicationCertificateBySecurityPolicy(context.SecurityPolicyUri);
                 Certificate instanceCertificate = instanceEntry?.Certificate!;
 
                 // create the session.
@@ -2571,19 +2571,29 @@ namespace Opc.Ua.Server
                             // ref-counted handle (AddRef) and dispose the
                             // acquired entry here.
                             using CertificateEntry? instanceEntry =
-                                CertificateManager!.AcquireInstanceCertificate(
+                                CertificateManager!.AcquireApplicationCertificateBySecurityPolicy(
                                     endpoint.Description?.SecurityPolicyUri ??
                                     SecurityPolicies.None);
-#pragma warning disable CA2000 // ownership of the AddRef'd handle transfers to the registration channel
                             Certificate? instanceCertificate =
                                 instanceEntry?.Certificate?.AddRef();
-#pragma warning restore CA2000
-                            client = await RegistrationClient.CreateAsync(
-                                configuration,
-                                endpoint.Description!,
-                                endpoint.Configuration!,
-                                instanceCertificate!,
-                                ct: ct).ConfigureAwait(false);
+                            try
+                            {
+                                client = await RegistrationClient.CreateAsync(
+                                    configuration,
+                                    endpoint.Description!,
+                                    endpoint.Configuration!,
+                                    instanceCertificate!,
+                                    ct: ct).ConfigureAwait(false);
+
+                                // Ownership of the AddRef'd handle has transferred
+                                // to the registration channel, which disposes it
+                                // when the channel closes.
+                                instanceCertificate = null;
+                            }
+                            finally
+                            {
+                                instanceCertificate?.Dispose();
+                            }
 
                             client.OperationTimeout = 10000;
 

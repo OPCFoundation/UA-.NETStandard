@@ -727,7 +727,7 @@ namespace Opc.Ua
             if (!checkRequireEncryption || RequireEncryption(description))
             {
                 using CertificateEntry? instanceEntry = serverCertificates
-                    .AcquireInstanceCertificate(description.SecurityPolicyUri!);
+                    .AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
                 Certificate? serverCertificate = instanceEntry?.Certificate;
                 // check if complete chain should be sent.
                 if (serverCertificates.SendCertificateChain)
@@ -1582,7 +1582,7 @@ namespace Opc.Ua
                 }
 
                 using CertificateEntry instanceEntry =
-                    CertificateManager.AcquireInstanceCertificate(
+                    CertificateManager.AcquireApplicationCertificateBySecurityPolicy(
                         securityPolicy.SecurityPolicyUri!)
                     ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
@@ -1602,7 +1602,7 @@ namespace Opc.Ua
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
                 using CertificateEntry? instanceEntry = CertificateManager
-                    .AcquireInstanceCertificate(
+                    .AcquireApplicationCertificateBySecurityPolicy(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!);
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(

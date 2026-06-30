@@ -197,7 +197,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 ObjectTypeIds.RsaSha256ApplicationCertificateType,
                 cert).ConfigureAwait(false);
 
-            using CertificateEntry entry = manager.AcquireInstanceCertificate(
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(
                 SecurityPolicies.Basic256Sha256);
 
             Assert.That(entry, Is.Not.Null);
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public async Task AcquireInstanceCertificateReturnsCallerOwnedEntry()
+        public async Task AcquireApplicationCertificateBySecurityPolicyReturnsCallerOwnedEntry()
         {
             using var manager = new CertificateManager(m_telemetry);
             using Certificate cert = CertificateBuilder
@@ -219,14 +219,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // Disposing an acquired entry must not affect the manager's own
             // registered certificate.
-            using (CertificateEntry first = manager.AcquireInstanceCertificate(
+            using (CertificateEntry first = manager.AcquireApplicationCertificateBySecurityPolicy(
                 SecurityPolicies.Basic256Sha256))
             {
                 Assert.That(first, Is.Not.Null);
             }
 
             // A subsequent acquire still returns a usable certificate.
-            using CertificateEntry second = manager.AcquireInstanceCertificate(
+            using CertificateEntry second = manager.AcquireApplicationCertificateBySecurityPolicy(
                 SecurityPolicies.Basic256Sha256);
             Assert.That(second, Is.Not.Null);
             Assert.That(second.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
@@ -940,7 +940,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // The load path must resolve the issuer chain from the issuer store
             // on its own — previously the entry was built with an empty issuer
             // chain so the blob regressed to leaf-only.
-            using CertificateEntry entry = manager.AcquireInstanceCertificate(SecurityPolicies.Basic256Sha256);
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
             Assert.That(entry, Is.Not.Null);
             Assert.That(
                 entry.IssuerChain,
@@ -1017,7 +1017,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             manager.MapFromSecurityConfiguration(secConfig);
             await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
 
-            using CertificateEntry entry = manager.AcquireInstanceCertificate(SecurityPolicies.Basic256Sha256);
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.IssuerChain, Is.Empty);
 

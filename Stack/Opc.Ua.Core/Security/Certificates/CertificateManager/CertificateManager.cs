@@ -413,7 +413,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public CertificateEntry? AcquireApplicationCertificate(NodeId certificateType)
+        public CertificateEntry? AcquireApplicationCertificateByType(NodeId certificateType)
         {
             lock (m_certificatesLock)
             {
@@ -424,7 +424,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public CertificateEntry? AcquireInstanceCertificate(string securityPolicyUri)
+        public CertificateEntry? AcquireApplicationCertificateBySecurityPolicy(string securityPolicyUri)
         {
             lock (m_certificatesLock)
             {

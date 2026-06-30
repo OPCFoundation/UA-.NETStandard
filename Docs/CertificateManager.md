@@ -272,8 +272,8 @@ Read-only access to the application's own certificates.
 | Member | Description |
 |--------|-------------|
 | `SnapshotApplicationCertificates()` | Caller-owned snapshot of all registered application certificate entries — dispose the returned `CertificateEntryCollection` |
-| `AcquireApplicationCertificate(NodeId)` | Caller-owned entry found by OPC UA certificate type NodeId — dispose the returned `CertificateEntry` |
-| `AcquireInstanceCertificate(string)` | Caller-owned entry found by security policy URI — dispose the returned `CertificateEntry` |
+| `AcquireApplicationCertificateByType(NodeId)` | Caller-owned entry found by OPC UA certificate type NodeId — dispose the returned `CertificateEntry` |
+| `AcquireApplicationCertificateBySecurityPolicy(string)` | Caller-owned entry found by security policy URI — dispose the returned `CertificateEntry` |
 
 > **Certificate chain:** each `CertificateEntry` already carries its issuer chain, so there are no
 > separate chain-loading methods. Use `entry.IssuerChain` for the issuers and
@@ -542,7 +542,7 @@ The resolver always returns a caller-owned, `AddRef`'d `Certificate` (or `null`)
 |---|---|
 | `var id = new CertificateIdentifier(cert);` | `var id = new CertificateIdentifier { Thumbprint = cert.Thumbprint, SubjectName = cert.Subject, CertificateType = CertificateIdentifier.GetCertificateType(cert) };` (caller owns `cert`) |
 | `var id = new CertificateIdentifier(rawDataBytes);` | `var id = new CertificateIdentifier { RawData = rawDataBytes };` (RawData setter derives the other fields) |
-| `id.Certificate` read | `CertificateIdentifierResolver.ResolveAsync(id, ...)` or `using CertificateEntry? e = registry.AcquireApplicationCertificate(id.CertificateType); var cert = e?.Certificate;` (caller owns and disposes `e`) |
+| `id.Certificate` read | `CertificateIdentifierResolver.ResolveAsync(id, ...)` or `using CertificateEntry? e = registry.AcquireApplicationCertificateByType(id.CertificateType); var cert = e?.Certificate;` (caller owns and disposes `e`) |
 | `id.Certificate = cert;` write | Drop the assignment. The cert is owned by the manager registry (use `ICertificateLifecycle.UpdateApplicationCertificateAsync`) or by a local variable in the calling method. |
 | `await id.FindAsync(true, applicationUri, ...)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
 | `await id.LoadPrivateKeyExAsync(passwordProvider, ...)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |

@@ -191,7 +191,7 @@ namespace Opc.Ua.Bindings
                 // channel stays valid even if the registry later hot-swaps its
                 // certificates.
                 using CertificateEntry instanceEntry =
-                    serverCertificates.AcquireInstanceCertificate(securityPolicyUri)
+                    serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri)
                     ?? throw new ArgumentNullException(nameof(serverCertificate));
 
                 Certificate borrowed = instanceEntry.Certificate;

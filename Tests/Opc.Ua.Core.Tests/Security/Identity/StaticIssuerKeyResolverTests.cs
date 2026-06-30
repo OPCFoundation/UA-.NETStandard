@@ -44,9 +44,11 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncReturnsKnownKid()
         {
+            using IssuerVerificationKey key1 = CreateKey("kid-1");
+            using IssuerVerificationKey key2 = CreateKey("kid-2");
             using var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                [CreateKey("kid-1"), CreateKey("kid-2")]);
+                [key1, key2]);
 
             System.Collections.Generic.IReadOnlyList<IIssuerVerificationKey> keys = await resolver
                 .GetKeysAsync("kid-1")
@@ -59,9 +61,10 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncReturnsEmptyForUnknownKid()
         {
+            using IssuerVerificationKey key1 = CreateKey("kid-1");
             using var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                [CreateKey("kid-1")]);
+                [key1]);
 
             System.Collections.Generic.IReadOnlyList<IIssuerVerificationKey> keys = await resolver
                 .GetKeysAsync("KID-1")
@@ -73,9 +76,11 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncReturnsAllKeysForNullKid()
         {
+            using IssuerVerificationKey key1 = CreateKey("kid-1");
+            using IssuerVerificationKey key2 = CreateKey("kid-2");
             using var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
-                [CreateKey("kid-1"), CreateKey("kid-2")]);
+                [key1, key2]);
 
             System.Collections.Generic.IReadOnlyList<IIssuerVerificationKey> keys = await resolver
                 .GetKeysAsync(null)
@@ -87,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void DisposeDisposesContainedKeys()
         {
-            IssuerVerificationKey key = CreateKey("kid-1");
+            using IssuerVerificationKey key = CreateKey("kid-1");
             var resolver = new StaticIssuerKeyResolver(
                 "https://issuer.example.test",
                 [key]);
@@ -99,12 +104,21 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
-#pragma warning disable CA2000 // IssuerVerificationKey owns the RSA instance; TODO: replace with ownership annotations when available.
         private static IssuerVerificationKey CreateKey(string kid)
         {
-            var rsa = RSA.Create(2048);
-            return new IssuerVerificationKey(kid, rsa, "RS256");
+            RSA rsa = null;
+            try
+            {
+                rsa = RSA.Create(2048);
+                var key = new IssuerVerificationKey(kid, rsa, "RS256");
+                // Ownership of the RSA instance has transferred to the key.
+                rsa = null;
+                return key;
+            }
+            finally
+            {
+                rsa?.Dispose();
+            }
         }
-#pragma warning restore CA2000
     }
 }

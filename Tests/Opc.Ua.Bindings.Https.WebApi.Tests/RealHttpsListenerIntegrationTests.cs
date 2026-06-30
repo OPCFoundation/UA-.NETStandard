@@ -419,12 +419,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 return new CertificateEntryCollection(m_entries);
             }
 
-            public CertificateEntry? AcquireApplicationCertificate(NodeId certificateType)
+            public CertificateEntry? AcquireApplicationCertificateByType(NodeId certificateType)
             {
                 return m_entry.AddRef();
             }
 
-            public CertificateEntry? AcquireInstanceCertificate(string securityPolicyUri)
+            public CertificateEntry? AcquireApplicationCertificateBySecurityPolicy(string securityPolicyUri)
             {
                 return m_entry.AddRef();
             }

@@ -941,7 +941,7 @@ namespace Opc.Ua.Bindings
                     // issuer chain) with independent handles on the registry's
                     // current entry.
                     using (CertificateEntry? receiverEntry =
-                        m_serverCertificates.AcquireInstanceCertificate(securityPolicyUri))
+                        m_serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri))
                     {
                         ServerCertificate?.Dispose();
                         ServerCertificate = receiverEntry?.Certificate.AddRef();
@@ -999,7 +999,7 @@ namespace Opc.Ua.Bindings
                             m_selectedEndpoint = endpoint;
                             using (CertificateEntry? instanceEntry =
                                 m_serverCertificates!
-                                    .AcquireInstanceCertificate(SecurityPolicyUri))
+                                    .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicyUri))
                             {
                                 ServerCertificate?.Dispose();
                                 ServerCertificate = instanceEntry?.Certificate.AddRef();
@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Bindings
                 SecurityMode = endpoint.SecurityMode;
                 SecurityPolicyUri = endpoint.SecurityPolicyUri!;
                 using (CertificateEntry? instanceEntry =
-                    m_serverCertificates!.AcquireInstanceCertificate(
+                    m_serverCertificates!.AcquireApplicationCertificateBySecurityPolicy(
                         SecurityPolicyUri!))
                 {
                     ServerCertificate?.Dispose();

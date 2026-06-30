@@ -660,7 +660,7 @@ namespace Opc.Ua.Server
                     // currently-registered cert for this type to identify the
                     // configured identifier (matches by certificate type).
                     using (CertificateEntry? currentEntry = registryFallback
-                        .AcquireApplicationCertificate(certificateTypeId))
+                        .AcquireApplicationCertificateByType(certificateTypeId))
                     {
                         if (currentEntry == null)
                         {
@@ -1025,7 +1025,7 @@ namespace Opc.Ua.Server
                     if (m_configuration.CertificateManager is ICertificateRegistry registry)
                     {
                         using CertificateEntry? currentEntry = registry
-                            .AcquireApplicationCertificate(existingCertIdentifier.CertificateType);
+                            .AcquireApplicationCertificateByType(existingCertIdentifier.CertificateType);
                         thumbprintToDelete = currentEntry?.Certificate.Thumbprint
                             ?? existingCertIdentifier.Thumbprint;
 
@@ -1311,7 +1311,7 @@ namespace Opc.Ua.Server
             // certificate is only read.
             using CertificateEntry? currentEntry =
                 (m_configuration.CertificateManager as ICertificateRegistry)
-                    ?.AcquireApplicationCertificate(certificateTypeId);
+                    ?.AcquireApplicationCertificateByType(certificateTypeId);
             Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))
@@ -1748,7 +1748,7 @@ namespace Opc.Ua.Server
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
             foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
             {
-                using CertificateEntry? entry = registry?.AcquireApplicationCertificate(appId.CertificateType);
+                using CertificateEntry? entry = registry?.AcquireApplicationCertificateByType(appId.CertificateType);
                 rawCerts.Add(entry?.Certificate?.RawData.ToByteString() ?? default);
             }
             certificates = rawCerts.ToArrayOf();

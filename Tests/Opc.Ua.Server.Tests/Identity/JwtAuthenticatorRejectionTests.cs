@@ -318,14 +318,22 @@ namespace Opc.Ua.Server.Tests.Identity
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
-#pragma warning disable CA2000 // IssuerVerificationKey owns verification key.
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            var publicKey = RSA.Create();
-            publicKey.ImportParameters(rsa.ExportParameters(false));
-            return new IssuerVerificationKey(keyId, publicKey, "RS256");
+            RSA publicKey = null;
+            try
+            {
+                publicKey = RSA.Create();
+                publicKey.ImportParameters(rsa.ExportParameters(false));
+                var key = new IssuerVerificationKey(keyId, publicKey, "RS256");
+                publicKey = null;
+                return key;
+            }
+            finally
+            {
+                publicKey?.Dispose();
+            }
         }
-#pragma warning restore CA2000
 
         private static string SignRsa(RSA rsa, string algorithm, string kid, string payload)
         {

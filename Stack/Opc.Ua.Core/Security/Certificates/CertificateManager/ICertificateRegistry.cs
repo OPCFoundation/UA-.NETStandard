@@ -80,7 +80,7 @@ namespace Opc.Ua
         /// or <see langword="null"/> if no certificate of that type is
         /// registered.
         /// </returns>
-        CertificateEntry? AcquireApplicationCertificate(NodeId certificateType);
+        CertificateEntry? AcquireApplicationCertificateByType(NodeId certificateType);
 
         /// <summary>
         /// Returns a caller-owned instance certificate entry that is
@@ -94,7 +94,7 @@ namespace Opc.Ua
         /// A new owned <see cref="CertificateEntry"/> the caller must dispose,
         /// or <see langword="null"/> if no suitable certificate is found.
         /// </returns>
-        CertificateEntry? AcquireInstanceCertificate(string securityPolicyUri);
+        CertificateEntry? AcquireApplicationCertificateBySecurityPolicy(string securityPolicyUri);
 
         /// <summary>
         /// Resolves the issuers for the supplied <paramref name="certificate"/>
