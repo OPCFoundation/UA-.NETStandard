@@ -710,74 +710,12 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // Verify chain integrity: build a chain rooted at any of the provided
-                        // issuer certificates and ensure all signatures are valid. We do not
-                        // consult the application's trust list here — the caller is supplying
-                        // the issuer chain as part of the UpdateCertificate input.
-                        var chainPolicy = new X509ChainPolicy
-                        {
-                            RevocationFlag = X509RevocationFlag.EntireChain,
-                            RevocationMode = X509RevocationMode.NoCheck,
-                            VerificationFlags =
-                                X509VerificationFlags.AllowUnknownCertificateAuthority |
-                                X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
-                                X509VerificationFlags.IgnoreEndRevocationUnknown |
-                                X509VerificationFlags.IgnoreRootRevocationUnknown,
-#if NET5_0_OR_GREATER
-                            DisableCertificateDownloads = true,
-#endif
-                            UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
-                        };
-
-                        var extraIssuers = new List<X509Certificate2>(newIssuerCollection.Count);
-                        foreach (Certificate issuerCert in newIssuerCollection)
-                        {
-                            X509Certificate2 issuerX509 = issuerCert.AsX509Certificate2();
-                            extraIssuers.Add(issuerX509);
-                            chainPolicy.ExtraStore.Add(issuerX509);
-                        }
-
-                        try
-                        {
-                            using var chain = new X509Chain { ChainPolicy = chainPolicy };
-                            using X509Certificate2 newCertX509 = newCert.AsX509Certificate2();
-                            chain.Build(newCertX509);
-
-                            foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
-                            {
-                                if (chainStatus.Status is X509ChainStatusFlags.NoError or
-                                    X509ChainStatusFlags.UntrustedRoot)
-                                {
-                                    continue;
-                                }
-                                if (chainStatus.Status is X509ChainStatusFlags.NotSignatureValid or
-                                    X509ChainStatusFlags.PartialChain or
-                                    X509ChainStatusFlags.NotValidForUsage or
-                                    X509ChainStatusFlags.InvalidBasicConstraints)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadSecurityChecksFailed,
-                                        Utils.Format(
-                                            "Certificate chain validation failed. {0}: {1}",
-                                            chainStatus.Status,
-                                            chainStatus.StatusInformation));
-                                }
-                            }
-
-                            if (newIssuerCollection.Count + 1 != chain.ChainElements.Count)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadSecurityChecksFailed,
-                                    "The supplied issuer chain is incomplete.");
-                            }
-                        }
-                        finally
-                        {
-                            foreach (X509Certificate2 extra in extraIssuers)
-                            {
-                                extra.Dispose();
-                            }
-                        }
+                        await ValidatePushCertificateAndIssuerChainAsync(
+                            newCert,
+                            newIssuerCollection,
+                            m_configuration.SecurityConfiguration,
+                            Server.Telemetry,
+                            ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException)
                     {
@@ -1158,6 +1096,55 @@ namespace Opc.Ua.Server
                         ex);
                 }
             }
+        }
+
+        internal static async Task ValidatePushCertificateAndIssuerChainAsync(
+            Certificate newCertificate,
+            CertificateCollection issuerCertificates,
+            SecurityConfiguration securityConfiguration,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            if (newCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(newCertificate));
+            }
+
+            if (issuerCertificates == null)
+            {
+                throw new ArgumentNullException(nameof(issuerCertificates));
+            }
+
+            if (securityConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(securityConfiguration));
+            }
+
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            using var validationChain = new CertificateCollection { newCertificate };
+            foreach (Certificate issuerCertificate in issuerCertificates)
+            {
+                validationChain.Add(issuerCertificate);
+            }
+
+            using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
+            var options = new Security.Certificates.CertificateValidationOptions
+            {
+                AcceptError = static (_, serviceResult) =>
+                    serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted
+            };
+
+            CertificateValidationResult validationResult = await validator.ValidateAsync(
+                validationChain,
+                trustList: null,
+                options: options,
+                ct).ConfigureAwait(false);
+
+            validationResult.ThrowIfInvalid();
         }
 
         /// <summary>

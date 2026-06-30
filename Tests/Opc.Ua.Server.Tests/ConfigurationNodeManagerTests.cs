@@ -1,7 +1,10 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
@@ -11,6 +14,71 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable(ParallelScope.None)]
     public class ConfigurationNodeManagerTests
     {
+        private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
+
+        [Test]
+        public async Task ValidatePushCertificateAndIssuerChainUsesConfiguredMinimumKeySizeAsync()
+        {
+            using Certificate issuingCa = CertificateBuilder.Create("CN=Push Validation CA")
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate newCertificate = CertificateBuilder.Create("CN=Push Validation Cert")
+                .SetIssuer(issuingCa)
+                .SetRSAKeySize(1024)
+                .CreateForRSA();
+            using var issuerCertificates = new CertificateCollection { issuingCa };
+
+            var securityConfiguration = new SecurityConfiguration
+            {
+                MinimumCertificateKeySize = 1024,
+                RejectSHA1SignedCertificates = true,
+                RejectUnknownRevocationStatus = true
+            };
+
+            Assert.DoesNotThrowAsync(
+                async () =>
+                    await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                        newCertificate,
+                        issuerCertificates,
+                        securityConfiguration,
+                        s_telemetry,
+                        CancellationToken.None).ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task ValidatePushCertificateAndIssuerChainRejectsWhenConfiguredMinimumKeySizeNotMetAsync()
+        {
+            using Certificate issuingCa = CertificateBuilder.Create("CN=Push Validation CA")
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate newCertificate = CertificateBuilder.Create("CN=Push Validation Cert")
+                .SetIssuer(issuingCa)
+                .SetRSAKeySize(1024)
+                .CreateForRSA();
+            using var issuerCertificates = new CertificateCollection { issuingCa };
+
+            var securityConfiguration = new SecurityConfiguration
+            {
+                MinimumCertificateKeySize = 2048,
+                RejectSHA1SignedCertificates = true,
+                RejectUnknownRevocationStatus = true
+            };
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                    await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                        newCertificate,
+                        issuerCertificates,
+                        securityConfiguration,
+                        s_telemetry,
+                        CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(exception, Is.Not.Null);
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
+        }
+
         [Test]
         public async Task ConfigurationNodeManager_NamespaceMetadata_LifecycleAsync()
         {
