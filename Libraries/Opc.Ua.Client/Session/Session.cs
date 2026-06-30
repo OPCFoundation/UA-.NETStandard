@@ -4889,20 +4889,20 @@ namespace Opc.Ua.Client
         /// Load certificate for connection.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<Certificate> LoadInstanceCertificateAsync(
+        internal static Task<Certificate> LoadInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return await configuration.SecurityConfiguration.FindApplicationCertificateAsync(
-                securityProfile,
-                privateKey: true,
-                telemetry,
-                ct).ConfigureAwait(false)
+            Certificate certificate = configuration.CertificateManager.GetInstanceCertificate(securityProfile)?.Certificate
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
                     securityProfile);
+            certificate.AddRef();
+            return Task.FromResult(
+                certificate
+                );
         }
 
         /// <summary>

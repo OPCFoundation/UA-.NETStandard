@@ -802,6 +802,8 @@ namespace Opc.Ua.Sessions.Tests
             const int writerInterval = 500;
             const int testDurationSeconds = 60;
             const int maxConnectAttempts = 5;
+            const int maxFailedCreates = 20;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
             // Each secure-channel + ActivateSession handshake is CPU bound (RSA). Cap the
             // concurrent handshakes relative to the available cores so they do not thrash
@@ -847,7 +849,8 @@ namespace Opc.Ua.Sessions.Tests
                     int sessionIndex = i;
                     createSessionTasks.Add(Task.Run(async () =>
                     {
-                        await connectThrottle.WaitAsync().ConfigureAwait(false);
+                        cts.Token.ThrowIfCancellationRequested();
+                        await connectThrottle.WaitAsync(cts.Token).ConfigureAwait(false);
                         try
                         {
                             // Secure-channel handshakes can transiently time out under a
@@ -855,6 +858,7 @@ namespace Opc.Ua.Sessions.Tests
                             // can establish the full session count on capable hardware.
                             for (int attempt = 1; ; attempt++)
                             {
+                                cts.Token.ThrowIfCancellationRequested();
                                 ManagedSession session = null;
                                 try
                                 {
@@ -901,7 +905,12 @@ namespace Opc.Ua.Sessions.Tests
                                         break;
                                     }
 
-                                    await Task.Delay(attempt * 250).ConfigureAwait(false);
+                                    if (createErrors.Count >= maxFailedCreates)
+                                    {
+                                        cts.Cancel();
+                                    }
+
+                                    await Task.Delay(attempt * 250, cts.Token).ConfigureAwait(false);
                                 }
                             }
                         }
@@ -983,8 +992,18 @@ namespace Opc.Ua.Sessions.Tests
                     }
                 }, writerCts.Token);
 
-                // Run the test for the configured duration.
-                await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds)).ConfigureAwait(false);
+                // Keep the load running until the overall 60s test deadline (cts)
+                // elapses. Waiting on cts.Token guarantees the test reliably stops
+                // after testDurationSeconds regardless of how long establishing the
+                // sessions took, instead of starting a second independent timer.
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    /* expected: the test duration deadline elapsed */
+                }
 
                 // Stop the writer.
                 await writerCts.CancelAsync().ConfigureAwait(false);
