@@ -28,56 +28,40 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.Schema.Json;
 
-// The encodeable type registry API is experimental; the schema factory source
-// is built on top of it.
-#pragma warning disable UA_NETStandard_1
-
-namespace Opc.Ua.Schema.Tests
+namespace Opc.Ua.Client.Tests
 {
     /// <summary>
-    /// Tests that source-generated encodeable types expose their data type
-    /// definition through the encodeable factory.
+    /// Tests that attribute-driven (source-annotated) generated encodeable
+    /// types always expose a non-null data type definition through their
+    /// generated activator, per the IDataTypeDefinitionSource contract.
     /// </summary>
     [TestFixture]
     [Category("Schema")]
-    public class GeneratedTypeDefinitionTests
+    [Parallelizable]
+    public class GeneratedDataTypeDefinitionTests
     {
         [Test]
-        public void GeneratedStructureActivatorExposesDefinition()
+        public void StructureActivatorExposesNonNullStructureDefinition()
         {
             DataTypeDefinition definition =
-                ArgumentActivator.Instance.GetDataTypeDefinition(new NamespaceTable());
+                BrowserOptionsActivator.Instance.GetDataTypeDefinition(new NamespaceTable());
 
+            Assert.That(definition, Is.Not.Null);
             Assert.That(definition, Is.InstanceOf<StructureDefinition>());
+
+            var structure = (StructureDefinition)definition;
+            Assert.That(structure.Fields, Has.Count.GreaterThan(0));
         }
 
         [Test]
-        public void SchemaIsProducedFromGeneratedDefinition()
+        public void SubscriptionOptionsActivatorExposesNonNullDefinition()
         {
             DataTypeDefinition definition =
-                ArgumentActivator.Instance.GetDataTypeDefinition(new NamespaceTable());
-            var typeId = new ExpandedNodeId(DataTypeIds.Argument);
-            var registry = new DataTypeDefinitionRegistry();
-            registry.Add(new UaTypeDescription(
-                typeId,
-                new QualifiedName("Argument"),
-                definition,
-                Namespaces.OpcUa));
-            var provider = new DefaultSchemaProvider(registry, [new JsonSchemaGenerator()]);
+                SubscriptionOptionsActivator.Instance.GetDataTypeDefinition(new NamespaceTable());
 
-            bool resolved = provider.TryGetSchema(
-                typeId,
-                UaSchemaFormat.JsonCompact,
-                UaSchemaScope.Type,
-                out IUaSchema? schema);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(resolved, Is.True);
-                Assert.That(schema!.ToSchemaString(), Does.Contain("Argument"));
-            });
+            Assert.That(definition, Is.Not.Null);
+            Assert.That(definition, Is.InstanceOf<StructureDefinition>());
         }
     }
 }

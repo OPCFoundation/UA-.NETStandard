@@ -66,17 +66,17 @@ namespace Opc.Ua.Schema
             [NotNullWhen(true)] out UaTypeDescription? description)
         {
             if (m_factory.TryGetEncodeableType(typeId, out IEncodeableType? encodeableType) &&
-                encodeableType is IDataTypeDefinitionSource encodeableSource &&
-                encodeableSource.GetDataTypeDefinition(m_namespaceUris) is DataTypeDefinition encodeable)
+                encodeableType is IDataTypeDefinitionSource encodeableSource)
             {
+                DataTypeDefinition encodeable = encodeableSource.GetDataTypeDefinition(m_namespaceUris);
                 description = Describe(typeId, encodeableType.XmlName, encodeable);
                 return true;
             }
 
             if (m_factory.TryGetEnumeratedType(typeId, out IEnumeratedType? enumeratedType) &&
-                enumeratedType is IDataTypeDefinitionSource enumeratedSource &&
-                enumeratedSource.GetDataTypeDefinition(m_namespaceUris) is DataTypeDefinition enumerated)
+                enumeratedType is IDataTypeDefinitionSource enumeratedSource)
             {
+                DataTypeDefinition enumerated = enumeratedSource.GetDataTypeDefinition(m_namespaceUris);
                 description = Describe(typeId, enumeratedType.XmlName, enumerated);
                 return true;
             }

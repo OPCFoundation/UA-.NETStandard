@@ -79,10 +79,7 @@ namespace Opc.Ua
         public abstract IEncodeable CreateInstance();
 
         /// <inheritdoc/>
-        public virtual DataTypeDefinition? GetDataTypeDefinition(NamespaceTable namespaceUris)
-        {
-            return null;
-        }
+        public abstract DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris);
     }
 
     /// <summary>
@@ -126,10 +123,7 @@ namespace Opc.Ua
         public abstract XmlQualifiedName XmlName { get; }
 
         /// <inheritdoc/>
-        public virtual DataTypeDefinition? GetDataTypeDefinition(NamespaceTable namespaceUris)
-        {
-            return null;
-        }
+        public abstract DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris);
     }
 
     /// <summary>

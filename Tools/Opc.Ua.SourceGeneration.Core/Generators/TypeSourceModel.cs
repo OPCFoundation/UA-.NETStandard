@@ -226,6 +226,16 @@ namespace Opc.Ua.SourceGeneration
         public bool HasDataTypeFieldAttribute { get; set; }
 
         /// <summary>
+        /// The OPC UA DataType NodeId expression for this field, used to
+        /// emit the StructureField.DataType in the generated data type
+        /// definition. Emitted as an inline namespace-zero <c>NodeId</c>
+        /// literal: built-in types resolve to their exact numeric DataType
+        /// identifier; complex/enum field types fall back to the Structure
+        /// (i=22) / Enumeration (i=29) DataType respectively.
+        /// </summary>
+        public string DataTypeNodeId { get; set; }
+
+        /// <summary>
         /// Structure handling from [DataTypeField].
         /// 0 = Auto, 1 = Inline, 2 = ExtensionObject.
         /// </summary>

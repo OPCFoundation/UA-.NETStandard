@@ -39,14 +39,16 @@ namespace Opc.Ua
     public interface IDataTypeDefinitionSource
     {
         /// <summary>
-        /// Returns the data type definition of the type, or <c>null</c> when the
-        /// type does not expose one.
+        /// Returns the data type definition of the type. Implementations
+        /// always return a non-null definition (a
+        /// <see cref="StructureDefinition"/> or an
+        /// <see cref="EnumDefinition"/>).
         /// </summary>
         /// <param name="namespaceUris">
         /// The namespace table used to resolve the namespace indexes of the
         /// referenced data type ids in the returned definition.
         /// </param>
-        /// <returns>The data type definition, or <c>null</c>.</returns>
-        DataTypeDefinition? GetDataTypeDefinition(NamespaceTable namespaceUris);
+        /// <returns>The data type definition. Never <c>null</c>.</returns>
+        DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris);
     }
 }

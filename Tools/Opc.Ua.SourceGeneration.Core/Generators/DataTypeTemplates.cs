@@ -354,7 +354,7 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.DataTypeDefinition? GetDataTypeDefinition(
+                public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
@@ -388,7 +388,7 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.DataTypeDefinition? GetDataTypeDefinition(
+                public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
@@ -416,7 +416,7 @@ namespace Opc.Ua.SourceGeneration
                     new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.DataTypeDefinition? GetDataTypeDefinition(
+                public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
