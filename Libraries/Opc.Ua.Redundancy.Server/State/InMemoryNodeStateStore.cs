@@ -59,14 +59,20 @@ namespace Opc.Ua.Redundancy.Server
         /// Configure an <see cref="AesCbcHmacRecordProtector"/> in production
         /// so the shared store can be treated as untrusted.
         /// </param>
+        /// <param name="pollInterval">
+        /// The scan-poll interval used by <see cref="SubscribeChangesAsync"/> when the backing store has no
+        /// change-feed (for example a CRDT gossip store). Defaults to 2 seconds.
+        /// </param>
         public InMemoryNodeStateStore(
             ISharedKeyValueStore store,
             IServiceMessageContext context,
-            IRecordProtector? protector = null)
+            IRecordProtector? protector = null,
+            TimeSpan pollInterval = default)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_protector = protector ?? NullRecordProtector.Instance;
+            m_pollInterval = pollInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(2) : pollInterval;
         }
 
         /// <inheritdoc/>
@@ -142,16 +148,133 @@ namespace Opc.Ua.Redundancy.Server
         public async IAsyncEnumerable<NodeStateChange> SubscribeChangesAsync(
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            await foreach (KeyValueChange change in m_store
-                .WatchAsync(string.Empty, ct)
-                .ConfigureAwait(false))
+            IAsyncEnumerable<KeyValueChange>? feed;
+            try
             {
-                NodeStateChange? mapped = Map(change);
-                if (mapped != null)
+                feed = m_store.WatchAsync(string.Empty, ct);
+            }
+            catch (NotSupportedException)
+            {
+                // The backing store has no change-feed (for example a CRDT
+                // gossip store, or the bulk side of a hybrid store). Fall back
+                // to periodic scan-polling so a standby replica still tracks
+                // topology/value changes instead of silently stopping.
+                feed = null;
+            }
+
+            if (feed != null)
+            {
+                await foreach (KeyValueChange change in feed.ConfigureAwait(false))
                 {
-                    yield return mapped;
+                    NodeStateChange? mapped = Map(change);
+                    if (mapped != null)
+                    {
+                        yield return mapped;
+                    }
+                }
+                yield break;
+            }
+
+            await foreach (NodeStateChange change in PollChangesAsync(ct).ConfigureAwait(false))
+            {
+                yield return change;
+            }
+        }
+
+        private async IAsyncEnumerable<NodeStateChange> PollChangesAsync(
+            [EnumeratorCancellation] CancellationToken ct)
+        {
+            var nodes = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            var values = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            bool baseline = false;
+
+            while (!ct.IsCancellationRequested)
+            {
+                Dictionary<string, ByteString> currentNodes =
+                    await SnapshotPrefixAsync(NodePrefix, ct).ConfigureAwait(false);
+                Dictionary<string, ByteString> currentValues =
+                    await SnapshotPrefixAsync(ValuePrefix, ct).ConfigureAwait(false);
+
+                if (baseline)
+                {
+                    // Only changes after the first (baseline) scan are emitted,
+                    // matching the change-feed "observe changes after the call"
+                    // contract; the synchronizer hydrates the initial snapshot
+                    // separately via EnumerateAsync.
+                    foreach (NodeStateChange change in DiffSet(nodes, currentNodes))
+                    {
+                        yield return change;
+                    }
+                    foreach (NodeStateChange change in DiffDeletes(nodes, currentNodes))
+                    {
+                        yield return change;
+                    }
+                    foreach (NodeStateChange change in DiffSet(values, currentValues))
+                    {
+                        yield return change;
+                    }
+                }
+
+                nodes = currentNodes;
+                values = currentValues;
+                baseline = true;
+                await Task.Delay(m_pollInterval, ct).ConfigureAwait(false);
+            }
+        }
+
+        private IEnumerable<NodeStateChange> DiffSet(
+            Dictionary<string, ByteString> previous,
+            Dictionary<string, ByteString> current)
+        {
+            foreach (KeyValuePair<string, ByteString> entry in current)
+            {
+                if (!previous.TryGetValue(entry.Key, out ByteString prior) || !prior.Equals(entry.Value))
+                {
+                    NodeStateChange? mapped = Map(new KeyValueChange
+                    {
+                        Kind = KeyValueChangeKind.Set,
+                        Key = entry.Key,
+                        Value = entry.Value
+                    });
+                    if (mapped != null)
+                    {
+                        yield return mapped;
+                    }
                 }
             }
+        }
+
+        private IEnumerable<NodeStateChange> DiffDeletes(
+            Dictionary<string, ByteString> previous,
+            Dictionary<string, ByteString> current)
+        {
+            foreach (string key in previous.Keys)
+            {
+                if (!current.ContainsKey(key))
+                {
+                    NodeStateChange? mapped = Map(new KeyValueChange
+                    {
+                        Kind = KeyValueChangeKind.Delete,
+                        Key = key
+                    });
+                    if (mapped != null)
+                    {
+                        yield return mapped;
+                    }
+                }
+            }
+        }
+
+        private async Task<Dictionary<string, ByteString>> SnapshotPrefixAsync(string prefix, CancellationToken ct)
+        {
+            var snapshot = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            await foreach (KeyValuePair<string, ByteString> entry in m_store
+                .ScanAsync(prefix, ct)
+                .ConfigureAwait(false))
+            {
+                snapshot[entry.Key] = entry.Value;
+            }
+            return snapshot;
         }
 
         private NodeStateChange? Map(KeyValueChange change)
@@ -241,5 +364,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ISharedKeyValueStore m_store;
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
+        private readonly TimeSpan m_pollInterval;
     }
 }

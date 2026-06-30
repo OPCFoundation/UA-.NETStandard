@@ -82,10 +82,20 @@ namespace Opc.Ua.Redundancy
         /// When <c>true</c>, the consensus replica is disposed together with this store. Pass <c>false</c> when the
         /// replica is shared (for example with a <see cref="RaftLeaderElection"/>) and owned elsewhere.
         /// </param>
-        public RaftSharedKeyValueStore(IRaftConsensus consensus, bool ownsConsensus = false)
+        /// <param name="commitTimeout">
+        /// How long a proposal waits to commit before failing with a <see cref="TimeoutException"/>, so a caller is
+        /// never blocked indefinitely when there is no leader, a leadership change discards the entry, or quorum is
+        /// lost. Defaults to 30 seconds; pass <see cref="Timeout.InfiniteTimeSpan"/> to wait only on the caller's
+        /// token.
+        /// </param>
+        public RaftSharedKeyValueStore(
+            IRaftConsensus consensus,
+            bool ownsConsensus = false,
+            TimeSpan commitTimeout = default)
         {
             m_consensus = consensus ?? throw new ArgumentNullException(nameof(consensus));
             m_ownsConsensus = ownsConsensus;
+            m_commitTimeout = commitTimeout == TimeSpan.Zero ? TimeSpan.FromSeconds(30) : commitTimeout;
         }
 
         /// <inheritdoc/>
@@ -246,16 +256,32 @@ namespace Opc.Ua.Redundancy
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             m_pending[requestId] = tcs;
 
-            byte[] command = Encode(op, m_originator, requestId, key, expected, value);
-            using CancellationTokenRegistration reg = ct.Register(static state =>
+            // Bound the wait for commit: either the caller's token or the commit
+            // timeout fails the pending proposal, so a no-leader / leadership-
+            // change / lost-quorum window never blocks the caller indefinitely.
+            using var commitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            if (m_commitTimeout != Timeout.InfiniteTimeSpan)
             {
-                var box = (PendingCancellation)state!;
-                if (box.Pending.TryRemove(box.RequestId, out TaskCompletionSource<bool>? t))
+                commitCts.CancelAfter(m_commitTimeout);
+            }
+            using CancellationTokenRegistration reg = commitCts.Token.Register(() =>
+            {
+                if (m_pending.TryRemove(requestId, out TaskCompletionSource<bool>? pending))
                 {
-                    t.TrySetCanceled();
+                    if (ct.IsCancellationRequested)
+                    {
+                        pending.TrySetCanceled(ct);
+                    }
+                    else
+                    {
+                        pending.TrySetException(new TimeoutException(
+                            "The Raft proposal did not commit within the commit timeout (no leader, leadership " +
+                            "change, or lost quorum). Retry the operation."));
+                    }
                 }
-            }, new PendingCancellation(m_pending, requestId));
+            });
 
+            byte[] command = Encode(op, m_originator, requestId, key, expected, value);
             try
             {
                 await m_consensus.ProposeAsync(command, ct).ConfigureAwait(false);
@@ -307,6 +333,22 @@ namespace Opc.Ua.Redundancy
             {
                 // shutdown
             }
+            catch (Exception ex)
+            {
+                // The applier is the sole completer of pending proposals; if it
+                // ever dies unexpectedly, fail every pending proposal so callers
+                // do not hang.
+                FailAllPending(ex);
+            }
+        }
+
+        private void FailAllPending(Exception error)
+        {
+            foreach (KeyValuePair<long, TaskCompletionSource<bool>> pending in m_pending)
+            {
+                pending.Value.TrySetException(error);
+            }
+            m_pending.Clear();
         }
 
         private void Apply(ReadOnlySpan<byte> command)
@@ -476,16 +518,13 @@ namespace Opc.Ua.Redundancy
                     new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         }
 
-        private sealed record PendingCancellation(
-            ConcurrentDictionary<long, TaskCompletionSource<bool>> Pending,
-            long RequestId);
-
         private const byte OpSet = 0;
         private const byte OpDelete = 1;
         private const byte OpCas = 2;
 
         private readonly IRaftConsensus m_consensus;
         private readonly bool m_ownsConsensus;
+        private readonly TimeSpan m_commitTimeout;
         private readonly Guid m_originator = Guid.NewGuid();
         private readonly Dictionary<string, ByteString> m_state = new(StringComparer.Ordinal);
         private readonly List<Watcher> m_watchers = [];

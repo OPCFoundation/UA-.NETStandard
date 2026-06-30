@@ -33,9 +33,12 @@
 
 #nullable enable
 
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Crdt;
+using Crdt.Transport;
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
@@ -167,6 +170,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await store.DeleteNodeAsync(nodeId);
             Assert.That(await delete, Is.True);
             Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Delete));
+            Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
+
+            cts.Cancel();
+        }
+
+        [Test]
+        public async Task SubscribePollsWhenStoreHasNoWatchAsync()
+        {
+            // A CRDT store has no change-feed (WatchAsync throws NotSupported),
+            // so the standby subscription must fall back to scan-polling instead
+            // of silently stopping.
+            await using var network = new InMemoryNetwork();
+            await using var crdt = new CrdtSharedKeyValueStore(
+                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            var store = new InMemoryNodeStateStore(
+                crdt, m_messageContext, null, TimeSpan.FromMilliseconds(50));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var nodeId = new NodeId("polled", NamespaceIndex);
+
+            await using System.Collections.Generic.IAsyncEnumerator<NodeStateChange> changes =
+                store.SubscribeChangesAsync(cts.Token).GetAsyncEnumerator();
+
+            // Start the subscription so the baseline scan runs, then upsert a
+            // node; a subsequent poll observes it as an Upsert.
+            ValueTask<bool> upsert = changes.MoveNextAsync();
+            await Task.Delay(120, cts.Token);
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 9 })), cts.Token);
+
+            Assert.That(await upsert, Is.True);
+            Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Upsert));
             Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
 
             cts.Cancel();

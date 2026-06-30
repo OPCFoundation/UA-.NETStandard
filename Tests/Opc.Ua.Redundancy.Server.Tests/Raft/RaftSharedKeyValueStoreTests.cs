@@ -35,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -219,6 +220,20 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(observed.ToArray(), Is.EqualTo(payload.ToArray()));
         }
 
+        [Test]
+        public void ProposalTimesOutWhenNoCommitOccurs()
+        {
+            // Regression: a proposal must never hang when there is no leader /
+            // quorum to commit it; the commit timeout fails it instead.
+            Assert.That(async () =>
+            {
+                await using var consensus = new NeverCommitsConsensus();
+                await using var store = new RaftSharedKeyValueStore(
+                    consensus, ownsConsensus: false, commitTimeout: TimeSpan.FromMilliseconds(200));
+                await store.SetAsync("k", ByteString.From(new byte[] { 1 }));
+            }, Throws.TypeOf<TimeoutException>());
+        }
+
         private static async Task<ByteString> WaitForValueAsync(
             RaftSharedKeyValueStore store,
             string key,
@@ -233,6 +248,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 }
                 await Task.Delay(10, ct);
             }
+        }
+
+        /// <summary>
+        /// A consensus replica that accepts proposals but never commits them (it never yields on
+        /// <see cref="IRaftConsensus.Committed"/>), modelling a no-leader / lost-quorum window.
+        /// </summary>
+        private sealed class NeverCommitsConsensus : IRaftConsensus
+        {
+            public bool IsLeader => true;
+
+            public event Action<bool> LeadershipChanged { add { } remove { } }
+
+            public ChannelReader<ReadOnlyMemory<byte>> Committed => m_committed.Reader;
+
+            public ValueTask StartAsync(CancellationToken ct = default) => default;
+
+            public ValueTask ProposeAsync(ReadOnlyMemory<byte> command, CancellationToken ct = default) => default;
+
+            public ValueTask CampaignAsync(CancellationToken ct = default) => default;
+
+            public ValueTask DisposeAsync()
+            {
+                m_committed.Writer.TryComplete();
+                return default;
+            }
+
+            private readonly Channel<ReadOnlyMemory<byte>> m_committed =
+                Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
         }
     }
 }
