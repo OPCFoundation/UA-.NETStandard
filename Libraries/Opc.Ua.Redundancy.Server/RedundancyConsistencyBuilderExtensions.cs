@@ -78,7 +78,7 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
 
             builder.Services.TryAddSingleton<IRaftConsensus>(sp =>
-                options.RaftConsensusFactory?.Invoke(sp) ?? new InProcessRaftConsensus(options.NodeId));
+                options.RaftConsensusFactory?.Invoke(sp) ?? RaftCsConsensus.CreateSingleNode(options.NodeId));
 
             builder.Services.TryAddSingleton<ISharedKeyValueStore>(sp =>
                 CreateStore(sp, options));

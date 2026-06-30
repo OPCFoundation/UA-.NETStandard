@@ -11,6 +11,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <DefineConstants>$(DefineConstants);OPCUA_RAFTCS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server.Tests" />
@@ -22,6 +23,8 @@
   <ItemGroup>
     <PackageReference Include="Crdt" />
     <PackageReference Include="Crdt.Transport" />
+    <PackageReference Include="RaftCs" />
+    <PackageReference Include="RaftCs.Transport" />
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />

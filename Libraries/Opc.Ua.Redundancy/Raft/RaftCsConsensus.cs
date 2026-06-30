@@ -28,25 +28,21 @@
  * ======================================================================*/
 
 // ===========================================================================
-// SCAFFOLD (Raft phase 7): adapter that binds the external multi-node Raft
-// engine `RaftCs` (https://github.com/marcschier/raft-cs, bundled with the
-// Crdt 1.0.5 GC libraries) to the in-repo IRaftConsensus seam.
+// Adapter that binds the external Raft engine `RaftCs`
+// (https://github.com/marcschier/raft-cs, shipped alongside the Crdt 1.1.0
+// libraries) to the in-repo IRaftConsensus seam. Opc.Ua.Redundancy references
+// the `RaftCs` and `RaftCs.Transport` packages and defines OPCUA_RAFTCS, so
+// this type is compiled into the assembly. The guard remains so the file can
+// be excluded if the RaftCs dependency is ever removed.
 //
-// It is compiled out by default so the repository builds and tests fully
-// offline against InProcessRaftConsensus. To ACTIVATE when the package is
-// available on nuget.org:
-//   1. In Directory.Packages.props add:
-//        <PackageVersion Include="RaftCs" Version="..." />
-//        <PackageVersion Include="RaftCs.Transport" Version="..." />
-//        <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="..." />  (production)
-//        <PackageVersion Include="RaftCs.Storage.File" Version="..." />       (durable WAL, optional)
-//   2. In Opc.Ua.Redundancy.csproj add the matching <PackageReference> items
-//      and define the constant: <DefineConstants>$(DefineConstants);OPCUA_RAFTCS</DefineConstants>.
-//   3. Register it from DI, e.g. via RedundancyConsistencyOptions.RaftConsensusFactory:
-//        options.RaftConsensusFactory = sp => new RaftCsConsensus(
-//            new RaftNode(config, storage, transport));
-//   4. Wire NanoMsgBusTransport (RaftCs.Transport.NanoMsg) for the cross-pod
-//      RPC so Raft shares the NanoMsg substrate with the CRDT gossip layer.
+// Usage:
+//   - Single-node / in-process: RaftCsConsensus.CreateSingleNode().
+//   - Multi-pod: construct a RaftNode with durable storage
+//     (RaftCs.Storage.File) and a networked transport
+//     (RaftCs.Transport.NanoMsg, sharing the NanoMsg substrate with the CRDT
+//     gossip layer), then `new RaftCsConsensus(node)`. Wire either through
+//     RedundancyConsistencyOptions.RaftConsensusFactory (server) or the client
+//     AddRaftClientSharedStore/AddRedundantClientSharedStore factories.
 // ===========================================================================
 
 #if OPCUA_RAFTCS
@@ -55,6 +51,9 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Raft;
+using Raft.Configuration;
+using Raft.Storage;
+using Raft.Transport;
 
 namespace Opc.Ua.Redundancy
 {
@@ -74,13 +73,61 @@ namespace Opc.Ua.Redundancy
         /// How often the adapter samples <see cref="RaftNode.IsLeader"/> to raise
         /// <see cref="LeadershipChanged"/> (the node exposes state, not an event).
         /// </param>
-        public RaftCsConsensus(RaftNode node, bool ownsNode = true, TimeSpan leadershipPollInterval = default)
+        /// <param name="ownedHost">
+        /// An optional resource (for example the in-memory network the transport belongs to) disposed after the node.
+        /// </param>
+        /// <param name="readyTimeout">
+        /// How long <see cref="StartAsync"/> waits for the cluster to elect an initial leader before returning (so the
+        /// first proposals are not dropped during the initial election). Defaults to 10 seconds.
+        /// </param>
+        public RaftCsConsensus(
+            RaftNode node,
+            bool ownsNode = true,
+            TimeSpan leadershipPollInterval = default,
+            IAsyncDisposable? ownedHost = null,
+            TimeSpan readyTimeout = default)
         {
             m_node = node ?? throw new ArgumentNullException(nameof(node));
             m_ownsNode = ownsNode;
+            m_ownedHost = ownedHost;
             m_pollInterval = leadershipPollInterval <= TimeSpan.Zero
                 ? TimeSpan.FromMilliseconds(50)
                 : leadershipPollInterval;
+            m_readyTimeout = readyTimeout <= TimeSpan.Zero
+                ? TimeSpan.FromSeconds(10)
+                : readyTimeout;
+        }
+
+        /// <summary>
+        /// Creates an adapter over a single-node <c>RaftCs</c> replica (in-memory storage and transport). The node
+        /// elects itself leader, so it provides a real, self-contained linearizable backend for single-process
+        /// deployments and tests; multi-node clusters supply their own <see cref="RaftNode"/> (durable storage and a
+        /// networked transport such as <c>NanoMsgBusTransport</c>).
+        /// </summary>
+        /// <param name="nodeId">This replica's unique, non-zero id.</param>
+        /// <param name="readyTimeout">How long to wait for self-election on start (defaults to 10 seconds).</param>
+        public static RaftCsConsensus CreateSingleNode(ulong nodeId = 1, TimeSpan readyTimeout = default)
+        {
+            if (nodeId == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(nodeId), "Raft node id must be non-zero.");
+            }
+
+            // CA2000: ownership of the network/transport/node transfers to the
+            // returned adapter (ownsNode + ownedHost), which disposes them.
+#pragma warning disable CA2000
+            ulong[] voters = [nodeId];
+            var storage = new MemoryStorage(new ConfState(voters));
+            var config = new RaftConfig { Id = nodeId, ElectionTick = 3, HeartbeatTick = 1 };
+            var network = new InMemoryNetwork();
+            IRaftTransport transport = network.CreateNode(nodeId);
+            var node = new RaftNode(
+                config,
+                storage,
+                transport,
+                new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(5) });
+            return new RaftCsConsensus(node, ownsNode: true, ownedHost: network, readyTimeout: readyTimeout);
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>
@@ -95,20 +142,23 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
-            await m_node.StartAsync(ct).ConfigureAwait(false);
             if (Interlocked.Exchange(ref m_started, 1) == 0)
             {
-                m_leadershipLoop = Task.Run(() => WatchLeadershipAsync(m_cts.Token));
+                await m_node.StartAsync(ct).ConfigureAwait(false);
+                m_leadershipLoop = Task.Run(() => WatchLeadershipAsync(m_cts.Token), m_cts.Token);
+                await WaitForInitialLeaderAsync(ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
         public ValueTask ProposeAsync(ReadOnlyMemory<byte> command, CancellationToken ct = default)
         {
-            // RaftNode.ProposeAsync is accepted only on the leader. A production
-            // deployment forwards a follower's proposal to the current leader
-            // (RaftNode.LeaderId) over the transport; the strong-consistency
-            // store retries on the leader. TODO: add leader-forwarding here.
+            // RaftNode.ProposeAsync is accepted on the leader; on a follower the
+            // node forwards the proposal to the leader it recognizes
+            // (RaftConfig.DisableProposalForwarding is false). The opaque command
+            // bytes — including this store's originator id and request id — are
+            // preserved, so the originating replica still correlates its own
+            // committed command back to the caller.
             return m_node.ProposeAsync(command, ct);
         }
 
@@ -144,7 +194,31 @@ namespace Opc.Ua.Redundancy
                 await m_node.DisposeAsync().ConfigureAwait(false);
             }
 
+            if (m_ownedHost != null)
+            {
+                await m_ownedHost.DisposeAsync().ConfigureAwait(false);
+            }
+
             m_cts.Dispose();
+        }
+
+        private async Task WaitForInitialLeaderAsync(CancellationToken ct)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(m_readyTimeout);
+            try
+            {
+                while (m_node.LeaderId == 0)
+                {
+                    await Task.Delay(10, timeoutCts.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Timed out waiting for the initial election; proceed. Proposals
+                // are forwarded once a leader is elected, and each proposal is
+                // still bounded by its own cancellation token.
+            }
         }
 
         private async Task WatchLeadershipAsync(CancellationToken ct)
@@ -171,7 +245,9 @@ namespace Opc.Ua.Redundancy
 
         private readonly RaftNode m_node;
         private readonly bool m_ownsNode;
+        private readonly IAsyncDisposable? m_ownedHost;
         private readonly TimeSpan m_pollInterval;
+        private readonly TimeSpan m_readyTimeout;
         private readonly CancellationTokenSource m_cts = new();
         private Task? m_leadershipLoop;
         private int m_started;
