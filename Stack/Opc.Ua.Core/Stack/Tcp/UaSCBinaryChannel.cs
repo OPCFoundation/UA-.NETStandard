@@ -186,18 +186,27 @@ namespace Opc.Ua.Bindings
             CertificateCollection? serverCertificateChain = null;
             if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
-                serverCertificate =
-                    serverCertificates.GetInstanceCertificate(securityPolicyUri)?.Certificate
-                    ?? throw new ArgumentNullException(nameof(serverCertificate));
-
-                if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
+                // Acquire a caller-owned entry, validate it, then keep an
+                // independent ref-counted handle on the instance certificate so
+                // the channel stays valid even if the registry later hot-swaps
+                // its certificates.
+                using (CertificateEntry? instanceEntry =
+                    serverCertificates.AcquireInstanceCertificate(securityPolicyUri))
                 {
-                    throw new ArgumentException(
-                        Utils.Format(
-                            "The DER encoded certificate may not be more than {0} bytes.",
-                            TcpMessageLimits.MaxCertificateSize
-                        ),
-                        nameof(serverCertificate));
+                    Certificate borrowed = instanceEntry?.Certificate
+                        ?? throw new ArgumentNullException(nameof(serverCertificate));
+
+                    if (borrowed.RawData.Length > TcpMessageLimits.MaxCertificateSize)
+                    {
+                        throw new ArgumentException(
+                            Utils.Format(
+                                "The DER encoded certificate may not be more than {0} bytes.",
+                                TcpMessageLimits.MaxCertificateSize
+                            ),
+                            nameof(serverCertificate));
+                    }
+
+                    serverCertificate = borrowed.AddRef();
                 }
 
                 serverCertificateChain = serverCertificates.LoadCertificateChain(serverCertificate);
@@ -288,11 +297,12 @@ namespace Opc.Ua.Bindings
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
-                if (m_serverCertificates == null)
-                {
-                    ServerCertificate?.Dispose();
-                    ServerCertificate = null;
-                }
+                // The channel always owns an independent handle on
+                // ServerCertificate (the server side AddRef's it from the
+                // registry; the client side receives an owned handle), so
+                // always release it.
+                ServerCertificate?.Dispose();
+                ServerCertificate = null;
 
                 ClientCertificateChain?.Dispose();
                 ClientCertificateChain = null;

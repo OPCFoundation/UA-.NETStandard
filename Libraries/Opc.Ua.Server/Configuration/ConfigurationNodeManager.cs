@@ -659,11 +659,16 @@ namespace Opc.Ua.Server
                     // Subject changed mid-rotation: use the manager registry's
                     // currently-registered cert for this type to identify the
                     // configured identifier (matches by certificate type).
-                    CertificateEntry currentEntry = registryFallback
-                        .GetApplicationCertificate(certificateTypeId) ??
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidArgument,
-                            "No existing certificate found for the specified certificate type and subject name.");
+                    using (CertificateEntry? currentEntry = registryFallback
+                        .AcquireApplicationCertificate(certificateTypeId))
+                    {
+                        if (currentEntry == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidArgument,
+                                "No existing certificate found for the specified certificate type and subject name.");
+                        }
+                    }
 
                     existingCertIdentifier = certificateGroup.ApplicationCertificates
                         .ToList()
@@ -1019,8 +1024,8 @@ namespace Opc.Ua.Server
                     string? thumbprintToDelete = null;
                     if (m_configuration.CertificateManager is ICertificateRegistry registry)
                     {
-                        CertificateEntry? currentEntry = registry
-                            .GetApplicationCertificate(existingCertIdentifier.CertificateType);
+                        using CertificateEntry? currentEntry = registry
+                            .AcquireApplicationCertificate(existingCertIdentifier.CertificateType);
                         thumbprintToDelete = currentEntry?.Certificate.Thumbprint
                             ?? existingCertIdentifier.Thumbprint;
 
@@ -1301,14 +1306,13 @@ namespace Opc.Ua.Server
                     cert => cert.CertificateType == certificateTypeId);
 
             // Look up the currently-active certificate via the manager
-            // registry — the configured identifier is metadata only.
-            Certificate? currentCert = null;
-            if (m_configuration.CertificateManager is ICertificateRegistry currentRegistry)
-            {
-                CertificateEntry? currentEntry = currentRegistry
-                    .GetApplicationCertificate(certificateTypeId);
-                currentCert = currentEntry?.Certificate;
-            }
+            // registry — the configured identifier is metadata only. The
+            // acquired entry is disposed at method scope; the borrowed
+            // certificate is only read.
+            using CertificateEntry? currentEntry =
+                (m_configuration.CertificateManager as ICertificateRegistry)
+                    ?.AcquireApplicationCertificate(certificateTypeId);
+            Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))
             {
@@ -1744,7 +1748,7 @@ namespace Opc.Ua.Server
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
             foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
             {
-                CertificateEntry? entry = registry?.GetApplicationCertificate(appId.CertificateType);
+                using CertificateEntry? entry = registry?.AcquireApplicationCertificate(appId.CertificateType);
                 rawCerts.Add(entry?.Certificate?.RawData.ToByteString() ?? default);
             }
             certificates = rawCerts.ToArrayOf();

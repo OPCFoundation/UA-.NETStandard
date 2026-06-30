@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 "https://issuer.example.test",
                 [CreateKey("kid-1"), CreateKey("kid-2")]);
 
-            System.Collections.Generic.IReadOnlyList<IssuerVerificationKey> keys = await resolver
+            System.Collections.Generic.IReadOnlyList<IIssuerVerificationKey> keys = await resolver
                 .GetKeysAsync("kid-1")
                 .ConfigureAwait(false);
 
@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 "https://issuer.example.test",
                 [CreateKey("kid-1")]);
 
-            System.Collections.Generic.IReadOnlyList<IssuerVerificationKey> keys = await resolver
+            System.Collections.Generic.IReadOnlyList<IIssuerVerificationKey> keys = await resolver
                 .GetKeysAsync("KID-1")
                 .ConfigureAwait(false);
 
@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 "https://issuer.example.test",
                 [CreateKey("kid-1"), CreateKey("kid-2")]);
 
-            System.Collections.Generic.IReadOnlyList<IssuerVerificationKey> keys = await resolver
+            System.Collections.Generic.IReadOnlyList<IIssuerVerificationKey> keys = await resolver
                 .GetKeysAsync(null)
                 .ConfigureAwait(false);
 

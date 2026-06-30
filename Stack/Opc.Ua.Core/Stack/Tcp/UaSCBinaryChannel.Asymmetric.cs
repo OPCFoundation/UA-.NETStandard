@@ -923,10 +923,15 @@ namespace Opc.Ua.Bindings
                 // TODO: client should use the proider too!
                 if (m_serverCertificates != null)
                 {
-                    receiverCertificate =
-                        m_serverCertificates.GetInstanceCertificate(
-                            securityPolicyUri)?.Certificate;
-                    ServerCertificate = receiverCertificate;
+                    // Replace the channel-owned instance certificate with an
+                    // independent handle on the registry's current entry.
+                    using (CertificateEntry? receiverEntry =
+                        m_serverCertificates.AcquireInstanceCertificate(securityPolicyUri))
+                    {
+                        ServerCertificate?.Dispose();
+                        ServerCertificate = receiverEntry?.Certificate.AddRef();
+                    }
+                    receiverCertificate = ServerCertificate;
                     loadChain = true;
                 }
 
@@ -982,10 +987,13 @@ namespace Opc.Ua.Bindings
                         {
                             SecurityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
-                            ServerCertificate =
+                            using (CertificateEntry? instanceEntry =
                                 m_serverCertificates!
-                                    .GetInstanceCertificate(
-                                        SecurityPolicyUri)?.Certificate;
+                                    .AcquireInstanceCertificate(SecurityPolicyUri))
+                            {
+                                ServerCertificate?.Dispose();
+                                ServerCertificate = instanceEntry?.Certificate.AddRef();
+                            }
                             ServerCertificateChain?.Dispose();
                             ServerCertificateChain =
                                 m_serverCertificates
@@ -1034,9 +1042,13 @@ namespace Opc.Ua.Bindings
 
                 SecurityMode = endpoint.SecurityMode;
                 SecurityPolicyUri = endpoint.SecurityPolicyUri!;
-                ServerCertificate =
-                    m_serverCertificates!.GetInstanceCertificate(
-                        SecurityPolicyUri!)?.Certificate;
+                using (CertificateEntry? instanceEntry =
+                    m_serverCertificates!.AcquireInstanceCertificate(
+                        SecurityPolicyUri!))
+                {
+                    ServerCertificate?.Dispose();
+                    ServerCertificate = instanceEntry?.Certificate.AddRef();
+                }
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain =
                     m_serverCertificates.LoadCertificateChain(ServerCertificate);

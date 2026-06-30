@@ -254,11 +254,11 @@ namespace Opc.Ua.Server.Tests.Identity
 
             public string IssuerUri { get; }
 
-            public ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+            public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
                 string keyId,
                 CancellationToken ct = default)
             {
-                return new ValueTask<IReadOnlyList<IssuerVerificationKey>>(m_keys);
+                return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(m_keys);
             }
         }
     }

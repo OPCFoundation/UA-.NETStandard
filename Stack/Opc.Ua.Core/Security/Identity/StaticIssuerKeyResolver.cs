@@ -110,7 +110,7 @@ namespace Opc.Ua.Identity
         public string IssuerUri { get; }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+        public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
             string? keyId,
             CancellationToken ct = default)
         {
@@ -121,13 +121,14 @@ namespace Opc.Ua.Identity
 
             if (keyId == null)
             {
-                return new ValueTask<IReadOnlyList<IssuerVerificationKey>>(m_keys);
+                return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(m_keys);
             }
 
-            return new ValueTask<IReadOnlyList<IssuerVerificationKey>>(
+            IReadOnlyList<IIssuerVerificationKey> result =
                 m_keysById.TryGetValue(keyId, out IReadOnlyList<IssuerVerificationKey>? keys)
                     ? keys
-                    : []);
+                    : [];
+            return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(result);
         }
 
         /// <inheritdoc/>

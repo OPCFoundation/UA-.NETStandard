@@ -400,33 +400,31 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<CertificateEntry> ApplicationCertificates
-        {
-            get
-            {
-                lock (m_certificatesLock)
-                {
-                    // Return a snapshot so callers can iterate without
-                    // racing concurrent updates. The CertificateEntry
-                    // references remain owned by the manager — callers
-                    // must not Dispose them.
-                    return [.. m_applicationCertificates];
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public CertificateEntry? GetApplicationCertificate(NodeId certificateType)
+        public CertificateEntryCollection SnapshotApplicationCertificates()
         {
             lock (m_certificatesLock)
             {
-                return m_applicationCertificates.FirstOrDefault(
-                    e => e.CertificateType == certificateType);
+                // The collection takes an independent owning handle on each
+                // entry, so the caller can dispose the returned snapshot
+                // without affecting the manager's own entries, and a concurrent
+                // hot-update does not invalidate it.
+                return new CertificateEntryCollection(m_applicationCertificates);
             }
         }
 
         /// <inheritdoc/>
-        public CertificateEntry? GetInstanceCertificate(string securityPolicyUri)
+        public CertificateEntry? AcquireApplicationCertificate(NodeId certificateType)
+        {
+            lock (m_certificatesLock)
+            {
+                return m_applicationCertificates
+                    .FirstOrDefault(e => e.CertificateType == certificateType)
+                    ?.AddRef();
+            }
+        }
+
+        /// <inheritdoc/>
+        public CertificateEntry? AcquireInstanceCertificate(string securityPolicyUri)
         {
             lock (m_certificatesLock)
             {
@@ -436,18 +434,20 @@ namespace Opc.Ua
                         e => e.CertificateType == certType);
                     if (entry != null)
                     {
-                        return entry;
+                        return entry.AddRef();
                     }
                 }
 
-                return m_applicationCertificates.Count > 0 ? m_applicationCertificates[0] : null;
+                return m_applicationCertificates.Count > 0
+                    ? m_applicationCertificates[0].AddRef()
+                    : null;
             }
         }
 
         /// <inheritdoc/>
         public byte[] GetEncodedChainBlob(string securityPolicyUri)
         {
-            CertificateEntry? entry = GetInstanceCertificate(securityPolicyUri);
+            using CertificateEntry? entry = AcquireInstanceCertificate(securityPolicyUri);
             return entry?.GetEncodedChainBlob() ?? [];
         }
 
@@ -561,12 +561,10 @@ namespace Opc.Ua
                     m_applicationCertificates.AddRange(newEntries);
                 }
 
-                // Dispose old entries OUTSIDE the lock so that any concurrent
-                // reader who captured a borrowed reference before the swap
-                // still has time to AddRef before disposal completes.
-                // (Borrowed-reference consumers are expected to AddRef before
-                // any long-lived use; this gives them at least the lock-free
-                // window between snapshot and dispose.)
+                // Dispose the manager's own old entries OUTSIDE the lock.
+                // Accessors hand out independent AddRef'd handles (never the
+                // manager's own entries), so disposing these old entries here
+                // cannot affect any handle a consumer is still holding.
                 foreach (CertificateEntry oldEntry in oldEntries)
                 {
                     oldEntry.Dispose();

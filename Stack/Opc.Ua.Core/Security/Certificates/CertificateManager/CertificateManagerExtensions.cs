@@ -163,7 +163,8 @@ namespace Opc.Ua
             }
 
             string thumbprint = certificate.Thumbprint;
-            foreach (CertificateEntry entry in registry.ApplicationCertificates)
+            using CertificateEntryCollection snapshot = registry.SnapshotApplicationCertificates();
+            foreach (CertificateEntry entry in snapshot)
             {
                 if (string.Equals(
                         entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))

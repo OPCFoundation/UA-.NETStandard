@@ -214,9 +214,9 @@ namespace Opc.Ua.Bindings
 
                 if (serverCertificates != null)
                 {
-                    Certificate? instanceCertificate = serverCertificates
-                        .GetInstanceCertificate(
-                            bestPolicy.SecurityPolicyUri)?.Certificate;
+                    using CertificateEntry? instanceEntry = serverCertificates
+                        .AcquireInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                    Certificate? instanceCertificate = instanceEntry?.Certificate;
                     description.ServerCertificate =
                         instanceCertificate!.RawData.ToByteString();
 

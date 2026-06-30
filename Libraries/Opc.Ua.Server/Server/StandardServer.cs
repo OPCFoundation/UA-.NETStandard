@@ -439,10 +439,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // load the certificate for the security profile
-                Certificate instanceCertificate = CertificateManager!
-                    .GetInstanceCertificate(
-                        context.SecurityPolicyUri)?.Certificate!;
+                // load the certificate for the security profile. The session
+                // takes its own ref-counted handle on the certificate, so the
+                // acquired entry is disposed when this scope exits.
+                using CertificateEntry? instanceEntry = CertificateManager!
+                    .AcquireInstanceCertificate(context.SecurityPolicyUri);
+                Certificate instanceCertificate = instanceEntry?.Certificate!;
 
                 // create the session.
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
@@ -2564,11 +2566,19 @@ namespace Opc.Ua.Server
                                 Timestamp = TimeProvider.GetUtcNow().UtcDateTime
                             };
 
-                            // create the client.
-                            Certificate? instanceCertificate =
-                                CertificateManager!.GetInstanceCertificate(
+                            // create the client. The registration channel takes
+                            // ownership of the instance certificate handle and
+                            // disposes it on close, so hand it an independent
+                            // ref-counted handle (AddRef) and dispose the
+                            // acquired entry here.
+                            using CertificateEntry? instanceEntry =
+                                CertificateManager!.AcquireInstanceCertificate(
                                     endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None)?.Certificate;
+                                    SecurityPolicies.None);
+#pragma warning disable CA2000 // ownership of the AddRef'd handle transfers to the registration channel
+                            Certificate? instanceCertificate =
+                                instanceEntry?.Certificate?.AddRef();
+#pragma warning restore CA2000
                             client = await RegistrationClient.CreateAsync(
                                 configuration,
                                 endpoint.Description!,

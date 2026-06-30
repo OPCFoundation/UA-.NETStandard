@@ -842,9 +842,9 @@ namespace Opc.Ua.Bindings
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    Certificate? serverCertificate = serverCertificates
-                        .GetInstanceCertificate(
-                            description.SecurityPolicyUri!)?.Certificate;
+                    using CertificateEntry? instanceEntry = serverCertificates
+                        .AcquireInstanceCertificate(description.SecurityPolicyUri!);
+                    Certificate? serverCertificate = instanceEntry?.Certificate;
                     if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =

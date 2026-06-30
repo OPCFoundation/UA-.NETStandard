@@ -726,9 +726,9 @@ namespace Opc.Ua
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                Certificate? serverCertificate = serverCertificates
-                    .GetInstanceCertificate(
-                        description.SecurityPolicyUri!)?.Certificate;
+                using CertificateEntry? instanceEntry = serverCertificates
+                    .AcquireInstanceCertificate(description.SecurityPolicyUri!);
+                Certificate? serverCertificate = instanceEntry?.Certificate;
                 // check if complete chain should be sent.
                 if (serverCertificates.SendCertificateChain)
                 {
@@ -1572,7 +1572,7 @@ namespace Opc.Ua
             }
 
             // load the instance certificate.
-            Certificate? defaultInstanceCertificate = null;
+            string? defaultCertificateName = null;
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration!
                 .SecurityPolicies)
@@ -1582,30 +1582,32 @@ namespace Opc.Ua
                     continue;
                 }
 
-                Certificate instanceCertificate =
-                    CertificateManager.GetInstanceCertificate(
-                        securityPolicy.SecurityPolicyUri!)?.Certificate
+                using CertificateEntry instanceEntry =
+                    CertificateManager.AcquireInstanceCertificate(
+                        securityPolicy.SecurityPolicyUri!)
                     ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
-                if (!instanceCertificate.HasPrivateKey)
+                if (!instanceEntry.Certificate.HasPrivateKey)
                 {
                     throw ServiceResultException.ConfigurationError(
                         "Server does not have access to the private key for the instance certificate.");
                 }
 
-                defaultInstanceCertificate ??= instanceCertificate;
+                defaultCertificateName ??= instanceEntry.Certificate.GetNameInfo(
+                    X509NameType.DnsName,
+                    false);
             }
 
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                Certificate? instanceCertificate = CertificateManager
-                    .GetInstanceCertificate(
-                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!)?.Certificate;
+                using CertificateEntry? instanceEntry = CertificateManager
+                    .AcquireInstanceCertificate(
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!);
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
-                    instanceCertificate!);
+                    instanceEntry!.Certificate);
                 // it is ok to pick the first here since it is only a fallback value
                 configuration.ApplicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
 
@@ -1624,11 +1626,9 @@ namespace Opc.Ua
 
             // assign an instance name.
             if (string.IsNullOrEmpty(configuration.ApplicationName) &&
-                defaultInstanceCertificate != null)
+                defaultCertificateName != null)
             {
-                configuration.ApplicationName = defaultInstanceCertificate.GetNameInfo(
-                    X509NameType.DnsName,
-                    false);
+                configuration.ApplicationName = defaultCertificateName;
             }
         }
 
