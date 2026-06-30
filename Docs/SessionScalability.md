@@ -88,11 +88,11 @@ A load test (or any aggregator) that opens hundreds of sessions from a **single*
 
 To support this legitimate pattern the lockout is now configurable via `ServerConfiguration.MaxFailedAuthenticationAttempts` (default `5`, preserving the previous behaviour; `0` or less disables it). The load-test fixture sets it to `0`, and high-volume single-certificate deployments should size it for their expected transient-failure rate (or disable it and rely on certificate trust). It is exposed on the fluent builder as `.SetMaxFailedAuthenticationAttempts(...)`.
 
-### 3. Shared client-certificate concurrency under parallel connect
+### 3. Shared client-certificate handle ownership and concurrency
 
-All of the sessions in the test share one client (application instance) certificate. Each `OpenSecureChannel` handshake signs with that certificate's private key, so a large number of *simultaneous* connects drive concurrent private-key operations against the same underlying `X509Certificate2` while the certificate's reference-counted handle is also being acquired and released on the connect/retry paths. Under that contention the handshake can fail with `BadTcpInternalError` whose inner exception is `CryptographicException: m_safeCertContext is an invalid handle`, and the failures in turn drive retries that amplify the storm.
+All of the sessions in the test share one client (application instance) certificate. The reference-counted certificate is exposed through the certificate registry, and `Session.LoadInstanceCertificateAsync` used to hand each session the registry entry's *own* (shared) handle instead of a fresh owning handle. Every session therefore stored — and disposed/reloaded — the *same* handle object, which leaked the reference-counted core (a deterministic one-certificate leak) and, under concurrent connects, disposed a handle other sessions were still using. This is now fixed: each session receives its own independently disposable handle over the shared core, and the leak is gone (verified by the certificate leak detector in the reconnect/subscription tests).
 
-The load test mitigates this by keeping the default connect concurrency low (see the tuning knobs above); a gentle connect exhibits none of these failures. Clients that must open many sessions quickly from one certificate should likewise throttle their concurrent handshakes. Hardening the shared-certificate handle for fully parallel signing is tracked as a separate follow-up.
+A second, residual hazard remains under *aggressive* concurrent connect with retries: each `OpenSecureChannel` handshake signs with the shared certificate's private key, and concurrent `GetRSAPrivateKey()`/dispose churn on one `X509Certificate2` (combined with the per-failure channel teardown and on-disk certificate reload) can still transiently surface `BadTcpInternalError` / `CryptographicException: m_safeCertContext is an invalid handle`. The connect retries recover from it (the test still establishes every session), but it is log noise under load. The load test keeps the default connect concurrency low (see the tuning knobs above); a gentle connect avoids it. Clients that must open many sessions quickly from one certificate should likewise throttle their concurrent handshakes. Fully hardening the shared certificate's private-key handle for parallel signing is tracked as a separate follow-up.
 
 ### 4. Request-thread saturation under a connect storm
 
@@ -128,7 +128,7 @@ reduce per-session address-space churn.
 | --- | --- | --- |
 | Connect throughput | RSA handshakes are CPU bound and serialize under contention | Scale cores; throttle/stagger connects; reuse endpoint discovery |
 | Auth lockout | Single shared client cert is locked out after transient handshake failures (anonymous success does not clear the counter) | Configure `MaxFailedAuthenticationAttempts` (or disable) for high-volume single-cert clients |
-| Shared certificate | Concurrent `OpenSecureChannel` signing on one shared cert can hit an invalid-handle race | Throttle concurrent handshakes per certificate |
+| Shared certificate | Per-session handle ownership leaked the shared cert; concurrent signing can transiently hit an invalid-handle race | Fixed the handle-ownership leak; throttle concurrent handshakes per certificate |
 | Client publish workers | A dropped channel could hot-loop `Publish`/`BadNotConnected` and flood logs | Classify transport-down statuses; throttle with backoff; log once |
 | Request worker pool | Connect bursts can starve steady-state `Publish` requests | Size `MaxRequestThreadCount`; avoid connect storms |
 | Logging | Debug-level per-request logging slows hot paths | Run at `Information`+ in production |
