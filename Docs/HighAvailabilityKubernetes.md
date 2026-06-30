@@ -220,6 +220,8 @@ For Warm active/passive deployments, `LeaderServiceLevelProvider` normally makes
 
 Leader election controls the writer role in `UseDistributedAddressSpace` and can drive `ServiceLevel` through `LeaderServiceLevelProvider`. A graceful shutdown should release the lease and give Kubernetes enough `terminationGracePeriodSeconds` to remove readiness before the pod exits.
 
+For a strongly consistent alternative, `UseRedundancyConsistency` registers a native Raft `ILeaderElection` whose leadership is decided by the Raft consensus protocol itself (one leader per term, no split-brain) instead of a Kubernetes Lease or a lease-CAS. Run the Raft members as a StatefulSet with stable network identities and an odd replica count (3 or 5) for a fault-tolerant quorum, bind the external RaftCs engine through `RaftConsensusFactory`, and place the `RaftCs.Storage.File` WAL on a per-pod PersistentVolume so a restarted member rejoins from its log rather than a full snapshot. See [Consistency modes](HighAvailability.md) for the strong (Raft) vs. eventual (CRDT) trade-offs.
+
 ## EndpointSlice peer discovery
 
 `UseKubernetesPeerDiscovery` polls EndpointSlices for the configured headless Service and builds peer URIs from address, port name, URI scheme, and port options. Set `LocalAddress` to the pod IP or DNS name so the local pod is excluded. For non-transparent redundancy, feed the discovered peers into `ServerRedundancyOptions.RedundantPeers` or the sample's peer configuration so clients can resolve the set through `FindServers`.

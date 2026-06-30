@@ -243,7 +243,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 The base package uses `ISharedKeyValueStore` as the common seam for address-space, session, subscription, retransmission, nonce, and lease records. The in-memory implementation is for tests and single-process samples; multi-pod production deployments need a networked, authenticated, encrypted, and capacity-bounded backend. `IRecordProtector` protects serialized records before they reach the store.
 
-`OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store.
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store — the Raft layer below now provides one in-package, so no external store (e.g. Redis) is required (see *Consistency modes*).
 
 ```csharp
 services.AddOpcUa()
@@ -261,6 +261,35 @@ services.AddOpcUa()
 Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
 
 For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
+
+### Consistency modes: strong (Raft) and eventual (CRDT complemented by Raft)
+
+CRDT gossip is eventually consistent (AP): it converges without a leader but cannot offer a linearizable compare-and-swap or a change-feed, so exactly-once primitives — the single-use session nonce, lease/leader election — need a strongly consistent (CP) backend. `OPCFoundation.NetStandard.Opc.Ua.Redundancy` provides that backend as a Raft layer, and `UseRedundancyConsistency` lets you pick the model for the whole `RedundantServerSet`:
+
+- **Eventual (default).** Bulk replicated state (address space, sessions, subscriptions) stays on the leaderless CRDT store; a `HybridSharedKeyValueStore` routes only the strong keyspaces (`nonce/`, `lease/`, `election/` by default, configurable) to a linearizable `RaftSharedKeyValueStore`. Behaviour and performance for the common case are unchanged, and the single-use nonce registry and lease election become linearizable with no extra backend.
+- **Strong.** All shared state is served by the linearizable `RaftSharedKeyValueStore`; no CRDT is used. Choose this when every replicated value must be linearizable, accepting that writes require a quorum.
+
+```csharp
+services.AddOpcUa()
+    .AddServer(server => { })
+    // Pick the model BEFORE the distributed features so they compose over it.
+    .UseRedundancyConsistency(options =>
+    {
+        options.Mode = RedundancyConsistencyMode.Eventual; // or Strong
+        // options.BulkStoreFactory = sp => /* CRDT bulk store */;    // eventual mode
+        // options.RaftConsensusFactory = sp => /* RaftCs replica */; // multi-pod
+    })
+    .UseDistributedAddressSpace()
+    .UseDistributedSessions(o => o.EnableFastReconnect = true);
+```
+
+`UseRedundancyConsistency` registers a shared `IRaftConsensus` plus a native `RaftLeaderElection` (`ILeaderElection`). Raft leadership is decided by the consensus protocol itself — a single leader per term, no split-brain — which is stronger than the lease-CAS `SharedStoreLeaseElection`. Because the distributed features register their store and election with `TryAddSingleton`, call `UseRedundancyConsistency` first and they compose over the chosen store and election.
+
+The consensus engine is pluggable through the `IRaftConsensus` seam. The in-package `InProcessRaftConsensus` is a deterministic single-node / in-process backend used for single-process deployments, in-process replica sets, and tests; for a multi-pod cluster, bind the external `RaftCs` engine ([`marcschier/raft-cs`](https://github.com/marcschier/raft-cs), bundled with the Crdt 1.0.5 libraries) through `RaftConsensusFactory` — see `RaftCsConsensus` and its activation notes. RaftCs ships its own `IRaftTransport`, including a NanoMsg transport, so Raft shares the NanoMsg substrate with the CRDT gossip layer.
+
+On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedKeyValueStore` and a native `RaftLeaderElection` for a client replica set in one call (the `ClientReplicaCoordinator` consumes both), and `AddRedundantClientSharedStore(mode, …)` is the mode-aware equivalent.
+
+For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide.
 
 ### Client-side high availability (replica sets)
 
