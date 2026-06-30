@@ -4899,10 +4899,16 @@ namespace Opc.Ua.Client
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
                     securityProfile);
-            certificate.AddRef();
-            return Task.FromResult(
-                certificate
-                );
+
+            // GetInstanceCertificate().Certificate hands back the registry entry's
+            // own (shared) handle. Return a NEW owning handle over the same
+            // reference-counted core so each session has its own independently
+            // disposable instance certificate. Returning the shared entry handle
+            // (and discarding the AddRef result) made every session share - and
+            // dispose/reload - the same handle, which under concurrent connects
+            // both leaked the core and raced its private-key handle
+            // ("m_safeCertContext is an invalid handle") during OpenSecureChannel.
+            return Task.FromResult(certificate.AddRef());
         }
 
         /// <summary>
