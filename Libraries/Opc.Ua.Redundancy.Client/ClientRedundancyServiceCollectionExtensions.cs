@@ -32,6 +32,7 @@ using Crdt;
 using Crdt.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Redundancy.Client
 {
@@ -72,6 +73,123 @@ namespace Opc.Ua.Redundancy.Client
                     CrdtReaderOptions.Default);
             });
             return services;
+        }
+
+        /// <summary>
+        /// Registers a strongly-consistent (Raft-backed) <see cref="ISharedKeyValueStore"/> and a native
+        /// <see cref="RaftLeaderElection"/> for a client replica set, both sharing one <see cref="IRaftConsensus"/>
+        /// replica. Unlike <see cref="AddCrdtClientSharedStore"/>, the linearizable store gives the promoted follower
+        /// a consistent view of the leader's session secrets, and the election decides the primary client without a
+        /// separate leader-election registration.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="consensusFactory">
+        /// Optional factory for the Raft consensus replica. When <c>null</c>, a single-node
+        /// <see cref="InProcessRaftConsensus"/> is used (the external multi-node Raft engine plugs in here).
+        /// </param>
+        /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddRaftClientSharedStore(
+            this IServiceCollection services,
+            Func<IServiceProvider, IRaftConsensus>? consensusFactory = null)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            services.TryAddSingleton<IRaftConsensus>(sp =>
+                consensusFactory?.Invoke(sp) ?? new InProcessRaftConsensus());
+
+            services.TryAddSingleton<ISharedKeyValueStore>(sp =>
+                new RaftSharedKeyValueStore(sp.GetRequiredService<IRaftConsensus>(), ownsConsensus: false));
+
+            services.TryAddSingleton<ILeaderElection>(sp =>
+                new RaftLeaderElection(
+                    sp.GetRequiredService<IRaftConsensus>(),
+                    sp.GetService<ILoggerFactory>()?.CreateLogger<RaftLeaderElection>()));
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registers the consistency-mode-appropriate <see cref="ISharedKeyValueStore"/> and a native
+        /// <see cref="RaftLeaderElection"/> for a client replica set:
+        /// <see cref="RedundancyConsistencyMode.Strong"/> uses a <see cref="RaftSharedKeyValueStore"/>;
+        /// <see cref="RedundancyConsistencyMode.Eventual"/> uses a <see cref="HybridSharedKeyValueStore"/> over a CRDT
+        /// bulk store (gossiped on <paramref name="crdtTransportFactory"/>) and a Raft strong store.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="mode">The consistency model.</param>
+        /// <param name="replicaId">This client's stable CRDT identity (used in eventual mode).</param>
+        /// <param name="crdtTransportFactory">
+        /// The CRDT gossip transport factory; required for <see cref="RedundancyConsistencyMode.Eventual"/>.
+        /// </param>
+        /// <param name="raftConsensusFactory">
+        /// Optional Raft consensus replica factory (defaults to a single-node <see cref="InProcessRaftConsensus"/>).
+        /// </param>
+        /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="services"/> is <c>null</c>, or <paramref name="crdtTransportFactory"/> is <c>null</c> in
+        /// eventual mode.
+        /// </exception>
+        public static IServiceCollection AddRedundantClientSharedStore(
+            this IServiceCollection services,
+            RedundancyConsistencyMode mode,
+            ReplicaId replicaId,
+            Func<IServiceProvider, ITransport>? crdtTransportFactory = null,
+            Func<IServiceProvider, IRaftConsensus>? raftConsensusFactory = null)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (mode == RedundancyConsistencyMode.Eventual && crdtTransportFactory == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(crdtTransportFactory),
+                    "Eventual mode requires a CRDT transport factory for the bulk store.");
+            }
+
+            services.TryAddSingleton<IRaftConsensus>(sp =>
+                raftConsensusFactory?.Invoke(sp) ?? new InProcessRaftConsensus());
+
+            services.TryAddSingleton<ISharedKeyValueStore>(sp =>
+                CreateClientStore(sp, mode, replicaId, crdtTransportFactory));
+
+            services.TryAddSingleton<ILeaderElection>(sp =>
+                new RaftLeaderElection(
+                    sp.GetRequiredService<IRaftConsensus>(),
+                    sp.GetService<ILoggerFactory>()?.CreateLogger<RaftLeaderElection>()));
+
+            return services;
+        }
+
+        private static ISharedKeyValueStore CreateClientStore(
+            IServiceProvider sp,
+            RedundancyConsistencyMode mode,
+            ReplicaId replicaId,
+            Func<IServiceProvider, ITransport>? crdtTransportFactory)
+        {
+            IRaftConsensus consensus = sp.GetRequiredService<IRaftConsensus>();
+
+            // CA2000: this is a DI factory; ownership of every store created here
+            // transfers to the returned ISharedKeyValueStore (the Hybrid owns the
+            // Raft + CRDT stores via ownsStores: true) and to the container.
+#pragma warning disable CA2000
+            var raftStore = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
+            if (mode == RedundancyConsistencyMode.Strong)
+            {
+                return raftStore;
+            }
+
+            var crdtStore = new CrdtSharedKeyValueStore(
+                replicaId,
+                crdtTransportFactory!(sp),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System,
+                CrdtReaderOptions.Default);
+            return new HybridSharedKeyValueStore(crdtStore, raftStore, default, ownsStores: true);
+#pragma warning restore CA2000
         }
     }
 }
