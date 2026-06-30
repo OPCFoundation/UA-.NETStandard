@@ -224,8 +224,7 @@ namespace Opc.Ua.Bindings
                     if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            serverCertificates.LoadCertificateChainRaw(
-                                instanceCertificate!).ToByteString();
+                            instanceEntry!.GetEncodedChainBlob().ToByteString();
                     }
                 }
 

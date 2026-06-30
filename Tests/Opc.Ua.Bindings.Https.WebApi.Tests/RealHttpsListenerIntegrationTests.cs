@@ -429,21 +429,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 return m_entry.AddRef();
             }
 
-            public byte[] GetEncodedChainBlob(string securityPolicyUri)
-            {
-                return m_entry.GetEncodedChainBlob();
-            }
-
-            public byte[]? LoadCertificateChainRaw(Certificate certificate)
-            {
-                return string.Equals(
-                    certificate.Thumbprint,
-                    m_entry.Certificate.Thumbprint,
-                    StringComparison.OrdinalIgnoreCase)
-                    ? m_entry.GetEncodedChainBlob()
-                    : null;
-            }
-
             public Task<bool> GetIssuersAsync(
                 Certificate certificate,
                 IList<CertificateIssuerReference> issuers,

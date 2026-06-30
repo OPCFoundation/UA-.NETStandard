@@ -868,7 +868,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <c>TrustedIssuerCertificates</c> store (not the trusted-peer store)
         /// must still emit the full chain. <see cref="CertificateManager.LoadApplicationCertificatesAsync"/>
         /// has to resolve the issuer chain from the issuer store on its own —
-        /// no manual injection — so that <see cref="CertificateManager.LoadCertificateChainRaw"/>
+        /// no manual injection — so that <see cref="CertificateEntry.GetEncodedChainBlob"/>
         /// returns the legacy <c>leaf || issuers</c> blob byte-for-byte.
         /// </summary>
         [Test]
@@ -949,20 +949,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "from the issuer store (CA is not in the trusted-peer store).");
 
             // Full chain: blob == leaf raw bytes followed by root raw bytes.
-            byte[] fullChain = manager.LoadCertificateChainRaw(leaf);
+            byte[] fullChain = entry.GetEncodedChainBlob();
             Assert.That(fullChain, Is.Not.Null);
             byte[] expectedFull = new byte[leaf.RawData.Length + rootCa.RawData.Length];
             Buffer.BlockCopy(leaf.RawData, 0, expectedFull, 0, leaf.RawData.Length);
             Buffer.BlockCopy(rootCa.RawData, 0, expectedFull, leaf.RawData.Length, rootCa.RawData.Length);
             Assert.That(fullChain, Is.EqualTo(expectedFull),
-                "CertificateManager.LoadCertificateChainRaw must produce the legacy " +
+                "CertificateEntry.GetEncodedChainBlob must produce the legacy " +
                 "DER-encoded chain blob (leaf || issuers) byte-for-byte.");
         }
 
         /// <summary>
         /// When the issuing CA is present in neither the trusted-peer nor the
         /// issuer store, the chain cannot be resolved and
-        /// <see cref="CertificateManager.LoadCertificateChainRaw"/> must fall
+        /// <see cref="CertificateEntry.GetEncodedChainBlob"/> must fall
         /// back to a leaf-only blob without throwing.
         /// </summary>
         [Test]
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.IssuerChain, Is.Empty);
 
-            byte[] blob = manager.LoadCertificateChainRaw(leaf);
+            byte[] blob = entry.GetEncodedChainBlob();
             Assert.That(
                 blob,
                 Is.EqualTo(leaf.RawData),

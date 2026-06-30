@@ -274,7 +274,10 @@ Read-only access to the application's own certificates.
 | `SnapshotApplicationCertificates()` | Caller-owned snapshot of all registered application certificate entries — dispose the returned `CertificateEntryCollection` |
 | `AcquireApplicationCertificate(NodeId)` | Caller-owned entry found by OPC UA certificate type NodeId — dispose the returned `CertificateEntry` |
 | `AcquireInstanceCertificate(string)` | Caller-owned entry found by security policy URI — dispose the returned `CertificateEntry` |
-| `GetEncodedChainBlob(string)` | DER-encoded cert+chain for wire transmission |
+
+> **Certificate chain:** each `CertificateEntry` already carries its issuer chain, so there are no
+> separate chain-loading methods. Use `entry.IssuerChain` for the issuers and
+> `entry.GetEncodedChainBlob()` for the DER-encoded `leaf || issuers` blob.
 
 > **Ownership:** `CertificateEntry` (and `CertificateEntryCollection`) implement `IDisposable`.
 > Every accessor returns an independent, reference-counted handle that the caller **owns and

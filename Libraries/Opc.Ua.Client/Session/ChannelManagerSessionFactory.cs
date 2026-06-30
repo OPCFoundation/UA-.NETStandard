@@ -410,16 +410,14 @@ namespace Opc.Ua.Client
             string securityPolicyUri = endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
             if (securityPolicyUri != SecurityPolicies.None)
             {
-                Certificate clientCertificate = await Session.LoadInstanceCertificateAsync(
+                using CertificateEntry clientEntry = await Session.LoadInstanceCertificateEntryAsync(
                     configuration,
                     securityPolicyUri,
                     messageContext.Telemetry,
                     ct).ConfigureAwait(false);
-                CertificateCollection? clientCertificateChain = await Session.LoadCertificateChainAsync(
-                    configuration,
-                    clientCertificate,
-                    ct).ConfigureAwait(false);
-                m_manager.UpdateClientCertificate(clientCertificate, clientCertificateChain);
+                m_manager.UpdateClientCertificate(
+                    clientEntry.Certificate.AddRef(),
+                    Session.BuildTransportChain(clientEntry));
             }
 
             return messageContext;

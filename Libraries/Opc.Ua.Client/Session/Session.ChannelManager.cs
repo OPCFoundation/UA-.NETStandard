@@ -274,12 +274,12 @@ namespace Opc.Ua.Client
             string secPolicy = endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
             if (secPolicy != SecurityPolicies.None)
             {
-                Certificate clientCert = await LoadInstanceCertificateAsync(
+                using CertificateEntry clientEntry = await LoadInstanceCertificateEntryAsync(
                     configuration, secPolicy, probeContext.Telemetry, ct)
                     .ConfigureAwait(false);
-                CertificateCollection? chain = await LoadCertificateChainAsync(
-                    configuration, clientCert, ct).ConfigureAwait(false);
-                manager.UpdateClientCertificate(clientCert, chain);
+                manager.UpdateClientCertificate(
+                    clientEntry.Certificate.AddRef(),
+                    BuildTransportChain(clientEntry));
             }
 
             Session? session = null;

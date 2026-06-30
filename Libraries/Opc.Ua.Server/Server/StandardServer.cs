@@ -510,8 +510,7 @@ namespace Opc.Ua.Server
                         // check if complete chain should be sent.
                         if (CertificateManager.SendCertificateChain)
                         {
-                            serverCertificate = CertificateManager
-                                .LoadCertificateChainRaw(instanceCertificate).ToByteString();
+                            serverCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
                         }
                         else
                         {

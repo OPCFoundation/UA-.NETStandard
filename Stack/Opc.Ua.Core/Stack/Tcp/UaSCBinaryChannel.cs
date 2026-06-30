@@ -186,30 +186,29 @@ namespace Opc.Ua.Bindings
             CertificateCollection? serverCertificateChain = null;
             if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
-                // Acquire a caller-owned entry, validate it, then keep an
-                // independent ref-counted handle on the instance certificate so
-                // the channel stays valid even if the registry later hot-swaps
-                // its certificates.
-                using (CertificateEntry? instanceEntry =
-                    serverCertificates.AcquireInstanceCertificate(securityPolicyUri))
+                // Acquire a caller-owned entry (certificate + issuer chain),
+                // validate it, then keep independent ref-counted handles so the
+                // channel stays valid even if the registry later hot-swaps its
+                // certificates.
+                using CertificateEntry instanceEntry =
+                    serverCertificates.AcquireInstanceCertificate(securityPolicyUri)
+                    ?? throw new ArgumentNullException(nameof(serverCertificate));
+
+                Certificate borrowed = instanceEntry.Certificate;
+                if (borrowed.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
-                    Certificate borrowed = instanceEntry?.Certificate
-                        ?? throw new ArgumentNullException(nameof(serverCertificate));
-
-                    if (borrowed.RawData.Length > TcpMessageLimits.MaxCertificateSize)
-                    {
-                        throw new ArgumentException(
-                            Utils.Format(
-                                "The DER encoded certificate may not be more than {0} bytes.",
-                                TcpMessageLimits.MaxCertificateSize
-                            ),
-                            nameof(serverCertificate));
-                    }
-
-                    serverCertificate = borrowed.AddRef();
+                    throw new ArgumentException(
+                        Utils.Format(
+                            "The DER encoded certificate may not be more than {0} bytes.",
+                            TcpMessageLimits.MaxCertificateSize
+                        ),
+                        nameof(serverCertificate));
                 }
 
-                serverCertificateChain = serverCertificates.LoadCertificateChain(serverCertificate);
+                serverCertificate = borrowed.AddRef();
+                // The entry already carries the issuer chain; build the
+                // [leaf, ...issuers] collection without a second registry lookup.
+                serverCertificateChain = BuildServerCertificateChain(instanceEntry);
             }
 
             if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits

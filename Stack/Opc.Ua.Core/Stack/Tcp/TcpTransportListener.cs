@@ -848,8 +848,7 @@ namespace Opc.Ua.Bindings
                     if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            serverCertificates.LoadCertificateChainRaw(
-                                serverCertificate!)!.ToByteString();
+                            instanceEntry!.GetEncodedChainBlob().ToByteString();
                     }
                     else
                     {

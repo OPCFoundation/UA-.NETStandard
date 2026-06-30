@@ -97,30 +97,6 @@ namespace Opc.Ua
         CertificateEntry? AcquireInstanceCertificate(string securityPolicyUri);
 
         /// <summary>
-        /// Returns the DER-encoded certificate chain blob for the instance
-        /// certificate matching the specified security policy URI.
-        /// </summary>
-        /// <param name="securityPolicyUri">
-        /// The OPC UA security policy URI.
-        /// </param>
-        /// <returns>The encoded chain blob.</returns>
-        byte[] GetEncodedChainBlob(string securityPolicyUri);
-
-        /// <summary>
-        /// Returns the DER-encoded chain blob for a specific application
-        /// certificate, or <see langword="null"/> if the certificate is
-        /// not registered.
-        /// </summary>
-        /// <param name="certificate">
-        /// The instance certificate to look up.
-        /// </param>
-        /// <returns>
-        /// The DER-encoded chain blob (instance certificate followed by
-        /// issuers), or <see langword="null"/> if no entry matches.
-        /// </returns>
-        byte[]? LoadCertificateChainRaw(Certificate certificate);
-
-        /// <summary>
         /// Resolves the issuers for the supplied <paramref name="certificate"/>
         /// using the registry's trust list state and appends them to
         /// <paramref name="issuers"/>.

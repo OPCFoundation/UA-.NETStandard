@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
@@ -50,6 +51,41 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionTests
     {
+        [Test]
+        public void BuildTransportChainReturnsLeafFollowedByIssuers()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=TransportLeaf").CreateForRSA();
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=TransportIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            using var issuerChain = new CertificateCollection { issuer };
+            using var entry = new CertificateEntry(
+                leaf, issuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            using CertificateCollection? chain = Session.BuildTransportChain(entry);
+
+            // The transport chain is [leaf, ...issuers] with the leaf at index 0.
+            Assert.That(chain, Is.Not.Null);
+            Assert.That(chain!, Has.Count.EqualTo(2));
+            Assert.That(chain[0].Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            Assert.That(chain[1].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+        }
+
+        [Test]
+        public void BuildTransportChainReturnsNullWhenNoIssuers()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=TransportLeafOnly").CreateForRSA();
+            using var issuerChain = new CertificateCollection();
+            using var entry = new CertificateEntry(
+                leaf, issuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            CertificateCollection? chain = Session.BuildTransportChain(entry);
+
+            // With no issuers the transport sends the leaf only, so the chain is null.
+            Assert.That(chain, Is.Null);
+        }
+
         [Test]
         public async Task FetchOperationLimitsAsyncShouldFetchAllOperationLimitsAsync()
         {

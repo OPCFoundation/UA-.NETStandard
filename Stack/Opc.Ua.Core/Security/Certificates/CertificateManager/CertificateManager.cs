@@ -445,38 +445,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public byte[] GetEncodedChainBlob(string securityPolicyUri)
-        {
-            using CertificateEntry? entry = AcquireInstanceCertificate(securityPolicyUri);
-            return entry?.GetEncodedChainBlob() ?? [];
-        }
-
-        /// <inheritdoc/>
-        public byte[]? LoadCertificateChainRaw(Certificate certificate)
-        {
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            string thumbprint = certificate.Thumbprint;
-            lock (m_certificatesLock)
-            {
-                for (int i = 0; i < m_applicationCertificates.Count; i++)
-                {
-                    CertificateEntry entry = m_applicationCertificates[i];
-                    if (string.Equals(entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
-                    {
-                        return entry.GetEncodedChainBlob();
-                    }
-                }
-            }
-
-            // Not a registered application certificate: return the raw cert bytes.
-            return certificate.RawData;
-        }
-
-        /// <inheritdoc/>
         public Task<bool> GetIssuersAsync(
             Certificate certificate,
             IList<CertificateIssuerReference> issuers,
