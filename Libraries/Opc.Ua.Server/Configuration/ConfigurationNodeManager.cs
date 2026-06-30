@@ -1125,11 +1125,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(telemetry));
             }
 
-            using var validationChain = new CertificateCollection { newCertificate };
-            foreach (Certificate issuerCertificate in issuerCertificates)
-            {
-                validationChain.Add(issuerCertificate);
-            }
+            using CertificateCollection validationChain = issuerCertificates.AddRef();
+            validationChain.Insert(0, newCertificate);
 
             using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
             var options = new Security.Certificates.CertificateValidationOptions
