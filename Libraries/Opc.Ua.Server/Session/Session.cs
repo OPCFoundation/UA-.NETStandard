@@ -156,9 +156,8 @@ namespace Opc.Ua.Server
             m_sessionName = sessionName;
             // The session owns an independent ref-counted handle on the server
             // certificate so it stays valid for the whole session lifetime even
-            // if the certificate registry is updated. May be null for a server
-            // with no application certificate (None security only).
-            m_serverCertificate = serverCertificate?.AddRef()!;
+            // if the certificate registry is updated.
+            m_serverCertificate = serverCertificate.AddRef();
             ClientCertificate = clientCertificate;
 
             m_clientIssuerCertificates = clientCertificateChain;
@@ -298,7 +297,7 @@ namespace Opc.Ua.Server
 
                 ClientCertificate?.Dispose();
                 m_clientIssuerCertificates?.Dispose();
-                m_serverCertificate?.Dispose();
+                m_serverCertificate.Dispose();
             }
         }
 

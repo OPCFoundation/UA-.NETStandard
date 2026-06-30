@@ -192,7 +192,11 @@ namespace Opc.Ua.Bindings
                 // certificates.
                 using CertificateEntry instanceEntry =
                     serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri)
-                    ?? throw new ArgumentNullException(nameof(serverCertificate));
+                    ?? throw new ArgumentException(
+                        Utils.Format(
+                            "The certificate registry has no instance certificate for security policy {0}.",
+                            securityPolicyUri),
+                        nameof(securityPolicyUri));
 
                 Certificate borrowed = instanceEntry.Certificate;
                 if (borrowed.RawData.Length > TcpMessageLimits.MaxCertificateSize)
