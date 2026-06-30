@@ -179,6 +179,10 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc cref="ServerConfiguration.MaxSessionTimeout"/>
         IApplicationConfigurationBuilderServerOptions SetMaxSessionTimeout(int maxSessionTimeout);
 
+        /// <inheritdoc cref="ServerConfiguration.MaxFailedAuthenticationAttempts"/>
+        IApplicationConfigurationBuilderServerOptions SetMaxFailedAuthenticationAttempts(
+            int maxFailedAuthenticationAttempts);
+
         /// <inheritdoc cref="ServerConfiguration.MaxBrowseContinuationPoints"/>
         IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(
             int maxBrowseContinuationPoints);

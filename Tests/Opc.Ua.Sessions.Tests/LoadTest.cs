@@ -78,6 +78,13 @@ namespace Opc.Ua.Sessions.Tests
             // channel per session.
             MaxChannelCount = 600;
             MaxSessionCount = 600;
+
+            // Disable the brute-force authentication lockout for this fixture. All
+            // sessions share a single client certificate, so once a handful of
+            // handshakes fail transiently under load the whole certificate would be
+            // locked out and every remaining session would be rejected with
+            // BadUserAccessDenied. This is a scaling test, not an auth test.
+            MaxFailedAuthenticationAttempts = 0;
             return base.OneTimeSetUpAsync();
         }
 
@@ -790,25 +797,59 @@ namespace Opc.Ua.Sessions.Tests
         /// each holding a single slow-publishing subscription that monitors a value.
         /// This exercises the per-session and per-subscription scaling limits and is the
         /// basis for the bottleneck analysis documented in <c>Docs/SessionScalability.md</c>.
+        /// The session count, steady-state duration and connect concurrency/timeout are
+        /// configurable via the <c>OPCUA_LOADTEST_*</c> environment variables so the test
+        /// can be dialed down for constrained machines or up for dedicated load hardware.
+        /// Connecting the sessions uses its own deadline that is independent of the
+        /// steady-state duration.
         /// </summary>
         [Test]
         [Explicit]
         [Order(130)]
         public async Task ServerManySessionsLoadTestAsync()
         {
-            // Exercise the supported default of 500 concurrent sessions.
-            const int sessionCount = 500;
+            // The load is configurable so it can be dialed down for quick
+            // validation on constrained machines or up for dedicated load
+            // hardware. Defaults exercise the supported 500 concurrent sessions.
+            static int EnvInt(string name, int defaultValue)
+            {
+                string? value = Environment.GetEnvironmentVariable(name);
+                return int.TryParse(
+                        value,
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out int parsed) && parsed > 0
+                    ? parsed
+                    : defaultValue;
+            }
+
+            int sessionCount = EnvInt("OPCUA_LOADTEST_SESSION_COUNT", 500);
+            int testDurationSeconds = EnvInt("OPCUA_LOADTEST_DURATION_SECONDS", 60);
             const int publishingInterval = 1000; // slow publishing subscription.
             const int writerInterval = 500;
-            const int testDurationSeconds = 60;
             const int maxConnectAttempts = 5;
-            const int maxFailedCreates = 20;
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
-            // Each secure-channel + ActivateSession handshake is CPU bound (RSA). Cap the
-            // concurrent handshakes relative to the available cores so they do not thrash
-            // the CPU and time out; larger machines connect the sessions faster.
-            int maxConnectConcurrency = Math.Max(8, Environment.ProcessorCount * 4);
+            // Each secure-channel + ActivateSession handshake is CPU bound (RSA)
+            // and the sessions share a single client certificate. Keep the default
+            // concurrency low: a large simultaneous-connect burst both oversubscribes
+            // the CPU and, because every handshake signs with the same shared
+            // certificate, can race the certificate's private-key handle under load
+            // (surfacing as BadTcpInternalError / "invalid handle"). A gentle connect
+            // avoids both. Raise OPCUA_LOADTEST_CONNECT_CONCURRENCY on dedicated,
+            // idle load hardware to connect faster.
+            int maxConnectConcurrency = EnvInt(
+                "OPCUA_LOADTEST_CONNECT_CONCURRENCY",
+                Math.Max(2, Environment.ProcessorCount / 4));
+
+            // Establishing the sessions has its own generous deadline that is
+            // independent of the steady-state duration, so a slow connect phase can
+            // never eat into - or cancel - the measurement window the way a single
+            // shared deadline did.
+            int connectTimeoutSeconds = EnvInt(
+                "OPCUA_LOADTEST_CONNECT_TIMEOUT_SECONDS",
+                Math.Max(120, sessionCount));
+            using var connectCts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(connectTimeoutSeconds));
 
             var sessions = new ConcurrentBag<ISession>();
             var notificationsPerSession = new ConcurrentDictionary<int, int>();
@@ -840,25 +881,40 @@ namespace Opc.Ua.Sessions.Tests
 
                 var sessionFactory = new DefaultSessionFactory(Telemetry);
 
-                // Throttle the concurrent secure-channel handshakes to avoid a connect storm.
+                // Throttle the concurrent secure-channel handshakes so the RSA
+                // handshakes do not oversubscribe the CPU and self-inflict a
+                // connect storm.
                 using var connectThrottle = new SemaphoreSlim(maxConnectConcurrency);
                 var createSessionTasks = new List<Task>();
                 var swConnect = System.Diagnostics.Stopwatch.StartNew();
+                CancellationToken connectToken = connectCts.Token;
                 for (int i = 0; i < sessionCount; i++)
                 {
                     int sessionIndex = i;
                     createSessionTasks.Add(Task.Run(async () =>
                     {
-                        cts.Token.ThrowIfCancellationRequested();
-                        await connectThrottle.WaitAsync(cts.Token).ConfigureAwait(false);
                         try
                         {
-                            // Secure-channel handshakes can transiently time out under a
-                            // connect storm; retry a bounded number of times so the test
-                            // can establish the full session count on capable hardware.
-                            for (int attempt = 1; ; attempt++)
+                            await connectThrottle.WaitAsync(connectToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Connect deadline reached before this session started.
+                            return;
+                        }
+                        try
+                        {
+                            // Secure-channel handshakes can transiently time out under
+                            // load; retry a bounded number of times so the full session
+                            // count can be established on capable hardware. Cancellation
+                            // is handled locally so it can never fault Task.WhenAll.
+                            for (int attempt = 1; attempt <= maxConnectAttempts; attempt++)
                             {
-                                cts.Token.ThrowIfCancellationRequested();
+                                if (connectToken.IsCancellationRequested)
+                                {
+                                    return;
+                                }
+
                                 ManagedSession session = null;
                                 try
                                 {
@@ -866,7 +922,8 @@ namespace Opc.Ua.Sessions.Tests
                                         ClientFixture.Config,
                                         configuredEndpoint,
                                         sessionFactory,
-                                        engineFactory: DefaultSubscriptionEngineFactory.Instance)
+                                        engineFactory: DefaultSubscriptionEngineFactory.Instance,
+                                        ct: connectToken)
                                         .ConfigureAwait(false);
 
                                     var handler = new ManySessionsNotificationHandler(
@@ -896,21 +953,32 @@ namespace Opc.Ua.Sessions.Tests
                                     sessions.Add(session);
                                     break;
                                 }
+                                catch (OperationCanceledException)
+                                {
+                                    // Connect deadline reached; stop retrying.
+                                    session?.Dispose();
+                                    return;
+                                }
                                 catch (Exception ex)
                                 {
                                     session?.Dispose();
                                     if (attempt >= maxConnectAttempts)
                                     {
                                         createErrors.Add(ex.Message);
-                                        break;
+                                        return;
                                     }
 
-                                    if (createErrors.Count >= maxFailedCreates)
+                                    // Bounded backoff before the next attempt. Swallow
+                                    // cancellation so it never escapes to Task.WhenAll.
+                                    try
                                     {
-                                        cts.Cancel();
+                                        await Task.Delay(attempt * 250, connectToken)
+                                            .ConfigureAwait(false);
                                     }
-
-                                    await Task.Delay(attempt * 250, cts.Token).ConfigureAwait(false);
+                                    catch (OperationCanceledException)
+                                    {
+                                        return;
+                                    }
                                 }
                             }
                         }
@@ -992,18 +1060,11 @@ namespace Opc.Ua.Sessions.Tests
                     }
                 }, writerCts.Token);
 
-                // Keep the load running until the overall 60s test deadline (cts)
-                // elapses. Waiting on cts.Token guarantees the test reliably stops
-                // after testDurationSeconds regardless of how long establishing the
-                // sessions took, instead of starting a second independent timer.
-                try
-                {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, cts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    /* expected: the test duration deadline elapsed */
-                }
+                // Run the steady-state load for the configured duration. Because
+                // connecting the sessions used its own separate deadline, the
+                // measurement window is always the full duration regardless of how
+                // long establishing the sessions took.
+                await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds)).ConfigureAwait(false);
 
                 // Stop the writer.
                 await writerCts.CancelAsync().ConfigureAwait(false);

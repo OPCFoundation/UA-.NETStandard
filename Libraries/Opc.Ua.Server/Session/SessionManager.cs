@@ -87,6 +87,8 @@ namespace Opc.Ua.Server
             m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
             m_maxSessionCount = configuration.ServerConfiguration.MaxSessionCount;
+            m_maxFailedAuthenticationAttempts = configuration.ServerConfiguration
+                .MaxFailedAuthenticationAttempts;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
@@ -1182,7 +1184,7 @@ namespace Opc.Ua.Server
         private readonly int m_maxHistoryContinuationPoints;
 
         private readonly ConcurrentDictionary<string, ClientLockoutInfo> m_clientLockouts = new();
-        private const int kMaxFailedAuthenticationAttempts = 5;
+        private readonly int m_maxFailedAuthenticationAttempts;
         private readonly long m_lockoutDurationTicks;
         private readonly long m_failureExpirationTicks;
 
@@ -1382,8 +1384,9 @@ namespace Opc.Ua.Server
         {
             remainingLockoutTicks = 0;
 
-            if (string.IsNullOrEmpty(clientKey))
+            if (m_maxFailedAuthenticationAttempts <= 0 || string.IsNullOrEmpty(clientKey))
             {
+                // Lockout disabled (MaxFailedAuthenticationAttempts <= 0) or no key.
                 return false;
             }
 
@@ -1410,17 +1413,18 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RecordFailedAuthentication(string clientKey)
         {
-            if (string.IsNullOrEmpty(clientKey))
+            if (m_maxFailedAuthenticationAttempts <= 0 || string.IsNullOrEmpty(clientKey))
             {
+                // Lockout disabled (MaxFailedAuthenticationAttempts <= 0) or no key.
                 return;
             }
 
             long currentTicks = m_timeProvider.GetTimestamp();
             ClientLockoutInfo lockoutInfo = m_clientLockouts.AddOrUpdate(
                 clientKey,
-                _ => new ClientLockoutInfo(1, currentTicks, m_lockoutDurationTicks, kMaxFailedAuthenticationAttempts),
+                _ => new ClientLockoutInfo(1, currentTicks, m_lockoutDurationTicks, m_maxFailedAuthenticationAttempts),
                 (_, existing) => existing.IncrementFailures(
-                    currentTicks, m_lockoutDurationTicks, m_failureExpirationTicks, kMaxFailedAuthenticationAttempts));
+                    currentTicks, m_lockoutDurationTicks, m_failureExpirationTicks, m_maxFailedAuthenticationAttempts));
 
             if (lockoutInfo.IsLockedOut(currentTicks))
             {

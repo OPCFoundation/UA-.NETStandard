@@ -63,6 +63,15 @@ namespace Opc.Ua.Client.TestFramework
         public bool AllNodeManagers { get; set; }
         public int MaxChannelCount { get; set; } = 100;
         public int MaxSessionCount { get; set; } = 100;
+
+        /// <summary>
+        /// The server's maximum failed-authentication attempts before a client is
+        /// locked out. Defaults to the production default (5). A value of zero or
+        /// less disables the brute-force lockout, which load/scale fixtures that
+        /// open many sessions from a single client certificate need so transient
+        /// connect failures cannot lock the shared certificate out.
+        /// </summary>
+        public int MaxFailedAuthenticationAttempts { get; set; } = 5;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
@@ -383,6 +392,8 @@ namespace Opc.Ua.Client.TestFramework
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
             ServerFixture.Config.ServerConfiguration.MaxSessionCount = MaxSessionCount;
+            ServerFixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts
+                = MaxFailedAuthenticationAttempts;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
