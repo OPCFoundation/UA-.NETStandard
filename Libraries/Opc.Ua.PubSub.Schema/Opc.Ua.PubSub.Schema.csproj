@@ -17,15 +17,6 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-    <!--
-      Same suppression as Libraries/Opc.Ua.PubSub.csproj: transitive
-      Microsoft.Extensions packages emit "doesn't support net48/net472"
-      warnings from buildTransitive targets even though net462 assets are shipped.
-      TODO: drop when the package matrix stops warning.
-    -->
-    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />

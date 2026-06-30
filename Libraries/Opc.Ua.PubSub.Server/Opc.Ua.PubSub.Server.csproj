@@ -22,16 +22,6 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-    <!--
-      Same suppression as Libraries/Opc.Ua.PubSub.csproj / Opc.Ua.Client.csproj:
-      transitive Microsoft.Extensions.Http.Resilience / Telemetry packages emit
-      "doesn't support net48/net472" buildTransitive warnings even though
-      net462 assets are shipped. Suppressed here to match the rest of the
-      library. TODO: drop when the package matrix stops warning.
-    -->
-    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />

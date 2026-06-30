@@ -19,17 +19,6 @@
     -->
     <NoWarn>$(NoWarn);UA0023;CS0618</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-    <!--
-      Same suppression as Libraries/Opc.Ua.Client.csproj: the transitive
-      Microsoft.Extensions.Http.Resilience / Telemetry / AmbientMetadata
-      packages bleed "doesn't support net48/net472" warnings from their
-      buildTransitive targets even though net462 assets are shipped.
-      Suppress here to match Opc.Ua.Client's behaviour. TODO: drop when the
-      package matrix stops warning.
-    -->
-    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
-  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
   </ItemGroup>
