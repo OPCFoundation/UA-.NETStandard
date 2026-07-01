@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -397,6 +398,40 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Registers the data type definitions loaded by this complex type system for schema generation.
+        /// </summary>
+        /// <param name="registry">The registry to populate.</param>
+        /// <returns>The registry to allow chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="registry"/> is <c>null</c>.</exception>
+        public DataTypeDefinitionRegistry RegisterDataTypeDefinitions(DataTypeDefinitionRegistry registry)
+        {
+            if (registry == null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            foreach (KeyValuePair<NodeId, DataTypeDefinition> entry in m_dataTypeDefinitionCache)
+            {
+                NodeId nodeId = entry.Key;
+                string namespaceUri = m_complexTypeResolver.NamespaceUris.GetString(nodeId.NamespaceIndex) ??
+                    string.Empty;
+                QualifiedName browseName = m_dataTypeBrowseNameCache.TryGetValue(
+                    nodeId,
+                    out QualifiedName cachedBrowseName)
+                    ? cachedBrowseName
+                    : new QualifiedName(nodeId.ToString(), nodeId.NamespaceIndex);
+
+                registry.Add(new UaTypeDescription(
+                    new ExpandedNodeId(nodeId),
+                    browseName,
+                    entry.Value,
+                    namespaceUri));
+            }
+
+            return registry;
+        }
+
+        /// <summary>
         /// Get the data type definition and dependent definitions for a data type node id.
         /// Recursive through the cache to find all dependent types for structures fields
         /// contained in the cache.
@@ -452,6 +487,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public void ClearDataTypeCache()
         {
             m_dataTypeDefinitionCache.Clear();
+            m_dataTypeBrowseNameCache.Clear();
         }
 
         /// <summary>
@@ -1242,7 +1278,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         if (enumDefinition != null)
                         {
                             // Add EnumDefinition to cache
-                            m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
+                            AddDataTypeDefinitionToCache(
+                                enumType.NodeId,
+                                enumType.BrowseName,
+                                enumDefinition);
 
                             newType = complexTypeBuilder.AddEnumType(
                                 QualifiedName.From(enumeratedObject.Name!),
@@ -1357,7 +1396,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (enumDefinition != null)
                 {
                     // Add EnumDefinition to cache
-                    m_dataTypeDefinitionCache[enumTypeNode.NodeId] = enumDefinition;
+                    AddDataTypeDefinitionToCache(
+                        enumTypeNode.NodeId,
+                        name,
+                        enumDefinition);
 
                     newType = complexTypeBuilder.AddEnumType(name, enumDefinition);
                 }
@@ -1410,7 +1452,7 @@ namespace Opc.Ua.Client.ComplexTypes
             enumDefinition.IsOptionSet = true;
 
             // Add EnumDefinition to cache
-            m_dataTypeDefinitionCache[dataTypeNode.NodeId] = enumDefinition;
+            AddDataTypeDefinitionToCache(dataTypeNode.NodeId, name, enumDefinition);
 
             return complexTypeBuilder.AddOptionSetType(
                 name,
@@ -1499,7 +1541,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             // Add StructureDefinition to cache
-            m_dataTypeDefinitionCache[localDataTypeId] = structureDefinition;
+            AddDataTypeDefinitionToCache(localDataTypeId, typeName, structureDefinition);
 
             IComplexTypeFieldBuilder fieldBuilder = complexTypeBuilder.AddStructuredType(
                 typeName,
@@ -1539,6 +1581,15 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             return (fieldBuilder.CreateType(), missingTypes);
+        }
+
+        private void AddDataTypeDefinitionToCache(
+            NodeId typeId,
+            QualifiedName browseName,
+            DataTypeDefinition definition)
+        {
+            m_dataTypeDefinitionCache[typeId] = definition;
+            m_dataTypeBrowseNameCache[typeId] = browseName;
         }
 
         private static bool IsAllowSubTypes(StructureDefinition structureDefinition)
@@ -1741,6 +1792,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly IComplexTypeResolver m_complexTypeResolver;
         private readonly IComplexTypeFactory m_complexTypeBuilderFactory;
         private readonly NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = [];
+        private readonly NodeIdDictionary<QualifiedName> m_dataTypeBrowseNameCache = [];
 
         private static readonly string[] s_supportedEncodings =
         [

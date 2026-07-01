@@ -22,6 +22,7 @@ Here is a list of available documentation for different topics:
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 * Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
+* Runtime [Schema Generation](SchemaGeneration.md) - Produce XSD, OPC Binary (BSD) and JSON Schema (Part 6 Annex C, compact + verbose) for generated encodeable types and dynamically added complex types via the injectable `ISchemaProvider`; schemas are built as object models in code (trimmable, NativeAOT compatible).
 * Source generated [NodeManagers](SourceGeneratedNodeManagers.md) - Emit an `AsyncCustomNodeManager` from a model design XML and wire callbacks via the fluent `INodeManagerBuilder` API; supports NativeAOT single-file servers (samples: [MinimalBoilerServer](../Applications/MinimalBoilerServer), [PumpDeviceIntegrationServer](../Applications/PumpDeviceIntegrationServer)). Covers engineering units, property initialisation, alarms, simulation timers, instance creation, NAMUR-style supervision, multi-model composition, and the fluent state-machine builder on top of any `FiniteStateMachineState` subclass. Cross-assembly model references are tracked via the [ModelDependencyAttribute](ModelDependencies.md). Companion-spec packaging — model + server + client library trios — is covered end-to-end by the [Device Integration developer guide](DeviceIntegration.md) using the `Opc.Ua.Di` / `Opc.Ua.Di.Server` / `Opc.Ua.Di.Client` trio as the worked example.
 * [Device Integration (DI) developer guide](DeviceIntegration.md) - End-to-end documentation for the `Opc.Ua.Di*` library trio: fluent `IDeviceBuilder`, device sub-type extensions (`AddSoftware`, `AddBlock`, `AddConfigurableObject`, `AddLifetimeIndication`, `WithSupportInfo`), hosting integration (`AddOpcUaDi` / `ConfigureDevicesFor`), lock service, software-update package store, and client helpers (`DiLockClient`, `DiTopologyClient`, `SoftwareUpdateClient`). Includes a section enumerating supported OPC 10000-100 features against the spec.
 * [Alias Names](AliasNames.md) - Full server + client support for the OPC UA Part 17 alias-name model (`AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`, `LastChange`).
@@ -37,21 +38,23 @@ Here is a list of available documentation for different topics:
 * [AuthorizationService](AuthorizationService.md) - Modern Part 12 `StartRequestToken` / `FinishRequestToken`, `ITokenIssuer`, and GDS token issuance.
 * [Fuzz testing](../Fuzzing/Fuzzing.md) - SharpFuzz + afl-fuzz + libFuzzer integration. Three areas: `Encoders` (Binary/JSON/XML decoders, built-in type readers, parser entry points), `Certificates` (`X509CRL`, X509 extension parsers, `PEMReader`, `Pkcs10CertificationRequest`, ASN.1 helpers), and `Network` (UA-SC framing via `Opc.Ua.Core.Diagnostics` + internal `TcpMessageParsers` seam on `Opc.Ua.Core`). The [`fuzz-tester`](../.github/agents/fuzz-tester.agent.md) custom agent drives the whole toolchain autonomously: it detects OS-available engines, runs them in parallel, fixes novel findings per repo guidelines, adds the failing input as a regression asset, and pushes one commit per fix until the user says stop.
 * [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
+* [PubSub (Part 14)](PubSub.md) - Publisher/subscriber support library: architecture, fluent builder, transports (UDP / MQTT 3.1.1 + 5.0 / Ethernet Layer 2), encodings (UADP / JSON), security, and server-side address space.
+  * [Migration sub-doc](migrate/2.0.x/pubsub.md) - 1.5.378 → 2.0 breaking API, transport, JSON, and field-encoding changes, plus the compatibility matrix.
+  * [Ethernet transport](PubSub.md#transports) - Layer 2 PubSub (`opc.eth://`, EtherType `0xB62C`, 802.1Q VLAN) with native AF_PACKET / BPF, SharpPcap, and in-memory backends.
+  * [External server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters) - Bind PubSub publishers, subscribers, and Action responders to an external OPC UA server through `ManagedSession`.
+  * [Dependency Injection extensions](DependencyInjection.md) - `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`, `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
+  * [Profiles](Profiles.md#pubsub-transports) - Datagram-v2, SKS pull / push, AES-128/256-CTR security facets.
+  * [PubSub Diagnostics](Diagnostics.md#5-pubsub-packet-capture-and-dissection) - packet capture, dissection and replay of UDP / MQTT PubSub traffic, including decryption of encrypted UADP messages.
 
 ## Reference application related
 
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
 * [Reference Server](../Applications/README.md) documentation for running against CTT.
+* [ConsoleReferencePubSubClient](../Applications/ConsoleReferencePubSubClient/README.md) documentation for the PubSub reference sample (publisher / subscriber / external-server adapter modes).
 * [Provisioning Mode](ProvisioningMode.md) for secure certificate provisioning and initial server configuration.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in Visual Studio 2026 and for local testing.
 
 Starting with version 1.5.375.XX the Windows Forms reference client & reference server were moved to the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
-
-## For the PubSub support library
-
-* The [PubSub](PubSub.md) library with samples.
-* The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation.
-* The [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/README.md) documentation.
 
 ## Global Discovery Server (GDS)
 

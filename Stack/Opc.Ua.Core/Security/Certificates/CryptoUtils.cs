@@ -1132,5 +1132,53 @@ namespace Opc.Ua
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
+
+        /// <summary>
+        /// Zeros a buffer so that sensitive key material does not linger in memory.
+        /// </summary>
+        /// <param name="buffer">
+        /// The buffer to overwrite with zeros.
+        /// </param>
+        public static void ZeroMemory(Span<byte> buffer)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(buffer);
+#else
+            buffer.Clear();
+#endif
+        }
+
+        /// <summary>
+        /// Compares two buffers in constant time when their lengths match, avoiding
+        /// timing side channels during authentication tag and signature checks.
+        /// </summary>
+        /// <param name="left">
+        /// The first buffer to compare.
+        /// </param>
+        /// <param name="right">
+        /// The second buffer to compare.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when both buffers have the same length and content; otherwise <c>false</c>.
+        /// </returns>
+        public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(left, right);
+#else
+            if (left.Length != right.Length)
+            {
+                return false;
+            }
+
+            int different = 0;
+            for (int ii = 0; ii < left.Length; ii++)
+            {
+                different |= left[ii] ^ right[ii];
+            }
+
+            return different == 0;
+#endif
+        }
     }
 }

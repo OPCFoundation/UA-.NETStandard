@@ -29,7 +29,6 @@
 
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Aot.Tests
@@ -212,6 +211,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(fixture.Server.LastRequest.RequestHeader.RequestHandle)
                 .IsEqualTo(2u);
         }
+
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string path,
             TRequest request)

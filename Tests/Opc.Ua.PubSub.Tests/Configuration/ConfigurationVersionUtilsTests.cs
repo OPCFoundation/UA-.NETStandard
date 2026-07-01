@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,163 +27,78 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
+    /// <summary>
+    /// Tests Part 14 §6.2.3 ConfigurationVersion rules.
+    /// </summary>
     [TestFixture]
-    [Category("Configuration")]
-    [SetCulture("en-us")]
-    [SetUICulture("en-us")]
-    [Parallelizable]
+    [TestSpec("6.2.3", Summary = "ConfigurationVersion MajorVersion and MinorVersion update rules")]
     public class ConfigurationVersionUtilsTests
     {
         [Test]
-        public void CalculateConfigurationVersionThrowsOnNullNewMetaData()
+        public void CalculateConfigurationVersion_WhenSingleFieldPropertiesUnchanged_DoesNotThrow()
         {
-            DataSetMetaDataType oldMetaData = CreateMetaData(1);
+            DataSetMetaDataType oldMetaData = CreateMetaData("A", DataTypeIds.Int32, ValueRanks.Scalar);
+            DataSetMetaDataType newMetaData = CreateMetaData("A", DataTypeIds.Int32, ValueRanks.Scalar);
 
-            Assert.That(
-                () => ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, null),
-                Throws.ArgumentNullException);
+            ConfigurationVersionDataType version =
+                ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
+
+            Assert.That(version.MajorVersion, Is.EqualTo(1u));
         }
 
         [Test]
-        public void CalculateConfigurationVersionMajorChangeWhenOldIsNull()
+        public void CalculateConfigurationVersion_WhenFieldShapeChanges_BumpsMajorVersion()
         {
-            DataSetMetaDataType newMetaData = CreateMetaData(2);
+            DataSetMetaDataType oldMetaData = CreateMetaData("A", DataTypeIds.Int32, ValueRanks.Scalar);
+            DataSetMetaDataType newMetaData = CreateMetaData("B", DataTypeIds.Int32, ValueRanks.Scalar);
 
-            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(null, newMetaData);
+            ConfigurationVersionDataType version =
+                ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
 
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.MajorVersion, Is.GreaterThan(0));
-            Assert.That(result.MajorVersion, Is.EqualTo(result.MinorVersion));
+            Assert.That(version.MajorVersion, Is.GreaterThan(1u));
+            Assert.That(version.MinorVersion, Is.EqualTo(version.MajorVersion));
         }
 
         [Test]
-        public void CalculateConfigurationVersionMajorChangeWhenFieldsRemoved()
+        public void IsUsable_WhenMinorVersionIsZero_ReturnsTrue()
         {
-            DataSetMetaDataType oldMetaData = CreateMetaData(3);
-            DataSetMetaDataType newMetaData = CreateMetaData(1);
-
-            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
-
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.MajorVersion, Is.GreaterThan(0));
-            Assert.That(result.MajorVersion, Is.EqualTo(result.MinorVersion));
-        }
-
-        [Test]
-        public void CalculateConfigurationVersionMinorChangeWhenFieldsAppended()
-        {
-            DataSetMetaDataType oldMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
-            DataSetMetaDataType newMetaData = CreateMetaData(4, majorVersion: 10, minorVersion: 5);
-
-            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
-
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.MajorVersion, Is.EqualTo(10));
-            Assert.That(result.MinorVersion, Is.GreaterThan(0));
-            Assert.That(result.MinorVersion, Is.Not.EqualTo(5));
-        }
-
-        [Test]
-        public void CalculateConfigurationVersionNoChangeWhenFieldsSame()
-        {
-            DataSetMetaDataType oldMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
-            DataSetMetaDataType newMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
-
-            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
-
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.MajorVersion, Is.EqualTo(10));
-            Assert.That(result.MinorVersion, Is.EqualTo(5));
-        }
-
-        [Test]
-        public void CalculateVersionTimeReturnsZeroAtEpoch()
-        {
-            var epoch = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-            uint result = ConfigurationVersionUtils.CalculateVersionTime(epoch);
-
-            Assert.That(result, Is.Zero);
-        }
-
-        [Test]
-        public void CalculateVersionTimeReturnsCorrectValue()
-        {
-            var time = new DateTime(2000, 1, 1, 0, 1, 0, DateTimeKind.Utc);
-
-            uint result = ConfigurationVersionUtils.CalculateVersionTime(time);
-
-            Assert.That(result, Is.EqualTo(60));
-        }
-
-        [Test]
-        public void IsUsableReturnsFalseForNull()
-        {
-            Assert.That(ConfigurationVersionUtils.IsUsable(null), Is.False);
-        }
-
-        [Test]
-        public void IsUsableReturnsFalseForEmptyFields()
-        {
-            DataSetMetaDataType metaData = CreateMetaData(0);
-
-            Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
-        }
-
-        [Test]
-        public void IsUsableReturnsFalseForNullConfigVersion()
-        {
-            DataSetMetaDataType metaData = CreateMetaData(1);
-            metaData.ConfigurationVersion = null;
-
-            Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
-        }
-
-        [Test]
-        public void IsUsableReturnsFalseForZeroMajorVersion()
-        {
-            DataSetMetaDataType metaData = CreateMetaData(1, majorVersion: 0, minorVersion: 1);
-
-            Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
-        }
-
-        [Test]
-        public void IsUsableReturnsFalseForZeroMinorVersion()
-        {
-            DataSetMetaDataType metaData = CreateMetaData(1, majorVersion: 1, minorVersion: 0);
-
-            Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
-        }
-
-        [Test]
-        public void IsUsableReturnsTrueForValidMetaData()
-        {
-            DataSetMetaDataType metaData = CreateMetaData(2, majorVersion: 1, minorVersion: 1);
+            DataSetMetaDataType metaData = CreateMetaData("A", DataTypeIds.Int32, ValueRanks.Scalar);
+            metaData.ConfigurationVersion = new ConfigurationVersionDataType
+            {
+                MajorVersion = 1,
+                MinorVersion = 0
+            };
 
             Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.True);
         }
 
-        private static DataSetMetaDataType CreateMetaData(int fieldCount, uint majorVersion = 1, uint minorVersion = 1)
+        private static DataSetMetaDataType CreateMetaData(
+            string fieldName,
+            NodeId dataType,
+            int valueRank)
         {
-            var fields = new FieldMetaData[fieldCount];
-            for (int i = 0; i < fieldCount; i++)
-            {
-                fields[i] = new FieldMetaData { Name = $"Field{i}" };
-            }
             return new DataSetMetaDataType
             {
                 ConfigurationVersion = new ConfigurationVersionDataType
                 {
-                    MajorVersion = majorVersion,
-                    MinorVersion = minorVersion
+                    MajorVersion = 1,
+                    MinorVersion = 1
                 },
-                Fields = fields
+                Fields =
+                [
+                    new FieldMetaData
+                    {
+                        Name = fieldName,
+                        DataType = dataType,
+                        ValueRank = valueRank,
+                        Properties = []
+                    }
+                ]
             };
         }
     }

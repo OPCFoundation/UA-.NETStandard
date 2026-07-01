@@ -37,6 +37,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.PubSub.Pcap;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
@@ -134,6 +135,7 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
 {
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
+    services.AddSingleton<PubSubRuntimeManager>();
     services.AddSingleton(_ => CreateMcpServerOptions());
     services.AddPcap(options =>
     {
@@ -143,6 +145,7 @@ static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptio
     });
     services.AddPcapFormatters();
     services.AddPcapReplay();
+    services.AddPubSubPcap();
 }
 
 static McpServerOptions CreateMcpServerOptions()
@@ -194,6 +197,10 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
         .WithTools<NodeSetExportTools>()
         .WithTools<PacketCaptureTools>()
         .WithTools<PkiTools>()
+        .WithTools<PubSubCaptureTools>()
+        .WithTools<PubSubActionTools>()
+        .WithTools<PubSubDiscoveryTools>()
+        .WithTools<PubSubRuntimeTools>()
         .WithTools<SubscriptionServiceTools>()
         .WithTools<ViewServiceTools>();
 
@@ -201,7 +208,8 @@ static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosti
     {
         mcpServerBuilder
             .WithTools<PacketDecodeTools>()
-            .WithTools<PacketReplayTools>();
+            .WithTools<PacketReplayTools>()
+            .WithTools<PubSubDecodeTools>();
     }
 
     mcpServerBuilder.WithResources<SessionResources>();

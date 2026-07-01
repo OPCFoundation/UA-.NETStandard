@@ -299,6 +299,57 @@ certificate groups; SubCAs can be revoked without auto-creating an empty
 CRL; and method-call validation is strict. The full developer guide
 is in [GDS](GDS.md).
 
+### Part 14 PubSub modernization
+
+The PubSub stack (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
+`Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`) is rewritten end-to-end
+to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06).
+
+- **Native AOT clean.** The combined reference sample
+  (`ConsoleReferencePubSubClient`, with `publisher` / `subscriber` / `external` modes)
+  publishes AOT with zero `IL2026` / `IL3050`; `PubSubAotTests` exercises every
+  runtime path under AOT.
+- **DI-integrated.** `services.AddOpcUa().AddPubSub(o => …)` registers
+  the runtime, scheduler, security subsystem, transports, and SKS into
+  the standard `IServiceCollection`. See
+  [`DependencyInjection.md`](DependencyInjection.md). The previous
+  "PubSub is not part of the dependency-injection surface" caveat is
+  removed.
+- **Fluent builder.** `PubSubApplicationBuilder` composes connections,
+  groups, writers, readers, transports, and security in code; XML
+  configuration loads through the same builder. Inline construction or
+  full `IPubSubConfigurationStore` round-tripping are equivalent.
+- **Full v1.05.06 spec coverage.** UADP (§7.2.4) and JSON (§7.2.5)
+  encoders/decoders, including `JsonEncodingMode` { Verbose, Compact,
+  RawData }, `SingleNetworkMessage`, Action and Discovery messages;
+  UDP datagram-v2 (`DatagramConnectionTransport2DataType` +
+  `QosCategory` → DSCP), MQTT 3.1.1 + 5.0 with QoS 0/1/2 and retained
+  metadata at startup; SKS pull / push (§8.5.1, §8.5.2); AES-128-CTR
+  and AES-256-CTR with HMAC-SHA-256 (NIST SP 800-38A F.5.1 / F.5.5
+  KAT-asserted).
+- **Per-component diagnostics.** Every connection, group, writer, and
+  reader now carries its own `IPubSubDiagnostics` instance, surfaced
+  on the address space when `AddPubSubAddressSpace` is wired.
+- **Runtime configuration mutation.** `IPubSubApplication.Add/Remove*`
+  methods compose new connections / groups / writers / readers without
+  a stop-reconfigure-restart cycle; the same methods are bound to the
+  Part 14 §9 `PublishSubscribe` Object methods.
+- **Security wiring.** `UadpSecurityWrapper` is now invoked at send /
+  receive; configurations that named a `SecurityMode` other than
+  `None` actually get that security applied.
+- **Retained metadata.** `MetaDataPublisher` advertises every active
+  `DataSetMetaData` once at startup (UDP discovery / MQTT retained
+  topic) so subscribers that join mid-stream can decode RawData.
+- **MQTT 3.1.1 + 5.0.** The MQTT transport uses `MQTTnet` v4 on net48
+  / netstandard and v5 on net8 / 9 / 10. Certificate authentication
+  per [Part 14 §6.4.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2.2.4)
+  is supported.
+
+For library reference and code samples, read [`PubSub.md`](PubSub.md).
+For the upgrade story (breaking changes, compatibility matrix, and
+codemod recipes), read
+[`migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md).
+
 ### Tooling
 
 A new **MCP server** (see [MCP Server](McpServer.md)) exposes OPC UA client

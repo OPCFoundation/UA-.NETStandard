@@ -27,11 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.PubSub
 {
     /// <summary>
     /// Interface for a data store component responsible to store/get data to and from Ua publisher
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(
+        "Use IPublishedDataSetSource. See Docs/migrate/2.0.x/pubsub.md",
+        DiagnosticId = "UA0023",
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md#UA0023")]
+#else
+    [Obsolete("Use IPublishedDataSetSource. See Docs/migrate/2.0.x/pubsub.md (UA0023)")]
+#endif
     public interface IUaPubSubDataStore
     {
         /// <summary>

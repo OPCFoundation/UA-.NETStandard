@@ -59,6 +59,7 @@ Tests/Opc.Ua.Aot.Tests/
 ├── GdsClientAotTests.cs       # Global Discovery Server client
 ├── ClientSamplesAotTests.cs   # End-to-end client sample patterns
 ├── AotClientSamples.cs        # Helper methods for client samples
+├── PubSubAotTests.cs          # Part 14 PubSub publisher / subscriber round-trips
 ├── WebApiAotFixture.cs        # Kestrel host for REST endpoint round-trips
 ├── WebApiAotTests.cs          # REST binding (Opc.Ua.Bindings.Https) smoke + Basic auth
 └── StubWebApiServer.cs        # IWebApiServer stub backing WebApiAotFixture

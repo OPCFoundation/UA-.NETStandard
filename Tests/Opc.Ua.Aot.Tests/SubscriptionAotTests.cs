@@ -230,15 +230,15 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task UnboundedSubscriptionWithCapAotAsync()
         {
-            Opc.Ua.Client.ManagedSession session = await fixture
+            ManagedSession session = await fixture
                 .CreateManagedSessionAsync("AotUnboundedSubscription")
                 .ConfigureAwait(false);
             try
             {
                 var handler = new AotRecordingHandler();
-                Opc.Ua.Client.Subscriptions.ISubscription subscription =
+                Client.Subscriptions.ISubscription subscription =
                     session.AddSubscription(handler,
-                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                        new Client.Subscriptions.SubscriptionOptions
                         {
                             PublishingInterval = TimeSpan.FromMilliseconds(500),
                             KeepAliveCount = 10,
@@ -251,7 +251,7 @@ namespace Opc.Ua.Aot.Tests
                 // verify via the public IPartitionedSubscription
                 // surface that we got a partition-aware wrapper.
                 await Assert.That(subscription)
-                    .IsAssignableTo<Opc.Ua.Client.Subscriptions.IPartitionedSubscription>();
+                    .IsAssignableTo<Client.Subscriptions.IPartitionedSubscription>();
 
                 bool created = await WaitForAsync(() => subscription.Created,
                     TimeSpan.FromSeconds(15)).ConfigureAwait(false);
@@ -266,9 +266,9 @@ namespace Opc.Ua.Aot.Tests
                 {
                     bool added = subscription.MonitoredItems.TryAdd(
                         $"aot_unbounded_{i}",
-                        new Opc.Ua.OptionsMonitor<
-                            Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>(
-                            new Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+                        new OptionsMonitor<
+                            Client.Subscriptions.MonitoredItems.MonitoredItemOptions>(
+                            new Client.Subscriptions.MonitoredItems.MonitoredItemOptions
                             {
                                 StartNodeId = timeNode,
                                 SamplingInterval = TimeSpan.FromMilliseconds(500)
@@ -278,7 +278,7 @@ namespace Opc.Ua.Aot.Tests
                 }
 
                 var partitioned =
-                    (Opc.Ua.Client.Subscriptions.IPartitionedSubscription)subscription;
+                    (Client.Subscriptions.IPartitionedSubscription)subscription;
                 await Assert.That(partitioned.PartitionCount).IsEqualTo(3);
 
                 // Strict-affinity smoke: an Affinity-tagged item must
@@ -288,15 +288,15 @@ namespace Opc.Ua.Aot.Tests
                 // pinned the tag to its first chosen partition).
                 bool affinityAdded = subscription.MonitoredItems.TryAdd(
                     "aot_affinity_a",
-                    new Opc.Ua.OptionsMonitor<
-                        Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>(
-                        new Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+                    new OptionsMonitor<
+                        Client.Subscriptions.MonitoredItems.MonitoredItemOptions>(
+                        new Client.Subscriptions.MonitoredItems.MonitoredItemOptions
                         {
                             StartNodeId = timeNode,
                             SamplingInterval = TimeSpan.FromMilliseconds(500),
                             Affinity = "aot_group"
                         }),
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem affinityItem);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem affinityItem);
                 await Assert.That(affinityAdded).IsTrue();
                 await Assert.That(affinityItem).IsNotNull();
 
@@ -320,9 +320,18 @@ namespace Opc.Ua.Aot.Tests
                     await session.CloseAsync(ct: CancellationToken.None)
                         .ConfigureAwait(false);
                 }
-                catch { /* best effort */ }
-                try { await session.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                catch
+                {
+                    /* best effort */
+                }
+                try
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    /* best effort */
+                }
             }
         }
 
@@ -347,44 +356,44 @@ namespace Opc.Ua.Aot.Tests
         /// least one notification.
         /// </summary>
         private sealed class AotRecordingHandler
-            : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+            : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             private readonly TaskCompletionSource<bool> m_firstData =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public ValueTask OnDataChangeNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber, DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
-                System.Collections.Generic.IReadOnlyList<string> stringTable)
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
             {
                 m_firstData.TrySetResult(true);
                 return default;
             }
 
             public ValueTask OnEventDataNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber, DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
-                System.Collections.Generic.IReadOnlyList<string> stringTable)
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
             {
                 return default;
             }
 
             public ValueTask OnKeepAliveNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber, DateTime publishTime,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+                Client.Subscriptions.PublishState publishStateMask)
             {
                 return default;
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;
