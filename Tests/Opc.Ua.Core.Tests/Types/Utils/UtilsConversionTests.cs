@@ -817,13 +817,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
-        public void DefaultBindingsNotEmpty()
-        {
-            Assert.That(Utils.DefaultBindings, Is.Not.Null);
-            Assert.That(Utils.DefaultBindings, Is.Not.Empty);
-        }
-
-        [Test]
         public void TimeBaseIsNotMinValue()
         {
             Assert.That(Utils.TimeBase, Is.Not.EqualTo(DateTime.MinValue));

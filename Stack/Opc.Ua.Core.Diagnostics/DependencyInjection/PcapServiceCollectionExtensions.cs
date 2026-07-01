@@ -54,10 +54,10 @@ namespace Opc.Ua.Pcap.DependencyInjection
     {
         /// <summary>
         /// Registers the default Pcap capture services AND installs the
-        /// Pcap transport channel binding into
-        /// <see cref="TransportBindings.Channels"/>.
-        /// After this call every OPC UA client channel created through
-        /// <see cref="ClientChannelManager"/> uses a capture-aware
+        /// Pcap transport channel binding into the host's
+        /// <see cref="ITransportBindingRegistry"/>. After this call
+        /// every OPC UA client channel created through
+        /// <see cref="Opc.Ua.ClientChannelManager"/> uses a capture-aware
         /// socket; the actual recording is gated by the
         /// <see cref="IChannelCaptureRegistry"/> and turned on or off by
         /// a <see cref="CaptureSessionManager"/>.
@@ -85,11 +85,15 @@ namespace Opc.Ua.Pcap.DependencyInjection
             // Shared registry: the Pcap binding installed below and every
             // CaptureSessionManager created via DI talk to the SAME
             // ChannelCaptureRegistry instance, so the
-            // CapturingMessageSocket's single volatile read of
+            // CapturingByteTransport's single volatile read of
             // CurrentObserver picks up StartAsync / StopAsync writes
             // without any further coordination.
             var registry = new ChannelCaptureRegistry();
-            PcapBindings.Install(registry);
+
+            services.AddTransportBindingRegistry();
+            services.AddSingleton<ITransportBindingConfigurator>(
+                new TransportBindingConfigurator(bindingRegistry =>
+                    PcapBindings.Install(bindingRegistry, registry)));
 
             services.AddSingleton(options);
             // LoggerPcapAuditSink (and HashChainedAuditFileSink when

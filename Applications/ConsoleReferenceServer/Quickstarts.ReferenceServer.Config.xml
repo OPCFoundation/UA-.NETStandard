@@ -101,6 +101,7 @@
       <ua:String>opc.https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
       <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
       <!--<ua:String>https://localhost:62542/Quickstarts/ReferenceServer</ua:String>-->
+      <ua:String>opc.wss://localhost:62543/Quickstarts/ReferenceServer</ua:String>
     </BaseAddresses>
     <!--
     These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
@@ -323,6 +324,8 @@
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>DA</ua:String>
+      <ua:String>HD</ua:String>
+      <ua:String>AC</ua:String>
       <ua:String>GDS</ua:String>
     </ServerCapabilities>
     <SupportedPrivateKeyFormats>

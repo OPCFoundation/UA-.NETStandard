@@ -1547,7 +1547,7 @@ namespace Opc.Ua.SourceGeneration
                 m_context.Options.UseTypeDefinitionModellingRules &&
                 node.IsUnderSingletonInstance &&
                 node.Parent != null &&
-                instance is VariableDesign or MethodDesign;
+                instance is VariableDesign or MethodDesign or ObjectDesign;
 
             ModellingRule effectiveRule = isSingletonInstanceContext
                 ? GetEffectiveModellingRule(node, instance)

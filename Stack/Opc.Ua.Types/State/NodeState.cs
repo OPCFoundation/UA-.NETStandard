@@ -4005,7 +4005,7 @@ namespace Opc.Ua
             }
 
             // writes to status code or timestamps never supported.
-            if (value.StatusCode != StatusCodes.Good ||
+            if (!value.StatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits) ||
                 value.ServerTimestamp != DateTimeUtc.MinValue ||
                 value.SourceTimestamp != DateTimeUtc.MinValue)
             {

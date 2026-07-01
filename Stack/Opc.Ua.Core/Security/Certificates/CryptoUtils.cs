@@ -1134,47 +1134,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Overwrites the supplied buffer with zeros so that secret material
-        /// does not linger in memory. Polyfills
-        /// <c>CryptographicOperations.ZeroMemory</c> on target frameworks that
-        /// do not provide it.
+        /// Zeros a buffer so that sensitive key material does not linger in memory.
         /// </summary>
-        /// <param name="buffer">The buffer to clear; a no-op when empty.</param>
+        /// <param name="buffer">
+        /// The buffer to overwrite with zeros.
+        /// </param>
         public static void ZeroMemory(Span<byte> buffer)
         {
-#if NET8_0_OR_GREATER
-            CryptographicOperations.ZeroMemory(buffer);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(buffer);
 #else
             buffer.Clear();
 #endif
         }
 
         /// <summary>
-        /// Compares two byte spans in an amount of time that does not depend on
-        /// their contents, defending against timing side-channel attacks.
-        /// Polyfills <c>CryptographicOperations.FixedTimeEquals</c> on target
-        /// frameworks that do not provide it.
+        /// Compares two buffers in constant time when their lengths match, avoiding
+        /// timing side channels during authentication tag and signature checks.
         /// </summary>
-        /// <param name="left">The first span.</param>
-        /// <param name="right">The second span.</param>
-        /// <returns><c>true</c> when both spans have equal length and content.</returns>
+        /// <param name="left">
+        /// The first buffer to compare.
+        /// </param>
+        /// <param name="right">
+        /// The second buffer to compare.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when both buffers have the same length and content; otherwise <c>false</c>.
+        /// </returns>
         public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
         {
-#if NET8_0_OR_GREATER
-            return CryptographicOperations.FixedTimeEquals(left, right);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(left, right);
 #else
             if (left.Length != right.Length)
             {
                 return false;
             }
 
-            int difference = 0;
+            int different = 0;
             for (int ii = 0; ii < left.Length; ii++)
             {
-                difference |= left[ii] ^ right[ii];
+                different |= left[ii] ^ right[ii];
             }
 
-            return difference == 0;
+            return different == 0;
 #endif
         }
     }

@@ -52,37 +52,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapServiceCollectionExtensionsTests : TempDirectoryFixture
     {
-        private ITransportChannelFactory? m_previousBinding;
-
-        /// <summary>
-        /// Snapshots the process-wide opc.tcp binding so the AddOpcUa*
-        /// installs performed by these tests don't leak into other
-        /// fixtures and produce order-dependent results.
-        /// </summary>
-        [SetUp]
-        public void CapturePreviousBinding()
-        {
-            var bindings = (ITransportBindings<ITransportChannelFactory>)
-                TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Utils.UriSchemeOpcTcp, new TestTelemetryContext())
-                : null;
-        }
-
-        /// <summary>
-        /// Restores the previously-registered opc.tcp binding (if any).
-        /// </summary>
-        [TearDown]
-        public void RestorePreviousBinding()
-        {
-            if (m_previousBinding is not null)
-            {
-                ((ITransportBindings<ITransportChannelFactory>)
-                    TransportBindings.Channels)
-                    .SetBinding(m_previousBinding);
-            }
-        }
-
         [Test]
         public void AddPcapThrowsOnNullServices()
         {
@@ -258,18 +227,16 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddPcapInstallsPcapBindingIntoTransportBindings()
+        public async Task AddPcapInstallsPcapBindingIntoTransportRegistry()
         {
             var services = new ServiceCollection();
             services.AddPcap();
 
-            // PcapBindings.Install mutates the process-wide TransportBindings.Channels;
-            // after AddPcap, the registry must contain a binding for the
-            // opc.tcp scheme that is the PcapTransportChannelBinding instance.
-            ITransportChannelFactory? binding =
-                ((ITransportBindings<ITransportChannelFactory>)
-                    TransportBindings.Channels)
-                .GetBinding(Utils.UriSchemeOpcTcp, new TestTelemetryContext());
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            var bindings = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            ITransportChannelFactory? binding = bindings.GetChannelFactory(
+                Opc.Ua.Utils.UriSchemeOpcTcp);
 
             Assert.That(binding, Is.Not.Null);
             Assert.That(binding, Is.InstanceOf<PcapTransportChannelBinding>());

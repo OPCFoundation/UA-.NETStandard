@@ -115,7 +115,7 @@ namespace Opc.Ua.Server
             }
 
             // ignore placeholders in the stream.
-            if (value.StatusCode.CodeBits == StatusCodes.BadNoData)
+            if (value.StatusCode == StatusCodes.BadNoData)
             {
                 return true;
             }

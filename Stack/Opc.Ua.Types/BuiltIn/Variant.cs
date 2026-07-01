@@ -5928,7 +5928,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(StatusCode value)
         {
-            return TryGetValue(out StatusCode v) && v == value;
+            return TryGetValue(out StatusCode v) &&
+                v.Equals(value, StatusCodeComparison.AllBits);
         }
 
         /// <inheritdoc/>

@@ -585,9 +585,22 @@ namespace Microsoft.Extensions.DependencyInjection
                         "OpcUaClientOptions.Configuration is required to construct " +
                         "the IClientChannelManager.");
                 IOpcUaHttpClientFactory? httpClientFactory = sp.GetService<IOpcUaHttpClientFactory>();
-                ITransportChannelBindings? channelBindings = httpClientFactory == null
-                    ? null
-                    : new HttpsTransportChannelBindings(httpClientFactory);
+                // ClientChannelManager always reads from the host-scoped
+                // ITransportBindingRegistry (it satisfies ITransportChannelBindings
+                // via DefaultTransportBindingRegistry). When an HTTP client
+                // factory is injected, wrap the registry in an HTTPS-aware
+                // adapter so opc.https / https channels honour the supplied
+                // IHttpClientFactory.
+                ITransportChannelBindings channelBindings =
+                    sp.GetRequiredService<ITransportBindingRegistry>() as ITransportChannelBindings
+                    ?? throw new InvalidOperationException(
+                        "The injected ITransportBindingRegistry must implement " +
+                        "ITransportChannelBindings (DefaultTransportBindingRegistry " +
+                        "satisfies this).");
+                if (httpClientFactory != null)
+                {
+                    channelBindings = new HttpsTransportChannelBindings(channelBindings, httpClientFactory);
+                }
                 return new ClientChannelManager(
                     configuration,
                     telemetry,

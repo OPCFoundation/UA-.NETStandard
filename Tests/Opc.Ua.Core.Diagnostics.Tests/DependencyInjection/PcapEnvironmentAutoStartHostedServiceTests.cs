@@ -57,28 +57,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapEnvironmentAutoStartHostedServiceTests : TempDirectoryFixture
     {
-        private Opc.Ua.Bindings.ITransportChannelFactory? m_previousBinding;
-
-        [SetUp]
-        public void CapturePreviousBinding()
-        {
-            var bindings = (Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                Opc.Ua.Bindings.TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Opc.Ua.Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Opc.Ua.Utils.UriSchemeOpcTcp, new TestTelemetryContext())
-                : null;
-        }
-
-        [TearDown]
-        public void RestorePreviousBinding()
-        {
-            if (m_previousBinding is not null)
-            {
-                ((Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                    Opc.Ua.Bindings.TransportBindings.Channels)
-                    .SetBinding(m_previousBinding);
-            }
-        }
 
         [Test]
         public async Task EmptySnapshotDoesNothing()
@@ -243,7 +221,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     {
         private string? m_priorPcapFile;
         private string? m_priorKeyLogFile;
-        private Opc.Ua.Bindings.ITransportChannelFactory? m_previousBinding;
 
         [SetUp]
         public void CaptureEnvironmentAndBinding()
@@ -260,12 +237,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             Environment.SetEnvironmentVariable(
                 PcapEnvironmentVariableNames.OpcuaKeyLogFile,
                 value: null);
-
-            var bindings = (Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                Opc.Ua.Bindings.TransportBindings.Channels;
-            m_previousBinding = bindings.HasBinding(Opc.Ua.Utils.UriSchemeOpcTcp)
-                ? bindings.GetBinding(Opc.Ua.Utils.UriSchemeOpcTcp, new TestTelemetryContext())
-                : null;
         }
 
         [TearDown]
@@ -277,13 +248,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             Environment.SetEnvironmentVariable(
                 PcapEnvironmentVariableNames.OpcuaKeyLogFile,
                 m_priorKeyLogFile);
-
-            if (m_previousBinding is not null)
-            {
-                ((Opc.Ua.Bindings.ITransportBindings<Opc.Ua.Bindings.ITransportChannelFactory>)
-                    Opc.Ua.Bindings.TransportBindings.Channels)
-                    .SetBinding(m_previousBinding);
-            }
         }
 
         [Test]

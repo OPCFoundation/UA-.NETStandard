@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 
@@ -39,13 +41,38 @@ namespace Opc.Ua
     public class ReverseConnectHost
     {
         /// <summary>
-        /// Create reverse connect host
+        /// Create reverse connect host using a process-local
+        /// <see cref="DefaultTransportBindingRegistry"/> pre-seeded
+        /// with the raw-socket TCP factories.
         /// </summary>
         /// <param name="telemetry">Telemetry context to use</param>
         public ReverseConnectHost(ITelemetryContext telemetry)
+            : this(telemetry, transportBindings: null)
+        {
+        }
+
+        /// <summary>
+        /// Create reverse connect host using the supplied
+        /// <paramref name="transportBindings"/> registry. The DI
+        /// integration in <c>ReverseConnectManager</c> wires the host's
+        /// <see cref="ITransportBindingRegistry"/> through this ctor so
+        /// transports registered via <c>AddOpcTcpTransport()</c> /
+        /// <c>AddHttpsTransport()</c> etc. are visible to the
+        /// reverse-connect listener.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="transportBindings">
+        /// Optional transport binding registry. When <c>null</c> the
+        /// host constructs a <see cref="DefaultTransportBindingRegistry"/>
+        /// pre-seeded with the raw-socket TCP factories on first use.
+        /// </param>
+        public ReverseConnectHost(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ReverseConnectHost>();
+            m_transportBindings = transportBindings;
         }
 
         /// <summary>
@@ -58,12 +85,37 @@ namespace Opc.Ua
             ConnectionWaitingHandlerAsync onConnectionWaiting,
             EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged)
         {
+            CreateListener(url, onConnectionWaiting, onConnectionStatusChanged, serverCertificates: null, certificateValidator: null);
+        }
+
+        /// <summary>
+        /// Creates a new reverse listener host for a client. The
+        /// optional <paramref name="serverCertificates"/> /
+        /// <paramref name="certificateValidator"/> are forwarded to the
+        /// underlying <see cref="ITransportListener.OpenAsync"/> via
+        /// <see cref="TransportListenerSettings"/> and are required by
+        /// listener bindings that terminate TLS - in particular the WSS
+        /// reverse-connect listener provided by
+        /// <c>Opc.Ua.Bindings.Https</c>. For plain <c>opc.tcp</c>
+        /// (raw-socket or Kestrel) the parameters can stay <c>null</c>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public void CreateListener(
+            Uri url,
+            ConnectionWaitingHandlerAsync onConnectionWaiting,
+            EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged,
+            ICertificateRegistry? serverCertificates,
+            ICertificateValidatorEx? certificateValidator)
+        {
             if (url == null)
             {
                 throw new ArgumentNullException(nameof(url));
             }
 
-            ITransportListener? listener = TransportBindings.Listeners.Create(
+            ITransportBindingRegistry registry =
+                m_transportBindings ??= DefaultTransportBindingRegistry.WithDefaultTcp();
+            ITransportListener? listener = registry.CreateListener(
                 url.Scheme,
                 m_telemetry);
 
@@ -76,6 +128,8 @@ namespace Opc.Ua
             Url = url;
             m_onConnectionWaiting = onConnectionWaiting;
             m_onConnectionStatusChanged = onConnectionStatusChanged;
+            m_serverCertificates = serverCertificates;
+            m_certificateValidator = certificateValidator;
         }
 
         /// <summary>
@@ -86,16 +140,17 @@ namespace Opc.Ua
         /// <summary>
         /// Opens a reverse listener host.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException">
-        /// CreateListener has not been called before Open.
+        /// CreateListener has not been called before OpenAsync.
         /// </exception>
-        public void Open()
+        public async ValueTask OpenAsync(CancellationToken ct = default)
         {
             if (m_listener == null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
-                    "CreateListener must be called before Open.");
+                    "CreateListener must be called before OpenAsync.");
             }
 
             // create the UA listener.
@@ -105,16 +160,17 @@ namespace Opc.Ua
                 {
                     Descriptions = null,
                     Configuration = null,
-                    CertificateValidator = null,
+                    CertificateValidator = m_certificateValidator,
                     NamespaceUris = null,
                     Factory = null,
+                    ServerCertificates = m_serverCertificates,
                     ReverseConnectListener = true,
                     MaxChannelCount = 0
                 };
 
                 m_logger.LogInformation("Open reverse connect listener for {Url}.", Url);
 
-                m_listener.Open(Url!, settings, null!);
+                await m_listener.OpenAsync(Url!, settings, null!, ct).ConfigureAwait(false);
 
                 m_listener.ConnectionWaiting += m_onConnectionWaiting;
                 m_listener.ConnectionStatusChanged += m_onConnectionStatusChanged;
@@ -129,7 +185,8 @@ namespace Opc.Ua
         /// <summary>
         /// Close the reverse connect listener.
         /// </summary>
-        public void Close()
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask CloseAsync(CancellationToken ct = default)
         {
             if (m_listener == null)
             {
@@ -137,12 +194,15 @@ namespace Opc.Ua
             }
             m_listener.ConnectionWaiting -= m_onConnectionWaiting;
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
-            m_listener.Close();
+            await m_listener.CloseAsync(ct).ConfigureAwait(false);
         }
 
         private ITransportListener? m_listener;
         private ConnectionWaitingHandlerAsync? m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs>? m_onConnectionStatusChanged;
+        private ICertificateRegistry? m_serverCertificates;
+        private ICertificateValidatorEx? m_certificateValidator;
+        private ITransportBindingRegistry? m_transportBindings;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }
