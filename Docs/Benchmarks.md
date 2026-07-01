@@ -422,30 +422,45 @@ activator pool system.
 
 ## Server session scalability
 
-The reference server is tested to support **500 concurrent sessions** (configured via `ServerConfiguration.MaxSessionCount`, defaults to 100), each holding one slow-publishing subscription with a single monitored item, driven for 60 s by a separate writer session. The `[Explicit]` macro test is `ServerManySessionsLoadTestAsync` in `Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`.
+The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized into a `500` baseline case and a `2000` steady-state stress case, selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
 
 | Tested configuration | Value |
 | --- | --- |
-| Concurrent sessions | 500 (tested; `MaxSessionCount` defaults to 100) |
+| Concurrent sessions | 500 baseline, 2000 stress (selectable case) |
 | Secure channels | one per session (`MaxChannelCount`) |
 | Subscriptions per session | 1 (1000 ms publishing interval) |
 | Monitored items per subscription | 1 (shared value node) |
 | Security policy | `Basic256Sha256` (sign & encrypt) |
 | Steady-state duration | 60 s |
 
+### Observed scaling
+
+Session establishment is no longer the limiting factor: the server accepts sessions at tens of sessions per second and, with the session/subscription caps raised above the target count, sustains full end-to-end delivery - every session receives notifications within the steady-state window - well beyond the baseline 500. Steady-state publish delivery is serviced by a per-cycle sweep that is parallelized across cores, so a single publishing cycle keeps up with thousands of subscriptions. In this configuration (one subscription and one monitored item per session, `Basic256Sha256`) the observed behaviour is:
+
+| Concurrent sessions | Sessions establish | All sessions receive notifications |
+| --- | --- | --- |
+| 500 | Yes | Yes |
+| 1000 | Yes | Yes |
+| 1500 | Yes | Yes |
+| 2000 | Yes | Hardware-dependent |
+
+At 2000 sessions - 2000 subscriptions on the single shared node - steady-state publish delivery becomes the dominant cost; whether every session is serviced within the window depends on available cores and headroom. These numbers are directional (measured on a 12-core developer machine under background load) and improve on dedicated hardware.
+
 ### Sizing and configuration
 
-* `MaxSessionCount` (default 100) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` accordingly.
+* `MaxSessionCount` (default 100) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` above the target session count.
+* `MaxRequestThreadCount` caps concurrent request processing. Each session holds one long-polled `Publish` request that occupies a worker for the duration it waits for notifications, so a server serving N sessions needs more than N request workers or held `Publish` requests starve other services with `BadRequestTimeout`. `MinRequestThreadCount` pre-warms the pool so a connect burst is not throttled by thread-pool cold-start.
 * `MaxFailedAuthenticationAttempts` (default 5; `0` disables) is the brute-force lockout threshold, keyed per client certificate. A single-certificate client that opens many sessions can trip it on transient handshake failures, after which further sessions are rejected with `BadUserAccessDenied`; disable or raise it for such clients.
-* Establishing the sessions - not steady-state publishing - dominates cost and is CPU-bound (RSA handshakes). Throttle/stagger concurrent connects (the test caps them well below the burst size); bulk connection throughput scales with CPU cores.
+* Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 
 ### Bottlenecks observed under load
 
 | Area | Observation | Recommendation |
 | --- | --- | --- |
-| Connect throughput | RSA handshakes are CPU-bound and serialize under contention | Scale cores; throttle/stagger connects; reuse endpoint discovery |
+| Steady-state publish delivery | At very high session/subscription counts, delivering notifications for a single shared monitored node is the dominant cost; the per-cycle publish sweep is parallelized across cores but a shared node still concentrates the work | Spread monitored items across nodes; raise `MaxSubscriptionCount`; scale cores |
+| Connect throughput | RSA handshakes are CPU-bound but parallelize across cores; connect is not the scaling limit | Scale cores; throttle/stagger connects; reuse endpoint discovery |
+| Request worker pool | Held `Publish` requests can starve other requests when the pool is smaller than the session count | Size `MaxRequestThreadCount` above the session count; pre-warm with `MinRequestThreadCount` |
 | Auth lockout | One shared client certificate is locked out after transient handshake failures | Configure `MaxFailedAuthenticationAttempts` (or disable) for high-volume single-certificate clients |
-| Request worker pool | Connect bursts can starve steady-state `Publish` requests | Size `MaxRequestThreadCount`; avoid connect storms |
 | Logging | Debug-level per-request logging slows hot paths | Run at `Information`+ in production |
 
 > A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
