@@ -234,6 +234,16 @@ namespace Opc.Ua.Subscriptions.Tests
                     session.TryGetSubscriptionManager(out ISubscriptionManager? manager),
                     Is.False);
                 Assert.That(manager, Is.Null);
+
+                // The V2-only fluent surfaces are unavailable on the classic
+                // engine and fail fast (InvalidOperationException) rather than
+                // silently no-op'ing.
+                Assert.Throws<InvalidOperationException>(
+                    () => session.AddSubscription(
+                        new RecordingHandler(),
+                        new Client.Subscriptions.SubscriptionOptions()));
+                Assert.Throws<InvalidOperationException>(
+                    () => _ = session.DefaultStreaming);
             }
             finally
             {
