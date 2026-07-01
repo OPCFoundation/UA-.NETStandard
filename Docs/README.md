@@ -10,13 +10,12 @@ Here is a list of available documentation for different topics:
 * [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
-* [Server Session Scalability](SessionScalability.md) - The 500-session server load test, the `MaxSessionCount` default of 500, and the bottlenecks (connection-establishment throughput, request-thread saturation, logging overhead) found while profiling the server under load.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
-* [Performance Benchmarks](Benchmarks.md) — BenchmarkDotNet methodology, the 2.0 (`master`) vs 1.5.378 (`master378`) comparison, root-cause analysis of the encoder/decoder/session regressions and their real-world impact, the subscription-notification (pooled encodeable) micro-benchmarks, and planned future work.
+* [Performance Benchmarks](Benchmarks.md) — BenchmarkDotNet methodology, the 2.0 (`master`) vs 1.5.378 (`master378`) comparison, root-cause analysis of the encoder/decoder/session regressions and their real-world impact, the subscription-notification (pooled encodeable) micro-benchmarks, server session scalability (the 500-session capability, sizing and bottlenecks), and planned future work.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).

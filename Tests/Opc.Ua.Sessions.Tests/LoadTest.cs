@@ -796,10 +796,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Load test the server with the default supported number of sessions (500),
         /// each holding a single slow-publishing subscription that monitors a value.
         /// This exercises the per-session and per-subscription scaling limits and is the
-        /// basis for the bottleneck analysis documented in <c>Docs/SessionScalability.md</c>.
-        /// The session count, steady-state duration and connect concurrency/timeout are
-        /// configurable via the <c>OPCUA_LOADTEST_*</c> environment variables so the test
-        /// can be dialed down for constrained machines or up for dedicated load hardware.
+        /// basis for the session-scalability notes in <c>Docs/Benchmarks.md</c>.
         /// Connecting the sessions uses its own deadline that is independent of the
         /// steady-state duration.
         /// </summary>
@@ -808,46 +805,28 @@ namespace Opc.Ua.Sessions.Tests
         [Order(130)]
         public async Task ServerManySessionsLoadTestAsync()
         {
-            // The load is configurable so it can be dialed down for quick
-            // validation on constrained machines or up for dedicated load
-            // hardware. Defaults exercise the supported 500 concurrent sessions.
-            static int EnvInt(string name, int defaultValue)
-            {
-                string? value = Environment.GetEnvironmentVariable(name);
-                return int.TryParse(
-                        value,
-                        NumberStyles.Integer,
-                        CultureInfo.InvariantCulture,
-                        out int parsed) && parsed > 0
-                    ? parsed
-                    : defaultValue;
-            }
-
-            int sessionCount = EnvInt("OPCUA_LOADTEST_SESSION_COUNT", 500);
-            int testDurationSeconds = EnvInt("OPCUA_LOADTEST_DURATION_SECONDS", 60);
+            // Fixed defaults - the test exercises the supported 500 concurrent
+            // sessions over a 60s steady-state window.
+            const int sessionCount = 500;
+            const int testDurationSeconds = 60;
             const int publishingInterval = 1000; // slow publishing subscription.
             const int writerInterval = 500;
             const int maxConnectAttempts = 5;
 
             // Each secure-channel + ActivateSession handshake is CPU bound (RSA)
-            // and the sessions share a single client certificate. Keep the default
+            // and the sessions share a single client certificate. Keep the connect
             // concurrency low: a large simultaneous-connect burst both oversubscribes
             // the CPU and, because every handshake signs with the same shared
             // certificate, can race the certificate's private-key handle under load
             // (surfacing as BadTcpInternalError / "invalid handle"). A gentle connect
-            // avoids both. Raise OPCUA_LOADTEST_CONNECT_CONCURRENCY on dedicated,
-            // idle load hardware to connect faster.
-            int maxConnectConcurrency = EnvInt(
-                "OPCUA_LOADTEST_CONNECT_CONCURRENCY",
-                Math.Max(2, Environment.ProcessorCount / 4));
+            // avoids both.
+            int maxConnectConcurrency = Math.Max(2, Environment.ProcessorCount / 4);
 
             // Establishing the sessions has its own generous deadline that is
             // independent of the steady-state duration, so a slow connect phase can
             // never eat into - or cancel - the measurement window the way a single
             // shared deadline did.
-            int connectTimeoutSeconds = EnvInt(
-                "OPCUA_LOADTEST_CONNECT_TIMEOUT_SECONDS",
-                Math.Max(120, sessionCount));
+            const int connectTimeoutSeconds = 500;
             using var connectCts = new CancellationTokenSource(
                 TimeSpan.FromSeconds(connectTimeoutSeconds));
 

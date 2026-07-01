@@ -419,3 +419,33 @@ attributable to the residual allocation in the pooled
 `DataValue` is now a readonly struct and no longer allocates on the
 heap. It is not an `IEncodeable` and does not participate in the
 activator pool system.
+
+## Server session scalability
+
+The reference server is tested to support **500 concurrent sessions** (`ServerConfiguration.MaxSessionCount` defaults to 500), each holding one slow-publishing subscription with a single monitored item, driven for 60 s by a separate writer session. The `[Explicit]` macro test is `ServerManySessionsLoadTestAsync` in `Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`.
+
+| Tested configuration | Value |
+| --- | --- |
+| Concurrent sessions | 500 (`MaxSessionCount` default) |
+| Secure channels | one per session (`MaxChannelCount`) |
+| Subscriptions per session | 1 (1000 ms publishing interval) |
+| Monitored items per subscription | 1 (shared value node) |
+| Security policy | `Basic256Sha256` (sign & encrypt) |
+| Steady-state duration | 60 s |
+
+### Sizing and configuration
+
+* `MaxSessionCount` (default 500) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` accordingly.
+* `MaxFailedAuthenticationAttempts` (default 5; `0` disables) is the brute-force lockout threshold, keyed per client certificate. A single-certificate client that opens many sessions can trip it on transient handshake failures, after which further sessions are rejected with `BadUserAccessDenied`; disable or raise it for such clients.
+* Establishing the sessions - not steady-state publishing - dominates cost and is CPU-bound (RSA handshakes). Throttle/stagger concurrent connects (the test caps them well below the burst size); bulk connection throughput scales with CPU cores.
+
+### Bottlenecks observed under load
+
+| Area | Observation | Recommendation |
+| --- | --- | --- |
+| Connect throughput | RSA handshakes are CPU-bound and serialize under contention | Scale cores; throttle/stagger connects; reuse endpoint discovery |
+| Auth lockout | One shared client certificate is locked out after transient handshake failures | Configure `MaxFailedAuthenticationAttempts` (or disable) for high-volume single-certificate clients |
+| Request worker pool | Connect bursts can starve steady-state `Publish` requests | Size `MaxRequestThreadCount`; avoid connect storms |
+| Logging | Debug-level per-request logging slows hot paths | Run at `Information`+ in production |
+
+> A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
