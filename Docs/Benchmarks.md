@@ -453,14 +453,4 @@ At 2000 sessions - 2000 subscriptions on the single shared node - steady-state p
 * `MaxFailedAuthenticationAttempts` (default 5; `0` disables) is the brute-force lockout threshold, keyed per client certificate. A single-certificate client that opens many sessions can trip it on transient handshake failures, after which further sessions are rejected with `BadUserAccessDenied`; disable or raise it for such clients.
 * Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 
-### Bottlenecks observed under load
-
-| Area | Observation | Recommendation |
-| --- | --- | --- |
-| Steady-state publish delivery | At very high session/subscription counts, delivering notifications for a single shared monitored node is the dominant cost; the per-cycle publish sweep is parallelized across cores but a shared node still concentrates the work | Spread monitored items across nodes; raise `MaxSubscriptionCount`; scale cores |
-| Connect throughput | RSA handshakes are CPU-bound but parallelize across cores; connect is not the scaling limit | Scale cores; throttle/stagger connects; reuse endpoint discovery |
-| Request worker pool | Held `Publish` requests can starve other requests when the pool is smaller than the session count | Size `MaxRequestThreadCount` above the session count; pre-warm with `MinRequestThreadCount` |
-| Auth lockout | One shared client certificate is locked out after transient handshake failures | Configure `MaxFailedAuthenticationAttempts` (or disable) for high-volume single-certificate clients |
-| Logging | Debug-level per-request logging slows hot paths | Run at `Information`+ in production |
-
 > A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
