@@ -212,6 +212,8 @@ namespace Opc.Ua.Server
 
             ISession session;
             Nonce? tempNonce = null;
+            Nonce? serverNonceObject = null;
+            bool reserved = false;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -270,7 +272,7 @@ namespace Opc.Ua.Server
                 // create server nonce.
                 tempNonce = Nonce.CreateNonce(
                     channelContext.EndpointDescription!.SecurityPolicyUri!);
-                Nonce serverNonceObject = tempNonce;
+                serverNonceObject = tempNonce;
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -297,35 +299,50 @@ namespace Opc.Ua.Server
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
 
-                // complete the asynchronous part of session creation
-                // (registers the session diagnostics node and sets Id).
-                try
-                {
-                    await session.InitializeAsync(context, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    serverNonceObject.Dispose();
-                    session.Dispose();
-                    throw;
-                }
-
-                // get the session id.
-                sessionId = session.Id;
-                serverNonce = serverNonceObject.Data.ToByteString();
-
-                // save session.
+                // Reserve the session slot while holding the lock so the session
+                // count cap and client-nonce uniqueness stay enforced atomically.
+                // The expensive asynchronous part (registering the session
+                // diagnostics node) runs after the lock is released, so it no
+                // longer serializes every concurrent CreateSession/ActivateSession
+                // behind the session-manager lock. m_sessions is a concurrent
+                // dictionary; the lock is only needed for the check-then-add
+                // atomicity above.
                 if (!m_sessions.TryAdd(authenticationToken, session))
                 {
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
+                reserved = true;
             }
             finally
             {
                 tempNonce?.Dispose();
                 m_semaphoreSlim.Release();
             }
+
+            // complete the asynchronous part of session creation
+            // (registers the session diagnostics node and sets Id) outside the
+            // global session-manager lock.
+            try
+            {
+                await session.InitializeAsync(context, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // roll back the reserved slot; m_sessions is concurrent so this
+                // needs no lock.
+                if (reserved)
+                {
+                    m_sessions.TryRemove(authenticationToken, out _);
+                }
+                serverNonceObject.Dispose();
+                session.Dispose();
+                throw;
+            }
+
+            // get the session id.
+            sessionId = session.Id;
+            serverNonce = serverNonceObject.Data.ToByteString();
 
             // raise session related event.
             RaiseSessionEvent(session, SessionEventReason.Created);
