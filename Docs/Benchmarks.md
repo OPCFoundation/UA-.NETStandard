@@ -422,11 +422,11 @@ activator pool system.
 
 ## Server session scalability
 
-The reference server is tested to support **500 concurrent sessions** (`ServerConfiguration.MaxSessionCount` defaults to 500), each holding one slow-publishing subscription with a single monitored item, driven for 60 s by a separate writer session. The `[Explicit]` macro test is `ServerManySessionsLoadTestAsync` in `Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`.
+The reference server is tested to support **500 concurrent sessions** (configured via `ServerConfiguration.MaxSessionCount`, defaults to 100), each holding one slow-publishing subscription with a single monitored item, driven for 60 s by a separate writer session. The `[Explicit]` macro test is `ServerManySessionsLoadTestAsync` in `Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`.
 
 | Tested configuration | Value |
 | --- | --- |
-| Concurrent sessions | 500 (`MaxSessionCount` default) |
+| Concurrent sessions | 500 (tested; `MaxSessionCount` defaults to 100) |
 | Secure channels | one per session (`MaxChannelCount`) |
 | Subscriptions per session | 1 (1000 ms publishing interval) |
 | Monitored items per subscription | 1 (shared value node) |
@@ -435,7 +435,7 @@ The reference server is tested to support **500 concurrent sessions** (`ServerCo
 
 ### Sizing and configuration
 
-* `MaxSessionCount` (default 500) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` accordingly.
+* `MaxSessionCount` (default 100) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` accordingly.
 * `MaxFailedAuthenticationAttempts` (default 5; `0` disables) is the brute-force lockout threshold, keyed per client certificate. A single-certificate client that opens many sessions can trip it on transient handshake failures, after which further sessions are rejected with `BadUserAccessDenied`; disable or raise it for such clients.
 * Establishing the sessions - not steady-state publishing - dominates cost and is CPU-bound (RSA handshakes). Throttle/stagger concurrent connects (the test caps them well below the burst size); bulk connection throughput scales with CPU cores.
 

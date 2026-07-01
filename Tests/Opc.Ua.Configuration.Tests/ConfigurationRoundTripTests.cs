@@ -1164,8 +1164,8 @@ namespace Opc.Ua.Configuration.Tests
 
             Assert.That(
                 config.ServerConfiguration.MaxSessionCount,
-                Is.EqualTo(500),
-                "MaxSessionCount should default to 500.");
+                Is.EqualTo(100),
+                "MaxSessionCount should default to 100.");
             Assert.That(
                 config.ServerConfiguration.MinSessionTimeout,
                 Is.EqualTo(10000),
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Configuration.Tests
             // Round-trip: encode, re-parse, verify defaults persist
             string xml = EncodeToXml(config);
             ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
-            Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(500));
+            Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(100));
             Assert.That(roundTripped.ServerConfiguration.MinSessionTimeout, Is.EqualTo(10000));
             Assert.That(roundTripped.ServerConfiguration.MaxSessionTimeout, Is.EqualTo(3600000));
             Assert.That(roundTripped.ServerConfiguration.ShutdownDelay, Is.EqualTo(5));

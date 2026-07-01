@@ -1020,7 +1020,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum session count.</value>
         [DataTypeField(Order = 2)]
-        public int MaxSessionCount { get; set; } = 500;
+        public int MaxSessionCount { get; set; } = 100;
 
         /// <summary>
         /// The maximum number of supported secure channels.
