@@ -189,7 +189,11 @@ namespace Opc.Ua.PubSub.Adapter.Session
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
-                    "The external server session does not expose a V2 subscription manager.");
+                    "The external server session for endpoint '{0}' does not expose a V2 " +
+                    "subscription manager. Data-change subscriptions require the V2 subscription " +
+                    "engine (the ManagedSession default); recreate the session with the V2 " +
+                    "engine (DefaultSubscriptionEngineFactory) rather than the classic engine.",
+                    m_options.EndpointUrl);
             }
             return new DataChangeSubscription(
                 subscriptionManager,
@@ -211,9 +215,17 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
                 if (!session.TryGetSubscriptionManager(out ISubscriptionManager? subscriptionManager))
                 {
+                    // Model-change monitoring is an optional, best-effort enhancement
+                    // (unlike data-change subscriptions, which are required and throw):
+                    // the whole method already swallows failures and continues, so a
+                    // classic-engine session simply skips it rather than faulting.
                     m_logger.LogInformation(
-                        "ServerSession: model-change event monitoring requires a V2 " +
-                        "subscription manager, which this session does not expose.");
+                        "ServerSession: model-change event monitoring is not available for " +
+                        "endpoint {EndpointUrl} because the session does not expose a V2 " +
+                        "subscription manager (requires the V2 subscription engine / " +
+                        "DefaultSubscriptionEngineFactory). Monitoring is optional; continuing " +
+                        "without it.",
+                        m_options.EndpointUrl);
                     return;
                 }
 

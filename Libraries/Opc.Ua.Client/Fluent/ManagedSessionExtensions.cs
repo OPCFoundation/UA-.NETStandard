@@ -50,6 +50,10 @@ namespace Opc.Ua.Client
         private static Subscriptions.ISubscriptionManager GetSubscriptionManager(
             this ManagedSession session)
         {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (!session.TryGetSubscriptionManager(
                     out Subscriptions.ISubscriptionManager? manager))
             {
