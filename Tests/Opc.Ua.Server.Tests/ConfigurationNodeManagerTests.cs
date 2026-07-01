@@ -31,9 +31,7 @@ namespace Opc.Ua.Server.Tests
 
             var securityConfiguration = new SecurityConfiguration
             {
-                MinimumCertificateKeySize = 1024,
-                RejectSHA1SignedCertificates = true,
-                RejectUnknownRevocationStatus = true
+                MinimumCertificateKeySize = 1024
             };
 
             Assert.DoesNotThrowAsync(
@@ -61,9 +59,7 @@ namespace Opc.Ua.Server.Tests
 
             var securityConfiguration = new SecurityConfiguration
             {
-                MinimumCertificateKeySize = 2048,
-                RejectSHA1SignedCertificates = true,
-                RejectUnknownRevocationStatus = true
+                MinimumCertificateKeySize = 2048
             };
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(

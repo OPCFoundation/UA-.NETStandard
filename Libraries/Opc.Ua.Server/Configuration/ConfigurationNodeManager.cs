@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Server
             using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
             var options = new Security.Certificates.CertificateValidationOptions
             {
-                DisableCertificateDownloads = true,
+                AllowCertificateDownload = false,
                 UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
                 AcceptError = static (_, serviceResult) =>
                     serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted

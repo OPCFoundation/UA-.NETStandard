@@ -743,7 +743,7 @@ namespace Opc.Ua
                     RevocationMode = X509RevocationMode.NoCheck,
                     VerificationFlags = X509VerificationFlags.NoFlag,
 #if NET5_0_OR_GREATER
-                    DisableCertificateDownloads = options?.DisableCertificateDownloads ?? true,
+                    DisableCertificateDownloads = !(options?.AllowCertificateDownload ?? false),
 #endif
                     UrlRetrievalTimeout = options?.UrlRetrievalTimeout ?? TimeSpan.FromMilliseconds(1)
                 };
