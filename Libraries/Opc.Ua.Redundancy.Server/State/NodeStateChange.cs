@@ -82,5 +82,13 @@ namespace Opc.Ua.Redundancy.Server
         /// (<see cref="DataValue.IsNull"/>).
         /// </summary>
         public DataValue Value { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The monotonic write sequence of this change, assigned by the single
+        /// writer. Used to order and de-duplicate changes across the snapshot,
+        /// delta-log, and live-feed apply paths. <c>0</c> when the backing store
+        /// does not track sequences.
+        /// </summary>
+        public ulong Sequence { get; init; }
     }
 }

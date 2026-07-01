@@ -88,8 +88,12 @@ namespace Opc.Ua.Redundancy.Server
             ILogger logger = server.Telemetry.CreateLogger<DistributedAddressSpaceStartupTask>();
 
             // Build the store with the server's populated message context so
-            // NodeId namespace indices resolve correctly.
+            // NodeId namespace indices resolve correctly. Disposal ownership is
+            // transferred to the registry below (NodeStateStoreRegistry.Dispose
+            // disposes registered stores from this task's DisposeAsync).
+#pragma warning disable CA2000
             var store = new InMemoryNodeStateStore(m_keyValueStore, server.MessageContext, m_protector);
+#pragma warning restore CA2000
 
             // Own the node state store registry; nothing in the core server
             // surface holds it. The default store is the fallback for every

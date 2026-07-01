@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task UpsertTryGetAndDeleteNodeAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var nodeId = new NodeId("var1", NamespaceIndex);
             ByteString payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
 
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task EnumerateReturnsAllStoredNodesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
             var b = new NodeId("b", NamespaceIndex);
             await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 })));
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task WriteAndReadValueRoundTripsAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var nodeId = new NodeId("v", NamespaceIndex);
             var original = new DataValue(new Variant(42.0), StatusCodes.Good, DateTimeUtc.Now);
 
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task TryReadValueMissingReturnsFalseAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
 
             (bool found, DataValue read) = await store.TryReadValueAsync(new NodeId("nope", NamespaceIndex));
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task EnumerateValuesReturnsAllStoredValuesInOnePassAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
             var b = new NodeId("b", NamespaceIndex);
             await store.WriteValueAsync(a, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now));
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 key[i] = (byte)(i + 1);
             }
             using var protector = new AesCbcHmacRecordProtector(key);
-            var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("protected", NamespaceIndex);
             await store.WriteValueAsync(nodeId, new DataValue(new Variant(7.0), StatusCodes.Good, DateTimeUtc.Now));
 
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task EnumerateValuesOnEmptyStoreYieldsNothingAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
 
             int count = 0;
             await foreach ((NodeId _, DataValue _) in store.EnumerateValuesAsync())
@@ -204,10 +204,110 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task WriteAndReadSnapshotRoundTripsEntriesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var a = new NodeId("a", NamespaceIndex);
+            var b = new NodeId("b", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1, 2 })));
+            await store.UpsertNodeAsync(new StoredNode(b, ByteString.From(new byte[] { 3 })));
+            await store.WriteValueAsync(a, new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now));
+
+            await store.WriteSnapshotAsync();
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync();
+
+            Assert.That(snapshot, Is.Not.Null);
+            var upserts = new HashSet<NodeId>();
+            var values = new Dictionary<NodeId, DataValue>();
+            await foreach (NodeStateChange entry in snapshot!.Entries)
+            {
+                if (entry.Kind == NodeStateChangeKind.Upsert)
+                {
+                    upserts.Add(entry.NodeId);
+                }
+                else if (entry.Kind == NodeStateChangeKind.Value)
+                {
+                    values[entry.NodeId] = entry.Value;
+                }
+            }
+
+            Assert.That(upserts, Is.EquivalentTo(new[] { a, b }));
+            Assert.That(values.Keys, Is.EquivalentTo(new[] { a }));
+            Assert.That(values[a].WrappedValue, Is.EqualTo(new Variant(5.0)));
+            Assert.That(snapshot.Sequence, Is.GreaterThanOrEqualTo(3));
+        }
+
+        [Test]
+        public async Task TryReadSnapshotReturnsNullWhenNonePublishedAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync();
+
+            Assert.That(snapshot, Is.Null);
+        }
+
+        [Test]
+        public async Task DeltaLogReplaysOnlyChangesAfterSequenceAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var a = new NodeId("a", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 })));
+            ulong afterUpsert = store.CurrentSequence;
+            await store.WriteValueAsync(a, new DataValue(new Variant(9.0), StatusCodes.Good, DateTimeUtc.Now));
+
+            var replayed = new List<NodeStateChange>();
+            await foreach (NodeStateChange change in store.ReadDeltaLogAsync(afterUpsert))
+            {
+                replayed.Add(change);
+            }
+
+            Assert.That(replayed, Has.Count.EqualTo(1));
+            Assert.That(replayed[0].Kind, Is.EqualTo(NodeStateChangeKind.Value));
+            Assert.That(replayed[0].NodeId, Is.EqualTo(a));
+            Assert.That(replayed[0].Sequence, Is.GreaterThan(afterUpsert));
+        }
+
+        [Test]
+        public async Task WriteSnapshotTrimsDeltaLogAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var a = new NodeId("a", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 })));
+            await store.WriteValueAsync(a, new DataValue(new Variant(2.0), StatusCodes.Good, DateTimeUtc.Now));
+
+            await store.WriteSnapshotAsync();
+
+            var replayed = new List<NodeStateChange>();
+            await foreach (NodeStateChange change in store.ReadDeltaLogAsync(0))
+            {
+                replayed.Add(change);
+            }
+
+            Assert.That(replayed, Is.Empty);
+        }
+
+        [Test]
+        public void ObserveSequenceRaisesHighWaterMarkOnly()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            store.ObserveSequence(50);
+            Assert.That(store.CurrentSequence, Is.EqualTo(50));
+            store.ObserveSequence(10);
+            Assert.That(store.CurrentSequence, Is.EqualTo(50));
+        }
+
+        [Test]
         public async Task SubscribeObservesTopologyAndValueChangesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             using var cts = new CancellationTokenSource();
             var nodeId = new NodeId("watched", NamespaceIndex);
 
@@ -245,7 +345,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             await using var crdt = new CrdtSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            var store = new InMemoryNodeStateStore(
+            using var store = new InMemoryNodeStateStore(
                 crdt, m_messageContext, null, TimeSpan.FromMilliseconds(50));
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var nodeId = new NodeId("polled", NamespaceIndex);
@@ -270,7 +370,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task NodeStateBinaryRoundTripThroughStoreAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var nodeId = new NodeId("sensor", NamespaceIndex);
 
             var original = new BaseDataVariableState(null)
@@ -303,7 +403,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var kv = new InMemorySharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
-            var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("secret", NamespaceIndex);
             ByteString payload = ByteString.From(new byte[] { 9, 8, 7, 6 });
 
@@ -329,7 +429,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var kv = new InMemorySharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(MakeKey(12));
-            var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("tampered", NamespaceIndex);
 
             await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 1, 2, 3 })));
