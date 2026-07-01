@@ -109,6 +109,20 @@ builder.Services
     .AddRequestServerStateChange();
 ```
 
+### Strong consistency with Raft (no external store)
+
+The Redis placeholder above is one way to get a shared `ISharedKeyValueStore`. This sample also ships an in-package alternative: a strongly-consistent Raft cluster. Set `HA_CONSISTENCY=strong` and the active/passive path registers `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)` backed by a multi-node RaftCs cluster over NanoMsg — the shared store, leader election, and single-use session nonce become linearizable and shared across every replica, with no Redis or other external dependency. Configure the cluster from the environment:
+
+| Setting | Example | Description |
+| --- | --- | --- |
+| `HA_CONSISTENCY` | `strong`, `eventual` | `strong` backs the shared store with a Raft cluster; `eventual` (default) keeps today's behaviour. |
+| `HA_RAFT_ID` | `1` | This replica's unique Raft node id (`1..N`). |
+| `HA_RAFT_MEMBERS` | `3` | Static cluster size (odd `3`/`5` for a fault-tolerant quorum). |
+| `HA_RAFT_BIND` | `tcp://0.0.0.0:6560` | Local Raft transport bind address. |
+| `HA_RAFT_PEERS` | `tcp://server-b:6560,tcp://server-c:6560` | The other members' Raft transport addresses. |
+
+See `docker-compose.raft.yml` for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.K8s` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/HighAvailabilityKubernetes.md`.
+
 ## Redundancy mode and discovery settings
 
 | Setting | Values | Description |
@@ -118,6 +132,7 @@ builder.Services
 | `HA_REDUNDANT_PEERS` | `applicationUri|applicationName|discoveryUrl1+discoveryUrl2`, separated by comma or semicolon | Defines the peer `RedundantPeer` set. Non-transparent modes publish peer `ApplicationUri` values in `ServerUriArray`, advertise the `NTRS` server capability, and return these peers from `FindServers`. |
 | `peerServerUris` | comma/semicolon-separated application URIs | Legacy shorthand for `RedundantServerArray`; prefer `HA_REDUNDANT_PEERS` when clients must resolve peers through `FindServers`. |
 | `HA_MODE` | `ap`, `aa` | Chooses active/passive shared-store replication or active/active CRDT gossip. |
+| `HA_CONSISTENCY` | `strong`, `eventual` | Selects the shared-store consistency model; `strong` backs it with a Raft cluster (see *Strong consistency with Raft*). |
 | `HA_FAST_RECONNECT` | `true`, `false` | Allows token-reuse reconnect for mirrored sessions. The default requires full `ActivateSession` re-authentication after failover. |
 
 The sample also enables `RequestServerStateChange` with `AddRequestServerStateChange()`. An administrator client can call the standard method on `Server` to request Maintenance or NoData behavior and set `Server.EstimatedReturnTime`; the server updates `Server.ServiceLevel` into the appropriate OPC UA subrange so clients back off or fail over.
@@ -197,8 +212,11 @@ docker compose -f Applications\RedundantServer\docker-compose.active-active.yml 
 
 # Active/passive: leader-election wiring demonstration, plus a client.
 docker compose -f Applications\RedundantServer\docker-compose.active-passive.yml up --build
+
+# Strong consistency: a real 3-node RaftCs cluster (shared store across containers), plus a client.
+docker compose -f Applications\RedundantServer\docker-compose.raft.yml up --build
 ```
 
-Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer` and `opc.tcp://localhost:62544/RedundantServer`), and the bundled `RedundantClient` connects to one replica and follows the redundant set. Set `HA_HOST` to the reachable hostname (the compose files use the container/service name) so peers and clients can connect across the container network. The active/passive compose is a wiring demonstration only, because the default in-memory store is not shared across containers; see "Wire up a shared store for real HA" above for a real deployment.
+Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer` and `opc.tcp://localhost:62544/RedundantServer`), and the bundled `RedundantClient` connects to one replica and follows the redundant set. Set `HA_HOST` to the reachable hostname (the compose files use the container/service name) so peers and clients can connect across the container network. The active/passive compose is a wiring demonstration only, because the default in-memory store is not shared across containers; the **Raft compose (`docker-compose.raft.yml`) is a real cross-container HA deployment** — its Raft cluster is the shared, linearizable store (see "Strong consistency with Raft" and "Wire up a shared store for real HA" above).
 
 For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [HighAvailabilityKubernetes.md](..\..\Docs\HighAvailabilityKubernetes.md).

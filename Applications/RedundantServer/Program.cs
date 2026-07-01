@@ -41,6 +41,10 @@ using Opc.Ua.Server;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Hosting;
+using Raft;
+using Raft.Configuration;
+using Raft.Storage;
+using Raft.Transport.NanoMsg;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -79,6 +83,13 @@ byte[]? recordKey = string.IsNullOrWhiteSpace(recordKeyBase64)
 // Opt into mirrored fast reconnect (default is the safe re-auth-on-failover).
 bool enableFastReconnect =
     bool.TryParse(builder.Configuration["HA_FAST_RECONNECT"], out bool fr) && fr;
+
+// Strong-consistency (Raft) shared store. When HA_CONSISTENCY=strong, a multi-node
+// RaftCs cluster (over NanoMsg) backs the shared store, giving real cross-container
+// active/passive HA - linearizable leader election and single-use session nonce -
+// unlike the default in-memory store, which is private to each container.
+string consistency = (builder.Configuration["HA_CONSISTENCY"] ?? "eventual").Trim().ToLowerInvariant();
+bool useStrongConsistency = consistency is "strong";
 
 if (activeActive && recordKey != null)
 {
@@ -146,6 +157,19 @@ else if (redundancyMode == RedundancySupport.None)
 }
 else
 {
+    if (useStrongConsistency)
+    {
+        // Register the Raft-backed strongly-consistent shared store BEFORE the
+        // distributed address space/sessions so they compose over it.
+        (ulong raftId, int raftMembers, string raftBind, List<string> raftPeers) =
+            ReadRaftConfig(builder.Configuration);
+        ua.UseRedundancyConsistency(o =>
+        {
+            o.Mode = RedundancyConsistencyMode.Strong;
+            o.RaftConsensusFactory = _ => BuildRaftCluster(raftId, raftMembers, raftBind, raftPeers);
+        });
+    }
+
     ua.UseDistributedAddressSpace(d =>
     {
         d.UseLeaderElection = true;
@@ -324,4 +348,47 @@ static IPEndPoint ParseEndpoint(string hostPort)
         ? ip
         : Dns.GetHostAddresses(host)[0];
     return new IPEndPoint(address, port);
+}
+
+static (ulong NodeId, int Members, string Bind, List<string> Peers) ReadRaftConfig(IConfiguration configuration)
+{
+    ulong nodeId = ulong.TryParse(configuration["HA_RAFT_ID"], out ulong id) ? id : 1;
+    var peers = new List<string>(ReadList(configuration, "HA_RAFT_PEERS"));
+    int members = int.TryParse(configuration["HA_RAFT_MEMBERS"], out int m) ? m : peers.Count + 1;
+    string bind = configuration["HA_RAFT_BIND"] ?? "tcp://0.0.0.0:6560";
+    return (nodeId, members, bind, peers);
+}
+
+static IRaftConsensus BuildRaftCluster(ulong nodeId, int members, string bind, List<string> peers)
+{
+    var memberIds = new List<ulong>(members);
+    for (int i = 1; i <= members; i++)
+    {
+        memberIds.Add((ulong)i);
+    }
+
+    var transportOptions = new NanoMsgBusTransportOptions { BindAddress = bind };
+    foreach (string peer in peers)
+    {
+        transportOptions.Peers.Add(peer);
+    }
+
+    // The RaftCsConsensus adapter owns the node (which disposes the transport);
+    // MemoryStorage is volatile, so a restarted replica re-syncs from the leader.
+#pragma warning disable CA2000
+    var transport = new NanoMsgBusTransport(transportOptions);
+    var storage = new MemoryStorage(new ConfState(memberIds));
+    return RaftCsConsensus.CreateCluster(
+        nodeId,
+        transport,
+        storage,
+        new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(50) },
+        config =>
+        {
+            config.ElectionTick = 10;
+            config.PreVote = true;
+            config.CheckQuorum = true;
+        },
+        TimeSpan.FromSeconds(30));
+#pragma warning restore CA2000
 }
