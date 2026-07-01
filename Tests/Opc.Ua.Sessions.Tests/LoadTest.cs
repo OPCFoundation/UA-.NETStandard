@@ -73,22 +73,24 @@ namespace Opc.Ua.Sessions.Tests
             SupportsExternalServerUrl = true;
             UseSamplingGroupsInReferenceNodeManager = false;
 
-            // The many-sessions load test needs head-room above the 500 default
-            // session limit for the additional writer session, and one secure
-            // channel per session.
-            MaxChannelCount = 600;
-            MaxSessionCount = 600;
+            // The many-sessions load test runs a selectable session count (500 by
+            // default, up to 2000 for the stress case). Size the shared fixture for
+            // the largest case: one secure channel and one subscription per session
+            // plus head-room for the extra writer session.
+            MaxChannelCount = 2100;
+            MaxSessionCount = 2100;
+            MaxSubscriptionCount = 2100;
 
-            // Each of the ~500 sessions keeps a Publish request outstanding, and
-            // a held (long-polled) Publish occupies one request-processing worker
-            // slot for as long as it waits for notifications. With the default
-            // limit of 100 slots the held Publishes exhaust the pool once a few
-            // hundred sessions are connected, starving CreateSession/Read and
-            // surfacing as BadRequestTimeout. Size the pool above the session
-            // count so held Publishes never starve the other services, and warm
-            // a large minimum so the connect burst is not throttled by the
-            // thread pool's slow cold-start ramp.
-            MaxRequestThreadCount = 700;
+            // Each session keeps a Publish request outstanding, and a held
+            // (long-polled) Publish occupies one request-processing worker slot for
+            // as long as it waits for notifications. With the default limit of 100
+            // slots the held Publishes exhaust the pool once a few hundred sessions
+            // are connected, starving CreateSession/Read and surfacing as
+            // BadRequestTimeout. Size the pool above the session count so held
+            // Publishes never starve the other services, and warm a large minimum
+            // so the connect burst is not throttled by the thread pool's slow
+            // cold-start ramp.
+            MaxRequestThreadCount = 2500;
             MinRequestThreadCount = 200;
 
             // Disable the brute-force authentication lockout for this fixture. All
@@ -805,21 +807,25 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
-        /// Load test the server with the default supported number of sessions (500),
+        /// Load test the server with a selectable number of concurrent sessions,
         /// each holding a single slow-publishing subscription that monitors a value.
-        /// This exercises the per-session and per-subscription scaling limits and is the
-        /// basis for the session-scalability notes in <c>Docs/Benchmarks.md</c>.
+        /// This exercises the per-session and per-subscription scaling limits and is
+        /// the basis for the session-scalability notes in <c>Docs/Benchmarks.md</c>.
+        /// 500 is the supported baseline; 2000 is a stress case that pushes
+        /// steady-state publish delivery. Because the test is <c>[Explicit]</c>, the
+        /// case to run is selected by name (e.g.
+        /// <c>ServerManySessionsLoadTestAsync(2000)</c>).
         /// Connecting the sessions uses its own deadline that is independent of the
         /// steady-state duration.
         /// </summary>
+        /// <param name="sessionCount">The number of concurrent sessions to establish.</param>
         [Test]
         [Explicit]
         [Order(130)]
-        public async Task ServerManySessionsLoadTestAsync()
+        [TestCase(500)]
+        [TestCase(2000)]
+        public async Task ServerManySessionsLoadTestAsync(int sessionCount)
         {
-            // Fixed defaults - the test exercises the supported 500 concurrent
-            // sessions over a 60s steady-state window.
-            const int sessionCount = 500;
             const int testDurationSeconds = 60;
             const int publishingInterval = 1000; // slow publishing subscription.
             const int writerInterval = 500;
@@ -837,8 +843,9 @@ namespace Opc.Ua.Sessions.Tests
             // Establishing the sessions has its own generous deadline that is
             // independent of the steady-state duration, so a slow connect phase can
             // never eat into - or cancel - the measurement window the way a single
-            // shared deadline did.
-            const int connectTimeoutSeconds = 500;
+            // shared deadline did. Scale it with the session count so the larger
+            // stress case has enough head-room to establish every session.
+            int connectTimeoutSeconds = Math.Max(500, sessionCount * 3);
             using var connectCts = new CancellationTokenSource(
                 TimeSpan.FromSeconds(connectTimeoutSeconds));
 

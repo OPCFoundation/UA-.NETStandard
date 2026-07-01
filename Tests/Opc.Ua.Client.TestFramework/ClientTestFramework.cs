@@ -87,6 +87,14 @@ namespace Opc.Ua.Client.TestFramework
         public int MaxRequestThreadCount { get; set; } = 100;
 
         /// <summary>
+        /// The server's maximum number of concurrent subscriptions. Each session
+        /// in the many-sessions scale test creates one subscription, so this must
+        /// be raised above the session count for high-session runs. Defaults to
+        /// 1000 (the fixture's prior fixed value).
+        /// </summary>
+        public int MaxSubscriptionCount { get; set; } = 1000;
+
+        /// <summary>
         /// The server's minimum number of pre-spawned request-processing worker
         /// slots (and thread-pool minimum). Raising this warms the request
         /// pipeline so a burst of concurrent connects is not throttled by the
@@ -422,7 +430,7 @@ namespace Opc.Ua.Client.TestFramework
                 = MaxRequestThreadCount;
             ServerFixture.Config.ServerConfiguration.MinRequestThreadCount
                 = MinRequestThreadCount;
-            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
+            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = MaxSubscriptionCount;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
