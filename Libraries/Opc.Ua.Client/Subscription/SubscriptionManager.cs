@@ -1664,12 +1664,15 @@ namespace Opc.Ua.Client.Subscriptions
                                 Index, handle, error.StatusCode);
                         }
 
-                        // Always apply a bounded, escalating backoff after a failed
+                        // Always apply a bounded, exponential backoff after a failed
                         // publish so that a persistently failing channel (for
                         // example one stuck in BadNotConnected) can never busy-spin
                         // or flood the logs while reconnect runs in the background.
+                        // The shift is capped before the multiply to avoid overflow;
+                        // s_maxPublishBackoff bounds the final delay.
+                        int errorCount = ++m_consecutivePublishErrors;
                         int backoffMs = Math.Min(
-                            kBasePublishBackoffMs * ++m_consecutivePublishErrors,
+                            kBasePublishBackoffMs << Math.Min(errorCount - 1, 5),
                             (int)s_maxPublishBackoff.TotalMilliseconds);
                         try
                         {
