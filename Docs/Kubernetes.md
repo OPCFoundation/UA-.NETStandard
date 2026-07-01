@@ -1,6 +1,6 @@
 # Kubernetes High Availability Deployment
 
-This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.K8s` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
+This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
 
 See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `Applications/RedundantServer`.
 
@@ -14,12 +14,12 @@ A multi-pod deployment needs a shared store reachable by all replicas for distri
 
 ### Running without Kubernetes API integration
 
-The `Opc.Ua.Redundancy.K8s` extension (`UseKubernetesLeaderElection`, `UseKubernetesPeerDiscovery`, `UseKubernetesReadiness`) is **optional**. Because the in-package consensus layers self-manage membership and leadership, you can run a fully working HA replica set on Kubernetes with **no Kubernetes API access, RBAC, or ServiceAccount** at all:
+The `Opc.Ua.Redundancy.Kubernetes` extension (`UseKubernetesLeaderElection`, `UseKubernetesPeerDiscovery`, `UseKubernetesReadiness`) is **optional**. Because the in-package consensus layers self-manage membership and leadership, you can run a fully working HA replica set on Kubernetes with **no Kubernetes API access, RBAC, or ServiceAccount** at all:
 
 - **Raft (strong consistency)** — `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)` elects a single leader through the Raft protocol itself and provides a linearizable shared store, so no Kubernetes Lease is needed. Deploy the members as a `StatefulSet` with a headless `Service`; each pod derives its Raft node id from the StatefulSet ordinal and reaches its peers by stable pod DNS (`pod-0.svc`, `pod-1.svc`, …). A `RaftCs.Storage.File` WAL on a `PersistentVolumeClaim` lets a restarted pod rejoin without a full snapshot.
 - **CRDT (eventual consistency, active/active)** — `UseReplicatedAddressSpace`/`UseReplicatedSessions` converge leaderlessly over gossip, so there is no election to coordinate. Point each pod's gossip peer list at the other pods' DNS names (again a headless `Service` over a `StatefulSet`).
 
-In both cases readiness/liveness can be a plain HTTP probe your app exposes from `Server.ServiceLevel` without `UseKubernetesReadiness`. Reach for the `Opc.Ua.Redundancy.K8s` extension only when you specifically want Kubernetes-native Lease election or EndpointSlice-based peer discovery instead of the self-managed Raft/CRDT wiring above.
+In both cases readiness/liveness can be a plain HTTP probe your app exposes from `Server.ServiceLevel` without `UseKubernetesReadiness`. Reach for the `Opc.Ua.Redundancy.Kubernetes` extension only when you specifically want Kubernetes-native Lease election or EndpointSlice-based peer discovery instead of the self-managed Raft/CRDT wiring above.
 
 ## Application wiring
 
@@ -229,7 +229,7 @@ For Warm active/passive deployments, `LeaderServiceLevelProvider` normally makes
 
 Leader election controls the writer role in `UseDistributedAddressSpace` and can drive `ServiceLevel` through `LeaderServiceLevelProvider`. A graceful shutdown should release the lease and give Kubernetes enough `terminationGracePeriodSeconds` to remove readiness before the pod exits.
 
-For a strongly consistent alternative, `UseRedundancyConsistency` registers a native Raft `ILeaderElection` whose leadership is decided by the Raft consensus protocol itself (one leader per term, no split-brain) instead of a Kubernetes Lease or a lease-CAS. Wire the cluster with `UseKubernetesRaftConsensus` (in `Opc.Ua.Redundancy.K8s`): run the replicas as a StatefulSet with stable network identities and an odd member count (3 or 5) for a fault-tolerant quorum. It maps each pod's StatefulSet ordinal to a Raft node id, resolves peers through the headless Service DNS (`{statefulset}-{i}.{headless}`) over a `NanoMsgBusTransport`, and (by default) places a crash-safe `RaftCs.Storage.File` WAL on a per-pod PersistentVolume so a restarted pod rejoins from its log rather than a full snapshot. Compose it with `UseRedundancyConsistency` so the shared store and election use the cluster:
+For a strongly consistent alternative, `UseRedundancyConsistency` registers a native Raft `ILeaderElection` whose leadership is decided by the Raft consensus protocol itself (one leader per term, no split-brain) instead of a Kubernetes Lease or a lease-CAS. Wire the cluster with `UseKubernetesRaftConsensus` (in `Opc.Ua.Redundancy.Kubernetes`): run the replicas as a StatefulSet with stable network identities and an odd member count (3 or 5) for a fault-tolerant quorum. It maps each pod's StatefulSet ordinal to a Raft node id, resolves peers through the headless Service DNS (`{statefulset}-{i}.{headless}`) over a `NanoMsgBusTransport`, and (by default) places a crash-safe `RaftCs.Storage.File` WAL on a per-pod PersistentVolume so a restarted pod rejoins from its log rather than a full snapshot. Compose it with `UseRedundancyConsistency` so the shared store and election use the cluster:
 
 ```csharp
 services.AddOpcUa()

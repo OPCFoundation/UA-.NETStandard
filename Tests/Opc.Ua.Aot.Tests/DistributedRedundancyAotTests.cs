@@ -35,11 +35,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Redundancy.K8s;
+using Opc.Ua.Redundancy.Kubernetes;
 using Opc.Ua.Redundancy;
 
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007
+
+#nullable enable
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -233,7 +235,7 @@ namespace Opc.Ua.Aot.Tests
 
             await subscriptionStore.StoreSubscriptionsAsync([subscription]);
             RestoreSubscriptionResult result = await subscriptionStore.RestoreSubscriptionsAsync();
-            List<IStoredSubscription> subscriptions = [.. result.Subscriptions];
+            List<IStoredSubscription> subscriptions = [.. result.Subscriptions!];
 
             await Assert.That(result.Success).IsTrue();
             await Assert.That(subscriptions.Count).IsEqualTo(1);

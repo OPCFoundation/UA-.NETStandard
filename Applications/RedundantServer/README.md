@@ -121,7 +121,7 @@ The Redis placeholder above is one way to get a shared `ISharedKeyValueStore`. T
 | `HA_RAFT_BIND` | `tcp://0.0.0.0:6560` | Local Raft transport bind address. |
 | `HA_RAFT_PEERS` | `tcp://server-b:6560,tcp://server-c:6560` | The other members' Raft transport addresses. |
 
-See `docker-compose.raft.yml` for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.K8s` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/Kubernetes.md`.
+See `docker-compose.raft.yml` for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/Kubernetes.md`.
 
 ## Redundancy mode and discovery settings
 

@@ -14,7 +14,7 @@ See `Docs/HighAvailability.md` and `Docs/Kubernetes.md` for the full, current de
 - Secure session mirroring: `DistributedSessionManager` via the `ISessionManagerFactory` seam, encrypted + integrity-protected records (`IRecordProtector` / `AesCbcHmacRecordProtector` / `KeyRingRecordProtector`), cross-replica single-use nonce CAS, full `ActivateSession` signature verification on restore (the token is a lookup key only), and restore audit. Safe default is re-auth on failover; mirrored fast reconnect is opt-in.
 - Client token-reuse failover (`ManagedSession` / `WithTokenReuseFailover`), network redundancy endpoint alternates, and HotAndMirrored state mirroring with deterministic EventIds (`DeterministicEventIdProvider`).
 - Both consistency backends in-package over the NanoMsg transport, selectable via `UseRedundancyConsistency`: **CRDT** (eventual, active/active, leaderless) and **Raft** (`RaftCs`, linearizable strong consistency for `nonce/` / `lease/` / `election/`). Kubernetes wiring via `UseKubernetesRaftConsensus`.
-- Libraries `Opc.Ua.Redundancy`, `Opc.Ua.Redundancy.Server`, `Opc.Ua.Redundancy.Client`, `Opc.Ua.Redundancy.K8s`; samples `Applications/RedundantServer` (+ `docker-compose` active/active, active/passive, Raft) and `Applications/RedundantClient`; the `Docs/Kubernetes.md` deployment guide.
+- Libraries `Opc.Ua.Redundancy`, `Opc.Ua.Redundancy.Server`, `Opc.Ua.Redundancy.Client`, `Opc.Ua.Redundancy.Kubernetes`; samples `Applications/RedundantServer` (+ `docker-compose` active/active, active/passive, Raft) and `Applications/RedundantClient`; the `Docs/Kubernetes.md` deployment guide.
 - Security findings F1–F7 and F9 from the security assessment are closed in code.
 
 ## Remaining work
@@ -35,5 +35,5 @@ Hydration now uses a snapshot + bounded delta log (fast time-to-ready without tr
 ## References
 
 - Shipped docs: `Docs/HighAvailability.md`, `Docs/Kubernetes.md`.
-- Code: `Libraries/Opc.Ua.Redundancy`, `Libraries/Opc.Ua.Redundancy.Server`, `Libraries/Opc.Ua.Redundancy.Client`, `Libraries/Opc.Ua.Redundancy.K8s`; `Applications/RedundantServer`, `Applications/RedundantClient`.
+- Code: `Libraries/Opc.Ua.Redundancy`, `Libraries/Opc.Ua.Redundancy.Server`, `Libraries/Opc.Ua.Redundancy.Client`, `Libraries/Opc.Ua.Redundancy.Kubernetes`; `Applications/RedundantServer`, `Applications/RedundantClient`.
 - Superseded plans consolidated here (see git history): `plans/28-distributed-ha-node-state.md`, `29-distributed-ha-followup.md`, `30-distributed-ha-session-security.md`, `31-distributed-ha-session-manager.md`, `32-distributed-ha-followup-2.md`.

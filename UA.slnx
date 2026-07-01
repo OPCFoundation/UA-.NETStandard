@@ -80,7 +80,7 @@
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
-    <Project Path="Libraries/Opc.Ua.Redundancy.K8s/Opc.Ua.Redundancy.K8s.csproj" />
+    <Project Path="Libraries/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
@@ -238,7 +238,7 @@
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Redundancy.K8s.Tests/Opc.Ua.Redundancy.K8s.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
