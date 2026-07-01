@@ -220,7 +220,23 @@ For Warm active/passive deployments, `LeaderServiceLevelProvider` normally makes
 
 Leader election controls the writer role in `UseDistributedAddressSpace` and can drive `ServiceLevel` through `LeaderServiceLevelProvider`. A graceful shutdown should release the lease and give Kubernetes enough `terminationGracePeriodSeconds` to remove readiness before the pod exits.
 
-For a strongly consistent alternative, `UseRedundancyConsistency` registers a native Raft `ILeaderElection` whose leadership is decided by the Raft consensus protocol itself (one leader per term, no split-brain) instead of a Kubernetes Lease or a lease-CAS. Run the Raft members as a StatefulSet with stable network identities and an odd replica count (3 or 5) for a fault-tolerant quorum, bind the external RaftCs engine through `RaftConsensusFactory`, and place the `RaftCs.Storage.File` WAL on a per-pod PersistentVolume so a restarted member rejoins from its log rather than a full snapshot. See [Consistency modes](HighAvailability.md) for the strong (Raft) vs. eventual (CRDT) trade-offs.
+For a strongly consistent alternative, `UseRedundancyConsistency` registers a native Raft `ILeaderElection` whose leadership is decided by the Raft consensus protocol itself (one leader per term, no split-brain) instead of a Kubernetes Lease or a lease-CAS. Wire the cluster with `UseKubernetesRaftConsensus` (in `Opc.Ua.Redundancy.K8s`): run the replicas as a StatefulSet with stable network identities and an odd member count (3 or 5) for a fault-tolerant quorum. It maps each pod's StatefulSet ordinal to a Raft node id, resolves peers through the headless Service DNS (`{statefulset}-{i}.{headless}`) over a `NanoMsgBusTransport`, and (by default) places a crash-safe `RaftCs.Storage.File` WAL on a per-pod PersistentVolume so a restarted pod rejoins from its log rather than a full snapshot. Compose it with `UseRedundancyConsistency` so the shared store and election use the cluster:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(server => { })
+    .UseKubernetesRaftConsensus(o =>
+    {
+        o.HeadlessServiceName = "opcua-ha-headless";
+        o.ReplicaCount = 3;                 // static membership; odd for quorum
+        o.StoragePath = "/var/lib/opcua/raft"; // PersistentVolume mount
+    })
+    .UseRedundancyConsistency(RedundancyConsistencyMode.Strong)
+    .UseDistributedAddressSpace()
+    .UseDistributedSessions(s => s.EnableFastReconnect = true);
+```
+
+See [Consistency modes](HighAvailability.md) for the strong (Raft) vs. eventual (CRDT) trade-offs.
 
 ## EndpointSlice peer discovery
 

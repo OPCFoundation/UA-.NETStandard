@@ -4,7 +4,7 @@
 
 ## Overview
 
-The package keeps Kubernetes concerns outside the base high-availability package. It provides Lease-backed leader election, peer discovery from EndpointSlices, and an HTTP readiness/liveness bridge driven by OPC UA `ServiceLevel`.
+The package keeps Kubernetes concerns outside the base high-availability package. It provides Lease-backed leader election, peer discovery from EndpointSlices, an HTTP readiness/liveness bridge driven by OPC UA `ServiceLevel`, and a strongly-consistent multi-node Raft consensus wiring (`UseKubernetesRaftConsensus`, RaftCs over NanoMsg with an optional file WAL).
 
 ## Getting started
 
@@ -15,6 +15,20 @@ services.AddOpcUa()
     .UseKubernetesLeaderElection(options => options.LeaseName = "opcua-ha")
     .UseKubernetesPeerDiscovery(options => options.ServiceName = "opcua-ha-headless")
     .UseKubernetesReadiness(options => options.Port = 8080);
+```
+
+For strong consistency, wire a Raft cluster from the StatefulSet ordinals and compose it with `UseRedundancyConsistency`:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(...)
+    .UseKubernetesRaftConsensus(o =>
+    {
+        o.HeadlessServiceName = "opcua-ha-headless";
+        o.ReplicaCount = 3;                      // static membership; odd for quorum
+        o.StoragePath = "/var/lib/opcua/raft";   // PersistentVolume mount for the WAL
+    })
+    .UseRedundancyConsistency(RedundancyConsistencyMode.Strong);
 ```
 
 ## Target frameworks
