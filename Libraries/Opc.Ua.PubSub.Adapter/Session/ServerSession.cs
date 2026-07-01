@@ -94,6 +94,22 @@ namespace Opc.Ua.PubSub.Adapter.Session
             m_logger = telemetry.CreateLogger<ServerSession>();
         }
 
+        /// <summary>
+        /// Test seam: creates a server session bound to an already-established
+        /// <see cref="ISession"/> instead of building one lazily via the
+        /// managed-session builder. Enables exercising the session-capability
+        /// guards (e.g. classic-engine sessions that expose no V2 subscription
+        /// manager) without standing up a real server.
+        /// </summary>
+        internal ServerSession(
+            ServerConnectionOptions options,
+            ITelemetryContext telemetry,
+            ISession session)
+            : this(options, telemetry)
+        {
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
+        }
+
         /// <inheritdoc/>
         public bool IsConnected => m_session?.Connected ?? false;
 
