@@ -2490,9 +2490,11 @@ namespace Opc.Ua.Client
 
             // The channel takes ownership of the cert and chain. AddRef so the
             // original Session retains its references for its own lifetime.
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel created below, which disposes it
             CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
                 ? CloneInstanceCertificateChain()
                 : null;
+#pragma warning restore CA2000
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
@@ -2549,9 +2551,11 @@ namespace Opc.Ua.Client
 
             // The channel takes ownership of the cert and chain. AddRef so the
             // original Session retains its references for its own lifetime.
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel created below, which disposes it
             CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
                 ? CloneInstanceCertificateChain()
                 : null;
+#pragma warning restore CA2000
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
@@ -2742,9 +2746,11 @@ namespace Opc.Ua.Client
                 if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
                     m_instanceCertificateEntry != null)
                 {
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                     manager.UpdateClientCertificate(
                         m_instanceCertificateEntry.Certificate.AddRef(),
                         CloneInstanceCertificateChain());
+#pragma warning restore CA2000
                 }
             }
 
@@ -2855,10 +2861,12 @@ namespace Opc.Ua.Client
                                 m_endpoint.Description,
                                 m_endpoint.Configuration!,
                                 m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
                                     ? CloneInstanceCertificateChain()
                                     : null,
+#pragma warning restore CA2000
                                 messageContext,
                                 ct)
                             .ConfigureAwait(false);
@@ -2871,10 +2879,12 @@ namespace Opc.Ua.Client
                                 m_endpoint.Description,
                                 m_endpoint.Configuration!,
                                 m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
                                     ? CloneInstanceCertificateChain()
                                     : null,
+#pragma warning restore CA2000
                                 messageContext,
                                 ct)
                             .ConfigureAwait(false);
@@ -3290,9 +3300,11 @@ namespace Opc.Ua.Client
                             m_endpoint.Description,
                             m_endpoint.Configuration!,
                             m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? CloneInstanceCertificateChain()
                                 : null,
+#pragma warning restore CA2000
                             MessageContext,
                             ct).ConfigureAwait(false);
 
@@ -3322,9 +3334,11 @@ namespace Opc.Ua.Client
                             m_endpoint.Description,
                             m_endpoint.Configuration!,
                             m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? CloneInstanceCertificateChain()
                                 : null,
+#pragma warning restore CA2000
                             MessageContext,
                             ct).ConfigureAwait(false);
 
@@ -5253,7 +5267,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The instance certificate together with its issuer chain.
         /// </summary>
+        // CA2213: disposed in DisposeAsyncCore, the session's single async teardown path.
+#pragma warning disable CA2213
         protected CertificateEntry? m_instanceCertificateEntry;
+#pragma warning restore CA2213
 
         /// <summary>
         /// The session telemetry context

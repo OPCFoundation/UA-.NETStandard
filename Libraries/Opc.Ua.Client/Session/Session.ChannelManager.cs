@@ -277,9 +277,11 @@ namespace Opc.Ua.Client
                 using CertificateEntry clientEntry = await LoadInstanceCertificateEntryAsync(
                     configuration, secPolicy, probeContext.Telemetry, ct)
                     .ConfigureAwait(false);
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 manager.UpdateClientCertificate(
                     clientEntry.Certificate.AddRef(),
                     BuildTransportChain(clientEntry));
+#pragma warning restore CA2000
             }
 
             Session? session = null;

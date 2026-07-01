@@ -415,9 +415,11 @@ namespace Opc.Ua.Client
                     securityPolicyUri,
                     messageContext.Telemetry,
                     ct).ConfigureAwait(false);
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 m_manager.UpdateClientCertificate(
                     clientEntry.Certificate.AddRef(),
                     Session.BuildTransportChain(clientEntry));
+#pragma warning restore CA2000
             }
 
             return messageContext;
