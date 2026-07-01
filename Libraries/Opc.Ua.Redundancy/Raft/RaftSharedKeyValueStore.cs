@@ -42,7 +42,7 @@ namespace Opc.Ua.Redundancy
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: a strongly-consistent (CP), linearizable <see cref="ISharedKeyValueStore"/>
     /// implemented as a replicated state machine over an <see cref="IRaftConsensus"/> log. Unlike the
-    /// eventually-consistent <see cref="CrdtSharedKeyValueStore"/>, this store provides a real
+    /// eventually-consistent <see cref="ReplicatedSharedKeyValueStore"/>, this store provides a real
     /// <see cref="CompareAndSwapAsync"/> and a <see cref="WatchAsync"/> change-feed, which makes it the right backend
     /// for exactly-once primitives (the single-use session nonce registry) and master-write lease/election.
     /// </summary>

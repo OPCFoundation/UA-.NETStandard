@@ -43,12 +43,12 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>
-    /// Active/active convergence tests for <see cref="CrdtAddressSpaceSynchronizer"/>
+    /// Active/active convergence tests for <see cref="ReplicatedAddressSpaceSynchronizer"/>
     /// running two replicas over a deterministic in-memory gossip network.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
-    public sealed class CrdtAddressSpaceSynchronizerTests
+    public sealed class ReplicatedAddressSpaceSynchronizerTests
     {
         private const ushort NamespaceIndex = 1;
         private IServiceMessageContext m_messageContext = null!;
@@ -202,17 +202,17 @@ namespace Opc.Ua.Redundancy.Server.Tests
             public DictionaryAddressSpace SpaceA { get; private set; } = null!;
             public DictionaryAddressSpace SpaceB { get; private set; } = null!;
 
-            public static async Task<TwoReplicaFixture> CreateAsync(CrdtAddressSpaceSynchronizerTests test)
+            public static async Task<TwoReplicaFixture> CreateAsync(ReplicatedAddressSpaceSynchronizerTests test)
             {
                 var fixture = new TwoReplicaFixture();
                 fixture.m_network = new InMemoryNetwork();
                 fixture.SpaceA = new DictionaryAddressSpace(test.m_systemContext);
                 fixture.SpaceB = new DictionaryAddressSpace(test.m_systemContext);
 
-                fixture.m_syncA = new CrdtAddressSpaceSynchronizer(
+                fixture.m_syncA = new ReplicatedAddressSpaceSynchronizer(
                     fixture.SpaceA, test.m_messageContext, ReplicaId.FromUInt64(1),
                     fixture.m_network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-                fixture.m_syncB = new CrdtAddressSpaceSynchronizer(
+                fixture.m_syncB = new ReplicatedAddressSpaceSynchronizer(
                     fixture.SpaceB, test.m_messageContext, ReplicaId.FromUInt64(2),
                     fixture.m_network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
 
@@ -242,8 +242,8 @@ namespace Opc.Ua.Redundancy.Server.Tests
             }
 
             private InMemoryNetwork? m_network;
-            private CrdtAddressSpaceSynchronizer? m_syncA;
-            private CrdtAddressSpaceSynchronizer? m_syncB;
+            private ReplicatedAddressSpaceSynchronizer? m_syncA;
+            private ReplicatedAddressSpaceSynchronizer? m_syncB;
         }
     }
 }

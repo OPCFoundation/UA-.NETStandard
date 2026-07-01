@@ -42,12 +42,12 @@ using Opc.Ua.Redundancy;
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>
-    /// Tests for the CRDT-backed <see cref="CrdtSharedKeyValueStore"/> used to
+    /// Tests for the CRDT-backed <see cref="ReplicatedSharedKeyValueStore"/> used to
     /// replicate mirrored session entries active/active.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
-    public sealed class CrdtSharedKeyValueStoreTests
+    public sealed class ReplicatedSharedKeyValueStoreTests
     {
         [Test]
         public async Task ReplicatesSetAndDeleteAsync()
@@ -123,9 +123,9 @@ namespace Opc.Ua.Redundancy.Server.Tests
             Assert.That(() => store.WatchAsync("session/"), Throws.TypeOf<NotSupportedException>());
         }
 
-        private static CrdtSharedKeyValueStore CreateStore(InMemoryNetwork network, ulong replica)
+        private static ReplicatedSharedKeyValueStore CreateStore(InMemoryNetwork network, ulong replica)
         {
-            return new CrdtSharedKeyValueStore(
+            return new ReplicatedSharedKeyValueStore(
                 ReplicaId.FromUInt64(replica),
                 network.CreateTransport(),
                 TimeProvider.System,

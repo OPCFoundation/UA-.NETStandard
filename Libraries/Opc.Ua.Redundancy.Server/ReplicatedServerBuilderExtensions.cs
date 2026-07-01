@@ -68,7 +68,7 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
 
             builder.Services.AddSingleton<IServerStartupTask>(
-                sp => new CrdtAddressSpaceStartupTask(sp, options));
+                sp => new ReplicatedAddressSpaceStartupTask(sp, options));
 
             return builder;
         }
@@ -105,7 +105,7 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
 
             builder.Services.TryAddSingleton<ISessionManagerFactory>(
-                sp => new CrdtSessionManagerFactory(sp, options));
+                sp => new ReplicatedSessionManagerFactory(sp, options));
 
             return builder;
         }

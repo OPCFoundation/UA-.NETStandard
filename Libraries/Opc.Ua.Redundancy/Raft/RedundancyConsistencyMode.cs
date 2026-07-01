@@ -36,7 +36,7 @@ namespace Opc.Ua.Redundancy
     {
         /// <summary>
         /// Eventual consistency (AP): bulk replicated state is served by the leaderless, gossip-based
-        /// <see cref="CrdtSharedKeyValueStore"/> and is <b>complemented</b> by a strongly-consistent Raft layer for the
+        /// <see cref="ReplicatedSharedKeyValueStore"/> and is <b>complemented</b> by a strongly-consistent Raft layer for the
         /// linearizable primitives that need it (compare-and-swap, change-feed, single-use nonces, lease/leader
         /// election). This is the default and preserves today's behaviour and performance for the common case.
         /// </summary>

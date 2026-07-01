@@ -343,7 +343,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // so the standby subscription must fall back to scan-polling instead
             // of silently stopping.
             await using var network = new InMemoryNetwork();
-            await using var crdt = new CrdtSharedKeyValueStore(
+            await using var crdt = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
             using var store = new InMemoryNodeStateStore(
                 crdt, m_messageContext, null, TimeSpan.FromMilliseconds(50));

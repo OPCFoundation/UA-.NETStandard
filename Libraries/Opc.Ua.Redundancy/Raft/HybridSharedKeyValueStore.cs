@@ -39,7 +39,7 @@ namespace Opc.Ua.Redundancy
     /// Extension beyond OPC 10000-4 §6.6: the <see cref="RedundancyConsistencyMode.Eventual"/> store. It routes each
     /// key to exactly one backend by key prefix: keys under a configured "strong" prefix (the single-use nonce,
     /// lease, and leader-election keyspaces) live entirely in the linearizable <see cref="RaftSharedKeyValueStore"/>;
-    /// all other keys live in the eventually-consistent <see cref="CrdtSharedKeyValueStore"/>.
+    /// all other keys live in the eventually-consistent <see cref="ReplicatedSharedKeyValueStore"/>.
     /// </summary>
     /// <remarks>
     /// <para>

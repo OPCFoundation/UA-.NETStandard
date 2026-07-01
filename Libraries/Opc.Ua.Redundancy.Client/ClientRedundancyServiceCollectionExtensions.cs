@@ -46,7 +46,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Registers a CRDT-backed <see cref="ISharedKeyValueStore"/> for a client
         /// replica set, gossiping over the supplied transport. The same shared
-        /// <see cref="CrdtSharedKeyValueStore"/> is used by the server side, so a
+        /// <see cref="ReplicatedSharedKeyValueStore"/> is used by the server side, so a
         /// single CRDT implementation backs both.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -66,7 +66,7 @@ namespace Opc.Ua.Redundancy.Client
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp =>
             {
-                return new CrdtSharedKeyValueStore(
+                return new ReplicatedSharedKeyValueStore(
                     replicaId,
                     transportFactory(sp),
                     sp.GetService<TimeProvider>() ?? TimeProvider.System,
@@ -117,12 +117,12 @@ namespace Opc.Ua.Redundancy.Client
         /// <see cref="RaftLeaderElection"/> for a client replica set:
         /// <see cref="RedundancyConsistencyMode.Strong"/> uses a <see cref="RaftSharedKeyValueStore"/>;
         /// <see cref="RedundancyConsistencyMode.Eventual"/> uses a <see cref="HybridSharedKeyValueStore"/> over a CRDT
-        /// bulk store (gossiped on <paramref name="crdtTransportFactory"/>) and a Raft strong store.
+        /// bulk store (gossiped on <paramref name="replicatedTransportFactory"/>) and a Raft strong store.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="mode">The consistency model.</param>
         /// <param name="replicaId">This client's stable CRDT identity (used in eventual mode).</param>
-        /// <param name="crdtTransportFactory">
+        /// <param name="replicatedTransportFactory">
         /// The CRDT gossip transport factory; required for <see cref="RedundancyConsistencyMode.Eventual"/>.
         /// </param>
         /// <param name="raftConsensusFactory">
@@ -130,24 +130,24 @@ namespace Opc.Ua.Redundancy.Client
         /// </param>
         /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException">
-        /// <paramref name="services"/> is <c>null</c>, or <paramref name="crdtTransportFactory"/> is <c>null</c> in
+        /// <paramref name="services"/> is <c>null</c>, or <paramref name="replicatedTransportFactory"/> is <c>null</c> in
         /// eventual mode.
         /// </exception>
         public static IServiceCollection AddRedundantClientSharedStore(
             this IServiceCollection services,
             RedundancyConsistencyMode mode,
             ReplicaId replicaId,
-            Func<IServiceProvider, ITransport>? crdtTransportFactory = null,
+            Func<IServiceProvider, ITransport>? replicatedTransportFactory = null,
             Func<IServiceProvider, IRaftConsensus>? raftConsensusFactory = null)
         {
             if (services == null)
             {
                 throw new ArgumentNullException(nameof(services));
             }
-            if (mode == RedundancyConsistencyMode.Eventual && crdtTransportFactory == null)
+            if (mode == RedundancyConsistencyMode.Eventual && replicatedTransportFactory == null)
             {
                 throw new ArgumentNullException(
-                    nameof(crdtTransportFactory),
+                    nameof(replicatedTransportFactory),
                     "Eventual mode requires a CRDT transport factory for the bulk store.");
             }
 
@@ -155,7 +155,7 @@ namespace Opc.Ua.Redundancy.Client
                 raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp =>
-                CreateClientStore(sp, mode, replicaId, crdtTransportFactory));
+                CreateClientStore(sp, mode, replicaId, replicatedTransportFactory));
 
             services.TryAddSingleton<ILeaderElection>(sp =>
                 new RaftLeaderElection(
@@ -169,7 +169,7 @@ namespace Opc.Ua.Redundancy.Client
             IServiceProvider sp,
             RedundancyConsistencyMode mode,
             ReplicaId replicaId,
-            Func<IServiceProvider, ITransport>? crdtTransportFactory)
+            Func<IServiceProvider, ITransport>? replicatedTransportFactory)
         {
             IRaftConsensus consensus = sp.GetRequiredService<IRaftConsensus>();
 
@@ -183,12 +183,12 @@ namespace Opc.Ua.Redundancy.Client
                 return raftStore;
             }
 
-            var crdtStore = new CrdtSharedKeyValueStore(
+            var replicatedStore = new ReplicatedSharedKeyValueStore(
                 replicaId,
-                crdtTransportFactory!(sp),
+                replicatedTransportFactory!(sp),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System,
                 CrdtReaderOptions.Default);
-            return new HybridSharedKeyValueStore(crdtStore, raftStore, default, ownsStores: true);
+            return new HybridSharedKeyValueStore(replicatedStore, raftStore, default, ownsStores: true);
 #pragma warning restore CA2000
         }
     }

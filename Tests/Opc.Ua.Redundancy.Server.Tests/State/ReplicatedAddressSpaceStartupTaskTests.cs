@@ -43,12 +43,12 @@ using Opc.Ua.Server;
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>
-    /// Tests for <see cref="CrdtAddressSpaceStartupTask"/>: it attaches a CRDT
+    /// Tests for <see cref="ReplicatedAddressSpaceStartupTask"/>: it attaches a CRDT
     /// synchronizer to every opted-in node manager and skips the rest.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
-    public sealed class CrdtAddressSpaceStartupTaskTests
+    public sealed class ReplicatedAddressSpaceStartupTaskTests
     {
         private const ushort NamespaceIndex = 1;
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             server.Setup(s => s.MessageContext).Returns(messageContext);
             server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
 
-            await using var task = new CrdtAddressSpaceStartupTask(
+            await using var task = new ReplicatedAddressSpaceStartupTask(
                 EmptyServices(), new ReplicatedAddressSpaceOptions());
 
             await task.OnServerStartedAsync(server.Object);
@@ -104,10 +104,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public void ConstructorRejectsNullArguments()
         {
             Assert.That(
-                () => new CrdtAddressSpaceStartupTask(null!, new ReplicatedAddressSpaceOptions()),
+                () => new ReplicatedAddressSpaceStartupTask(null!, new ReplicatedAddressSpaceOptions()),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => new CrdtAddressSpaceStartupTask(EmptyServices(), null!),
+                () => new ReplicatedAddressSpaceStartupTask(EmptyServices(), null!),
                 Throws.ArgumentNullException);
         }
 

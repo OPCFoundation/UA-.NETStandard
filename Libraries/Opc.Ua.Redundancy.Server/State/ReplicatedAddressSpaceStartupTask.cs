@@ -40,18 +40,18 @@ namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: server startup task that attaches a
-    /// <see cref="CrdtAddressSpaceSynchronizer"/>
+    /// <see cref="ReplicatedAddressSpaceSynchronizer"/>
     /// to every node manager that opts in via <see cref="ILocalAddressSpaceSource"/>,
     /// enabling active/active (multi-writer) replication of its address space.
     /// </summary>
-    public sealed class CrdtAddressSpaceStartupTask : IServerStartupTask, IAsyncDisposable
+    public sealed class ReplicatedAddressSpaceStartupTask : IServerStartupTask, IAsyncDisposable
     {
         /// <summary>
         /// Creates the wiring task.
         /// </summary>
         /// <param name="services">The application service provider (for the transport factory).</param>
         /// <param name="options">The CRDT address-space options.</param>
-        public CrdtAddressSpaceStartupTask(IServiceProvider services, ReplicatedAddressSpaceOptions options)
+        public ReplicatedAddressSpaceStartupTask(IServiceProvider services, ReplicatedAddressSpaceOptions options)
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -65,7 +65,7 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            ILogger logger = server.Telemetry.CreateLogger<CrdtAddressSpaceStartupTask>();
+            ILogger logger = server.Telemetry.CreateLogger<ReplicatedAddressSpaceStartupTask>();
 
             foreach (INodeManager nodeManager in server.NodeManager.NodeManagers)
             {
@@ -84,7 +84,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                 }
 
-                var synchronizer = new CrdtAddressSpaceSynchronizer(
+                var synchronizer = new ReplicatedAddressSpaceSynchronizer(
                     addressSpace,
                     server.MessageContext,
                     m_options.ReplicaId,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            CrdtAddressSpaceSynchronizer[] synchronizers;
+            ReplicatedAddressSpaceSynchronizer[] synchronizers;
             InMemoryNetwork[] networks;
             lock (m_lock)
             {
@@ -115,7 +115,7 @@ namespace Opc.Ua.Redundancy.Server
                 m_defaultNetworks.Clear();
             }
 
-            foreach (CrdtAddressSpaceSynchronizer synchronizer in synchronizers)
+            foreach (ReplicatedAddressSpaceSynchronizer synchronizer in synchronizers)
             {
                 await synchronizer.DisposeAsync().ConfigureAwait(false);
             }
@@ -128,7 +128,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly IServiceProvider m_services;
         private readonly ReplicatedAddressSpaceOptions m_options;
         private readonly Lock m_lock = new();
-        private readonly List<CrdtAddressSpaceSynchronizer> m_synchronizers = [];
+        private readonly List<ReplicatedAddressSpaceSynchronizer> m_synchronizers = [];
         private readonly List<InMemoryNetwork> m_defaultNetworks = [];
     }
 }

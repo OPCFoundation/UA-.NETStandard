@@ -44,13 +44,13 @@ namespace Opc.Ua.Aot.Tests
     /// AOT integration tests that exercise the CRDT active/active building
     /// blocks, ensuring they are reachable and functional under NativeAOT.
     /// </summary>
-    public class CrdtAotTests
+    public class ReplicatedAotTests
     {
         [Test]
-        public async Task CrdtKeyValueStoreRoundTripsUnderAotAsync()
+        public async Task ReplicatedKeyValueStoreRoundTripsUnderAotAsync()
         {
             await using var network = new InMemoryNetwork();
-            await using var store = new CrdtSharedKeyValueStore(
+            await using var store = new ReplicatedSharedKeyValueStore(
                 ReplicaId.FromUInt64(1),
                 network.CreateTransport(),
                 TimeProvider.System,
@@ -70,7 +70,7 @@ namespace Opc.Ua.Aot.Tests
         }
 
         [Test]
-        public async Task CrdtOptionsConfigureTransportUnderAotAsync()
+        public async Task ReplicatedOptionsConfigureTransportUnderAotAsync()
         {
             var options = new ReplicatedAddressSpaceOptions
             {

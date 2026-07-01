@@ -47,13 +47,13 @@ using Opc.Ua.Server;
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>
-    /// Tests for the CRDT session DI seam: <see cref="CrdtSessionManagerFactory"/>
+    /// Tests for the CRDT session DI seam: <see cref="ReplicatedSessionManagerFactory"/>
     /// and the <c>UseReplicatedSessions</c> / <c>UseReplicatedAddressSpace</c>
     /// fluent registrations.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
-    public sealed class CrdtSessionManagerFactoryTests
+    public sealed class ReplicatedSessionManagerFactoryTests
     {
         [Test]
         public async Task FactoryCreatesDistributedSessionManagerAsync()
@@ -61,7 +61,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             // In-process gossip unit tests knowingly opt out of record protection.
             await using ServiceProvider services = ServicesWithNullProtector();
 
-            await using var factory = new CrdtSessionManagerFactory(
+            await using var factory = new ReplicatedSessionManagerFactory(
                 services, new ReplicatedSessionOptions());
 
             using var manager = factory.Create(
@@ -77,10 +77,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public void ConstructorRejectsNullArguments()
         {
             Assert.That(
-                () => new CrdtSessionManagerFactory(null!, new ReplicatedSessionOptions()),
+                () => new ReplicatedSessionManagerFactory(null!, new ReplicatedSessionOptions()),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => new CrdtSessionManagerFactory(Mock.Of<IServiceProvider>(), null!),
+                () => new ReplicatedSessionManagerFactory(Mock.Of<IServiceProvider>(), null!),
                 Throws.ArgumentNullException);
         }
 
@@ -88,7 +88,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public async Task FactoryRejectsReplicatedSessionStoreWithoutProtectorAsync()
         {
             await using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
-            await using var factory = new CrdtSessionManagerFactory(
+            await using var factory = new ReplicatedSessionManagerFactory(
                 services, new ReplicatedSessionOptions());
 
             Assert.That(
@@ -111,7 +111,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             await using ServiceProvider services = ServicesWithNullProtector();
             var options = new ReplicatedSessionOptions();
             options.Session.EnableFastReconnect = true;
-            await using var factory = new CrdtSessionManagerFactory(services, options);
+            await using var factory = new ReplicatedSessionManagerFactory(services, options);
 
             Assert.That(
                 () => factory.Create(
@@ -132,7 +132,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
                 .BuildServiceProvider();
             var options = new ReplicatedSessionOptions();
             options.Session.EnableFastReconnect = true;
-            await using var factory = new CrdtSessionManagerFactory(services, options);
+            await using var factory = new ReplicatedSessionManagerFactory(services, options);
 
             using var manager = factory.Create(
                 NewServer().Object,
@@ -156,7 +156,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             Assert.That(
                 provider.GetRequiredService<ISessionManagerFactory>(),
-                Is.InstanceOf<CrdtSessionManagerFactory>());
+                Is.InstanceOf<ReplicatedSessionManagerFactory>());
         }
 
         [Test]
@@ -169,7 +169,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.That(provider.GetServices<IServerStartupTask>(),
-                Has.Some.InstanceOf<CrdtAddressSpaceStartupTask>());
+                Has.Some.InstanceOf<ReplicatedAddressSpaceStartupTask>());
         }
 
         private static ServiceProvider ServicesWithNullProtector()

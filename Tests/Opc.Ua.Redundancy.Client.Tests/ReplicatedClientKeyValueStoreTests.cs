@@ -41,13 +41,13 @@ namespace Opc.Ua.Client.Redundancy.Tests
     /// </summary>
     [TestFixture]
     [Category("ClientRedundancy")]
-    public sealed class CrdtSharedKeyValueStoreTests
+    public sealed class ReplicatedSharedKeyValueStoreTests
     {
         [Test]
         public async Task SetThenGetRoundTripsAsync()
         {
             await using var network = new InMemoryNetwork();
-            await using var store = new CrdtSharedKeyValueStore(
+            await using var store = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
             var value = new ByteString(new byte[] { 1, 2, 3, 4 });
             await store.SetAsync("session/a", value).ConfigureAwait(false);

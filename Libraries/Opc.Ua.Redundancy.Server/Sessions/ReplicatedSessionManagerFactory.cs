@@ -42,7 +42,7 @@ namespace Opc.Ua.Redundancy.Server
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: an <see cref="ISessionManagerFactory"/> that builds a
     /// <see cref="DistributedSessionManager"/> whose mirrored session entries
-    /// are replicated active/active by a <see cref="CrdtSharedKeyValueStore"/>
+    /// are replicated active/active by a <see cref="ReplicatedSharedKeyValueStore"/>
     /// (gossip). The single-use server nonce stays on a strongly-consistent
     /// store resolved from the container, preserving cross-replica replay
     /// defence.
@@ -55,14 +55,14 @@ namespace Opc.Ua.Redundancy.Server
     /// transit; the record protector is still required for at-rest
     /// confidentiality and integrity.
     /// </remarks>
-    public sealed class CrdtSessionManagerFactory : ISessionManagerFactory, IAsyncDisposable
+    public sealed class ReplicatedSessionManagerFactory : ISessionManagerFactory, IAsyncDisposable
     {
         /// <summary>
         /// Creates the factory.
         /// </summary>
         /// <param name="services">The application service provider.</param>
         /// <param name="options">The CRDT session options.</param>
-        public CrdtSessionManagerFactory(IServiceProvider services, ReplicatedSessionOptions options)
+        public ReplicatedSessionManagerFactory(IServiceProvider services, ReplicatedSessionOptions options)
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -81,12 +81,12 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             ITransport transport = m_options.CreateTransport(m_services, out InMemoryNetwork? defaultNetwork);
-            var entryStore = new CrdtSharedKeyValueStore(
+            var entryStore = new ReplicatedSharedKeyValueStore(
                 m_options.ReplicaId, transport, m_options.TimeProvider, m_options.CreateReaderOptions());
 
             IRecordProtector? protector = RecordProtectionGuard.ResolveProtectorOrThrow(
                 m_services,
-                typeof(CrdtSharedKeyValueStore));
+                typeof(ReplicatedSharedKeyValueStore));
             var sessionStore = new SharedKeyValueSessionStore(entryStore, server.MessageContext, protector);
 
             // The single-use nonce must be strongly consistent — never the CRDT
@@ -140,7 +140,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            CrdtSharedKeyValueStore[] stores;
+            ReplicatedSharedKeyValueStore[] stores;
             InMemoryNetwork[] networks;
             InMemorySharedKeyValueStore[] nonceStores;
             lock (m_lock)
@@ -153,7 +153,7 @@ namespace Opc.Ua.Redundancy.Server
                 m_ownedNonceStores.Clear();
             }
 
-            foreach (CrdtSharedKeyValueStore store in stores)
+            foreach (ReplicatedSharedKeyValueStore store in stores)
             {
                 await store.DisposeAsync().ConfigureAwait(false);
             }
@@ -170,7 +170,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly IServiceProvider m_services;
         private readonly ReplicatedSessionOptions m_options;
         private readonly Lock m_lock = new();
-        private readonly List<CrdtSharedKeyValueStore> m_entryStores = [];
+        private readonly List<ReplicatedSharedKeyValueStore> m_entryStores = [];
         private readonly List<InMemoryNetwork> m_defaultNetworks = [];
         private readonly List<InMemorySharedKeyValueStore> m_ownedNonceStores = [];
     }

@@ -60,7 +60,7 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets a factory that creates the eventually-consistent bulk store used in
-        /// <see cref="RedundancyConsistencyMode.Eventual"/> mode (typically a <see cref="CrdtSharedKeyValueStore"/>).
+        /// <see cref="RedundancyConsistencyMode.Eventual"/> mode (typically a <see cref="ReplicatedSharedKeyValueStore"/>).
         /// When <c>null</c>, a singleton <see cref="InMemorySharedKeyValueStore"/> is used.
         /// </summary>
         public Func<IServiceProvider, ISharedKeyValueStore>? BulkStoreFactory { get; set; }

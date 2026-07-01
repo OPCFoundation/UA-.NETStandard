@@ -48,7 +48,7 @@ namespace Opc.Ua.Redundancy.Server
     /// while received state is merged and the resulting differences are applied
     /// to the local graph. There is no leader.
     /// </summary>
-    public sealed class CrdtAddressSpaceSynchronizer : IAddressSpaceSynchronizer
+    public sealed class ReplicatedAddressSpaceSynchronizer : IAddressSpaceSynchronizer
     {
         /// <summary>
         /// Creates a CRDT address-space synchronizer.
@@ -60,7 +60,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="timeProvider">The time source for the logical clock.</param>
         /// <param name="readerOptions">Decoding limits for received state.</param>
         /// <param name="logger">Optional logger.</param>
-        public CrdtAddressSpaceSynchronizer(
+        public ReplicatedAddressSpaceSynchronizer(
             ILocalAddressSpace addressSpace,
             IServiceMessageContext messageContext,
             ReplicaId replicaId,

@@ -49,7 +49,7 @@ namespace Opc.Ua.Redundancy
     /// Use a strongly-consistent store for primitives that require exactly-once
     /// semantics (for example the single-use session nonce registry).
     /// </remarks>
-    public sealed class CrdtSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+    public sealed class ReplicatedSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
     {
         /// <summary>
         /// Creates a CRDT key/value store.
@@ -58,7 +58,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="transport">The gossip transport (owned by this store).</param>
         /// <param name="timeProvider">The time source for the logical clock.</param>
         /// <param name="readerOptions">Decoding limits for received state.</param>
-        public CrdtSharedKeyValueStore(
+        public ReplicatedSharedKeyValueStore(
             ReplicaId replicaId,
             ITransport transport,
             TimeProvider timeProvider,
@@ -104,7 +104,7 @@ namespace Opc.Ua.Redundancy
         {
             await EnsureStartedAsync(ct).ConfigureAwait(false);
             throw new NotSupportedException(
-                "CrdtSharedKeyValueStore is eventually consistent and does not support compare-and-swap. " +
+                "ReplicatedSharedKeyValueStore is eventually consistent and does not support compare-and-swap. " +
                 "Use a strongly-consistent store for compare-and-swap primitives (e.g. the single-use nonce registry).");
         }
 
@@ -154,7 +154,7 @@ namespace Opc.Ua.Redundancy
         public IAsyncEnumerable<KeyValueChange> WatchAsync(string keyPrefix, CancellationToken ct = default)
         {
             throw new NotSupportedException(
-                "CrdtSharedKeyValueStore does not expose a change feed; it is intended for entry replication " +
+                "ReplicatedSharedKeyValueStore does not expose a change feed; it is intended for entry replication " +
                 "(for example mirrored session entries) where consumers read on demand.");
         }
 
