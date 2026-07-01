@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -83,30 +81,28 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(eventState));
             }
 
-            var builder = new StringBuilder();
-            Append(builder, m_replicaSetSeed);
-            Append(builder, notifier.NodeId.ToString());
-            Append(builder, (eventState.EventType?.Value ?? eventState.GetDefaultTypeDefinitionId(context)).ToString());
-            Append(builder, (eventState.SourceNode?.Value ?? notifier.NodeId).ToString());
-            Append(builder, eventState.Time?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-            Append(builder, eventState.Severity?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-            Append(builder, eventState.Message?.Value.Text ?? string.Empty);
-
-            byte[] bytes = Encoding.UTF8.GetBytes(builder.ToString());
-#if NET8_0_OR_GREATER
-            return ByteString.From(SHA256.HashData(bytes));
-#else
-            using SHA256 sha = SHA256.Create();
-            return ByteString.From(sha.ComputeHash(bytes));
-#endif
+            // Hash the length-prefixed field bytes incrementally rather than
+            // building one large string. SHA-256 is kept deliberately: an EventId
+            // collision would make replicas emit the same id for distinct events
+            // and cause clients to drop a real event, so collision resistance
+            // matters more than shaving the per-event hash cost.
+            using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            AppendField(hash, m_replicaSetSeed);
+            AppendField(hash, notifier.NodeId.ToString());
+            AppendField(hash, (eventState.EventType?.Value ?? eventState.GetDefaultTypeDefinitionId(context)).ToString());
+            AppendField(hash, (eventState.SourceNode?.Value ?? notifier.NodeId).ToString());
+            AppendField(hash, eventState.Time?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+            AppendField(hash, eventState.Severity?.Value.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+            AppendField(hash, eventState.Message?.Value.Text ?? string.Empty);
+            return ByteString.From(hash.GetHashAndReset());
         }
 
-        private static void Append(StringBuilder builder, string value)
+        private static void AppendField(IncrementalHash hash, string value)
         {
-            builder.Append(value.Length.ToString(CultureInfo.InvariantCulture));
-            builder.Append(':');
-            builder.Append(value);
-            builder.Append('|');
+            byte[] bytes = Encoding.UTF8.GetBytes(value);
+            // Length-prefix so distinct field boundaries cannot collide.
+            hash.AppendData(BitConverter.GetBytes(bytes.Length));
+            hash.AppendData(bytes);
         }
 
         private readonly string m_replicaSetSeed;

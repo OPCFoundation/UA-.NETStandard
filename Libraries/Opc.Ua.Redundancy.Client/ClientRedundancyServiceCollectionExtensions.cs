@@ -99,7 +99,7 @@ namespace Opc.Ua.Redundancy.Client
             }
 
             services.TryAddSingleton<IRaftConsensus>(sp =>
-                consensusFactory?.Invoke(sp) ?? RaftCsConsensus.CreateSingleNode());
+                consensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp =>
                 new RaftSharedKeyValueStore(sp.GetRequiredService<IRaftConsensus>(), ownsConsensus: false));
@@ -152,7 +152,7 @@ namespace Opc.Ua.Redundancy.Client
             }
 
             services.TryAddSingleton<IRaftConsensus>(sp =>
-                raftConsensusFactory?.Invoke(sp) ?? RaftCsConsensus.CreateSingleNode());
+                raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp =>
                 CreateClientStore(sp, mode, replicaId, crdtTransportFactory));

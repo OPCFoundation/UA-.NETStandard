@@ -81,7 +81,3 @@ For additional migration support:
   edits via a code-fixer.
 - Open an issue on
   [OPCFoundation/UA-.NETStandard](https://github.com/OPCFoundation/UA-.NETStandard/issues).
-
-## Redundancy package re-topology (2.0)
-
-The redundancy packages were consolidated: `Opc.Ua.Server.Redundancy` + `Opc.Ua.Server.Redundancy.Crdt` merged into **`Opc.Ua.Redundancy.Server`**; `.K8s` renamed to **`Opc.Ua.Redundancy.K8s`**; client redundancy folded into `Opc.Ua.Client`; new **`Opc.Ua.Redundancy.Client`** (CRDT client gossip). Shared seams (`ISharedKeyValueStore`/`IRecordProtector`/`ILeaderElection`) moved to `Opc.Ua.Core` (`Opc.Ua.Redundancy`). `RedundantManagedClient` is removed: use `ManagedSession` (`IManagedSession`), which handles server transparent/non-transparent redundancy by default.

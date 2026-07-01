@@ -37,7 +37,7 @@ namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests that exercise the Raft (strong-consistency) building blocks over a real
-    /// <see cref="RaftCsConsensus"/> replica, ensuring the external RaftCs engine is reachable and functional under
+    /// <see cref="DefaultRaftConsensus"/> replica, ensuring the external RaftCs engine is reachable and functional under
     /// NativeAOT.
     /// </summary>
     public class RaftAotTests
@@ -45,7 +45,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task RaftCsStoreCompareAndSwapUnderAotAsync()
         {
-            await using RaftCsConsensus consensus = RaftCsConsensus.CreateSingleNode();
+            await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var store = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
 
             var value = new ByteString(new byte[] { 7, 8, 9 });
@@ -60,7 +60,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task RaftLeaderElectionUnderAotAsync()
         {
-            await using RaftCsConsensus consensus = RaftCsConsensus.CreateSingleNode();
+            await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var election = new RaftLeaderElection(consensus);
 
             await consensus.StartAsync();

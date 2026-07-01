@@ -12,6 +12,15 @@ Use **non-transparent redundancy** when each pod has its own OPC UA endpoint and
 
 A multi-pod deployment needs a shared store reachable by all replicas for distributed address-space/session/subscription state. The in-memory store is only for single-process tests and local samples. Protect the store conduit with authenticated encryption, provision a shared record-protection key through a Kubernetes Secret or CSI-backed secret store, and size/expire session, nonce, and subscription keys so a faulty replica cannot exhaust the backend.
 
+### Running without Kubernetes API integration
+
+The `Opc.Ua.Redundancy.K8s` extension (`UseKubernetesLeaderElection`, `UseKubernetesPeerDiscovery`, `UseKubernetesReadiness`) is **optional**. Because the in-package consensus layers self-manage membership and leadership, you can run a fully working HA replica set on Kubernetes with **no Kubernetes API access, RBAC, or ServiceAccount** at all:
+
+- **Raft (strong consistency)** — `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)` elects a single leader through the Raft protocol itself and provides a linearizable shared store, so no Kubernetes Lease is needed. Deploy the members as a `StatefulSet` with a headless `Service`; each pod derives its Raft node id from the StatefulSet ordinal and reaches its peers by stable pod DNS (`pod-0.svc`, `pod-1.svc`, …). A `RaftCs.Storage.File` WAL on a `PersistentVolumeClaim` lets a restarted pod rejoin without a full snapshot.
+- **CRDT (eventual consistency, active/active)** — `UseReplicatedAddressSpace`/`UseReplicatedSessions` converge leaderlessly over gossip, so there is no election to coordinate. Point each pod's gossip peer list at the other pods' DNS names (again a headless `Service` over a `StatefulSet`).
+
+In both cases readiness/liveness can be a plain HTTP probe your app exposes from `Server.ServiceLevel` without `UseKubernetesReadiness`. Reach for the `Opc.Ua.Redundancy.K8s` extension only when you specifically want Kubernetes-native Lease election or EndpointSlice-based peer discovery instead of the self-managed Raft/CRDT wiring above.
+
 ## Application wiring
 
 ```csharp

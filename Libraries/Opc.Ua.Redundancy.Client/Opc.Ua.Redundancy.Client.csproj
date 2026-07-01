@@ -14,6 +14,8 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Client.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Aot.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

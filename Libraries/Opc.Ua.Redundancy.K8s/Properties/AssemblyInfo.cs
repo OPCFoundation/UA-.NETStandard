@@ -28,9 +28,5 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.CompilerServices;
 
 [assembly: CLSCompliant(false)]
-[assembly: InternalsVisibleTo("Opc.Ua.Aot.Tests")]
-[assembly: InternalsVisibleTo("Opc.Ua.Redundancy.K8s.Tests")]
-[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

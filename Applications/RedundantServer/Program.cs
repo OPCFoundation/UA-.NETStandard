@@ -412,12 +412,12 @@ static IRaftConsensus BuildRaftCluster(ulong nodeId, int members, string bind, L
         transportOptions.Peers.Add(peer);
     }
 
-    // The RaftCsConsensus adapter owns the node (which disposes the transport);
+    // The DefaultRaftConsensus adapter owns the node (which disposes the transport);
     // MemoryStorage is volatile, so a restarted replica re-syncs from the leader.
 #pragma warning disable CA2000
     var transport = new NanoMsgBusTransport(transportOptions);
     var storage = new MemoryStorage(new ConfState(memberIds));
-    return RaftCsConsensus.CreateCluster(
+    return DefaultRaftConsensus.CreateCluster(
         nodeId,
         transport,
         storage,

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
@@ -162,11 +160,12 @@ namespace RedundantClient
                     return;
                 }
 
-                // A single ManagedSession is the managed client. WithServerRedundancy() lets it
-                // discover the redundant set (if any) from the connected server and fail over
-                // transparently; against a server that is not configured for redundancy it simply
-                // behaves as a resilient reconnecting session. The caller does not need to know the
-                // server topology before connecting.
+                // Create a normal managed session and opt it into server redundancy
+                // handling — that's it. WithServerRedundancy() lets the session discover
+                // the redundant set (if any) from the connected server and fail over
+                // transparently; against a server that is not configured for redundancy it
+                // simply behaves as a resilient reconnecting session. The caller does not
+                // need to know the server topology before connecting.
                 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
                     .UseEndpoint(endpoint)
                     .WithSessionName(kApplicationName)

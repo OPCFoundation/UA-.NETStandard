@@ -28,24 +28,21 @@
  * ======================================================================*/
 
 // ===========================================================================
-// Adapter that binds the external Raft engine `RaftCs`
-// (https://github.com/marcschier/raft-cs, shipped alongside the Crdt 1.1.0
-// libraries) to the in-repo IRaftConsensus seam. Opc.Ua.Redundancy references
-// the `RaftCs` and `RaftCs.Transport` packages and defines OPCUA_RAFTCS, so
-// this type is compiled into the assembly. The guard remains so the file can
-// be excluded if the RaftCs dependency is ever removed.
+// Adapter that binds the external Raft engine `RaftCs` (shipped alongside the
+// Crdt libraries) to the in-repo IRaftConsensus seam. Opc.Ua.Redundancy
+// references the `RaftCs` and `RaftCs.Transport` packages, so this is the
+// default IRaftConsensus implementation.
 //
 // Usage:
-//   - Single-node / in-process: RaftCsConsensus.CreateSingleNode().
+//   - Single-node / in-process: DefaultRaftConsensus.CreateSingleNode().
 //   - Multi-pod: construct a RaftNode with durable storage
 //     (RaftCs.Storage.File) and a networked transport
 //     (RaftCs.Transport.NanoMsg, sharing the NanoMsg substrate with the CRDT
-//     gossip layer), then `new RaftCsConsensus(node)`. Wire either through
+//     gossip layer), then `new DefaultRaftConsensus(node)`. Wire either through
 //     RedundancyConsistencyOptions.RaftConsensusFactory (server) or the client
 //     AddRaftClientSharedStore/AddRedundantClientSharedStore factories.
 // ===========================================================================
 
-#if OPCUA_RAFTCS
 using System;
 using System.Threading;
 using System.Threading.Channels;
@@ -62,7 +59,7 @@ namespace Opc.Ua.Redundancy
     /// <see cref="IRaftConsensus"/> seam. Proposals map to <see cref="RaftNode.ProposeAsync"/>, the committed apply
     /// stream is <see cref="RaftNode.Committed"/>, and leadership is observed from <see cref="RaftNode.IsLeader"/>.
     /// </summary>
-    public sealed class RaftCsConsensus : IRaftConsensus
+    public sealed class DefaultRaftConsensus : IRaftConsensus
     {
         /// <summary>
         /// Creates an adapter over a <c>RaftCs</c> replica.
@@ -80,7 +77,7 @@ namespace Opc.Ua.Redundancy
         /// How long <see cref="StartAsync"/> waits for the cluster to elect an initial leader before returning (so the
         /// first proposals are not dropped during the initial election). Defaults to 10 seconds.
         /// </param>
-        public RaftCsConsensus(
+        public DefaultRaftConsensus(
             RaftNode node,
             bool ownsNode = true,
             TimeSpan leadershipPollInterval = default,
@@ -106,7 +103,7 @@ namespace Opc.Ua.Redundancy
         /// </summary>
         /// <param name="nodeId">This replica's unique, non-zero id.</param>
         /// <param name="readyTimeout">How long to wait for self-election on start (defaults to 10 seconds).</param>
-        public static RaftCsConsensus CreateSingleNode(ulong nodeId = 1, TimeSpan readyTimeout = default)
+        public static DefaultRaftConsensus CreateSingleNode(ulong nodeId = 1, TimeSpan readyTimeout = default)
         {
             if (nodeId == 0)
             {
@@ -142,7 +139,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="options">Optional driver options (tick interval, apply cap).</param>
         /// <param name="configure">Optional callback to tune the <see cref="RaftConfig"/> (its <c>Id</c> is set).</param>
         /// <param name="readyTimeout">How long <see cref="StartAsync"/> waits for an initial leader.</param>
-        public static RaftCsConsensus CreateCluster(
+        public static DefaultRaftConsensus CreateCluster(
             ulong nodeId,
             ArrayOf<ulong> memberIds,
             IRaftTransport transport,
@@ -178,7 +175,7 @@ namespace Opc.Ua.Redundancy
         /// An optional resource (for example the in-memory network, or the storage when it is disposable) disposed
         /// after the node.
         /// </param>
-        public static RaftCsConsensus CreateCluster(
+        public static DefaultRaftConsensus CreateCluster(
             ulong nodeId,
             IRaftTransport transport,
             IRaftWritableStorage storage,
@@ -207,7 +204,7 @@ namespace Opc.Ua.Redundancy
             // transfer to the returned adapter, which disposes them.
 #pragma warning disable CA2000
             var node = new RaftNode(config, storage, transport, options);
-            return new RaftCsConsensus(node, ownsNode: true, readyTimeout: readyTimeout, ownedHost: ownedResources);
+            return new DefaultRaftConsensus(node, ownsNode: true, readyTimeout: readyTimeout, ownedHost: ownedResources);
 #pragma warning restore CA2000
         }
 
@@ -345,4 +342,3 @@ namespace Opc.Ua.Redundancy
         private int m_disposed;
     }
 }
-#endif

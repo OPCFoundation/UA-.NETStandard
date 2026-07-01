@@ -29,6 +29,4 @@
 
 using System;
 
-#nullable enable
-
 [assembly: CLSCompliant(false)]

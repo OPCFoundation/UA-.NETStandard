@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -87,7 +85,7 @@ namespace Opc.Ua.Redundancy.K8s
             return builder;
         }
 
-        private static RaftCsConsensus BuildConsensus(KubernetesRaftConsensusOptions options)
+        private static DefaultRaftConsensus BuildConsensus(KubernetesRaftConsensusOptions options)
         {
             string podName = string.IsNullOrEmpty(options.PodName) ? Environment.MachineName : options.PodName!;
             int ordinal = ParseOrdinal(podName);
@@ -151,7 +149,7 @@ namespace Opc.Ua.Redundancy.K8s
                 ownedResources = null;
             }
 
-            return RaftCsConsensus.CreateCluster(
+            return DefaultRaftConsensus.CreateCluster(
                 nodeId,
                 transport,
                 storage,

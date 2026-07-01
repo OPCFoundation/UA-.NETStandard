@@ -44,7 +44,7 @@ using Raft.Transport;
 namespace Opc.Ua.Server.Tests.Redundancy
 {
     /// <summary>
-    /// Integration tests for a real multi-node <see cref="RaftCsConsensus"/> cluster (RaftCs over an in-process
+    /// Integration tests for a real multi-node <see cref="DefaultRaftConsensus"/> cluster (RaftCs over an in-process
     /// network): election, replication, follower forwarding, failover, and quorum-loss behaviour.
     /// </summary>
     [TestFixture]
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            RaftCsConsensus[] nodes = CreateNodes(network);
+            DefaultRaftConsensus[] nodes = CreateNodes(network);
             RaftSharedKeyValueStore[] stores = nodes
                 .Select(n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(15)))
                 .ToArray();
@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            RaftCsConsensus[] nodes = CreateNodes(network);
+            DefaultRaftConsensus[] nodes = CreateNodes(network);
             RaftSharedKeyValueStore[] stores = nodes
                 .Select(n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(15)))
                 .ToArray();
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            RaftCsConsensus[] nodes = CreateNodes(network);
+            DefaultRaftConsensus[] nodes = CreateNodes(network);
             // Short commit timeout so the quorum-loss failure is quick.
             RaftSharedKeyValueStore[] stores = nodes
                 .Select(n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(1)))
@@ -162,13 +162,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
         }
 
-        private static RaftCsConsensus[] CreateNodes(InMemoryNetwork network)
+        private static DefaultRaftConsensus[] CreateNodes(InMemoryNetwork network)
         {
-            var nodes = new RaftCsConsensus[3];
+            var nodes = new DefaultRaftConsensus[3];
             for (int ii = 0; ii < nodes.Length; ii++)
             {
                 ulong id = (ulong)(ii + 1);
-                nodes[ii] = RaftCsConsensus.CreateCluster(
+                nodes[ii] = DefaultRaftConsensus.CreateCluster(
                     id,
                     MemberIds,
                     network.CreateNode(id),
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return nodes;
         }
 
-        private static async Task<int> WaitForLeaderAsync(RaftCsConsensus[] nodes, CancellationToken ct)
+        private static async Task<int> WaitForLeaderAsync(DefaultRaftConsensus[] nodes, CancellationToken ct)
         {
             while (true)
             {
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static async Task DisposeAllAsync(
             IReadOnlyList<RaftSharedKeyValueStore> stores,
-            IReadOnlyList<RaftCsConsensus> nodes)
+            IReadOnlyList<DefaultRaftConsensus> nodes)
         {
             foreach (RaftSharedKeyValueStore store in stores)
             {
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     // already disposed by the test body
                 }
             }
-            foreach (RaftCsConsensus node in nodes)
+            foreach (DefaultRaftConsensus node in nodes)
             {
                 await node.DisposeAsync();
             }

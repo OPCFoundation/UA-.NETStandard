@@ -24,6 +24,11 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.K8s.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Aot.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="RaftCs.Transport.NanoMsg" />
     <PackageReference Include="RaftCs.Storage.File" />
     <ProjectReference Include="..\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />

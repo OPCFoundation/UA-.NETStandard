@@ -39,7 +39,7 @@ using Opc.Ua.Redundancy.Server;
 namespace Opc.Ua.Server.Tests.Redundancy
 {
     /// <summary>
-    /// Tests that exercise the in-repo Raft seams over a real <see cref="RaftCsConsensus"/> (a single-node RaftCs
+    /// Tests that exercise the in-repo Raft seams over a real <see cref="DefaultRaftConsensus"/> (a single-node RaftCs
     /// replica with real election, log replication, and commit), proving the adapter binding to the external engine.
     /// </summary>
     [TestFixture]
@@ -50,7 +50,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task SingleNodeElectsItselfLeaderAsync()
         {
-            await using RaftCsConsensus consensus = RaftCsConsensus.CreateSingleNode();
+            await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var election = new RaftLeaderElection(consensus);
 
             await consensus.StartAsync();
@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task StoreCompareAndSwapIsLinearizableAsync()
         {
             await using var store = new RaftSharedKeyValueStore(
-                RaftCsConsensus.CreateSingleNode(), ownsConsensus: true);
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
 
             bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 }));
             bool createdAgain = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 2 }));
@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task SetThenGetRoundTripsThroughCommittedLogAsync()
         {
             await using var store = new RaftSharedKeyValueStore(
-                RaftCsConsensus.CreateSingleNode(), ownsConsensus: true);
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
             ByteString payload = ByteString.From(new byte[] { 4, 5, 6 });
 
             await store.SetAsync("session/a", payload);
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task NonceRegistryEnforcesExactlyOnceAsync()
         {
             await using var store = new RaftSharedKeyValueStore(
-                RaftCsConsensus.CreateSingleNode(), ownsConsensus: true);
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
             var registry = new SharedSingleUseNonceRegistry(store);
             ByteString nonce = ByteString.From(new byte[] { 1, 2, 3, 4 });
 

@@ -31,8 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +67,7 @@ namespace Opc.Ua.Redundancy.K8s.Tests
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             IRaftConsensus consensus = provider.GetRequiredService<IRaftConsensus>();
-            Assert.That(consensus, Is.InstanceOf<RaftCsConsensus>());
+            Assert.That(consensus, Is.InstanceOf<DefaultRaftConsensus>());
         }
 
         [Test]
@@ -97,7 +95,7 @@ namespace Opc.Ua.Redundancy.K8s.Tests
                     await using ServiceProvider provider = services.BuildServiceProvider();
                     Assert.That(
                         provider.GetRequiredService<IRaftConsensus>(),
-                        Is.InstanceOf<RaftCsConsensus>());
+                        Is.InstanceOf<DefaultRaftConsensus>());
                 }
 
                 Assert.That(Directory.Exists(dir), Is.True, "the file WAL directory was created");

@@ -11,11 +11,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
-    <DefineConstants>$(DefineConstants);OPCUA_RAFTCS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Client.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Aot.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
