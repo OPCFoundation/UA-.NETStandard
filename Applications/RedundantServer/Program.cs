@@ -58,7 +58,18 @@ string nodeId = builder.Configuration["HA_NODE_ID"] ?? Guid.NewGuid().ToString("
 // multi-host deployments so peers and clients can connect across the network.
 string host = builder.Configuration["HA_HOST"] ?? "localhost";
 string endpointUrl = $"opc.tcp://{host}:{port}/RedundantServer";
-string applicationUri = $"urn:localhost:OPCFoundation:RedundantServer:{nodeId}";
+// Transparent redundancy presents ONE logical server: every replica must share
+// the same ApplicationUri (CreateSession validates serverUri against it) and the
+// same ApplicationInstanceCertificate. Override the per-node identity with the
+// shared values when running behind a single virtual endpoint.
+string applicationUri = builder.Configuration["HA_APPLICATION_URI"]
+    ?? $"urn:localhost:OPCFoundation:RedundantServer:{nodeId}";
+// Optional shared certificate: point every replica's PKI store at the same
+// (mounted) directory and give the certificate a stable subject so all replicas
+// load one ApplicationInstanceCertificate. In production this is provisioned from
+// a Kubernetes Secret / KMS rather than a shared volume.
+string? sharedSubjectName = builder.Configuration["HA_SUBJECT_NAME"];
+string? sharedPkiRoot = builder.Configuration["HA_PKI_ROOT"];
 
 // Select the redundancy topology: "ap" (active/passive, default — a single
 // elected writer) or "aa" (active/active — every replica writes and converges
@@ -113,6 +124,16 @@ IOpcUaServerBuilder ua = builder.Services
         o.ProductUri = "uri:opcfoundation.org:RedundantServer";
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add(endpointUrl);
+        // Transparent mode: share one certificate across replicas by pointing them
+        // at a common PKI store with a stable subject name.
+        if (!string.IsNullOrWhiteSpace(sharedSubjectName))
+        {
+            o.SubjectName = sharedSubjectName!;
+        }
+        if (!string.IsNullOrWhiteSpace(sharedPkiRoot))
+        {
+            o.PkiRoot = sharedPkiRoot!;
+        }
     })
     .AddNodeManager<HaSampleNodeManagerFactory>();
 

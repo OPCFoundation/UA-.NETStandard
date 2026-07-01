@@ -19,17 +19,14 @@ See `Docs/HighAvailability.md` and `Docs/Kubernetes.md` for the full, current de
 
 ## Remaining work
 
-### 1. Transparent-redundancy worked deployment sample
-
-The server side of transparent redundancy is implemented (`RedundancySupport.Transparent` → `CurrentServerId` + `TransparentRedundancyType`, HotAndMirrored/Transparent CRDT state mirroring, `DeterministicEventIdProvider`) and the shared-certificate operational guidance is documented. What remains is a **worked single-virtual-endpoint sample**: a Kubernetes `Service` / load balancer fronting replicas that share one ApplicationInstanceCertificate, tying the shared session store to subscription transfer end-to-end. Extend `Applications/RedundantServer` with a `docker-compose.transparent.yml` + shared-cert/KEK provisioning, and document the single-endpoint client experience.
-
-### 2. Large-address-space hydration optimization — deferred
+### 1. Large-address-space hydration optimization — deferred
 
 Full address-space materialization on startup and on failover promotion can be slow for very large address spaces. A **snapshot + delta** (or lazy-materialization) hydration path is deferred. This is a known limitation, not yet optimized; the current path fully materializes.
 
 ## Delivered in this iteration
 
 - **Async `ISubscriptionStore` definition-persistence contract.** `StoreSubscriptions`/`RestoreSubscriptions`/`OnSubscriptionRestoreComplete` are now `StoreSubscriptionsAsync`/`RestoreSubscriptionsAsync`/`OnSubscriptionRestoreCompleteAsync` (`ValueTask`-returning, `CancellationToken`). Subscription definitions can now be persisted to an async network backend without a sync-over-async wrapper; `SharedKeyValueSubscriptionStore` awaits its shared-store writes directly instead of fire-and-forget. The per-monitored-item queue-restore hooks stay synchronous (synchronous monitored-item creation path). Documented in `Docs/migrate/2.0.x/sessions-subscriptions.md` and `Docs/HighAvailability.md`.
+- **Transparent-redundancy worked sample.** `Applications/RedundantServer/docker-compose.transparent.yml` runs two `REDUNDANCY_MODE=transparent` replicas that share one `ApplicationUri` and one `ApplicationInstanceCertificate` (seeded into a shared PKI volume) and mirror session + address-space state by CRDT gossip, behind an `nginx` TCP load balancer (`nginx.transparent.conf`) that publishes a single virtual endpoint. `Program.cs` gained `HA_APPLICATION_URI` / `HA_SUBJECT_NAME` / `HA_PKI_ROOT` for the shared identity; each replica advertises the load-balancer host (bind-to-any for DNS hosts), so discovery and `CreateSession` echo the single endpoint and a mirrored session resumes on the survivor after a replica fails. Documented in `Applications/RedundantServer/README.md` and `Docs/HighAvailability.md`.
 
 ## Notes
 
