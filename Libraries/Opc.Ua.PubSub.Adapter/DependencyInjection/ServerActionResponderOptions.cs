@@ -1,0 +1,78 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.Collections.Generic;
+using Opc.Ua.PubSub.Adapter.Actions;
+using Opc.Ua.PubSub.Adapter.Session;
+using Opc.Ua.PubSub.Application;
+
+namespace Opc.Ua.PubSub.Adapter.DependencyInjection
+{
+    /// <summary>
+    /// Options that configure an external-server PubSub action responder wired
+    /// through <c>AddServerAsActionResponder</c>. Inbound PubSub Action
+    /// requests targeting one of the configured <see cref="Targets"/> are mapped
+    /// to OPC UA method calls on an external server through <see cref="MethodMap"/>.
+    /// </summary>
+    /// <remarks>
+    /// Simple properties are bindable from <c>IConfiguration</c>. Object-typed
+    /// members, such as <see cref="MethodMap"/>, <see cref="Targets"/>,
+    /// <see cref="ServerConnectionOptions.ApplicationConfiguration"/> and
+    /// <see cref="ServerConnectionOptions.UserIdentity"/>, must be supplied from
+    /// code.
+    /// </remarks>
+    public sealed class ServerActionResponderOptions
+    {
+        /// <summary>
+        /// The connection options describing the external OPC UA server whose
+        /// methods are invoked for the actions.
+        /// </summary>
+        public ServerConnectionOptions Connection { get; set; } = new();
+
+        /// <summary>
+        /// The map that resolves each handled action target to the external
+        /// object and method to call.
+        /// </summary>
+        public ActionMethodMap MethodMap { get; set; } = new();
+
+        /// <summary>
+        /// The action targets the responder is registered for. The same handler
+        /// (backed by <see cref="MethodMap"/>) serves every target in the list.
+        /// </summary>
+        public IList<PubSubActionTarget> Targets { get; set; }
+            = new List<PubSubActionTarget>();
+
+        /// <summary>
+        /// When <see langword="true"/> the responder is allowed to serve the
+        /// actions over an unsecured connection. Defaults to
+        /// <see langword="false"/>.
+        /// </summary>
+        public bool AllowUnsecured { get; set; }
+    }
+}

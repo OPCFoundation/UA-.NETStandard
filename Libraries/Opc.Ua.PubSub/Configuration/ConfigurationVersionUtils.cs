@@ -66,8 +66,8 @@ namespace Opc.Ua.PubSub.Configuration
             }
             else
             {
-                /*Removing fields from the DataSet content, reordering fields, adding fields in between other fields or a
-                 * DataType change in fields shall result in an update of the MajorVersion.  */
+                /*Removing fields from the DataSet content, reordering fields, adding fields in between other fields,
+                 * DataType, Name or ValueRank changes shall result in an update of the MajorVersion.  */
                 // check if any field was deleted
                 if (oldMetaData.Fields.Count > newMetaData.Fields.Count)
                 {
@@ -78,10 +78,16 @@ namespace Opc.Ua.PubSub.Configuration
                     // compare fields
                     for (int i = 0; i < oldMetaData.Fields.Count; i++)
                     {
-                        /*If at least one Property value of a DataSetMetaData field changes, the MajorVersion shall be updated.*/
-                        if (!Utils.IsEqual(
+                        if (!StringComparer.Ordinal.Equals(
+                            oldMetaData.Fields[i].Name,
+                            newMetaData.Fields[i].Name)
+                            || !Utils.IsEqual(
+                                oldMetaData.Fields[i].DataType,
+                                newMetaData.Fields[i].DataType)
+                            || oldMetaData.Fields[i].ValueRank != newMetaData.Fields[i].ValueRank
+                            || !Utils.IsEqual(
                             oldMetaData.Fields[i].Properties,
-                            newMetaData.Fields[1].Properties))
+                            newMetaData.Fields[i].Properties))
                         {
                             hasMajorVersionChange = true;
                             break;
@@ -95,6 +101,9 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                 }
             }
+
+            ConfigurationVersionDataType currentVersion = newMetaData.ConfigurationVersion
+                ?? new ConfigurationVersionDataType();
 
             if (hasMajorVersionChange || hasMinorVersionChange)
             {
@@ -112,15 +121,15 @@ namespace Opc.Ua.PubSub.Configuration
                 return new ConfigurationVersionDataType
                 {
                     MinorVersion = versionTime,
-                    MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                    MajorVersion = currentVersion.MajorVersion
                 };
             }
 
             // there is no change
             return new ConfigurationVersionDataType
             {
-                MinorVersion = newMetaData.ConfigurationVersion.MinorVersion,
-                MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                MinorVersion = currentVersion.MinorVersion,
+                MajorVersion = currentVersion.MajorVersion
             };
         }
 
@@ -160,11 +169,6 @@ namespace Opc.Ua.PubSub.Configuration
             }
 
             if (dataSetMetaData.ConfigurationVersion.MajorVersion == 0)
-            {
-                return false;
-            }
-
-            if (dataSetMetaData.ConfigurationVersion.MinorVersion == 0)
             {
                 return false;
             }

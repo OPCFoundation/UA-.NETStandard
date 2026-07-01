@@ -34,7 +34,7 @@ jobs:
     outputs:
       csprojs: ${{ steps.list.outputs.csprojs }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Enumerate Tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh
@@ -79,7 +79,7 @@ jobs:
       TESTRESULTS: "TestResults-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
@@ -159,7 +159,7 @@ jobs:
       AOTPROJECT: './Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 

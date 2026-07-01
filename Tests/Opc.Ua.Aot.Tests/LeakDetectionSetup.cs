@@ -56,7 +56,7 @@ namespace Opc.Ua.Aot.Tests
             long leaked = Certificate.InstancesLeaked;
             for (int i = 0; leaked > 0 && i < 50; i++)
             {
-                System.Threading.Thread.Sleep(100);
+                Thread.Sleep(100);
                 leaked = Certificate.InstancesLeaked;
             }
             if (leaked > 0)

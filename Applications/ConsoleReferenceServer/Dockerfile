@@ -12,6 +12,7 @@ COPY ["Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj"
 COPY ["Tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj", "Tools/Opc.Ua.SourceGeneration/"]
 COPY ["Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj", "Stack/Opc.Ua.Core.Types/"]
 COPY ["Stack/Opc.Ua.Core/Opc.Ua.Core.csproj", "Stack/Opc.Ua.Core/"]
+COPY ["Stack/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj", "Stack/Opc.Ua.Core.Schema/"]
 COPY ["Stack/Opc.Ua.Types/Opc.Ua.Types.csproj", "Stack/Opc.Ua.Types/"]
 COPY ["Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj", "Stack/Opc.Ua.Security.Certificates/"]
 COPY ["Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj", "Libraries/Opc.Ua.Configuration/"]

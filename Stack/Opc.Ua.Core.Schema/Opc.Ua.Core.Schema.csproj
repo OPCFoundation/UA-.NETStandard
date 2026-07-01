@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix).Core.Schema</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Core.Schema</PackageId>
+    <RootNamespace>Opc.Ua.Schema</RootNamespace>
+    <Description>OPC UA runtime schema generation (XSD, OPC Binary and JSON Schema) for encodeable and complex data types.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Schema.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

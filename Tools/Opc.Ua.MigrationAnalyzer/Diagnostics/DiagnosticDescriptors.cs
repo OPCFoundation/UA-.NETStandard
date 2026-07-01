@@ -189,5 +189,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'{0}.CertificateValidator' was removed in 2.0 — use '{0}.CertificateManager' (type ICertificateManager)",
             DiagnosticSeverity.Warning,
             "Configure via CertificateManagerFactory.Create(securityConfiguration, telemetry, ...). See Docs/migrate/2.0.x/certificates.md.");
+
+        public static readonly DiagnosticDescriptor UA0023_PubSubTopLevelObsolete = Create(
+            DiagnosticIds.UA0023,
+            "PubSub top-level types replaced in 2.0",
+            "'{0}' was replaced in 2.0 — use the new IPubSubApplication / PubSubApplicationBuilder surface (or AddPubSub() / AddUdpTransport() / AddMqttTransport() on IOpcUaBuilder)",
+            DiagnosticSeverity.Warning,
+            "The 1.04-era PubSub top-level types (UaPubSubApplication, IUaPubSubConnection, IUaPublisher, UaPubSubDataStore, UaPubSubConfigurator) ship as obsolete shims in 2.0; the new top-level surface uses provider-model abstractions wired via PubSubApplicationBuilder or Microsoft.Extensions.DependencyInjection extensions (Docs/migrate/2.0.x/pubsub.md).");
     }
 }

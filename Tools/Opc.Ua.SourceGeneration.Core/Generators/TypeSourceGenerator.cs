@@ -102,12 +102,14 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespaceUri, model.NamespaceUri);
             template.AddReplacement(Tokens.AccessModifier,
                 model.PublicExtensions ? "public" : "internal");
+            template.AddReplacement(Tokens.DataTypeDefinitionsClass,
+                DataTypeDefinitionsClassName(model.NamespaceSymbol));
 
             if (model.IsEnum)
             {
                 template.AddReplacement(
                     Tokens.ListOfTypeActivators,
-                    DataTypeTemplates.EnumerationActivatorClass,
+                    TypeSourceTemplates.EnumerationActivatorClassWithSourceDefinition,
                     [model],
                     WriteTemplate_ListOfTypeActivators);
                 template.AddReplacement(
@@ -126,7 +128,7 @@ namespace Opc.Ua.SourceGeneration
 
                 template.AddReplacement(
                     Tokens.ListOfTypeActivators,
-                    DataTypeTemplates.StructureActivatorClass,
+                    TypeSourceTemplates.StructureActivatorClassWithSourceDefinition,
                     [model],
                     WriteTemplate_ListOfTypeActivators);
                 template.AddReplacement(
@@ -135,6 +137,12 @@ namespace Opc.Ua.SourceGeneration
                     [model],
                     WriteTemplate_ListOfTypeActivators);
             }
+
+            template.AddReplacement(
+                Tokens.ListOfDataTypeDefinitions,
+                [model.IsEnum ? model : model with { Fields = validFields }],
+                LoadTemplate_ListOfDataTypeDefinitions,
+                WriteTemplate_ListOfDataTypeDefinitions);
 
             template.Render();
             return stringWriter.ToString();
@@ -162,6 +170,8 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespaceUri, nsUri);
             template.AddReplacement(Tokens.AccessModifier,
                 publicExtensions ? "public" : "internal");
+            template.AddReplacement(Tokens.DataTypeDefinitionsClass,
+                DataTypeDefinitionsClassName(nsSymbol));
 
             template.AddReplacement(
                 Tokens.ListOfTypes,
@@ -178,6 +188,11 @@ namespace Opc.Ua.SourceGeneration
                 allActivators,
                 LoadTemplate_ListOfActivatorRegistrations,
                 WriteTemplate_ListOfTypeActivators);
+            template.AddReplacement(
+                Tokens.ListOfDataTypeDefinitions,
+                allActivators,
+                LoadTemplate_ListOfDataTypeDefinitions,
+                WriteTemplate_ListOfDataTypeDefinitions);
 
             template.Render();
             return stringWriter.ToString();
@@ -631,9 +646,9 @@ namespace Opc.Ua.SourceGeneration
             }
             if (model.IsEnum)
             {
-                return DataTypeTemplates.EnumerationActivatorClass;
+                return TypeSourceTemplates.EnumerationActivatorClassWithSourceDefinition;
             }
-            return DataTypeTemplates.StructureActivatorClass;
+            return TypeSourceTemplates.StructureActivatorClassWithSourceDefinition;
         }
 
         private static TemplateString LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
@@ -675,12 +690,159 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
+            context.Template.AddReplacement(Tokens.DataTypeDefinitionsClass,
+                DataTypeDefinitionsClassName(model.NamespaceSymbol));
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"""
                 "{model.NamespaceUri.Escape()}"
                 """);
 
             return context.Template.Render();
+        }
+
+        private static TemplateString LoadTemplate_ListOfDataTypeDefinitions(ILoadContext context)
+        {
+            if (context.Target is not TypeSourceModel model)
+            {
+                return null;
+            }
+            return model.IsEnum
+                ? DataTypeTemplates.EnumDefinition
+                : DataTypeTemplates.StructureDefinition;
+        }
+
+        private static bool WriteTemplate_ListOfDataTypeDefinitions(IWriteContext context)
+        {
+            if (context.Target is not TypeSourceModel model)
+            {
+                return false;
+            }
+
+            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddBrowseNameReplacement(
+                Tokens.BrowseName,
+                Tokens.BrowseNameLiteral,
+                model.ClassName);
+
+            if (model.IsEnum)
+            {
+                // The attribute model does not distinguish an OptionSet from a
+                // plain enumeration beyond the [Flags] attribute, so flags
+                // enums are emitted as option sets.
+                context.Template.AddReplacement(Tokens.IsOptionSet, model.IsFlags);
+                context.Template.AddReplacement(
+                    Tokens.ListOfFields,
+                    DataTypeTemplates.EnumField,
+                    model.EnumMembers,
+                    WriteTemplate_ListOfEnumDefinitionFields);
+                return context.Template.Render();
+            }
+
+            // The attribute model only carries this type's own (explicit)
+            // fields, never inherited ones, so the base data type is always
+            // emitted as DataTypeIds.Structure and the explicit field index is
+            // zero. This is a best-effort fallback; the definition is always
+            // non-null which is the hard contract.
+            bool hasOptional = false;
+            foreach (TypeFieldModel field in model.Fields)
+            {
+                if (field.IsOptional)
+                {
+                    hasOptional = true;
+                    break;
+                }
+            }
+            context.Template.AddReplacement(
+                Tokens.BaseType,
+                "new global::Opc.Ua.NodeId(22u)");
+            context.Template.AddReplacement(Tokens.FirstExplicitFieldIndex, 0);
+            context.Template.AddReplacement(
+                Tokens.StructureType,
+                hasOptional ? "StructureWithOptionalFields" : "Structure");
+            context.Template.AddReplacement(
+                Tokens.ListOfFields,
+                DataTypeTemplates.StructureField,
+                model.Fields,
+                WriteTemplate_ListOfStructureDefinitionFields);
+            return context.Template.Render();
+        }
+
+        private static bool WriteTemplate_ListOfEnumDefinitionFields(IWriteContext context)
+        {
+            if (context.Target is not TypeEnumMember member)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.FieldName,
+                $"\"{member.Name.Escape()}\"");
+            context.Template.AddReplacement(
+                Tokens.DisplayName,
+                $"new global::Opc.Ua.LocalizedText(string.Empty, string.Empty, \"{member.Name.Escape()}\")");
+            context.Template.AddReplacement(
+                Tokens.ValueCode,
+                FormatEnumMemberValue(member.Value));
+            context.Template.AddReplacement(
+                Tokens.Description,
+                "global::Opc.Ua.LocalizedText.Null");
+            return context.Template.Render();
+        }
+
+        private static bool WriteTemplate_ListOfStructureDefinitionFields(IWriteContext context)
+        {
+            if (context.Target is not TypeFieldModel field)
+            {
+                return false;
+            }
+
+            string valueRank = field.IsMatrix
+                ? "global::Opc.Ua.ValueRanks.OneOrMoreDimensions"
+                : field.IsArray
+                    ? "global::Opc.Ua.ValueRanks.OneDimension"
+                    : "global::Opc.Ua.ValueRanks.Scalar";
+            string arrayDimensions = field.IsArray
+                ? "new uint[] { 0 }"
+                : "default";
+
+            context.Template.AddReplacement(
+                Tokens.FieldName,
+                $"\"{field.FieldName.Escape()}\"");
+            context.Template.AddReplacement(
+                Tokens.DataType,
+                field.DataTypeNodeId ?? "global::Opc.Ua.DataTypeIds.BaseDataType");
+            context.Template.AddReplacement(Tokens.ValueRank, valueRank);
+            context.Template.AddReplacement(Tokens.ArrayDimensions, arrayDimensions);
+            context.Template.AddReplacement(Tokens.IsOptional, field.IsOptional);
+            context.Template.AddReplacement(
+                Tokens.Description,
+                "global::Opc.Ua.LocalizedText.Null");
+            return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Computes the namespace-unique data type definitions class name for a
+        /// source-annotated namespace. The model-driven generator emits a
+        /// <c>DataTypeDefinitions</c> class; using a namespace-unique name here
+        /// avoids a cross-assembly CS0436 collision when both generators target
+        /// the same OPC UA namespace (e.g. <c>Opc.Ua</c>).
+        /// </summary>
+        private static string DataTypeDefinitionsClassName(string namespaceSymbol)
+        {
+            return $"{namespaceSymbol}DataTypeDefinitions";
+        }
+
+        /// <summary>
+        /// Formats an enum member's numeric value (captured as a string from
+        /// the Roslyn constant) as a long literal for the EnumField.Value.
+        /// </summary>
+        private static string FormatEnumMemberValue(string value)
+        {
+            if (!string.IsNullOrEmpty(value) &&
+                long.TryParse(value, out long parsed))
+            {
+                return parsed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            return "0";
         }
 
         /// <summary>

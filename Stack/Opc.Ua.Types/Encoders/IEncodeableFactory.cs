@@ -66,7 +66,7 @@ namespace Opc.Ua
     /// Encodeable activator
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public abstract class EncodeableType<T> : IEncodeableType
+    public abstract class EncodeableType<T> : IEncodeableType, IDataTypeDefinitionSource
         where T : IEncodeable
     {
         /// <inheritdoc/>
@@ -77,13 +77,16 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public abstract IEncodeable CreateInstance();
+
+        /// <inheritdoc/>
+        public abstract DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris);
     }
 
     /// <summary>
     /// Enumerated type activator
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public abstract class EnumeratedType<T> : IEnumeratedType
+    public abstract class EnumeratedType<T> : IEnumeratedType, IDataTypeDefinitionSource
         where T : struct, Enum
     {
         /// <inheritdoc/>
@@ -118,6 +121,9 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public abstract XmlQualifiedName XmlName { get; }
+
+        /// <inheritdoc/>
+        public abstract DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris);
     }
 
     /// <summary>

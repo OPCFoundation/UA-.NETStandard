@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Net;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
@@ -40,7 +38,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Bindings.WebApi.Authentication;
 using TUnit.Core.Interfaces;
 
@@ -93,11 +90,8 @@ namespace Opc.Ua.Aot.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts =>
-                    {
-                        opts.Listen(IPAddress.Loopback, 0);
-                    });
-                    webHost.ConfigureServices(services =>
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0))
+                        .ConfigureServices(services =>
                     {
                         services.AddSingleton<IWebApiServer>(Server);
                         services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
@@ -105,14 +99,11 @@ namespace Opc.Ua.Aot.Tests
                         services.AddAuthentication()
                             .AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(
                                 WebApiAuthSchemes.Basic,
-                                options =>
-                                {
-                                    options.ValidateCredentials = (u, p) =>
+                                options => options.ValidateCredentials = (u, p) =>
                                         u == ExpectedBasicUser && p == ExpectedBasicPassword
-                                            ? Task.FromResult<ClaimsPrincipal?>(
+                                            ? Task.FromResult<ClaimsPrincipal>(
                                                 BuildPrincipal(u))
-                                            : Task.FromResult<ClaimsPrincipal?>(null);
-                                });
+                                            : Task.FromResult<ClaimsPrincipal>(null));
                     });
                     webHost.Configure(app =>
                     {
@@ -151,10 +142,9 @@ namespace Opc.Ua.Aot.Tests
         private static ClaimsPrincipal BuildPrincipal(string user)
         {
             var identity = new ClaimsIdentity(
-                new[]
-                {
+                [
                     new Claim(ClaimTypes.Name, user)
-                },
+                ],
                 authenticationType: WebApiAuthSchemes.Basic,
                 nameType: ClaimTypes.Name,
                 roleType: ClaimTypes.Role);
