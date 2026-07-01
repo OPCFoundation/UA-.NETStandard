@@ -602,6 +602,7 @@ namespace Opc.Ua.Server
                 inputArguments,
                 m_logger);
             Certificate? newCert = null;
+            CertificateCollection? newIssuerCollection = null;
             try
             {
                 if (certificate.IsEmpty)
@@ -679,7 +680,7 @@ namespace Opc.Ua.Server
                         "No existing certificate found for the specified certificate type and subject name.");
                 }
 
-                var newIssuerCollection = new CertificateCollection();
+                newIssuerCollection = new CertificateCollection();
 
                 try
                 {
@@ -899,6 +900,10 @@ namespace Opc.Ua.Server
                 }
 
                 certificateGroup.UpdateCertificate = updateCertificate;
+                // Ownership of the issuer collection now belongs to the staged
+                // UpdateCertificate (and the certificate group); clear the local
+                // handle so the finally does not dispose the staged collection.
+                newIssuerCollection = null;
                 applyChangesRequired = true;
             }
             catch (Exception e)
@@ -920,6 +925,9 @@ namespace Opc.Ua.Server
             finally
             {
                 newCert?.Dispose();
+                // Disposed only when ownership was not transferred to the staged
+                // UpdateCertificate (i.e. an exception occurred before staging).
+                newIssuerCollection?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
