@@ -24,6 +24,8 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="RaftCs.Transport.NanoMsg" />
+    <PackageReference Include="RaftCs.Storage.File" />
     <ProjectReference Include="..\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
