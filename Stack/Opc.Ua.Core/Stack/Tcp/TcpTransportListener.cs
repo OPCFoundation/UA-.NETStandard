@@ -1221,21 +1221,46 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
-
-                // Send a service fault back to the client so it does not hang waiting
-                // for a response to a request the server failed to dispatch (e.g. when a
-                // certificate became invalid mid-flight during ApplyChanges).
-                try
+                // A closed/abandoned secure channel is an expected race: the
+                // client tore down its channel (for example after a client-side
+                // operation timeout, or during a connect/reconnect burst) while
+                // the server was still processing the request. Log it quietly
+                // instead of as an error with a stack trace - otherwise these
+                // races flood the logs under load - and do not attempt to send a
+                // fault on a channel we already know is closed.
+                if (e is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                 {
-                    ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
-                    ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                    m_logger.LogDebug(
+                        "TCPLISTENER - Could not send response; secure channel was " +
+                        "closed by the client.");
                 }
-                catch (Exception faultEx)
+                else
                 {
-                    m_logger.LogError(
-                        faultEx,
-                        "TCPLISTENER - Failed to send fault response to client.");
+                    m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+
+                    // Send a service fault back to the client so it does not hang waiting
+                    // for a response to a request the server failed to dispatch (e.g. when a
+                    // certificate became invalid mid-flight during ApplyChanges).
+                    try
+                    {
+                        ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
+                        ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                    }
+                    catch (ServiceResultException faultSre)
+                        when (faultSre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    {
+                        // The channel is gone; the fault cannot be sent. Expected under load.
+                        m_logger.LogDebug(
+                            "TCPLISTENER - Could not send fault response; secure channel " +
+                            "was closed by the client.");
+                    }
+                    catch (Exception faultEx)
+                    {
+                        m_logger.LogError(
+                            faultEx,
+                            "TCPLISTENER - Failed to send fault response to client.");
+                    }
                 }
             }
             finally

@@ -127,6 +127,16 @@ namespace Opc.Ua.Bindings
                 ClientCertificate = clientCertificate;
                 ClientCertificateChain = clientCertificateChain;
             }
+            else
+            {
+                // An unsecured channel does not use a client certificate. The
+                // caller (see UaSCUaBinaryTransportChannel.CreateChannel) hands
+                // us owning references, so release them here instead of leaking
+                // them - Dispose only frees ClientCertificate/Chain when they
+                // were stored above.
+                clientCertificate?.Dispose();
+                clientCertificateChain?.Dispose();
+            }
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_startHandshake = new TimerCallback(OnScheduledHandshakeAsync);

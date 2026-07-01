@@ -2080,10 +2080,24 @@ namespace Opc.Ua.Server
                     SessionPublishQueue[] queues = [.. m_publishQueues.Values];
                     ISubscription[] abandonedSubscriptions = [.. m_abandonedSubscriptions.Values];
 
-                    // check the publish timer for each subscription.
-                    for (int ii = 0; ii < queues.Length; ii++)
+                    // check the publish timer for each subscription. Each queue is
+                    // independent (its own lock and subscription state), so at high
+                    // session counts the O(N) sweep is parallelized across cores to
+                    // keep a single publishing cycle within its resolution budget.
+                    if (queues.Length >= kParallelPublishThreshold)
                     {
-                        queues[ii].PublishTimerExpired();
+                        Parallel.For(
+                            0,
+                            queues.Length,
+                            s_parallelPublishOptions,
+                            ii => queues[ii].PublishTimerExpired());
+                    }
+                    else
+                    {
+                        for (int ii = 0; ii < queues.Length; ii++)
+                        {
+                            queues[ii].PublishTimerExpired();
+                        }
                     }
 
                     // check the publish timer for each abandoned subscription.
@@ -2292,6 +2306,15 @@ namespace Opc.Ua.Server
                 return HashCode.Combine(Subscription.Id, MonitoredItemId);
             }
         }
+
+        // Above this many session publish queues the per-cycle sweep is
+        // parallelized across cores so one publishing cycle keeps up with
+        // thousands of subscriptions instead of serializing on a single thread.
+        private const int kParallelPublishThreshold = 256;
+        private static readonly ParallelOptions s_parallelPublishOptions = new()
+        {
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        };
 
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private uint m_lastSubscriptionId;

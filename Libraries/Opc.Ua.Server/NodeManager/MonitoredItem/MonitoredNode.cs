@@ -342,12 +342,22 @@ namespace Opc.Ua.Server
                     m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
-                (_, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
-                    context,
-                    attributeId,
-                    default,
-                    QualifiedName.Null,
-                    dataValue).AsTask().GetAwaiter().GetResult();
+                // Read synchronously: ReadAttributeAsync performs no asynchronous
+                // work - it locks the node and calls the synchronous ReadAttribute -
+                // so avoid the sync-over-async and take the same node lock directly.
+                DataValue snapshot = dataValue;
+#pragma warning disable CA2002 // ReadAttributeAsync locks the node instance too
+                lock (node)
+#pragma warning restore CA2002
+                {
+                    node.ReadAttribute(
+                        context,
+                        attributeId,
+                        default,
+                        QualifiedName.Null,
+                        ref snapshot);
+                }
+                attributeSnapshots[attributeId] = snapshot;
             }
 
             var notification = new DataChangeSnapshot
@@ -358,13 +368,21 @@ namespace Opc.Ua.Server
                 AttributeSnapshots = attributeSnapshots
             };
 
-            try
+            // Enqueue without blocking on the common path. The bounded channel only
+            // makes the caller wait when the consumer is severely backed up
+            // (capacity is per node); fall back to the blocking write in that rare
+            // case so backpressure is preserved without a sync-over-async on the
+            // hot notification path.
+            if (!m_channel.Writer.TryWrite(notification))
             {
-                m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
-            }
-            catch (ChannelClosedException)
-            {
-                // The channel was completed during shutdown/disposal.
+                try
+                {
+                    m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+                }
+                catch (ChannelClosedException)
+                {
+                    // The channel was completed during shutdown/disposal.
+                }
             }
         }
 
