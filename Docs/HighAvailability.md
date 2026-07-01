@@ -289,7 +289,7 @@ The consensus engine is pluggable through the `IRaftConsensus` seam. By default 
 
 On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedKeyValueStore` and a native `RaftLeaderElection` for a client replica set in one call (the `ClientReplicaCoordinator` consumes both), and `AddRedundantClientSharedStore(mode, …)` is the mode-aware equivalent.
 
-For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide.
+For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](Kubernetes.md) guide.
 
 ### Client-side high availability (replica sets)
 
@@ -320,7 +320,7 @@ The full token-reuse fast-activate from shared secrets and subscription recreate
 
 ## Kubernetes deployment
 
-Use the consolidated [Kubernetes High Availability Deployment](HighAvailabilityKubernetes.md) guide for the `Opc.Ua.Redundancy.K8s` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
+Use the consolidated [Kubernetes High Availability Deployment](Kubernetes.md) guide for the `Opc.Ua.Redundancy.K8s` package. It covers Kubernetes Lease election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time synchronization, secrets, and GDS/NTRS registration.
 
 ## Samples
 

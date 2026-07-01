@@ -32,4 +32,4 @@ The single-instance defaults remain in effect until a shared store is supplied, 
 
 ## Additional documentation
 
-See the [High Availability guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailability.md) for the OPC UA redundancy mapping and the [Kubernetes deployment guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailabilityKubernetes.md) for running the server as a replica set.
+See the [High Availability guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailability.md) for the OPC UA redundancy mapping and the [Kubernetes deployment guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Kubernetes.md) for running the server as a replica set.

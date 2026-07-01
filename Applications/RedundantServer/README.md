@@ -121,7 +121,7 @@ The Redis placeholder above is one way to get a shared `ISharedKeyValueStore`. T
 | `HA_RAFT_BIND` | `tcp://0.0.0.0:6560` | Local Raft transport bind address. |
 | `HA_RAFT_PEERS` | `tcp://server-b:6560,tcp://server-c:6560` | The other members' Raft transport addresses. |
 
-See `docker-compose.raft.yml` for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.K8s` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/HighAvailabilityKubernetes.md`.
+See `docker-compose.raft.yml` for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.K8s` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/Kubernetes.md`.
 
 ## Redundancy mode and discovery settings
 
@@ -219,4 +219,4 @@ docker compose -f Applications\RedundantServer\docker-compose.raft.yml up --buil
 
 Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer` and `opc.tcp://localhost:62544/RedundantServer`), and the bundled `RedundantClient` connects to one replica and follows the redundant set. Set `HA_HOST` to the reachable hostname (the compose files use the container/service name) so peers and clients can connect across the container network. The active/passive compose is a wiring demonstration only, because the default in-memory store is not shared across containers; the **Raft compose (`docker-compose.raft.yml`) is a real cross-container HA deployment** — its Raft cluster is the shared, linearizable store (see "Strong consistency with Raft" and "Wire up a shared store for real HA" above).
 
-For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [HighAvailabilityKubernetes.md](..\..\Docs\HighAvailabilityKubernetes.md).
+For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\Docs\Kubernetes.md).

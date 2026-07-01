@@ -151,7 +151,6 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<Session>();
-            m_continuationPointStore = server.SubscriptionStore as IContinuationPointStore;
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
@@ -161,8 +160,11 @@ namespace Opc.Ua.Server
             m_clientIssuerCertificates = clientCertificateChain;
 
             SecureChannelId = context.ChannelContext.SecureChannelId;
-            MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
-            m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
+            m_continuationPoints = new SessionContinuationPoints(
+                () => Id,
+                maxBrowseContinuationPoints,
+                maxHistoryContinuationPoints,
+                server.SubscriptionStore as IContinuationPointStore);
             EndpointDescription = context.ChannelContext.EndpointDescription!;
 
             // use anonymous the default identity.
@@ -259,44 +261,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<ContinuationPoint>? browseCPs;
-                lock (m_lock)
-                {
-                    browseCPs = m_browseContinuationPoints;
-                    m_browseContinuationPoints = null;
-                }
-
-                if (browseCPs != null)
-                {
-                    for (int ii = 0; ii < browseCPs.Count; ii++)
-                    {
-                        ContinuationPoint cp = browseCPs[ii];
-                        m_continuationPointStore?.RemoveContinuationPoint(
-                            Id,
-                            ContinuationPointKind.Browse,
-                            cp.Id);
-                        cp.Dispose();
-                    }
-                }
-
-                List<HistoryContinuationPoint>? historyCPs;
-                lock (m_lock)
-                {
-                    historyCPs = m_historyContinuationPoints;
-                    m_historyContinuationPoints = null;
-                }
-
-                if (historyCPs != null)
-                {
-                    for (int ii = 0; ii < historyCPs.Count; ii++)
-                    {
-                        m_continuationPointStore?.RemoveContinuationPoint(
-                            Id,
-                            ContinuationPointKind.History,
-                            historyCPs[ii].Id);
-                        (historyCPs[ii].Value as IDisposable)?.Dispose();
-                    }
-                }
+                m_continuationPoints.Clear();
                 m_userTokenNonce?.Dispose();
                 m_userTokenNonce = null;
 
@@ -484,7 +449,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// allow derived classes access
         /// </summary>
-        protected int MaxBrowseContinuationPoints { get; set; }
+        protected int MaxBrowseContinuationPoints
+        {
+            get => m_continuationPoints.MaxBrowse;
+            set => m_continuationPoints.MaxBrowse = value;
+        }
 
         /// <summary>
         /// Validates the request.
@@ -784,32 +753,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
         public void SaveContinuationPoint(ContinuationPoint continuationPoint)
         {
-            if (continuationPoint == null)
-            {
-                throw new ArgumentNullException(nameof(continuationPoint));
-            }
-
-            lock (m_lock)
-            {
-                m_browseContinuationPoints ??= [];
-
-                // remove the first continuation point if too many points.
-                while (m_browseContinuationPoints.Count > MaxBrowseContinuationPoints)
-                {
-                    ContinuationPoint cp = m_browseContinuationPoints[0];
-                    m_browseContinuationPoints.RemoveAt(0);
-                    m_continuationPointStore?.RemoveContinuationPoint(
-                        Id,
-                        ContinuationPointKind.Browse,
-                        cp.Id);
-                    cp?.Dispose();
-                }
-
-                // add to end of list.
-                m_browseContinuationPoints.Add(continuationPoint);
-            }
-
-            m_continuationPointStore?.StoreContinuationPoint(CreateBrowseEnvelope(continuationPoint));
+            m_continuationPoints.SaveBrowse(continuationPoint);
         }
 
         /// <summary>
@@ -820,46 +764,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint)
         {
-            lock (m_lock)
-            {
-                if (m_browseContinuationPoints == null)
-                {
-                    return null;
-                }
-
-                if (continuationPoint.Length != 16)
-                {
-                    return null;
-                }
-
-                var id = new Guid(continuationPoint.ToArray());
-
-                for (int ii = 0; ii < m_browseContinuationPoints.Count; ii++)
-                {
-                    if (m_browseContinuationPoints[ii].Id == id)
-                    {
-                        ContinuationPoint cp = m_browseContinuationPoints[ii];
-                        m_browseContinuationPoints.RemoveAt(ii);
-                        m_continuationPointStore?.RemoveContinuationPoint(
-                            Id,
-                            ContinuationPointKind.Browse,
-                            id);
-                        return cp;
-                    }
-                }
-
-                if (m_mirroredBrowseContinuationPointOwners != null &&
-                    m_mirroredBrowseContinuationPointOwners.TryGetValue(id, out NodeId ownerSessionId))
-                {
-                    m_mirroredBrowseContinuationPointOwners.Remove(id);
-                    m_continuationPointStore?.RemoveContinuationPoint(
-                        ownerSessionId,
-                        ContinuationPointKind.Browse,
-                        id);
-                }
-
-                return null;
-            }
+            return m_continuationPoints.RestoreBrowse(continuationPoint);
         }
 
         /// <summary>
@@ -874,39 +779,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
         public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
         {
-            if (continuationPoint == null)
-            {
-                throw new ArgumentNullException(nameof(continuationPoint));
-            }
-
-            lock (m_lock)
-            {
-                m_historyContinuationPoints ??= [];
-
-                // remove existing continuation point if space needed.
-                while (m_historyContinuationPoints.Count >= m_maxHistoryContinuationPoints)
-                {
-                    HistoryContinuationPoint oldCP = m_historyContinuationPoints[0];
-                    m_historyContinuationPoints.RemoveAt(0);
-                    m_continuationPointStore?.RemoveContinuationPoint(
-                        Id,
-                        ContinuationPointKind.History,
-                        oldCP.Id);
-                    (oldCP.Value as IDisposable)?.Dispose();
-                }
-
-                // create the cp.
-                var cp = new HistoryContinuationPoint
-                {
-                    Id = id,
-                    Value = continuationPoint,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                m_historyContinuationPoints.Add(cp);
-            }
-
-            m_continuationPointStore?.StoreContinuationPoint(CreateHistoryEnvelope(id));
+            m_continuationPoints.SaveHistory(id, continuationPoint);
         }
 
         /// <summary>
@@ -916,47 +789,7 @@ namespace Opc.Ua.Server
         /// <returns>The save continuation point. null if not found.</returns>
         public object? RestoreHistoryContinuationPoint(ByteString continuationPoint)
         {
-            lock (m_lock)
-            {
-                if (m_historyContinuationPoints == null)
-                {
-                    return null;
-                }
-
-                if (continuationPoint.Length != 16)
-                {
-                    return null;
-                }
-
-                var id = new Guid(continuationPoint.ToArray());
-
-                for (int ii = 0; ii < m_historyContinuationPoints.Count; ii++)
-                {
-                    HistoryContinuationPoint cp = m_historyContinuationPoints[ii];
-
-                    if (cp.Id == id)
-                    {
-                        m_historyContinuationPoints.RemoveAt(ii);
-                        m_continuationPointStore?.RemoveContinuationPoint(
-                            Id,
-                            ContinuationPointKind.History,
-                            id);
-                        return cp.Value;
-                    }
-                }
-
-                if (m_mirroredHistoryContinuationPointOwners != null &&
-                    m_mirroredHistoryContinuationPointOwners.TryGetValue(id, out NodeId ownerSessionId))
-                {
-                    m_mirroredHistoryContinuationPointOwners.Remove(id);
-                    m_continuationPointStore?.RemoveContinuationPoint(
-                        ownerSessionId,
-                        ContinuationPointKind.History,
-                        id);
-                }
-
-                return null;
-            }
+            return m_continuationPoints.RestoreHistory(continuationPoint);
         }
 
         /// <summary>
@@ -964,82 +797,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="ownerSessionId">The original owner session id from the active replica.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask LoadMirroredContinuationPointsAsync(
+        public ValueTask LoadMirroredContinuationPointsAsync(
             NodeId ownerSessionId,
             CancellationToken cancellationToken = default)
         {
-            if (m_continuationPointStore == null || ownerSessionId.IsNull)
-            {
-                return;
-            }
-
-            ArrayOf<ContinuationPointEnvelope> envelopes = await m_continuationPointStore
-                .LoadContinuationPointsAsync(ownerSessionId, cancellationToken)
-                .ConfigureAwait(false);
-
-            lock (m_lock)
-            {
-                foreach (ContinuationPointEnvelope envelope in envelopes)
-                {
-                    switch (envelope.Kind)
-                    {
-                        case ContinuationPointKind.Browse:
-                            m_mirroredBrowseContinuationPointOwners ??= [];
-                            m_mirroredBrowseContinuationPointOwners[envelope.Id] = envelope.OwnerSessionId;
-                            break;
-                        case ContinuationPointKind.History:
-                            m_mirroredHistoryContinuationPointOwners ??= [];
-                            m_mirroredHistoryContinuationPointOwners[envelope.Id] = envelope.OwnerSessionId;
-                            break;
-                    }
-                }
-            }
-        }
-
-        private ContinuationPointEnvelope CreateBrowseEnvelope(ContinuationPoint continuationPoint)
-        {
-            return new ContinuationPointEnvelope
-            {
-                Id = continuationPoint.Id,
-                OwnerSessionId = Id,
-                Kind = ContinuationPointKind.Browse,
-                BrowseNodeId = NormalizeNodeId(continuationPoint.RequestedNodeId),
-                View = continuationPoint.View,
-                MaxResultsToReturn = continuationPoint.MaxResultsToReturn,
-                BrowseDirection = continuationPoint.BrowseDirection,
-                ReferenceTypeId = NormalizeNodeId(continuationPoint.ReferenceTypeId),
-                IncludeSubtypes = continuationPoint.IncludeSubtypes,
-                NodeClassMask = continuationPoint.NodeClassMask,
-                ResultMask = continuationPoint.ResultMask,
-                Index = continuationPoint.Index
-            };
-        }
-
-        private ContinuationPointEnvelope CreateHistoryEnvelope(Guid id)
-        {
-            return new ContinuationPointEnvelope
-            {
-                Id = id,
-                OwnerSessionId = Id,
-                Kind = ContinuationPointKind.History,
-                BrowseNodeId = NodeId.Null,
-                ReferenceTypeId = NodeId.Null
-            };
-        }
-
-        private static NodeId NormalizeNodeId(NodeId nodeId)
-        {
-            return nodeId.IsNull ? NodeId.Null : nodeId;
-        }
-
-        /// <summary>
-        /// Stores a continuation point used for historial reads.
-        /// </summary>
-        private class HistoryContinuationPoint
-        {
-            public Guid Id;
-            public object? Value;
-            public DateTime Timestamp;
+            return m_continuationPoints.LoadMirroredAsync(ownerSessionId, cancellationToken);
         }
 
         /// <summary>
@@ -1561,13 +1323,8 @@ namespace Opc.Ua.Server
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_userTokenNonce;
         private readonly CertificateCollection? m_clientIssuerCertificates;
-        private readonly int m_maxHistoryContinuationPoints;
+        private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
-        private readonly IContinuationPointStore? m_continuationPointStore;
-        private List<ContinuationPoint>? m_browseContinuationPoints;
-        private List<HistoryContinuationPoint>? m_historyContinuationPoints;
-        private Dictionary<Guid, NodeId>? m_mirroredBrowseContinuationPointOwners;
-        private Dictionary<Guid, NodeId>? m_mirroredHistoryContinuationPointOwners;
         private long m_lastContactTickCount;
         private int m_identityStale;
     }

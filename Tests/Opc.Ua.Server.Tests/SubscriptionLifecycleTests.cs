@@ -115,10 +115,15 @@ namespace Opc.Ua.Server.Tests
 
         private static void InjectSentMessages(Subscription subscription, params NotificationMessage[] messages)
         {
-            FieldInfo field = typeof(Subscription).GetField("m_sentMessages",
+            FieldInfo queueField = typeof(Subscription).GetField("m_messageQueue",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_messageQueue not found");
+            object messageQueue = queueField.GetValue(subscription)
+                ?? throw new InvalidOperationException("m_messageQueue is null");
+            FieldInfo field = messageQueue.GetType().GetField("m_sentMessages",
                 BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_sentMessages not found");
-            var sentMessages = (List<NotificationMessage>)field.GetValue(subscription);
+            var sentMessages = (List<NotificationMessage>)field.GetValue(messageQueue);
             sentMessages.AddRange(messages);
         }
 

@@ -37,4 +37,4 @@ services.AddOpcUa()
 
 ## Additional documentation
 
-See the [Kubernetes high availability deployment guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/HighAvailabilityKubernetes.md) for RBAC, Service, StatefulSet, readiness, and time-sync guidance.
+See the [Kubernetes high availability deployment guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Kubernetes.md) for RBAC, Service, StatefulSet, readiness, and time-sync guidance.
