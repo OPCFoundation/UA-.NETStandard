@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task WriterSeedsEmptyStoreAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
             await writerSpace.AddOrUpdateNodeAsync(NewVariable("seed", 1.0));
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ReaderDoesNotSeedEmptyStoreAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
             await readerSpace.AddOrUpdateNodeAsync(NewVariable("local", 1.0));
 
@@ -107,8 +107,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task WriterReplicatesTopologyAndValueToReaderAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
-            var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
 
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
@@ -152,6 +152,102 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await AwaitWithTimeoutAsync(deleteApplied);
 
             Assert.That(readerSpace.TryGetNode(nodeX.NodeId, out _), Is.False, "reader removed node X");
+        }
+
+        [Test]
+        public async Task SnapshotIsPublishedAfterWriterSeedAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0));
+
+            await using var writer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
+            await writer.SeedOrHydrateAsync();
+
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync();
+            Assert.That(snapshot, Is.Not.Null);
+            bool sawX = false;
+            await foreach (NodeStateChange entry in snapshot!.Entries)
+            {
+                if (entry.Kind == NodeStateChangeKind.Upsert && entry.NodeId == new NodeId("X", NamespaceIndex))
+                {
+                    sawX = true;
+                }
+            }
+            Assert.That(sawX, Is.True, "the published snapshot contains the seeded node");
+        }
+
+        [Test]
+        public async Task ReaderHydratesSnapshotThenDeltaLogValueAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            var x = new NodeId("X", NamespaceIndex);
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0));
+
+            await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
+            await writer.SeedOrHydrateAsync();
+
+            // A post-snapshot value change lands only in the delta log.
+            await writerStore.WriteValueAsync(x, new DataValue(new Variant(99.0), StatusCodes.Good, DateTimeUtc.Now));
+
+            using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var readerSpace = new DictionaryAddressSpace(m_systemContext);
+            await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
+            await reader.SeedOrHydrateAsync();
+
+            Assert.That(readerSpace.TryGetNode(x, out NodeState? node), Is.True, "reader hydrated the snapshot node");
+            Assert.That(
+                ((BaseDataVariableState)node!).Value,
+                Is.EqualTo(new Variant(99.0)),
+                "reader applied the post-snapshot delta-log value on top of the snapshot");
+        }
+
+        [Test]
+        public async Task ReaderFallsBackToStreamedHydrationWithoutSnapshotAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var x = new NodeId("X", NamespaceIndex);
+
+            // Write directly, without publishing a snapshot, so hydration must use
+            // the streamed EnumerateAsync/EnumerateValuesAsync fallback path.
+            await store.UpsertNodeAsync(
+                new StoredNode(x, NodeStateSerializer.Serialize(m_systemContext, NewVariable("X", 5.0))));
+            await store.WriteValueAsync(x, new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now));
+            Assert.That(await store.TryReadSnapshotAsync(), Is.Null, "no snapshot was published");
+
+            var readerSpace = new DictionaryAddressSpace(m_systemContext);
+            await using var reader = new AddressSpaceSynchronizer(store, readerSpace, () => false);
+            await reader.SeedOrHydrateAsync();
+
+            Assert.That(readerSpace.TryGetNode(x, out _), Is.True, "reader hydrated via the streamed fallback");
+        }
+
+        [Test]
+        public async Task ReaderObservesWriterSequenceForPromotionAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0));
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("Y", 2.0));
+
+            await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
+            await writer.SeedOrHydrateAsync();
+
+            using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var readerSpace = new DictionaryAddressSpace(m_systemContext);
+            await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
+            await reader.SeedOrHydrateAsync();
+
+            Assert.That(readerStore.CurrentSequence, Is.GreaterThan(0));
+            Assert.That(
+                readerStore.CurrentSequence,
+                Is.EqualTo(writerStore.CurrentSequence),
+                "a promoted reader continues assigning sequences from the writer's high-water mark");
         }
 
         private BaseDataVariableState NewVariable(string id, double value)
