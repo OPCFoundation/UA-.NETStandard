@@ -199,5 +199,66 @@ namespace Opc.Ua.Security.Certificates.Tests
             snapshot.Dispose();
             Assert.That(entry.Certificate.RawData, Is.EqualTo(cert.RawData));
         }
+
+        [Test]
+        public void CertificateEntryCollectionThrowsOnNullEntries()
+        {
+            Assert.That(
+                () => new CertificateEntryCollection(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void CertificateEntryCollectionEnumeratesOwnedHandles()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=SnapshotEnumerate")
+                .CreateForRSA();
+
+            using var chain = new CertificateCollection();
+            var certType = new NodeId(12345);
+
+            using var entry = new CertificateEntry(cert, chain, certType);
+            using var snapshot = new CertificateEntryCollection([entry]);
+
+            // Generic enumerator (foreach) yields the collection's own handle.
+            int generic = 0;
+            foreach (CertificateEntry item in snapshot)
+            {
+                Assert.That(item, Is.SameAs(snapshot[0]));
+                generic++;
+            }
+            Assert.That(generic, Is.EqualTo(1));
+
+            // The non-generic IEnumerable.GetEnumerator is also supported.
+            int nonGeneric = 0;
+            foreach (object item in (System.Collections.IEnumerable)snapshot)
+            {
+                Assert.That(item, Is.InstanceOf<CertificateEntry>());
+                nonGeneric++;
+            }
+            Assert.That(nonGeneric, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CertificateEntryCollectionDisposeIsIdempotent()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=SnapshotIdempotent")
+                .CreateForRSA();
+
+            using var chain = new CertificateCollection();
+            var certType = new NodeId(12345);
+
+            using var entry = new CertificateEntry(cert, chain, certType);
+            var snapshot = new CertificateEntryCollection([entry]);
+
+            snapshot.Dispose();
+            // A second dispose hits the early-return guard and must not throw.
+            Assert.That(() => snapshot.Dispose(), Throws.Nothing);
+
+            // The source entry remains usable after the snapshot is disposed.
+            Assert.That(entry.Certificate.RawData, Is.EqualTo(cert.RawData));
+        }
     }
 }
