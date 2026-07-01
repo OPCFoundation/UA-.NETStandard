@@ -43,7 +43,10 @@ namespace Opc.Ua.Client.TestFramework
         public static Subscriptions.ISubscriptionManager RequireSubscriptionManager(
             this ISession session)
         {
-            ArgumentNullException.ThrowIfNull(session);
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (!session.TryGetSubscriptionManager(
                     out Subscriptions.ISubscriptionManager? manager))
             {
