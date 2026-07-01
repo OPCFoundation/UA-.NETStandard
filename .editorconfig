@@ -1124,3 +1124,18 @@ generated_code = true
 dotnet_diagnostic.severity = none
 dotnet_analyzer.severity = none
 #dotnet_analyzer_diagnostic.category-roslynator.severity = none
+
+# Test projects: CA2007 (ConfigureAwait) is a library-only concern — the test
+# frameworks (NUnit/TUnit) run on the default TaskScheduler with no
+# SynchronizationContext, so ConfigureAwait(false) is unnecessary. CA2000
+# disposable lifetimes in tests are managed by fixture setup/teardown. This
+# matches the <NoWarn>CA2007;CA2000</NoWarn> convention already used by
+# Opc.Ua.Di.Tests and Opc.Ua.MigrationAnalyzer.Tests.
+[Tests/**/*.cs]
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA2000.severity = none
+
+# Fuzzing test projects (Opc.Ua.*.Fuzz.Tests) are test projects; same rationale.
+[Fuzzing/**/*.Fuzz.Tests/**/*.cs]
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA2000.severity = none
