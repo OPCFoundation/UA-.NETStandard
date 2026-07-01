@@ -4889,26 +4889,20 @@ namespace Opc.Ua.Client
         /// Load certificate for connection.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static Task<Certificate> LoadInstanceCertificateAsync(
+        internal static async Task<Certificate> LoadInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            Certificate certificate = configuration.CertificateManager.GetInstanceCertificate(securityProfile)?.Certificate
+            return await configuration.SecurityConfiguration.FindApplicationCertificateAsync(
+                securityProfile,
+                privateKey: true,
+                telemetry,
+                ct).ConfigureAwait(false)
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
                     securityProfile);
-
-            // GetInstanceCertificate().Certificate hands back the registry entry's
-            // own (shared) handle. Return a NEW owning handle over the same
-            // reference-counted core so each session has its own independently
-            // disposable instance certificate. Returning the shared entry handle
-            // (and discarding the AddRef result) made every session share - and
-            // dispose/reload - the same handle, which under concurrent connects
-            // both leaked the core and raced its private-key handle
-            // ("m_safeCertContext is an invalid handle") during OpenSecureChannel.
-            return Task.FromResult(certificate.AddRef());
         }
 
         /// <summary>
