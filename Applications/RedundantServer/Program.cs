@@ -91,6 +91,13 @@ bool enableFastReconnect =
 string consistency = (builder.Configuration["HA_CONSISTENCY"] ?? "eventual").Trim().ToLowerInvariant();
 bool useStrongConsistency = consistency is "strong";
 
+// Optional GetEndpoints load direction: when HA_BALANCING_URL is set, a GetEndpoints
+// request on that (virtual/load-balancer) discovery URL is answered with the best
+// peer's endpoints - the active server (active/passive) or the least-loaded healthy
+// peer (active/active). It complements the standard client-driven ServiceLevel
+// selection; plain discovery on this node's own URL is unaffected.
+string? balancingUrl = builder.Configuration["HA_BALANCING_URL"];
+
 if (activeActive && recordKey != null)
 {
     // Encrypt mirrored session entries at rest (sessions are gossiped as a CRDT).
@@ -198,6 +205,17 @@ ua.AddServerRedundancy(r =>
     }
 })
 .AddRequestServerStateChange();
+
+if (!string.IsNullOrWhiteSpace(balancingUrl) && redundancyMode != RedundancySupport.None)
+{
+    ua.UseServerLoadDirection(o =>
+    {
+        o.BalancingEndpointUrl = balancingUrl!;
+        // Route the eligibility keyspaces (health + endpoints) to the strong store
+        // when Raft is configured, keeping the high-churn load weight eventual.
+        o.StrongEligibility = useStrongConsistency;
+    });
+}
 
 byte displayedServiceLevel = redundancyMode == RedundancySupport.None
     ? ServiceLevels.Maximum

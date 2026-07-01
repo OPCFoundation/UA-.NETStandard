@@ -91,5 +91,13 @@ namespace Opc.Ua.Redundancy.Server
         /// (normal) discovery URL are unaffected. When empty, load direction never redirects (publish-only).
         /// </summary>
         public string BalancingEndpointUrl { get; set; } = string.Empty;
+
+        /// <summary>
+        /// When <c>true</c>, the eligibility keyspaces (health <c>ServiceLevel</c> and the endpoint directory) are
+        /// routed to the linearizable (Raft) store in the eventual/hybrid consistency mode, giving a deterministic
+        /// redirect target; the high-churn load weight always stays eventual. Only takes effect when the shared store
+        /// is configured with <c>UseRedundancyConsistency</c>. Default <c>false</c> (all direction keyspaces eventual).
+        /// </summary>
+        public bool StrongEligibility { get; set; }
     }
 }

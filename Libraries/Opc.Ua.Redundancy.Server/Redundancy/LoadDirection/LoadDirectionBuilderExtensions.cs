@@ -68,6 +68,12 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.AddSingleton(options);
             builder.Services.TryAddSingleton<ILoadWeightProvider>(_ => new ConstantLoadWeightProvider());
 
+            if (options.StrongEligibility)
+            {
+                builder.Services.AddSingleton<IStrongKeyspaceProvider>(
+                    new LoadDirectionStrongKeyspaceProvider(options));
+            }
+
             builder.Services.AddSingleton(sp => new ServerLoadDirector(
                 ResolveServiceLevelProvider(sp),
                 sp.GetRequiredService<ILoadWeightProvider>(),

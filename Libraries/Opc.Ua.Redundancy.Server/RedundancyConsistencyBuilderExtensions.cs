@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -132,9 +133,33 @@ namespace Opc.Ua.Redundancy.Server
             return new HybridSharedKeyValueStore(
                 bulk,
                 raftStore,
-                options.StrongKeyPrefixes,
+                AggregateStrongKeyPrefixes(sp, options),
                 ownsStores: true);
 #pragma warning restore CA2000
+        }
+
+        private static ArrayOf<string> AggregateStrongKeyPrefixes(
+            IServiceProvider sp,
+            RedundancyConsistencyOptions options)
+        {
+            var prefixes = new HashSet<string>(StringComparer.Ordinal);
+            ArrayOf<string> baseSet = options.StrongKeyPrefixes.IsEmpty
+                ? HybridSharedKeyValueStore.DefaultStrongKeyPrefixes
+                : options.StrongKeyPrefixes;
+            foreach (string prefix in baseSet)
+            {
+                prefixes.Add(prefix);
+            }
+            foreach (IStrongKeyspaceProvider provider in sp.GetServices<IStrongKeyspaceProvider>())
+            {
+                foreach (string prefix in provider.GetStrongKeyPrefixes())
+                {
+                    prefixes.Add(prefix);
+                }
+            }
+            var result = new string[prefixes.Count];
+            prefixes.CopyTo(result);
+            return new ArrayOf<string>(result);
         }
     }
 }

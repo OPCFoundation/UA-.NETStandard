@@ -134,6 +134,7 @@ See `docker-compose.raft.yml` for a runnable 3-node Raft cluster (real cross-con
 | `HA_MODE` | `ap`, `aa` | Chooses active/passive shared-store replication or active/active CRDT gossip. |
 | `HA_CONSISTENCY` | `strong`, `eventual` | Selects the shared-store consistency model; `strong` backs it with a Raft cluster (see *Strong consistency with Raft*). |
 | `HA_FAST_RECONNECT` | `true`, `false` | Allows token-reuse reconnect for mirrored sessions. The default requires full `ActivateSession` re-authentication after failover. |
+| `HA_BALANCING_URL` | a discovery URL | Enables GetEndpoints load direction (see below). A `GetEndpoints` request on this virtual/LB discovery URL is answered with the best replica's endpoints; empty (default) disables it. |
 
 The sample also enables `RequestServerStateChange` with `AddRequestServerStateChange()`. An administrator client can call the standard method on `Server` to request Maintenance or NoData behavior and set `Server.EstimatedReturnTime`; the server updates `Server.ServiceLevel` into the appropriate OPC UA subrange so clients back off or fail over.
 
@@ -144,6 +145,10 @@ Mode-specific nodes shown by the sample:
 - `transparent` — publishes `CurrentServerId` and `RedundantServerArray` for the transparent set.
 
 `Server.ServiceLevel` is driven by the sub-range-aware provider: leaders report Healthy, warm standby reports Degraded, hot/hot-and-mirrored replicas report Healthy, and cold standby reports NoData. The console prints the selected mode, server id, peer set, and initial service-level subrange at startup.
+
+### GetEndpoints load direction
+
+Setting `HA_BALANCING_URL` registers `UseServerLoadDirection(...)`: every replica publishes its health `ServiceLevel`, a load weight, and its endpoints to the shared store, and a `GetEndpoints` request that arrives on the balancing URL is answered with the best replica's endpoints — the active writer in active/passive, or the least-loaded healthy replica in active/active. Plain discovery on a replica's own URL is unaffected, and this complements (never replaces) the standard client-driven `Server.ServiceLevel` / `RedundantServerArray` selection. In a real deployment a load balancer / Kubernetes `Service` fronts the replicas at the balancing URL; the sample sets `StrongEligibility` when `HA_CONSISTENCY=strong` so the eligibility keyspaces are linearizable. It requires a shared store across replicas (use `HA_CONSISTENCY=strong` / the Raft compose). See `Docs/HighAvailability.md` for the design, conformance, and security notes.
 
 ## Active/passive vs active/active
 
@@ -215,6 +220,9 @@ docker compose -f Applications\RedundantServer\docker-compose.active-passive.yml
 
 # Strong consistency: a real 3-node RaftCs cluster (shared store across containers), plus a client.
 docker compose -f Applications\RedundantServer\docker-compose.raft.yml up --build
+
+# GetEndpoints load direction over the Raft cluster (sets HA_BALANCING_URL on every replica).
+docker compose -f Applications\RedundantServer\docker-compose.loaddirection.yml up --build
 ```
 
 Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer` and `opc.tcp://localhost:62544/RedundantServer`), and the bundled `RedundantClient` connects to one replica and follows the redundant set. Set `HA_HOST` to the reachable hostname (the compose files use the container/service name) so peers and clients can connect across the container network. The active/passive compose is a wiring demonstration only, because the default in-memory store is not shared across containers; the **Raft compose (`docker-compose.raft.yml`) is a real cross-container HA deployment** — its Raft cluster is the shared, linearizable store (see "Strong consistency with Raft" and "Wire up a shared store for real HA" above).

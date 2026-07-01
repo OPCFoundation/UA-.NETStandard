@@ -174,6 +174,15 @@ namespace Opc.Ua.Redundancy
             return IsStrong(key) ? m_strong : m_bulk;
         }
 
+        /// <summary>
+        /// Returns whether <paramref name="key"/> is routed to the linearizable strong (Raft) store.
+        /// </summary>
+        /// <param name="key">The key (or key prefix) to test.</param>
+        public bool IsStrongKey(string key)
+        {
+            return IsStrong(key ?? string.Empty);
+        }
+
         private bool IsStrong(string keyOrPrefix)
         {
             for (int ii = 0; ii < m_strongPrefixes.Length; ii++)
@@ -222,6 +231,12 @@ namespace Opc.Ua.Redundancy
         }
 
         private static readonly string[] s_defaultStrongPrefixes = ["nonce/", "lease/", "election/"];
+
+        /// <summary>
+        /// The default strong-keyspace prefixes (<c>nonce/</c>, <c>lease/</c>, <c>election/</c>) used when no explicit
+        /// set is configured.
+        /// </summary>
+        public static ArrayOf<string> DefaultStrongKeyPrefixes { get; } = ["nonce/", "lease/", "election/"];
 
         private readonly ISharedKeyValueStore m_bulk;
         private readonly ISharedKeyValueStore m_strong;
