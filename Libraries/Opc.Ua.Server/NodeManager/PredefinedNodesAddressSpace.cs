@@ -117,6 +117,23 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public async ValueTask AddOrUpdateRangeAsync(
+            IEnumerable<NodeState> nodes,
+            CancellationToken cancellationToken = default)
+        {
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
+
+            foreach (NodeState node in nodes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await m_addAsync(node, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             bool removed = await m_removeAsync(nodeId, cancellationToken).ConfigureAwait(false);

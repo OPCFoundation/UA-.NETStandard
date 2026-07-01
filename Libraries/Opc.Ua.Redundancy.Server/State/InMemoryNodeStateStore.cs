@@ -766,12 +766,22 @@ namespace Opc.Ua.Redundancy.Server
         {
             sequence = 0;
             int slash = key.LastIndexOf('/');
-            return slash >= 0 &&
-                ulong.TryParse(
-                    key.Substring(slash + 1),
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out sequence);
+            if (slash < 0 || slash == key.Length - 1)
+            {
+                return false;
+            }
+            ulong value = 0;
+            for (int i = slash + 1; i < key.Length; i++)
+            {
+                char c = key[i];
+                if (c is < '0' or > '9')
+                {
+                    return false;
+                }
+                value = (value * 10) + (ulong)(c - '0');
+            }
+            sequence = value;
+            return true;
         }
 
         private static bool TryParseNodeId(string key, string prefix, out NodeId nodeId)

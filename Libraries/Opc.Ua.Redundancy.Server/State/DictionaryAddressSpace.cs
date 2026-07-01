@@ -100,6 +100,27 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask AddOrUpdateRangeAsync(
+            IEnumerable<NodeState> nodes,
+            CancellationToken cancellationToken = default)
+        {
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
+
+            lock (m_lock)
+            {
+                foreach (NodeState node in nodes)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    m_nodes[node.NodeId] = node;
+                }
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             bool removed;

@@ -79,6 +79,22 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
         {
+            // Fast path: hydrate from a published snapshot plus the bounded delta
+            // log of changes after it, instead of streaming and applying every
+            // node one at a time. Falls back to the streamed path below when the
+            // store has no snapshot capability or none has been published yet.
+            if (m_store is INodeStateSnapshotStore snapshotStore)
+            {
+                NodeStateSnapshot? snapshot = await snapshotStore
+                    .TryReadSnapshotAsync(ct)
+                    .ConfigureAwait(false);
+                if (snapshot != null)
+                {
+                    await HydrateFromSnapshotAsync(snapshotStore, snapshot, ct).ConfigureAwait(false);
+                    return;
+                }
+            }
+
             bool any = false;
             await foreach (IStoredNode stored in m_store.EnumerateAsync(ct).ConfigureAwait(false))
             {
@@ -121,6 +137,57 @@ namespace Opc.Ua.Redundancy.Server
                             .ConfigureAwait(false);
                     }
                 }
+
+                // Publish an initial snapshot so a standby that joins next hydrates
+                // from it (and the seed's delta-log entries are trimmed).
+                if (m_store is INodeStateSnapshotStore seedSnapshotStore)
+                {
+                    await seedSnapshotStore.WriteSnapshotAsync(ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async ValueTask HydrateFromSnapshotAsync(
+            INodeStateSnapshotStore snapshotStore,
+            NodeStateSnapshot snapshot,
+            CancellationToken ct)
+        {
+            // Materialize the snapshot node topology in one bulk pass (no per-node
+            // NodeAdded event or await), then apply the snapshot values. Every
+            // entry seeds the per-key applied-sequence guard.
+            var nodes = new List<NodeState>();
+            var values = new List<(NodeId NodeId, ulong Sequence, DataValue Value)>();
+            await foreach (NodeStateChange entry in snapshot.Entries.ConfigureAwait(false))
+            {
+                if (entry.Kind == NodeStateChangeKind.Upsert && entry.Node != null)
+                {
+                    nodes.Add(NodeStateSerializer.Deserialize(m_addressSpace.Context, entry.Node.Payload));
+                    m_nodeSequence[entry.NodeId] = entry.Sequence;
+                }
+                else if (entry.Kind == NodeStateChangeKind.Value)
+                {
+                    values.Add((entry.NodeId, entry.Sequence, entry.Value));
+                }
+            }
+
+            await m_addressSpace.AddOrUpdateRangeAsync(nodes, ct).ConfigureAwait(false);
+
+            foreach ((NodeId nodeId, ulong sequence, DataValue value) in values)
+            {
+                ApplyValue(nodeId, value);
+                m_valueSequence[nodeId] = sequence;
+            }
+
+            snapshotStore.ObserveSequence(snapshot.Sequence);
+
+            // Replay the changes that occurred after the snapshot. The guard makes
+            // this idempotent, so any overlap with the live feed started in Start()
+            // cannot apply a stale change over a newer one.
+            await foreach (NodeStateChange change in snapshotStore
+                .ReadDeltaLogAsync(snapshot.Sequence, ct)
+                .ConfigureAwait(false))
+            {
+                await ApplyInboundAsync(change, ct).ConfigureAwait(false);
             }
         }
 
@@ -177,6 +244,7 @@ namespace Opc.Ua.Redundancy.Server
 
             await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
             await AwaitQuietlyAsync(m_inboundTask).ConfigureAwait(false);
+            await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
 
             // The inbound loop has finished; dispose the enumerator it owned.
             if (m_inboundEnumerator != null)
@@ -256,6 +324,8 @@ namespace Opc.Ua.Redundancy.Server
                                 await m_store.DeleteNodeAsync(op.NodeId, ct).ConfigureAwait(false);
                                 break;
                         }
+
+                        MaybeTriggerSnapshotPublish();
                     }
                     catch (OperationCanceledException)
                     {
@@ -270,6 +340,47 @@ namespace Opc.Ua.Redundancy.Server
             catch (OperationCanceledException)
             {
                 // shutdown
+            }
+        }
+
+        private void MaybeTriggerSnapshotPublish()
+        {
+            if (m_store is not INodeStateSnapshotStore snapshotStore)
+            {
+                return;
+            }
+            if (Interlocked.Increment(ref m_writesSinceSnapshot) < SnapshotWriteThreshold)
+            {
+                return;
+            }
+            // Publish at most one snapshot at a time; writes keep accumulating and
+            // the next publish captures them. The scan-and-write runs off the
+            // outbound hot path.
+            if (Interlocked.CompareExchange(ref m_snapshotInFlight, 1, 0) != 0)
+            {
+                return;
+            }
+            Interlocked.Exchange(ref m_writesSinceSnapshot, 0);
+            m_snapshotTask = PublishSnapshotAsync(snapshotStore);
+        }
+
+        private async Task PublishSnapshotAsync(INodeStateSnapshotStore snapshotStore)
+        {
+            try
+            {
+                await snapshotStore.WriteSnapshotAsync(m_cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // shutdown
+            }
+            catch (Exception ex)
+            {
+                m_logger?.LogError(ex, "Distributed address-space snapshot publish failed.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref m_snapshotInFlight, 0);
             }
         }
 
@@ -305,19 +416,37 @@ namespace Opc.Ua.Redundancy.Server
             switch (change.Kind)
             {
                 case NodeStateChangeKind.Upsert:
-                    if (change.Node != null)
+                    if (change.Node != null &&
+                        change.Sequence >= NextApplicable(m_nodeSequence, change.NodeId))
                     {
                         await TryApplyUpsertAsync(change.NodeId, change.Node.Payload, cancellationToken)
                             .ConfigureAwait(false);
+                        m_nodeSequence[change.NodeId] = change.Sequence;
                     }
                     break;
                 case NodeStateChangeKind.Delete:
                     await m_addressSpace.RemoveNodeAsync(change.NodeId, cancellationToken).ConfigureAwait(false);
+                    m_nodeSequence[change.NodeId] = change.Sequence;
+                    m_valueSequence[change.NodeId] = change.Sequence;
                     break;
                 case NodeStateChangeKind.Value:
-                    ApplyValue(change.NodeId, change.Value);
+                    if (change.Sequence >= NextApplicable(m_valueSequence, change.NodeId))
+                    {
+                        ApplyValue(change.NodeId, change.Value);
+                        m_valueSequence[change.NodeId] = change.Sequence;
+                    }
                     break;
             }
+        }
+
+        private static ulong NextApplicable(NodeIdDictionary<ulong> applied, NodeId nodeId)
+        {
+            // Returns the smallest sequence that may still be applied for this
+            // key: one past the last applied sequence, or 0 when nothing has been
+            // applied yet (so the first change — and the unsequenced streamed
+            // fallback — always applies, while a replayed or duplicate change at
+            // or below the last applied sequence is skipped).
+            return applied.TryGetValue(nodeId, out ulong last) ? last + 1 : 0;
         }
 
         private async ValueTask TryApplyUpsertAsync(NodeId nodeId, ByteString payload, CancellationToken cancellationToken)
@@ -427,11 +556,18 @@ namespace Opc.Ua.Redundancy.Server
         private readonly CancellationTokenSource m_cts = new();
         private readonly Lock m_lock = new();
         private readonly HashSet<NodeState> m_attached = [];
+        private readonly NodeIdDictionary<ulong> m_nodeSequence = [];
+        private readonly NodeIdDictionary<ulong> m_valueSequence = [];
         private Channel<OutboundOp>? m_outbound;
         private IAsyncEnumerator<NodeStateChange>? m_inboundEnumerator;
         private Task? m_outboundTask;
         private Task? m_inboundTask;
+        private Task? m_snapshotTask;
+        private long m_writesSinceSnapshot;
+        private int m_snapshotInFlight;
         private bool m_started;
         private bool m_disposed;
+
+        private const int SnapshotWriteThreshold = 1024;
     }
 }

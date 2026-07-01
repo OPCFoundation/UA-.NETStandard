@@ -80,6 +80,21 @@ namespace Opc.Ua.Server
         ValueTask AddOrUpdateNodeAsync(NodeState node, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Adds or replaces many nodes as a single hydration batch.
+        /// </summary>
+        /// <remarks>
+        /// Used only while a standby bulk-hydrates from a snapshot: it does
+        /// <b>not</b> raise <see cref="NodeAdded"/> per node (a hydrating standby
+        /// does not observe its own additions), so a very large address space can
+        /// be materialized without one event and await per node.
+        /// </remarks>
+        /// <param name="nodes">The nodes to add or replace.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask AddOrUpdateRangeAsync(
+            IEnumerable<NodeState> nodes,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes a node, raising <see cref="NodeRemoved"/> when present.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
