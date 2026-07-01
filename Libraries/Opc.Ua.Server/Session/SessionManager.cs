@@ -369,6 +369,13 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             try
             {
+                // The global lock guards the session-manager dictionary and
+                // session lifecycle (lookup, lockout, expiry). It is deliberately
+                // released before the client-signature verification below:
+                // ValidateBeforeActivate only touches this session's own state
+                // (guarded by the session's own lock), so running the CPU-bound
+                // RSA verify under the global lock would serialize every
+                // concurrent ActivateSession and cap connect throughput.
                 await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
@@ -404,7 +411,24 @@ namespace Opc.Ua.Server
 
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
+                }
+                catch (ServiceResultException)
+                {
+                    RecordFailedAuthentication(clientKey!);
+                    throw;
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
+                }
 
+                // Verify the client signature outside the global lock. This is the
+                // CPU-bound part of activation (RSA/ECDSA verify); keeping it out of
+                // the session-manager lock lets concurrent activations verify in
+                // parallel. It operates only on this session's state, which is
+                // guarded by the session's own lock inside ValidateBeforeActivate.
+                try
+                {
                     // create new server nonce.
                     serverNonceObject = Nonce.CreateNonce(
                         context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
@@ -424,10 +448,6 @@ namespace Opc.Ua.Server
                 {
                     RecordFailedAuthentication(clientKey!);
                     throw;
-                }
-                finally
-                {
-                    m_semaphoreSlim.Release();
                 }
                 IUserIdentity? identity = null;
                 IUserIdentity? effectiveIdentity = null;
