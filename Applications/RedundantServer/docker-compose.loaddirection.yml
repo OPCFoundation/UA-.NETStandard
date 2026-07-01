@@ -1,6 +1,6 @@
 # GetEndpoints load direction over a strongly-consistent (Raft) redundant set.
 #
-# Builds on docker-compose.raft.yml: a 3-node RaftCs cluster forms the shared, linearizable
+# Builds on docker-compose.active-passive.yml: a 3-node RaftCs cluster forms the shared, linearizable
 # store that the load-direction signals (each replica's health ServiceLevel, load weight, and
 # endpoints) are published to and read from across containers. HA_BALANCING_URL enables the
 # GetEndpoints director on every replica: a GetEndpoints request arriving on that virtual

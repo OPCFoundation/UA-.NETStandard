@@ -181,7 +181,7 @@ namespace RedundantClient
                     await LogRedundancyInfoAsync(session, ct).ConfigureAwait(false);
                     await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
 
-                    Console.WriteLine("Monitoring ServerStatus.CurrentTime. Press Ctrl+C to stop.");
+                    Console.WriteLine("Monitoring ServerStatus.CurrentTime and the replicated HighAvailability.Counter. Press Ctrl+C to stop.");
                     await RunForDurationAsync(duration, ct).ConfigureAwait(false);
 
                     session.ConnectionStateChanged -= OnConnectionStateChanged;
@@ -251,6 +251,27 @@ namespace RedundantClient
                 DiscardOldest = true
             };
             subscription.AddItem(currentTime);
+
+            // Also monitor the replicated "Counter" value from the HA sample node
+            // manager. The active replica increments it and mirrors it to the
+            // standbys, so its value continues across a failover - a visible
+            // demonstration of distributed address-space state replication.
+            int haNamespaceIndex = session.NamespaceUris.GetIndex(
+                "http://opcfoundation.org/UA/Samples/HighAvailability");
+            if (haNamespaceIndex >= 0)
+            {
+                var replicatedCounter = new MonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = new NodeId("Counter", (ushort)haNamespaceIndex),
+                    AttributeId = Attributes.Value,
+                    DisplayName = "HighAvailability.Counter",
+                    SamplingInterval = 1000,
+                    QueueSize = 10,
+                    DiscardOldest = true
+                };
+                subscription.AddItem(replicatedCounter);
+            }
+
             await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
         }
 
@@ -262,9 +283,11 @@ namespace RedundantClient
             for (int ii = 0; ii < notification.MonitoredItems.Count; ii++)
             {
                 MonitoredItemNotification item = notification.MonitoredItems[ii];
+                MonitoredItem? source = subscription.FindItemByClientHandle(item.ClientHandle);
                 Console.WriteLine(
-                    "CurrentTime={0:o} Status={1}",
-                    item.Value.GetValue(DateTime.MinValue),
+                    "{0}={1} Status={2}",
+                    source?.DisplayName ?? "Value",
+                    item.Value.WrappedValue,
                     item.Value.StatusCode);
             }
         }
