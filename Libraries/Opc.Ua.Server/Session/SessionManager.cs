@@ -429,15 +429,16 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
                 }
-                catch (ServiceResultException)
-                {
-                    RecordFailedAuthentication(clientKey!);
-                    throw;
-                }
                 finally
                 {
                     m_semaphoreSlim.Release();
                 }
+
+                // Note: session lookup, lockout and expiry failures above are not
+                // authentication failures and deliberately do NOT record a
+                // brute-force attempt - only a failed client-signature or user
+                // identity validation below does, so a timed-out or unknown session
+                // cannot lock out a legitimate client.
 
                 // Verify the client signature outside the global lock. This is the
                 // CPU-bound part of activation (RSA/ECDSA verify); keeping it out of
