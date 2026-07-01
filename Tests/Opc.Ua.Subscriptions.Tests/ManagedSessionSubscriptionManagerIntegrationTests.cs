@@ -50,8 +50,8 @@ namespace Opc.Ua.Subscriptions.Tests
     /// End-to-end integration tests for <see cref="ManagedSessionBuilder"/>
     /// + <see cref="ManagedSessionExtensions"/> against the
     /// in-process reference fixture server. Verifies that the V2
-    /// subscription engine, exposed through the new
-    /// <see cref="ManagedSessionType.SubscriptionManager"/> property, can
+    /// subscription engine, exposed through
+    /// <see cref="ISession.TryGetSubscriptionManager"/>, can
     /// drive subscriptions and deliver data change notifications.
     /// </summary>
     [TestFixture]
@@ -112,7 +112,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(session, Is.Not.Null);
                 Assert.That(session.Connected, Is.True);
 
-                ISubscriptionManager manager = session.SubscriptionManager;
+                Assert.That(
+                    session.TryGetSubscriptionManager(out ISubscriptionManager? manager),
+                    Is.True);
                 Assert.That(manager, Is.Not.Null);
                 Assert.That(manager.Count, Is.Zero);
 
@@ -158,7 +160,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     });
 
                 Assert.That(subscription, Is.Not.Null);
-                Assert.That(session.SubscriptionManager.Count, Is.EqualTo(1));
+                Assert.That(session.RequireSubscriptionManager().Count, Is.EqualTo(1));
 
                 // Wait for the subscription state machine to create
                 // the subscription on the server (asynchronously after
@@ -210,7 +212,7 @@ namespace Opc.Ua.Subscriptions.Tests
         [Test]
         [Order(300)]
         [CancelAfter(60_000)]
-        public async Task ClassicEngineThrowsWhenAccessingSubscriptionManager(
+        public async Task ClassicEngineDoesNotExposeSubscriptionManager(
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -220,7 +222,7 @@ namespace Opc.Ua.Subscriptions.Tests
             ManagedSessionType session = await new ManagedSessionBuilder(
                     ClientFixture.Config, Telemetry)
                 .UseEndpoint(endpoint)
-                .WithSessionName(nameof(ClassicEngineThrowsWhenAccessingSubscriptionManager))
+                .WithSessionName(nameof(ClassicEngineDoesNotExposeSubscriptionManager))
                 .UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
@@ -228,8 +230,10 @@ namespace Opc.Ua.Subscriptions.Tests
             try
             {
                 Assert.That(session.Connected, Is.True);
-                Assert.Throws<InvalidOperationException>(
-                    () => _ = session.SubscriptionManager);
+                Assert.That(
+                    session.TryGetSubscriptionManager(out ISubscriptionManager? manager),
+                    Is.False);
+                Assert.That(manager, Is.Null);
             }
             finally
             {

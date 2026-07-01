@@ -398,7 +398,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 target = await ConnectV2Async(
                     nameof(SnapshotEmptySubscriptionRoundTripV2Async) + "_target", ct)
                     .ConfigureAwait(false);
-                ISubscription restored = await ((SubscriptionManager)target.SubscriptionManager)
+                ISubscription restored = await ((SubscriptionManager)target.RequireSubscriptionManager())
                     .RestoreAsync(
                         new RecordingSubscriptionHandler(),
                         snap,
@@ -504,7 +504,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 target = await ConnectV2Async(
                     nameof(SnapshotWithDataChangeFilterRoundTripV2Async) + "_target", ct)
                     .ConfigureAwait(false);
-                ISubscription restored = await ((SubscriptionManager)target.SubscriptionManager)
+                ISubscription restored = await ((SubscriptionManager)target.RequireSubscriptionManager())
                     .RestoreAsync(
                         new RecordingSubscriptionHandler(),
                         snap,

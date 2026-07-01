@@ -139,7 +139,8 @@ namespace Opc.Ua.Client
         /// the server certificate.</param>
         /// <param name="engineFactory">Optional subscription engine
         /// factory. Defaults to <see cref="DefaultSubscriptionEngineFactory"/>
-        /// (V2 engine) so that <see cref="SubscriptionManager"/> is
+        /// (V2 engine) so that the V2 subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>) is
         /// available. Pass <see cref="ClassicSubscriptionEngineFactory"/>
         /// for legacy classic-engine behavior.</param>
         /// <param name="transferSubscriptionsOnRecreate">When
@@ -348,26 +349,12 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Subscriptions
             => m_session?.Subscriptions ?? [];
 
-        /// <summary>
-        /// The new options-based <see cref="Subscriptions.ISubscriptionManager"/>.
-        /// Available when the underlying session was created with the V2
-        /// subscription engine (the default for <see cref="ManagedSession"/>).
-        /// </summary>
-        /// <exception cref="InvalidOperationException">when the session
-        /// is using the classic engine.</exception>
-        public Subscriptions.ISubscriptionManager SubscriptionManager
+        /// <inheritdoc/>
+        public bool TryGetSubscriptionManager(
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+            out Subscriptions.ISubscriptionManager? manager)
         {
-            get
-            {
-                if (InnerSession.SubscriptionEngine is DefaultSubscriptionEngine v2)
-                {
-                    return v2.SubscriptionManager;
-                }
-                throw new InvalidOperationException(
-                    "ManagedSession.SubscriptionManager requires the V2 subscription engine. " +
-                    "The session is using the classic engine; use Subscriptions/AddSubscription " +
-                    "for the legacy API or recreate the ManagedSession with the V2 engine factory.");
-            }
+            return InnerSession.TryGetSubscriptionManager(out manager);
         }
 
         /// <inheritdoc/>
