@@ -19,17 +19,17 @@ See `Docs/HighAvailability.md` and `Docs/Kubernetes.md` for the full, current de
 
 ## Remaining work
 
-### 1. Async `ISubscriptionStore` for async persistence backends
-
-The core subscription **definition**-persistence contract (`ISubscriptionStore`) is synchronous, so subscription definitions can only be persisted to a synchronously-completing backend (in-memory, CRDT). Persisting definitions to an async network backend would require an **async `ISubscriptionStore`** variant. (The runtime retransmission mirror already has its async seam; this is only the definition-persistence contract.)
-
-### 2. Transparent-redundancy worked deployment sample
+### 1. Transparent-redundancy worked deployment sample
 
 The server side of transparent redundancy is implemented (`RedundancySupport.Transparent` → `CurrentServerId` + `TransparentRedundancyType`, HotAndMirrored/Transparent CRDT state mirroring, `DeterministicEventIdProvider`) and the shared-certificate operational guidance is documented. What remains is a **worked single-virtual-endpoint sample**: a Kubernetes `Service` / load balancer fronting replicas that share one ApplicationInstanceCertificate, tying the shared session store to subscription transfer end-to-end. Extend `Applications/RedundantServer` with a `docker-compose.transparent.yml` + shared-cert/KEK provisioning, and document the single-endpoint client experience.
 
-### 3. Large-address-space hydration optimization — deferred
+### 2. Large-address-space hydration optimization — deferred
 
 Full address-space materialization on startup and on failover promotion can be slow for very large address spaces. A **snapshot + delta** (or lazy-materialization) hydration path is deferred. This is a known limitation, not yet optimized; the current path fully materializes.
+
+## Delivered in this iteration
+
+- **Async `ISubscriptionStore` definition-persistence contract.** `StoreSubscriptions`/`RestoreSubscriptions`/`OnSubscriptionRestoreComplete` are now `StoreSubscriptionsAsync`/`RestoreSubscriptionsAsync`/`OnSubscriptionRestoreCompleteAsync` (`ValueTask`-returning, `CancellationToken`). Subscription definitions can now be persisted to an async network backend without a sync-over-async wrapper; `SharedKeyValueSubscriptionStore` awaits its shared-store writes directly instead of fire-and-forget. The per-monitored-item queue-restore hooks stay synchronous (synchronous monitored-item creation path). Documented in `Docs/migrate/2.0.x/sessions-subscriptions.md` and `Docs/HighAvailability.md`.
 
 ## Notes
 

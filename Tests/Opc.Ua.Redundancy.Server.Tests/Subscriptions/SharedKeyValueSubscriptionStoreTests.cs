@@ -61,14 +61,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private const ushort NamespaceIndex = 2;
 
         [Test]
-        public void StoreAndRestoreRoundTripsDefinition()
+        public async Task StoreAndRestoreRoundTripsDefinitionAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
             StoredSubscription expected = NewSubscription(100, 10);
 
-            bool stored = store.StoreSubscriptions([expected]);
-            RestoreSubscriptionResult result = store.RestoreSubscriptions();
+            bool stored = await store.StoreSubscriptionsAsync([expected]);
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
 
             Assert.That(stored, Is.True);
             Assert.That(result.Success, Is.True);
@@ -78,15 +78,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public void StoreIsVisibleToSecondReplica()
+        public async Task StoreIsVisibleToSecondReplicaAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore active = CreateStore(kv);
             SharedKeyValueSubscriptionStore backup = CreateStore(kv);
             StoredSubscription expected = NewSubscription(200, 20);
 
-            active.StoreSubscriptions([expected]);
-            RestoreSubscriptionResult result = backup.RestoreSubscriptions();
+            await active.StoreSubscriptionsAsync([expected]);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync();
 
             Assert.That(result.Success, Is.True);
             StoredSubscription actual = (StoredSubscription)result.Subscriptions!.Single();
@@ -100,12 +100,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
             var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
             StoredSubscription subscription = NewSubscription(300, 30);
-            store.StoreSubscriptions([subscription]);
+            await store.StoreSubscriptionsAsync([subscription]);
 
             await kv.SetAsync(
                 SharedKeyValueSubscriptionStore.KeyFor(subscription.Id),
                 ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
-            RestoreSubscriptionResult result = store.RestoreSubscriptions();
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Subscriptions, Is.Not.Empty);
@@ -119,39 +119,39 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
             StoredSubscription subscription = NewSubscription(400, 40);
 
-            store.StoreSubscriptions([subscription]);
+            await store.StoreSubscriptionsAsync([subscription]);
             (bool found, ByteString raw) = await kv.TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(subscription.Id));
 
             Assert.That(found, Is.True);
             Assert.That(Contains(raw.ToArray(), BitConverter.GetBytes(subscription.Id)), Is.False);
-            Assert.That(store.RestoreSubscriptions().Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
+            Assert.That((await store.RestoreSubscriptionsAsync()).Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
         }
 
         [Test]
-        public void StoreReplacesRemovedSubscriptions()
+        public async Task StoreReplacesRemovedSubscriptionsAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
-            store.StoreSubscriptions([NewSubscription(500, 50), NewSubscription(501, 51)]);
-            store.StoreSubscriptions([NewSubscription(501, 51)]);
-            RestoreSubscriptionResult result = store.RestoreSubscriptions();
+            await store.StoreSubscriptionsAsync([NewSubscription(500, 50), NewSubscription(501, 51)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(501, 51)]);
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
 
             Assert.That(result.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 501 }));
         }
 
         [Test]
-        public void OnSubscriptionRestoreCompleteCleansStaleDefinitions()
+        public async Task OnSubscriptionRestoreCompleteCleansStaleDefinitionsAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
-            store.StoreSubscriptions([NewSubscription(600, 60), NewSubscription(601, 61)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(600, 60), NewSubscription(601, 61)]);
 
-            store.OnSubscriptionRestoreComplete(new Dictionary<uint, ArrayOf<uint>>
+            await store.OnSubscriptionRestoreCompleteAsync(new Dictionary<uint, ArrayOf<uint>>
             {
                 [601] = new ArrayOf<uint>(new uint[] { 61 })
             });
-            RestoreSubscriptionResult result = store.RestoreSubscriptions();
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
 
             Assert.That(result.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 601 }));
         }
@@ -318,11 +318,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var inner = new InMemorySharedKeyValueStore();
             var kv = new BlockingRetransmissionSetStore(inner, subscriptionId);
             await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
-            store.StoreSubscriptions([NewSubscription(subscriptionId, 76)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 76)]);
 
             store.StoreRetransmissionState(subscriptionId, 3, [NewNotification(1), NewNotification(2)]);
             await kv.WaitForBlockedSetAsync();
-            store.StoreSubscriptions([]);
+            await store.StoreSubscriptionsAsync([]);
             kv.ReleaseBlockedSets();
             await store.FlushAsync();
 
@@ -340,12 +340,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var store = CreateStore(kv);
             await using var backup = CreateStore(kv);
 
-            store.StoreSubscriptions([NewSubscription(subscriptionId, 77)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 77)]);
             store.StoreRetransmissionState(subscriptionId, 4, [NewNotification(1), NewNotification(2), NewNotification(3)]);
             await store.FlushAsync();
-            store.StoreSubscriptions([]);
+            await store.StoreSubscriptionsAsync([]);
             await store.FlushAsync();
-            store.StoreSubscriptions([NewSubscription(subscriptionId, 78)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 78)]);
 
             SubscriptionRetransmissionState? deletedState = await backup.LoadRetransmissionStateAsync(subscriptionId);
             store.StoreRetransmissionState(subscriptionId, 10, [NewNotification(9)]);
@@ -391,7 +391,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
             Assert.That(
-                () => store.OnSubscriptionRestoreComplete(null!),
+                async () => await store.OnSubscriptionRestoreCompleteAsync(null!),
                 Throws.ArgumentNullException);
         }
 

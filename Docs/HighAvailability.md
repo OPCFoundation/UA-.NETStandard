@@ -194,7 +194,7 @@ Implemented server seams:
 
 Documented limitations:
 
-- The synchronous core `ISubscriptionStore` definition-persistence contract requires a synchronously-completing backend such as the in-memory or CRDT store. Full async persistence to a backend such as Redis would require an async `ISubscriptionStore`.
+- The core `ISubscriptionStore` definition-persistence contract is asynchronous (`StoreSubscriptionsAsync`, `RestoreSubscriptionsAsync`, `OnSubscriptionRestoreCompleteAsync`), so subscription definitions can be persisted to a synchronously-completing backend (in-memory, CRDT) or an async network backend. The per-monitored-item queue-restore hooks (`RestoreDataChangeMonitoredItemQueue`, `RestoreEventMonitoredItemQueue`) remain synchronous because they are invoked on the synchronous monitored-item creation path.
 - `SharedKeyValueSubscriptionStore` restores definitions and retransmission state, but monitored-item data/event queues are not restored by `RestoreDataChangeMonitoredItemQueue` or `RestoreEventMonitoredItemQueue`.
 - Continuation-point mirroring is best-effort. Built-in node-manager `ContinuationPoint.Data` is opaque and is not reconstructed on a backup; after failover a client may receive `BadContinuationPointInvalid` and re-issue Browse or HistoryRead, which OPC 10000-4 §6.6.2.2 permits. Node managers that can serialize their own continuation-point data may opt in through `IContinuationPointStore`.
 - Deterministic EventIds are optional and only as stable as the event fields used. Alarms & Conditions clients should still call `ConditionRefresh` after failover as required by OPC UA.

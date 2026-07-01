@@ -231,8 +231,8 @@ namespace Opc.Ua.Aot.Tests
                 ]
             };
 
-            subscriptionStore.StoreSubscriptions([subscription]);
-            RestoreSubscriptionResult result = subscriptionStore.RestoreSubscriptions();
+            await subscriptionStore.StoreSubscriptionsAsync([subscription]);
+            RestoreSubscriptionResult result = await subscriptionStore.RestoreSubscriptionsAsync();
             List<IStoredSubscription> subscriptions = [.. result.Subscriptions];
 
             await Assert.That(result.Success).IsTrue();

@@ -91,7 +91,9 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
+        public async ValueTask<bool> StoreSubscriptionsAsync(
+            IEnumerable<IStoredSubscription> subscriptions,
+            CancellationToken cancellationToken = default)
         {
             if (subscriptions == null)
             {
@@ -104,7 +106,9 @@ namespace Opc.Ua.Redundancy.Server
             {
                 liveIds.Add(subscription.Id);
                 string key = KeyFor(subscription.Id);
-                Complete(m_store.SetAsync(key, m_protector.Protect(Encode(subscription))));
+                await m_store
+                    .SetAsync(key, m_protector.Protect(Encode(subscription)), cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             uint[] removedIds;
@@ -125,7 +129,7 @@ namespace Opc.Ua.Redundancy.Server
 
             foreach (uint subscriptionId in removedIds)
             {
-                Complete(m_store.DeleteAsync(KeyFor(subscriptionId)));
+                await m_store.DeleteAsync(KeyFor(subscriptionId), cancellationToken).ConfigureAwait(false);
                 DeleteRetransmissionState(subscriptionId);
             }
 
@@ -133,13 +137,14 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public RestoreSubscriptionResult RestoreSubscriptions()
+        public ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
+            CancellationToken cancellationToken = default)
         {
             lock (m_definitionCache.Lock)
             {
-                return new RestoreSubscriptionResult(
+                return new ValueTask<RestoreSubscriptionResult>(new RestoreSubscriptionResult(
                     true,
-                    m_definitionCache.Subscriptions.Values.Select(CloneSubscription).ToList());
+                    m_definitionCache.Subscriptions.Values.Select(CloneSubscription).ToList()));
             }
         }
 
@@ -156,7 +161,9 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions)
+        public async ValueTask OnSubscriptionRestoreCompleteAsync(
+            Dictionary<uint, ArrayOf<uint>> createdSubscriptions,
+            CancellationToken cancellationToken = default)
         {
             if (createdSubscriptions == null)
             {
@@ -178,7 +185,7 @@ namespace Opc.Ua.Redundancy.Server
 
             foreach (uint subscriptionId in removedIds)
             {
-                Complete(m_store.DeleteAsync(KeyFor(subscriptionId)));
+                await m_store.DeleteAsync(KeyFor(subscriptionId), cancellationToken).ConfigureAwait(false);
                 DeleteRetransmissionState(subscriptionId);
             }
         }
@@ -718,46 +725,6 @@ namespace Opc.Ua.Redundancy.Server
                 TimestampsToReturn = item.TimestampsToReturn,
                 TypeMask = item.TypeMask
             };
-        }
-
-        private void Complete(ValueTask operation)
-        {
-            if (!operation.IsCompletedSuccessfully)
-            {
-                _ = ObserveAsync(operation);
-            }
-        }
-
-        private void Complete<T>(ValueTask<T> operation)
-        {
-            if (!operation.IsCompletedSuccessfully)
-            {
-                _ = ObserveAsync(operation);
-            }
-        }
-
-        private async Task ObserveAsync(ValueTask operation)
-        {
-            try
-            {
-                await operation.ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                m_logger?.LogWarning(ex, "A shared subscription-store operation failed.");
-            }
-        }
-
-        private async Task ObserveAsync<T>(ValueTask<T> operation)
-        {
-            try
-            {
-                await operation.ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                m_logger?.LogWarning(ex, "A shared subscription-store operation failed.");
-            }
         }
 
         private static async ValueTask RunBatchOperationsAsync(List<Task> operations)
