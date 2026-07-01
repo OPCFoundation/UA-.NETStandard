@@ -79,6 +79,18 @@ namespace Opc.Ua.Sessions.Tests
             MaxChannelCount = 600;
             MaxSessionCount = 600;
 
+            // Each of the ~500 sessions keeps a Publish request outstanding, and
+            // a held (long-polled) Publish occupies one request-processing worker
+            // slot for as long as it waits for notifications. With the default
+            // limit of 100 slots the held Publishes exhaust the pool once a few
+            // hundred sessions are connected, starving CreateSession/Read and
+            // surfacing as BadRequestTimeout. Size the pool above the session
+            // count so held Publishes never starve the other services, and warm
+            // a large minimum so the connect burst is not throttled by the
+            // thread pool's slow cold-start ramp.
+            MaxRequestThreadCount = 700;
+            MinRequestThreadCount = 200;
+
             // Disable the brute-force authentication lockout for this fixture. All
             // sessions share a single client certificate, so once a handful of
             // handshakes fail transiently under load the whole certificate would be

@@ -72,6 +72,30 @@ namespace Opc.Ua.Client.TestFramework
         /// connect failures cannot lock the shared certificate out.
         /// </summary>
         public int MaxFailedAuthenticationAttempts { get; set; } = 5;
+
+        /// <summary>
+        /// The server's maximum number of concurrent request-processing worker
+        /// slots. Each outstanding (long-polled) Publish request occupies one
+        /// slot for the duration it is held waiting for notifications, so a
+        /// server serving N sessions with active subscriptions needs at least
+        /// N slots plus head-room; otherwise held Publish requests exhaust the
+        /// pool and starve all other requests (CreateSession/ActivateSession/
+        /// Read), surfacing as BadRequestTimeout. Defaults to the production
+        /// default (100); load/scale fixtures that open many concurrent
+        /// sessions must raise it above the session count.
+        /// </summary>
+        public int MaxRequestThreadCount { get; set; } = 100;
+
+        /// <summary>
+        /// The server's minimum number of pre-spawned request-processing worker
+        /// slots (and thread-pool minimum). Raising this warms the request
+        /// pipeline so a burst of concurrent connects is not throttled by the
+        /// thread pool's slow cold-start ramp, which otherwise surfaces as
+        /// transient BadRequestTimeout on cheap operations while the pool grows.
+        /// Defaults to the production default (10); load/scale fixtures that open
+        /// many concurrent sessions raise it to smooth the connect burst.
+        /// </summary>
+        public int MinRequestThreadCount { get; set; } = 10;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
@@ -394,6 +418,10 @@ namespace Opc.Ua.Client.TestFramework
             ServerFixture.Config.ServerConfiguration.MaxSessionCount = MaxSessionCount;
             ServerFixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts
                 = MaxFailedAuthenticationAttempts;
+            ServerFixture.Config.ServerConfiguration.MaxRequestThreadCount
+                = MaxRequestThreadCount;
+            ServerFixture.Config.ServerConfiguration.MinRequestThreadCount
+                = MinRequestThreadCount;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
