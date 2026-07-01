@@ -101,8 +101,8 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// Creates an adapter over a single-node <c>RaftCs</c> replica (in-memory storage and transport). The node
         /// elects itself leader, so it provides a real, self-contained linearizable backend for single-process
-        /// deployments and tests; multi-node clusters supply their own <see cref="RaftNode"/> (durable storage and a
-        /// networked transport such as <c>NanoMsgBusTransport</c>).
+        /// deployments and tests; use <see cref="CreateCluster(ulong, ArrayOf{ulong}, IRaftTransport, RaftNodeOptions,
+        /// Action{RaftConfig}, TimeSpan)"/> for a multi-node cluster.
         /// </summary>
         /// <param name="nodeId">This replica's unique, non-zero id.</param>
         /// <param name="readyTimeout">How long to wait for self-election on start (defaults to 10 seconds).</param>
@@ -114,20 +114,111 @@ namespace Opc.Ua.Redundancy
             }
 
             // CA2000: ownership of the network/transport/node transfers to the
-            // returned adapter (ownsNode + ownedHost), which disposes them.
+            // returned adapter (ownsNode + ownedResources), which disposes them.
 #pragma warning disable CA2000
-            ulong[] voters = [nodeId];
-            var storage = new MemoryStorage(new ConfState(voters));
-            var config = new RaftConfig { Id = nodeId, ElectionTick = 3, HeartbeatTick = 1 };
             var network = new InMemoryNetwork();
             IRaftTransport transport = network.CreateNode(nodeId);
-            var node = new RaftNode(
-                config,
-                storage,
+            var storage = new MemoryStorage(new ConfState([nodeId]));
+            return CreateCluster(
+                nodeId,
                 transport,
-                new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(5) });
-            return new RaftCsConsensus(node, ownsNode: true, ownedHost: network, readyTimeout: readyTimeout);
+                storage,
+                new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(5) },
+                config => config.ElectionTick = 3,
+                readyTimeout,
+                ownedResources: network);
 #pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Creates an adapter over a multi-node <c>RaftCs</c> replica with in-memory (volatile) storage. The
+        /// membership is the static set <paramref name="memberIds"/>; the caller supplies the network transport that
+        /// links the members. For durable storage (crash-safe WAL) use the overload that takes an
+        /// <see cref="IRaftWritableStorage"/>.
+        /// </summary>
+        /// <param name="nodeId">This replica's unique, non-zero id (must be one of <paramref name="memberIds"/>).</param>
+        /// <param name="memberIds">The static cluster membership (voter ids).</param>
+        /// <param name="transport">This replica's transport bound to <paramref name="nodeId"/>.</param>
+        /// <param name="options">Optional driver options (tick interval, apply cap).</param>
+        /// <param name="configure">Optional callback to tune the <see cref="RaftConfig"/> (its <c>Id</c> is set).</param>
+        /// <param name="readyTimeout">How long <see cref="StartAsync"/> waits for an initial leader.</param>
+        public static RaftCsConsensus CreateCluster(
+            ulong nodeId,
+            ArrayOf<ulong> memberIds,
+            IRaftTransport transport,
+            RaftNodeOptions? options = null,
+            Action<RaftConfig>? configure = null,
+            TimeSpan readyTimeout = default)
+        {
+            if (memberIds.IsEmpty)
+            {
+                throw new ArgumentException("At least one member id is required.", nameof(memberIds));
+            }
+
+            // CA2000: the storage is volatile (MemoryStorage is not disposable);
+            // the node/transport ownership transfers to the returned adapter.
+#pragma warning disable CA2000
+            var storage = new MemoryStorage(new ConfState(ToArray(memberIds)));
+            return CreateCluster(nodeId, transport, storage, options, configure, readyTimeout);
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Creates an adapter over a multi-node <c>RaftCs</c> replica with caller-supplied durable storage (for
+        /// example a <c>FileRaftStorage</c> WAL). The membership is read from the storage's initial
+        /// <c>ConfState</c>.
+        /// </summary>
+        /// <param name="nodeId">This replica's unique, non-zero id.</param>
+        /// <param name="transport">This replica's transport bound to <paramref name="nodeId"/>.</param>
+        /// <param name="storage">The durable (or in-memory) Raft log/state storage carrying the membership.</param>
+        /// <param name="options">Optional driver options (tick interval, apply cap).</param>
+        /// <param name="configure">Optional callback to tune the <see cref="RaftConfig"/> (its <c>Id</c> is set).</param>
+        /// <param name="readyTimeout">How long <see cref="StartAsync"/> waits for an initial leader.</param>
+        /// <param name="ownedResources">
+        /// An optional resource (for example the in-memory network, or the storage when it is disposable) disposed
+        /// after the node.
+        /// </param>
+        public static RaftCsConsensus CreateCluster(
+            ulong nodeId,
+            IRaftTransport transport,
+            IRaftWritableStorage storage,
+            RaftNodeOptions? options = null,
+            Action<RaftConfig>? configure = null,
+            TimeSpan readyTimeout = default,
+            IAsyncDisposable? ownedResources = null)
+        {
+            if (nodeId == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(nodeId), "Raft node id must be non-zero.");
+            }
+            if (transport == null)
+            {
+                throw new ArgumentNullException(nameof(transport));
+            }
+            if (storage == null)
+            {
+                throw new ArgumentNullException(nameof(storage));
+            }
+
+            var config = new RaftConfig { Id = nodeId };
+            configure?.Invoke(config);
+
+            // CA2000: the node (which disposes the transport) and ownedResources
+            // transfer to the returned adapter, which disposes them.
+#pragma warning disable CA2000
+            var node = new RaftNode(config, storage, transport, options);
+            return new RaftCsConsensus(node, ownsNode: true, readyTimeout: readyTimeout, ownedHost: ownedResources);
+#pragma warning restore CA2000
+        }
+
+        private static ulong[] ToArray(ArrayOf<ulong> ids)
+        {
+            var result = new ulong[ids.Count];
+            for (int ii = 0; ii < ids.Count; ii++)
+            {
+                result[ii] = ids[ii];
+            }
+            return result;
         }
 
         /// <inheritdoc/>
