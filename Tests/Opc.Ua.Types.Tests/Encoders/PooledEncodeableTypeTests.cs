@@ -261,6 +261,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             public override XmlQualifiedName XmlName { get; }
                 = new XmlQualifiedName("TestPooled", "urn:test");
 
+            public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
+            {
+                return new StructureDefinition
+                {
+                    BaseDataType = DataTypeIds.Structure,
+                    StructureType = StructureType.Structure,
+                    Fields = []
+                };
+            }
+
             protected override void InitializeRent(TestPooled instance)
             {
                 instance.OnRent(this);

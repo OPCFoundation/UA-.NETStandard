@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.PubSub.Mqtt.Tests</RootNamespace>
+    <Nullable>enable</Nullable>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" PrivateAssets="all" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <!-- MQTTnet 5.x (server in a separate MQTTnet.Server package) is only used when the
+       test builds against the v5 packages. net48/net472/netstandard2.1 use MQTTnet 4.x
+       (server bundled in MQTTnet). When the solution is pinned to netstandard2.1
+       (CustomTestTarget=netstandard2.1) the tests build as net8.0 but must still use v4
+       to match the netstandard2.1 libraries, so the v4 branch is selected and the
+       MQTTNET_V5 compile constant is left undefined for that scenario. -->
+  <Choose>
+    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472' AND '$(CustomTestTarget)' != 'netstandard2.1'">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);MQTTNET_V5</DefineConstants>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" />
+        <PackageReference Include="MQTTnet.Server" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" VersionOverride="4.3.7.1207" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+  <ItemGroup>
+    <Compile Include="..\Common\Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+</Project>

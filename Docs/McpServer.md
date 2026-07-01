@@ -325,6 +325,62 @@ This is normal behavior — not all servers support all services. Common status 
 | `BadMethodInvalid` | Method not found on the specified object |
 | `BadUserAccessDenied` | Insufficient permissions |
 
+## PubSub Tools
+
+In addition to the client services above, the server exposes OPC UA PubSub
+(Part 14) tools, backed by `Opc.Ua.PubSub` and
+`Opc.Ua.PubSub.Diagnostics`. See
+[Diagnostics.md §5](Diagnostics.md#5-pubsub-packet-capture-and-dissection) for
+the capture / dissection details.
+
+**Configuration and Security Key Service methods.** PubSub configuration
+(`AddConnection`, `AddWriterGroup`, `AddReaderGroup`, `AddDataSetWriter`,
+`AddDataSetReader`, `Status.Enable` / `Disable`) and the Security Key Service
+(`GetSecurityKeys`, `AddSecurityGroup` / `RemoveSecurityGroup`) are standard
+server-side `PublishSubscribe` object methods, so they are invoked with the
+generic [`Call`](#usage) tool rather than dedicated wrappers — pass the
+`PublishSubscribe` object NodeId (or the target connection / group NodeId) and
+the corresponding method NodeId (e.g. `i=14443` for
+`PublishSubscribe_AddConnection`, `i=15215` for
+`PublishSubscribe_GetSecurityKeys`).
+
+**In-process publish/subscribe runtime:**
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_runtime_start_publisher` / `pubsub_runtime_start_subscriber` | Start an in-process UDP publisher / subscriber |
+| `pubsub_runtime_publish` | Publish a DataSet update |
+| `pubsub_runtime_read_received` | Read DataSets received by the subscriber |
+| `pubsub_runtime_status` / `pubsub_runtime_stop` | Status / stop the runtime |
+
+**Discovery** (Part 14 §7.2.4.6 &mdash; send a discovery request from the active
+runtime and collect publisher responses):
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_discover_metadata` | Request DataSetMetaData from publishers |
+| `pubsub_discover_writer_config` | Request DataSetWriterConfiguration from publishers |
+| `pubsub_discover_publisher_endpoints` | Request PublisherEndpoints from publishers |
+
+**Actions** (Part 14 §7.2.5.6 &mdash; request/response over PubSub):
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_invoke_action` | Invoke an action target and await the correlated response |
+| `pubsub_register_action_responder` | Register a demo/echo responder for round-trip testing |
+| `pubsub_bind_action_method` | Bind an action to a server method (ObjectId/MethodId) |
+| `pubsub_list_action_targets` / `pubsub_list_action_responders` | List known targets / registered responders |
+
+**Capture and dissection:**
+
+| Tool | Purpose |
+| --- | --- |
+| `pubsub_start_capture` / `pubsub_stop_capture` / `pubsub_capture_status` | Manage an in-process PubSub capture session |
+| `pubsub_write_pcap` | Flush captured frames to `.pcap` / `.pcapng` |
+| `pubsub_dissect_capture` | Dissect captured frames (decrypts encrypted UADP when a key log is supplied) |
+| `pubsub_decode_pcap` | Decode a libpcap file of UDP PubSub traffic |
+| `pubsub_load_keylog` | Load a PubSub key log for offline decryption |
+
 ## Architecture
 
 ```

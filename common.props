@@ -86,6 +86,18 @@
       </PropertyGroup>
     </Otherwise>
   </Choose>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
+    <!--
+      The Microsoft.Extensions.* graph used across the stack (Http.Resilience and
+      its transitive Telemetry / AmbientMetadata / Diagnostics packages) ships
+      net462 assets that build and run on .NET Framework, but their buildTransitive
+      support targets still emit "doesn't support net48/net472" warnings. These are
+      benign on net462-compatible TFMs, so suppress them once here for all projects
+      instead of scattering per-project SuppressTfmSupportBuildWarnings blocks.
+      TODO: remove when the library matrix drops .NET Framework or the packages stop warning.
+    -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <None
       Include="$(MSBuildThisFileDirectory)/LICENSE.txt"

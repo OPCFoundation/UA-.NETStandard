@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
@@ -83,7 +81,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(StatusCode.IsGood(result.StatusCode)).IsTrue();
             await Assert.That(result.HistoryData.IsNull).IsFalse();
             await Assert.That(
-                result.HistoryData.TryGetValue(out HistoryData? data))
+                result.HistoryData.TryGetValue(out HistoryData data))
                 .IsTrue();
             await Assert.That(data!.DataValues.Count).IsGreaterThan(0);
         }
@@ -121,7 +119,7 @@ namespace Opc.Ua.Aot.Tests
             HistoryReadResult result = response.Results[0];
             await Assert.That(StatusCode.IsGood(result.StatusCode)).IsTrue();
             await Assert.That(
-                result.HistoryData.TryGetValue(out HistoryData? data))
+                result.HistoryData.TryGetValue(out HistoryData data))
                 .IsTrue();
             await Assert.That(data!.DataValues.Count).IsGreaterThan(0);
         }
