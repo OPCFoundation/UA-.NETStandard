@@ -33,6 +33,7 @@
 
 #nullable enable
 
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -69,6 +70,45 @@ namespace Opc.Ua.Redundancy.K8s.Tests
 
             IRaftConsensus consensus = provider.GetRequiredService<IRaftConsensus>();
             Assert.That(consensus, Is.InstanceOf<RaftCsConsensus>());
+        }
+
+        [Test]
+        public async Task RegistersDurableFileStorageWithFqdnPeersAsync()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "opcua-raft-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                var services = new ServiceCollection();
+                services.AddOpcUa()
+                    .AddServer(_ => { })
+                    .UseKubernetesRaftConsensus(options =>
+                    {
+                        options.PodName = "opcua-ha-0";
+                        options.HeadlessServiceName = "opcua-ha-headless";
+                        options.Namespace = "opcua"; // fully-qualified peer DNS
+                        options.ReplicaCount = 3;
+                        options.UseDurableStorage = true; // FileRaftStorage on a temp dir
+                        options.StoragePath = dir;
+                    });
+
+                // Resolve (builds the WAL + bootstraps the ConfState) then dispose
+                // (closes the WAL) before deleting the directory.
+                {
+                    await using ServiceProvider provider = services.BuildServiceProvider();
+                    Assert.That(
+                        provider.GetRequiredService<IRaftConsensus>(),
+                        Is.InstanceOf<RaftCsConsensus>());
+                }
+
+                Assert.That(Directory.Exists(dir), Is.True, "the file WAL directory was created");
+            }
+            finally
+            {
+                if (Directory.Exists(dir))
+                {
+                    Directory.Delete(dir, true);
+                }
+            }
         }
 
         [Test]
