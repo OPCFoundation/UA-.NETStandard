@@ -35,8 +35,6 @@ using System.Text.Json;
 using Crdt;
 using NUnit.Framework;
 
-using Opc.Ua.Redundancy;
-
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>
@@ -57,7 +55,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             map.Set("null", default, clock);
 
             byte[] bytes = map.ToByteArray(CrdtValues.String, ByteStringCrdtSerializer.Instance);
-            LWWMap<string, ByteString> restored = LWWMap<string, ByteString>.ReadFrom(
+            var restored = LWWMap<string, ByteString>.ReadFrom(
                 bytes, CrdtValues.String, ByteStringCrdtSerializer.Instance, CrdtReaderOptions.Default);
 
             Assert.That(restored.TryGetValue("data", out ByteString data), Is.True);

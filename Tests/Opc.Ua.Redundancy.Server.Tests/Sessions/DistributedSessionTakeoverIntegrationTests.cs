@@ -35,10 +35,10 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -58,20 +58,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var factory = new DistributedSessionManagerFactory(
                 kv,
                 options: new DistributedSessionOptions { EnableFastReconnect = true });
-            var activeFixture = new ServerFixture<StandardServer>(t =>
+            var activeFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
-                var server = new ReferenceServer(t);
-                server.SessionManagerFactory = factory;
-                return server;
+                SessionManagerFactory = factory
             })
             {
                 SecurityNone = true
             };
-            var backupFixture = new ServerFixture<StandardServer>(t =>
+            var backupFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
-                var server = new ReferenceServer(t);
-                server.SessionManagerFactory = factory;
-                return server;
+                SessionManagerFactory = factory
             })
             {
                 SecurityNone = true
@@ -81,10 +77,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StandardServer? backup = null;
             try
             {
-                active = await activeFixture.StartAsync();
-                backup = await backupFixture.StartAsync();
+                active = await activeFixture.StartAsync().ConfigureAwait(false);
+                backup = await backupFixture.StartAsync().ConfigureAwait(false);
                 (RequestHeader activeHeader, _) = await active.CreateAndActivateSessionAsync(
-                    nameof(SessionCreatedOnActiveCanActivateOnBackupAsync));
+                    nameof(SessionCreatedOnActiveCanActivateOnBackupAsync)).ConfigureAwait(false);
 
                 EndpointDescription backupEndpoint = backup.GetEndpoints()
                     .Find(e => e.SecurityMode == MessageSecurityMode.None)!;
@@ -108,7 +104,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     [],
                     default,
                     null,
-                    RequestLifetime.None);
+                    RequestLifetime.None).ConfigureAwait(false);
 
                 ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
                 Assert.That(response.ServerNonce.IsNull, Is.False);
@@ -117,20 +113,20 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     backupChannelContext,
                     takeoverHeader,
                     true,
-                    RequestLifetime.None);
+                    RequestLifetime.None).ConfigureAwait(false);
                 var mirror = new SharedKeyValueSessionStore(kv, backup.CurrentInstance.MessageContext);
-                SharedSessionEntry? afterClose = await mirror.TryGetAsync(activeHeader.AuthenticationToken);
+                SharedSessionEntry? afterClose = await mirror.TryGetAsync(activeHeader.AuthenticationToken).ConfigureAwait(false);
                 Assert.That(afterClose, Is.Null, "backup ownership must close and remove the mirrored session");
             }
             finally
             {
                 if (backup != null)
                 {
-                    await backupFixture.StopAsync();
+                    await backupFixture.StopAsync().ConfigureAwait(false);
                 }
                 if (active != null)
                 {
-                    await activeFixture.StopAsync();
+                    await activeFixture.StopAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -141,20 +137,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var factory = new DistributedSessionManagerFactory(kv,
                 options: new DistributedSessionOptions { EnableFastReconnect = true });
-            var activeFixture = new ServerFixture<StandardServer>(t =>
+            var activeFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
-                var server = new ReferenceServer(t);
-                server.SessionManagerFactory = factory;
-                return server;
+                SessionManagerFactory = factory
             })
             {
                 SecurityNone = true
             };
-            var backupFixture = new ServerFixture<StandardServer>(t =>
+            var backupFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
-                var server = new ReferenceServer(t);
-                server.SessionManagerFactory = factory;
-                return server;
+                SessionManagerFactory = factory
             })
             {
                 SecurityNone = true
@@ -164,10 +156,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StandardServer? backup = null;
             try
             {
-                active = await activeFixture.StartAsync();
-                backup = await backupFixture.StartAsync();
+                active = await activeFixture.StartAsync().ConfigureAwait(false);
+                backup = await backupFixture.StartAsync().ConfigureAwait(false);
                 (RequestHeader activeHeader, _) = await active.CreateAndActivateSessionAsync(
-                    nameof(SessionTakeoverPreservesAuthenticationTokenAsync));
+                    nameof(SessionTakeoverPreservesAuthenticationTokenAsync)).ConfigureAwait(false);
 
                 NodeId originalToken = activeHeader.AuthenticationToken;
                 EndpointDescription backupEndpoint = backup.GetEndpoints()
@@ -192,7 +184,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     [],
                     default,
                     null,
-                    RequestLifetime.None);
+                    RequestLifetime.None).ConfigureAwait(false);
 
                 ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
                 Assert.That(takeoverHeader.AuthenticationToken, Is.EqualTo(originalToken));
@@ -201,11 +193,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 if (backup != null)
                 {
-                    await backupFixture.StopAsync();
+                    await backupFixture.StopAsync().ConfigureAwait(false);
                 }
                 if (active != null)
                 {
-                    await activeFixture.StopAsync();
+                    await activeFixture.StopAsync().ConfigureAwait(false);
                 }
             }
         }

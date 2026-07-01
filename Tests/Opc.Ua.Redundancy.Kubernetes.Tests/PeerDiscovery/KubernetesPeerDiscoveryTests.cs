@@ -37,7 +37,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-
 using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Redundancy.Kubernetes.Tests
@@ -56,7 +55,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         public void EndpointSlicesConvertReadyAddressesToPeerUris()
         {
             KubernetesEndpointSliceList slices = NewSlices();
-            var options = NewOptions();
+            KubernetesPeerDiscoveryOptions options = NewOptions();
 
             ArrayOf<string> peers = KubernetesPeerDiscovery.ToPeerUris(slices, options);
 
@@ -71,10 +70,10 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             api.Setup(x => x.ListEndpointSlicesAsync("ns", "svc", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(NewSlices());
             var discovery = new KubernetesPeerDiscovery(api.Object, NewOptions());
-            ArrayOf<string> observed = ArrayOf<string>.Empty;
+            ArrayOf<string> observed = [];
             discovery.PeerServerUrisChanged += peers => observed = peers;
 
-            ArrayOf<string> refreshed = await discovery.RefreshAsync();
+            ArrayOf<string> refreshed = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(refreshed.Span.ToArray(), Is.EqualTo(ExpectedPeerUris));
             Assert.That(observed.Span.ToArray(), Is.EqualTo(ExpectedPeerUris));
@@ -87,7 +86,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             api.SetupGet(x => x.IsInCluster).Returns(false);
             var discovery = new KubernetesPeerDiscovery(api.Object, NewOptions());
 
-            ArrayOf<string> refreshed = await discovery.RefreshAsync();
+            ArrayOf<string> refreshed = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(refreshed.Count, Is.Zero);
         }
@@ -95,20 +94,20 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public void EndpointSlicesUseFallbackPortWhenNoPortsExist()
         {
-            var options = NewOptions();
+            KubernetesPeerDiscoveryOptions options = NewOptions();
             options.Port = 4841;
             KubernetesEndpointSliceList slices = NewSlices();
             slices.Items[0].Ports.Clear();
 
             ArrayOf<string> peers = KubernetesPeerDiscovery.ToPeerUris(slices, options);
 
-            Assert.That(peers.Span.ToArray(), Is.EqualTo(new[] { "opc.tcp://10.0.0.2:4841" }));
+            Assert.That(peers.Span.ToArray(), Is.EqualTo(["opc.tcp://10.0.0.2:4841"]));
         }
 
         [Test]
         public void EndpointSlicesUseFirstPortWhenNamedPortMissing()
         {
-            var options = NewOptions();
+            KubernetesPeerDiscoveryOptions options = NewOptions();
             options.PortName = "missing";
             KubernetesEndpointSliceList slices = NewSlices();
 
@@ -128,8 +127,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             int changedCount = 0;
             discovery.PeerServerUrisChanged += _ => changedCount++;
 
-            await discovery.RefreshAsync();
-            await discovery.RefreshAsync();
+            await discovery.RefreshAsync().ConfigureAwait(false);
+            await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(changedCount, Is.EqualTo(1));
         }
@@ -144,7 +143,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var discovery = new KubernetesPeerDiscovery(api.Object, NewOptions());
             var options = new ServerRedundancyOptions();
 
-            await discovery.RefreshAsync();
+            await discovery.RefreshAsync().ConfigureAwait(false);
             discovery.Populate(options);
 
             Assert.That(options.PeerServerUris.ToArray(), Is.EqualTo(ExpectedPeerUris));

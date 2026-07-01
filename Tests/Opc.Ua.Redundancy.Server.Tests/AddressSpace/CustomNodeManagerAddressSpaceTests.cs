@@ -37,7 +37,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -84,7 +83,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             NodeState? addedEventNode = null;
             addressSpace.NodeAdded += node => addedEventNode = node;
 
-            await addressSpace.AddOrUpdateNodeAsync(added);
+            await addressSpace.AddOrUpdateNodeAsync(added).ConfigureAwait(false);
 
             Assert.That(addedEventNode, Is.SameAs(added));
             Assert.That(addressSpace.TryGetNode(added.NodeId, out NodeState? addedFound), Is.True);
@@ -93,12 +92,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             NodeId? removedEventNodeId = null;
             addressSpace.NodeRemoved += nodeId => removedEventNodeId = nodeId;
 
-            bool removed = await addressSpace.RemoveNodeAsync(added.NodeId);
+            bool removed = await addressSpace.RemoveNodeAsync(added.NodeId).ConfigureAwait(false);
 
             Assert.That(removed, Is.True);
             Assert.That(removedEventNodeId, Is.EqualTo(added.NodeId));
             Assert.That(addressSpace.TryGetNode(added.NodeId, out _), Is.False);
-            Assert.That(await addressSpace.RemoveNodeAsync(added.NodeId), Is.False);
+            Assert.That(await addressSpace.RemoveNodeAsync(added.NodeId).ConfigureAwait(false), Is.False);
         }
 
         private static BaseDataVariableState NewVariable(string id, NodeState? parent)

@@ -31,9 +31,7 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -54,16 +52,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var consensus = new InProcessRaftConsensus();
             await using var election = new RaftLeaderElection(consensus);
             var transitions = new List<bool>();
-            election.LeadershipChanged += value => transitions.Add(value);
+            election.LeadershipChanged += transitions.Add;
 
             Assert.That(election.IsLeader, Is.False);
 
             election.Start();
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
-            Assert.That(transitions, Is.EqualTo(new[] { true }));
+            Assert.That(transitions, Is.EqualTo([true]));
         }
 
         [Test]
@@ -75,8 +73,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var election1 = new RaftLeaderElection(consensus1);
             await using var election2 = new RaftLeaderElection(consensus2);
 
-            await consensus1.StartAsync();
-            await consensus2.StartAsync();
+            await consensus1.StartAsync().ConfigureAwait(false);
+            await consensus2.StartAsync().ConfigureAwait(false);
 
             Assert.That(election1.IsLeader, Is.True);
             Assert.That(election2.IsLeader, Is.False);
@@ -91,17 +89,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var election2 = new RaftLeaderElection(consensus2);
 
             var node2Transitions = new List<bool>();
-            election2.LeadershipChanged += value => node2Transitions.Add(value);
+            election2.LeadershipChanged += node2Transitions.Add;
 
-            await consensus1.StartAsync();
-            await consensus2.StartAsync();
+            await consensus1.StartAsync().ConfigureAwait(false);
+            await consensus2.StartAsync().ConfigureAwait(false);
             Assert.That(election2.IsLeader, Is.False);
 
             // The leader leaves; election2 must observe the takeover.
-            await consensus1.DisposeAsync();
+            await consensus1.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(election2.IsLeader, Is.True, "the surviving replica is elected leader");
-            Assert.That(node2Transitions, Is.EqualTo(new[] { true }));
+            Assert.That(node2Transitions, Is.EqualTo([true]));
         }
     }
 }

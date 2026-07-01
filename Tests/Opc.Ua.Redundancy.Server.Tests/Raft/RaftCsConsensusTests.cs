@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -50,10 +54,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task SingleNodeElectsItselfLeaderAsync()
         {
-            await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
+            await using var consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var election = new RaftLeaderElection(consensus);
 
-            await consensus.StartAsync();
+            await consensus.StartAsync().ConfigureAwait(false);
 
             Assert.That(consensus.IsLeader, Is.True, "a single-voter RaftCs replica elects itself leader");
             Assert.That(election.IsLeader, Is.True);
@@ -65,9 +69,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var store = new RaftSharedKeyValueStore(
                 DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
 
-            bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 }));
-            bool createdAgain = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 2 }));
-            (bool found, ByteString value) = await store.TryGetAsync("k");
+            bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            bool createdAgain = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("k").ConfigureAwait(false);
 
             Assert.That(created, Is.True);
             Assert.That(createdAgain, Is.False, "the second create-if-absent loses once the key is committed");
@@ -80,10 +84,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             await using var store = new RaftSharedKeyValueStore(
                 DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
-            ByteString payload = ByteString.From(new byte[] { 4, 5, 6 });
+            var payload = ByteString.From(new byte[] { 4, 5, 6 });
 
-            await store.SetAsync("session/a", payload);
-            (bool found, ByteString value) = await store.TryGetAsync("session/a");
+            await store.SetAsync("session/a", payload).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("session/a").ConfigureAwait(false);
 
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(payload.ToArray()));
@@ -95,10 +99,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var store = new RaftSharedKeyValueStore(
                 DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
             var registry = new SharedSingleUseNonceRegistry(store);
-            ByteString nonce = ByteString.From(new byte[] { 1, 2, 3, 4 });
+            var nonce = ByteString.From(new byte[] { 1, 2, 3, 4 });
 
-            bool first = await registry.TryConsumeAsync(nonce);
-            bool second = await registry.TryConsumeAsync(nonce);
+            bool first = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
+            bool second = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
 
             Assert.That(first, Is.True);
             Assert.That(second, Is.False, "a replayed nonce is rejected by the RaftCs-backed registry");

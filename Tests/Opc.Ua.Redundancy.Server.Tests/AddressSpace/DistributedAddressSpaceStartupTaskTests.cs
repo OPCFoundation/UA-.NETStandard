@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -36,9 +40,9 @@
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -58,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task WiresSynchronizerAndSeedsOptedInNodeManagerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:wire");
             var systemContext = new SystemContext(telemetry)
             {
@@ -78,7 +82,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 DataType = DataTypeIds.Double,
                 ValueRank = ValueRanks.Scalar,
                 Value = new Variant(1.0)
-            });
+            }).ConfigureAwait(false);
 
             var nodeManager = new Mock<INodeManager>();
             nodeManager.As<ILocalAddressSpaceSource>()
@@ -86,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .Returns(addressSpace);
 
             var masterNodeManager = new Mock<IMasterNodeManager>();
-            masterNodeManager.Setup(m => m.NodeManagers).Returns(new[] { nodeManager.Object });
+            masterNodeManager.Setup(m => m.NodeManagers).Returns([nodeManager.Object]);
 
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(telemetry);
@@ -98,18 +102,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var election = new StaticLeaderElection(true);
             var task = new DistributedAddressSpaceStartupTask(kv, election);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             // The writer must have seeded the node into the shared store, and
             // registered a default store in the task-owned registry.
             var verifyStore = new InMemoryNodeStateStore(kv, messageContext);
-            IStoredNode? stored = await verifyStore.TryGetNodeAsync(nodeId);
+            IStoredNode? stored = await verifyStore.TryGetNodeAsync(nodeId).ConfigureAwait(false);
 
             Assert.That(stored, Is.Not.Null, "writer should have seeded the opted-in node manager's address space");
             Assert.That(task.NodeStateStoreRegistry, Is.Not.Null);
             Assert.That(task.NodeStateStoreRegistry!.Resolve(nodeId), Is.Not.Null, "a default node state store should be registered");
 
-            await task.DisposeAsync();
+            await task.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]

@@ -34,8 +34,6 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Redundancy;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -793,7 +791,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             try
             {
-                nodeId = NodeId.Parse(key.Substring(prefix.Length));
+                nodeId = NodeId.Parse(key[prefix.Length..]);
                 return !nodeId.IsNull;
             }
             catch (ServiceResultException)
@@ -836,8 +834,8 @@ namespace Opc.Ua.Redundancy.Server
                 return false;
             }
             ReadOnlySpan<byte> span = wrapped.Span;
-            sequence = BinaryPrimitives.ReadUInt64BigEndian(span.Slice(0, SequencePrefixLength));
-            payload = new ByteString(span.Slice(SequencePrefixLength).ToArray());
+            sequence = BinaryPrimitives.ReadUInt64BigEndian(span[..SequencePrefixLength]);
+            payload = new ByteString(span[SequencePrefixLength..].ToArray());
             return true;
         }
 

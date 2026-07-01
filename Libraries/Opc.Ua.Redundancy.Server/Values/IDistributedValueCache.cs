@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {

@@ -101,7 +101,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
 
         private static X509Certificate2 CreateRootCertificate(string commonName)
         {
-            using RSA key = RSA.Create(2048);
+            using var key = RSA.Create(2048);
             var request = new CertificateRequest(
                 $"CN={commonName}",
                 key,
@@ -123,7 +123,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             X509Certificate2 issuer,
             string dnsName)
         {
-            using RSA key = RSA.Create(2048);
+            using var key = RSA.Create(2048);
             var request = new CertificateRequest(
                 $"CN={dnsName}",
                 key,
@@ -138,10 +138,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
             request.CertificateExtensions.Add(
                 new X509EnhancedKeyUsageExtension(
-                    new OidCollection
-                    {
+                    [
                         new Oid("1.3.6.1.5.5.7.3.1")
-                    },
+                    ],
                     false));
 
             byte[] serialNumber = RandomNumberGenerator.GetBytes(16);

@@ -33,7 +33,6 @@
 
 #nullable enable
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -74,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:bench");
             m_messageContext = messageContext;
             m_systemContext = new SystemContext(telemetry)
@@ -93,12 +92,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
             for (int i = 0; i < NodeCount; i++)
             {
-                await writerSpace.AddOrUpdateNodeAsync(NewVariable(i));
+                await writerSpace.AddOrUpdateNodeAsync(NewVariable(i)).ConfigureAwait(false);
             }
 
             await using (var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true))
             {
-                await writer.SeedOrHydrateAsync();
+                await writer.SeedOrHydrateAsync().ConfigureAwait(false);
             }
 
             // Snapshot fast path.
@@ -107,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var snapshotTimer = Stopwatch.StartNew();
             await using (var reader = new AddressSpaceSynchronizer(snapshotStore, snapshotSpace, () => false))
             {
-                await reader.SeedOrHydrateAsync();
+                await reader.SeedOrHydrateAsync().ConfigureAwait(false);
             }
             snapshotTimer.Stop();
 
@@ -119,7 +118,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var streamedTimer = Stopwatch.StartNew();
             await using (var reader = new AddressSpaceSynchronizer(streamedStore, streamedSpace, () => false))
             {
-                await reader.SeedOrHydrateAsync();
+                await reader.SeedOrHydrateAsync().ConfigureAwait(false);
             }
             streamedTimer.Stop();
 

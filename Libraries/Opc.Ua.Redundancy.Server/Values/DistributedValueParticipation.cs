@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -53,6 +52,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="maxAge">The freshness bound for the cached value.</param>
         /// <param name="liveRead">Reads the live value from the source.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="cache"/> is <c>null</c>.</exception>
         public static async ValueTask<DataValue> ReadThroughAsync(
             IDistributedValueCache cache,
             NodeId nodeId,
@@ -90,6 +90,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="cache">The distributed value cache.</param>
         /// <param name="maxAge">The freshness bound for cached reads.</param>
         /// <param name="liveRead">Reads the live value from the source.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static void EnableDistributedValueParticipation(
             this BaseVariableState variable,
             IDistributedValueCache cache,

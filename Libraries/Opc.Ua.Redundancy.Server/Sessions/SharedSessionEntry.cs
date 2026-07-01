@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Redundancy;
-using Opc.Ua.Server;
-
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>

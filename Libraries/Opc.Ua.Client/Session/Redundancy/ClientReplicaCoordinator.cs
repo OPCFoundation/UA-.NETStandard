@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Redundancy
                 if (found && m_protector.TryUnprotect(stored, out ByteString plaintext) && !plaintext.IsNull)
                 {
                     using var decoder = new BinaryDecoder(plaintext.ToArray(), m_session.MessageContext);
-                    var config = decoder.ReadEncodeable<SessionConfiguration>(null);
+                    SessionConfiguration config = decoder.ReadEncodeable<SessionConfiguration>(null);
                     if (m_session.ApplySessionConfiguration(config))
                     {
                         await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)

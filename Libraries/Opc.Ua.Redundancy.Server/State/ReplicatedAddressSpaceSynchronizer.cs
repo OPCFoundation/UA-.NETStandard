@@ -75,7 +75,7 @@ namespace Opc.Ua.Redundancy.Server
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_readerOptions = readerOptions ?? throw new ArgumentNullException(nameof(readerOptions));
             m_logger = logger;
-            m_clock = new HybridLogicalClock(replicaId, timeProvider);
+            m_clock = new HybridLogicalClock(replicaId, m_timeProvider);
             m_onNodeAdded = OnLocalNodeAdded;
             m_onNodeRemoved = OnLocalNodeRemoved;
             m_onChanged = OnLocalNodeChanged;
@@ -212,7 +212,7 @@ namespace Opc.Ua.Redundancy.Server
             byte[] mergedSnapshot;
             lock (m_lock)
             {
-                LWWMap<string, ByteString> remote = LWWMap<string, ByteString>.ReadFrom(
+                var remote = LWWMap<string, ByteString>.ReadFrom(
                     frame, CrdtValues.String, ByteStringCrdtSerializer.Instance, m_readerOptions);
                 m_map.Merge(remote);
                 diffs = ComputeDiffsLocked();
@@ -270,7 +270,8 @@ namespace Opc.Ua.Redundancy.Server
                 foreach (string key in m_map.Keys)
                 {
                     if (!key.StartsWith(ValuePrefix, StringComparison.Ordinal) ||
-                        !m_map.TryGetValue(key, out ByteString mapValue) || mapValue.IsNull ||
+                        !m_map.TryGetValue(key, out ByteString mapValue) ||
+                        mapValue.IsNull ||
                         !TryParseKey(key, out _, out NodeId nodeId) ||
                         !m_addressSpace.TryGetNode(nodeId, out NodeState? node) ||
                         node is not BaseVariableState variable)
@@ -337,7 +338,7 @@ namespace Opc.Ua.Redundancy.Server
                         return;
                     }
                     m_lastApplied[ValueKey(nodeId)] =
-                        authoritative.IsNull ? Array.Empty<byte>() : authoritative.ToArray();
+                        authoritative.IsNull ? [] : authoritative.ToArray();
                 }
                 if (m_addressSpace.TryGetNode(nodeId, out NodeState? node) &&
                     node is BaseVariableState variable)
@@ -438,9 +439,10 @@ namespace Opc.Ua.Redundancy.Server
                     CaptureValueLocked(variable);
                 }
 
-                if ((changes & (NodeStateChangeMasks.NonValue |
-                    NodeStateChangeMasks.Children |
-                    NodeStateChangeMasks.References)) != 0)
+                if ((changes &
+                    (NodeStateChangeMasks.NonValue |
+                        NodeStateChangeMasks.Children |
+                        NodeStateChangeMasks.References)) != 0)
                 {
                     CaptureUpsertLocked(node);
                 }
@@ -470,7 +472,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             if (m_map.TryGetValue(key, out ByteString stored))
             {
-                m_lastApplied[key] = stored.IsNull ? Array.Empty<byte>() : stored.ToArray();
+                m_lastApplied[key] = stored.IsNull ? [] : stored.ToArray();
             }
             else
             {
@@ -601,7 +603,7 @@ namespace Opc.Ua.Redundancy.Server
 
             try
             {
-                nodeId = NodeId.Parse(key.Substring(2));
+                nodeId = NodeId.Parse(key[2..]);
                 return true;
             }
             catch (ServiceResultException)

@@ -36,9 +36,9 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:sync");
             m_messageContext = messageContext;
             m_systemContext = new SystemContext(telemetry)
@@ -76,13 +76,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
-            await writerSpace.AddOrUpdateNodeAsync(NewVariable("seed", 1.0));
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("seed", 1.0)).ConfigureAwait(false);
 
             await using var writer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
-            await writer.SeedOrHydrateAsync();
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
 
-            IStoredNode? stored = await store.TryGetNodeAsync(new NodeId("seed", NamespaceIndex));
-            (bool found, _) = await store.TryReadValueAsync(new NodeId("seed", NamespaceIndex));
+            IStoredNode? stored = await store.TryGetNodeAsync(new NodeId("seed", NamespaceIndex)).ConfigureAwait(false);
+            (bool found, _) = await store.TryReadValueAsync(new NodeId("seed", NamespaceIndex)).ConfigureAwait(false);
             Assert.That(stored, Is.Not.Null);
             Assert.That(found, Is.True);
         }
@@ -93,12 +93,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
-            await readerSpace.AddOrUpdateNodeAsync(NewVariable("local", 1.0));
+            await readerSpace.AddOrUpdateNodeAsync(NewVariable("local", 1.0)).ConfigureAwait(false);
 
             await using var reader = new AddressSpaceSynchronizer(store, readerSpace, () => false);
-            await reader.SeedOrHydrateAsync();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
 
-            IStoredNode? stored = await store.TryGetNodeAsync(new NodeId("local", NamespaceIndex));
+            IStoredNode? stored = await store.TryGetNodeAsync(new NodeId("local", NamespaceIndex)).ConfigureAwait(false);
             Assert.That(reader.IsWriter, Is.False);
             Assert.That(stored, Is.Null, "a reader must never write to the shared store");
         }
@@ -114,15 +114,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
 
             BaseDataVariableState nodeX = NewVariable("X", 1.0);
-            await writerSpace.AddOrUpdateNodeAsync(nodeX);
+            await writerSpace.AddOrUpdateNodeAsync(nodeX).ConfigureAwait(false);
 
             await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
             await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
 
-            await writer.SeedOrHydrateAsync();
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
             writer.Start();
 
-            await reader.SeedOrHydrateAsync();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
             Assert.That(readerSpace.TryGetNode(nodeX.NodeId, out _), Is.True, "reader hydrated X from the store");
             reader.Start();
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 reader, c => c.Kind == NodeStateChangeKind.Value && c.NodeId == nodeX.NodeId);
             nodeX.Value = new Variant(42.0);
             nodeX.ClearChangeMasks(m_systemContext, false);
-            await AwaitWithTimeoutAsync(valueApplied);
+            await AwaitWithTimeoutAsync(valueApplied).ConfigureAwait(false);
 
             Assert.That(readerSpace.TryGetNode(nodeX.NodeId, out NodeState? rx), Is.True);
             Assert.That(((BaseDataVariableState)rx!).Value, Is.EqualTo(new Variant(42.0)));
@@ -140,16 +140,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             BaseDataVariableState nodeY = NewVariable("Y", 7.0);
             Task<bool> addApplied = WaitForInboundAsync(
                 reader, c => c.Kind == NodeStateChangeKind.Upsert && c.NodeId == nodeY.NodeId);
-            await writerSpace.AddOrUpdateNodeAsync(nodeY);
-            await AwaitWithTimeoutAsync(addApplied);
+            await writerSpace.AddOrUpdateNodeAsync(nodeY).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(addApplied).ConfigureAwait(false);
 
             Assert.That(readerSpace.TryGetNode(nodeY.NodeId, out _), Is.True, "reader received added node Y");
 
             // Removing a node on the writer propagates to the reader.
             Task<bool> deleteApplied = WaitForInboundAsync(
                 reader, c => c.Kind == NodeStateChangeKind.Delete && c.NodeId == nodeX.NodeId);
-            await writerSpace.RemoveNodeAsync(nodeX.NodeId);
-            await AwaitWithTimeoutAsync(deleteApplied);
+            await writerSpace.RemoveNodeAsync(nodeX.NodeId).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(deleteApplied).ConfigureAwait(false);
 
             Assert.That(readerSpace.TryGetNode(nodeX.NodeId, out _), Is.False, "reader removed node X");
         }
@@ -160,12 +160,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
-            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0));
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0)).ConfigureAwait(false);
 
             await using var writer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
-            await writer.SeedOrHydrateAsync();
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
 
-            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync();
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
             Assert.That(snapshot, Is.Not.Null);
             bool sawX = false;
             await foreach (NodeStateChange entry in snapshot!.Entries)
@@ -185,18 +185,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
             var x = new NodeId("X", NamespaceIndex);
-            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0));
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0)).ConfigureAwait(false);
 
             await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
-            await writer.SeedOrHydrateAsync();
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
 
             // A post-snapshot value change lands only in the delta log.
-            await writerStore.WriteValueAsync(x, new DataValue(new Variant(99.0), StatusCodes.Good, DateTimeUtc.Now));
+            await writerStore.WriteValueAsync(x, new DataValue(new Variant(99.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
 
             using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
             await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
-            await reader.SeedOrHydrateAsync();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
 
             Assert.That(readerSpace.TryGetNode(x, out NodeState? node), Is.True, "reader hydrated the snapshot node");
             Assert.That(
@@ -215,13 +215,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // Write directly, without publishing a snapshot, so hydration must use
             // the streamed EnumerateAsync/EnumerateValuesAsync fallback path.
             await store.UpsertNodeAsync(
-                new StoredNode(x, NodeStateSerializer.Serialize(m_systemContext, NewVariable("X", 5.0))));
-            await store.WriteValueAsync(x, new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now));
-            Assert.That(await store.TryReadSnapshotAsync(), Is.Null, "no snapshot was published");
+                new StoredNode(x, NodeStateSerializer.Serialize(m_systemContext, NewVariable("X", 5.0)))).ConfigureAwait(false);
+            await store.WriteValueAsync(x, new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
+            Assert.That(await store.TryReadSnapshotAsync().ConfigureAwait(false), Is.Null, "no snapshot was published");
 
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
             await using var reader = new AddressSpaceSynchronizer(store, readerSpace, () => false);
-            await reader.SeedOrHydrateAsync();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
 
             Assert.That(readerSpace.TryGetNode(x, out _), Is.True, "reader hydrated via the streamed fallback");
         }
@@ -232,16 +232,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
             var writerSpace = new DictionaryAddressSpace(m_systemContext);
-            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0));
-            await writerSpace.AddOrUpdateNodeAsync(NewVariable("Y", 2.0));
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0)).ConfigureAwait(false);
+            await writerSpace.AddOrUpdateNodeAsync(NewVariable("Y", 2.0)).ConfigureAwait(false);
 
             await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
-            await writer.SeedOrHydrateAsync();
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
 
             using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
             var readerSpace = new DictionaryAddressSpace(m_systemContext);
             await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
-            await reader.SeedOrHydrateAsync();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
 
             Assert.That(readerStore.CurrentSequence, Is.GreaterThan(0));
             Assert.That(
@@ -284,9 +284,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static async Task AwaitWithTimeoutAsync(Task task)
         {
-            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10)));
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
             Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
-            await task;
+            await task.ConfigureAwait(false);
         }
     }
 }

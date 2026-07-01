@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -35,7 +39,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -52,10 +55,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task SetAndTryGetReturnsStoredValueAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3 });
 
-            await store.SetAsync("k1", payload);
-            (bool found, ByteString value) = await store.TryGetAsync("k1");
+            await store.SetAsync("k1", payload).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("k1").ConfigureAwait(false);
 
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(payload.ToArray()));
@@ -66,7 +69,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            (bool found, ByteString value) = await store.TryGetAsync("missing");
+            (bool found, ByteString value) = await store.TryGetAsync("missing").ConfigureAwait(false);
 
             Assert.That(found, Is.False);
             Assert.That(value.IsNull, Is.True);
@@ -76,10 +79,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task CompareAndSwapCreatesWhenAbsentAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            ByteString value = ByteString.From(new byte[] { 9 });
+            var value = ByteString.From(new byte[] { 9 });
 
-            bool created = await store.CompareAndSwapAsync("k", default, value);
-            bool createdAgain = await store.CompareAndSwapAsync("k", default, value);
+            bool created = await store.CompareAndSwapAsync("k", default, value).ConfigureAwait(false);
+            bool createdAgain = await store.CompareAndSwapAsync("k", default, value).ConfigureAwait(false);
 
             Assert.That(created, Is.True);
             Assert.That(createdAgain, Is.False, "second create-if-absent must fail because the key now exists");
@@ -89,12 +92,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task CompareAndSwapSwapsWhenValueMatchesAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            ByteString first = ByteString.From(new byte[] { 1 });
-            ByteString second = ByteString.From(new byte[] { 2 });
-            await store.SetAsync("k", first);
+            var first = ByteString.From(new byte[] { 1 });
+            var second = ByteString.From(new byte[] { 2 });
+            await store.SetAsync("k", first).ConfigureAwait(false);
 
-            bool swapped = await store.CompareAndSwapAsync("k", first, second);
-            (bool found, ByteString value) = await store.TryGetAsync("k");
+            bool swapped = await store.CompareAndSwapAsync("k", first, second).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("k").ConfigureAwait(false);
 
             Assert.That(swapped, Is.True);
             Assert.That(found, Is.True);
@@ -105,13 +108,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task CompareAndSwapFailsWhenValueMismatchAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            ByteString actual = ByteString.From(new byte[] { 1 });
-            ByteString wrongExpected = ByteString.From(new byte[] { 7 });
-            ByteString desired = ByteString.From(new byte[] { 2 });
-            await store.SetAsync("k", actual);
+            var actual = ByteString.From(new byte[] { 1 });
+            var wrongExpected = ByteString.From(new byte[] { 7 });
+            var desired = ByteString.From(new byte[] { 2 });
+            await store.SetAsync("k", actual).ConfigureAwait(false);
 
-            bool swapped = await store.CompareAndSwapAsync("k", wrongExpected, desired);
-            (bool found, ByteString value) = await store.TryGetAsync("k");
+            bool swapped = await store.CompareAndSwapAsync("k", wrongExpected, desired).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("k").ConfigureAwait(false);
 
             Assert.That(swapped, Is.False);
             Assert.That(found, Is.True);
@@ -122,11 +125,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task DeleteRemovesKeyAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("k", ByteString.From(new byte[] { 1 }));
+            await store.SetAsync("k", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
 
-            bool deleted = await store.DeleteAsync("k");
-            bool deletedAgain = await store.DeleteAsync("k");
-            (bool found, _) = await store.TryGetAsync("k");
+            bool deleted = await store.DeleteAsync("k").ConfigureAwait(false);
+            bool deletedAgain = await store.DeleteAsync("k").ConfigureAwait(false);
+            (bool found, _) = await store.TryGetAsync("k").ConfigureAwait(false);
 
             Assert.That(deleted, Is.True);
             Assert.That(deletedAgain, Is.False);
@@ -137,9 +140,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ScanReturnsMatchingPrefixOnlyAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("a/1", ByteString.From(new byte[] { 1 }));
-            await store.SetAsync("a/2", ByteString.From(new byte[] { 2 }));
-            await store.SetAsync("b/1", ByteString.From(new byte[] { 3 }));
+            await store.SetAsync("a/1", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            await store.SetAsync("a/2", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
+            await store.SetAsync("b/1", ByteString.From(new byte[] { 3 })).ConfigureAwait(false);
 
             var keys = new List<string>();
             await foreach (KeyValuePair<string, ByteString> entry in store.ScanAsync("a/"))
@@ -147,7 +150,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "a/1", "a/2" }));
+            Assert.That(keys, Is.EquivalentTo(["a/1", "a/2"]));
         }
 
         [Test]
@@ -164,17 +167,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 store.WatchAsync("a/", cts.Token).GetAsyncEnumerator();
 
             ValueTask<bool> first = enumerator.MoveNextAsync();
-            await store.SetAsync("b/ignored", ByteString.From(new byte[] { 0 }));
-            await store.SetAsync("a/1", ByteString.From(new byte[] { 1 }));
+            await store.SetAsync("b/ignored", ByteString.From(new byte[] { 0 })).ConfigureAwait(false);
+            await store.SetAsync("a/1", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
 
-            Assert.That(await first, Is.True);
+            Assert.That(await first.ConfigureAwait(false), Is.True);
             Assert.That(enumerator.Current.Kind, Is.EqualTo(KeyValueChangeKind.Set));
             Assert.That(enumerator.Current.Key, Is.EqualTo("a/1"));
 
             ValueTask<bool> second = enumerator.MoveNextAsync();
-            await store.DeleteAsync("a/1");
+            await store.DeleteAsync("a/1").ConfigureAwait(false);
 
-            Assert.That(await second, Is.True);
+            Assert.That(await second.ConfigureAwait(false), Is.True);
             Assert.That(enumerator.Current.Kind, Is.EqualTo(KeyValueChangeKind.Delete));
             Assert.That(enumerator.Current.Key, Is.EqualTo("a/1"));
 

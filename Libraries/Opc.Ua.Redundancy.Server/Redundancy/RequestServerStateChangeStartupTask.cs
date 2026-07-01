@@ -30,8 +30,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -82,10 +82,7 @@ namespace Opc.Ua.Redundancy.Server
                 server.DiagnosticsNodeManager?.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange) ??
                 serverObject.RequestServerStateChange;
-            if (requestServerStateChange != null)
-            {
-                requestServerStateChange.OnCall = OnRequestServerStateChange;
-            }
+            requestServerStateChange?.OnCall = OnRequestServerStateChange;
 
             return default;
         }
@@ -131,13 +128,10 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
-            IConfigurationNodeManager? configurationNodeManager = m_server?.ConfigurationNodeManager;
-            if (configurationNodeManager == null)
-            {
+            IConfigurationNodeManager? configurationNodeManager = (m_server?.ConfigurationNodeManager) ??
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
                     "A configuration node manager is required to validate administrator access.");
-            }
 
             configurationNodeManager.HasApplicationSecureAdminAccess(context);
         }

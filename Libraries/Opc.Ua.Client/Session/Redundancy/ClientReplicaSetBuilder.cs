@@ -101,6 +101,7 @@ namespace Opc.Ua.Client.Redundancy
         /// <summary>
         /// Builds the coordinator.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public ClientReplicaCoordinator Build()
         {
             return new ClientReplicaCoordinator(

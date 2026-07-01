@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -63,7 +67,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(election, Is.InstanceOf<RaftLeaderElection>());
 
             bool created = await store.CompareAndSwapAsync(
-                "session/a", default, new ByteString(new byte[] { 1, 2, 3 }));
+                "session/a", default, new ByteString(new byte[] { 1, 2, 3 })).ConfigureAwait(false);
             Assert.That(created, Is.True, "the client store provides a linearizable compare-and-swap");
         }
 
@@ -93,7 +97,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             // The strong-prefix keyspace gets linearizable CAS via Raft.
             bool created = await store.CompareAndSwapAsync(
-                "nonce/x", default, new ByteString(new byte[] { 9 }));
+                "nonce/x", default, new ByteString(new byte[] { 9 })).ConfigureAwait(false);
             Assert.That(created, Is.True);
         }
 

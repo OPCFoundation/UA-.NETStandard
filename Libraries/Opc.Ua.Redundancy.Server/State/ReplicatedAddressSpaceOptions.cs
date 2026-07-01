@@ -34,7 +34,5 @@ namespace Opc.Ua.Redundancy.Server
     /// variable values are modelled as a last-writer-wins map and gossiped
     /// between replicas; every replica is a writer.
     /// </summary>
-    public sealed class ReplicatedAddressSpaceOptions : ReplicatedGossipOptions
-    {
-    }
+    public sealed class ReplicatedAddressSpaceOptions : ReplicatedGossipOptions;
 }

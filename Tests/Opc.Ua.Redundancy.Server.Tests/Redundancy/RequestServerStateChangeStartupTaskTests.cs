@@ -66,17 +66,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var task = new RequestServerStateChangeStartupTask();
 
-            Assert.That(async () => await task.OnServerStartedAsync(null!), Throws.ArgumentNullException);
+            Assert.That(async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
         public async Task RequestShutdownPublishesMaintenanceAndEstimatedReturnTimeAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             Mock<IServiceLevelController> controller = new();
             RequestServerStateChangeStartupTask task = CreateTask(controller.Object);
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -103,10 +103,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestFailedPublishesNoDataWhenNoControllerIsConfiguredAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             RequestServerStateChangeStartupTask task = CreateTask();
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestReturnsAccessDeniedWhenAdminValidationFailsAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new RequestServerStateChangeOptions
             {
                 AdminAccessValidator = _ => throw new ServiceResultException(StatusCodes.BadUserAccessDenied)
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 loaded.Manager.FindPredefinedNode<PropertyState<byte>>(VariableIds.Server_ServiceLevel);
             serviceLevel.Value = ServiceLevels.Maximum;
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -160,10 +160,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestSuspendedPublishesMaintenanceAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             RequestServerStateChangeStartupTask task = CreateTask();
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -186,10 +186,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestTestPublishesNoDataAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             RequestServerStateChangeStartupTask task = CreateTask();
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestUsesCustomServiceLevelSelectorAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new RequestServerStateChangeOptions
             {
                 AdminAccessValidator = _ => { },
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
             var task = new RequestServerStateChangeStartupTask(options);
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -243,15 +243,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestUpdatesServerStatusFieldsAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             RequestServerStateChangeStartupTask task = CreateTask();
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
-            DateTimeUtc estimatedReturnTime = new DateTimeUtc(638000000000000000);
-            LocalizedText reason = new LocalizedText("Planned maintenance");
+            var estimatedReturnTime = new DateTimeUtc(638000000000000000);
+            var reason = new LocalizedText("Planned maintenance");
             ServiceResult result = method.OnCall!(
                 loaded.Server.Object.DefaultSystemContext,
                 method,
@@ -273,10 +273,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RequestAcceptsRestartFlagAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             RequestServerStateChangeStartupTask task = CreateTask();
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method =
                 loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange);
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ServerConfiguration = new ServerConfiguration()
             };
             var manager = new DiagnosticsNodeManager(server.Object, configuration, NullLogger.Instance);
-            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);

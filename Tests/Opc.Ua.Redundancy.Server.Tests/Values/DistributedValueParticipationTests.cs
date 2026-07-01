@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -38,9 +42,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -60,7 +64,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:participation");
             m_messageContext = messageContext;
             m_systemContext = new SystemContext(telemetry)
@@ -78,11 +82,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var cache = new DistributedValueCache(new InMemoryNodeStateStore(kv, m_messageContext), time);
             var nodeId = new NodeId("v", NamespaceIndex);
-            await cache.CacheAsync(nodeId, new DataValue(new Variant(2.0), StatusCodes.Good, time.GetUtcNow()));
+            await cache.CacheAsync(nodeId, new DataValue(new Variant(2.0), StatusCodes.Good, time.GetUtcNow())).ConfigureAwait(false);
 
             int liveCalls = 0;
             DataValue result = await DistributedValueParticipation.ReadThroughAsync(
-                cache, nodeId, TimeSpan.FromMinutes(1), LiveRead);
+                cache, nodeId, TimeSpan.FromMinutes(1), LiveRead).ConfigureAwait(false);
 
             Assert.That(liveCalls, Is.Zero, "fresh cached value must be served without a live read");
             Assert.That(result.WrappedValue, Is.EqualTo(new Variant(2.0)));
@@ -104,12 +108,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             int liveCalls = 0;
             DataValue result = await DistributedValueParticipation.ReadThroughAsync(
-                cache, nodeId, TimeSpan.FromMinutes(1), LiveRead);
+                cache, nodeId, TimeSpan.FromMinutes(1), LiveRead).ConfigureAwait(false);
 
             Assert.That(liveCalls, Is.EqualTo(1));
             Assert.That(result.WrappedValue, Is.EqualTo(new Variant(7.0)));
 
-            (bool fresh, DataValue cached) = await cache.TryGetAsync(nodeId, TimeSpan.FromMinutes(1));
+            (bool fresh, DataValue cached) = await cache.TryGetAsync(nodeId, TimeSpan.FromMinutes(1)).ConfigureAwait(false);
             Assert.That(fresh, Is.True, "the live value should now be cached and fresh");
             Assert.That(cached.WrappedValue, Is.EqualTo(new Variant(7.0)));
 
@@ -140,11 +144,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             variable.EnableDistributedValueParticipation(cache, TimeSpan.FromMinutes(1), LiveRead);
 
             AttributeWriteResult writeResult = await variable.OnWriteValueAsync!(
-                m_systemContext, variable, default, new Variant(8.0), default);
+                m_systemContext, variable, default, new Variant(8.0), default).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(writeResult.Result), Is.True);
 
             AttributeReadResult readResult = await variable.OnReadValueAsync!(
-                m_systemContext, variable, default, new QualifiedName(), default);
+                m_systemContext, variable, default, new QualifiedName(), default).ConfigureAwait(false);
 
             Assert.That(readResult.Value, Is.EqualTo(new Variant(8.0)), "the written value is served from the cache");
             Assert.That(liveCalls, Is.Zero, "a fresh written value must be served without a live read");

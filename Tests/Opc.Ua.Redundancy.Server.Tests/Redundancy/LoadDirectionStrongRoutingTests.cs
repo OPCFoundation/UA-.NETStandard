@@ -36,7 +36,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {

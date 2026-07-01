@@ -37,8 +37,6 @@ using Crdt;
 using Crdt.Transport;
 using NUnit.Framework;
 
-using Opc.Ua.Redundancy;
-
 namespace Opc.Ua.Redundancy.Server.Tests
 {
     /// <summary>
@@ -53,43 +51,43 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public async Task ReplicatesSetAndDeleteAsync()
         {
             await using var network = new InMemoryNetwork();
-            await using var storeA = CreateStore(network, 1);
-            await using var storeB = CreateStore(network, 2);
+            await using ReplicatedSharedKeyValueStore storeA = CreateStore(network, 1);
+            await using ReplicatedSharedKeyValueStore storeB = CreateStore(network, 2);
 
             // Warm up both transports so neither misses the other's broadcasts.
-            await storeA.TryGetAsync("warmup");
-            await storeB.TryGetAsync("warmup");
+            await storeA.TryGetAsync("warmup").ConfigureAwait(false);
+            await storeB.TryGetAsync("warmup").ConfigureAwait(false);
 
             var value = new ByteString(new byte[] { 1, 2, 3, 4 });
-            await storeA.SetAsync("session/abc", value);
+            await storeA.SetAsync("session/abc", value).ConfigureAwait(false);
 
             await AssertEventuallyAsync(
                 async () =>
                 {
-                    (bool found, ByteString stored) = await storeB.TryGetAsync("session/abc");
+                    (bool found, ByteString stored) = await storeB.TryGetAsync("session/abc").ConfigureAwait(false);
                     return found && stored.ToArray().AsSpan().SequenceEqual(value.ToArray());
                 },
-                "a value set on A should replicate to B");
+                "a value set on A should replicate to B").ConfigureAwait(false);
 
-            await storeA.DeleteAsync("session/abc");
+            await storeA.DeleteAsync("session/abc").ConfigureAwait(false);
 
             await AssertEventuallyAsync(
                 async () =>
                 {
-                    (bool found, _) = await storeB.TryGetAsync("session/abc");
+                    (bool found, _) = await storeB.TryGetAsync("session/abc").ConfigureAwait(false);
                     return !found;
                 },
-                "a delete on A should replicate to B");
+                "a delete on A should replicate to B").ConfigureAwait(false);
         }
 
         [Test]
         public async Task CompareAndSwapThrowsNotSupportedAsync()
         {
             await using var network = new InMemoryNetwork();
-            await using var store = CreateStore(network, 1);
+            await using ReplicatedSharedKeyValueStore store = CreateStore(network, 1);
 
             Assert.That(
-                async () => await store.CompareAndSwapAsync("k", default, new ByteString(new byte[] { 1 })),
+                async () => await store.CompareAndSwapAsync("k", default, new ByteString(new byte[] { 1 })).ConfigureAwait(false),
                 Throws.TypeOf<NotSupportedException>(),
                 "CRDT stores cannot provide a linearizable compare-and-swap");
         }
@@ -98,11 +96,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public async Task ScanReturnsOnlyEntriesWithMatchingPrefixAsync()
         {
             await using var network = new InMemoryNetwork();
-            await using var store = CreateStore(network, 1);
+            await using ReplicatedSharedKeyValueStore store = CreateStore(network, 1);
 
-            await store.SetAsync("session/a", new ByteString(new byte[] { 1 }));
-            await store.SetAsync("session/b", new ByteString(new byte[] { 2 }));
-            await store.SetAsync("other/c", new ByteString(new byte[] { 3 }));
+            await store.SetAsync("session/a", new ByteString(new byte[] { 1 })).ConfigureAwait(false);
+            await store.SetAsync("session/b", new ByteString(new byte[] { 2 })).ConfigureAwait(false);
+            await store.SetAsync("other/c", new ByteString(new byte[] { 3 })).ConfigureAwait(false);
 
             var found = new System.Collections.Generic.List<string>();
             await foreach (System.Collections.Generic.KeyValuePair<string, ByteString> pair in
@@ -118,7 +116,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public async Task WatchThrowsNotSupported()
         {
             await using var network = new InMemoryNetwork();
-            await using var store = CreateStore(network, 1);
+            await using ReplicatedSharedKeyValueStore store = CreateStore(network, 1);
 
             Assert.That(() => store.WatchAsync("session/"), Throws.TypeOf<NotSupportedException>());
         }
@@ -139,11 +137,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
             DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                if (await condition())
+                if (await condition().ConfigureAwait(false))
                 {
                     return;
                 }
-                await Task.Delay(25);
+                await Task.Delay(25).ConfigureAwait(false);
             }
             Assert.Fail(message);
         }

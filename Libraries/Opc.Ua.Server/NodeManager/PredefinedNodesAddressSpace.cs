@@ -58,14 +58,14 @@ namespace Opc.Ua.Server
             Func<NodeState, CancellationToken, ValueTask> addAsync,
             Func<NodeId, CancellationToken, ValueTask<bool>> removeAsync)
         {
-            m_context = context ?? throw new ArgumentNullException(nameof(context));
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_predefinedNodes = predefinedNodes ?? throw new ArgumentNullException(nameof(predefinedNodes));
             m_addAsync = addAsync ?? throw new ArgumentNullException(nameof(addAsync));
             m_removeAsync = removeAsync ?? throw new ArgumentNullException(nameof(removeAsync));
         }
 
         /// <inheritdoc/>
-        public ISystemContext Context => m_context;
+        public ISystemContext Context { get; }
 
         /// <inheritdoc/>
         public IEnumerable<NodeState> Nodes
@@ -145,7 +145,6 @@ namespace Opc.Ua.Server
             return removed;
         }
 
-        private readonly ISystemContext m_context;
         private readonly NodeIdDictionary<NodeState> m_predefinedNodes;
         private readonly Func<NodeState, CancellationToken, ValueTask> m_addAsync;
         private readonly Func<NodeId, CancellationToken, ValueTask<bool>> m_removeAsync;

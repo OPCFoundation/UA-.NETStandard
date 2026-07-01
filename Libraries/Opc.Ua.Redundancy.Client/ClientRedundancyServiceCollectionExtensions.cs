@@ -64,14 +64,11 @@ namespace Opc.Ua.Redundancy.Client
                 throw new ArgumentNullException(nameof(transportFactory));
             }
 
-            services.TryAddSingleton<ISharedKeyValueStore>(sp =>
-            {
-                return new ReplicatedSharedKeyValueStore(
+            services.TryAddSingleton<ISharedKeyValueStore>(sp => new ReplicatedSharedKeyValueStore(
                     replicaId,
                     transportFactory(sp),
                     sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                    CrdtReaderOptions.Default);
-            });
+                    CrdtReaderOptions.Default));
             return services;
         }
 
@@ -98,7 +95,7 @@ namespace Opc.Ua.Redundancy.Client
                 throw new ArgumentNullException(nameof(services));
             }
 
-            services.TryAddSingleton<IRaftConsensus>(sp =>
+            services.TryAddSingleton(sp =>
                 consensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp =>
@@ -151,10 +148,10 @@ namespace Opc.Ua.Redundancy.Client
                     "Eventual mode requires a CRDT transport factory for the bulk store.");
             }
 
-            services.TryAddSingleton<IRaftConsensus>(sp =>
+            services.TryAddSingleton(sp =>
                 raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
-            services.TryAddSingleton<ISharedKeyValueStore>(sp =>
+            services.TryAddSingleton(sp =>
                 CreateClientStore(sp, mode, replicaId, replicatedTransportFactory));
 
             services.TryAddSingleton<ILeaderElection>(sp =>

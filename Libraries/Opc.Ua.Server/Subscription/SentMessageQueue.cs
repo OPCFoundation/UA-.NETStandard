@@ -80,10 +80,10 @@ namespace Opc.Ua.Server
         {
             m_subscriptionIdProvider = subscriptionIdProvider
                 ?? throw new ArgumentNullException(nameof(subscriptionIdProvider));
-            m_maxMessageCount = maxMessageCount;
+            MaxMessageCount = maxMessageCount;
             m_retransmissionStore = retransmissionStore;
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            m_sentMessages = sentMessages;
+            SentMessages = sentMessages;
             m_sequenceNumber = nextSequenceNumber;
             m_lastSentMessage = lastSentMessage;
         }
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the maximum number of sent messages retained for republish.
         /// </summary>
-        public uint MaxMessageCount => m_maxMessageCount;
+        public uint MaxMessageCount { get; }
 
         /// <summary>
         /// Gets the index of the next queued message that has not yet been returned to a publish request.
@@ -128,12 +128,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the number of sent messages currently retained.
         /// </summary>
-        public int SentCount => m_sentMessages.Count;
+        public int SentCount => SentMessages.Count;
 
         /// <summary>
         /// Gets the underlying sent-message list for persistence (read while the subscription is quiesced).
         /// </summary>
-        public List<NotificationMessage> SentMessages => m_sentMessages;
+        public List<NotificationMessage> SentMessages { get; }
 
         /// <summary>
         /// Consumes and returns the next sequence number, advancing the counter.
@@ -158,17 +158,17 @@ namespace Opc.Ua.Server
         {
             moreNotifications = false;
 
-            if (m_lastSentMessage < m_sentMessages.Count)
+            if (m_lastSentMessage < SentMessages.Count)
             {
                 // return the available sequence numbers.
-                for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
+                for (int ii = 0; ii <= m_lastSentMessage && ii < SentMessages.Count; ii++)
                 {
-                    availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
+                    availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
                 }
 
-                moreNotifications = (m_lastSentMessage < m_sentMessages.Count - 1) || hasItemsToPublish;
+                moreNotifications = (m_lastSentMessage < SentMessages.Count - 1) || hasItemsToPublish;
 
-                return m_sentMessages[m_lastSentMessage++];
+                return SentMessages[m_lastSentMessage++];
             }
 
             return null;
@@ -179,9 +179,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public void FillAvailableSequenceNumbers(List<uint> availableSequenceNumbers)
         {
-            for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
+            for (int ii = 0; ii <= m_lastSentMessage && ii < SentMessages.Count; ii++)
             {
-                availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
+                availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
             }
         }
 
@@ -205,14 +205,14 @@ namespace Opc.Ua.Server
             newlyUnacknowledgedCount = 0;
 
             // have to drop unsent messages if out of queue space.
-            int overflowCount = messages.Count - (int)m_maxMessageCount;
+            int overflowCount = messages.Count - (int)MaxMessageCount;
             if (overflowCount > 0)
             {
                 m_logger.LogWarning(
                     "WARNING: QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}",
                     overflowCount,
                     Id,
-                    m_maxMessageCount);
+                    MaxMessageCount);
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
                     ReuseNotificationPayloads(messages[ii]);
@@ -223,51 +223,51 @@ namespace Opc.Ua.Server
             ArrayOf<uint> removedSequenceNumbers = m_retransmissionStore == null ? default : [];
 
             // remove old messages if queue is full.
-            if (m_sentMessages.Count > m_maxMessageCount - messages.Count)
+            if (SentMessages.Count > MaxMessageCount - messages.Count)
             {
                 newlyUnacknowledgedCount = (uint)messages.Count;
 
-                if (m_maxMessageCount <= messages.Count)
+                if (MaxMessageCount <= messages.Count)
                 {
                     if (m_retransmissionStore != null)
                     {
-                        removedSequenceNumbers = GetSequenceNumbers(m_sentMessages, m_sentMessages.Count);
+                        removedSequenceNumbers = GetSequenceNumbers(SentMessages, SentMessages.Count);
                     }
-                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
+                    for (int ii = 0; ii < SentMessages.Count; ii++)
                     {
-                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                        ReuseNotificationPayloads(SentMessages[ii]);
                     }
-                    m_sentMessages.Clear();
+                    SentMessages.Clear();
                 }
                 else
                 {
                     if (m_retransmissionStore != null)
                     {
-                        removedSequenceNumbers = GetSequenceNumbers(m_sentMessages, messages.Count);
+                        removedSequenceNumbers = GetSequenceNumbers(SentMessages, messages.Count);
                     }
                     for (int ii = 0; ii < messages.Count; ii++)
                     {
-                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                        ReuseNotificationPayloads(SentMessages[ii]);
                     }
-                    m_sentMessages.RemoveRange(0, messages.Count);
+                    SentMessages.RemoveRange(0, messages.Count);
                 }
             }
 
             // save new message
-            m_lastSentMessage = m_sentMessages.Count;
-            m_sentMessages.AddRange(messages);
+            m_lastSentMessage = SentMessages.Count;
+            SentMessages.AddRange(messages);
             StoreRetransmissionState(messages, removedSequenceNumbers);
 
             // check if there are more notifications to send.
             moreNotifications = messages.Count > 1;
 
             // return the available sequence numbers.
-            for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
+            for (int ii = 0; ii <= m_lastSentMessage && ii < SentMessages.Count; ii++)
             {
-                availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
+                availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
             }
 
-            return m_sentMessages[m_lastSentMessage++];
+            return SentMessages[m_lastSentMessage++];
         }
 
         /// <summary>
@@ -277,17 +277,17 @@ namespace Opc.Ua.Server
         public bool TryAcknowledge(uint sequenceNumber)
         {
             // find message in queue.
-            for (int ii = 0; ii < m_sentMessages.Count; ii++)
+            for (int ii = 0; ii < SentMessages.Count; ii++)
             {
-                if (m_sentMessages[ii].SequenceNumber == sequenceNumber)
+                if (SentMessages[ii].SequenceNumber == sequenceNumber)
                 {
                     if (m_lastSentMessage > ii)
                     {
                         m_lastSentMessage--;
                     }
 
-                    NotificationMessage removed = m_sentMessages[ii];
-                    m_sentMessages.RemoveAt(ii);
+                    NotificationMessage removed = SentMessages[ii];
+                    SentMessages.RemoveAt(ii);
                     ReuseNotificationPayloads(removed);
                     m_retransmissionStore?.AcknowledgeNotification(Id, sequenceNumber);
                     return true;
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage? FindForRepublish(uint retransmitSequenceNumber)
         {
-            foreach (NotificationMessage sentMessage in m_sentMessages)
+            foreach (NotificationMessage sentMessage in SentMessages)
             {
                 if (sentMessage.SequenceNumber == retransmitSequenceNumber)
                 {
@@ -322,9 +322,9 @@ namespace Opc.Ua.Server
             // Assumption we do not check lastSentMessage < sentMessages.Count because
             // in case of subscription transfer original client might have crashed by handling message,
             // therefor new client should have to chance to process all available messages
-            for (int ii = 0; ii < m_sentMessages.Count; ii++)
+            for (int ii = 0; ii < SentMessages.Count; ii++)
             {
-                availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
+                availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
             }
             return availableSequenceNumbers;
         }
@@ -347,10 +347,10 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_sentMessages.Clear();
-            m_sentMessages.AddRange(state.SentMessages);
+            SentMessages.Clear();
+            SentMessages.AddRange(state.SentMessages);
             m_sequenceNumber = state.NextSequenceNumber;
-            m_lastSentMessage = m_sentMessages.Count;
+            m_lastSentMessage = SentMessages.Count;
         }
 
         /// <summary>
@@ -358,11 +358,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Clear()
         {
-            for (int ii = 0; ii < m_sentMessages.Count; ii++)
+            for (int ii = 0; ii < SentMessages.Count; ii++)
             {
-                ReuseNotificationPayloads(m_sentMessages[ii]);
+                ReuseNotificationPayloads(SentMessages[ii]);
             }
-            m_sentMessages.Clear();
+            SentMessages.Clear();
         }
 
         private void StoreRetransmissionState(
@@ -384,12 +384,12 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_retransmissionStore.StoreRetransmissionState(Id, m_sequenceNumber, [.. m_sentMessages]);
+            m_retransmissionStore.StoreRetransmissionState(Id, m_sequenceNumber, [.. SentMessages]);
         }
 
         private static ArrayOf<uint> GetSequenceNumbers(List<NotificationMessage> messages, int count)
         {
-            var sequenceNumbers = new uint[count];
+            uint[] sequenceNumbers = new uint[count];
             for (int ii = 0; ii < count; ii++)
             {
                 sequenceNumbers[ii] = messages[ii].SequenceNumber;
@@ -429,10 +429,8 @@ namespace Opc.Ua.Server
         private uint Id => m_subscriptionIdProvider();
 
         private readonly Func<uint> m_subscriptionIdProvider;
-        private readonly uint m_maxMessageCount;
         private readonly ISubscriptionRetransmissionStore? m_retransmissionStore;
         private readonly ILogger m_logger;
-        private readonly List<NotificationMessage> m_sentMessages;
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
     }

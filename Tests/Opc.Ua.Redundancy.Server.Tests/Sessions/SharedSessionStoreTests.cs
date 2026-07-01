@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -37,9 +41,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -58,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:session");
             m_context = messageContext;
         }
@@ -70,8 +74,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var store = new SharedKeyValueSessionStore(kv, m_context);
             SharedSessionEntry entry = NewEntry("tok-1");
 
-            await store.PutAsync(entry);
-            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded!.SessionId, Is.EqualTo(entry.SessionId));
@@ -89,8 +93,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var store = new SharedKeyValueSessionStore(kv, m_context);
             SharedSessionEntry entry = NewEntry("tok-full");
 
-            await store.PutAsync(entry);
-            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded!.ServerNonce.ToArray(), Is.EqualTo(entry.ServerNonce.ToArray()));
@@ -113,7 +117,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var store = new SharedKeyValueSessionStore(kv, m_context);
 
-            SharedSessionEntry? loaded = await store.TryGetAsync(new NodeId("nope", NamespaceIndex));
+            SharedSessionEntry? loaded = await store.TryGetAsync(new NodeId("nope", NamespaceIndex)).ConfigureAwait(false);
 
             Assert.That(loaded, Is.Null);
         }
@@ -124,10 +128,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var store = new SharedKeyValueSessionStore(kv, m_context);
             SharedSessionEntry entry = NewEntry("tok-2");
-            await store.PutAsync(entry);
+            await store.PutAsync(entry).ConfigureAwait(false);
 
-            bool removed = await store.RemoveAsync(entry.AuthenticationToken);
-            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
+            bool removed = await store.RemoveAsync(entry.AuthenticationToken).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(removed, Is.True);
             Assert.That(loaded, Is.Null);
@@ -141,8 +145,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var standby = new SharedKeyValueSessionStore(kv, m_context);
             SharedSessionEntry entry = NewEntry("tok-3");
 
-            await active.PutAsync(entry);
-            SharedSessionEntry? onStandby = await standby.TryGetAsync(entry.AuthenticationToken);
+            await active.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? onStandby = await standby.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(onStandby, Is.Not.Null, "standby can reconnect the session using just the token");
             Assert.That(onStandby!.SessionId, Is.EqualTo(entry.SessionId));
@@ -156,12 +160,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var store = new SharedKeyValueSessionStore(kv, m_context, protector);
             SharedSessionEntry entry = NewEntry("tok-prot");
 
-            await store.PutAsync(entry);
-            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             // Secret material and the server nonce must not be persisted in cleartext.
             (bool rawFound, ByteString raw) = await kv.TryGetAsync(
-                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken));
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken)).ConfigureAwait(false);
             Assert.That(rawFound, Is.True);
             Assert.That(Contains(raw.ToArray(), entry.SecretMaterial.ToArray()), Is.False);
             Assert.That(Contains(raw.ToArray(), entry.ServerNonce.ToArray()), Is.False);
@@ -178,13 +182,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(22));
             var store = new SharedKeyValueSessionStore(kv, m_context, protector);
             SharedSessionEntry entry = NewEntry("tok-tamper");
-            await store.PutAsync(entry);
+            await store.PutAsync(entry).ConfigureAwait(false);
 
             await kv.SetAsync(
                 SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken),
-                ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6 }));
+                ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6 })).ConfigureAwait(false);
 
-            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(loaded, Is.Null);
         }
@@ -195,7 +199,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var store = new SharedKeyValueSessionStore(kv, m_context);
             SharedSessionEntry entry = NewEntry("tok-keyspace");
-            await store.PutAsync(entry);
+            await store.PutAsync(entry).ConfigureAwait(false);
 
             string tokenText = entry.AuthenticationToken.ToString();
             await foreach (KeyValuePair<string, ByteString> pair in kv.ScanAsync("session/"))
@@ -207,9 +211,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             // The legacy raw-token key does not exist; the hashed key resolves the entry.
-            (bool legacyFound, _) = await kv.TryGetAsync("session/" + tokenText);
+            (bool legacyFound, _) = await kv.TryGetAsync("session/" + tokenText).ConfigureAwait(false);
             Assert.That(legacyFound, Is.False);
-            Assert.That(await store.TryGetAsync(entry.AuthenticationToken), Is.Not.Null);
+            Assert.That(await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false), Is.Not.Null);
         }
 
         private static bool Contains(byte[] haystack, byte[] needle)

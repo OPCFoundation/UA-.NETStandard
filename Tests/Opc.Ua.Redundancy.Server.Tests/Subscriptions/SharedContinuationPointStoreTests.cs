@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -37,9 +41,9 @@ using System;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -55,16 +59,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task BrowseContinuationPointEnvelopeReplicatesAcrossStoresAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
-            Guid continuationPointId = Guid.NewGuid();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
 
             primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionId, continuationPointId));
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionId);
+                await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Has.Count.EqualTo(1));
             ContinuationPointEnvelope envelope = envelopes[0];
@@ -80,18 +84,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task RemovedContinuationPointEnvelopeDoesNotLoadOnBackupAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
-            Guid continuationPointId = Guid.NewGuid();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
 
             primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionId, continuationPointId));
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
             primary.RemoveContinuationPoint(sessionId, ContinuationPointKind.Browse, continuationPointId);
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionId);
+                await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Is.Empty);
         }
@@ -110,7 +114,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             (ArrayOf<BrowseResult> results, _) = await manager.BrowseNextAsync(
                 context,
                 false,
-                [continuationPoint]);
+                [continuationPoint]).ConfigureAwait(false);
 
             Assert.That(results, Has.Count.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
@@ -120,10 +124,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task LoadUnknownSessionReturnsNoEnvelopesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var store = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await store.LoadContinuationPointsAsync(new NodeId(Guid.NewGuid(), 1));
+                await store.LoadContinuationPointsAsync(new NodeId(Guid.NewGuid(), 1)).ConfigureAwait(false);
 
             Assert.That(envelopes, Is.Empty);
         }
@@ -132,10 +136,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task SecondBrowseContinuationPointEnvelopeReplicatesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
-            Guid continuationPointId = Guid.NewGuid();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
 
             primary.StoreContinuationPoint(new ContinuationPointEnvelope
             {
@@ -144,10 +148,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Kind = ContinuationPointKind.Browse,
                 Index = 5
             });
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionId);
+                await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Has.Count.EqualTo(1));
             Assert.That(envelopes[0].Kind, Is.EqualTo(ContinuationPointKind.Browse));
@@ -158,10 +162,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task HistoryContinuationPointEnvelopeReplicatesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
-            Guid continuationPointId = Guid.NewGuid();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
 
             primary.StoreContinuationPoint(new ContinuationPointEnvelope
             {
@@ -170,10 +174,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Kind = ContinuationPointKind.History,
                 BrowseNodeId = new NodeId("HistoryVar", 2)
             });
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionId);
+                await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Has.Count.EqualTo(1));
             Assert.That(envelopes[0].Kind, Is.EqualTo(ContinuationPointKind.History));
@@ -184,9 +188,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task MultipleContinuationPointsForSameSessionReplicateAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
 
             primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionId, Guid.NewGuid()));
             primary.StoreContinuationPoint(new ContinuationPointEnvelope
@@ -195,10 +199,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 OwnerSessionId = sessionId,
                 Kind = ContinuationPointKind.History
             });
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionId);
+                await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Has.Count.EqualTo(2));
         }
@@ -207,16 +211,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ContinuationPointForDifferentSessionDoesNotLoadAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionA = new NodeId(Guid.NewGuid(), 1);
-            NodeId sessionB = new NodeId(Guid.NewGuid(), 1);
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionA = new NodeId(Guid.NewGuid(), 1);
+            var sessionB = new NodeId(Guid.NewGuid(), 1);
 
             primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionA, Guid.NewGuid()));
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionB);
+                await backup.LoadContinuationPointsAsync(sessionB).ConfigureAwait(false);
 
             Assert.That(envelopes, Is.Empty);
         }
@@ -225,15 +229,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task FlushBeforeStoreCausesNoReplicationAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var primary = CreateStore(kv);
-            await using var backup = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
 
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
             primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionId, Guid.NewGuid()));
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await backup.LoadContinuationPointsAsync(sessionId);
+                await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Is.Empty);
         }
@@ -271,7 +275,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             var nodeManagerFactory = new Mock<IMainNodeManagerFactory>();
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
-            configurationNodeManager.Setup(n => n.NamespaceUris).Returns(Array.Empty<string>());
+            configurationNodeManager.Setup(n => n.NamespaceUris).Returns([]);
             var coreNodeManager = new Mock<ICoreNodeManager>();
             nodeManagerFactory
                 .Setup(f => f.CreateConfigurationNodeManager())

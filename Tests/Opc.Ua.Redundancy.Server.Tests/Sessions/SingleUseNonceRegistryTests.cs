@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -35,8 +39,8 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -55,10 +59,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var kv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(kv);
-            ByteString nonce = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+            var nonce = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
 
-            bool first = await registry.TryConsumeAsync(nonce);
-            bool second = await registry.TryConsumeAsync(nonce);
+            bool first = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
+            bool second = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
 
             Assert.That(first, Is.True, "first consumption is accepted");
             Assert.That(second, Is.False, "a replay of the same nonce is rejected");
@@ -70,8 +74,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(kv);
 
-            bool a = await registry.TryConsumeAsync(ByteString.From(new byte[] { 1 }));
-            bool b = await registry.TryConsumeAsync(ByteString.From(new byte[] { 2 }));
+            bool a = await registry.TryConsumeAsync(ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            bool b = await registry.TryConsumeAsync(ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
 
             Assert.That(a, Is.True);
             Assert.That(b, Is.True);
@@ -83,10 +87,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             var active = new SharedSingleUseNonceRegistry(kv);
             var standby = new SharedSingleUseNonceRegistry(kv);
-            ByteString nonce = ByteString.From(new byte[] { 9, 9, 9, 9 });
+            var nonce = ByteString.From(new byte[] { 9, 9, 9, 9 });
 
-            bool onActive = await active.TryConsumeAsync(nonce);
-            bool onStandby = await standby.TryConsumeAsync(nonce);
+            bool onActive = await active.TryConsumeAsync(nonce).ConfigureAwait(false);
+            bool onStandby = await standby.TryConsumeAsync(nonce).ConfigureAwait(false);
 
             Assert.That(onActive, Is.True);
             Assert.That(onStandby, Is.False, "no two replicas accept the same nonce");
@@ -99,10 +103,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var registry = new SharedSingleUseNonceRegistry(kv);
 
             Assert.That(
-                async () => await registry.TryConsumeAsync(default),
+                async () => await registry.TryConsumeAsync(default).ConfigureAwait(false),
                 Throws.ArgumentException);
             Assert.That(
-                async () => await registry.TryConsumeAsync(ByteString.Empty),
+                async () => await registry.TryConsumeAsync(ByteString.Empty).ConfigureAwait(false),
                 Throws.ArgumentException);
         }
 

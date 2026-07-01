@@ -27,9 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Server;
 
 // CS0618: ServiceMessageContext.GlobalContext is obsolete, but obsolete APIs
 // are permitted in test code (repo rule) and the context is never used for

@@ -33,13 +33,12 @@
 
 #nullable enable
 
-using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -74,13 +73,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var factory = new DistributedSessionManagerFactory(
                 m_kv, m_protector, new DistributedSessionOptions { EnableFastReconnect = true });
 
-            m_fixture = new ServerFixture<StandardServer>(t =>
+            m_fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
-                var server = new ReferenceServer(t);
-                server.SessionManagerFactory = factory;
-                return server;
+                SessionManagerFactory = factory
             });
-            m_server = await m_fixture.StartAsync();
+            m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -88,7 +85,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             if (m_fixture != null)
             {
-                await m_fixture.StopAsync();
+                await m_fixture.StopAsync().ConfigureAwait(false);
             }
             m_protector?.Dispose();
             m_kv?.Dispose();
@@ -100,12 +97,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             const string sessionName = nameof(SessionIsMirroredEncryptedOnActivateAndRemovedOnCloseAsync);
 
             (RequestHeader header, SecureChannelContext context) =
-                await m_server.CreateAndActivateSessionAsync(sessionName);
+                await m_server.CreateAndActivateSessionAsync(sessionName).ConfigureAwait(false);
 
             IServiceMessageContext messageContext = m_server.CurrentInstance.MessageContext;
             var store = new SharedKeyValueSessionStore(m_kv, messageContext, m_protector);
 
-            SharedSessionEntry? entry = await store.TryGetAsync(header.AuthenticationToken);
+            SharedSessionEntry? entry = await store.TryGetAsync(header.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(entry, Is.Not.Null, "the session must be mirrored to the shared store on activate");
             Assert.That(entry!.AuthenticationToken, Is.EqualTo(header.AuthenticationToken));
@@ -113,12 +110,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // Encrypted at rest: a protector with a different key fails closed.
             using var wrongKey = new AesCbcHmacRecordProtector(MakeKey(2));
             var wrongStore = new SharedKeyValueSessionStore(m_kv, messageContext, wrongKey);
-            SharedSessionEntry? wrong = await wrongStore.TryGetAsync(header.AuthenticationToken);
+            SharedSessionEntry? wrong = await wrongStore.TryGetAsync(header.AuthenticationToken).ConfigureAwait(false);
             Assert.That(wrong, Is.Null, "the mirrored entry is encrypted; the wrong key cannot read it");
 
-            await m_server.CloseSessionAsync(context, header, true, RequestLifetime.None);
+            await m_server.CloseSessionAsync(context, header, true, RequestLifetime.None).ConfigureAwait(false);
 
-            SharedSessionEntry? afterClose = await store.TryGetAsync(header.AuthenticationToken);
+            SharedSessionEntry? afterClose = await store.TryGetAsync(header.AuthenticationToken).ConfigureAwait(false);
             Assert.That(afterClose, Is.Null, "the mirror must be removed when the session closes");
         }
 

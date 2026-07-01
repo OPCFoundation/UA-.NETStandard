@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {

@@ -29,8 +29,6 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using Opc.Ua.Redundancy;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -121,7 +119,7 @@ namespace Opc.Ua.Redundancy.Server
             if (!typeof(InMemorySharedKeyValueStore).IsAssignableFrom(storeType))
             {
                 throw new InvalidOperationException(
-                    $"Distributed state mirroring is configured with an external shared key/value store " +
+                    "Distributed state mirroring is configured with an external shared key/value store " +
                     $"('{storeType.Name}') but no IRecordProtector is registered. Mirrored records " +
                     "contain session secrets, user identity tokens and notifications; without a protector they " +
                     "would be written with neither confidentiality nor integrity protection. Configure a record " +

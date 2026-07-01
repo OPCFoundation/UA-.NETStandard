@@ -164,12 +164,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            if (exactMatch != null)
-            {
-                return exactMatch;
-            }
-
-            return null;
+            return exactMatch;
         }
 
         private static IEnumerable<string> GetDiscoveryUrls(ConfiguredEndpoint currentEndpoint)
@@ -181,7 +176,7 @@ namespace Opc.Ua.Client
             }
 
             string? endpointUrl = currentEndpoint.Description.EndpointUrl;
-            return string.IsNullOrEmpty(endpointUrl) ? Array.Empty<string>() : new[] { endpointUrl };
+            return string.IsNullOrEmpty(endpointUrl) ? Array.Empty<string>() : [endpointUrl];
         }
 
         private static IEnumerable<string> ToEnumerable(ArrayOf<string> values)

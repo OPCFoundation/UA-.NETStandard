@@ -30,9 +30,8 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Opc.Ua.Server.Hosting;
-using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -51,6 +50,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="serviceLevelProvider">The service-level source.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddServerServiceLevel(
             this IOpcUaServerBuilder builder,
             IServiceLevelProvider serviceLevelProvider)
@@ -96,12 +96,12 @@ namespace Opc.Ua.Redundancy.Server
             var options = new DistributedAddressSpaceOptions();
             configure?.Invoke(options);
 
-            builder.Services.TryAddSingleton<ISharedKeyValueStore>(sp =>
+            builder.Services.TryAddSingleton(sp =>
                 options.KeyValueStoreFactory?.Invoke(sp) ?? new InMemorySharedKeyValueStore());
 
             if (options.RecordProtectorFactory != null)
             {
-                builder.Services.TryAddSingleton<IRecordProtector>(
+                builder.Services.TryAddSingleton(
                     sp => options.RecordProtectorFactory(sp));
             }
 

@@ -36,7 +36,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -62,7 +61,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(store, Is.InstanceOf<RaftSharedKeyValueStore>());
             Assert.That(election, Is.InstanceOf<RaftLeaderElection>());
 
-            bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 }));
+            bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
             Assert.That(created, Is.True, "the strong store provides a linearizable compare-and-swap");
             Assert.That(election.IsLeader, Is.True, "the single-node default replica is the leader once used");
         }
@@ -79,9 +78,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(store, Is.InstanceOf<HybridSharedKeyValueStore>());
 
             // Strong-prefix keys get linearizable CAS; bulk keys are stored too.
-            bool created = await store.CompareAndSwapAsync("nonce/x", default, ByteString.From(new byte[] { 1 }));
-            await store.SetAsync("node/1", ByteString.From(new byte[] { 2 }));
-            (bool found, _) = await store.TryGetAsync("node/1");
+            bool created = await store.CompareAndSwapAsync("nonce/x", default, ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            await store.SetAsync("node/1", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
+            (bool found, _) = await store.TryGetAsync("node/1").ConfigureAwait(false);
 
             Assert.That(created, Is.True);
             Assert.That(found, Is.True);

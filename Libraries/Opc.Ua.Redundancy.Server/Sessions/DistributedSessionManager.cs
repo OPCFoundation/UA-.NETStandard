@@ -360,7 +360,7 @@ namespace Opc.Ua.Redundancy.Server
             try
             {
                 clientCertificate = parsed.Count == 0 ? null : parsed[0].AddRef();
-                issuers = new CertificateCollection();
+                issuers = [];
                 serverNonce = Nonce.CreateNonce(entry.SecurityPolicyUri, entry.ServerNonce.ToArray());
                 ISession session = CreateSession(
                     context,

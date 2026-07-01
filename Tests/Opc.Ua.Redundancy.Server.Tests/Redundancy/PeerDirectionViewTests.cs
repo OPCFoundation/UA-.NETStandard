@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -61,12 +65,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var publisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, "urn:server:a");
-            await publisher.PublishServiceLevelAsync(200);
-            await publisher.PublishLoadWeightAsync(30);
+            await publisher.PublishServiceLevelAsync(200).ConfigureAwait(false);
+            await publisher.PublishLoadWeightAsync(30).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync()).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServerUri, Is.EqualTo("urn:server:a"));
@@ -85,14 +89,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var publisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, "urn:server:a");
-            await publisher.PublishServiceLevelAsync(200);
-            await publisher.PublishLoadWeightAsync(30);
+            await publisher.PublishServiceLevelAsync(200).ConfigureAwait(false);
+            await publisher.PublishLoadWeightAsync(30).ConfigureAwait(false);
 
             time.Advance(TimeSpan.FromSeconds(20));
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync()).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
 
             Assert.That(peers, Is.Empty, "a peer whose health record is stale must be aged out");
         }
@@ -107,13 +111,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var publisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, "urn:server:a");
-            await publisher.PublishLoadWeightAsync(30);
+            await publisher.PublishLoadWeightAsync(30).ConfigureAwait(false);
             time.Advance(TimeSpan.FromSeconds(20));
-            await publisher.PublishServiceLevelAsync(200);
+            await publisher.PublishServiceLevelAsync(200).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync()).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)200));
@@ -129,11 +133,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var options = new LoadDirectionOptions();
             var time = new FakeTimeProvider();
 
-            await store.SetAsync("svc/urn:server:x", ByteString.From(new byte[] { 9, 9, 9 }));
+            await store.SetAsync("svc/urn:server:x", ByteString.From(new byte[] { 9, 9, 9 })).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync()).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
 
             Assert.That(peers, Is.Empty, "an undecodable record must be dropped (fail-closed)");
         }
@@ -150,14 +154,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 store, context, NullRecordProtector.Instance, options, time, "urn:server:a");
             var b = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, "urn:server:b");
-            await a.PublishServiceLevelAsync(200);
-            await b.PublishServiceLevelAsync(210);
+            await a.PublishServiceLevelAsync(200).ConfigureAwait(false);
+            await b.PublishServiceLevelAsync(210).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync()).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
 
-            Assert.That(peers.Select(p => p.ServerUri), Is.EquivalentTo(new[] { "urn:server:a", "urn:server:b" }));
+            Assert.That(peers.Select(p => p.ServerUri), Is.EquivalentTo(["urn:server:a", "urn:server:b"]));
             Assert.That(peers.Single(p => p.ServerUri == "urn:server:b").ServiceLevel, Is.EqualTo((byte)210));
         }
 
@@ -171,13 +175,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var publisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, "urn:server:a");
-            await publisher.PublishServiceLevelAsync(200);
+            await publisher.PublishServiceLevelAsync(200).ConfigureAwait(false);
             time.Advance(TimeSpan.FromSeconds(1));
-            await publisher.PublishServiceLevelAsync(120);
+            await publisher.PublishServiceLevelAsync(120).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync()).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)120), "the latest published health value must win");

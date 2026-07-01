@@ -103,6 +103,7 @@ namespace Opc.Ua.Redundancy
         /// </summary>
         /// <param name="nodeId">This replica's unique, non-zero id.</param>
         /// <param name="readyTimeout">How long to wait for self-election on start (defaults to 10 seconds).</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="nodeId"/></exception>
         public static DefaultRaftConsensus CreateSingleNode(ulong nodeId = 1, TimeSpan readyTimeout = default)
         {
             if (nodeId == 0)
@@ -139,6 +140,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="options">Optional driver options (tick interval, apply cap).</param>
         /// <param name="configure">Optional callback to tune the <see cref="RaftConfig"/> (its <c>Id</c> is set).</param>
         /// <param name="readyTimeout">How long <see cref="StartAsync"/> waits for an initial leader.</param>
+        /// <exception cref="ArgumentException"></exception>
         public static DefaultRaftConsensus CreateCluster(
             ulong nodeId,
             ArrayOf<ulong> memberIds,
@@ -175,6 +177,8 @@ namespace Opc.Ua.Redundancy
         /// An optional resource (for example the in-memory network, or the storage when it is disposable) disposed
         /// after the node.
         /// </param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="nodeId"/></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="transport"/> is <c>null</c>.</exception>
         public static DefaultRaftConsensus CreateCluster(
             ulong nodeId,
             IRaftTransport transport,
@@ -204,13 +208,13 @@ namespace Opc.Ua.Redundancy
             // transfer to the returned adapter, which disposes them.
 #pragma warning disable CA2000
             var node = new RaftNode(config, storage, transport, options);
-            return new DefaultRaftConsensus(node, ownsNode: true, readyTimeout: readyTimeout, ownedHost: ownedResources);
+            return new DefaultRaftConsensus(node, ownsNode: true, ownedHost: ownedResources, readyTimeout: readyTimeout);
 #pragma warning restore CA2000
         }
 
         private static ulong[] ToArray(ArrayOf<ulong> ids)
         {
-            var result = new ulong[ids.Count];
+            ulong[] result = new ulong[ids.Count];
             for (int ii = 0; ii < ids.Count; ii++)
             {
                 result[ii] = ids[ii];

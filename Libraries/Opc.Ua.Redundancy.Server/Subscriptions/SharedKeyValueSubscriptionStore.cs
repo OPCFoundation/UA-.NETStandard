@@ -35,7 +35,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
@@ -98,7 +97,7 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(subscriptions));
             }
 
-            List<StoredSubscription> snapshot = subscriptions.Select(CloneSubscription).ToList();
+            var snapshot = subscriptions.Select(CloneSubscription).ToList();
             var liveIds = new HashSet<uint>();
             foreach (StoredSubscription subscription in snapshot)
             {
@@ -112,9 +111,7 @@ namespace Opc.Ua.Redundancy.Server
             uint[] removedIds;
             lock (m_definitionCache.Lock)
             {
-                removedIds = m_definitionCache.Subscriptions.Keys
-                    .Where(id => !liveIds.Contains(id))
-                    .ToArray();
+                removedIds = [.. m_definitionCache.Subscriptions.Keys.Where(id => !liveIds.Contains(id))];
                 foreach (StoredSubscription subscription in snapshot)
                 {
                     m_definitionCache.Subscriptions[subscription.Id] = CloneSubscription(subscription);
@@ -172,9 +169,7 @@ namespace Opc.Ua.Redundancy.Server
             lock (m_definitionCache.Lock)
             {
                 var liveIds = new HashSet<uint>(createdSubscriptions.Keys);
-                removedIds = m_definitionCache.Subscriptions.Keys
-                    .Where(id => !liveIds.Contains(id))
-                    .ToArray();
+                removedIds = [.. m_definitionCache.Subscriptions.Keys.Where(id => !liveIds.Contains(id))];
                 foreach (uint subscriptionId in removedIds)
                 {
                     m_definitionCache.Subscriptions.Remove(subscriptionId);
@@ -463,8 +458,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
-            List<RetransmissionBatch> batches = TakePendingBatches();
-            foreach (RetransmissionBatch batch in batches)
+            foreach (RetransmissionBatch batch in TakePendingBatches())
             {
                 try
                 {
@@ -563,8 +557,8 @@ namespace Opc.Ua.Redundancy.Server
                         subscriptionId,
                         state.NextSequenceNumber,
                         state.StateDirty,
-                        state.PendingMessages.Values.ToArray(),
-                        state.PendingDeletes.ToArray(),
+                        [.. state.PendingMessages.Values],
+                        [.. state.PendingDeletes],
                         state.ClearRequested));
                     if (state.ClearRequested &&
                         !state.StateDirty &&
@@ -613,8 +607,8 @@ namespace Opc.Ua.Redundancy.Server
             lock (m_continuationPointLock)
             {
                 var batch = new ContinuationPointBatch(
-                    m_pendingContinuationPointStores.Values.ToArray(),
-                    m_pendingContinuationPointDeletes.ToArray());
+                    [.. m_pendingContinuationPointStores.Values],
+                    [.. m_pendingContinuationPointDeletes]);
                 m_pendingContinuationPointStores.Clear();
                 m_pendingContinuationPointDeletes.Clear();
                 return batch;
@@ -852,6 +846,11 @@ namespace Opc.Ua.Redundancy.Server
             };
         }
 
+        // Decodes a stored subscription record. Retained as the symmetric counterpart to
+        // Encode and exercised directly by the store's unit tests via reflection, so it is
+        // not statically referenced from production code paths.
+#pragma warning disable IDE0051 // Remove unused private members
+#pragma warning disable RCS1213 // Remove unused member declaration
         private StoredSubscription Decode(ByteString payload)
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
@@ -861,11 +860,13 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
 
-            var namespaceUris = decoder.ReadStringArray(null);
-            var serverUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> namespaceUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(CreateNamespaceTable(namespaceUris), CreateStringTable(serverUris));
             return DecodeSubscription(decoder);
         }
+#pragma warning restore RCS1213 // Remove unused member declaration
+#pragma warning restore IDE0051 // Remove unused private members
 
         private static void EncodeSubscription(BinaryEncoder encoder, StoredSubscription subscription)
         {
@@ -886,7 +887,7 @@ namespace Opc.Ua.Redundancy.Server
                     ? new ExtensionObject(subscription.UserIdentityToken)
                     : ExtensionObject.Null);
 
-            List<StoredMonitoredItem> items = subscription.MonitoredItems
+            var items = subscription.MonitoredItems
                 .Select(CloneMonitoredItem)
                 .ToList();
             encoder.WriteInt32(null, items.Count);
@@ -1052,12 +1053,12 @@ namespace Opc.Ua.Redundancy.Server
 
         private static NamespaceTable CreateNamespaceTable(ArrayOf<string?> namespaceUris)
         {
-            return new NamespaceTable(namespaceUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray());
+            return new NamespaceTable([.. namespaceUris.Memory.ToArray().Where(s => s != null).Select(s => s!)]);
         }
 
         private static StringTable CreateStringTable(ArrayOf<string?> serverUris)
         {
-            return new StringTable(serverUris.Memory.ToArray().Where(s => s != null).Select(s => s!).ToArray());
+            return new StringTable([.. serverUris.Memory.ToArray().Where(s => s != null).Select(s => s!)]);
         }
 
         private static string RetransmissionMessagePrefixFor(uint subscriptionId)
@@ -1096,13 +1097,19 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Channel<MirrorCommand> m_channel;
         private readonly CancellationTokenSource m_drainCts = new();
         private readonly Task m_drainTask;
-        private readonly object m_retransmissionLock = new();
-        private readonly object m_continuationPointLock = new();
+        private readonly Lock m_retransmissionLock = new();
+        private readonly Lock m_continuationPointLock = new();
         private readonly Dictionary<uint, PendingRetransmissionState> m_pendingRetransmission = [];
         private readonly Dictionary<string, ContinuationPointEnvelope> m_pendingContinuationPointStores = [];
         private readonly HashSet<string> m_pendingContinuationPointDeletes = [];
+
+        // IDE0028: keep the explicit new(); a [] collection expression is not constructible
+        //   for ConditionalWeakTable on net48 (CS9174), so this must stay cross-TFM safe.
+#pragma warning disable IDE0028 // Collection initialization can be simplified
         private static readonly ConditionalWeakTable<ISharedKeyValueStore, SharedDefinitionCache> s_definitionCaches =
             new();
+#pragma warning restore IDE0028 // Collection initialization can be simplified
+
         private int m_overflowWarningWritten;
 
         private sealed class SharedDefinitionCache

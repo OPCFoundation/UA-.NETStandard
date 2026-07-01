@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redundancy;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Redundancy.Server
@@ -78,10 +76,10 @@ namespace Opc.Ua.Redundancy.Server
             var options = new RedundancyConsistencyOptions();
             configure?.Invoke(options);
 
-            builder.Services.TryAddSingleton<IRaftConsensus>(sp =>
+            builder.Services.TryAddSingleton(sp =>
                 options.RaftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode(options.NodeId));
 
-            builder.Services.TryAddSingleton<ISharedKeyValueStore>(sp =>
+            builder.Services.TryAddSingleton(sp =>
                 CreateStore(sp, options));
 
             if (options.UseRaftLeaderElection)
@@ -157,7 +155,7 @@ namespace Opc.Ua.Redundancy.Server
                     prefixes.Add(prefix);
                 }
             }
-            var result = new string[prefixes.Count];
+            string[] result = new string[prefixes.Count];
             prefixes.CopyTo(result);
             return new ArrayOf<string>(result);
         }

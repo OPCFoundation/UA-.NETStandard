@@ -29,8 +29,6 @@
 
 using System;
 using System.Threading;
-using Opc.Ua.Redundancy;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -155,8 +153,8 @@ namespace Opc.Ua.Redundancy.Server
         private readonly RedundancySupport m_failoverMode;
         private readonly Func<uint>? m_getConnectedClientCount;
         private readonly Func<byte>? m_getHealthServiceLevel;
-        private byte m_leaderLevel = ServiceLevels.Maximum;
-        private byte? m_standbyLevel;
+        private readonly byte m_leaderLevel = ServiceLevels.Maximum;
+        private readonly byte? m_standbyLevel;
         private int m_manualServiceLevel = kNoManualServiceLevel;
 
         private const int kNoManualServiceLevel = -1;

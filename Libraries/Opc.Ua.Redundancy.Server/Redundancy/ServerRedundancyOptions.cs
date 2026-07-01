@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -51,13 +50,13 @@ namespace Opc.Ua.Redundancy.Server
         /// Prefer <see cref="RedundantPeers"/> or <see cref="AddRedundantPeer"/> as the canonical redundancy
         /// peer input; those entries drive both <c>FindServers</c> and the flat redundancy URI variables.
         /// </summary>
-        public IList<string> PeerServerUris { get; } = new List<string>();
+        public IList<string> PeerServerUris { get; } = [];
 
         /// <summary>
         /// Gets the canonical rich peer descriptions used by <c>FindServers</c> for a non-transparent
         /// <c>RedundantServerSet</c> (OPC 10000-4 §6.6.2.4.5.1) and by the flat redundancy URI variables.
         /// </summary>
-        public IList<RedundantPeer> RedundantPeers { get; } = new List<RedundantPeer>();
+        public IList<RedundantPeer> RedundantPeers { get; } = [];
 
         /// <summary>
         /// Gets or sets this Server's identifier within a Transparent <c>RedundantServerSet</c>.

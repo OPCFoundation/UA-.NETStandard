@@ -71,13 +71,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 new ConstantLoadWeightProvider(200),
                 m_options);
 
-            m_fixture = new ServerFixture<StandardServer>(t =>
+            m_fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
-                var server = new ReferenceServer(t);
-                server.GetEndpointsDirector = m_director;
-                return server;
+                GetEndpointsDirector = m_director
             });
-            m_server = await m_fixture.StartAsync();
+            m_server = await m_fixture.StartAsync().ConfigureAwait(false);
 
             IServiceMessageContext context = m_server.CurrentInstance.MessageContext;
             string localServerUri = m_server.CurrentInstance.ServerUris.ToArray()[0];
@@ -93,11 +91,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // Seed peer B: healthy, unloaded, with endpoints.
             var bDirection = new SharedPeerDirectionPublisher(
                 m_kv, context, NullRecordProtector.Instance, m_options, TimeProvider.System, "urn:B");
-            await bDirection.PublishServiceLevelAsync(255);
-            await bDirection.PublishLoadWeightAsync(0);
+            await bDirection.PublishServiceLevelAsync(255).ConfigureAwait(false);
+            await bDirection.PublishLoadWeightAsync(0).ConfigureAwait(false);
             var bEndpoints = new SharedPeerEndpointPublisher(
                 m_kv, context, NullRecordProtector.Instance, m_options, "urn:B");
-            await bEndpoints.PublishAsync([MakeEndpoint("opc.tcp://b.example:4840", "urn:B")]);
+            await bEndpoints.PublishAsync([MakeEndpoint("opc.tcp://b.example:4840", "urn:B")]).ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -105,7 +103,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             if (m_fixture != null)
             {
-                await m_fixture.StopAsync();
+                await m_fixture.StopAsync().ConfigureAwait(false);
             }
             m_kv?.Dispose();
         }
@@ -114,7 +112,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task GetEndpointsOnBalancingUrlRedirectsToHealthierPeerAsync()
         {
             GetEndpointsResponse response = await m_server.GetEndpointsAsync(
-                CreateChannelContext(), new RequestHeader(), BalancingUrl, default, default, RequestLifetime.None);
+                CreateChannelContext(), new RequestHeader(), BalancingUrl, default, default, RequestLifetime.None).ConfigureAwait(false);
 
             EndpointDescription[] endpoints = response.Endpoints.ToArray();
             Assert.That(endpoints, Has.Length.EqualTo(1));
@@ -127,7 +125,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             string normalUrl = m_server.GetEndpoints().ToArray()[0].EndpointUrl;
 
             GetEndpointsResponse response = await m_server.GetEndpointsAsync(
-                CreateChannelContext(), new RequestHeader(), normalUrl, default, default, RequestLifetime.None);
+                CreateChannelContext(), new RequestHeader(), normalUrl, default, default, RequestLifetime.None).ConfigureAwait(false);
 
             EndpointDescription[] endpoints = response.Endpoints.ToArray();
             Assert.That(endpoints, Is.Not.Empty, "a normal request returns the local server's own endpoints");

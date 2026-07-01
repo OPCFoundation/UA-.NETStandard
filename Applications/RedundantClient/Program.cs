@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -86,16 +85,13 @@ namespace RedundantClient
                 replicasOption
             };
 
-            rootCommand.SetAction(async (parseResult, cancellationToken) =>
-            {
-                await RunAsync(
+            rootCommand.SetAction(async (parseResult, cancellationToken) => await RunAsync(
                     parseResult.GetValue(serverOption)!,
                     parseResult.GetValue(noSecurityOption),
                     parseResult.GetValue(autoAcceptOption),
                     parseResult.GetValue(durationOption),
                     parseResult.GetValue(replicasOption),
-                    cancellationToken).ConfigureAwait(false);
-            });
+                    cancellationToken).ConfigureAwait(false));
 
             ParseResult parseResult = rootCommand.Parse(args);
             return parseResult.InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
@@ -109,11 +105,8 @@ namespace RedundantClient
             int replicas,
             CancellationToken ct)
         {
-            ITelemetryContext telemetry = DefaultTelemetry.Create(builder =>
-            {
-                builder.SetMinimumLevel(LogLevel.Information);
-            });
-            using IDisposable? telemetryDisposable = telemetry as IDisposable;
+            ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Information));
+            using var telemetryDisposable = telemetry as IDisposable;
 
             var application = new ApplicationInstance(telemetry)
             {

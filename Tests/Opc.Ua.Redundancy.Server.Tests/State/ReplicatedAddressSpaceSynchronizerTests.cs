@@ -33,7 +33,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
@@ -58,7 +57,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:crdt");
             m_messageContext = messageContext;
             m_systemContext = new SystemContext(telemetry)
@@ -72,81 +71,81 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task ReplicatesAddedNodeToPeerAsync()
         {
-            await using var fixture = await TwoReplicaFixture.CreateAsync(this);
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
 
             BaseDataVariableState node = NewVariable("added", 1.0);
-            await fixture.SpaceA.AddOrUpdateNodeAsync(node);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
 
             await AssertEventuallyAsync(
                 () => fixture.SpaceB.TryGetNode(node.NodeId, out _),
-                "node added on A should replicate to B");
+                "node added on A should replicate to B").ConfigureAwait(false);
         }
 
         [Test]
         public async Task ReplicatesValueUpdateAsync()
         {
-            await using var fixture = await TwoReplicaFixture.CreateAsync(this);
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
 
             BaseDataVariableState node = NewVariable("value", 1.0);
-            await fixture.SpaceA.AddOrUpdateNodeAsync(node);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
             await AssertEventuallyAsync(
                 () => fixture.SpaceB.TryGetNode(node.NodeId, out _),
-                "node should replicate before the value update");
+                "node should replicate before the value update").ConfigureAwait(false);
 
             node.Value = new Variant(42.0);
             node.ClearChangeMasks(m_systemContext, false);
 
             await AssertEventuallyAsync(
                 () => fixture.SpaceB.TryGetNode(node.NodeId, out NodeState? remote) &&
-                      remote is BaseVariableState variable &&
-                      variable.Value.Equals(new Variant(42.0)),
-                "value updated on A should replicate to B");
+                    remote is BaseVariableState variable &&
+                    variable.Value.Equals(new Variant(42.0)),
+                "value updated on A should replicate to B").ConfigureAwait(false);
         }
 
         [Test]
         public async Task ReplicatesRemovalAsync()
         {
-            await using var fixture = await TwoReplicaFixture.CreateAsync(this);
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
 
             BaseDataVariableState node = NewVariable("removed", 1.0);
-            await fixture.SpaceA.AddOrUpdateNodeAsync(node);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
             await AssertEventuallyAsync(
                 () => fixture.SpaceB.TryGetNode(node.NodeId, out _),
-                "node should replicate before removal");
+                "node should replicate before removal").ConfigureAwait(false);
 
-            await fixture.SpaceA.RemoveNodeAsync(node.NodeId);
+            await fixture.SpaceA.RemoveNodeAsync(node.NodeId).ConfigureAwait(false);
 
             await AssertEventuallyAsync(
                 () => !fixture.SpaceB.TryGetNode(node.NodeId, out _),
-                "removal on A should replicate to B");
+                "removal on A should replicate to B").ConfigureAwait(false);
         }
 
         [Test]
         public async Task MultiWriterConvergesBothDirectionsAsync()
         {
-            await using var fixture = await TwoReplicaFixture.CreateAsync(this);
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
 
             BaseDataVariableState onA = NewVariable("from-a", 1.0);
             BaseDataVariableState onB = NewVariable("from-b", 2.0);
-            await fixture.SpaceA.AddOrUpdateNodeAsync(onA);
-            await fixture.SpaceB.AddOrUpdateNodeAsync(onB);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(onA).ConfigureAwait(false);
+            await fixture.SpaceB.AddOrUpdateNodeAsync(onB).ConfigureAwait(false);
 
             await AssertEventuallyAsync(
                 () => fixture.SpaceA.TryGetNode(onB.NodeId, out _) &&
-                      fixture.SpaceB.TryGetNode(onA.NodeId, out _),
-                "each replica's write should converge on the other (no leader)");
+                    fixture.SpaceB.TryGetNode(onA.NodeId, out _),
+                "each replica's write should converge on the other (no leader)").ConfigureAwait(false);
         }
 
         [Test]
         public async Task ConcurrentValueWritesConvergeAsync()
         {
-            await using var fixture = await TwoReplicaFixture.CreateAsync(this);
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
 
             BaseDataVariableState seed = NewVariable("contended", 0.0);
-            await fixture.SpaceA.AddOrUpdateNodeAsync(seed);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(seed).ConfigureAwait(false);
             await AssertEventuallyAsync(
                 () => fixture.SpaceB.TryGetNode(seed.NodeId, out _),
-                "node should replicate before concurrent writes");
+                "node should replicate before concurrent writes").ConfigureAwait(false);
 
             // Concurrent writes on both replicas; last-writer-wins must converge
             // both sides to the same value.
@@ -160,10 +159,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             await AssertEventuallyAsync(
                 () => fixture.SpaceA.TryGetNode(seed.NodeId, out NodeState? a) &&
-                      fixture.SpaceB.TryGetNode(seed.NodeId, out NodeState? b) &&
-                      a is BaseVariableState av && b is BaseVariableState bv &&
-                      av.Value.Equals(bv.Value),
-                "concurrent value writes must converge to the same value on both replicas");
+                    fixture.SpaceB.TryGetNode(seed.NodeId, out NodeState? b) &&
+                    a is BaseVariableState av &&
+                    b is BaseVariableState bv &&
+                    av.Value.Equals(bv.Value),
+                "concurrent value writes must converge to the same value on both replicas").ConfigureAwait(false);
         }
 
         private BaseDataVariableState NewVariable(string id, double value)
@@ -192,7 +192,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
                 {
                     return;
                 }
-                await Task.Delay(25);
+                await Task.Delay(25).ConfigureAwait(false);
             }
             Assert.Fail(message);
         }
@@ -204,10 +204,12 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             public static async Task<TwoReplicaFixture> CreateAsync(ReplicatedAddressSpaceSynchronizerTests test)
             {
-                var fixture = new TwoReplicaFixture();
-                fixture.m_network = new InMemoryNetwork();
-                fixture.SpaceA = new DictionaryAddressSpace(test.m_systemContext);
-                fixture.SpaceB = new DictionaryAddressSpace(test.m_systemContext);
+                var fixture = new TwoReplicaFixture
+                {
+                    m_network = new InMemoryNetwork(),
+                    SpaceA = new DictionaryAddressSpace(test.m_systemContext),
+                    SpaceB = new DictionaryAddressSpace(test.m_systemContext)
+                };
 
                 fixture.m_syncA = new ReplicatedAddressSpaceSynchronizer(
                     fixture.SpaceA, test.m_messageContext, ReplicaId.FromUInt64(1),
@@ -218,8 +220,8 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
                 // Start both transports first so neither misses the other's
                 // broadcasts, then begin capturing/applying changes.
-                await fixture.m_syncA.SeedOrHydrateAsync();
-                await fixture.m_syncB.SeedOrHydrateAsync();
+                await fixture.m_syncA.SeedOrHydrateAsync().ConfigureAwait(false);
+                await fixture.m_syncB.SeedOrHydrateAsync().ConfigureAwait(false);
                 fixture.m_syncA.Start();
                 fixture.m_syncB.Start();
                 return fixture;
@@ -229,15 +231,15 @@ namespace Opc.Ua.Redundancy.Server.Tests
             {
                 if (m_syncA != null)
                 {
-                    await m_syncA.DisposeAsync();
+                    await m_syncA.DisposeAsync().ConfigureAwait(false);
                 }
                 if (m_syncB != null)
                 {
-                    await m_syncB.DisposeAsync();
+                    await m_syncB.DisposeAsync().ConfigureAwait(false);
                 }
                 if (m_network != null)
                 {
-                    await m_network.DisposeAsync();
+                    await m_network.DisposeAsync().ConfigureAwait(false);
                 }
             }
 

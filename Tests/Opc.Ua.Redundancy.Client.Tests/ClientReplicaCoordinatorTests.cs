@@ -27,6 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -96,7 +104,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var options = new ClientReplicaOptions
             {
                 Mode = ClientStandbyMode.Cold,
-                CreateSessionAsync = _ => { created++; return default; }
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    return default;
+                }
             };
             var election = new StaticLeaderElection(false);
             using var store = new InMemorySharedKeyValueStore();
@@ -121,14 +133,25 @@ namespace Opc.Ua.Client.Redundancy.Tests
         private sealed class FakeNetworkedStore : ISharedKeyValueStore
         {
             public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, CancellationToken ct = default)
-                => new((false, default));
+            {
+                return new((false, default));
+            }
 
-            public ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default) => default;
+            public ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
+            {
+                return default;
+            }
 
             public ValueTask<bool> CompareAndSwapAsync(
-                string key, ByteString expected, ByteString value, CancellationToken ct = default) => new(true);
+                string key, ByteString expected, ByteString value, CancellationToken ct = default)
+            {
+                return new(true);
+            }
 
-            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default) => new(true);
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                return new(true);
+            }
 
             public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
                 string keyPrefix, [EnumeratorCancellation] CancellationToken ct = default)

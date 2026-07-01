@@ -102,10 +102,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             }
             finally
             {
-                await transport.DisposeAsync();
+                await transport.DisposeAsync().ConfigureAwait(false);
                 if (network != null)
                 {
-                    await network.DisposeAsync();
+                    await network.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -127,10 +127,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             }
             finally
             {
-                await transport.DisposeAsync();
+                await transport.DisposeAsync().ConfigureAwait(false);
                 if (network != null)
                 {
-                    await network.DisposeAsync();
+                    await network.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -148,10 +148,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             }
             finally
             {
-                await transport.DisposeAsync();
+                await transport.DisposeAsync().ConfigureAwait(false);
                 if (network != null)
                 {
-                    await network.DisposeAsync();
+                    await network.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }

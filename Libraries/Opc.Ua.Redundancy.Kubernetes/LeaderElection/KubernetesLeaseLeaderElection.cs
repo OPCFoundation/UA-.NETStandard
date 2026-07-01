@@ -34,8 +34,6 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
@@ -313,7 +311,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 value,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
-                out var parsed))
+                out DateTimeOffset parsed))
             {
                 return parsed.ToUniversalTime();
             }

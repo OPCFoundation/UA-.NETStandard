@@ -27,14 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 #nullable enable
 
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -58,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void ConstantProviderAcceptsEventSubscriptions()
         {
             var provider = new ConstantServiceLevelProvider(250);
-            void Handler(byte _)
+            static void Handler(byte _)
             {
             }
 
@@ -221,7 +225,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var cts = new CancellationTokenSource();
             int invalidLevel = -1;
 
-            Task writer = Task.Run(() =>
+            var writer = Task.Run(() =>
             {
                 while (!cts.IsCancellationRequested)
                 {
@@ -229,12 +233,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     election.Set(true);
                 }
             });
-            Task reader = Task.Run(() =>
+            var reader = Task.Run(() =>
             {
                 for (int ii = 0; ii < 100_000; ii++)
                 {
                     byte level = provider.GetServiceLevel();
-                    if (level != ServiceLevels.DegradedMaximum && level != ServiceLevels.Maximum)
+                    if (level is not ServiceLevels.DegradedMaximum and not ServiceLevels.Maximum)
                     {
                         Volatile.Write(ref invalidLevel, level);
                         cts.Cancel();

@@ -27,6 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
+// IDE0230: the byte[] fixtures here are arbitrary binary payloads (e.g. forged/rogue
+//   records), not text; rewriting them as UTF-8 (u8) string literals would misrepresent
+//   the intent. Suppressed file-level for the suite.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -41,9 +50,9 @@ using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -64,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:distributed");
             m_messageContext = messageContext;
             m_systemContext = new SystemContext(telemetry)
@@ -81,12 +90,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var nodeId = new NodeId("var1", NamespaceIndex);
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
 
-            await store.UpsertNodeAsync(new StoredNode(nodeId, payload));
-            IStoredNode? loaded = await store.TryGetNodeAsync(nodeId);
-            bool deleted = await store.DeleteNodeAsync(nodeId);
-            IStoredNode? afterDelete = await store.TryGetNodeAsync(nodeId);
+            await store.UpsertNodeAsync(new StoredNode(nodeId, payload)).ConfigureAwait(false);
+            IStoredNode? loaded = await store.TryGetNodeAsync(nodeId).ConfigureAwait(false);
+            bool deleted = await store.DeleteNodeAsync(nodeId).ConfigureAwait(false);
+            IStoredNode? afterDelete = await store.TryGetNodeAsync(nodeId).ConfigureAwait(false);
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded!.NodeId, Is.EqualTo(nodeId));
@@ -102,16 +111,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
             var b = new NodeId("b", NamespaceIndex);
-            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 })));
-            await store.UpsertNodeAsync(new StoredNode(b, ByteString.From(new byte[] { 2 })));
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 }))).ConfigureAwait(false);
+            await store.UpsertNodeAsync(new StoredNode(b, ByteString.From(new byte[] { 2 }))).ConfigureAwait(false);
 
-            var ids = new System.Collections.Generic.List<NodeId>();
+            var ids = new List<NodeId>();
             await foreach (IStoredNode node in store.EnumerateAsync())
             {
                 ids.Add(node.NodeId);
             }
 
-            Assert.That(ids, Is.EquivalentTo(new[] { a, b }));
+            Assert.That(ids, Is.EquivalentTo([a, b]));
         }
 
         [Test]
@@ -122,8 +131,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var nodeId = new NodeId("v", NamespaceIndex);
             var original = new DataValue(new Variant(42.0), StatusCodes.Good, DateTimeUtc.Now);
 
-            await store.WriteValueAsync(nodeId, original);
-            (bool found, DataValue read) = await store.TryReadValueAsync(nodeId);
+            await store.WriteValueAsync(nodeId, original).ConfigureAwait(false);
+            (bool found, DataValue read) = await store.TryReadValueAsync(nodeId).ConfigureAwait(false);
 
             Assert.That(found, Is.True);
             Assert.That(read.WrappedValue, Is.EqualTo(original.WrappedValue));
@@ -137,7 +146,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
 
-            (bool found, DataValue read) = await store.TryReadValueAsync(new NodeId("nope", NamespaceIndex));
+            (bool found, DataValue read) = await store.TryReadValueAsync(new NodeId("nope", NamespaceIndex)).ConfigureAwait(false);
 
             Assert.That(found, Is.False);
             Assert.That(read.IsNull, Is.True);
@@ -150,8 +159,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
             var b = new NodeId("b", NamespaceIndex);
-            await store.WriteValueAsync(a, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now));
-            await store.WriteValueAsync(b, new DataValue(new Variant(2.0), StatusCodes.Good, DateTimeUtc.Now));
+            await store.WriteValueAsync(a, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
+            await store.WriteValueAsync(b, new DataValue(new Variant(2.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
 
             var seen = new Dictionary<NodeId, DataValue>();
             await foreach ((NodeId nodeId, DataValue value) in store.EnumerateValuesAsync())
@@ -159,7 +168,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 seen[nodeId] = value;
             }
 
-            Assert.That(seen.Keys, Is.EquivalentTo(new[] { a, b }));
+            Assert.That(seen.Keys, Is.EquivalentTo([a, b]));
             Assert.That(seen[a].WrappedValue, Is.EqualTo(new Variant(1.0)));
             Assert.That(seen[b].WrappedValue, Is.EqualTo(new Variant(2.0)));
         }
@@ -176,7 +185,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(key);
             using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("protected", NamespaceIndex);
-            await store.WriteValueAsync(nodeId, new DataValue(new Variant(7.0), StatusCodes.Good, DateTimeUtc.Now));
+            await store.WriteValueAsync(nodeId, new DataValue(new Variant(7.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
 
             var seen = new Dictionary<NodeId, DataValue>();
             await foreach ((NodeId id, DataValue value) in store.EnumerateValuesAsync())
@@ -184,7 +193,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 seen[id] = value;
             }
 
-            Assert.That(seen.Keys, Is.EquivalentTo(new[] { nodeId }));
+            Assert.That(seen.Keys, Is.EquivalentTo([nodeId]));
             Assert.That(seen[nodeId].WrappedValue, Is.EqualTo(new Variant(7.0)));
         }
 
@@ -210,12 +219,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
             var b = new NodeId("b", NamespaceIndex);
-            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1, 2 })));
-            await store.UpsertNodeAsync(new StoredNode(b, ByteString.From(new byte[] { 3 })));
-            await store.WriteValueAsync(a, new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now));
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1, 2 }))).ConfigureAwait(false);
+            await store.UpsertNodeAsync(new StoredNode(b, ByteString.From(new byte[] { 3 }))).ConfigureAwait(false);
+            await store.WriteValueAsync(a, new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
 
-            await store.WriteSnapshotAsync();
-            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync();
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
 
             Assert.That(snapshot, Is.Not.Null);
             var upserts = new HashSet<NodeId>();
@@ -232,8 +241,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 }
             }
 
-            Assert.That(upserts, Is.EquivalentTo(new[] { a, b }));
-            Assert.That(values.Keys, Is.EquivalentTo(new[] { a }));
+            Assert.That(upserts, Is.EquivalentTo([a, b]));
+            Assert.That(values.Keys, Is.EquivalentTo([a]));
             Assert.That(values[a].WrappedValue, Is.EqualTo(new Variant(5.0)));
             Assert.That(snapshot.Sequence, Is.GreaterThanOrEqualTo(3));
         }
@@ -244,7 +253,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
 
-            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync();
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
 
             Assert.That(snapshot, Is.Null);
         }
@@ -255,9 +264,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
-            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 })));
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 }))).ConfigureAwait(false);
             ulong afterUpsert = store.CurrentSequence;
-            await store.WriteValueAsync(a, new DataValue(new Variant(9.0), StatusCodes.Good, DateTimeUtc.Now));
+            await store.WriteValueAsync(a, new DataValue(new Variant(9.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
 
             var replayed = new List<NodeStateChange>();
             await foreach (NodeStateChange change in store.ReadDeltaLogAsync(afterUpsert))
@@ -277,10 +286,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var a = new NodeId("a", NamespaceIndex);
-            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 })));
-            await store.WriteValueAsync(a, new DataValue(new Variant(2.0), StatusCodes.Good, DateTimeUtc.Now));
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 }))).ConfigureAwait(false);
+            await store.WriteValueAsync(a, new DataValue(new Variant(2.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
 
-            await store.WriteSnapshotAsync();
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
 
             var replayed = new List<NodeStateChange>();
             await foreach (NodeStateChange change in store.ReadDeltaLogAsync(0))
@@ -311,25 +320,25 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var cts = new CancellationTokenSource();
             var nodeId = new NodeId("watched", NamespaceIndex);
 
-            await using System.Collections.Generic.IAsyncEnumerator<NodeStateChange> changes =
+            await using IAsyncEnumerator<NodeStateChange> changes =
                 store.SubscribeChangesAsync(cts.Token).GetAsyncEnumerator();
 
             ValueTask<bool> upsert = changes.MoveNextAsync();
-            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 7 })));
-            Assert.That(await upsert, Is.True);
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 7 }))).ConfigureAwait(false);
+            Assert.That(await upsert.ConfigureAwait(false), Is.True);
             Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Upsert));
             Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
             Assert.That(changes.Current.Node, Is.Not.Null);
 
             ValueTask<bool> valueChange = changes.MoveNextAsync();
-            await store.WriteValueAsync(nodeId, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now));
-            Assert.That(await valueChange, Is.True);
+            await store.WriteValueAsync(nodeId, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
+            Assert.That(await valueChange.ConfigureAwait(false), Is.True);
             Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Value));
             Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
 
             ValueTask<bool> delete = changes.MoveNextAsync();
-            await store.DeleteNodeAsync(nodeId);
-            Assert.That(await delete, Is.True);
+            await store.DeleteNodeAsync(nodeId).ConfigureAwait(false);
+            Assert.That(await delete.ConfigureAwait(false), Is.True);
             Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Delete));
             Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
 
@@ -350,16 +359,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var nodeId = new NodeId("polled", NamespaceIndex);
 
-            await using System.Collections.Generic.IAsyncEnumerator<NodeStateChange> changes =
+            await using IAsyncEnumerator<NodeStateChange> changes =
                 store.SubscribeChangesAsync(cts.Token).GetAsyncEnumerator();
 
             // Start the subscription so the baseline scan runs, then upsert a
             // node; a subsequent poll observes it as an Upsert.
             ValueTask<bool> upsert = changes.MoveNextAsync();
-            await Task.Delay(120, cts.Token);
-            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 9 })), cts.Token);
+            await Task.Delay(120, cts.Token).ConfigureAwait(false);
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 9 })), cts.Token).ConfigureAwait(false);
 
-            Assert.That(await upsert, Is.True);
+            Assert.That(await upsert.ConfigureAwait(false), Is.True);
             Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Upsert));
             Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
 
@@ -385,9 +394,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             using var stream = new MemoryStream();
             original.SaveAsBinary(m_systemContext, stream);
-            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(stream.ToArray())));
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(stream.ToArray()))).ConfigureAwait(false);
 
-            IStoredNode? stored = await store.TryGetNodeAsync(nodeId);
+            IStoredNode? stored = await store.TryGetNodeAsync(nodeId).ConfigureAwait(false);
             Assert.That(stored, Is.Not.Null);
 
             var restored = new BaseDataVariableState(null);
@@ -405,16 +414,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
             using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("secret", NamespaceIndex);
-            ByteString payload = ByteString.From(new byte[] { 9, 8, 7, 6 });
+            var payload = ByteString.From(new byte[] { 9, 8, 7, 6 });
 
-            await store.UpsertNodeAsync(new StoredNode(nodeId, payload));
-            await store.WriteValueAsync(nodeId, new DataValue(new Variant(99.0), StatusCodes.Good));
+            await store.UpsertNodeAsync(new StoredNode(nodeId, payload)).ConfigureAwait(false);
+            await store.WriteValueAsync(nodeId, new DataValue(new Variant(99.0), StatusCodes.Good)).ConfigureAwait(false);
 
-            IStoredNode? node = await store.TryGetNodeAsync(nodeId);
-            (bool found, DataValue value) = await store.TryReadValueAsync(nodeId);
+            IStoredNode? node = await store.TryGetNodeAsync(nodeId).ConfigureAwait(false);
+            (bool found, DataValue value) = await store.TryReadValueAsync(nodeId).ConfigureAwait(false);
 
             // The bytes persisted in the backend must not be the plaintext.
-            (bool rawFound, ByteString raw) = await kv.TryGetAsync("n/" + nodeId);
+            (bool rawFound, ByteString raw) = await kv.TryGetAsync("n/" + nodeId).ConfigureAwait(false);
             Assert.That(rawFound, Is.True);
             Assert.That(raw.ToArray(), Is.Not.EqualTo(payload.ToArray()));
 
@@ -432,12 +441,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("tampered", NamespaceIndex);
 
-            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 1, 2, 3 })));
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 1, 2, 3 }))).ConfigureAwait(false);
 
             // A compromised store / rogue replica forges the persisted record.
-            await kv.SetAsync("n/" + nodeId, ByteString.From(new byte[] { 66, 66, 66, 66, 66 }));
+            await kv.SetAsync("n/" + nodeId, ByteString.From(new byte[] { 66, 66, 66, 66, 66 })).ConfigureAwait(false);
 
-            IStoredNode? node = await store.TryGetNodeAsync(nodeId);
+            IStoredNode? node = await store.TryGetNodeAsync(nodeId).ConfigureAwait(false);
 
             Assert.That(node, Is.Null);
         }
@@ -452,9 +461,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var reader = new InMemoryNodeStateStore(kv, m_messageContext, readerProtector);
             var nodeId = new NodeId("crosskey", NamespaceIndex);
 
-            await writer.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 5, 5 })));
+            await writer.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 5, 5 }))).ConfigureAwait(false);
 
-            IStoredNode? node = await reader.TryGetNodeAsync(nodeId);
+            IStoredNode? node = await reader.TryGetNodeAsync(nodeId).ConfigureAwait(false);
 
             Assert.That(node, Is.Null);
         }

@@ -36,7 +36,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Server.Hosting;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Redundancy.Kubernetes.Tests
 {

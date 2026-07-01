@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var task = new ServerRedundancyStartupTask(new ServerRedundancyOptions());
 
-            Assert.That(async () => await task.OnServerStartedAsync(null!), Throws.ArgumentNullException);
+            Assert.That(async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.ServerObject).Returns((ServerObjectState)null!);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             server.VerifyGet(s => s.ServerObject, Times.Once);
         }
@@ -95,10 +95,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task OnServerStartedLeavesSubtypeMembersAbsentForNoneAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var task = new ServerRedundancyStartupTask(new ServerRedundancyOptions());
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
             PropertyState<string> currentServerId =
                 loaded.Manager.FindPredefinedNode<PropertyState<string>>(
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task OnServerStartedAddsCurrentServerIdForTransparentModeAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new ServerRedundancyOptions
             {
                 Mode = RedundancySupport.Transparent,
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             options.PeerServerUris.Add("urn:peer-a");
             var task = new ServerRedundancyStartupTask(options);
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
             PropertyState<string> currentServerId =
                 loaded.Manager.FindPredefinedNode<PropertyState<string>>(
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task OnServerStartedAddsServerUriArrayForNonTransparentModeAsync()
         {
-            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync();
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new ServerRedundancyOptions
             {
                 Mode = RedundancySupport.Hot
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             options.PeerServerUris.Add("urn:peer-b");
             var task = new ServerRedundancyStartupTask(options);
 
-            await task.OnServerStartedAsync(loaded.Server.Object);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
             PropertyState<ArrayOf<string>> serverUriArray =
                 loaded.Manager.FindPredefinedNode<PropertyState<ArrayOf<string>>>(
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PropertyState<ArrayOf<RedundantServerDataType>> redundantServerArray =
                 loaded.Manager.FindPredefinedNode<PropertyState<ArrayOf<RedundantServerDataType>>>(
                     VariableIds.Server_ServerRedundancy_RedundantServerArray);
-            Assert.That(serverUriArray!.Value, Is.EqualTo(new[] { "urn:peer-a", "urn:peer-b" }));
+            Assert.That(serverUriArray!.Value, Is.EqualTo(["urn:peer-a", "urn:peer-b"]));
             Assert.That(loaded.Server.Object.ServerObject.ServerRedundancy!.TypeDefinitionId,
                 Is.EqualTo(NonTransparentRedundancyTypeId));
             Assert.That(serverUriArray.NodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_ServerUriArray));
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ServerConfiguration = new ServerConfiguration()
             };
             var manager = new DiagnosticsNodeManager(server.Object, configuration, NullLogger.Instance);
-            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);

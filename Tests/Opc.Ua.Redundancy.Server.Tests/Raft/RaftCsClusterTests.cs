@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -60,33 +64,32 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
             DefaultRaftConsensus[] nodes = CreateNodes(network);
-            RaftSharedKeyValueStore[] stores = nodes
-                .Select(n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(15)))
-                .ToArray();
+            RaftSharedKeyValueStore[] stores = [.. nodes.Select(
+                n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(15)))];
 
             try
             {
                 // Nodes must start concurrently: each waits for an initial leader,
                 // which cannot be elected until a quorum is up.
-                await Task.WhenAll(nodes.Select(n => n.StartAsync(cts.Token).AsTask()));
+                await Task.WhenAll(nodes.Select(n => n.StartAsync(cts.Token).AsTask())).ConfigureAwait(false);
 
-                int leader = await WaitForLeaderAsync(nodes, cts.Token);
+                int leader = await WaitForLeaderAsync(nodes, cts.Token).ConfigureAwait(false);
                 int follower = (leader + 1) % nodes.Length;
 
                 // A write on a follower's store is forwarded to the leader,
                 // committed, and replicated to every replica.
-                ByteString payload = ByteString.From(new byte[] { 42 });
-                await stores[follower].SetAsync("shared", payload, cts.Token);
+                var payload = ByteString.From(new byte[] { 42 });
+                await stores[follower].SetAsync("shared", payload, cts.Token).ConfigureAwait(false);
 
                 foreach (RaftSharedKeyValueStore store in stores)
                 {
-                    ByteString observed = await WaitForValueAsync(store, "shared", cts.Token);
+                    ByteString observed = await WaitForValueAsync(store, "shared", cts.Token).ConfigureAwait(false);
                     Assert.That(observed.ToArray(), Is.EqualTo(payload.ToArray()));
                 }
             }
             finally
             {
-                await DisposeAllAsync(stores, nodes);
+                await DisposeAllAsync(stores, nodes).ConfigureAwait(false);
             }
         }
 
@@ -97,31 +100,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
             DefaultRaftConsensus[] nodes = CreateNodes(network);
-            RaftSharedKeyValueStore[] stores = nodes
-                .Select(n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(15)))
-                .ToArray();
+            RaftSharedKeyValueStore[] stores = [.. nodes.Select(
+                n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(15)))];
 
             try
             {
-                await Task.WhenAll(nodes.Select(n => n.StartAsync(cts.Token).AsTask()));
-                int leader = await WaitForLeaderAsync(nodes, cts.Token);
+                await Task.WhenAll(nodes.Select(n => n.StartAsync(cts.Token).AsTask())).ConfigureAwait(false);
+                int leader = await WaitForLeaderAsync(nodes, cts.Token).ConfigureAwait(false);
 
                 // Take the leader down; the remaining two must re-elect and stay
                 // writable (quorum 2 of the original 3).
-                await stores[leader].DisposeAsync();
-                await nodes[leader].DisposeAsync();
+                await stores[leader].DisposeAsync().ConfigureAwait(false);
+                await nodes[leader].DisposeAsync().ConfigureAwait(false);
 
-                int[] survivors = Enumerable.Range(0, nodes.Length).Where(i => i != leader).ToArray();
-                await WaitForLeaderAsync(survivors.Select(i => nodes[i]).ToArray(), cts.Token);
+                int[] survivors = [.. Enumerable.Range(0, nodes.Length).Where(i => i != leader)];
+                await WaitForLeaderAsync([.. survivors.Select(i => nodes[i])], cts.Token).ConfigureAwait(false);
 
-                ByteString payload = ByteString.From(new byte[] { 7 });
-                await stores[survivors[0]].SetAsync("after-failover", payload, cts.Token);
-                ByteString observed = await WaitForValueAsync(stores[survivors[1]], "after-failover", cts.Token);
+                var payload = ByteString.From(new byte[] { 7 });
+                await stores[survivors[0]].SetAsync("after-failover", payload, cts.Token).ConfigureAwait(false);
+                ByteString observed = await WaitForValueAsync(stores[survivors[1]], "after-failover", cts.Token).ConfigureAwait(false);
                 Assert.That(observed.ToArray(), Is.EqualTo(payload.ToArray()));
             }
             finally
             {
-                await DisposeAllAsync(stores, nodes);
+                await DisposeAllAsync(stores, nodes).ConfigureAwait(false);
             }
         }
 
@@ -133,32 +135,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             DefaultRaftConsensus[] nodes = CreateNodes(network);
             // Short commit timeout so the quorum-loss failure is quick.
-            RaftSharedKeyValueStore[] stores = nodes
-                .Select(n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(1)))
-                .ToArray();
+            RaftSharedKeyValueStore[] stores = [.. nodes.Select(
+                n => new RaftSharedKeyValueStore(n, ownsConsensus: false, commitTimeout: TimeSpan.FromSeconds(1)))];
 
             try
             {
-                await Task.WhenAll(nodes.Select(n => n.StartAsync(cts.Token).AsTask()));
-                int leader = await WaitForLeaderAsync(nodes, cts.Token);
+                await Task.WhenAll(nodes.Select(n => n.StartAsync(cts.Token).AsTask())).ConfigureAwait(false);
+                int leader = await WaitForLeaderAsync(nodes, cts.Token).ConfigureAwait(false);
 
                 // Remove two of three replicas: the survivor can no longer reach a
                 // quorum, so a proposal fails via the commit timeout instead of
                 // hanging.
-                int[] toKill = Enumerable.Range(0, nodes.Length).Where(i => i != leader).ToArray();
-                foreach (int i in toKill)
+                foreach (int i in (int[])[.. Enumerable.Range(0, nodes.Length).Where(i => i != leader)])
                 {
-                    await stores[i].DisposeAsync();
-                    await nodes[i].DisposeAsync();
+                    await stores[i].DisposeAsync().ConfigureAwait(false);
+                    await nodes[i].DisposeAsync().ConfigureAwait(false);
                 }
 
                 Assert.That(
-                    async () => await stores[leader].SetAsync("no-quorum", ByteString.From(new byte[] { 1 }), cts.Token),
+                    async () => await stores[leader].SetAsync("no-quorum", ByteString.From(new byte[] { 1 }), cts.Token).ConfigureAwait(false),
                     Throws.TypeOf<TimeoutException>());
             }
             finally
             {
-                await DisposeAllAsync(stores, nodes);
+                await DisposeAllAsync(stores, nodes).ConfigureAwait(false);
             }
         }
 
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                         return ii;
                     }
                 }
-                await Task.Delay(20, ct);
+                await Task.Delay(20, ct).ConfigureAwait(false);
             }
         }
 
@@ -209,12 +209,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             while (true)
             {
-                (bool found, ByteString value) = await store.TryGetAsync(key, ct);
+                (bool found, ByteString value) = await store.TryGetAsync(key, ct).ConfigureAwait(false);
                 if (found)
                 {
                     return value;
                 }
-                await Task.Delay(10, ct);
+                await Task.Delay(10, ct).ConfigureAwait(false);
             }
         }
 
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 try
                 {
-                    await store.DisposeAsync();
+                    await store.DisposeAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
             foreach (DefaultRaftConsensus node in nodes)
             {
-                await node.DisposeAsync();
+                await node.DisposeAsync().ConfigureAwait(false);
             }
         }
     }

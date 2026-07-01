@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -452,7 +451,6 @@ namespace Opc.Ua.Client
             return this;
         }
 
-
         /// <summary>
         /// Use a specific subscription engine factory. Defaults to the V2
         /// engine when not specified.
@@ -713,7 +711,6 @@ namespace Opc.Ua.Client
 
             return session;
         }
-
 
         private static ServiceProviderHttpClientFactory CreateHttpsHttpClientFactory(
             Action<HttpStandardResilienceOptions> configure)

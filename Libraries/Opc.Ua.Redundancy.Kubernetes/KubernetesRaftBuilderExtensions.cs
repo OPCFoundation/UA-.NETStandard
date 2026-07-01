@@ -30,11 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Opc.Ua.Redundancy;
 using Opc.Ua.Server.Hosting;
 using Raft;
 using Raft.Configuration;
@@ -60,6 +57,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// <param name="configure">Consensus options (HeadlessServiceName and ReplicaCount are required).</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder UseKubernetesRaftConsensus(
             this IOpcUaServerBuilder builder,
             Action<KubernetesRaftConsensusOptions>? configure = null)
@@ -96,7 +94,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
 
             ulong nodeId = (ulong)(ordinal + 1);
-            string statefulSet = options.StatefulSetName ?? podName.Substring(0, podName.LastIndexOf('-'));
+            string statefulSet = options.StatefulSetName ?? podName[..podName.LastIndexOf('-')];
 
             var memberIds = new List<ulong>(options.ReplicaCount);
             for (int ii = 0; ii < options.ReplicaCount; ii++)
@@ -169,7 +167,8 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private static int ParseOrdinal(string podName)
         {
             int dash = podName.LastIndexOf('-');
-            if (dash < 0 || dash == podName.Length - 1 ||
+            if (dash < 0 ||
+                dash == podName.Length - 1 ||
                 !int.TryParse(
                     podName.AsSpan(dash + 1), NumberStyles.None, CultureInfo.InvariantCulture, out int ordinal))
             {

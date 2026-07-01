@@ -72,6 +72,8 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="endpointDirectory">Resolves a peer's published endpoints.</param>
         /// <param name="endpointPublisher">Publishes the local Server's endpoints for peers.</param>
         /// <param name="localServerUri">The local ServerUri.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public void Configure(
             IServerDirectionPolicy policy,
             IPeerEndpointDirectory endpointDirectory,

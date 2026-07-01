@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Redundancy.Server
 {

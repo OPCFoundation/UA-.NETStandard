@@ -33,7 +33,5 @@ namespace Opc.Ua.Redundancy.Kubernetes
 {
     [JsonSerializable(typeof(KubernetesLease))]
     [JsonSerializable(typeof(KubernetesEndpointSliceList))]
-    internal sealed partial class KubernetesJsonContext : JsonSerializerContext
-    {
-    }
+    internal sealed partial class KubernetesJsonContext : JsonSerializerContext;
 }

@@ -108,9 +108,9 @@ namespace Opc.Ua.Redundancy.Server
                 }
             }
 
-            List<Member> eligible = members.Where(m => m.HealthRank == topRank).ToList();
+            var eligible = members.Where(m => m.HealthRank == topRank).ToList();
             int minLoadBand = eligible.Min(m => m.LoadBand);
-            List<Member> leastLoaded = eligible.Where(m => m.LoadBand == minLoadBand).ToList();
+            var leastLoaded = eligible.Where(m => m.LoadBand == minLoadBand).ToList();
 
             Member chosen = leastLoaded.Count == 1
                 ? leastLoaded[0]

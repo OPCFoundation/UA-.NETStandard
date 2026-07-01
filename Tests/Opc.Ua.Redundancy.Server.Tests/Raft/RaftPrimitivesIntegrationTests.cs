@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -39,7 +43,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -57,12 +60,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             await using var store = new RaftSharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(store);
-            ByteString nonce = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+            var nonce = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
             const int contenders = 24;
 
             IEnumerable<Task<bool>> races = Enumerable.Range(0, contenders)
                 .Select(_ => registry.TryConsumeAsync(nonce).AsTask());
-            bool[] results = await Task.WhenAll(races);
+            bool[] results = await Task.WhenAll(races).ConfigureAwait(false);
 
             Assert.That(results.Count(consumed => consumed), Is.EqualTo(1),
                 "a single-use nonce may be consumed exactly once across the replica set");
@@ -79,7 +82,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             bool[] acquired = await Task.WhenAll(
                 election1.TryAcquireOrRenewAsync().AsTask(),
-                election2.TryAcquireOrRenewAsync().AsTask());
+                election2.TryAcquireOrRenewAsync().AsTask()).ConfigureAwait(false);
 
             Assert.That(acquired.Count(won => won), Is.EqualTo(1),
                 "exactly one replica may hold the lease at a time");
@@ -100,10 +103,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
             var registry = new SharedSingleUseNonceRegistry(store);
-            ByteString nonce = ByteString.From(new byte[] { 9, 9, 9, 9 });
+            var nonce = ByteString.From(new byte[] { 9, 9, 9, 9 });
 
-            bool first = await registry.TryConsumeAsync(nonce);
-            bool second = await registry.TryConsumeAsync(nonce);
+            bool first = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
+            bool second = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
 
             Assert.That(first, Is.True);
             Assert.That(second, Is.False, "a replayed nonce is rejected by the Raft-backed registry");

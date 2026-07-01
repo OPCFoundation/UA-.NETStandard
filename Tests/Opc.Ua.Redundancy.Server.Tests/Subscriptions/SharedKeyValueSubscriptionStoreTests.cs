@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -43,9 +47,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -67,12 +71,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
             StoredSubscription expected = NewSubscription(100, 10);
 
-            bool stored = await store.StoreSubscriptionsAsync([expected]);
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
+            bool stored = await store.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
             Assert.That(stored, Is.True);
             Assert.That(result.Success, Is.True);
-            StoredSubscription actual = (StoredSubscription)result.Subscriptions!.Single();
+            var actual = (StoredSubscription)result.Subscriptions!.Single();
             AssertSubscription(actual, expected);
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
@@ -85,11 +89,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore backup = CreateStore(kv);
             StoredSubscription expected = NewSubscription(200, 20);
 
-            await active.StoreSubscriptionsAsync([expected]);
-            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync();
+            await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
-            StoredSubscription actual = (StoredSubscription)result.Subscriptions!.Single();
+            var actual = (StoredSubscription)result.Subscriptions!.Single();
             AssertSubscription(actual, expected);
         }
 
@@ -100,12 +104,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
             var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
             StoredSubscription subscription = NewSubscription(300, 30);
-            await store.StoreSubscriptionsAsync([subscription]);
+            await store.StoreSubscriptionsAsync([subscription]).ConfigureAwait(false);
 
             await kv.SetAsync(
                 SharedKeyValueSubscriptionStore.KeyFor(subscription.Id),
-                ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
+                ByteString.From(new byte[] { 1, 2, 3, 4, 5 })).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Subscriptions, Is.Not.Empty);
@@ -119,12 +123,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
             StoredSubscription subscription = NewSubscription(400, 40);
 
-            await store.StoreSubscriptionsAsync([subscription]);
-            (bool found, ByteString raw) = await kv.TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(subscription.Id));
+            await store.StoreSubscriptionsAsync([subscription]).ConfigureAwait(false);
+            (bool found, ByteString raw) = await kv.TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(subscription.Id)).ConfigureAwait(false);
 
             Assert.That(found, Is.True);
             Assert.That(Contains(raw.ToArray(), BitConverter.GetBytes(subscription.Id)), Is.False);
-            Assert.That((await store.RestoreSubscriptionsAsync()).Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
+            Assert.That((await store.RestoreSubscriptionsAsync().ConfigureAwait(false)).Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
         }
 
         [Test]
@@ -133,9 +137,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
-            await store.StoreSubscriptionsAsync([NewSubscription(500, 50), NewSubscription(501, 51)]);
-            await store.StoreSubscriptionsAsync([NewSubscription(501, 51)]);
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
+            await store.StoreSubscriptionsAsync([NewSubscription(500, 50), NewSubscription(501, 51)]).ConfigureAwait(false);
+            await store.StoreSubscriptionsAsync([NewSubscription(501, 51)]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
             Assert.That(result.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 501 }));
         }
@@ -145,13 +149,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
-            await store.StoreSubscriptionsAsync([NewSubscription(600, 60), NewSubscription(601, 61)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(600, 60), NewSubscription(601, 61)]).ConfigureAwait(false);
 
             await store.OnSubscriptionRestoreCompleteAsync(new Dictionary<uint, ArrayOf<uint>>
             {
                 [601] = new ArrayOf<uint>(new uint[] { 61 })
-            });
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync();
+            }).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
             Assert.That(result.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 601 }));
         }
@@ -167,8 +171,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 700,
                 4,
                 [NewNotification(1), NewNotification(2), NewNotification(3)]);
-            await primary.FlushAsync();
-            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(700);
+            await primary.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(700).ConfigureAwait(false);
 
             Assert.That(state, Is.Not.Null);
             Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
@@ -190,11 +194,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 701,
                 4,
                 [NewNotification(1), NewNotification(2), NewNotification(3)]);
-            await primary.FlushAsync();
+            await primary.FlushAsync().ConfigureAwait(false);
 
             primary.AcknowledgeNotification(701, 2);
-            await primary.FlushAsync();
-            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(701);
+            await primary.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(701).ConfigureAwait(false);
 
             Assert.That(state, Is.Not.Null);
             Assert.That(
@@ -211,11 +215,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 702,
                 4,
                 [NewNotification(1), NewNotification(2), NewNotification(3)]);
-            await store.FlushAsync();
+            await store.FlushAsync().ConfigureAwait(false);
 
             store.StoreRetransmissionState(702, 5, [NewNotification(3), NewNotification(4)]);
-            await store.FlushAsync();
-            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(702);
+            await store.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(702).ConfigureAwait(false);
 
             Assert.That(state, Is.Not.Null);
             Assert.That(state!.NextSequenceNumber, Is.EqualTo(5));
@@ -232,10 +236,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore backup = CreateStore(kv);
 
             store.StoreRetransmissionStateDelta(708, 4, [NewNotification(1), NewNotification(2)], []);
-            await store.FlushAsync();
+            await store.FlushAsync().ConfigureAwait(false);
             store.StoreRetransmissionStateDelta(708, 5, [NewNotification(3)], [1]);
-            await store.FlushAsync();
-            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(708);
+            await store.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(708).ConfigureAwait(false);
 
             Assert.That(state, Is.Not.Null);
             Assert.That(state!.NextSequenceNumber, Is.EqualTo(5));
@@ -251,11 +255,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
             store.StoreRetransmissionStateDelta(709, 2, [NewNotification(1)], []);
-            await store.FlushAsync();
+            await store.FlushAsync().ConfigureAwait(false);
             (bool stateFound, ByteString stateRaw) = await kv.TryGetAsync(
-                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(709));
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(709)).ConfigureAwait(false);
             (bool messageFound, ByteString messageRaw) = await kv.TryGetAsync(
-                SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(709, 1));
+                SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(709, 1)).ConfigureAwait(false);
 
             byte[] namespaceBytes = Encoding.UTF8.GetBytes("urn:test:subscriptions");
             Assert.That(stateFound, Is.True);
@@ -271,12 +275,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(13));
             var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
             store.StoreRetransmissionState(703, 2, [NewNotification(1)]);
-            await store.FlushAsync();
+            await store.FlushAsync().ConfigureAwait(false);
 
             await kv.SetAsync(
                 SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(703),
-                ByteString.From(new byte[] { 9, 8, 7 }));
-            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(703);
+                ByteString.From(new byte[] { 9, 8, 7 })).ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(703).ConfigureAwait(false);
 
             Assert.That(state, Is.Null);
         }
@@ -287,7 +291,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
-            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(704);
+            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(704).ConfigureAwait(false);
 
             Assert.That(state, Is.Null);
         }
@@ -301,8 +305,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var backup = new SharedKeyValueSubscriptionStore(kv, CreateContext());
 
             primary.StoreRetransmissionState(705, 3, [NewNotification(1), NewNotification(2)]);
-            await primary.FlushAsync();
-            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(705);
+            await primary.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(705).ConfigureAwait(false);
 
             Assert.That(state, Is.Not.Null);
             Assert.That(state!.NextSequenceNumber, Is.EqualTo(3));
@@ -318,18 +322,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var inner = new InMemorySharedKeyValueStore();
             var kv = new BlockingRetransmissionSetStore(inner, subscriptionId);
             await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
-            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 76)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 76)]).ConfigureAwait(false);
 
             store.StoreRetransmissionState(subscriptionId, 3, [NewNotification(1), NewNotification(2)]);
-            await kv.WaitForBlockedSetAsync();
-            await store.StoreSubscriptionsAsync([]);
+            await kv.WaitForBlockedSetAsync().ConfigureAwait(false);
+            await store.StoreSubscriptionsAsync([]).ConfigureAwait(false);
             kv.ReleaseBlockedSets();
-            await store.FlushAsync();
+            await store.FlushAsync().ConfigureAwait(false);
 
-            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(subscriptionId);
+            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
 
             Assert.That(state, Is.Null);
-            Assert.That(await CountKeysAsync(inner, RetransmissionPrefixFor(subscriptionId)), Is.Zero);
+            Assert.That(await CountKeysAsync(inner, RetransmissionPrefixFor(subscriptionId)).ConfigureAwait(false), Is.Zero);
         }
 
         [Test]
@@ -337,20 +341,20 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             const uint subscriptionId = 707;
             using var kv = new InMemorySharedKeyValueStore();
-            await using var store = CreateStore(kv);
-            await using var backup = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
 
-            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 77)]);
+            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 77)]).ConfigureAwait(false);
             store.StoreRetransmissionState(subscriptionId, 4, [NewNotification(1), NewNotification(2), NewNotification(3)]);
-            await store.FlushAsync();
-            await store.StoreSubscriptionsAsync([]);
-            await store.FlushAsync();
-            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 78)]);
+            await store.FlushAsync().ConfigureAwait(false);
+            await store.StoreSubscriptionsAsync([]).ConfigureAwait(false);
+            await store.FlushAsync().ConfigureAwait(false);
+            await store.StoreSubscriptionsAsync([NewSubscription(subscriptionId, 78)]).ConfigureAwait(false);
 
-            SubscriptionRetransmissionState? deletedState = await backup.LoadRetransmissionStateAsync(subscriptionId);
+            SubscriptionRetransmissionState? deletedState = await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
             store.StoreRetransmissionState(subscriptionId, 10, [NewNotification(9)]);
-            await store.FlushAsync();
-            SubscriptionRetransmissionState? newState = await backup.LoadRetransmissionStateAsync(subscriptionId);
+            await store.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? newState = await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
 
             Assert.That(deletedState, Is.Null);
             Assert.That(newState, Is.Not.Null);
@@ -391,7 +395,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
 
             Assert.That(
-                async () => await store.OnSubscriptionRestoreCompleteAsync(null!),
+                async () => await store.OnSubscriptionRestoreCompleteAsync(null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -415,9 +419,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             MethodInfo encode = GetPrivateMethod("Encode", typeof(StoredSubscription));
             MethodInfo decode = GetPrivateMethod("Decode", typeof(ByteString));
-            var payload = (ByteString)encode.Invoke(store, new object[] { subscription })!;
-            var decoded = (StoredSubscription)decode.Invoke(store, new object[] { payload })!;
-            List<IStoredMonitoredItem> decodedItems = decoded.MonitoredItems.ToList();
+            var payload = (ByteString)encode.Invoke(store, [subscription])!;
+            var decoded = (StoredSubscription)decode.Invoke(store, [payload])!;
+            var decodedItems = decoded.MonitoredItems.ToList();
 
             Assert.That(decodedItems, Has.Count.EqualTo(3));
             Assert.That(decodedItems[0].FilterToUse, Is.Null);
@@ -432,11 +436,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedKeyValueSubscriptionStore store = CreateStore(kv);
             using var encoder = new BinaryEncoder(CreateContext());
             encoder.WriteInt32(null, 999);
-            ByteString payload = ByteString.From(encoder.CloseAndReturnBuffer()!);
+            var payload = ByteString.From(encoder.CloseAndReturnBuffer());
             MethodInfo decode = GetPrivateMethod("Decode", typeof(ByteString));
 
             TargetInvocationException? ex = Assert.Throws<TargetInvocationException>(
-                () => decode.Invoke(store, new object[] { payload }));
+                () => decode.Invoke(store, [payload]));
 
             Assert.That(ex!.InnerException, Is.TypeOf<ServiceResultException>());
         }
@@ -445,9 +449,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ContinuationPointLoadIgnoresUnsupportedEnvelopeVersionAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var store = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
-            Guid continuationPointId = Guid.NewGuid();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
             using var encoder = new BinaryEncoder(CreateContext());
             encoder.WriteInt32(null, 999);
             await kv.SetAsync(
@@ -455,10 +459,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     sessionId,
                     ContinuationPointKind.Browse,
                     continuationPointId),
-                ByteString.From(encoder.CloseAndReturnBuffer()!));
+                ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await store.LoadContinuationPointsAsync(sessionId);
+                await store.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Is.Empty);
         }
@@ -467,9 +471,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ContinuationPointLoadIgnoresInvalidEnvelopeIdAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            await using var store = CreateStore(kv);
-            NodeId sessionId = new NodeId(Guid.NewGuid(), 1);
-            Guid continuationPointId = Guid.NewGuid();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
             using var encoder = new BinaryEncoder(CreateContext());
             encoder.WriteInt32(null, 1);
             encoder.WriteByteString(null, ByteString.From(new byte[] { 1, 2, 3 }));
@@ -478,10 +482,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     sessionId,
                     ContinuationPointKind.Browse,
                     continuationPointId),
-                ByteString.From(encoder.CloseAndReturnBuffer()!));
+                ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
 
             ArrayOf<ContinuationPointEnvelope> envelopes =
-                await store.LoadContinuationPointsAsync(sessionId);
+                await store.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
 
             Assert.That(envelopes, Is.Empty);
         }
@@ -494,7 +498,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             context.NamespaceUris.GetIndexOrAppend("urn:test:subscriptions");
             return context;
         }
@@ -606,7 +610,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private static string RetransmissionPrefixFor(uint subscriptionId)
         {
             string messageKey = SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(subscriptionId, 0);
-            return messageKey.Substring(0, messageKey.Length - 10);
+            return messageKey[..^10];
         }
 
         private static async Task<int> CountKeysAsync(InMemorySharedKeyValueStore store, string keyPrefix)
@@ -619,7 +623,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
             (bool found, _) = await store.TryGetAsync(
                 SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(
-                    uint.Parse(keyPrefix.Split('/')[1], System.Globalization.CultureInfo.InvariantCulture)));
+                    uint.Parse(keyPrefix.Split('/')[1], System.Globalization.CultureInfo.InvariantCulture))).ConfigureAwait(false);
             return found ? count + 1 : count;
         }
 
@@ -691,13 +695,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 CancellationToken ct = default)
             {
                 await Task.Yield();
-                return await m_inner.TryGetAsync(key, ct);
+                return await m_inner.TryGetAsync(key, ct).ConfigureAwait(false);
             }
 
             public async ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
             {
                 await Task.Yield();
-                await m_inner.SetAsync(key, value, ct);
+                await m_inner.SetAsync(key, value, ct).ConfigureAwait(false);
             }
 
             public async ValueTask<bool> CompareAndSwapAsync(
@@ -707,13 +711,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 CancellationToken ct = default)
             {
                 await Task.Yield();
-                return await m_inner.CompareAndSwapAsync(key, expected, value, ct);
+                return await m_inner.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
             }
 
             public async ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
             {
                 await Task.Yield();
-                return await m_inner.DeleteAsync(key, ct);
+                return await m_inner.DeleteAsync(key, ct).ConfigureAwait(false);
             }
 
             public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
@@ -818,10 +822,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             private readonly ISharedKeyValueStore m_inner;
             private readonly string m_keyPrefix;
+
             private readonly TaskCompletionSource<bool> m_blocked =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_blockedSetCount;
         }
     }

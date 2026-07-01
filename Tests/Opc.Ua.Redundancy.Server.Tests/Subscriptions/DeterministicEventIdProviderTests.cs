@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static ServerSystemContext CreateContext()
         {
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var messageContext = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
             server.Setup(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static BaseEventState CreateEvent(string message)
         {
-            var e = new BaseEventState(null)
+            return new BaseEventState(null)
             {
                 Message = PropertyState<LocalizedText>.With<VariantBuilder>(null!, new LocalizedText(message)),
                 Severity = PropertyState<ushort>.With<VariantBuilder>(null!, 500),
@@ -205,7 +205,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     null!,
                     new DateTimeUtc(638000000000000000))
             };
-            return e;
         }
 
         private static void InvokePopulateDefaults(
@@ -219,7 +218,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             MethodInfo method = registryType.GetMethod(
                 "PopulateDefaults",
                 BindingFlags.Static | BindingFlags.NonPublic)!;
-            method.Invoke(null, new object[] { notifier, context, e, provider });
+            method.Invoke(null, [notifier, context, e, provider]);
         }
 
         private sealed class CapturingEventIdProvider : IEventIdProvider

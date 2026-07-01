@@ -30,7 +30,6 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -58,6 +57,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="context">The system context for encoding.</param>
         /// <param name="node">The node to serialize.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public static ByteString Serialize(ISystemContext context, NodeState node)
         {
             if (context == null)
@@ -83,6 +83,8 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="context">The system context for decoding.</param>
         /// <param name="payload">The framed binary payload.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static NodeState Deserialize(ISystemContext context, ByteString payload)
         {
             if (context == null)

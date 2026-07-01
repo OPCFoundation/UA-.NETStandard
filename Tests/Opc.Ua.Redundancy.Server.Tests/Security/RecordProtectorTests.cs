@@ -27,11 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// IDE0230: byte-array literals below are opaque binary test vectors, not text; a
+// UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
+#pragma warning disable IDE0230 // Use UTF-8 string literal
+
 #nullable enable
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -60,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void ProtectUnprotectRoundTrips()
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(1));
-            ByteString plaintext = ByteString.From(new byte[] { 10, 20, 30, 40, 50 });
+            var plaintext = ByteString.From(new byte[] { 10, 20, 30, 40, 50 });
 
             ByteString sealed1 = protector.Protect(plaintext);
             bool ok = protector.TryUnprotect(sealed1, out ByteString recovered);
@@ -74,7 +77,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void EmptyPayloadRoundTrips()
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(2));
-            ByteString plaintext = ByteString.From(Array.Empty<byte>());
+            var plaintext = ByteString.From(Array.Empty<byte>());
 
             ByteString sealed1 = protector.Protect(plaintext);
             bool ok = protector.TryUnprotect(sealed1, out ByteString recovered);
@@ -87,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void ProtectProducesDistinctCiphertextPerCall()
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(3));
-            ByteString plaintext = ByteString.From(new byte[] { 1, 2, 3 });
+            var plaintext = ByteString.From(new byte[] { 1, 2, 3 });
 
             ByteString a = protector.Protect(plaintext);
             ByteString b = protector.Protect(plaintext);
@@ -119,7 +122,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ByteString sealed1 = protector.Protect(ByteString.From(new byte[] { 9, 9 }));
 
             byte[] tampered = sealed1.ToArray();
-            tampered[tampered.Length - 1] ^= 0x01;
+            tampered[^1] ^= 0x01;
 
             bool ok = protector.TryUnprotect(ByteString.From(tampered), out _);
 
@@ -187,7 +190,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void NullProtectorPassesThrough()
         {
             NullRecordProtector protector = NullRecordProtector.Instance;
-            ByteString plaintext = ByteString.From(new byte[] { 3, 1, 4, 1, 5 });
+            var plaintext = ByteString.From(new byte[] { 3, 1, 4, 1, 5 });
 
             ByteString sealed1 = protector.Protect(plaintext);
             bool ok = protector.TryUnprotect(sealed1, out ByteString recovered);
@@ -223,7 +226,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var active = new AesCbcHmacRecordProtector(MakeKey(30), keyId: 2);
             using var ring = new KeyRingRecordProtector(active);
-            ByteString plaintext = ByteString.From(new byte[] { 1, 2, 3 });
+            var plaintext = ByteString.From(new byte[] { 1, 2, 3 });
 
             ByteString sealed1 = ring.Protect(plaintext);
             bool ok = ring.TryUnprotect(sealed1, out ByteString recovered);
@@ -237,7 +240,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var oldKey = new AesCbcHmacRecordProtector(MakeKey(31), keyId: 1);
             using var newKey = new AesCbcHmacRecordProtector(MakeKey(32), keyId: 2);
-            ByteString plaintext = ByteString.From(new byte[] { 9, 9, 9 });
+            var plaintext = ByteString.From(new byte[] { 9, 9, 9 });
 
             // A record written before rotation, under the old key.
             ByteString legacyRecord = oldKey.Protect(plaintext);

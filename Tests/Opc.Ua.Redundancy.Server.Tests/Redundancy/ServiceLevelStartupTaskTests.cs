@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
 
-            Assert.That(async () => await task.OnServerStartedAsync(null!), Throws.ArgumentNullException);
+            Assert.That(async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.ServerObject).Returns((ServerObjectState)null!);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             server.VerifyGet(s => s.ServerObject, Times.Once);
         }

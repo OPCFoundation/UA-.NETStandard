@@ -31,13 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using Crdt;
-using RedundantServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Hosting;
@@ -45,6 +43,7 @@ using Raft;
 using Raft.Configuration;
 using Raft.Storage;
 using Raft.Transport.NanoMsg;
+using RedundantServer;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -209,11 +208,9 @@ else
         }
     })
         .UseDistributedSessions(s =>
-        {
             // Mirror session state across replicas; the standby still runs the full
             // ActivateSession signature check on a token-reuse reconnect.
-            s.EnableFastReconnect = enableFastReconnect;
-        });
+            s.EnableFastReconnect = enableFastReconnect);
 }
 
 ua.AddServerRedundancy(r =>

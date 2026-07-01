@@ -50,7 +50,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:serializer");
             m_context = new SystemContext(telemetry)
             {
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void DeserializeTooShortPayloadThrows()
         {
-            ByteString tooShort = ByteString.From(new byte[] { 1, 2 });
+            var tooShort = ByteString.From(new byte[] { 1, 2 });
 
             Assert.That(
                 () => NodeStateSerializer.Deserialize(m_context, tooShort),

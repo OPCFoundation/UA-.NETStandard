@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 #nullable enable
 
 using System;
@@ -52,7 +56,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             var nodeManagerFactory = new Mock<IMainNodeManagerFactory>();
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
-            configurationNodeManager.Setup(n => n.NamespaceUris).Returns(Array.Empty<string>());
+            configurationNodeManager.Setup(n => n.NamespaceUris).Returns([]);
             var coreNodeManager = new Mock<ICoreNodeManager>();
             nodeManagerFactory
                 .Setup(f => f.CreateConfigurationNodeManager())

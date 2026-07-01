@@ -98,14 +98,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 null,
                 [],
                 [],
-                RequestLifetime.None);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ApplicationDescription[] servers = response.Servers.Memory.ToArray();
             Assert.That(servers.Select(description => description.ApplicationUri),
-                Is.EqualTo(new[] { "urn:local", "urn:peer-a", "urn:peer-b" }));
+                Is.EqualTo(["urn:local", "urn:peer-a", "urn:peer-b"]));
             ApplicationDescription peer = servers.Single(
                 description => description.ApplicationUri == "urn:peer-a");
-            Assert.That(peer.DiscoveryUrls, Is.EqualTo(new[] { "opc.tcp://peer-a:4840" }));
+            Assert.That(peer.DiscoveryUrls, Is.EqualTo(["opc.tcp://peer-a:4840"]));
         }
 
         [Test]
@@ -119,10 +119,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 null,
                 [],
                 [],
-                RequestLifetime.None);
+                RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(response.Servers.Memory.ToArray().Select(description => description.ApplicationUri),
-                Is.EqualTo(new[] { "urn:local" }));
+                Is.EqualTo(["urn:local"]));
         }
 
         [Test]
@@ -137,10 +137,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 null,
                 [],
                 ["urn:peer-b"],
-                RequestLifetime.None);
+                RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(response.Servers.Memory.ToArray().Select(description => description.ApplicationUri),
-                Is.EqualTo(new[] { "urn:peer-b" }));
+                Is.EqualTo(["urn:peer-b"]));
         }
 
         private static OpcUaServerOptions CreateOptionsWithRedundancy(RedundancySupport mode)

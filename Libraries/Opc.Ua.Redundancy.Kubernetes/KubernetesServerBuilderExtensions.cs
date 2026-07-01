@@ -33,9 +33,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Hosting;
-using Opc.Ua.Redundancy;
-
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {

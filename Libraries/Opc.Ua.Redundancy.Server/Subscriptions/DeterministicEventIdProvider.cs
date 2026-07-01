@@ -32,7 +32,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Opc.Ua.Server.Fluent;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -86,7 +85,7 @@ namespace Opc.Ua.Redundancy.Server
             // collision would make replicas emit the same id for distinct events
             // and cause clients to drop a real event, so collision resistance
             // matters more than shaving the per-event hash cost.
-            using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             AppendField(hash, m_replicaSetSeed);
             AppendField(hash, notifier.NodeId.ToString());
             AppendField(hash, (eventState.EventType?.Value ?? eventState.GetDefaultTypeDefinitionId(context)).ToString());

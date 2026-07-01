@@ -35,10 +35,8 @@ using System;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Tests;
-
 using Opc.Ua.Server;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Redundancy.Server.Tests
 {
@@ -56,7 +54,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         public async Task AttachesSynchronizerToOptedInNodeManagerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:crdt-startup");
             var systemContext = new SystemContext(telemetry)
             {
@@ -74,7 +72,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
                 DataType = DataTypeIds.Double,
                 ValueRank = ValueRanks.Scalar,
                 Value = new Variant(1.0)
-            });
+            }).ConfigureAwait(false);
 
             var optedIn = new Mock<INodeManager>();
             optedIn.As<ILocalAddressSpaceSource>()
@@ -84,7 +82,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             var masterNodeManager = new Mock<IMasterNodeManager>();
             masterNodeManager.Setup(m => m.NodeManagers)
-                .Returns(new[] { optedIn.Object, notOptedIn.Object });
+                .Returns([optedIn.Object, notOptedIn.Object]);
 
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(telemetry);
@@ -94,7 +92,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             await using var task = new ReplicatedAddressSpaceStartupTask(
                 EmptyServices(), new ReplicatedAddressSpaceOptions());
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             // The opted-in manager exposed its local address space.
             optedIn.As<ILocalAddressSpaceSource>().Verify(s => s.CreateLocalAddressSpace(), Times.Once);

@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -54,7 +58,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task MissingLeaseCreatesLeaseAndBecomesLeaderAsync()
         {
-            var api = NewApi();
+            Mock<IKubernetesApiClient> api = NewApi();
             var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z"));
             KubernetesLease? created = null;
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
@@ -64,7 +68,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 .ReturnsAsync((string _, KubernetesLease lease, CancellationToken _) => lease);
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
@@ -75,15 +79,15 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task SameHolderRenewsLeaseAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z"));
             var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:10Z"));
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(lease);
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(lease.Spec.HolderIdentity, Is.EqualTo("pod-a"));
@@ -93,13 +97,13 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task LiveForeignHolderKeepsReplicaFollowerAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
             var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:10Z"));
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.False);
             Assert.That(election.IsLeader, Is.False);
@@ -110,15 +114,15 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task ExpiredForeignHolderCanBeTakenOverAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
             var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:31Z"));
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(lease);
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(lease.Spec.HolderIdentity, Is.EqualTo("pod-a"));
@@ -128,8 +132,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task ConflictLosesLeadershipAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z"));
             var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:10Z"));
             api.SetupSequence(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
                 .ReturnsAsync((KubernetesLease?)null)
@@ -140,22 +144,22 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 .ThrowsAsync(new HttpRequestException("conflict", null, HttpStatusCode.Conflict));
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
-            Assert.That(await election.TryAcquireOrRenewAsync(), Is.True);
-            Assert.That(await election.TryAcquireOrRenewAsync(), Is.False);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
             Assert.That(election.IsLeader, Is.False);
         }
 
         [Test]
         public async Task DisposeReleasesOwnedLeaseAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z"));
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(lease);
 
             var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), new FakeTimeProvider());
-            await election.DisposeAsync();
+            await election.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(lease.Spec.HolderIdentity, Is.Null);
         }
@@ -167,7 +171,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             api.SetupGet(x => x.IsInCluster).Returns(false);
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), new FakeTimeProvider());
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.False);
             Assert.That(election.IsLeader, Is.False);
@@ -176,8 +180,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task EmptyLeaseHolderCanBeAcquiredAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease(string.Empty, ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease(string.Empty, ParseUtc("2026-01-01T00:00:00Z"));
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(lease);
@@ -186,7 +190,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 api.Object,
                 NewOptions(),
                 new FakeTimeProvider(ParseUtc("2026-01-01T00:00:05Z")));
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(lease.Spec.HolderIdentity, Is.EqualTo("pod-a"));
@@ -195,8 +199,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task MissingRenewTimeUsesExpiredFallbackAsync()
         {
-            var api = NewApi();
-            var lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
             lease.Spec.RenewTime = null;
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
@@ -206,7 +210,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 api.Object,
                 NewOptions(),
                 new FakeTimeProvider(ParseUtc("2026-01-01T00:00:05Z")));
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(lease.Spec.HolderIdentity, Is.EqualTo("pod-a"));
@@ -217,28 +221,29 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var api = new Mock<IKubernetesApiClient>(MockBehavior.Strict);
             api.SetupGet(x => x.IsInCluster).Returns(false);
-            var options = NewOptions();
+            KubernetesLeaderElectionOptions options = NewOptions();
             options.RenewInterval = TimeSpan.FromMilliseconds(1);
 
             var election = new KubernetesLeaseLeaderElection(api.Object, options, new FakeTimeProvider());
             election.Start();
             election.Start();
 
-            await election.DisposeAsync();
+            await election.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(election.IsLeader, Is.False);
         }
 
         [Test]
-        public async Task DisposeIgnoresReleaseFailureAsync()
+        public Task DisposeIgnoresReleaseFailureAsync()
         {
-            var api = NewApi();
+            Mock<IKubernetesApiClient> api = NewApi();
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("transient"));
 
             var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), new FakeTimeProvider());
 
-            Assert.DoesNotThrowAsync(async () => await election.DisposeAsync().AsTask());
+            Assert.DoesNotThrowAsync(async () => await election.DisposeAsync().AsTask().ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]

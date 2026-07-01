@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Redundancy
 {
@@ -202,7 +201,7 @@ namespace Opc.Ua.Redundancy
             byte[] bytes = frame.ToArray();
             lock (m_lock)
             {
-                LWWMap<string, ByteString> remote = LWWMap<string, ByteString>.ReadFrom(
+                var remote = LWWMap<string, ByteString>.ReadFrom(
                     bytes, CrdtValues.String, ByteStringCrdtSerializer.Instance, m_readerOptions);
                 m_map.Merge(remote);
             }

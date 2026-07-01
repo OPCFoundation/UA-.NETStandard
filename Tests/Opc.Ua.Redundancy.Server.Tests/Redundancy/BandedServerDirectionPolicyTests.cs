@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 255, 80)]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 10);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 10).ConfigureAwait(false);
 
             Assert.That(target, Is.Null, "the local Server is least-loaded among equally-healthy peers");
         }
@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 255, 10)]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 80);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 80).ConfigureAwait(false);
 
             Assert.That(target, Is.EqualTo("B"));
         }
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 255, 200)]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", ServiceLevels.NoData, 0);
+            string? target = await policy.SelectTargetServerUriAsync("A", ServiceLevels.NoData, 0).ConfigureAwait(false);
 
             Assert.That(target, Is.EqualTo("B"), "a strictly-healthier peer wins even when heavily loaded");
         }
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 100, 0)]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 90);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 90).ConfigureAwait(false);
 
             Assert.That(target, Is.Null, "no peer is in a higher health tier than the healthy local Server");
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 255, 10), Peer("C", 100, 0)]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 90);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 90).ConfigureAwait(false);
 
             Assert.That(target, Is.EqualTo("B"), "only the top health tier participates; the degraded peer is ignored");
         }
@@ -113,8 +113,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var pickFirst = new BandedServerDirectionPolicy(new FakeView(peers), new LoadDirectionOptions(), _ => 0);
             var pickSecond = new BandedServerDirectionPolicy(new FakeView(peers), new LoadDirectionOptions(), _ => 1);
 
-            string? first = await pickFirst.SelectTargetServerUriAsync("A", 255, 100);
-            string? second = await pickSecond.SelectTargetServerUriAsync("A", 255, 100);
+            string? first = await pickFirst.SelectTargetServerUriAsync("A", 255, 100).ConfigureAwait(false);
+            string? second = await pickSecond.SelectTargetServerUriAsync("A", 255, 100).ConfigureAwait(false);
 
             Assert.That(first, Is.EqualTo("B"));
             Assert.That(second, Is.EqualTo("C"), "B and C share the lowest load band; the selector breaks the tie");
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 255, load: null)]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 50);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 50).ConfigureAwait(false);
 
             Assert.That(target, Is.Null, "a peer with an unknown load must not be preferred over the known local load");
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([]), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 0);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 0).ConfigureAwait(false);
 
             Assert.That(target, Is.Null);
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([], throwOnRead: true), new LoadDirectionOptions(), _ => 0);
 
-            string? target = await policy.SelectTargetServerUriAsync("A", 255, 0);
+            string? target = await policy.SelectTargetServerUriAsync("A", 255, 0).ConfigureAwait(false);
 
             Assert.That(target, Is.Null, "a stale/unreadable peer view must fail safe to the local Server");
         }

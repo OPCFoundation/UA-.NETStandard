@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Net;
 using Crdt;
 using Crdt.Transport;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -103,6 +102,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="gossipInterval">Optional anti-entropy gossip interval.</param>
         /// <param name="tls">Optional TLS / mutual-TLS configuration. Mutual TLS is required unless
         /// <see cref="AllowUnauthenticatedGossip"/> is explicitly enabled.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="address"/> is <c>null</c>.</exception>
         public void UseTcpGossip(
             IPAddress address,
             int port,
@@ -143,6 +143,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="address">The local bind address.</param>
         /// <param name="port">The local bind port (<c>0</c> for an OS-assigned port).</param>
         /// <param name="gossipInterval">Optional anti-entropy gossip interval.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="address"/> is <c>null</c>.</exception>
         public void UseUdpGossip(IPAddress address, int port, TimeSpan? gossipInterval = null)
         {
             if (address == null)
@@ -165,6 +166,7 @@ namespace Opc.Ua.Redundancy.Server
         /// created by <see cref="UseTcpGossip"/> / <see cref="UseUdpGossip"/>.
         /// </summary>
         /// <param name="endpoint">The peer endpoint.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public void AddPeer(IPEndPoint endpoint)
         {
             if (endpoint == null)

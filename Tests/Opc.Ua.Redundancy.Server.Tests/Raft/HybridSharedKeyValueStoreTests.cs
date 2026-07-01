@@ -27,6 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA1861: inline literal arrays here are one-shot test fixtures, not hot-path
+//   allocations, so hoisting them to static readonly fields adds no value. Suppressed file-level.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
+// CA2000: system-under-test disposables are created per test and released at teardown;
+//   there is no cross-test resource leak. Suppressed file-level for the suite.
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -57,10 +65,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var strong = new InMemorySharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong);
 
-            await hybrid.SetAsync("node/1", ByteString.From(new byte[] { 1 }));
+            await hybrid.SetAsync("node/1", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
 
-            (bool inBulk, _) = await bulk.TryGetAsync("node/1");
-            (bool inStrong, _) = await strong.TryGetAsync("node/1");
+            (bool inBulk, _) = await bulk.TryGetAsync("node/1").ConfigureAwait(false);
+            (bool inStrong, _) = await strong.TryGetAsync("node/1").ConfigureAwait(false);
             Assert.That(inBulk, Is.True, "bulk keys live in the CRDT backend");
             Assert.That(inStrong, Is.False);
         }
@@ -72,10 +80,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var strong = new InMemorySharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong);
 
-            await hybrid.SetAsync("nonce/abc", ByteString.From(new byte[] { 2 }));
+            await hybrid.SetAsync("nonce/abc", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
 
-            (bool inStrong, _) = await strong.TryGetAsync("nonce/abc");
-            (bool inBulk, _) = await bulk.TryGetAsync("nonce/abc");
+            (bool inStrong, _) = await strong.TryGetAsync("nonce/abc").ConfigureAwait(false);
+            (bool inBulk, _) = await bulk.TryGetAsync("nonce/abc").ConfigureAwait(false);
             Assert.That(inStrong, Is.True, "strong keys live in the Raft backend");
             Assert.That(inBulk, Is.False);
         }
@@ -86,10 +94,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var bulk = new InMemorySharedKeyValueStore();
             using var strong = new InMemorySharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong);
-            ByteString value = ByteString.From(new byte[] { 7 });
+            var value = ByteString.From(new byte[] { 7 });
 
-            bool created = await hybrid.CompareAndSwapAsync("lease/leader", default, value);
-            (bool inStrong, _) = await strong.TryGetAsync("lease/leader");
+            bool created = await hybrid.CompareAndSwapAsync("lease/leader", default, value).ConfigureAwait(false);
+            (bool inStrong, _) = await strong.TryGetAsync("lease/leader").ConfigureAwait(false);
 
             Assert.That(created, Is.True);
             Assert.That(inStrong, Is.True);
@@ -107,9 +115,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 hybrid.WatchAsync("election/", cts.Token).GetAsyncEnumerator();
 
             ValueTask<bool> first = enumerator.MoveNextAsync();
-            await hybrid.SetAsync("election/leader", ByteString.From(new byte[] { 1 }), cts.Token);
+            await hybrid.SetAsync("election/leader", ByteString.From(new byte[] { 1 }), cts.Token).ConfigureAwait(false);
 
-            Assert.That(await first, Is.True);
+            Assert.That(await first.ConfigureAwait(false), Is.True);
             Assert.That(enumerator.Current.Key, Is.EqualTo("election/leader"));
         }
 
@@ -120,8 +128,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var strong = new InMemorySharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong);
 
-            await hybrid.SetAsync("node/1", ByteString.From(new byte[] { 1 }));
-            await hybrid.SetAsync("nonce/a", ByteString.From(new byte[] { 2 }));
+            await hybrid.SetAsync("node/1", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            await hybrid.SetAsync("nonce/a", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
 
             var keys = new List<string>();
             await foreach (KeyValuePair<string, ByteString> entry in hybrid.ScanAsync(string.Empty))
@@ -129,7 +137,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "node/1", "nonce/a" }));
+            Assert.That(keys, Is.EquivalentTo(["node/1", "nonce/a"]));
         }
 
         [Test]
@@ -139,9 +147,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var strong = new InMemorySharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong);
 
-            await hybrid.SetAsync("node/1", ByteString.From(new byte[] { 1 }));
-            await hybrid.SetAsync("nonce/a", ByteString.From(new byte[] { 2 }));
-            await hybrid.SetAsync("nonce/b", ByteString.From(new byte[] { 3 }));
+            await hybrid.SetAsync("node/1", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            await hybrid.SetAsync("nonce/a", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
+            await hybrid.SetAsync("nonce/b", ByteString.From(new byte[] { 3 })).ConfigureAwait(false);
 
             var keys = new List<string>();
             await foreach (KeyValuePair<string, ByteString> entry in hybrid.ScanAsync("nonce/"))
@@ -149,7 +157,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "nonce/a", "nonce/b" }));
+            Assert.That(keys, Is.EquivalentTo(["nonce/a", "nonce/b"]));
         }
 
         [Test]
@@ -159,12 +167,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var strong = new InMemorySharedKeyValueStore();
             var hybrid = new HybridSharedKeyValueStore(bulk, strong, default, ownsStores: true);
 
-            await hybrid.SetAsync("nonce/a", ByteString.From(new byte[] { 1 }));
-            await hybrid.DisposeAsync();
+            await hybrid.SetAsync("nonce/a", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            await hybrid.DisposeAsync().ConfigureAwait(false);
 
             // InMemorySharedKeyValueStore.Dispose clears its data, so a hit here
             // proves the dispose propagated to the owned backend.
-            (bool found, _) = await strong.TryGetAsync("nonce/a");
+            (bool found, _) = await strong.TryGetAsync("nonce/a").ConfigureAwait(false);
             Assert.That(found, Is.False);
         }
 
@@ -176,11 +184,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var prefixes = new ArrayOf<string>(new[] { "cas/" }.AsMemory());
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong, prefixes);
 
-            await hybrid.SetAsync("cas/x", ByteString.From(new byte[] { 1 }));
-            await hybrid.SetAsync("nonce/y", ByteString.From(new byte[] { 2 }));
+            await hybrid.SetAsync("cas/x", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            await hybrid.SetAsync("nonce/y", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
 
-            (bool casInStrong, _) = await strong.TryGetAsync("cas/x");
-            (bool nonceInBulk, _) = await bulk.TryGetAsync("nonce/y");
+            (bool casInStrong, _) = await strong.TryGetAsync("cas/x").ConfigureAwait(false);
+            (bool nonceInBulk, _) = await bulk.TryGetAsync("nonce/y").ConfigureAwait(false);
             Assert.That(casInStrong, Is.True, "the custom prefix routes to the strong store");
             Assert.That(nonceInBulk, Is.True, "custom prefixes replace the defaults, so nonce/ is now a bulk key");
         }

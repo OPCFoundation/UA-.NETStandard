@@ -37,7 +37,6 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -68,9 +67,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var time = new FakeTimeProvider();
             using var kv = new InMemorySharedKeyValueStore();
-            await using var election = NewElection(kv, "A", time);
+            await using SharedStoreLeaseElection election = NewElection(kv, "A", time);
 
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
@@ -81,11 +80,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var time = new FakeTimeProvider();
             using var kv = new InMemorySharedKeyValueStore();
-            await using var a = NewElection(kv, "A", time);
-            await using var b = NewElection(kv, "B", time);
+            await using SharedStoreLeaseElection a = NewElection(kv, "A", time);
+            await using SharedStoreLeaseElection b = NewElection(kv, "B", time);
 
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
-            Assert.That(await b.TryAcquireOrRenewAsync(), Is.False);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
             Assert.That(b.IsLeader, Is.False);
         }
 
@@ -94,13 +93,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var time = new FakeTimeProvider();
             using var kv = new InMemorySharedKeyValueStore();
-            await using var a = NewElection(kv, "A", time);
-            await using var b = NewElection(kv, "B", time);
+            await using SharedStoreLeaseElection a = NewElection(kv, "A", time);
+            await using SharedStoreLeaseElection b = NewElection(kv, "B", time);
 
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             time.Advance(TimeSpan.FromSeconds(10));
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True, "leader should renew");
-            Assert.That(await b.TryAcquireOrRenewAsync(), Is.False, "standby cannot take a live lease");
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True, "leader should renew");
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False, "standby cannot take a live lease");
         }
 
         [Test]
@@ -108,14 +107,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var time = new FakeTimeProvider();
             using var kv = new InMemorySharedKeyValueStore();
-            await using var a = NewElection(kv, "A", time);
-            await using var b = NewElection(kv, "B", time);
+            await using SharedStoreLeaseElection a = NewElection(kv, "A", time);
+            await using SharedStoreLeaseElection b = NewElection(kv, "B", time);
 
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             time.Advance(LeaseDuration + TimeSpan.FromSeconds(1));
 
-            Assert.That(await b.TryAcquireOrRenewAsync(), Is.True, "standby takes over the expired lease");
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.False, "old leader becomes follower");
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True, "standby takes over the expired lease");
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False, "old leader becomes follower");
             Assert.That(b.IsLeader, Is.True);
             Assert.That(a.IsLeader, Is.False);
         }
@@ -127,11 +126,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
 
             SharedStoreLeaseElection a = NewElection(kv, "A", time);
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
-            await a.DisposeAsync();
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            await a.DisposeAsync().ConfigureAwait(false);
 
-            await using var b = NewElection(kv, "B", time);
-            Assert.That(await b.TryAcquireOrRenewAsync(), Is.True, "released lease can be taken immediately");
+            await using SharedStoreLeaseElection b = NewElection(kv, "B", time);
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True, "released lease can be taken immediately");
         }
 
         [Test]
@@ -139,11 +138,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var time = new FakeTimeProvider();
             using var kv = new InMemorySharedKeyValueStore();
-            await using var a = NewElection(kv, "A", time);
+            await using SharedStoreLeaseElection a = NewElection(kv, "A", time);
             bool? observed = null;
             a.LeadershipChanged += value => observed = value;
 
-            await a.TryAcquireOrRenewAsync();
+            await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(observed, Is.True);
         }

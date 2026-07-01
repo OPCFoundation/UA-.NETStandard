@@ -31,7 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
@@ -59,13 +58,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var options = new LoadDirectionOptions { BalancingEndpointUrl = BalancingUrl };
             var time = new FakeTimeProvider();
 
-            await PublishPeerAsync(store, context, options, time, "urn:B", serviceLevel: 255, load: 0);
+            await PublishPeerAsync(store, context, options, time, "urn:B", serviceLevel: 255, load: 0).ConfigureAwait(false);
 
             ServerLoadDirector director = CreateDirector(
                 store, context, options, time, "urn:A", localServiceLevel: 255, localLoad: 200);
 
             (bool redirect, ArrayOf<EndpointDescription> endpoints) =
-                await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A"));
+                await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.True);
             EndpointDescription[] result = endpoints.ToArray();
@@ -85,13 +84,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 store, context, options, time, "urn:A", localServiceLevel: 255, localLoad: 0);
 
             (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(
-                "opc.tcp://a:4840", LocalEndpoints("urn:A"));
+                "opc.tcp://a:4840", LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "a normal discovery request is served locally");
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] published = (await directory.GetEndpointsAsync("urn:A")).ToArray();
+            EndpointDescription[] published = (await directory.GetEndpointsAsync("urn:A").ConfigureAwait(false)).ToArray();
             Assert.That(published, Has.Length.EqualTo(1), "the local endpoints are published for peers");
             Assert.That(published[0].Server.ApplicationUri, Is.EqualTo("urn:A"));
         }
@@ -104,14 +103,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var options = new LoadDirectionOptions { BalancingEndpointUrl = BalancingUrl };
             var time = new FakeTimeProvider();
 
-            await PublishPeerAsync(store, context, options, time, "urn:B", serviceLevel: 255, load: 250);
+            await PublishPeerAsync(store, context, options, time, "urn:B", serviceLevel: 255, load: 250).ConfigureAwait(false);
 
             // Local Server is a cold standby (NoData).
             ServerLoadDirector director = CreateDirector(
                 store, context, options, time, "urn:A", localServiceLevel: ServiceLevels.NoData, localLoad: 0);
 
             (bool redirect, ArrayOf<EndpointDescription> endpoints) =
-                await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A"));
+                await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.True);
             Assert.That(endpoints.ToArray()[0].Server.ApplicationUri, Is.EqualTo("urn:B"));
@@ -124,7 +123,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var director = new ServerLoadDirector(
                 new ConstantServiceLevelProvider(255), new ConstantLoadWeightProvider(0), options);
 
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A"));
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "an unconfigured director never redirects");
         }
@@ -140,13 +139,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // B is the best target by health/load but never published its endpoints.
             var directionPublisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, "urn:B");
-            await directionPublisher.PublishServiceLevelAsync(255);
-            await directionPublisher.PublishLoadWeightAsync(0);
+            await directionPublisher.PublishServiceLevelAsync(255).ConfigureAwait(false);
+            await directionPublisher.PublishLoadWeightAsync(0).ConfigureAwait(false);
 
             ServerLoadDirector director = CreateDirector(
                 store, context, options, time, "urn:A", localServiceLevel: 255, localLoad: 200);
 
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A"));
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "without the target's endpoints the request fails safe to the local Server");
         }
@@ -185,12 +184,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var directionPublisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, serverUri);
-            await directionPublisher.PublishServiceLevelAsync(serviceLevel);
-            await directionPublisher.PublishLoadWeightAsync(load);
+            await directionPublisher.PublishServiceLevelAsync(serviceLevel).ConfigureAwait(false);
+            await directionPublisher.PublishLoadWeightAsync(load).ConfigureAwait(false);
 
             var endpointPublisher = new SharedPeerEndpointPublisher(
                 store, context, NullRecordProtector.Instance, options, serverUri);
-            await endpointPublisher.PublishAsync(LocalEndpoints(serverUri));
+            await endpointPublisher.PublishAsync(LocalEndpoints(serverUri)).ConfigureAwait(false);
         }
 
         private static ArrayOf<EndpointDescription> LocalEndpoints(string serverUri)

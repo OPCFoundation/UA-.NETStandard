@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
-using Opc.Ua.Redundancy.Server;
 
 namespace RedundantServer
 {
@@ -270,6 +269,5 @@ namespace RedundantServer
                 activeReplica.ClearChangeMasks(SystemContext, false);
             }
         }
-
     }
 }

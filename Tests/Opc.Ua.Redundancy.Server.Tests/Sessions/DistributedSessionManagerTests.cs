@@ -33,14 +33,12 @@
 
 #nullable enable
 
-using System;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Security.Certificates;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -60,6 +58,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private const string PolicyB = "http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss";
 
         private static readonly InMemorySharedKeyValueStore s_sessionKv = new();
+
         private static readonly SharedKeyValueSessionStore s_sessionStore =
             new(s_sessionKv, ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
 
@@ -88,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 configuration,
                 s_sessionStore,
                 nonceRegistry,
-                _ => (Certificate?)null,
+                _ => null,
                 new DistributedSessionOptions { EnableFastReconnect = true });
         }
 
@@ -110,10 +109,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce(new byte[] { 1, 2, 3, 4 });
+            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]);
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt);
+                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
         }
@@ -124,10 +123,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce(new byte[] { 1, 2, 3, 4 });
+            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]);
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyB, MessageSecurityMode.SignAndEncrypt);
+                entry, PolicyB, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.PolicyMismatch));
         }
@@ -138,10 +137,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce(new byte[] { 1, 2, 3, 4 });
+            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]);
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.Sign);
+                entry, PolicyA, MessageSecurityMode.Sign).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.PolicyMismatch));
         }
@@ -152,12 +151,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce(new byte[] { 9, 9, 9, 9 });
+            SharedSessionEntry entry = EntryWithNonce([9, 9, 9, 9]);
 
             DistributedSessionManager.RestoreDecision first = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt);
+                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
             DistributedSessionManager.RestoreDecision second = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt);
+                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
             Assert.That(first, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
             Assert.That(second, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceReplayed),
@@ -170,10 +169,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce(Array.Empty<byte>());
+            SharedSessionEntry entry = EntryWithNonce([]);
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt);
+                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceReplayed));
         }

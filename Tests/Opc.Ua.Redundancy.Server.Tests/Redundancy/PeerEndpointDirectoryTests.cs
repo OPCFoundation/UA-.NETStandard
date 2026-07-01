@@ -31,7 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -63,11 +62,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Endpoint("opc.tcp://a:4840", MessageSecurityMode.None, "urn:server:a"),
                 Endpoint("opc.tcp://a:4841", MessageSecurityMode.SignAndEncrypt, "urn:server:a")
             ];
-            await publisher.PublishAsync(published);
+            await publisher.PublishAsync(published).ConfigureAwait(false);
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a")).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray();
 
             Assert.That(resolved, Has.Length.EqualTo(2));
             Assert.That(resolved[0].EndpointUrl, Is.EqualTo("opc.tcp://a:4840"));
@@ -84,7 +83,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing")).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing").ConfigureAwait(false)).ToArray();
 
             Assert.That(resolved, Is.Empty);
         }
@@ -98,7 +97,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync(string.Empty)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync(string.Empty).ConfigureAwait(false)).ToArray();
 
             Assert.That(resolved, Is.Empty);
         }
@@ -109,11 +108,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
             var options = new LoadDirectionOptions();
-            await store.SetAsync("endpoint/urn:server:a", ByteString.From(new byte[] { 7, 7, 7 }));
+            await store.SetAsync("endpoint/urn:server:a", ByteString.From(new byte[] { 7, 7, 7 })).ConfigureAwait(false);
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a")).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray();
 
             Assert.That(resolved, Is.Empty, "an undecodable endpoint record must be dropped (fail-closed)");
         }

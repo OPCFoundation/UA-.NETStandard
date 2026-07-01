@@ -51,6 +51,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional server redundancy configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddServerRedundancy(
             this IOpcUaServerBuilder builder,
             Action<ServerRedundancyOptions>? configure = null)
@@ -79,6 +80,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Optional method wiring configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddRequestServerStateChange(
             this IOpcUaServerBuilder builder,
             Action<RequestServerStateChangeOptions>? configure = null)

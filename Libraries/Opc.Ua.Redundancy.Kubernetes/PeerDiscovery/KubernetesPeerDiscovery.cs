@@ -85,7 +85,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         {
             if (!m_apiClient.IsInCluster)
             {
-                SetPeers(ArrayOf<string>.Empty);
+                SetPeers([]);
                 return PeerServerUris;
             }
 
@@ -101,6 +101,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// Copies discovered peer ServerUris into the base redundancy options.
         /// </summary>
         /// <param name="options">The redundancy options to populate.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public void Populate(ServerRedundancyOptions options)
         {
             if (options == null)
@@ -182,6 +183,6 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private readonly KubernetesPeerDiscoveryOptions m_options;
         private readonly string m_namespace;
         private readonly Lock m_lock = new();
-        private ArrayOf<string> m_peerServerUris = ArrayOf<string>.Empty;
+        private ArrayOf<string> m_peerServerUris = [];
     }
 }

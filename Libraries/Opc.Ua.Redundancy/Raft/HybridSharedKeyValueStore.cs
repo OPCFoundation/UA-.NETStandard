@@ -222,7 +222,7 @@ namespace Opc.Ua.Redundancy
 
         private static string[] ToArray(ArrayOf<string> prefixes)
         {
-            var result = new string[prefixes.Count];
+            string[] result = new string[prefixes.Count];
             for (int ii = 0; ii < prefixes.Count; ii++)
             {
                 result[ii] = prefixes[ii];

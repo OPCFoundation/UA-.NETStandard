@@ -38,10 +38,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Security.Certificates;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -81,7 +80,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 serverMock.Object,
                 configuration,
                 TimeProvider.System,
-                _ => (Certificate?)null) as DistributedSessionManager;
+                _ => null) as DistributedSessionManager;
 
             Assert.That(manager, Is.Not.Null);
         }

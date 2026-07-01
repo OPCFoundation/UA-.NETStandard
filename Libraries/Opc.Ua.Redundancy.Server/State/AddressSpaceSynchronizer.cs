@@ -287,9 +287,10 @@ namespace Opc.Ua.Redundancy.Server
                     new DataValue(variable.Value, variable.StatusCode, variable.Timestamp)));
             }
 
-            if ((changes & (NodeStateChangeMasks.NonValue |
-                NodeStateChangeMasks.Children |
-                NodeStateChangeMasks.References)) != 0)
+            if ((changes &
+                (NodeStateChangeMasks.NonValue |
+                    NodeStateChangeMasks.Children |
+                    NodeStateChangeMasks.References)) != 0)
             {
                 Enqueue(OutboundOp.ForUpsert(
                     node.NodeId,

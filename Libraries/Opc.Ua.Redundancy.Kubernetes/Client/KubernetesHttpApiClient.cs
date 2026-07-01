@@ -77,7 +77,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             KubernetesLease lease,
             CancellationToken ct)
         {
-            using var content = JsonContent(lease, KubernetesJsonContext.Default.KubernetesLease);
+            using StringContent content = JsonContent(lease, KubernetesJsonContext.Default.KubernetesLease);
             using HttpResponseMessage response = await m_httpClient
                 .PostAsync(
                     new Uri($"apis/coordination.k8s.io/v1/namespaces/{Escape(namespaceName)}/leases", UriKind.Relative),
@@ -93,7 +93,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             KubernetesLease lease,
             CancellationToken ct)
         {
-            using var content = JsonContent(lease, KubernetesJsonContext.Default.KubernetesLease);
+            using StringContent content = JsonContent(lease, KubernetesJsonContext.Default.KubernetesLease);
             using HttpResponseMessage response = await m_httpClient
                 .PutAsync(new Uri(LeasePath(namespaceName, name), UriKind.Relative), content, ct)
                 .ConfigureAwait(false);
@@ -136,15 +136,15 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
         private static HttpClient CreateHttpClient(string host, int port, string token, string caPath)
         {
-// Ownership transfers to HttpClient via disposeHandler; TODO remove when analyzer recognizes it.
-// CA5400: Kubernetes in-cluster CA bundles usually do not publish revocation information.
-// TODO: add an option to enforce revocation when the cluster CA supports it.
+            // Ownership transfers to HttpClient via disposeHandler; TODO remove when analyzer recognizes it.
+            // CA5400: Kubernetes in-cluster CA bundles usually do not publish revocation information.
+            // TODO: add an option to enforce revocation when the cluster CA supports it.
 #pragma warning disable CA2000, CA5400
             var handler = new HttpClientHandler();
 #pragma warning restore CA2000, CA5400
             if (File.Exists(caPath))
             {
-                var root = X509CertificateLoader.LoadCertificateFromFile(caPath);
+                X509Certificate2 root = X509CertificateLoader.LoadCertificateFromFile(caPath);
                 handler.ServerCertificateCustomValidationCallback = (request, certificate, chain, errors) =>
                     ValidateServerCertificate(
                         root,
@@ -210,10 +210,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
             using Stream stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             T? value = await JsonSerializer.DeserializeAsync(stream, typeInfo, ct).ConfigureAwait(false);
-            return value ?? throw new HttpRequestException(
-                "Kubernetes API returned an empty body.",
-                null,
-                response.StatusCode);
+            return value ??
+                throw new HttpRequestException(
+                    "Kubernetes API returned an empty body.",
+                    null,
+                    response.StatusCode);
         }
 
         private static async ValueTask EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
