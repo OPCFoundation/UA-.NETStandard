@@ -291,6 +291,35 @@ On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedK
 
 For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](Kubernetes.md) guide.
 
+### GetEndpoints load direction (beyond §6.6, opt-in)
+
+`UseServerLoadDirection(...)` lets a `GetEndpoints` request on a **dedicated balancing discovery URL** be answered with the endpoints of the best member of the `RedundantServerSet`, so a Client that connects there is directed to the active server (active/passive) or spread across equally-healthy servers by load (active/active). This is a non-standard, server-side load-direction *hint*: it **complements**, and never replaces, the standard client-driven `RedundantServerArray` + `ServiceLevel` selection of OPC 10000-4 §6.6.2.4, which remains the authoritative Failover mechanism.
+
+How it works. Each member publishes three integrity-protected records to the shared store: its health `ServiceLevel` (`svc/<uri>`), a separate **load weight** (`load/<uri>`, 0 idle … 255 fully loaded, from an injected `ILoadWeightProvider`), and its own `EndpointDescription`s (`endpoint/<uri>`, observed from normal discovery). A request that arrives on the balancing URL is resolved by the direction policy: rank members by health-`ServiceLevel` tier (Healthy › Degraded › NoData › Maintenance); if a peer is in a strictly higher tier it wins (active/passive → the active server), otherwise the least-loaded member of the top tier is chosen using the load weight, with random tie-breaking among equally-loaded members (active/active → load spreading). The local server serves its own endpoints when it is the best choice, when the peer view is stale, or when the target's endpoints are unavailable (fail-safe). `ServiceLevel` keeps its OPC UA meaning (health and Failover); load is a *separate* signal, so load never triggers a spurious Failover and a stale load weight only affects tie-breaking.
+
+```csharp
+services.AddOpcUa()
+    .AddServer(server => { })
+    .AddNodeManager<MyNodeManagerFactory>()
+    .UseRedundancyConsistency(RedundancyConsistencyMode.Eventual)   // or Strong
+    .AddServerRedundancy(r => r.Mode = RedundancySupport.Hot)
+    .AddServerServiceLevel(new LeaderServiceLevelProvider(/* … */)) // real health signal
+    .UseServerLoadDirection(options =>
+    {
+        options.BalancingEndpointUrl = "opc.tcp://ha.example.com:4840"; // the virtual/LB discovery URL
+        // options.StalenessWindow = TimeSpan.FromSeconds(15);
+        // options.LoadBandSize = 16;             // quantize load to damp oscillation
+        // options.HealthSubBandSize = 0;         // 0 = all Healthy is one eligibility tier
+    });
+// Register an ILoadWeightProvider for load-aware balancing (default is a constant 0 = random spread).
+```
+
+Consistency. The direction inputs follow `UseRedundancyConsistency`: in **Eventual** (default) the `svc/`, `load/`, and `endpoint/` records ride the leaderless CRDT store; in **Strong** they are linearizable via Raft. The high-churn `load/` weight is always coalesced (`LoadPublishInterval`) so it never issues a write per load tick — a per-write quorum on a rapidly changing value is the overhead to avoid, and a slightly stale load tie-break still picks a healthy peer.
+
+Conformance and client behavior. `GetEndpoints` (§5.4.2) is defined to describe *the server that received the request*, so directing to a peer is a deliberate extension; it is kept **gated** — plain discovery on any other URL returns the local server unchanged, so generic clients and tooling that inspect a specific server are unaffected. A returned `EndpointDescription` carries the target's own `ApplicationUri` and certificate, so the CreateSession server-endpoint tamper check (§5.6.2) still holds once the Client connects to the target. The stack's own Client needs no change to follow the redirect (it uses the returned endpoints to connect); point it at the balancing URL and pair it with `WithServerRedundancy()` so the standard client-driven `ServiceLevel` selection remains the authoritative complement — it already fails a Client that lands on a non-Healthy server over to the active one and, on a connect failure, retries the normal discovery URL / `FindServers`/`RedundantServerArray` path. This is **connect-time placement, not continuous balancing** — ongoing Failover still relies on the Client monitoring `ServiceLevel` per §6.6.
+
+Security. The store is treated as an untrusted conduit: every direction and endpoint record is written through the configured `IRecordProtector` and verified before use, so a forged or tampered record is dropped fail-closed. Configure an authenticated-encryption protector (`AesCbcHmacRecordProtector`) for any networked backend; the default `NullRecordProtector` is for single-process/in-memory use only. Because the redirect returns a peer's certificate, Clients must trust every member's certificate (non-transparent redundancy uses per-server certificates). The balancing endpoint is typically unauthenticated discovery, so a rogue replica could bias or deny direction, but it cannot force a Client onto an untrusted server (the Client validates the returned certificate); this is the same rogue-replica trust boundary as the rest of the shared store. Keep the balancing decision damped (load banding + random tie-break + the load coalescing interval) to avoid herding every Client onto a momentary best.
+
 ### Client-side high availability (replica sets)
 
 OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Client.Redundancy`.

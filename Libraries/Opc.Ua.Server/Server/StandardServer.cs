@@ -77,6 +77,13 @@ namespace Opc.Ua.Server
         /// </summary>
         public IRedundantServerSetProvider? RedundantServerSetProvider { get; set; }
 
+        /// <summary>
+        /// Gets or sets the optional load-direction seam consulted by
+        /// <c>GetEndpoints</c> to direct a Client to a peer Server (extension
+        /// beyond OPC 10000-4 §6.6; opt-in and gated).
+        /// </summary>
+        public IGetEndpointsDirector? GetEndpointsDirector { get; set; }
+
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
@@ -245,6 +252,21 @@ namespace Opc.Ua.Server
             finally
             {
                 m_semaphoreSlim.Release();
+            }
+
+            // consult the optional load-direction seam; when it directs the
+            // Client to a peer it replaces the local endpoints (extension
+            // beyond OPC 10000-4 §6.6; opt-in and gated).
+            IGetEndpointsDirector? director = GetEndpointsDirector;
+            if (director != null)
+            {
+                (bool redirect, ArrayOf<EndpointDescription> directed) = await director
+                    .TryGetDirectedEndpointsAsync(endpointUrl, endpoints, requestLifetime.CancellationToken)
+                    .ConfigureAwait(false);
+                if (redirect)
+                {
+                    endpoints = directed;
+                }
             }
 
             return new GetEndpointsResponse
