@@ -538,17 +538,67 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // verify cert with issuer chain
-                        var certValidator = new CertificateValidator(Server.Telemetry);
-                        var issuerStore = new CertificateTrustList();
-                        var issuerCollection = new CertificateIdentifierCollection();
+                        // Verify chain integrity: build a chain rooted at any of the provided
+                        // issuer certificates and ensure all signatures are valid. We do not
+                        // consult the application's trust list here — the caller is supplying
+                        // the issuer chain as part of the UpdateCertificate input. Policy checks
+                        // (minimum key size, SHA-1, revocation) are intentionally not applied here;
+                        // the server's configured SecurityConfiguration governs certificate
+                        // acceptance on its communication channels.
+                        var chainPolicy = new X509ChainPolicy
+                        {
+                            RevocationFlag = X509RevocationFlag.EntireChain,
+                            RevocationMode = X509RevocationMode.NoCheck,
+                            VerificationFlags =
+                                X509VerificationFlags.AllowUnknownCertificateAuthority |
+                                X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
+                                X509VerificationFlags.IgnoreEndRevocationUnknown |
+                                X509VerificationFlags.IgnoreRootRevocationUnknown,
+#if NET5_0_OR_GREATER
+                            DisableCertificateDownloads = true,
+#endif
+                            UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
+                        };
+
                         foreach (X509Certificate2 issuerCert in newIssuerCollection)
                         {
-                            issuerCollection.Add(new CertificateIdentifier(issuerCert));
+                            chainPolicy.ExtraStore.Add(issuerCert);
                         }
-                        issuerStore.TrustedCertificates = issuerCollection;
-                        certValidator.Update(issuerStore, issuerStore, null);
-                        await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
+
+                        using var chain = new X509Chain { ChainPolicy = chainPolicy };
+                        chain.Build(newCert);
+
+                        foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
+                        {
+                            if (chainStatus.Status is X509ChainStatusFlags.NoError or
+                                X509ChainStatusFlags.UntrustedRoot)
+                            {
+                                continue;
+                            }
+                            if (chainStatus.Status is X509ChainStatusFlags.NotSignatureValid or
+                                X509ChainStatusFlags.PartialChain or
+                                X509ChainStatusFlags.NotValidForUsage or
+                                X509ChainStatusFlags.InvalidBasicConstraints)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSecurityChecksFailed,
+                                    Utils.Format(
+                                        "Certificate chain validation failed. {0}: {1}",
+                                        chainStatus.Status,
+                                        chainStatus.StatusInformation));
+                            }
+                        }
+
+                        if (newIssuerCollection.Count + 1 != chain.ChainElements.Count)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The supplied issuer chain is incomplete.");
+                        }
+                    }
+                    catch (ServiceResultException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
