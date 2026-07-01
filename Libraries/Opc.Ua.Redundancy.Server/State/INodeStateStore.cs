@@ -105,6 +105,19 @@ namespace Opc.Ua.Redundancy.Server
         ValueTask<(bool Found, DataValue Value)> TryReadValueAsync(NodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
+        /// Streams every stored variable value in a single pass (used for hydration).
+        /// </summary>
+        /// <remarks>
+        /// A standby hydrates in two streamed passes — <see cref="EnumerateAsync"/>
+        /// for topology, then this for the latest values — instead of one value
+        /// read per node, so hydrating a large address space costs a bounded number
+        /// of round trips against a networked backend rather than one per variable.
+        /// </remarks>
+        /// <param name="ct">Cancellation token.</param>
+        IAsyncEnumerable<(NodeId NodeId, DataValue Value)> EnumerateValuesAsync(
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Streams topology and value changes until <paramref name="ct"/> is
         /// cancelled. Only changes that occur after the call are observed.
         /// </summary>

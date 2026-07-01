@@ -19,14 +19,15 @@ See `Docs/HighAvailability.md` and `Docs/Kubernetes.md` for the full, current de
 
 ## Remaining work
 
-### 1. Large-address-space hydration optimization — deferred
+### 1. Lazy topology materialization for very large address spaces — deferred
 
-Full address-space materialization on startup and on failover promotion can be slow for very large address spaces. A **snapshot + delta** (or lazy-materialization) hydration path is deferred. This is a known limitation, not yet optimized; the current path fully materializes.
+Startup and failover-promotion hydration of the shared-store (active/passive) path now streams variable values in bulk (`INodeStateStore.EnumerateValuesAsync`, one pass instead of a read per variable), but node **topology** is still materialized eagerly by `AddressSpaceSynchronizer.SeedOrHydrateAsync` (deserialize + insert every stored node). Snapshot/lazy materialization of the topology (fault-in on browse/read) for very large graphs remains a benchmarked future optimization. The eventual-consistency CRDT path already exchanges a compact state snapshot plus deltas, so this only affects the shared-store path.
 
 ## Delivered in this iteration
 
 - **Async `ISubscriptionStore` definition-persistence contract.** `StoreSubscriptions`/`RestoreSubscriptions`/`OnSubscriptionRestoreComplete` are now `StoreSubscriptionsAsync`/`RestoreSubscriptionsAsync`/`OnSubscriptionRestoreCompleteAsync` (`ValueTask`-returning, `CancellationToken`). Subscription definitions can now be persisted to an async network backend without a sync-over-async wrapper; `SharedKeyValueSubscriptionStore` awaits its shared-store writes directly instead of fire-and-forget. The per-monitored-item queue-restore hooks stay synchronous (synchronous monitored-item creation path). Documented in `Docs/migrate/2.0.x/sessions-subscriptions.md` and `Docs/HighAvailability.md`.
 - **Transparent-redundancy worked sample.** `Applications/RedundantServer/docker-compose.transparent.yml` runs two `REDUNDANCY_MODE=transparent` replicas that share one `ApplicationUri` and one `ApplicationInstanceCertificate` (seeded into a shared PKI volume) and mirror session + address-space state by CRDT gossip, behind an `nginx` TCP load balancer (`nginx.transparent.conf`) that publishes a single virtual endpoint. `Program.cs` gained `HA_APPLICATION_URI` / `HA_SUBJECT_NAME` / `HA_PKI_ROOT` for the shared identity; each replica advertises the load-balancer host (bind-to-any for DNS hosts), so discovery and `CreateSession` echo the single endpoint and a mirrored session resumes on the survivor after a replica fails. Documented in `Applications/RedundantServer/README.md` and `Docs/HighAvailability.md`.
+- **Bulk value hydration.** `INodeStateStore.EnumerateValuesAsync` streams the whole value keyspace in one pass; `AddressSpaceSynchronizer.SeedOrHydrateAsync` uses it instead of a `TryReadValueAsync` per variable, so hydrating a large address space no longer costs one round trip per variable against a networked (CRDT/Raft) backend. A first step toward the snapshot-based hydration above.
 
 ## Notes
 

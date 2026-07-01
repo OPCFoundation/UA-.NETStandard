@@ -190,9 +190,11 @@ Implemented server seams:
 - `IContinuationPointStore` mirrors best-effort `ContinuationPointEnvelope` records for Browse and HistoryRead continuation points. The envelope contains the owner session, continuation point id, kind, and re-issuable request metadata.
 - `IEventIdProvider` is an optional event-publishing seam. `DeterministicEventIdProvider` derives EventIds from a shared replica-set seed and stable event fields so Transparent/HotAndMirrored replicas can publish the same logical EventId and clients do not double-process events; the default remains the existing random GUID EventId behavior.
 - `RegisterNodes` returns the input NodeIds in this stack, so registered-node handles are already replica-consistent when the AddressSpace NodeIds are identical.
-- `UseDistributedAddressSpace(...)` mirrors node topology and values through `INodeStateStore`, helping each server present the same NodeIds and browse paths.
+- `UseDistributedAddressSpace(...)` mirrors node topology and values through `INodeStateStore`, helping each server present the same NodeIds and browse paths. A standby hydrates its local graph in two streamed passes — `INodeStateStore.EnumerateAsync` for node topology and `INodeStateStore.EnumerateValuesAsync` for the latest variable values — so hydrating a large address space costs a bounded number of round trips against a networked backend rather than one value read per variable.
 
 Documented limitations:
+
+- Startup and failover-promotion hydration fully materializes the mirrored node graph. The value pass is streamed in bulk (`EnumerateValuesAsync`), but topology is still materialized eagerly; snapshot/lazy materialization of very large graphs is a future optimization. The eventual-consistency CRDT path already exchanges a compact state snapshot plus deltas.
 
 - The core `ISubscriptionStore` definition-persistence contract is asynchronous (`StoreSubscriptionsAsync`, `RestoreSubscriptionsAsync`, `OnSubscriptionRestoreCompleteAsync`), so subscription definitions can be persisted to a synchronously-completing backend (in-memory, CRDT) or an async network backend. The per-monitored-item queue-restore hooks (`RestoreDataChangeMonitoredItemQueue`, `RestoreEventMonitoredItemQueue`) remain synchronous because they are invoked on the synchronous monitored-item creation path.
 - `SharedKeyValueSubscriptionStore` restores definitions and retransmission state, but monitored-item data/event queues are not restored by `RestoreDataChangeMonitoredItemQueue` or `RestoreEventMonitoredItemQueue`.

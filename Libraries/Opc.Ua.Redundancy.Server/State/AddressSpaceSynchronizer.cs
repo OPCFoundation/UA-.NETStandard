@@ -90,19 +90,14 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // Apply the latest value for every hydrated variable; value
                 // keys can be newer than the node payload they were carved
-                // from.
-                foreach (NodeState node in m_addressSpace.Nodes)
+                // from. Stream the value keyspace in one pass instead of
+                // issuing a read per variable so hydrating a large address
+                // space costs a bounded number of round trips.
+                await foreach ((NodeId nodeId, DataValue value) in m_store
+                    .EnumerateValuesAsync(ct)
+                    .ConfigureAwait(false))
                 {
-                    if (node is BaseVariableState)
-                    {
-                        (bool found, DataValue value) = await m_store
-                            .TryReadValueAsync(node.NodeId, ct)
-                            .ConfigureAwait(false);
-                        if (found)
-                        {
-                            ApplyValue(node.NodeId, value);
-                        }
-                    }
+                    ApplyValue(nodeId, value);
                 }
                 return;
             }

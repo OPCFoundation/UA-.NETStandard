@@ -145,6 +145,22 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
+        public async IAsyncEnumerable<(NodeId NodeId, DataValue Value)> EnumerateValuesAsync(
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            await foreach (KeyValuePair<string, ByteString> entry in m_store
+                .ScanAsync(ValuePrefix, ct)
+                .ConfigureAwait(false))
+            {
+                if (TryParseNodeId(entry.Key, ValuePrefix, out NodeId id) &&
+                    m_protector.TryUnprotect(entry.Value, out ByteString payload))
+                {
+                    yield return (id, DecodeValue(payload));
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         public async IAsyncEnumerable<NodeStateChange> SubscribeChangesAsync(
             [EnumeratorCancellation] CancellationToken ct = default)
         {

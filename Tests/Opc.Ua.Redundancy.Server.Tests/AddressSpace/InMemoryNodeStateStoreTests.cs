@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -140,6 +141,66 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(found, Is.False);
             Assert.That(read.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task EnumerateValuesReturnsAllStoredValuesInOnePassAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var a = new NodeId("a", NamespaceIndex);
+            var b = new NodeId("b", NamespaceIndex);
+            await store.WriteValueAsync(a, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now));
+            await store.WriteValueAsync(b, new DataValue(new Variant(2.0), StatusCodes.Good, DateTimeUtc.Now));
+
+            var seen = new Dictionary<NodeId, DataValue>();
+            await foreach ((NodeId nodeId, DataValue value) in store.EnumerateValuesAsync())
+            {
+                seen[nodeId] = value;
+            }
+
+            Assert.That(seen.Keys, Is.EquivalentTo(new[] { a, b }));
+            Assert.That(seen[a].WrappedValue, Is.EqualTo(new Variant(1.0)));
+            Assert.That(seen[b].WrappedValue, Is.EqualTo(new Variant(2.0)));
+        }
+
+        [Test]
+        public async Task EnumerateValuesRoundTripsThroughRecordProtectorAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            byte[] key = new byte[32];
+            for (int i = 0; i < key.Length; i++)
+            {
+                key[i] = (byte)(i + 1);
+            }
+            using var protector = new AesCbcHmacRecordProtector(key);
+            var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            var nodeId = new NodeId("protected", NamespaceIndex);
+            await store.WriteValueAsync(nodeId, new DataValue(new Variant(7.0), StatusCodes.Good, DateTimeUtc.Now));
+
+            var seen = new Dictionary<NodeId, DataValue>();
+            await foreach ((NodeId id, DataValue value) in store.EnumerateValuesAsync())
+            {
+                seen[id] = value;
+            }
+
+            Assert.That(seen.Keys, Is.EquivalentTo(new[] { nodeId }));
+            Assert.That(seen[nodeId].WrappedValue, Is.EqualTo(new Variant(7.0)));
+        }
+
+        [Test]
+        public async Task EnumerateValuesOnEmptyStoreYieldsNothingAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            int count = 0;
+            await foreach ((NodeId _, DataValue _) in store.EnumerateValuesAsync())
+            {
+                count++;
+            }
+
+            Assert.That(count, Is.Zero);
         }
 
         [Test]
