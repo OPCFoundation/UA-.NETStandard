@@ -2257,6 +2257,12 @@ namespace Opc.Ua
         public event NodeStateChangedHandler? StateChanged;
 
         /// <summary>
+        /// Asynchronous counterpart of <see cref="StateChanged"/>, awaited by
+        /// <see cref="ClearChangeMasksAsync"/>.
+        /// </summary>
+        public event NodeStateChangedAsyncHandler? StateChangedAsync;
+
+        /// <summary>
         /// Called when the Validate method is called
         /// </summary>
         public NodeStateValidateHandler? OnValidate;
@@ -2265,6 +2271,13 @@ namespace Opc.Ua
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateChangedHandler? OnStateChanged;
+
+        /// <summary>
+        /// Asynchronous counterpart of <see cref="OnStateChanged"/>. When set it is awaited by
+        /// <see cref="ClearChangeMasksAsync"/>; the synchronous <see cref="ClearChangeMasks"/>
+        /// still invokes it but blocks until it completes (only synchronous callers pay that cost).
+        /// </summary>
+        public NodeStateChangedAsyncHandler? OnStateChangedAsync;
 
         /// <summary>
         /// Called when a reference gets added to the node
@@ -2280,6 +2293,13 @@ namespace Opc.Ua
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
         public NodeStateReportEventHandler? OnReportEvent;
+
+        /// <summary>
+        /// Asynchronous counterpart of <see cref="OnReportEvent"/>. When set it is awaited by
+        /// <see cref="ReportEventAsync"/>; the synchronous <see cref="ReportEvent"/> still invokes
+        /// it but blocks until it completes (only synchronous callers pay that cost).
+        /// </summary>
+        public NodeStateReportEventAsyncHandler? OnReportEventAsync;
 
         /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
@@ -2510,6 +2530,20 @@ namespace Opc.Ua
         {
             OnReportEvent?.Invoke(context, this, e);
 
+            // Drive an asynchronous report sink too, so a node whose only report sink is
+            // asynchronous is still notified when the synchronous API is used. Completes inline
+            // in the common case; a genuinely asynchronous sink blocks here - only synchronous
+            // callers pay that cost.
+            NodeStateReportEventAsyncHandler? onReportEventAsync = OnReportEventAsync;
+            if (onReportEventAsync != null)
+            {
+                ValueTask report = onReportEventAsync(context, this, e, default);
+                if (!report.IsCompletedSuccessfully)
+                {
+                    report.AsTask().GetAwaiter().GetResult();
+                }
+            }
+
             List<Notifier>? notifiers;
 
             lock (m_notifiersLock)
@@ -2526,6 +2560,49 @@ namespace Opc.Ua
                     if (notifiers[ii].IsInverse && node != null)
                     {
                         node.ReportEvent(context, e);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously reports an event produced by the node, awaiting an asynchronous report
+        /// sink (see <see cref="OnReportEventAsync"/>) so the caller is never blocked. A synchronous
+        /// sink is invoked as well.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="e">The event to report.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public virtual async ValueTask ReportEventAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
+        {
+            OnReportEvent?.Invoke(context, this, e);
+
+            NodeStateReportEventAsyncHandler? onReportEventAsync = OnReportEventAsync;
+            if (onReportEventAsync != null)
+            {
+                await onReportEventAsync(context, this, e, cancellationToken).ConfigureAwait(false);
+            }
+
+            List<Notifier>? notifiers;
+
+            lock (m_notifiersLock)
+            {
+                notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+            }
+
+            // report event to notifier sources.
+            if (notifiers != null)
+            {
+                for (int ii = 0; ii < notifiers.Count; ii++)
+                {
+                    NodeState? node = notifiers[ii].Node;
+                    if (notifiers[ii].IsInverse && node != null)
+                    {
+                        await node.ReportEventAsync(context, e, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
             }
@@ -2773,7 +2850,87 @@ namespace Opc.Ua
             {
                 OnStateChanged?.Invoke(context, this, changeMasks);
                 StateChanged?.Invoke(context, this, changeMasks);
+
+                // Drive any asynchronous sinks too, so a node whose only state-changed sink is
+                // asynchronous (for example a monitored-item manager) is still notified when the
+                // synchronous API is used. Completes inline in the common case; a genuinely
+                // asynchronous sink blocks here - only synchronous callers pay that cost.
+                if (OnStateChangedAsync != null || StateChangedAsync != null)
+                {
+                    ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
+                    if (!raise.IsCompletedSuccessfully)
+                    {
+                        raise.AsTask().GetAwaiter().GetResult();
+                    }
+                }
+
                 m_changeMasks = NodeStateChangeMasks.None;
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously clears the change masks, awaiting any asynchronous state-changed sinks
+        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>) so the caller
+        /// is never blocked. Synchronous sinks are invoked as well.
+        /// </summary>
+        /// <param name="context">The context that describes how to access the system containing the data.</param>
+        /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask ClearChangeMasksAsync(
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken = default)
+        {
+            if (includeChildren)
+            {
+                var children = new List<BaseInstanceState>();
+                GetChildren(context, children);
+
+                for (int ii = 0; ii < children.Count; ii++)
+                {
+                    await children[ii]
+                        .ClearChangeMasksAsync(context, true, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            NodeStateChangeMasks changeMasks = m_changeMasks;
+
+            if (changeMasks != NodeStateChangeMasks.None)
+            {
+                OnStateChanged?.Invoke(context, this, changeMasks);
+                StateChanged?.Invoke(context, this, changeMasks);
+                await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
+                    .ConfigureAwait(false);
+                m_changeMasks = NodeStateChangeMasks.None;
+            }
+        }
+
+        /// <summary>
+        /// Awaits the asynchronous state-changed sinks (<see cref="OnStateChangedAsync"/> and every
+        /// sink registered on the <see cref="StateChangedAsync"/> event) in registration order.
+        /// </summary>
+        private async ValueTask RaiseStateChangedAsync(
+            ISystemContext context,
+            NodeStateChangeMasks changeMasks,
+            CancellationToken cancellationToken)
+        {
+            NodeStateChangedAsyncHandler? onStateChangedAsync = OnStateChangedAsync;
+            if (onStateChangedAsync != null)
+            {
+                await onStateChangedAsync(context, this, changeMasks, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            NodeStateChangedAsyncHandler? stateChangedAsync = StateChangedAsync;
+            if (stateChangedAsync != null)
+            {
+                foreach (Delegate handler in stateChangedAsync.GetInvocationList())
+                {
+                    await ((NodeStateChangedAsyncHandler)handler)(
+                        context, this, changeMasks, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
         }
 
@@ -5326,6 +5483,17 @@ namespace Opc.Ua
         NodeStateChangeMasks changes);
 
     /// <summary>
+    /// Asynchronous counterpart of <see cref="NodeStateChangedHandler"/>, invoked by
+    /// <see cref="NodeState.ClearChangeMasksAsync"/> so a sink can perform asynchronous work
+    /// (for example an asynchronous attribute read) without blocking the caller.
+    /// </summary>
+    public delegate ValueTask NodeStateChangedAsyncHandler(
+        ISystemContext context,
+        NodeState node,
+        NodeStateChangeMasks changes,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Used to receive notifications when a reference get added to the node
     /// </summary>
     public delegate void NodeStateReferenceAdded(
@@ -5350,6 +5518,17 @@ namespace Opc.Ua
         ISystemContext context,
         NodeState node,
         IFilterTarget e);
+
+    /// <summary>
+    /// Asynchronous counterpart of <see cref="NodeStateReportEventHandler"/>, invoked by
+    /// <see cref="NodeState.ReportEventAsync"/> so a sink can enqueue the event without
+    /// blocking the caller.
+    /// </summary>
+    public delegate ValueTask NodeStateReportEventAsyncHandler(
+        ISystemContext context,
+        NodeState node,
+        IFilterTarget e,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Used to receive notifications when a node needs to refresh its conditions.

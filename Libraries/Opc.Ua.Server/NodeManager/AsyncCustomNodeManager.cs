@@ -1215,7 +1215,7 @@ namespace Opc.Ua.Server
                 return;
             }
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
-            node.ClearChangeMasks(context, false);
+            await node.ClearChangeMasksAsync(context, false, cancellationToken).ConfigureAwait(false);
             await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
 
             // remove from the parent.
@@ -2691,7 +2691,8 @@ namespace Opc.Ua.Server
                     if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
                     {
                         // updates to source finished - report changes to monitored items.
-                        handle.Node.ClearChangeMasks(systemContext, true);
+                        await handle.Node.ClearChangeMasksAsync(systemContext, true, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -3124,7 +3125,8 @@ namespace Opc.Ua.Server
                         cancellationToken).ConfigureAwait(false);
 
                     // updates to source finished - report changes to monitored items.
-                    source.ClearChangeMasks(context, false);
+                    await source.ClearChangeMasksAsync(context, false, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 finally
                 {

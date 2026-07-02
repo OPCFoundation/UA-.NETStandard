@@ -240,7 +240,8 @@ namespace Opc.Ua.Server
                 state.CredentialId.Value = credentialId;
                 state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus!);
                 state.ServiceStatus.Value = StatusCodes.Good;
-                state.ClearChangeMasks(context, includeChildren: true);
+                await state.ClearChangeMasksAsync(context, includeChildren: true, ct)
+                    .ConfigureAwait(false);
             }
 
             return new KeyCredentialUpdateMethodStateResult { ServiceResult = ServiceResult.Good };
