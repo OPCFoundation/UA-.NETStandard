@@ -385,10 +385,13 @@ namespace RedundantClient
             TimeSpan duration,
             CancellationToken ct)
         {
-            // A shared store + lease election make exactly one replica the leader that holds the
-            // session; followers stand by and take over on leader loss. This runs in-process with an
-            // in-memory store; a multi-process deployment can use any CAS-capable shared store and
-            // matching leader-election implementation with the same facade.
+            // Local, in-process demo/testing only. This runs a single-process replica set over an
+            // in-memory store + lease election (one replica leads, others stand by). The in-memory
+            // store cannot coordinate across processes, so it is not a real deployment: for
+            // multi-process client redundancy either run independent managed clients that each fail
+            // over on their own (scale/docker-compose.yml with --scale client=N), or use a
+            // coordinated single-active replica set backed by a CAS-capable Raft client store
+            // (AddRedundantClientSession + AddRaftClientSharedStore; see Docs/HighAvailability.md).
             using var store = new InMemorySharedKeyValueStore();
             var sessions = new List<RedundantClientSession>();
             try

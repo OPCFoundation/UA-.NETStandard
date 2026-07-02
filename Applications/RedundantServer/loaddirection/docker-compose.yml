@@ -1,6 +1,6 @@
 # GetEndpoints load direction over a strongly-consistent (Raft) redundant set.
 #
-# Builds on docker-compose.active-passive.yml: a 3-node RaftCs cluster forms the shared, linearizable
+# Builds on the active/passive topology (docker-compose.yml with active-passive.env): a 3-node RaftCs cluster forms the shared, linearizable
 # store that the load-direction signals (each replica's health ServiceLevel, load weight, and
 # endpoints) are published to and read from across containers. HA_BALANCING_URL enables the
 # GetEndpoints director on every replica: a GetEndpoints request arriving on that virtual
@@ -14,11 +14,11 @@
 # address your LB/Service would expose).
 #
 # The build context is the repository root. Run from the repo root:
-#   docker compose -f Applications/RedundantServer/docker-compose.loaddirection.yml up --build
+#   docker compose -f Applications/RedundantServer/loaddirection/docker-compose.yml up --build
 
 x-ld-server: &ld-server
   build:
-    context: ../..
+    context: ../../..
     dockerfile: Applications/RedundantServer/Dockerfile
   image: opcua-redundant-server
   command: ["--port", "62543"]

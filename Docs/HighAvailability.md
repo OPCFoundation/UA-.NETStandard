@@ -211,8 +211,8 @@ You enable mirroring by registering the seams below on the server builder; each 
 
 Notes:
 
-- Hydration fully materializes the mirrored node graph (topology plus values): the snapshot + delta log reduces the store round trips and per-node work, but the whole graph is resident. True on-demand fault-in (materializing a node only when it is first browsed/read) would further cut time-to-ready and memory for very large, sparsely-accessed graphs; it requires an asynchronous node-resolution seam through the core node-manager read/browse path and is tracked as future work in `plans/28-distributed-ha-remaining.md`. The eventual-consistency CRDT path already exchanges a compact state snapshot plus deltas.
-- `SharedKeyValueSubscriptionStore` restores subscription definitions and retransmission state, but the per-monitored-item data/event queues are not restored (`RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` run on the synchronous monitored-item creation path). The impact is that after failover a monitored item resumes sampling and delivers fresh values, but values that were queued on the failed replica and not yet published are lost; subscription definitions and `Republish` of already-sent notifications are preserved. Restoring the queues is tracked in `plans/28-distributed-ha-remaining.md`.
+- Hydration fully materializes the mirrored node graph (topology plus values): the snapshot + delta log reduces the store round trips and per-node work, but the whole graph is resident. True on-demand fault-in (materializing a node only when it is first browsed/read) would further cut time-to-ready and memory for very large, sparsely-accessed graphs; it requires an asynchronous node-resolution seam through the core node-manager read/browse path and is tracked as future work in OPCFoundation/UA-.NETStandard#3938. The eventual-consistency CRDT path already exchanges a compact state snapshot plus deltas.
+- `SharedKeyValueSubscriptionStore` restores subscription definitions and retransmission state, but the per-monitored-item data/event queues are not restored (`RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` run on the synchronous monitored-item creation path). The impact is that after failover a monitored item resumes sampling and delivers fresh values, but values that were queued on the failed replica and not yet published are lost; subscription definitions and `Republish` of already-sent notifications are preserved. Restoring the queues is tracked in OPCFoundation/UA-.NETStandard#3939.
 - Continuation-point mirroring is best-effort. Built-in node-manager `ContinuationPoint.Data` is opaque and is not reconstructed on a backup; after failover a client may receive `BadContinuationPointInvalid` and re-issue Browse or HistoryRead, which OPC 10000-4 §6.6.2.2 permits. Node managers that can serialize their own continuation-point data may opt in through `IContinuationPointStore`.
 - Deterministic EventIds (`DeterministicEventIdProvider`) are opt-in rather than on by default: they change the EventId values a server emits — a single-server deployment keeps the standard random GUID EventIds — and they require a shared replica-set seed. Enable them for a HotAndMirrored/Transparent set so every replica emits the same logical EventId and clients do not double-process events. They are only as stable as the event fields used, so Alarms & Conditions clients should still call `ConditionRefresh` after failover as required by OPC UA.
 
@@ -254,6 +254,8 @@ The base package uses `ISharedKeyValueStore` as the common seam for address-spac
 
 ```mermaid
 flowchart LR
+    Client1[Client 1] --> A
+    Client2[Client 2] --> B
     A["Replica A"] <-->|CRDT gossip| B["Replica B"]
     B <-->|CRDT gossip| C["Replica C"]
     A <-->|CRDT gossip| C
@@ -262,7 +264,7 @@ flowchart LR
     C -. strong keys .-> Raft
 ```
 
-Three active/active replicas converge bulk state (address space, sessions) leaderlessly over CRDT gossip, while the exactly-once keyspaces ride the linearizable Raft store.
+Three active/active replicas converge bulk state (address space, sessions) leaderlessly over CRDT gossip, while the exactly-once keyspaces ride the linearizable Raft store. Clients connect to any replica (each is a writer) and fail over between them.
 
 `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` is explicitly beyond OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; keep the single-use nonce registry and other exactly-once decisions on a strongly consistent store — the Raft layer below now provides one in-package, so no external store (e.g. Redis) is required (see *Consistency modes*).
 
@@ -368,12 +370,6 @@ flowchart LR
 
 The two client replicas elect a leader and share the leader's session secret through the protected store; on leader loss the standby is promoted and reuses the token to re-activate (or recreates the session and transfers subscriptions).
 
-It reuses the same seams as the server, now shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
-
-- **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
-- **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.
-- **Standby modes** (`ClientStandbyMode`): Cold (elect only; connect+activate on promotion), Warm (keep a connected session, create subscriptions on promotion), Hot (keep a connected session with subscriptions sampling-only, enable publishing on promotion).
-
 The simplest way to consume this is `AddRedundantClientSession(...)` in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client`: register a client shared store and election, then a redundant session, and resolve a single, stable `ISession`. Failover, leader election, and the underlying session churn are hidden — the application reasons only about `ISession`, and service calls block until this replica is the leader with a live session (synchronous members throw `BadInvalidState` until then).
 
 ```csharp
@@ -394,6 +390,12 @@ services
 ISession session = provider.GetRequiredService<ISession>();
 BrowseResponse response = await session.BrowseAsync(/* … */, ct);   // blocks until this replica leads
 ```
+
+Under the hood it reuses the same seams as the server, now shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
+
+- **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
+- **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.
+- **Standby modes** (`ClientStandbyMode`): Cold (elect only; connect+activate on promotion), Warm (keep a connected session, create subscriptions on promotion), Hot (keep a connected session with subscriptions sampling-only, enable publishing on promotion).
 
 For non-DI callers, `RedundantClientSessionBuilder` builds the same `RedundantClientSession` (an `ISession`) directly. The lower-level `ClientReplicaSetBuilder` / `ClientReplicaCoordinator` seam is still available when you want to hold and drive the leader `ManagedSession` yourself:
 
@@ -428,7 +430,7 @@ Distributed high-availability deployments protect the shared store as part of th
 
 Transparent redundancy uses one logical application identity. Every replica that serves the transparent virtual endpoint must use the same endpoint URL, ApplicationUri, application instance certificate, and private key so clients can validate one server identity and complete `ActivateSession` against any replica. The compromise blast radius of that shared private key is the entire transparent set: an attacker can impersonate the virtual server, terminate or redirect client trust, and participate in failover until the certificate is revoked and trust lists are updated. Prefer non-transparent redundancy with per-replica certificates when that shared-key risk is unacceptable.
 
-The `Applications/RedundantServer` sample includes a worked transparent deployment (`docker-compose.transparent.yml`): two `REDUNDANCY_MODE=transparent` replicas that share one `ApplicationUri` and one certificate and mirror session + address-space state by CRDT gossip, behind an `nginx` TCP load balancer that publishes a single virtual endpoint. Each replica advertises the load-balancer host, so discovery and `CreateSession` echo the one endpoint the client uses, and a mirrored session resumes on the survivor when a replica fails. The sample seeds the shared certificate into a volume for convenience; a secured deployment provisions it from a secret to every replica (see `Docs/Kubernetes.md`).
+The `Applications/RedundantServer` sample includes a worked transparent deployment (`transparent/docker-compose.yml`): two `REDUNDANCY_MODE=transparent` replicas that share one `ApplicationUri` and one certificate and mirror session + address-space state by CRDT gossip, behind an `nginx` TCP load balancer that publishes a single virtual endpoint. Each replica advertises the load-balancer host, so discovery and `CreateSession` echo the one endpoint the client uses, and a mirrored session resumes on the survivor when a replica fails. The sample seeds the shared certificate into a volume for convenience; a secured deployment provisions it from a secret to every replica (see `Docs/Kubernetes.md`).
 
 Rotate the transparent shared application certificate/key as a coordinated replica-set operation. Issue the replacement certificate with the same virtual identity and endpoint subject alternative names, distribute the new private key through the certificate store or a secret manager without baking it into images, stage client and GDS trust-list updates so both old and new certificates are trusted during the overlap, restart or hot-reload replicas in a controlled window, verify every replica presents the new certificate at the virtual endpoint, then revoke/remove the old certificate and securely delete the old private key from all nodes and secret versions. Treat an emergency rotation after suspected compromise as a fail-closed event: drain or stop replicas that still hold the old key before restoring client access.
 

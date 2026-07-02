@@ -28,10 +28,13 @@ See [HighAvailability.md](../../Docs/HighAvailability.md) for the redundancy des
 
 ## Client replica set (high availability)
 
-Run an in-process client replica set where exactly one leader holds the session and followers stand by. Each replica exposes a transparent `RedundantClientSession` (`ISession`): calls block on a follower until it is promoted, and the same handle keeps serving after a leader change. Choose the standby behaviour with `--standby` (Cold connects on promotion; Warm/Hot keep a standby session ready), and add `--suite` to run a browse/read/subscribe workload through the leader:
+Run a **local, in-process** client replica set (for testing) where exactly one leader holds the session and followers stand by. Each replica exposes a transparent `RedundantClientSession` (`ISession`): calls block on a follower until it is promoted, and the same handle keeps serving after a leader change. Choose the standby behaviour with `--standby` (Cold connects on promotion; Warm/Hot keep a standby session ready), and add `--suite` to run a browse/read/subscribe workload through the leader:
 
 ```powershell
 dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- --server opc.tcp://localhost:62543/RedundantServer --autoaccept --nosecurity --replicas 3 --standby Hot --suite
 ```
 
-Leader election uses a shared `ISharedKeyValueStore` + `SharedStoreLeaseElection` (in-memory here). A multi-process deployment uses any CAS-capable shared store, or Kubernetes Lease election, with the same `RedundantClientSession` / `ClientReplicaCoordinator`. The simplest way to consume this in your own app is `AddRedundantClientSession(...)` — see [HighAvailability.md](../../Docs/HighAvailability.md).
+This in-process mode uses an in-memory `ISharedKeyValueStore` + `SharedStoreLeaseElection`, which **only coordinates within one process** — it is a local demo, not a deployment. For real multi-process client redundancy:
+
+- **Independent managed clients** (each fails over on its own): run the client image in multiple containers and scale it — see the `clients` profile in [`RedundantServer/scale/docker-compose.yml`](../RedundantServer/scale/docker-compose.yml) and `docker compose … --profile clients up --scale client=N`.
+- **Coordinated single-active replica set** (exactly one active client, the rest standby): register `AddRedundantClientSession(...)` over a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) or Kubernetes Lease election. See [HighAvailability.md](../../Docs/HighAvailability.md).

@@ -23,7 +23,7 @@
 # stay on the internal network and are addressed by container DNS.
 #
 # The transparent (nginx virtual endpoint) and GetEndpoints load-direction demos have
-# their own files: docker-compose.transparent.yml and docker-compose.loaddirection.yml.
+# their own folders: transparent/docker-compose.yml and loaddirection/docker-compose.yml.
 
 x-server: &server
   build:
