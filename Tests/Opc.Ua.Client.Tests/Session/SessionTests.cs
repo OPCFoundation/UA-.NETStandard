@@ -87,6 +87,65 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void BuildInstanceCertificateEntryReturnsNullWhenNoCertificate()
+        {
+            Assert.That(Session.BuildInstanceCertificateEntry(null, null), Is.Null);
+        }
+
+        [Test]
+        public void BuildInstanceCertificateEntryStoresIssuersWithoutLeaf()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=EntryLeaf").CreateForRSA();
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=EntryIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            // Transport-style chain: [leaf, ...issuers].
+            using var transportChain = new CertificateCollection { leaf, issuer };
+
+            using CertificateEntry? entry = Session.BuildInstanceCertificateEntry(leaf, transportChain);
+
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Certificate.Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            // The leaf is dropped from the stored issuer chain (issuers only).
+            Assert.That(entry.IssuerChain, Has.Count.EqualTo(1));
+            Assert.That(entry.IssuerChain[0].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+        }
+
+        [Test]
+        public void BuildInstanceCertificateEntryHandlesNullChain()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=EntryLeafOnly").CreateForRSA();
+
+            using CertificateEntry? entry = Session.BuildInstanceCertificateEntry(leaf, null);
+
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Certificate.Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            Assert.That(entry.IssuerChain, Has.Count.EqualTo(0));
+        }
+
+        [Test]
+        public void BuildTransportChainAndInstanceEntryRoundTrip()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=RoundTripLeaf").CreateForRSA();
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=RoundTripIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            using var issuerChain = new CertificateCollection { issuer };
+            using var original = new CertificateEntry(
+                leaf, issuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            using CertificateCollection? transportChain = Session.BuildTransportChain(original);
+            using CertificateEntry? rebuilt = Session.BuildInstanceCertificateEntry(leaf, transportChain);
+
+            Assert.That(rebuilt, Is.Not.Null);
+            Assert.That(rebuilt!.Certificate.Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            Assert.That(rebuilt.IssuerChain, Has.Count.EqualTo(1));
+            Assert.That(rebuilt.IssuerChain[0].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+        }
+
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldFetchAllOperationLimitsAsync()
         {
             using var sut = SessionMock.Create();

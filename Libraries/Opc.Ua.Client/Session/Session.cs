@@ -4894,8 +4894,9 @@ namespace Opc.Ua.Client
         /// certificate and a transport-style chain (<c>[leaf, ...issuers]</c>);
         /// the leaf is dropped from the stored issuer chain. Returns
         /// <see langword="null"/> when no certificate is supplied.
+        /// Exposed to test assemblies (via <c>InternalsVisibleTo</c>).
         /// </summary>
-        private static CertificateEntry? BuildInstanceCertificateEntry(
+        internal static CertificateEntry? BuildInstanceCertificateEntry(
             Certificate? certificate,
             CertificateCollection? chain)
         {

@@ -234,6 +234,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task AcquireApplicationCertificateByTypeReturnsEntryOrNull()
+        {
+            using var manager = new CertificateManager(m_telemetry);
+            using Certificate cert = CertificateBuilder
+                .Create("CN=ByTypeTest")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            await manager.UpdateApplicationCertificateAsync(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                cert).ConfigureAwait(false);
+
+            // A matching type returns a caller-owned entry.
+            using (CertificateEntry found = manager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType))
+            {
+                Assert.That(found, Is.Not.Null);
+                Assert.That(found.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
+            }
+
+            // A type that is not registered returns null.
+            CertificateEntry missing = manager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.EccNistP256ApplicationCertificateType);
+            Assert.That(missing, Is.Null);
+        }
+
+        [Test]
+        public void AcquireAndSnapshotReturnNullOrEmptyWhenNoCertificates()
+        {
+            using var manager = new CertificateManager(m_telemetry);
+
+            Assert.That(
+                manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256),
+                Is.Null);
+            Assert.That(
+                manager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                Is.Null);
+
+            using CertificateEntryCollection snapshot = manager.SnapshotApplicationCertificates();
+            Assert.That(snapshot, Has.Count.EqualTo(0));
+        }
+
+        [Test]
         public async Task ValidateUntrustedCertReturnsFailure()
         {
             string trustedPath = CreateTempDir();
