@@ -28,11 +28,16 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Client;
+using Opc.Ua.Client.Redundancy;
 
 namespace Opc.Ua.Redundancy.Client
 {
@@ -53,7 +58,8 @@ namespace Opc.Ua.Redundancy.Client
         public static IServiceCollection AddCrdtClientSharedStore(
             this IServiceCollection services,
             ReplicaId replicaId,
-            Func<IServiceProvider, ITransport> transportFactory)
+            Func<IServiceProvider, ITransport> transportFactory
+        )
         {
             if (services == null)
             {
@@ -65,10 +71,11 @@ namespace Opc.Ua.Redundancy.Client
             }
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp => new ReplicatedSharedKeyValueStore(
-                    replicaId,
-                    transportFactory(sp),
-                    sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                    CrdtReaderOptions.Default));
+                replicaId,
+                transportFactory(sp),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System,
+                CrdtReaderOptions.Default
+            ));
             return services;
         }
 
@@ -88,23 +95,25 @@ namespace Opc.Ua.Redundancy.Client
         /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
         public static IServiceCollection AddRaftClientSharedStore(
             this IServiceCollection services,
-            Func<IServiceProvider, IRaftConsensus>? consensusFactory = null)
+            Func<IServiceProvider, IRaftConsensus>? consensusFactory = null
+        )
         {
             if (services == null)
             {
                 throw new ArgumentNullException(nameof(services));
             }
 
-            services.TryAddSingleton(sp =>
-                consensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
+            services.TryAddSingleton(sp => consensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
-            services.TryAddSingleton<ISharedKeyValueStore>(sp =>
-                new RaftSharedKeyValueStore(sp.GetRequiredService<IRaftConsensus>(), ownsConsensus: false));
+            services.TryAddSingleton<ISharedKeyValueStore>(sp => new RaftSharedKeyValueStore(
+                sp.GetRequiredService<IRaftConsensus>(),
+                ownsConsensus: false
+            ));
 
-            services.TryAddSingleton<ILeaderElection>(sp =>
-                new RaftLeaderElection(
-                    sp.GetRequiredService<IRaftConsensus>(),
-                    sp.GetService<ILoggerFactory>()?.CreateLogger<RaftLeaderElection>()));
+            services.TryAddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
+                sp.GetRequiredService<IRaftConsensus>(),
+                sp.GetService<ILoggerFactory>()?.CreateLogger<RaftLeaderElection>()
+            ));
 
             return services;
         }
@@ -135,7 +144,8 @@ namespace Opc.Ua.Redundancy.Client
             RedundancyConsistencyMode mode,
             ReplicaId replicaId,
             Func<IServiceProvider, ITransport>? replicatedTransportFactory = null,
-            Func<IServiceProvider, IRaftConsensus>? raftConsensusFactory = null)
+            Func<IServiceProvider, IRaftConsensus>? raftConsensusFactory = null
+        )
         {
             if (services == null)
             {
@@ -145,20 +155,73 @@ namespace Opc.Ua.Redundancy.Client
             {
                 throw new ArgumentNullException(
                     nameof(replicatedTransportFactory),
-                    "Eventual mode requires a CRDT transport factory for the bulk store.");
+                    "Eventual mode requires a CRDT transport factory for the bulk store."
+                );
             }
 
-            services.TryAddSingleton(sp =>
-                raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
+            services.TryAddSingleton(sp => raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
-            services.TryAddSingleton(sp =>
-                CreateClientStore(sp, mode, replicaId, replicatedTransportFactory));
+            services.TryAddSingleton(sp => CreateClientStore(sp, mode, replicaId, replicatedTransportFactory));
 
-            services.TryAddSingleton<ILeaderElection>(sp =>
-                new RaftLeaderElection(
-                    sp.GetRequiredService<IRaftConsensus>(),
-                    sp.GetService<ILoggerFactory>()?.CreateLogger<RaftLeaderElection>()));
+            services.TryAddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
+                sp.GetRequiredService<IRaftConsensus>(),
+                sp.GetService<ILoggerFactory>()?.CreateLogger<RaftLeaderElection>()
+            ));
 
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a transparent <see cref="ISession"/> facade backed by client replica coordination.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IServiceCollection AddRedundantClientSession(
+            this IServiceCollection services,
+            Action<RedundantClientSessionOptions> configure
+        )
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new RedundantClientSessionOptions();
+            configure(options);
+            if (options.CreateSessionAsync == null)
+            {
+                throw new ArgumentException(
+                    "RedundantClientSessionOptions.CreateSessionAsync must be set.",
+                    nameof(configure)
+                );
+            }
+
+            services.TryAddSingleton<RedundantClientSession>(sp =>
+            {
+                var replicaOptions = new ClientReplicaOptions
+                {
+                    NodeId = options.NodeId,
+                    Mode = options.Mode,
+                    CreateSessionAsync = options.CreateSessionAsync,
+                    ConfigureLeaderAsync = options.ConfigureLeaderAsync,
+                };
+
+                var coordinator = new ClientReplicaCoordinator(
+                    replicaOptions,
+                    sp.GetRequiredService<ILeaderElection>(),
+                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    sp.GetService<IRecordProtector>() ?? NullRecordProtector.Instance,
+                    sp.GetRequiredService<ITelemetryContext>()
+                );
+                return new RedundantClientSession(coordinator);
+            });
+            services.TryAddSingleton<ISession>(sp => sp.GetRequiredService<RedundantClientSession>());
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IHostedService, RedundantClientSessionHostedService>()
+            );
             return services;
         }
 
@@ -166,7 +229,8 @@ namespace Opc.Ua.Redundancy.Client
             IServiceProvider sp,
             RedundancyConsistencyMode mode,
             ReplicaId replicaId,
-            Func<IServiceProvider, ITransport>? replicatedTransportFactory)
+            Func<IServiceProvider, ITransport>? replicatedTransportFactory
+        )
         {
             IRaftConsensus consensus = sp.GetRequiredService<IRaftConsensus>();
 
@@ -184,9 +248,30 @@ namespace Opc.Ua.Redundancy.Client
                 replicaId,
                 replicatedTransportFactory!(sp),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                CrdtReaderOptions.Default);
+                CrdtReaderOptions.Default
+            );
             return new HybridSharedKeyValueStore(replicatedStore, raftStore, default, ownsStores: true);
 #pragma warning restore CA2000
+        }
+
+        private sealed class RedundantClientSessionHostedService : IHostedService
+        {
+            public RedundantClientSessionHostedService(RedundantClientSession session)
+            {
+                m_session = session ?? throw new ArgumentNullException(nameof(session));
+            }
+
+            public async Task StartAsync(CancellationToken cancellationToken)
+            {
+                await m_session.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            public async Task StopAsync(CancellationToken cancellationToken)
+            {
+                await m_session.DisposeAsync().ConfigureAwait(false);
+            }
+
+            private readonly RedundantClientSession m_session;
         }
     }
 }

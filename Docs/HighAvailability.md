@@ -306,7 +306,7 @@ services.AddOpcUa()
 
 `UseRedundancyConsistency` registers a shared `IRaftConsensus` plus a native `RaftLeaderElection` (`ILeaderElection`). Raft leadership is decided by the consensus protocol itself — a single leader per term, no split-brain — which is stronger than the lease-CAS `SharedStoreLeaseElection`. Because the distributed features register their store and election with `TryAddSingleton`, call `UseRedundancyConsistency` first and they compose over the chosen store and election.
 
-The consensus engine is pluggable through the `IRaftConsensus` seam. By default the DI registration uses a single-node in-package Raft replica (`DefaultRaftConsensus.CreateSingleNode()`, a real RaftNode with in-memory storage/transport that elects itself leader); `InProcessRaftConsensus` is a lighter deterministic in-process alternative for tests and in-process replica sets. For a multi-pod cluster, build a multi-node replica with `DefaultRaftConsensus.CreateCluster(nodeId, memberIds, transport, …)` — a `RaftCs.Transport.NanoMsg` transport (peers addressed by DNS) plus an in-memory or durable `RaftCs.Storage.File` WAL — and register it through `RaftConsensusFactory`. On Kubernetes, `UseKubernetesRaftConsensus` (in `Opc.Ua.Redundancy.Kubernetes`) does this for you from the StatefulSet ordinal and headless-Service DNS. RaftCs ships its own `IRaftTransport` (NanoMsg), so Raft shares the NanoMsg substrate with the CRDT gossip layer. The `Applications/RedundantServer` sample (`HA_CONSISTENCY=strong`, `docker-compose.active-passive.yml`) is a runnable multi-node example.
+The consensus engine is pluggable through the `IRaftConsensus` seam. By default the DI registration uses a single-node in-package Raft replica (`DefaultRaftConsensus.CreateSingleNode()`, a real RaftNode with in-memory storage/transport that elects itself leader); `InProcessRaftConsensus` is a lighter deterministic in-process alternative for tests and in-process replica sets. For a multi-pod cluster, build a multi-node replica with `DefaultRaftConsensus.CreateCluster(nodeId, memberIds, transport, …)` — a `RaftCs.Transport.NanoMsg` transport (peers addressed by DNS) plus an in-memory or durable `RaftCs.Storage.File` WAL — and register it through `RaftConsensusFactory`. On Kubernetes, `UseKubernetesRaftConsensus` (in `Opc.Ua.Redundancy.Kubernetes`) does this for you from the StatefulSet ordinal and headless-Service DNS. RaftCs ships its own `IRaftTransport` (NanoMsg), so Raft shares the NanoMsg substrate with the CRDT gossip layer. The `Applications/RedundantServer` sample (`docker-compose.yml` with the `active-passive.env` env file) is a runnable multi-node example.
 
 On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedKeyValueStore` and a native `RaftLeaderElection` for a client replica set in one call (the `ClientReplicaCoordinator` consumes both), `AddCrdtClientSharedStore` registers the CRDT-gossip (eventual) equivalent, and `AddRedundantClientSharedStore(mode, …)` is the mode-aware entry point that selects between them.
 
@@ -373,6 +373,29 @@ It reuses the same seams as the server, now shared from `Opc.Ua.Core` under the 
 - **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
 - **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.
 - **Standby modes** (`ClientStandbyMode`): Cold (elect only; connect+activate on promotion), Warm (keep a connected session, create subscriptions on promotion), Hot (keep a connected session with subscriptions sampling-only, enable publishing on promotion).
+
+The simplest way to consume this is `AddRedundantClientSession(...)` in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client`: register a client shared store and election, then a redundant session, and resolve a single, stable `ISession`. Failover, leader election, and the underlying session churn are hidden — the application reasons only about `ISession`, and service calls block until this replica is the leader with a live session (synchronous members throw `BadInvalidState` until then).
+
+```csharp
+services
+    .AddRaftClientSharedStore()                     // ISharedKeyValueStore + ILeaderElection
+    .AddRedundantClientSession(options =>
+    {
+        options.NodeId = replicaId;
+        options.Mode = ClientStandbyMode.Hot;
+        options.CreateSessionAsync = ct => new ManagedSessionBuilder(configuration, telemetry)
+            .UseEndpoint(endpoint)
+            .WithServerRedundancy()
+            .WithTokenReuseFailover()
+            .ConnectAsync(ct);
+    });
+
+// A hosted service starts the coordinator; resolve the transparent handle anywhere and use it:
+ISession session = provider.GetRequiredService<ISession>();
+BrowseResponse response = await session.BrowseAsync(/* … */, ct);   // blocks until this replica leads
+```
+
+For non-DI callers, `RedundantClientSessionBuilder` builds the same `RedundantClientSession` (an `ISession`) directly. The lower-level `ClientReplicaSetBuilder` / `ClientReplicaCoordinator` seam is still available when you want to hold and drive the leader `ManagedSession` yourself:
 
 ```csharp
 var coordinator = new ClientReplicaSetBuilder(telemetry)

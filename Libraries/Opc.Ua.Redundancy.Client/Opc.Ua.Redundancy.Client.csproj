@@ -23,6 +23,7 @@
   <ItemGroup>
     <PackageReference Include="Crdt" />
     <PackageReference Include="Crdt.Transport" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
   </ItemGroup>

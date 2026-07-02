@@ -27,25 +27,13 @@ Hydration now uses a snapshot + bounded delta log (fast time-to-ready without tr
 
 `SharedKeyValueSubscriptionStore` restores subscription definitions and retransmission state, but the per-monitored-item data/event queues are not restored (`RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` run on the synchronous monitored-item creation path). After failover an item resumes sampling and delivers fresh values, but values queued on the failed replica and not yet published are lost. Restoring the queues needs the monitored-item creation path to accept an async restore (or a pre-hydrated queue) without blocking. Documented as a Note in `Docs/HighAvailability.md`.
 
-### 3. Transparent client redundancy via DI (`ISession`-shaped, coordination hidden) — feedback follow-up
-
-Today `Applications/RedundantClient` wires the client replica set explicitly (`ClientReplicaSetBuilder`, election, shared store, standby mode). Generalize this in `Opc.Ua.Client` / `Opc.Ua.Redundancy.Client` so a user can register client redundancy through DI (key store, shared store, election, protector) and receive a single `ISession`-shaped handle whose failover/coordination and underlying session churn are fully transparent — the user reasons only about `ISession`, not about coordinators, leaders, or the sessions being managed underneath. Source: PR #3918 review (`Applications/RedundantClient/Program.cs`).
-
-### 4. Single env-configurable server `docker-compose` — feedback follow-up
-
-Collapse the per-mode compose files into one `docker-compose.yml` that selects the topology from an environment variable: active/active eventual (default), active/active strong, and active/passive; and make the replica count configurable. Source: PR #3918 review (`Applications/RedundantServer/docker-compose.active-active.yml`).
-
-### 5. Client `docker-compose` + a runnable replication demo — feedback follow-up
-
-Add a `docker-compose.yml` for `Applications/RedundantClient` to run either a single client or a multi-replica client set against the server, and provide a way to observe replication/failover working (e.g. scale up clients to saturate one server replica and watch load direction / failover). Source: PR #3918 review (`Applications/RedundantServer/README.md`).
-
-### 6. Run the `UAClient.cs` sample suite against the redundant `ISession` — feedback follow-up
-
-Add an option to `Applications/RedundantClient` to run the existing `UAClient.cs` sample "suite" (browse/read/subscribe workflow) against the redundant session, so the sample exercises real client workloads over the failover-capable session. Source: PR #3918 review (`Applications/RedundantClient/Program.cs`).
-
 ## Delivered in this iteration
 
 - **Snapshot + delta-log hydration (fast time-to-ready).** Records carry a single-writer monotonic sequence; the optional `INodeStateSnapshotStore` capability (implemented by `InMemoryNodeStateStore`) publishes a chunked, atomically-swapped snapshot and a bounded delta log. `AddressSpaceSynchronizer.SeedOrHydrateAsync` hydrates a standby from the snapshot (one bulk `ILocalAddressSpace.AddOrUpdateRangeAsync`, no per-node event) then replays the delta log after the snapshot sequence, with a per-key sequence guard that makes the snapshot/delta-log/live-feed apply paths idempotent. The writer publishes an initial snapshot after seeding and re-snapshots on a write-count threshold. Streamed `EnumerateAsync`/`EnumerateValuesAsync` remains the fallback. Correctness + benchmark tests added. Documented in `Docs/HighAvailability.md`.
+- **Transparent client redundancy via DI (`ISession`-shaped).** `AddRedundantClientSession(...)` (in `Opc.Ua.Redundancy.Client`) wires the `ClientReplicaCoordinator` + an `IHostedService` lifecycle and exposes a single stable `RedundantClientSession : ISession`. The facade forwards the full `ISession`/service surface to the current leader session, re-wires events across leader swaps, remembers settable properties, blocks async calls until this replica is leader with a live session (sync members throw `BadInvalidState` until then), and is fail-closed on the record protector. `RedundantClientSessionBuilder` is the non-DI equivalent; `ClientReplicaSetBuilder`/`ClientReplicaCoordinator` remain the lower-level seam. Unit tests + `Docs/HighAvailability.md` example added.
+- **Single env-configurable server `docker-compose.yml`.** One `Applications/RedundantServer/docker-compose.yml` chooses the topology from the environment (`active-active-eventual.env` default, `active-active-strong.env`, `active-passive.env`); the two per-mode files are folded in. `docker compose config` renders for all three modes. `docker-compose.transparent.yml`/`docker-compose.loaddirection.yml` remain as distinct demos.
+- **Client compose + replication/failover demo.** A `clients`/`demo` compose profile runs 1..N `RedundantClient` replicas (`CLIENT_REPLICAS`); the README adds a step-by-step recipe to stop the active/leader replica and watch the mirrored `HighAvailability.Counter` continue.
+- **`--suite` sample workload.** `Applications/RedundantClient --suite` runs a browse/read/subscribe workload against the redundant `ISession` (a NativeAOT-safe inline mirror of the `ConsoleReferenceClient` `ClientSamples` suite; the sample AOT-publishes clean).
 
 ## Notes
 

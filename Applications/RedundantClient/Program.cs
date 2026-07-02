@@ -38,6 +38,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Redundancy;
 using Opc.Ua.Configuration;
 using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Client;
 
 namespace RedundantClient
 {
@@ -74,6 +75,10 @@ namespace RedundantClient
                 Description = "Run an in-process client replica set of this size (leader holds the session).",
                 DefaultValueFactory = _ => 1
             };
+            var suiteOption = new Option<bool>("--suite")
+            {
+                Description = "Run a browse/read/subscribe workload against the redundant session."
+            };
 
             var rootCommand = new RootCommand(
                 "OPC UA managed client sample that transparently handles server redundancy")
@@ -82,7 +87,8 @@ namespace RedundantClient
                 noSecurityOption,
                 autoAcceptOption,
                 durationOption,
-                replicasOption
+                replicasOption,
+                suiteOption
             };
 
             rootCommand.SetAction(async (parseResult, cancellationToken) => await RunAsync(
@@ -91,6 +97,7 @@ namespace RedundantClient
                     parseResult.GetValue(autoAcceptOption),
                     parseResult.GetValue(durationOption),
                     parseResult.GetValue(replicasOption),
+                    parseResult.GetValue(suiteOption),
                     cancellationToken).ConfigureAwait(false));
 
             ParseResult parseResult = rootCommand.Parse(args);
@@ -103,6 +110,7 @@ namespace RedundantClient
             bool autoAccept,
             TimeSpan duration,
             int replicas,
+            bool suite,
             CancellationToken ct)
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Information));
@@ -172,7 +180,14 @@ namespace RedundantClient
                     session.ConnectionStateChanged += OnConnectionStateChanged;
 
                     await LogRedundancyInfoAsync(session, ct).ConfigureAwait(false);
-                    await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
+                    if (suite)
+                    {
+                        await RunClientSuiteAsync(session, ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
+                    }
 
                     Console.WriteLine("Monitoring ServerStatus.CurrentTime and the replicated HighAvailability.Counter. Press Ctrl+C to stop.");
                     await RunForDurationAsync(duration, ct).ConfigureAwait(false);
@@ -182,7 +197,7 @@ namespace RedundantClient
             }
         }
 
-        private static async Task LogRedundancyInfoAsync(ManagedSession session, CancellationToken ct)
+        private static async Task LogRedundancyInfoAsync(ISession session, CancellationToken ct)
         {
             var handler = new DefaultServerRedundancyHandler();
             ServerRedundancyInfo info = await handler
@@ -215,7 +230,55 @@ namespace RedundantClient
             }
         }
 
-        private static async Task SubscribeToCurrentTimeAsync(ManagedSession session, CancellationToken ct)
+        private static async Task RunClientSuiteAsync<TSession>(TSession session, CancellationToken ct)
+            where TSession : ISession
+        {
+            // A compact browse / read / subscribe workload against the redundant session. It
+            // mirrors the Applications/ConsoleReferenceClient ClientSamples suite but is kept
+            // inline so this sample stays self-contained and NativeAOT-publishable.
+            Console.WriteLine("Suite: browsing the Objects folder...");
+            var browseDescription = new BrowseDescription
+            {
+                NodeId = ObjectIds.ObjectsFolder,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+            BrowseDescription[] nodesToBrowse = [browseDescription];
+            BrowseResponse browseResponse = await session
+                .BrowseAsync(null, null, 0u, nodesToBrowse, ct)
+                .ConfigureAwait(false);
+            if (browseResponse.Results.Count > 0)
+            {
+                var references = browseResponse.Results[0].References;
+                for (int ii = 0; ii < references.Count; ii++)
+                {
+                    Console.WriteLine("  {0} ({1})", references[ii].DisplayName, references[ii].NodeClass);
+                }
+            }
+
+            Console.WriteLine("Suite: reading server status nodes...");
+            ReadValueId[] nodesToRead =
+            [
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = VariableIds.Server_NamespaceArray, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_CurrentTime, AttributeId = Attributes.Value }
+            ];
+            ReadResponse readResponse = await session
+                .ReadAsync(null, 0, TimestampsToReturn.Both, nodesToRead, ct)
+                .ConfigureAwait(false);
+            for (int ii = 0; ii < readResponse.Results.Count; ii++)
+            {
+                Console.WriteLine("  {0} = {1}", nodesToRead[ii].NodeId, readResponse.Results[ii].WrappedValue);
+            }
+
+            Console.WriteLine("Suite: subscribing to data changes...");
+            await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
+        }
+
+        private static async Task SubscribeToCurrentTimeAsync<TSession>(TSession session, CancellationToken ct)
+            where TSession : ISession
         {
             // Ownership of the subscription transfers to the session via AddSubscription;
             // the session disposes its subscriptions when it is disposed.
@@ -314,10 +377,10 @@ namespace RedundantClient
         {
             // A shared store + lease election make exactly one replica the leader that holds the
             // session; followers stand by and take over on leader loss. This runs in-process with an
-            // in-memory store; a multi-process deployment uses a CAS-capable shared store (Redis) or
-            // Kubernetes Lease election with the same coordinator.
+            // in-memory store; a multi-process deployment can use any CAS-capable shared store and
+            // matching leader-election implementation with the same facade.
             using var store = new InMemorySharedKeyValueStore();
-            var coordinators = new List<ClientReplicaCoordinator>();
+            var sessions = new List<RedundantClientSession>();
             try
             {
                 for (int i = 0; i < replicas; i++)
@@ -329,33 +392,33 @@ namespace RedundantClient
                         store, "client-replica/leader", nodeId,
                         TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(5), TimeProvider.System);
 #pragma warning restore CA2000
-                    var options = new ClientReplicaOptions
-                    {
-                        NodeId = nodeId,
-                        Mode = ClientStandbyMode.Cold,
-                        CreateSessionAsync = token => new ValueTask<ManagedSession>(
+                    RedundantClientSession session = new RedundantClientSessionBuilder(telemetry)
+                        .WithNodeId(nodeId)
+                        .WithStandbyMode(ClientStandbyMode.Cold)
+                        .UseSession(token => new ValueTask<ManagedSession>(
                             new ManagedSessionBuilder(configuration, telemetry)
                                 .UseEndpoint(endpoint)
                                 .WithSessionName(nodeId)
                                 .WithUserIdentity(new UserIdentity())
-                                .ConnectAsync(token))
-                    };
-                    var coordinator = new ClientReplicaCoordinator(
-                        options, election, store, NullRecordProtector.Instance, telemetry);
-                    coordinator.RoleChanged += isLeader =>
+                                .ConnectAsync(token)))
+                        .UseRedundancy(election, store, NullRecordProtector.Instance)
+                        .Build();
+                    session.RoleChanged += isLeader =>
                         Console.WriteLine("{0} is now {1}", nodeId, isLeader ? "LEADER" : "follower");
-                    coordinators.Add(coordinator);
-                    await coordinator.StartAsync(ct).ConfigureAwait(false);
+                    sessions.Add(session);
+                    await session.StartAsync(ct).ConfigureAwait(false);
                 }
 
-                Console.WriteLine("Client replica set of {0} started; the leader holds the session.", replicas);
+                Console.WriteLine(
+                    "Client replica set of {0} started; each replica exposes a transparent ISession facade.",
+                    replicas);
                 await RunForDurationAsync(duration, ct).ConfigureAwait(false);
             }
             finally
             {
-                foreach (ClientReplicaCoordinator coordinator in coordinators)
+                foreach (RedundantClientSession session in sessions)
                 {
-                    await coordinator.DisposeAsync().ConfigureAwait(false);
+                    await session.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }

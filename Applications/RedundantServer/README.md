@@ -121,7 +121,7 @@ The Redis placeholder above is one way to get a shared `ISharedKeyValueStore`. T
 | `HA_RAFT_BIND` | `tcp://0.0.0.0:6560` | Local Raft transport bind address. |
 | `HA_RAFT_PEERS` | `tcp://server-b:6560,tcp://server-c:6560` | The other members' Raft transport addresses. |
 
-See `docker-compose.active-passive.yml` for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/Kubernetes.md`.
+See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/Kubernetes.md`.
 
 ## Redundancy mode and discovery settings
 
@@ -226,23 +226,44 @@ Both replicas now accept writes to `Counter` and converge: a write on either end
 
 ## Docker Compose
 
-Two compose files run the sample as containers (the build context is the repository root):
+One compose file — `docker-compose.yml` — runs the sample as a 3-replica set; the topology is chosen from the environment (the build context is the repository root). Two extra files cover the transparent and load-direction demos.
 
 ```powershell
-# Active/active: two replicas converge by CRDT gossip (no shared store), plus a client.
-docker compose -f Applications\RedundantServer\docker-compose.active-active.yml up --build
+# Active/active, eventual consistency (CRDT gossip, no shared store) — the default.
+docker compose --env-file Applications\RedundantServer\active-active-eventual.env `
+  -f Applications\RedundantServer\docker-compose.yml up --build
 
-# Active/passive: a real 3-node RaftCs cluster (shared linearizable store), plus a client.
-docker compose -f Applications\RedundantServer\docker-compose.active-passive.yml up --build
+# Active/active, strong consistency (3-node RaftCs, shared linearizable store).
+docker compose --env-file Applications\RedundantServer\active-active-strong.env `
+  -f Applications\RedundantServer\docker-compose.yml up --build
+
+# Active/passive, strong consistency (3-node RaftCs; one active writer, two hot standbys).
+docker compose --env-file Applications\RedundantServer\active-passive.env `
+  -f Applications\RedundantServer\docker-compose.yml up --build
 
 # GetEndpoints load direction over the Raft cluster (sets HA_BALANCING_URL on every replica).
 docker compose -f Applications\RedundantServer\docker-compose.loaddirection.yml up --build
 
-# Transparent redundancy: two replicas as ONE logical server behind an nginx load
-# balancer on a single virtual endpoint (opc.tcp://localhost:62543/RedundantServer).
+# Transparent redundancy: replicas as ONE logical server behind an nginx load balancer
+# on a single virtual endpoint (opc.tcp://localhost:62543/RedundantServer).
 docker compose -f Applications\RedundantServer\docker-compose.transparent.yml up --build
 ```
 
-Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer` and `opc.tcp://localhost:62544/RedundantServer`), and the bundled `RedundantClient` connects to one replica and follows the redundant set. Set `HA_HOST` to the reachable hostname (the compose files use the container/service name) so peers and clients can connect across the container network. The **active/passive compose (`docker-compose.active-passive.yml`) is a real cross-container HA deployment** — its RaftCs cluster is the shared, linearizable store (see "Strong consistency with Raft" and "Wire up a shared store for real HA" above); the active/active compose converges leaderlessly over CRDT gossip with no shared store.
+Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer`, `:62544`, `:62545`). Set `HA_HOST` to the reachable hostname (the compose file uses the container/service name) so peers and clients connect across the container network. Three replicas run in every topology (Raft needs a 3-node quorum; active/active eventual works with 2 or 3 — remove `server-c` for a 2-node run, so the replica count is configurable). The Raft topologies are real cross-container HA deployments whose RaftCs cluster is the shared, linearizable store; active/active eventual converges leaderlessly over CRDT gossip with no shared store.
+
+### Watch replication and failover
+
+The `clients` (and `demo`) profile adds one or more `RedundantClient` instances (set `CLIENT_REPLICAS` for a client replica set). To see replication and failover end to end:
+
+```powershell
+# 1. Start the server set (active/passive here) plus a client that prints the replicated Counter.
+docker compose --env-file Applications\RedundantServer\active-passive.env `
+  -f Applications\RedundantServer\docker-compose.yml --profile clients up --build
+
+# 2. In another shell, stop the active/leader replica and watch the client keep going:
+docker compose -f Applications\RedundantServer\docker-compose.yml stop server-a
+```
+
+The client's `HighAvailability.Counter` — incremented by the active replica and mirrored to the others — continues across the failover, and the client logs its reconnect/redirect to a surviving replica. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. For a client replica set, set `CLIENT_REPLICAS=3` so the leader client holds the session and the followers take over on leader loss.
 
 For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\Docs\Kubernetes.md).
