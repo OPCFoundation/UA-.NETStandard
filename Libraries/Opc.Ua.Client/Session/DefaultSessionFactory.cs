@@ -292,7 +292,9 @@ namespace Opc.Ua.Client
                         endpointDescription.SecurityPolicyUri,
                         ct).ConfigureAwait(false);
                     channelClientCertificate = clientEntry.Certificate.AddRef();
-                    channelClientCertificateChain = Session.BuildTransportChain(clientEntry);
+                    channelClientCertificateChain = configuration.SecurityConfiguration.SendCertificateChain
+                        ? Session.BuildTransportChain(clientEntry)
+                        : null;
                 }
 
                 // initialize the channel which will be created with the server.

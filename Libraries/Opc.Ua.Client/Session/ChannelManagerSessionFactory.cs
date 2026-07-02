@@ -417,7 +417,9 @@ namespace Opc.Ua.Client
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 m_manager.UpdateClientCertificate(
                     clientEntry.Certificate.AddRef(),
-                    Session.BuildTransportChain(clientEntry));
+                    configuration.SecurityConfiguration.SendCertificateChain
+                        ? Session.BuildTransportChain(clientEntry)
+                        : null);
 #pragma warning restore CA2000
             }
 
