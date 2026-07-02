@@ -14,7 +14,7 @@ See `Docs/HighAvailability.md` and `Docs/Kubernetes.md` for the full, current de
 - Secure session mirroring: `DistributedSessionManager` via the `ISessionManagerFactory` seam, encrypted + integrity-protected records (`IRecordProtector` / `AesCbcHmacRecordProtector` / `KeyRingRecordProtector`), cross-replica single-use nonce CAS, full `ActivateSession` signature verification on restore (the token is a lookup key only), and restore audit. Safe default is re-auth on failover; mirrored fast reconnect is opt-in.
 - Client token-reuse failover (`ManagedSession` / `WithTokenReuseFailover`), network redundancy endpoint alternates, and HotAndMirrored state mirroring with deterministic EventIds (`DeterministicEventIdProvider`).
 - Both consistency backends in-package over the NanoMsg transport, selectable via `UseRedundancyConsistency`: **CRDT** (eventual, active/active, leaderless) and **Raft** (`RaftCs`, linearizable strong consistency for `nonce/` / `lease/` / `election/`). Kubernetes wiring via `UseKubernetesRaftConsensus`.
-- Libraries `Opc.Ua.Redundancy`, `Opc.Ua.Redundancy.Server`, `Opc.Ua.Redundancy.Client`, `Opc.Ua.Redundancy.Kubernetes`; samples `Applications/RedundantServer` (+ `docker-compose` active/active, active/passive, Raft) and `Applications/RedundantClient`; the `Docs/Kubernetes.md` deployment guide.
+- Libraries `Opc.Ua.Redundancy`, `Opc.Ua.Redundancy.Server`, `Opc.Ua.Redundancy.Client`, `Opc.Ua.Redundancy.Kubernetes`; samples `Applications/RedundantServer` (a single env-configurable `docker-compose.yml` plus the `transparent` and `loaddirection` demo files) and `Applications/RedundantClient` (a managed client, an in-process client replica set, and a transparent `RedundantClientSession`); the `Docs/Kubernetes.md` deployment guide.
 - Security findings F1–F7 and F9 from the security assessment are closed in code.
 
 ## Remaining work
@@ -26,6 +26,15 @@ Hydration now uses a snapshot + bounded delta log (fast time-to-ready without tr
 ### 2. Monitored-item data/event queue restore on failover — deferred
 
 `SharedKeyValueSubscriptionStore` restores subscription definitions and retransmission state, but the per-monitored-item data/event queues are not restored (`RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` run on the synchronous monitored-item creation path). After failover an item resumes sampling and delivers fresh values, but values queued on the failed replica and not yet published are lost. Restoring the queues needs the monitored-item creation path to accept an async restore (or a pre-hydrated queue) without blocking. Documented as a Note in `Docs/HighAvailability.md`.
+
+### 3. Integration coverage for the transparent client session facade — follow-up
+
+`RedundantClientSession` ships with unit tests for the leadership gate (block until leader), the session swap, the `BadInvalidState` guard on synchronous members before leadership, DI resolution, and the fail-closed protector — but they drive the facade with mocked sessions. What is not yet covered is an end-to-end integration test: a real `ClientReplicaCoordinator` set against a running server that promotes a follower and runs browse/read/subscribe through the facade across a forced leader change, proving the event re-wiring, remembered-property re-apply, and block-until-leader behaviour over live sessions. This belongs in an integration suite (e.g. `Tests/Opc.Ua.Sessions.Tests` or a dedicated redundancy integration project), not the current unit tests.
+
+### 4. Optional future enhancements — not required
+
+- **Dynamic compose replica scaling.** The consolidated `Applications/RedundantServer/docker-compose.yml` runs a fixed 2–3 replica set with static per-service peer lists. A truly arbitrary replica count would need server-side peer discovery (for example DNS `tasks.<service>` enumeration or a headless-service lookup) so `docker compose up --scale server=N` self-configures its gossip/Raft/redundant peers instead of the hard-coded lists.
+- **Warm/Hot client standby in the sample.** `Applications/RedundantClient --replicas` uses `ClientStandbyMode.Cold`. A Warm/Hot demonstration (the standby keeps a connected session, or a session with sampling-only subscriptions, and enables publishing on promotion) plus running `--suite` through the promoted leader's `RedundantClientSession` would exercise those standby paths end to end.
 
 ## Delivered in this iteration
 
