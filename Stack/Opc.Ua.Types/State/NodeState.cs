@@ -2537,10 +2537,23 @@ namespace Opc.Ua
             NodeStateReportEventAsyncHandler? onReportEventAsync = OnReportEventAsync;
             if (onReportEventAsync != null)
             {
-                ValueTask report = onReportEventAsync(context, this, e, default);
-                if (!report.IsCompletedSuccessfully)
+                if (SynchronizationContext.Current == null)
                 {
-                    report.AsTask().GetAwaiter().GetResult();
+                    // No ambient synchronization context (the normal server case): drive inline
+                    // and block only on the rare genuinely-asynchronous sink.
+                    ValueTask report = onReportEventAsync(context, this, e, default);
+                    if (!report.IsCompletedSuccessfully)
+                    {
+                        report.AsTask().GetAwaiter().GetResult();
+                    }
+                }
+                else
+                {
+                    // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
+                    // run the sink on the thread pool so a context-capturing continuation cannot
+                    // deadlock the blocking wait below.
+                    Task.Run(() => onReportEventAsync(context, this, e, CancellationToken.None).AsTask())
+                        .GetAwaiter().GetResult();
                 }
             }
 
@@ -2857,10 +2870,25 @@ namespace Opc.Ua
                 // asynchronous sink blocks here - only synchronous callers pay that cost.
                 if (OnStateChangedAsync != null || StateChangedAsync != null)
                 {
-                    ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
-                    if (!raise.IsCompletedSuccessfully)
+                    if (SynchronizationContext.Current == null)
                     {
-                        raise.AsTask().GetAwaiter().GetResult();
+                        // No ambient synchronization context (the normal server case): drive inline
+                        // and block only on the rare genuinely-asynchronous sink.
+                        ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
+                        if (!raise.IsCompletedSuccessfully)
+                        {
+                            raise.AsTask().GetAwaiter().GetResult();
+                        }
+                    }
+                    else
+                    {
+                        // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
+                        // run the sinks on the thread pool so a context-capturing continuation
+                        // cannot deadlock the blocking wait below.
+                        Task.Run(() =>
+                            RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
+                                .AsTask())
+                            .GetAwaiter().GetResult();
                     }
                 }
 

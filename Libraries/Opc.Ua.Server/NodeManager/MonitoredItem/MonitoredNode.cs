@@ -297,10 +297,6 @@ namespace Opc.Ua.Server
             {
                 // The channel was completed during shutdown/disposal.
             }
-            catch (OperationCanceledException)
-            {
-                // Shutdown/disposal.
-            }
         }
 
         /// <summary>
@@ -403,10 +399,6 @@ namespace Opc.Ua.Server
             catch (ChannelClosedException)
             {
                 // The channel was completed during shutdown/disposal.
-            }
-            catch (OperationCanceledException)
-            {
-                // Shutdown/disposal.
             }
         }
 

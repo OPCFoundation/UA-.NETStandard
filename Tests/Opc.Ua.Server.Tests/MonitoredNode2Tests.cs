@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert – QueueValue should never have been called (permission denied)
             monitoredItemMock.Verify(
-                m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()),
+                m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()),
                 Times.Never);
 
             // And validate was only called once (cached bad result)
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server.Tests
             using var firstItemProcessed = new ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
             monitoredItemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Server.Tests
             using var delivered = new ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> itemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
             itemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(delivered.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
@@ -1178,7 +1178,10 @@ namespace Opc.Ua.Server.Tests
             await monitoredNode
                 .OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value)
                 .ConfigureAwait(false);
-            delivered.Wait(TimeSpan.FromSeconds(30));
+            Assert.That(
+                delivered.Wait(TimeSpan.FromSeconds(30)),
+                Is.True,
+                "the value change was not delivered within the timeout");
             monitoredNode.Dispose();
 
             var deliveredValues = itemMock.Invocations
@@ -1235,7 +1238,7 @@ namespace Opc.Ua.Server.Tests
             using var delivered = new ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> itemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
             itemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(delivered.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
@@ -1254,7 +1257,10 @@ namespace Opc.Ua.Server.Tests
 
             releaseRead.Set();
             await produce.ConfigureAwait(false);
-            delivered.Wait(TimeSpan.FromSeconds(30));
+            Assert.That(
+                delivered.Wait(TimeSpan.FromSeconds(30)),
+                Is.True,
+                "the value change was not delivered within the timeout");
             monitoredNode.Dispose();
 
             var deliveredValues = itemMock.Invocations
@@ -1303,7 +1309,10 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             await monitoredNode.OnReportEventAsync(context, node, eventState).ConfigureAwait(false);
-            delivered.Wait(TimeSpan.FromSeconds(30));
+            Assert.That(
+                delivered.Wait(TimeSpan.FromSeconds(30)),
+                Is.True,
+                "the event was not delivered within the timeout");
             monitoredNode.Dispose();
 
             int queueCount = eventItemMock.Invocations
@@ -1394,7 +1403,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
             monitoredItemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
@@ -1460,7 +1469,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
             monitoredItemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
