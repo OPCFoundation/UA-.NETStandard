@@ -54,8 +54,9 @@ namespace Opc.Ua.Server
         /// <param name="serverCertificateProvider">
         /// Resolves the server's instance certificate for a given security
         /// policy URI (used by distributed managers to reconstruct a mirrored
-        /// session). May return <c>null</c> when no certificate is configured
-        /// for the policy.
+        /// session). Returns a new caller-owned certificate handle that the
+        /// session manager disposes after the session takes its own reference,
+        /// or <c>null</c> when no certificate is configured for the policy.
         /// </param>
         /// <returns>The session manager to use.</returns>
         ISessionManager Create(

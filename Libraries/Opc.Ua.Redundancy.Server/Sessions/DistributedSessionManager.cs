@@ -74,8 +74,10 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="nonceRegistry">The cross-replica single-use nonce registry.</param>
         /// <param name="serverCertificateProvider">
         /// Resolves the shared server <c>ApplicationInstanceCertificate</c> for a
-        /// security policy URI. The returned certificate must be
-        /// long-lived (owned by the caller); the session does not dispose it.
+        /// security policy URI. Returns a new caller-owned certificate handle that
+        /// the session manager disposes once the restored session has taken its own
+        /// reference; returns <c>null</c> when no certificate is configured for the
+        /// policy.
         /// </param>
         /// <param name="options">The distributed session options.</param>
         /// <param name="timeProvider">An optional time provider.</param>
@@ -331,7 +333,10 @@ namespace Opc.Ua.Redundancy.Server
                 return null;
             }
 
-            Certificate? serverCertificate = m_serverCertificateProvider(entry.SecurityPolicyUri);
+            // Caller-owned handle; disposed at method scope exit after the created
+            // session has taken its own ref-counted handle (the Session constructor
+            // AddRefs the server certificate).
+            using Certificate? serverCertificate = m_serverCertificateProvider(entry.SecurityPolicyUri);
             if (serverCertificate == null)
             {
                 m_logger.LogWarning(

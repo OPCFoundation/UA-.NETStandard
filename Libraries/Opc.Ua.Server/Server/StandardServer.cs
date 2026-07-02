@@ -4070,7 +4070,13 @@ namespace Opc.Ua.Server
         /// </summary>
         private Certificate? GetInstanceCertificateForPolicy(string securityPolicyUri)
         {
-            return CertificateManager?.GetInstanceCertificate(securityPolicyUri)?.Certificate;
+            // Acquire a caller-owned handle for the policy's instance certificate
+            // and return an independent ref-counted handle to the session manager,
+            // which disposes it after the restored session takes its own reference
+            // (the Session constructor AddRefs the server certificate).
+            using CertificateEntry? entry = CertificateManager?
+                .AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri);
+            return entry?.Certificate?.AddRef();
         }
 
         /// <summary>
