@@ -120,10 +120,10 @@ namespace Opc.Ua.Server.Tests
                 ?? throw new InvalidOperationException("Field m_messageQueue not found");
             object messageQueue = queueField.GetValue(subscription)
                 ?? throw new InvalidOperationException("m_messageQueue is null");
-            FieldInfo field = messageQueue.GetType().GetField("m_sentMessages",
-                BindingFlags.NonPublic | BindingFlags.Instance)
-                ?? throw new InvalidOperationException("Field m_sentMessages not found");
-            var sentMessages = (List<NotificationMessage>)field.GetValue(messageQueue);
+            PropertyInfo sentMessagesProperty = messageQueue.GetType().GetProperty("SentMessages",
+                BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Property SentMessages not found");
+            var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue);
             sentMessages.AddRange(messages);
         }
 
