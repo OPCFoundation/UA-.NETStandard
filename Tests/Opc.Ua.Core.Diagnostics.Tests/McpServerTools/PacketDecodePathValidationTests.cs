@@ -180,8 +180,12 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
                     : null;
             }
 
-            Assert.That(assemblyPath, Is.Not.Null.And.Not.Empty);
-            Assert.That(File.Exists(assemblyPath), Is.True);
+            if (string.IsNullOrEmpty(assemblyPath) || !File.Exists(assemblyPath))
+            {
+                Assert.Ignore(
+                    "The net10.0 Opc.Ua.Mcp assembly is not built for this CI leg " +
+                    "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
+            }
 
             return Assembly.LoadFrom(assemblyPath!);
         }

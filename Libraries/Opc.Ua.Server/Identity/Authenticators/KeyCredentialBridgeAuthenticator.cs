@@ -155,7 +155,7 @@ namespace Opc.Ua.Server
                 token.Nonce,
                 token.IssuedAt);
 
-            if (!FixedTimeEquals(suppliedProof, expectedProof))
+            if (!CryptoUtils.FixedTimeEquals(suppliedProof, expectedProof))
             {
                 return Reject(StatusCodes.BadIdentityTokenRejected, "KeyCredential proof validation failed.");
             }
@@ -297,21 +297,6 @@ namespace Opc.Ua.Server
                 issuedAt.ToString(CultureInfo.InvariantCulture);
             using var hmac = new HMACSHA256(secret);
             return hmac.ComputeHash(Encoding.UTF8.GetBytes(input));
-        }
-
-        private static bool FixedTimeEquals(byte[] left, byte[] right)
-        {
-            if (left.Length != right.Length)
-            {
-                return false;
-            }
-
-            int difference = 0;
-            for (int i = 0; i < left.Length; i++)
-            {
-                difference |= left[i] ^ right[i];
-            }
-            return difference == 0;
         }
 
         private static string GetString(JsonElement root, string propertyName)

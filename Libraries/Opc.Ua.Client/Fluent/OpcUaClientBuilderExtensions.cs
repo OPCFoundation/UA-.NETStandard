@@ -631,6 +631,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 sp => new ManagedSessionAccessor(sp).ConnectAsync);
+            services.TryAddSingleton<IClientFailoverCoordinator, ClientFailoverCoordinator>();
 
             services.TryAddSingleton(sp =>
             {
@@ -789,6 +790,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     builder.WithServerRedundancy();
                 }
+                if (!options.Session.NetworkRedundancy.AlternateEndpoints.IsEmpty)
+                {
+                    builder.WithNetworkRedundancy(
+                        options.Session.NetworkRedundancy.AlternateEndpoints);
+                }
                 if (options.Session.TransferSubscriptionsOnRecreate)
                 {
                     builder.WithTransferSubscriptionsOnRecreate();
@@ -797,7 +803,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     builder.WithPoolNotifications();
                 }
-
                 IClientChannelManager? mgr = m_sp.GetService<IClientChannelManager>();
                 if (mgr != null)
                 {
@@ -837,5 +842,6 @@ namespace Microsoft.Extensions.DependencyInjection
             private Task<ManagedSession>? m_connectTask;
             private readonly Lock m_gate = new();
         }
+
     }
 }

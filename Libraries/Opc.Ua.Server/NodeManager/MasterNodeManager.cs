@@ -1317,7 +1317,14 @@ namespace Opc.Ua.Server
             return null;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Registers a set of node ids.
+        /// </summary>
+        /// <remarks>
+        /// The default master node manager returns the requested node ids unchanged, so registered-node
+        /// results remain stable across replicas without additional mirroring.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="nodesToRegister"/> is <c>null</c>.</exception>
         public virtual void RegisterNodes(
             OperationContext context,
             ArrayOf<NodeId> nodesToRegister,
@@ -2162,6 +2169,7 @@ namespace Opc.Ua.Server
                     Manager = nodeManager!,
                     View = view,
                     NodeToBrowse = handle,
+                    RequestedNodeId = nodeToBrowse.NodeId,
                     MaxResultsToReturn = maxReferencesPerNode,
                     BrowseDirection = nodeToBrowse.BrowseDirection,
                     ReferenceTypeId = nodeToBrowse.ReferenceTypeId,

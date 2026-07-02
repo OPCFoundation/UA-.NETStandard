@@ -494,6 +494,44 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Opt into token-reuse fast reconnect on failover (OPC UA Part 4 §6.6).
+        /// When enabled, a failover to a redundant server
+        /// re-activates the existing session by reusing the current
+        /// <c>AuthenticationToken</c> instead of creating a new session, and
+        /// falls back to re-authentication if the standby rejects the token.
+        /// </summary>
+        /// <remarks>
+        /// Disabled by default (re-authentication on failover). Requires the
+        /// server side to mirror session state; the standby still performs the
+        /// full <c>ActivateSession</c> signature validation, so the token alone
+        /// never admits a session.
+        /// </remarks>
+        public ManagedSessionBuilder WithTokenReuseFailover(bool enable = true)
+        {
+            m_options = m_options with
+            {
+                EnableTokenReuseFailover = enable
+            };
+            return this;
+        }
+
+        /// <summary>
+        /// Configures non-transparent network redundancy endpoints for one logical server.
+        /// </summary>
+        public ManagedSessionBuilder WithNetworkRedundancy(
+            ArrayOf<ConfiguredEndpoint> alternateEndpoints)
+        {
+            m_options = m_options with
+            {
+                NetworkRedundancy = new NetworkRedundancyOptions
+                {
+                    AlternateEndpoints = alternateEndpoints
+                }
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Enable activator-level pooling of V2 subscription
         /// notification payload instances. When enabled, the V2
         /// subscription dispatcher calls
@@ -587,36 +625,48 @@ namespace Opc.Ua.Client
             IReconnectPolicy reconnect =
                 m_reconnectPolicy ?? new ReconnectPolicy(opts.ReconnectPolicy);
 
-            IServerRedundancyHandler? redundancy = m_redundancyHandler ??
-                (opts.EnableServerRedundancy
-                    ? new DefaultServerRedundancyHandler()
-                    : null);
+            // Redundancy is transparent and on by default: a non-redundant server simply
+            // reports RedundancySupport.None and no failover occurs, while transparent and
+            // non-transparent redundant servers are handled without any special connect API.
+            IServerRedundancyHandler redundancy = m_redundancyHandler ??
+                new DefaultServerRedundancyHandler(
+                    new DefaultRedundantServerEndpointResolver(m_telemetry),
+                    opts.TimeProvider);
 
             IClientChannelManager? channelManager = m_channelManager;
-#pragma warning disable CA2000 // Ownership follows the managed session lifetime; TODO: model owned disposal explicitly.
-            if (channelManager == null && m_httpsResilience != null)
+            ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
+            try
             {
-                ServiceProviderHttpClientFactory httpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
-                channelManager = new ClientChannelManager(
-                    m_configuration,
-                    m_telemetry,
-                    BuildChannelBindings(
-                        new HttpsTransportChannelBindings(
-                            DefaultTransportBindingRegistry.WithDefaultTcp(),
-                            httpClientFactory)),
-                    reconnectPolicy: null,
-                    timeProvider: opts.TimeProvider);
-            }
-            else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
-            {
-                channelManager = new ClientChannelManager(
-                    m_configuration,
-                    m_telemetry,
-                    BuildChannelBindings(DefaultTransportBindingRegistry.WithDefaultTcp()),
-                    reconnectPolicy: null,
-                    timeProvider: opts.TimeProvider);
-            }
+#pragma warning disable CA2000 // Channel manager lifetime follows the managed session; TODO: model owned disposal explicitly.
+                if (channelManager == null && m_httpsResilience != null)
+                {
+                    ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
+                    channelManager = new ClientChannelManager(
+                        m_configuration,
+                        m_telemetry,
+                        BuildChannelBindings(
+                            new HttpsTransportChannelBindings(
+                                DefaultTransportBindingRegistry.WithDefaultTcp(),
+                                ownedHttpClientFactory)),
+                        reconnectPolicy: null,
+                        timeProvider: opts.TimeProvider);
+                    ownedHttpClientFactory = null;
+                }
+                else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
+                {
+                    channelManager = new ClientChannelManager(
+                        m_configuration,
+                        m_telemetry,
+                        BuildChannelBindings(DefaultTransportBindingRegistry.WithDefaultTcp()),
+                        reconnectPolicy: null,
+                        timeProvider: opts.TimeProvider);
+                }
 #pragma warning restore CA2000
+            }
+            finally
+            {
+                ownedHttpClientFactory?.Dispose();
+            }
 
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)
@@ -647,9 +697,11 @@ namespace Opc.Ua.Client
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
                 opts.PoolNotifications,
+                opts.EnableTokenReuseFailover,
                 opts.IdentityProvider,
                 opts.TimeProvider,
                 channelManager,
+                opts.NetworkRedundancy,
                 ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)

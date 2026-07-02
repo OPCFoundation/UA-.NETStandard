@@ -316,12 +316,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        public virtual ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
+        public virtual async ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             // only store subscriptions if durable subscriptions are enabled
             if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
-                return default;
+                return;
             }
             var subscriptionsToStore = new List<IStoredSubscription>();
 
@@ -337,12 +337,14 @@ namespace Opc.Ua.Server
 
             if (subscriptionsToStore.Count == 0)
             {
-                return default;
+                return;
             }
 
             try
             {
-                if (m_subscriptionStore.StoreSubscriptions(subscriptionsToStore))
+                if (await m_subscriptionStore
+                    .StoreSubscriptionsAsync(subscriptionsToStore, cancellationToken)
+                    .ConfigureAwait(false))
                 {
                     m_logger.LogInformation("{Count} Subscriptions stored", subscriptionsToStore.Count);
                 }
@@ -351,7 +353,6 @@ namespace Opc.Ua.Server
             {
                 m_logger.LogError(ex, "Failed to store {Count} subscriptions", subscriptionsToStore.Count);
             }
-            return default;
         }
 
         /// <summary>
@@ -376,7 +377,9 @@ namespace Opc.Ua.Server
 
             try
             {
-                restoreResult = m_subscriptionStore.RestoreSubscriptions();
+                restoreResult = await m_subscriptionStore
+                    .RestoreSubscriptionsAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -417,7 +420,9 @@ namespace Opc.Ua.Server
 
             m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
 
-            m_subscriptionStore.OnSubscriptionRestoreComplete(createdSubscriptions);
+            await m_subscriptionStore
+                .OnSubscriptionRestoreCompleteAsync(createdSubscriptions, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>

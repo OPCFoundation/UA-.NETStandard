@@ -1294,11 +1294,8 @@ namespace Opc.Ua
             {
                 return;
             }
-#if NET8_0_OR_GREATER
-            CryptographicOperations.ZeroMemory(buffer);
-#else
-            Array.Clear(buffer, 0, buffer.Length);
-#endif
+
+            CryptoUtils.ZeroMemory(buffer);
         }
     }
 }

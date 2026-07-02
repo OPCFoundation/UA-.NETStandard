@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -56,7 +58,14 @@ namespace Quickstarts.Servers
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
 
-        public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
+        public ValueTask<bool> StoreSubscriptionsAsync(
+            IEnumerable<IStoredSubscription> subscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<bool>(StoreSubscriptionsCore(subscriptions));
+        }
+
+        private bool StoreSubscriptionsCore(IEnumerable<IStoredSubscription> subscriptions)
         {
             try
             {
@@ -99,7 +108,13 @@ namespace Quickstarts.Servers
             return false;
         }
 
-        public RestoreSubscriptionResult RestoreSubscriptions()
+        public ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<RestoreSubscriptionResult>(RestoreSubscriptionsCore());
+        }
+
+        private RestoreSubscriptionResult RestoreSubscriptionsCore()
         {
             string filePath = Path.Combine(s_storage_path, kFilename);
             try
@@ -152,7 +167,9 @@ namespace Quickstarts.Servers
                 s_storage_path)!;
         }
 
-        public void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions)
+        public ValueTask OnSubscriptionRestoreCompleteAsync(
+            Dictionary<uint, ArrayOf<uint>> createdSubscriptions,
+            CancellationToken cancellationToken = default)
         {
             string filePath = Path.Combine(s_storage_path, kFilename);
 
@@ -174,6 +191,7 @@ namespace Quickstarts.Servers
                 IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value.Memory.ToArray());
                 m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
+            return default;
         }
 
         public static void EncodeSubscription(

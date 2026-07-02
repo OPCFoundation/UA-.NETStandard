@@ -102,6 +102,28 @@ namespace Opc.Ua.Client
         public bool EnableServerRedundancy { get; init; }
 
         /// <summary>
+        /// When <c>true</c>, a failover to a redundant server re-activates the
+        /// existing session on the new server by reusing the current
+        /// <c>AuthenticationToken</c> (OPC UA Part 4 §6.6) instead of
+        /// creating a new session, falling back to re-authentication if the
+        /// standby rejects the token. Default: <c>false</c> (re-auth on
+        /// failover). Requires the server side to mirror session state; the
+        /// standby still performs the full <c>ActivateSession</c> signature
+        /// validation, so the token alone never admits a session.
+        /// </summary>
+        public bool EnableTokenReuseFailover { get; init; }
+
+        /// <summary>
+        /// Non-transparent network redundancy endpoints for the same logical
+        /// server. On network reconnect, <see cref="ManagedSession"/> can
+        /// recreate the secure channel against the next endpoint while keeping
+        /// the same logical session and subscriptions. Transparent network
+        /// redundancy is handled by the network infrastructure and should not
+        /// be configured here.
+        /// </summary>
+        public NetworkRedundancyOptions NetworkRedundancy { get; init; } = new();
+
+        /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
         /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so
         /// <see cref="ManagedSession.SubscriptionManager"/> is available.

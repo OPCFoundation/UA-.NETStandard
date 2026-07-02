@@ -1,0 +1,79 @@
+# GetEndpoints load direction over a strongly-consistent (Raft) redundant set.
+#
+# Builds on docker-compose.active-passive.yml: a 3-node RaftCs cluster forms the shared, linearizable
+# store that the load-direction signals (each replica's health ServiceLevel, load weight, and
+# endpoints) are published to and read from across containers. HA_BALANCING_URL enables the
+# GetEndpoints director on every replica: a GetEndpoints request arriving on that virtual
+# discovery URL is answered with the best replica's endpoints (the active writer in this
+# active/passive set), while plain discovery on a replica's own URL is unaffected.
+#
+# In a real deployment a load balancer / Kubernetes Service fronts the replicas at
+# HA_BALANCING_URL and forwards the discovery request to any replica; this compose sets the
+# variable to illustrate the server-side wiring (there is no LB container here, so point a
+# client at a replica's own URL to observe normal discovery, and use HA_BALANCING_URL as the
+# address your LB/Service would expose).
+#
+# The build context is the repository root. Run from the repo root:
+#   docker compose -f Applications/RedundantServer/docker-compose.loaddirection.yml up --build
+
+x-ld-server: &ld-server
+  build:
+    context: ../..
+    dockerfile: Applications/RedundantServer/Dockerfile
+  image: opcua-redundant-server
+  command: ["--port", "62543"]
+
+services:
+  server-a:
+    <<: *ld-server
+    hostname: server-a
+    environment:
+      HA_HOST: server-a
+      HA_NODE_ID: replica-a
+      HA_MODE: ap
+      HA_CONSISTENCY: strong
+      REDUNDANCY_MODE: hot
+      HA_BALANCING_URL: "opc.tcp://ha-lb:62543/RedundantServer"
+      HA_RAFT_ID: "1"
+      HA_RAFT_MEMBERS: "3"
+      HA_RAFT_BIND: "tcp://0.0.0.0:6560"
+      HA_RAFT_PEERS: "tcp://server-b:6560,tcp://server-c:6560"
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://server-b:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-c|RedundantServer replica-c|opc.tcp://server-c:62543/RedundantServer"
+    ports:
+      - "62543:62543"
+
+  server-b:
+    <<: *ld-server
+    hostname: server-b
+    environment:
+      HA_HOST: server-b
+      HA_NODE_ID: replica-b
+      HA_MODE: ap
+      HA_CONSISTENCY: strong
+      REDUNDANCY_MODE: hot
+      HA_BALANCING_URL: "opc.tcp://ha-lb:62543/RedundantServer"
+      HA_RAFT_ID: "2"
+      HA_RAFT_MEMBERS: "3"
+      HA_RAFT_BIND: "tcp://0.0.0.0:6560"
+      HA_RAFT_PEERS: "tcp://server-a:6560,tcp://server-c:6560"
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://server-a:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-c|RedundantServer replica-c|opc.tcp://server-c:62543/RedundantServer"
+    ports:
+      - "62544:62543"
+
+  server-c:
+    <<: *ld-server
+    hostname: server-c
+    environment:
+      HA_HOST: server-c
+      HA_NODE_ID: replica-c
+      HA_MODE: ap
+      HA_CONSISTENCY: strong
+      REDUNDANCY_MODE: hot
+      HA_BALANCING_URL: "opc.tcp://ha-lb:62543/RedundantServer"
+      HA_RAFT_ID: "3"
+      HA_RAFT_MEMBERS: "3"
+      HA_RAFT_BIND: "tcp://0.0.0.0:6560"
+      HA_RAFT_PEERS: "tcp://server-a:6560,tcp://server-b:6560"
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://server-a:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://server-b:62543/RedundantServer"
+    ports:
+      - "62545:62543"

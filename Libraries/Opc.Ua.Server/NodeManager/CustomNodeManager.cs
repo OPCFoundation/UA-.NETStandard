@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -49,7 +50,8 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable
+    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable,
+        ILocalAddressSpaceSource
     {
         /// <summary>
         /// Initializes the node manager.
@@ -209,6 +211,20 @@ namespace Opc.Ua.Server
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
             return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        ILocalAddressSpace ILocalAddressSpaceSource.CreateLocalAddressSpace()
+        {
+            return new PredefinedNodesAddressSpace(
+                SystemContext,
+                PredefinedNodes,
+                (node, cancellationToken) =>
+                {
+                    AddPredefinedNode(SystemContext, node);
+                    return default;
+                },
+                (nodeId, cancellationToken) => new ValueTask<bool>(DeleteNode(SystemContext, nodeId)));
         }
 
         /// <summary>

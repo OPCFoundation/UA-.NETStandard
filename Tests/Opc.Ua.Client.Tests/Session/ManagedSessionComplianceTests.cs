@@ -732,6 +732,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(bool),
                         typeof(bool),
                         typeof(bool),
+                        typeof(bool),
+                        typeof(NetworkRedundancyOptions),
                         typeof(IClientChannelManager)
                     ],
                     null);
@@ -756,6 +758,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     false,
                     false,
                     false,
+                    false,
+                    null,
                     null
                 ]);
 

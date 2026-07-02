@@ -71,6 +71,19 @@ namespace Opc.Ua.Server
         /// </summary>
         protected TimeProvider TimeProvider { get; }
 
+        /// <summary>
+        /// Gets or sets the optional redundant server-set provider consulted by
+        /// <c>FindServers</c>.
+        /// </summary>
+        public IRedundantServerSetProvider? RedundantServerSetProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional load-direction seam consulted by
+        /// <c>GetEndpoints</c> to direct a Client to a peer Server (extension
+        /// beyond OPC 10000-4 §6.6; opt-in and gated).
+        /// </summary>
+        public IGetEndpointsDirector? GetEndpointsDirector { get; set; }
+
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
@@ -173,6 +186,8 @@ namespace Opc.Ua.Server
                     // add to list of servers to return.
                     servers.Add(application);
                 }
+
+                AddRedundantServerSetDescriptions(serverUris, uniqueServers, servers);
             }
             finally
             {
@@ -184,6 +199,32 @@ namespace Opc.Ua.Server
                 ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                 Servers = servers
             };
+        }
+
+        private void AddRedundantServerSetDescriptions(
+            ArrayOf<string> serverUris,
+            Dictionary<string, ApplicationDescription> uniqueServers,
+            List<ApplicationDescription> servers)
+        {
+            IRedundantServerSetProvider? provider = RedundantServerSetProvider;
+            if (provider == null)
+            {
+                return;
+            }
+
+            foreach (ApplicationDescription peer in provider.GetRedundantServerSet())
+            {
+                string? applicationUri = peer.ApplicationUri;
+                if (string.IsNullOrEmpty(applicationUri) ||
+                    uniqueServers.ContainsKey(applicationUri) ||
+                    (serverUris.Count > 0 && !serverUris.Contains(uri => uri == applicationUri)))
+                {
+                    continue;
+                }
+
+                uniqueServers.Add(applicationUri, peer);
+                servers.Add(peer);
+            }
         }
 
         /// <inheritdoc/>
@@ -211,6 +252,21 @@ namespace Opc.Ua.Server
             finally
             {
                 m_semaphoreSlim.Release();
+            }
+
+            // consult the optional load-direction seam; when it directs the
+            // Client to a peer it replaces the local endpoints (extension
+            // beyond OPC 10000-4 §6.6; opt-in and gated).
+            IGetEndpointsDirector? director = GetEndpointsDirector;
+            if (director != null)
+            {
+                (bool redirect, ArrayOf<EndpointDescription> directed) = await director
+                    .TryGetDirectedEndpointsAsync(endpointUrl, endpoints, requestLifetime.CancellationToken)
+                    .ConfigureAwait(false);
+                if (redirect)
+                {
+                    endpoints = directed;
+                }
             }
 
             return new GetEndpointsResponse
@@ -3963,6 +4019,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// An optional factory used to build the server's session manager. When
+        /// <c>null</c> (the default), the built-in <see cref="SessionManager"/>
+        /// is used. Set this before the server starts (the hosting layer wires
+        /// it from dependency injection) to plug in a custom session manager,
+        /// e.g. a distributed one for high availability.
+        /// </summary>
+        public ISessionManagerFactory? SessionManagerFactory { get; set; }
+
+        /// <summary>
         /// Creates the session manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -3972,7 +4037,21 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
+            if (SessionManagerFactory != null)
+            {
+                return SessionManagerFactory.Create(
+                    server, configuration, TimeProvider, GetInstanceCertificateForPolicy);
+            }
             return new SessionManager(server, configuration, TimeProvider);
+        }
+
+        /// <summary>
+        /// Resolves the server's instance certificate for a security policy URI,
+        /// for use by a custom session manager factory.
+        /// </summary>
+        private Certificate? GetInstanceCertificateForPolicy(string securityPolicyUri)
+        {
+            return CertificateManager?.GetInstanceCertificate(securityPolicyUri)?.Certificate;
         }
 
         /// <summary>

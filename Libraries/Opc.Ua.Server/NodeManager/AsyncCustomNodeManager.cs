@@ -52,7 +52,8 @@ namespace Opc.Ua.Server
     public class AsyncCustomNodeManager :
         IAsyncNodeManager,
         INodeIdFactory,
-        IDisposable
+        IDisposable,
+        ILocalAddressSpaceSource
     {
         /// <summary>
         /// Initializes the node manager.
@@ -241,6 +242,16 @@ namespace Opc.Ua.Server
             }
 
             return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        ILocalAddressSpace ILocalAddressSpaceSource.CreateLocalAddressSpace()
+        {
+            return new PredefinedNodesAddressSpace(
+                SystemContext,
+                PredefinedNodes,
+                (node, cancellationToken) => AddPredefinedNodeAsync(SystemContext, node, cancellationToken),
+                (nodeId, cancellationToken) => DeleteNodeAsync(SystemContext, nodeId, cancellationToken));
         }
 
         /// <summary>
