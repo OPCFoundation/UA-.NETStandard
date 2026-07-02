@@ -37,6 +37,40 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Identity
 {
     /// <summary>
+    /// A read-only, non-disposable view over a verification key returned by
+    /// <see cref="IIssuerKeyResolver.GetKeysAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// Consumers verify JWS signatures through this view. The concrete key
+    /// (and the underlying asymmetric algorithm) remains owned and disposed
+    /// by the resolver — which typically caches and reuses keys across calls
+    /// — so a consumer never needs, and is deliberately unable, to dispose it.
+    /// </remarks>
+    public interface IIssuerVerificationKey
+    {
+        /// <summary>
+        /// JWK <c>kid</c> matched against the JWT header. May be
+        /// <see langword="null"/>.
+        /// </summary>
+        string? KeyId { get; }
+
+        /// <summary>
+        /// JWS algorithm (RFC 7518) this key verifies with.
+        /// </summary>
+        string Algorithm { get; }
+
+        /// <summary>
+        /// Verifies an RFC 7515 signed JWS over the supplied signing input
+        /// (the canonical
+        /// <c>base64url(header) + "." + base64url(payload)</c> bytes).
+        /// </summary>
+        /// <param name="signingInput">The canonical signing-input bytes.</param>
+        /// <param name="signature">The decoded JWS signature bytes.</param>
+        /// <returns><see langword="true"/> if the signature is valid.</returns>
+        bool VerifySignature(byte[] signingInput, byte[] signature);
+    }
+
+    /// <summary>
     /// A JSON Web Key (JWK) — the subset of RFC 7517 that the JWT
     /// authenticator needs to verify a signature.
     /// </summary>
@@ -54,7 +88,7 @@ namespace Opc.Ua.Identity
     /// incompatible with the multi-party OPC UA authorization model.
     /// </para>
     /// </remarks>
-    public sealed class IssuerVerificationKey : IDisposable
+    public sealed class IssuerVerificationKey : IIssuerVerificationKey, IDisposable
     {
         private readonly AsymmetricAlgorithm m_key;
         private bool m_disposed;
@@ -212,11 +246,13 @@ namespace Opc.Ua.Identity
         /// each in turn).
         /// </summary>
         /// <remarks>
-        /// Returned keys are owned by the resolver; callers MUST NOT
-        /// dispose them. The lifetime is at least the duration of the
-        /// returned <see cref="ValueTask{TResult}"/>.
+        /// The returned <see cref="IIssuerVerificationKey"/> values are a
+        /// non-disposable view: the resolver retains ownership of the concrete
+        /// keys (and typically caches them), so callers verify signatures
+        /// through the view without managing its lifetime. The lifetime is at
+        /// least the duration of the returned <see cref="ValueTask{TResult}"/>.
         /// </remarks>
-        ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+        ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
             string? keyId,
             CancellationToken ct = default);
     }

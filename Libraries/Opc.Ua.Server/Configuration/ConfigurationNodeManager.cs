@@ -661,11 +661,16 @@ namespace Opc.Ua.Server
                     // Subject changed mid-rotation: use the manager registry's
                     // currently-registered cert for this type to identify the
                     // configured identifier (matches by certificate type).
-                    CertificateEntry currentEntry = registryFallback
-                        .GetApplicationCertificate(certificateTypeId) ??
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidArgument,
-                            "No existing certificate found for the specified certificate type and subject name.");
+                    using (CertificateEntry? currentEntry = registryFallback
+                        .AcquireApplicationCertificateByType(certificateTypeId))
+                    {
+                        if (currentEntry == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidArgument,
+                                "No existing certificate found for the specified certificate type and subject name.");
+                        }
+                    }
 
                     existingCertIdentifier = certificateGroup.ApplicationCertificates
                         .ToList()
@@ -762,7 +767,8 @@ namespace Opc.Ua.Server
                                             newCert,
                                             certificateGroup.TemporaryApplicationCertificate))
                                     {
-                                        // CA2000: disposed in the finally block of the surrounding try.
+                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
+                                        // cannot track disposal across the for-retry loop / try / catch structure.
 #pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certificateGroup.TemporaryApplicationCertificate,
@@ -782,7 +788,8 @@ namespace Opc.Ua.Server
                                             throw new ServiceResultException(
                                                 StatusCodes.BadSecurityChecksFailed,
                                                 "A private key was not found");
-                                        // CA2000: disposed in the finally block of the surrounding try.
+                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
+                                        // cannot track disposal across the for-retry loop / try / catch structure.
 #pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certWithPrivateKey,
@@ -829,12 +836,14 @@ namespace Opc.Ua.Server
                                 // But it seems to work on .net 9 - and we prefer that over files
                                 const bool noEphemeralKeySet = false;
 #endif
-#pragma warning disable CA2000 // Dispose objects before losing scope
+                                // CA2000: certWithPrivateKey is a using declaration (disposed at scope exit);
+                                // the analyzer mis-flags it inside the for-retry loop with break.
+#pragma warning disable CA2000
                                 using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                     privateKey.ToArray(),
                                     passwordProvider?.GetPassword(existingCertIdentifier),
                                     noEphemeralKeySet);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
                                 try
                                 {
                                     updateCertificate.CertificateWithPrivateKey?.Dispose();
@@ -966,8 +975,8 @@ namespace Opc.Ua.Server
                     string? thumbprintToDelete = null;
                     if (m_configuration.CertificateManager is ICertificateRegistry registry)
                     {
-                        CertificateEntry? currentEntry = registry
-                            .GetApplicationCertificate(existingCertIdentifier.CertificateType);
+                        using CertificateEntry? currentEntry = registry
+                            .AcquireApplicationCertificateByType(existingCertIdentifier.CertificateType);
                         thumbprintToDelete = currentEntry?.Certificate.Thumbprint
                             ?? existingCertIdentifier.Thumbprint;
 
@@ -1296,14 +1305,13 @@ namespace Opc.Ua.Server
                     cert => cert.CertificateType == certificateTypeId);
 
             // Look up the currently-active certificate via the manager
-            // registry — the configured identifier is metadata only.
-            Certificate? currentCert = null;
-            if (m_configuration.CertificateManager is ICertificateRegistry currentRegistry)
-            {
-                CertificateEntry? currentEntry = currentRegistry
-                    .GetApplicationCertificate(certificateTypeId);
-                currentCert = currentEntry?.Certificate;
-            }
+            // registry — the configured identifier is metadata only. The
+            // acquired entry is disposed at method scope; the borrowed
+            // certificate is only read.
+            using CertificateEntry? currentEntry =
+                (m_configuration.CertificateManager as ICertificateRegistry)
+                    ?.AcquireApplicationCertificateByType(certificateTypeId);
+            Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))
             {
@@ -1739,7 +1747,7 @@ namespace Opc.Ua.Server
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
             foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
             {
-                CertificateEntry? entry = registry?.GetApplicationCertificate(appId.CertificateType);
+                using CertificateEntry? entry = registry?.AcquireApplicationCertificateByType(appId.CertificateType);
                 rawCerts.Add(entry?.Certificate?.RawData.ToByteString() ?? default);
             }
             certificates = rawCerts.ToArrayOf();

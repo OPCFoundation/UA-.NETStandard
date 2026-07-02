@@ -413,31 +413,20 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             public bool SendCertificateChain => false;
-            public IReadOnlyList<CertificateEntry> ApplicationCertificates => m_entries;
 
-            public CertificateEntry? GetApplicationCertificate(NodeId certificateType)
+            public CertificateEntryCollection SnapshotApplicationCertificates()
             {
-                return m_entry;
+                return new CertificateEntryCollection(m_entries);
             }
 
-            public CertificateEntry? GetInstanceCertificate(string securityPolicyUri)
+            public CertificateEntry? AcquireApplicationCertificateByType(NodeId certificateType)
             {
-                return m_entry;
+                return m_entry.AddRef();
             }
 
-            public byte[] GetEncodedChainBlob(string securityPolicyUri)
+            public CertificateEntry? AcquireApplicationCertificateBySecurityPolicy(string securityPolicyUri)
             {
-                return m_entry.GetEncodedChainBlob();
-            }
-
-            public byte[]? LoadCertificateChainRaw(Certificate certificate)
-            {
-                return string.Equals(
-                    certificate.Thumbprint,
-                    m_entry.Certificate.Thumbprint,
-                    StringComparison.OrdinalIgnoreCase)
-                    ? m_entry.GetEncodedChainBlob()
-                    : null;
+                return m_entry.AddRef();
             }
 
             public Task<bool> GetIssuersAsync(

@@ -185,10 +185,9 @@ namespace Opc.Ua.Lds.Tests
 
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
 
-            Certificate instanceCertificate = ClientFixture.Config.CertificateManager?
-                .GetInstanceCertificate(matching.SecurityPolicyUri ?? SecurityPolicies.None)?
-                .Certificate?
-                .AddRef();
+            using CertificateEntry? instanceEntry = ClientFixture.Config.CertificateManager?
+                .AcquireApplicationCertificateBySecurityPolicy(matching.SecurityPolicyUri ?? SecurityPolicies.None);
+            Certificate instanceCertificate = instanceEntry?.Certificate?.AddRef();
 
             return await RegistrationClient
                 .CreateAsync(

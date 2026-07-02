@@ -439,10 +439,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // load the certificate for the security profile
-                Certificate instanceCertificate = CertificateManager!
-                    .GetInstanceCertificate(
-                        context.SecurityPolicyUri)?.Certificate!;
+                // load the certificate for the security profile. The session
+                // takes its own ref-counted handle on the certificate, so the
+                // acquired entry is disposed when this scope exits.
+                using CertificateEntry? instanceEntry = CertificateManager!
+                    .AcquireApplicationCertificateBySecurityPolicy(context.SecurityPolicyUri);
+                Certificate instanceCertificate = instanceEntry?.Certificate!;
 
                 // create the session.
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
@@ -508,8 +510,7 @@ namespace Opc.Ua.Server
                         // check if complete chain should be sent.
                         if (CertificateManager.SendCertificateChain)
                         {
-                            serverCertificate = CertificateManager
-                                .LoadCertificateChainRaw(instanceCertificate).ToByteString();
+                            serverCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
                         }
                         else
                         {
@@ -2564,17 +2565,35 @@ namespace Opc.Ua.Server
                                 Timestamp = TimeProvider.GetUtcNow().UtcDateTime
                             };
 
-                            // create the client.
-                            Certificate? instanceCertificate =
-                                CertificateManager!.GetInstanceCertificate(
+                            // create the client. The registration channel takes
+                            // ownership of the instance certificate handle and
+                            // disposes it on close, so hand it an independent
+                            // ref-counted handle (AddRef) and dispose the
+                            // acquired entry here.
+                            using CertificateEntry? instanceEntry =
+                                CertificateManager!.AcquireApplicationCertificateBySecurityPolicy(
                                     endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None)?.Certificate;
-                            client = await RegistrationClient.CreateAsync(
-                                configuration,
-                                endpoint.Description!,
-                                endpoint.Configuration!,
-                                instanceCertificate!,
-                                ct: ct).ConfigureAwait(false);
+                                    SecurityPolicies.None);
+                            Certificate? instanceCertificate =
+                                instanceEntry?.Certificate?.AddRef();
+                            try
+                            {
+                                client = await RegistrationClient.CreateAsync(
+                                    configuration,
+                                    endpoint.Description!,
+                                    endpoint.Configuration!,
+                                    instanceCertificate!,
+                                    ct: ct).ConfigureAwait(false);
+
+                                // Ownership of the AddRef'd handle has transferred
+                                // to the registration channel, which disposes it
+                                // when the channel closes.
+                                instanceCertificate = null;
+                            }
+                            finally
+                            {
+                                instanceCertificate?.Dispose();
+                            }
 
                             client.OperationTimeout = 10000;
 
