@@ -66,7 +66,7 @@ services.AddOpcUa()
     });
 ```
 
-`UseKubernetesLeaderElection` uses the in-cluster service account token, namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`. Outside Kubernetes it falls back to `SharedStoreLeaseElection` by default (`UseSharedStoreFallback = true`) so local development can still exercise the distributed path.
+`UseKubernetesLeaderElection` uses the in-cluster service account token, namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`. Outside Kubernetes it falls back to `SharedStoreLeaseElection` by default (`UseSharedStoreFallback = true`) so local development can still exercise the distributed path. (`UseKubernetes()` registers the shared in-cluster Kubernetes API client that these extensions consume; the leader-election, peer-discovery, and readiness helpers add it automatically, but you can call it directly when adding your own Kubernetes-backed component.)
 
 ## RBAC
 
