@@ -570,23 +570,19 @@ namespace Opc.Ua.Server
 
                         foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
                         {
-                            if (chainStatus.Status is X509ChainStatusFlags.NoError or
-                                X509ChainStatusFlags.UntrustedRoot)
+                            X509ChainStatusFlags disallowedStatus =
+                                chainStatus.Status & ~X509ChainStatusFlags.UntrustedRoot;
+                            if (disallowedStatus == X509ChainStatusFlags.NoError)
                             {
                                 continue;
                             }
-                            if (chainStatus.Status is X509ChainStatusFlags.NotSignatureValid or
-                                X509ChainStatusFlags.PartialChain or
-                                X509ChainStatusFlags.NotValidForUsage or
-                                X509ChainStatusFlags.InvalidBasicConstraints)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadSecurityChecksFailed,
-                                    Utils.Format(
-                                        "Certificate chain validation failed. {0}: {1}",
-                                        chainStatus.Status,
-                                        chainStatus.StatusInformation));
-                            }
+
+                            throw new ServiceResultException(
+                                StatusCodes.BadSecurityChecksFailed,
+                                Utils.Format(
+                                    "Certificate chain validation failed. {0}: {1}",
+                                    chainStatus.Status,
+                                    chainStatus.StatusInformation));
                         }
 
                         if (newIssuerCollection.Count + 1 != chain.ChainElements.Count)
