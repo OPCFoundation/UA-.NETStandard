@@ -50,9 +50,12 @@ namespace Opc.Ua.PubSub.Adapter.Session
     /// modern <see cref="ManagedSession"/> built from
     /// <see cref="ServerConnectionOptions"/> and an
     /// <see cref="ITelemetryContext"/>. Read/Write/Call services delegate to
-    /// the managed session; data-change subscriptions use the session's
-    /// <see cref="ISubscriptionManager"/>. Reconnect and keep-alive are owned by
-    /// the managed session.
+    /// the managed session; data-change subscriptions use the session's V2
+    /// subscription manager (see
+    /// <see cref="ISession.TryGetSubscriptionManager"/>). Reconnect and
+    /// keep-alive are owned by the managed session. The session is held via
+    /// the <see cref="ISession"/> abstraction to avoid coupling to the
+    /// concrete <see cref="ManagedSession"/>.
     /// </summary>
     public sealed class ServerSession : IServerSession
     {
@@ -66,12 +69,6 @@ namespace Opc.Ua.PubSub.Adapter.Session
         private readonly SemaphoreSlim m_connectLock = new(1, 1);
         private readonly System.Threading.Lock m_disposeGate = new();
         private readonly ConcurrentDictionary<string, NodeId> m_resolvedPaths = new(StringComparer.Ordinal);
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Performance",
-            "CA1859:Use concrete types when possible for improved performance",
-            Justification = "Intentionally typed as ISession per PR review feedback to avoid coupling " +
-                "to the concrete ManagedSession; the few ManagedSession-only members are downcast " +
-                "where required (tracked by #3925).")]
         private ISession? m_session;
         private ISubscription? m_modelChangeSubscription;
         private long m_lastModelChangeTicks;
@@ -95,6 +92,22 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     "EndpointUrl must be specified.", nameof(options));
             }
             m_logger = telemetry.CreateLogger<ServerSession>();
+        }
+
+        /// <summary>
+        /// Test seam: creates a server session bound to an already-established
+        /// <see cref="ISession"/> instead of building one lazily via the
+        /// managed-session builder. Enables exercising the session-capability
+        /// guards (e.g. classic-engine sessions that expose no V2 subscription
+        /// manager) without standing up a real server.
+        /// </summary>
+        internal ServerSession(
+            ServerConnectionOptions options,
+            ITelemetryContext telemetry,
+            ISession session)
+            : this(options, telemetry)
+        {
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
         }
 
         /// <inheritdoc/>
@@ -187,10 +200,19 @@ namespace Opc.Ua.PubSub.Adapter.Session
             double publishingIntervalMs,
             CancellationToken ct = default)
         {
-            // TODO(#3925): SubscriptionManager is not on ISession yet; downcast required.
-            var session = (ManagedSession)await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            if (!session.TryGetSubscriptionManager(out ISubscriptionManager? subscriptionManager))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The external server session for endpoint '{0}' does not expose a V2 " +
+                    "subscription manager. Data-change subscriptions require the V2 subscription " +
+                    "engine (the ManagedSession default); recreate the session with the V2 " +
+                    "engine (DefaultSubscriptionEngineFactory) rather than the classic engine.",
+                    m_options.EndpointUrl);
+            }
             return new DataChangeSubscription(
-                session.SubscriptionManager,
+                subscriptionManager,
                 publishingIntervalMs,
                 m_telemetry);
         }
@@ -206,15 +228,29 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             try
             {
-                // TODO(#3925): SubscriptionManager is not on ISession yet; downcast required.
-                var session = (ManagedSession)await EnsureConnectedAsync(ct).ConfigureAwait(false);
+                ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+                if (!session.TryGetSubscriptionManager(out ISubscriptionManager? subscriptionManager))
+                {
+                    // Model-change monitoring is an optional, best-effort enhancement
+                    // (unlike data-change subscriptions, which are required and throw):
+                    // the whole method already swallows failures and continues, so a
+                    // classic-engine session simply skips it rather than faulting.
+                    m_logger.LogInformation(
+                        "ServerSession: model-change event monitoring is not available for " +
+                        "endpoint {EndpointUrl} because the session does not expose a V2 " +
+                        "subscription manager (requires the V2 subscription engine / " +
+                        "DefaultSubscriptionEngineFactory). Monitoring is optional; continuing " +
+                        "without it.",
+                        m_options.EndpointUrl);
+                    return;
+                }
 
                 var subscriptionOptions = new SubscriptionOptions
                 {
                     PublishingInterval = TimeSpan.FromMilliseconds(1000),
                     PublishingEnabled = true
                 };
-                ISubscription subscription = session.SubscriptionManager.Add(
+                ISubscription subscription = subscriptionManager.Add(
                     new ModelChangeNotifier(this),
                     new SingletonOptionsMonitor<SubscriptionOptions>(subscriptionOptions));
 
@@ -298,8 +334,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 return cached;
             }
 
-            // TODO(#3925): MessageContext is not on ISession yet; downcast required.
-            var session = (ManagedSession)await EnsureConnectedAsync(ct).ConfigureAwait(false);
+            ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
 
             var request = new Opc.Ua.BrowsePath
             {
@@ -463,7 +498,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             }
         }
 
-        private async Task<ManagedSession> CreateSessionAsync(CancellationToken ct)
+        private async Task<ISession> CreateSessionAsync(CancellationToken ct)
         {
             ApplicationConfiguration configuration = m_options.ApplicationConfiguration
                 ?? await BuildApplicationConfigurationAsync(ct).ConfigureAwait(false);

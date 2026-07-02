@@ -53,7 +53,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// A shared lazy <see cref="IStreamingSubscription"/> over this
-        /// session's <see cref="SubscriptionManager"/>. Backs both
+        /// session's V2 subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>). Backs both
         /// <see cref="ModelChange"/> (when enabled) and ad-hoc
         /// <see cref="IAsyncEnumerable{T}"/>-based subscriptions.
         /// </summary>
@@ -78,7 +79,15 @@ namespace Opc.Ua.Client
                         return m_defaultStreaming;
                     }
 
-                    m_defaultStreaming = new StreamingSubscription(SubscriptionManager);
+                    if (!TryGetSubscriptionManager(
+                            out Subscriptions.ISubscriptionManager? manager))
+                    {
+                        throw new InvalidOperationException(
+                            "Streaming subscriptions require the V2 subscription engine. " +
+                            "The session is using the classic engine; recreate the " +
+                            "ManagedSession with the V2 subscription engine factory.");
+                    }
+                    m_defaultStreaming = new StreamingSubscription(manager);
                     return m_defaultStreaming;
                 }
             }

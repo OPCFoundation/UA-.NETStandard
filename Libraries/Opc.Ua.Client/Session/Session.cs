@@ -634,6 +634,20 @@ namespace Opc.Ua.Client
         /// </summary>
         internal ISubscriptionEngine SubscriptionEngine => m_engine;
 
+        /// <inheritdoc/>
+        public bool TryGetSubscriptionManager(
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+            out Subscriptions.ISubscriptionManager? manager)
+        {
+            if (m_engine is DefaultSubscriptionEngine v2)
+            {
+                manager = v2.SubscriptionManager;
+                return true;
+            }
+            manager = null;
+            return false;
+        }
+
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>

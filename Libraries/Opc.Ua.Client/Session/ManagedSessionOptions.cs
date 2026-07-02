@@ -125,8 +125,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
-        /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so
-        /// <see cref="ManagedSession.SubscriptionManager"/> is available.
+        /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so the
+        /// session's V2 subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>) is available.
         /// </summary>
         public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
 

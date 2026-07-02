@@ -182,8 +182,8 @@ an `ISession` facade that wraps a raw `Session` and adds:
   failover, so consumers see one transparent retry rather than a torn
   state.
 - A **default V2 subscription engine** so the new options-based
-  subscription API (`ISubscriptionManager`) is available on
-  `ManagedSession.SubscriptionManager` out of the box.
+  subscription API (`ISubscriptionManager`) is available via
+  `ISession.TryGetSubscriptionManager(out var manager)` out of the box.
 
 ```csharp
 ManagedSession session = await ManagedSession.CreateAsync(
@@ -799,8 +799,9 @@ the `ISubscriptionEngine` contract. It owns:
   `OnKeepAliveNotificationAsync`.
 
 `DefaultSubscriptionEngine.SubscriptionManager` exposes the
-`ISubscriptionManager` API; on `ManagedSession` it surfaces directly as
-`SubscriptionManager`.
+`ISubscriptionManager` API; on any `ISession` it is surfaced through
+`TryGetSubscriptionManager(out var manager)`, which returns `true` and the
+manager for V2-engine sessions and `false` for classic-engine sessions.
 
 ```csharp
 // V2 engine is the default for ManagedSession
@@ -959,11 +960,12 @@ channel/transport layer.
 |---|---|
 | Existing code using `session.AddSubscription(new Subscription(...))` and the classic event-driven API | `ClassicSubscriptionEngine` (the default for raw `Session`) |
 | New code, options-based subscriptions, DI / Microsoft.Extensions.Options friendly | `DefaultSubscriptionEngine` (the default for `ManagedSession`) |
-| Migrating a managed session but you still need a classic subscription you cannot rewrite | `ManagedSession` with `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)`; `SubscriptionManager` then throws `InvalidOperationException` and you keep using `Subscriptions` |
+| Migrating a managed session but you still need a classic subscription you cannot rewrite | `ManagedSession` with `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)`; `TryGetSubscriptionManager` then returns `false` and you keep using `Subscriptions` |
 
 The two engines can co-exist on a `ManagedSession`:
 `ManagedSession.Subscriptions` (classic API) keeps working alongside
-`ManagedSession.SubscriptionManager` (V2 API) when the V2 engine is
+the V2 subscription manager obtained via
+`ISession.TryGetSubscriptionManager(out var manager)` when the V2 engine is
 active. Internally, classic subscriptions are bridged onto the V2
 publish pipeline.
 
