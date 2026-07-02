@@ -146,7 +146,7 @@ namespace Opc.Ua.Identity
         public string IssuerUri { get; }
 
         /// <inheritdoc/>
-        public async ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+        public async ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
             string? keyId,
             CancellationToken ct = default)
         {

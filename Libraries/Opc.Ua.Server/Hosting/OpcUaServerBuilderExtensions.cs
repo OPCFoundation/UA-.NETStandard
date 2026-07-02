@@ -1011,7 +1011,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public string IssuerUri { get; }
 
-            public async ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+            public async ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
                 string? keyId,
                 CancellationToken ct = default)
             {
@@ -1020,10 +1020,10 @@ namespace Microsoft.Extensions.DependencyInjection
                     throw new ObjectDisposedException(nameof(CombinedIssuerKeyResolver));
                 }
 
-                var keys = new List<IssuerVerificationKey>();
+                var keys = new List<IIssuerVerificationKey>();
                 foreach (IIssuerKeyResolver resolver in m_resolvers)
                 {
-                    IReadOnlyList<IssuerVerificationKey> resolved = await resolver
+                    IReadOnlyList<IIssuerVerificationKey> resolved = await resolver
                         .GetKeysAsync(keyId, ct)
                         .ConfigureAwait(false);
                     for (int i = 0; i < resolved.Count; i++)

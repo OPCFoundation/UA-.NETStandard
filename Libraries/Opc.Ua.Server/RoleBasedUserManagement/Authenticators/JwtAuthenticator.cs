@@ -150,12 +150,12 @@ namespace Opc.Ua.Server
             }
 
             byte[] signingInputBytes = Encoding.ASCII.GetBytes(segments[0] + "." + segments[1]);
-            IReadOnlyList<IssuerVerificationKey> keys = await m_keyResolver!
+            IReadOnlyList<IIssuerVerificationKey> keys = await m_keyResolver!
                 .GetKeysAsync(keyId, ct)
                 .ConfigureAwait(false);
 
             bool signatureValid = false;
-            foreach (IssuerVerificationKey key in keys)
+            foreach (IIssuerVerificationKey key in keys)
             {
                 if (!string.Equals(key.Algorithm, algorithm, StringComparison.Ordinal))
                 {

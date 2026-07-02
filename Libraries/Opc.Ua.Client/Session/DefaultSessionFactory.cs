@@ -281,25 +281,18 @@ namespace Opc.Ua.Client
                 validator?.ValidateDomains(certificate, endpoint);
             }
 
-            Certificate? clientCertificate = null;
-            CertificateCollection? clientCertificateChain = null;
             Certificate? channelClientCertificate = null;
             CertificateCollection? channelClientCertificateChain = null;
             try
             {
                 if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
                 {
-                    clientCertificate = await Session.LoadInstanceCertificateAsync(
+                    using CertificateEntry clientEntry = await Session.LoadInstanceCertificateEntryAsync(
                         configuration,
                         endpointDescription.SecurityPolicyUri,
-                        messageContext.Telemetry,
                         ct).ConfigureAwait(false);
-                    clientCertificateChain = await Session.LoadCertificateChainAsync(
-                        configuration,
-                        clientCertificate,
-                        ct).ConfigureAwait(false);
-                    channelClientCertificate = clientCertificate.AddRef();
-                    channelClientCertificateChain = clientCertificateChain?.AddRef();
+                    channelClientCertificate = clientEntry.Certificate.AddRef();
+                    channelClientCertificateChain = Session.BuildTransportChain(clientEntry);
                 }
 
                 // initialize the channel which will be created with the server.
@@ -339,8 +332,6 @@ namespace Opc.Ua.Client
             {
                 channelClientCertificateChain?.Dispose();
                 channelClientCertificate?.Dispose();
-                clientCertificateChain?.Dispose();
-                clientCertificate?.Dispose();
             }
         }
 

@@ -274,12 +274,14 @@ namespace Opc.Ua.Client
             string secPolicy = endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
             if (secPolicy != SecurityPolicies.None)
             {
-                Certificate clientCert = await LoadInstanceCertificateAsync(
-                    configuration, secPolicy, probeContext.Telemetry, ct)
+                using CertificateEntry clientEntry = await LoadInstanceCertificateEntryAsync(
+                    configuration, secPolicy, ct)
                     .ConfigureAwait(false);
-                CertificateCollection? chain = await LoadCertificateChainAsync(
-                    configuration, clientCert, ct).ConfigureAwait(false);
-                manager.UpdateClientCertificate(clientCert, chain);
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
+                manager.UpdateClientCertificate(
+                    clientEntry.Certificate.AddRef(),
+                    BuildTransportChain(clientEntry));
+#pragma warning restore CA2000
             }
 
             Session? session = null;

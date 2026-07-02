@@ -48,6 +48,20 @@ namespace Opc.Ua.Core.Tests.Security.Identity
     public class IssuerVerificationKeyTests
     {
         [Test]
+        public void VerificationKeyViewIsNotDisposable()
+        {
+            // The consumer-facing view exposes verification only; the resolver
+            // retains and disposes the concrete key, so the view must not be
+            // IDisposable (consumers cannot dispose what they do not own).
+            Assert.That(
+                typeof(IDisposable).IsAssignableFrom(typeof(IIssuerVerificationKey)),
+                Is.False);
+            Assert.That(
+                typeof(IIssuerVerificationKey).IsAssignableFrom(typeof(IssuerVerificationKey)),
+                Is.True);
+        }
+
+        [Test]
         public void CtorRejectsNullKey()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(

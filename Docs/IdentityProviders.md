@@ -641,8 +641,10 @@ or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
 ### `IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation
 
 Server-side JWT validation in the GDS `JwtAuthenticator` resolves
-verification keys through `IIssuerKeyResolver` and exercises them
-through `IssuerVerificationKey`. The helper deliberately uses
+verification keys through `IIssuerKeyResolver`. Consumers receive each
+key as a non-disposable `IIssuerVerificationKey` view (the resolver
+owns and disposes the concrete `IssuerVerificationKey`). The helper
+deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
 on netstandard2.1 / net472 / net48 / net8+/net9+/net10+ and is
 AOT-friendly.

@@ -154,7 +154,10 @@ namespace Opc.Ua.Server
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
-            m_serverCertificate = serverCertificate;
+            // The session owns an independent ref-counted handle on the server
+            // certificate so it stays valid for the whole session lifetime even
+            // if the certificate registry is updated.
+            m_serverCertificate = serverCertificate.AddRef();
             ClientCertificate = clientCertificate;
 
             m_clientIssuerCertificates = clientCertificateChain;
@@ -294,6 +297,7 @@ namespace Opc.Ua.Server
 
                 ClientCertificate?.Dispose();
                 m_clientIssuerCertificates?.Dispose();
+                m_serverCertificate.Dispose();
             }
         }
 
