@@ -422,11 +422,11 @@ activator pool system.
 
 ## Server session scalability
 
-The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized into a `500` baseline case and a `2000` steady-state stress case, selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
+The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
 
 | Tested configuration | Value |
 | --- | --- |
-| Concurrent sessions | 500 baseline, 2000 stress (selectable case) |
+| Concurrent sessions | 500 baseline, up to 10000 (selectable case) |
 | Secure channels | one per session (`MaxChannelCount`) |
 | Subscriptions per session | 1 (1000 ms publishing interval) |
 | Monitored items per subscription | 1 (shared value node) |
@@ -435,16 +435,16 @@ The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` 
 
 ### Observed scaling
 
-Session establishment is no longer the limiting factor: the server accepts sessions at tens of sessions per second and, with the session/subscription caps raised above the target count, sustains full end-to-end delivery - every session receives notifications within the steady-state window - well beyond the baseline 500. Steady-state publish delivery is serviced by a per-cycle sweep that is parallelized across cores, so a single publishing cycle keeps up with thousands of subscriptions. In this configuration (one subscription and one monitored item per session, `Basic256Sha256`) the observed behaviour is:
+The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12 logical threads), 64 GB RAM, 64-bit Windows**, with the client and the in-process reference server running in the *same* process on a shared developer machine under light background load. Because both ends share the same cores, session establishment - a CPU-bound `Basic256Sha256` RSA handshake performed on both the client and the server - is the dominant cost, and its throughput declines as concurrency rises. Steady-state publish delivery is serviced by a per-cycle sweep parallelized across cores; for every count that established cleanly, all sessions received 100 % of their notifications within the 60 s window (0 drops).
 
-| Concurrent sessions | Sessions establish | All sessions receive notifications |
-| --- | --- | --- |
-| 500 | Yes | Yes |
-| 1000 | Yes | Yes |
-| 1500 | Yes | Yes |
-| 2000 | Yes | Hardware-dependent |
+| Concurrent sessions | Sessions establish | Average sessions/sec created | All sessions receive notifications |
+| --- | --- | --- | --- |
+| 500 | Yes | 26 | Yes |
+| 1000 | Yes | 15 | Yes |
+| 1500 | Yes | 11 | Yes |
+| 2000 | No (*) | — | — |
 
-At 2000 sessions - 2000 subscriptions on the single shared node - steady-state publish delivery becomes the dominant cost; whether every session is serviced within the window depends on available cores and headroom. These numbers are directional (measured on a 12-core developer machine under background load) and improve on dedicated hardware.
+(*) These figures are hardware- and load-dependent and are directional; they improve on dedicated hardware where the client and server run on separate machines. Up to 1500 sessions every session established and received all notifications. At 2000 sessions this 6-core machine tipped into a secure-channel connect storm (repeated `BadTcpInternalError` aborts and retries, tens of thousands of channel attempts for the 2000-session target) and did not establish the full set within the test budget - so on this hardware establishment, not notification delivery, is the ceiling; more cores push that ceiling higher. When sessions establish but do not receive notifications the last column instead reads `No (N drops)`, where `N` is the number of sessions that did not receive notifications within the window. Characterizing the notification-delivery ceiling at the higher counts (2500 / 4000 / 10000, all selectable in the test) requires a dedicated multi-core machine without competing load and is tracked as the macro-benchmark follow-up below.
 
 ### Sizing and configuration
 

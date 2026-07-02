@@ -74,23 +74,25 @@ namespace Opc.Ua.Sessions.Tests
             UseSamplingGroupsInReferenceNodeManager = false;
 
             // The many-sessions load test runs a selectable session count (500 by
-            // default, up to 2000 for the stress case). Size the shared fixture for
-            // the largest case: one secure channel and one subscription per session
-            // plus head-room for the extra writer session.
-            MaxChannelCount = 2100;
-            MaxSessionCount = 2100;
-            MaxSubscriptionCount = 2100;
+            // default, up to 10000 for the largest stress case). Size the shared
+            // fixture for the largest case: one secure channel and one subscription
+            // per session plus head-room for the extra writer session. These are
+            // caps, not pre-allocations, so a small case pays nothing for the head-room.
+            MaxChannelCount = 10100;
+            MaxSessionCount = 10100;
+            MaxSubscriptionCount = 10100;
 
             // Each session keeps a Publish request outstanding, and a held
             // (long-polled) Publish occupies one request-processing worker slot for
             // as long as it waits for notifications. With the default limit of 100
             // slots the held Publishes exhaust the pool once a few hundred sessions
             // are connected, starving CreateSession/Read and surfacing as
-            // BadRequestTimeout. Size the pool above the session count so held
+            // BadRequestTimeout. Size the pool above the largest session count so held
             // Publishes never starve the other services, and warm a large minimum
             // so the connect burst is not throttled by the thread pool's slow
-            // cold-start ramp.
-            MaxRequestThreadCount = 2500;
+            // cold-start ramp. Workers grow on demand up to the maximum, so a small
+            // case only ever spins up the minimum.
+            MaxRequestThreadCount = 10500;
             MinRequestThreadCount = 200;
 
             // Disable the brute-force authentication lockout for this fixture. All
@@ -811,9 +813,10 @@ namespace Opc.Ua.Sessions.Tests
         /// each holding a single slow-publishing subscription that monitors a value.
         /// This exercises the per-session and per-subscription scaling limits and is
         /// the basis for the session-scalability notes in <c>Docs/Benchmarks.md</c>.
-        /// 500 is the supported baseline; 2000 is a stress case that pushes
-        /// steady-state publish delivery. Because the test is <c>[Explicit]</c>, the
-        /// case to run is selected by name (e.g.
+        /// 500 is the supported baseline; the higher cases (up to 10000) are stress
+        /// cases that push steady-state publish delivery until it starts dropping
+        /// sessions. Because the test is <c>[Explicit]</c>, the case to run is
+        /// selected by name (e.g.
         /// <c>ServerManySessionsLoadTestAsync(2000)</c>).
         /// Connecting the sessions uses its own deadline that is independent of the
         /// steady-state duration.
@@ -823,7 +826,12 @@ namespace Opc.Ua.Sessions.Tests
         [Explicit]
         [Order(130)]
         [TestCase(500)]
+        [TestCase(1000)]
+        [TestCase(1500)]
         [TestCase(2000)]
+        [TestCase(2500)]
+        [TestCase(4000)]
+        [TestCase(10000)]
         public async Task ServerManySessionsLoadTestAsync(int sessionCount)
         {
             const int testDurationSeconds = 60;
