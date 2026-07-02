@@ -14,7 +14,7 @@
 # transparently on the survivor (full ActivateSession re-check still applies).
 #
 # The build context is the repository root. Run from the repo root:
-#   docker compose -f Applications/RedundantServer/transparent/docker-compose.yml up --build
+#   docker compose -f Applications/RedundantServer/Transparent/docker-compose.yml up --build
 #
 # Single virtual OPC UA endpoint on the host: opc.tcp://localhost:62543/RedundantServer
 #

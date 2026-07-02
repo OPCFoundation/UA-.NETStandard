@@ -14,7 +14,7 @@
 # address your LB/Service would expose).
 #
 # The build context is the repository root. Run from the repo root:
-#   docker compose -f Applications/RedundantServer/loaddirection/docker-compose.yml up --build
+#   docker compose -f Applications/RedundantServer/LoadDirection/docker-compose.yml up --build
 
 x-ld-server: &ld-server
   build:

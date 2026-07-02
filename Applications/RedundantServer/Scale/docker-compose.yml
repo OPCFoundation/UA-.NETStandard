@@ -3,8 +3,8 @@
 # transparently. Dynamic Raft (strong) scaling is not supported here.
 #
 # Run from the repository root. Scale the servers, and with the clients profile the clients too:
-#   docker compose -f Applications/RedundantServer/scale/docker-compose.yml up --build --scale server=5
-#   docker compose -f Applications/RedundantServer/scale/docker-compose.yml --profile clients up --build --scale server=3 --scale client=2
+#   docker compose -f Applications/RedundantServer/Scale/docker-compose.yml up --build --scale server=5
+#   docker compose -f Applications/RedundantServer/Scale/docker-compose.yml --profile clients up --build --scale server=3 --scale client=2
 
 services:
   server:

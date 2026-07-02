@@ -36,5 +36,5 @@ dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- --se
 
 This in-process mode uses an in-memory `ISharedKeyValueStore` + `SharedStoreLeaseElection`, which **only coordinates within one process** — it is a local demo, not a deployment. For real multi-process client redundancy:
 
-- **Independent managed clients** (each fails over on its own): run the client image in multiple containers and scale it — see the `clients` profile in [`RedundantServer/scale/docker-compose.yml`](../RedundantServer/scale/docker-compose.yml) and `docker compose … --profile clients up --scale client=N`.
+- **Independent managed clients** (each fails over on its own): run the client image in multiple containers and scale it — see the `clients` profile in [`RedundantServer/Scale/docker-compose.yml`](../RedundantServer/Scale/docker-compose.yml) and `docker compose … --profile clients up --scale client=N`.
 - **Coordinated single-active replica set** (exactly one active client, the rest standby): register `AddRedundantClientSession(...)` over a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) or Kubernetes Lease election. See [HighAvailability.md](../../Docs/HighAvailability.md).

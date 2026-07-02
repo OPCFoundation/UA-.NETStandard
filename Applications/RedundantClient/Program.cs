@@ -389,7 +389,7 @@ namespace RedundantClient
             // in-memory store + lease election (one replica leads, others stand by). The in-memory
             // store cannot coordinate across processes, so it is not a real deployment: for
             // multi-process client redundancy either run independent managed clients that each fail
-            // over on their own (scale/docker-compose.yml with --scale client=N), or use a
+            // over on their own (Scale/docker-compose.yml with --scale client=N), or use a
             // coordinated single-active replica set backed by a CAS-capable Raft client store
             // (AddRedundantClientSession + AddRaftClientSharedStore; see Docs/HighAvailability.md).
             using var store = new InMemorySharedKeyValueStore();
