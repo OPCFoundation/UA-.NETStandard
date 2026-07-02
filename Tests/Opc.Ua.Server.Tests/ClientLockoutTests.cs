@@ -328,6 +328,105 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task ClientIsNotLockedOutWhenLockoutDisabledAsync()
+        {
+            // A server configured with MaxFailedAuthenticationAttempts <= 0 disables
+            // the brute-force lockout entirely: a client may fail authentication more
+            // than the normal threshold (5) and still authenticate afterwards. This
+            // supports legitimate high-volume single-certificate clients (for example
+            // the many-sessions load test) where transient connect failures must not
+            // lock the shared certificate out.
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            await fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            fixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts = 0;
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+            try
+            {
+                const string sessionName = nameof(ClientIsNotLockedOutWhenLockoutDisabledAsync);
+                ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
+                EndpointDescription endpoint = FindTcpEndpoint(endpoints);
+
+                SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
+                var requestHeader = new RequestHeader();
+
+                CreateSessionResponse createResponse = await server.CreateSessionAsync(
+                    secureChannelContext,
+                    requestHeader,
+                    null,
+                    null,
+                    null,
+                    sessionName,
+                    default,
+                    default,
+                    ServerFixtureUtils.DefaultSessionTimeout,
+                    ServerFixtureUtils.DefaultMaxResponseMessageSize,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
+                requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
+
+                var invalidToken = new UserNameIdentityToken
+                {
+                    UserName = "lockoutuser",
+                    Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
+                    PolicyId = "0"
+                };
+
+                var validToken = new UserNameIdentityToken
+                {
+                    UserName = "user1",
+                    Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
+                    PolicyId = "1"
+                };
+
+                // Fail authentication well beyond the normal lockout threshold (5).
+                for (int i = 0; i < 7; i++)
+                {
+                    try
+                    {
+                        await server.ActivateSessionAsync(
+                            secureChannelContext,
+                            requestHeader,
+                            createResponse.ServerSignature,
+                            [],
+                            [],
+                            new ExtensionObject(invalidToken),
+                            null,
+                            RequestLifetime.None).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException)
+                    {
+                    }
+                }
+
+                // With the lockout disabled a valid token still activates: it would be
+                // rejected with BadUserAccessDenied if the client had been locked out.
+                ActivateSessionResponse activateResponse = await server.ActivateSessionAsync(
+                    secureChannelContext,
+                    requestHeader,
+                    createResponse.ServerSignature,
+                    [],
+                    [],
+                    new ExtensionObject(validToken),
+                    null,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(activateResponse.ResponseHeader);
+
+                await server.CloseSessionAsync(
+                    secureChannelContext,
+                    requestHeader,
+                    true,
+                    RequestLifetime.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)
         {
             EndpointDescription endpoint = endpoints.Find(e =>

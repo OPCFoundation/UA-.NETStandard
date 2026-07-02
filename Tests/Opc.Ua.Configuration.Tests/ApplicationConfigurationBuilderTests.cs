@@ -1272,6 +1272,23 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public async Task ServerOptionsSetMaxFailedAuthenticationAttemptsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxFailedAuthenticationAttempts(0);
+
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxFailedAuthenticationAttempts,
+                    Is.Zero);
+            }
+        }
+
+        [Test]
         public async Task ServerOptionsSetContinuationPointsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

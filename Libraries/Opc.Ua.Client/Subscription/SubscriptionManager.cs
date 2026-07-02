@@ -1515,6 +1515,11 @@ namespace Opc.Ua.Client.Subscriptions
                             ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
                             TooManyPublishRequests = false;
 
+                            // A publish completed, so the channel is healthy:
+                            // clear the consecutive-error backoff state.
+                            m_consecutivePublishErrors = 0;
+                            m_lastLoggedErrorStatus = default;
+
                             // Get the subscription with the provided identifier
                             IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
                             publishLatency = m_outer.m_timeProvider.GetElapsedTime(publishLatencyStart);
@@ -1599,13 +1604,27 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             // ignore
                         }
-                        // may require a reconnect or activate to recover
+                        // Transport is down or the session/channel is no longer
+                        // valid. The session-level reconnect/failover logic owns
+                        // recovery; throttle so the worker does not spin issuing
+                        // Publish requests that fail instantly (for example
+                        // BadNotConnected while the channel is being rebuilt).
                         else if (statusCode == StatusCodes.BadSessionIdInvalid ||
                             statusCode == StatusCodes.BadSecureChannelIdInvalid ||
-                            statusCode == StatusCodes.BadSecureChannelClosed)
+                            statusCode == StatusCodes.BadSecureChannelClosed ||
+                            statusCode == StatusCodes.BadNotConnected ||
+                            statusCode == StatusCodes.BadConnectionClosed)
                         {
-                            // TODO
-                            // OnKeepAliveError(error);
+                            moreNotifications = false; // throttle
+                            // Log the transport-down transition once per status
+                            // rather than a full stack trace every iteration.
+                            if (m_lastLoggedErrorStatus != statusCode)
+                            {
+                                m_lastLoggedErrorStatus = statusCode;
+                                m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
+                                    "Transport unavailable ({Status}); waiting for reconnect.",
+                                    Index, handle, statusCode);
+                            }
                         }
                         // Servers may return this error when overloaded
                         else if (statusCode == StatusCodes.BadTooManyOperations ||
@@ -1628,11 +1647,42 @@ namespace Opc.Ua.Client.Subscriptions
                                 Index, handle, timeoutHint);
                             moreNotifications = true;
                         }
-                        else
+                        else if (m_lastLoggedErrorStatus != statusCode)
                         {
+                            // Log unexpected errors, but only emit the full
+                            // exception (stack trace) once per distinct status so
+                            // a recurring error cannot flood the logs.
+                            m_lastLoggedErrorStatus = statusCode;
                             m_logger.LogError(e, "PUBLISH Worker #{Handle}-{Id} - " +
                                 "Unhandled error {Status} during Publish.",
                                 Index, handle, error.StatusCode);
+                        }
+                        else
+                        {
+                            m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
+                                "Unhandled error {Status} during Publish (repeated).",
+                                Index, handle, error.StatusCode);
+                        }
+
+                        // Always apply a bounded, exponential backoff after a failed
+                        // publish so that a persistently failing channel (for
+                        // example one stuck in BadNotConnected) can never busy-spin
+                        // or flood the logs while reconnect runs in the background.
+                        // The shift is capped before the multiply to avoid overflow;
+                        // s_maxPublishBackoff bounds the final delay.
+                        int errorCount = ++m_consecutivePublishErrors;
+                        int backoffMs = Math.Min(
+                            kBasePublishBackoffMs << Math.Min(errorCount - 1, 5),
+                            (int)s_maxPublishBackoff.TotalMilliseconds);
+                        try
+                        {
+                            await m_outer.m_timeProvider
+                                .Delay(TimeSpan.FromMilliseconds(backoffMs), ct)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
                         }
                     }
                 }
@@ -1801,6 +1851,10 @@ namespace Opc.Ua.Client.Subscriptions
             private readonly ILogger m_logger;
             private readonly SubscriptionManager m_outer;
             private readonly CancellationTokenSource m_cts;
+            private int m_consecutivePublishErrors;
+            private StatusCode m_lastLoggedErrorStatus;
+            private const int kBasePublishBackoffMs = 200;
+            private static readonly TimeSpan s_maxPublishBackoff = TimeSpan.FromSeconds(5);
         }
 
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
