@@ -342,12 +342,24 @@ namespace Opc.Ua.Server
                     m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
-                (_, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
+                // Read through the async entry point so a node that registers a
+                // genuinely asynchronous value read handler (OnReadValueAsync /
+                // OnSimpleReadValueAsync) is honored. ReadAttributeAsync is the
+                // unified path: when no async handler is registered it just locks
+                // the node and calls the synchronous ReadAttribute, completing
+                // synchronously - so the common path unwraps an already-completed
+                // ValueTask without blocking, and only a node that opts into a
+                // real async read incurs a (its own) synchronous wait here.
+                ValueTask<(ServiceResult Result, DataValue Value)> readTask = node.ReadAttributeAsync(
                     context,
                     attributeId,
                     default,
                     QualifiedName.Null,
-                    dataValue).AsTask().GetAwaiter().GetResult();
+                    dataValue);
+
+                attributeSnapshots[attributeId] = readTask.IsCompletedSuccessfully
+                    ? readTask.Result.Value
+                    : readTask.AsTask().GetAwaiter().GetResult().Value;
             }
 
             var notification = new DataChangeSnapshot
@@ -358,13 +370,21 @@ namespace Opc.Ua.Server
                 AttributeSnapshots = attributeSnapshots
             };
 
-            try
+            // Enqueue without blocking on the common path. The bounded channel only
+            // makes the caller wait when the consumer is severely backed up
+            // (capacity is per node); fall back to the blocking write in that rare
+            // case so backpressure is preserved without a sync-over-async on the
+            // hot notification path.
+            if (!m_channel.Writer.TryWrite(notification))
             {
-                m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
-            }
-            catch (ChannelClosedException)
-            {
-                // The channel was completed during shutdown/disposal.
+                try
+                {
+                    m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+                }
+                catch (ChannelClosedException)
+                {
+                    // The channel was completed during shutdown/disposal.
+                }
             }
         }
 

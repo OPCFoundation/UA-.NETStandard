@@ -34,10 +34,12 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
+using Opc.Ua.Tests;
 using ISession = Opc.Ua.Client.ISession;
 using MonitoredItem = Opc.Ua.Client.MonitoredItem;
 using Subscription = Opc.Ua.Client.Subscription;
@@ -57,7 +59,7 @@ namespace Opc.Ua.Sessions.Tests
     public class LoadTest : ClientTestFramework
     {
         public LoadTest(string uriScheme)
-            : base(uriScheme)
+            : base(uriScheme, NUnitTelemetryContext.Create(logLevel: LogLevel.Warning))
         {
             SingleSession = false;
         }
@@ -70,6 +72,35 @@ namespace Opc.Ua.Sessions.Tests
         {
             SupportsExternalServerUrl = true;
             UseSamplingGroupsInReferenceNodeManager = false;
+
+            // The many-sessions load test runs a selectable session count (500 by
+            // default, up to 10000 for the largest stress case). Size the shared
+            // fixture for the largest case: one secure channel and one subscription
+            // per session plus head-room for the extra writer session. These are
+            // caps, not pre-allocations, so a small case pays nothing for the head-room.
+            MaxChannelCount = 10100;
+            MaxSessionCount = 10100;
+            MaxSubscriptionCount = 10100;
+
+            // Each session keeps a Publish request outstanding, and a held
+            // (long-polled) Publish occupies one request-processing worker slot for
+            // as long as it waits for notifications. With the default limit of 100
+            // slots the held Publishes exhaust the pool once a few hundred sessions
+            // are connected, starving CreateSession/Read and surfacing as
+            // BadRequestTimeout. Size the pool above the largest session count so held
+            // Publishes never starve the other services, and warm a large minimum
+            // so the connect burst is not throttled by the thread pool's slow
+            // cold-start ramp. Workers grow on demand up to the maximum, so a small
+            // case only ever spins up the minimum.
+            MaxRequestThreadCount = 10500;
+            MinRequestThreadCount = 200;
+
+            // Disable the brute-force authentication lockout for this fixture. All
+            // sessions share a single client certificate, so once a handful of
+            // handshakes fail transiently under load the whole certificate would be
+            // locked out and every remaining session would be rejected with
+            // BadUserAccessDenied. This is a scaling test, not an auth test.
+            MaxFailedAuthenticationAttempts = 0;
             return base.OneTimeSetUpAsync();
         }
 
@@ -778,6 +809,320 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
+        /// Load test the server with a selectable number of concurrent sessions,
+        /// each holding a single slow-publishing subscription that monitors a value.
+        /// This exercises the per-session and per-subscription scaling limits and is
+        /// the basis for the session-scalability notes in <c>Docs/Benchmarks.md</c>.
+        /// 500 is the supported baseline; the higher cases (up to 10000) are stress
+        /// cases that push steady-state publish delivery until it starts dropping
+        /// sessions. Because the test is <c>[Explicit]</c>, the case to run is
+        /// selected by name (e.g.
+        /// <c>ServerManySessionsLoadTestAsync(2000)</c>).
+        /// Connecting the sessions uses its own deadline that is independent of the
+        /// steady-state duration.
+        /// </summary>
+        /// <param name="sessionCount">The number of concurrent sessions to establish.</param>
+        [Test]
+        [Explicit]
+        [Order(130)]
+        [TestCase(500)]
+        [TestCase(1000)]
+        [TestCase(1500)]
+        [TestCase(2000)]
+        [TestCase(2500)]
+        [TestCase(4000)]
+        [TestCase(10000)]
+        public async Task ServerManySessionsLoadTestAsync(int sessionCount)
+        {
+            const int testDurationSeconds = 60;
+            const int publishingInterval = 1000; // slow publishing subscription.
+            const int writerInterval = 500;
+            const int maxConnectAttempts = 5;
+
+            // Each secure-channel + ActivateSession handshake is CPU bound (RSA)
+            // and the sessions share a single client certificate. Keep the connect
+            // concurrency low: a large simultaneous-connect burst both oversubscribes
+            // the CPU and, because every handshake signs with the same shared
+            // certificate, can race the certificate's private-key handle under load
+            // (surfacing as BadTcpInternalError / "invalid handle"). A gentle connect
+            // avoids both.
+            int maxConnectConcurrency = Math.Max(2, Environment.ProcessorCount / 4);
+
+            // Establishing the sessions has its own generous deadline that is
+            // independent of the steady-state duration, so a slow connect phase can
+            // never eat into - or cancel - the measurement window the way a single
+            // shared deadline did. Scale it with the session count so the larger
+            // stress case has enough head-room to establish every session.
+            int connectTimeoutSeconds = Math.Max(500, sessionCount * 3);
+            using var connectCts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(connectTimeoutSeconds));
+
+            var sessions = new ConcurrentBag<ISession>();
+            var notificationsPerSession = new ConcurrentDictionary<int, int>();
+            var createErrors = new ConcurrentBag<string>();
+
+            try
+            {
+                IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
+                if (nodeIds.Count == 0)
+                {
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
+                }
+
+                // Use a single shared node so every one of the sessions observes the same
+                // value changes; this keeps the test focused on session/subscription scaling.
+                KeyValuePair<NodeId, Type> monitoredNode = nodeIds.First();
+                NodeId monitoredNodeId = monitoredNode.Key;
+                Type monitoredNodeType = monitoredNode.Value;
+
+                TestContext.Out.WriteLine(
+                    $"Creating {sessionCount} sessions, each with one slow ({publishingInterval} ms) subscription.");
+
+                // Resolve the endpoint once so each session does not repeat endpoint
+                // discovery (GetEndpoints) on connect; doing discovery per session is a
+                // measurable connect-time bottleneck at this scale.
+                ConfiguredEndpoint configuredEndpoint = await ClientFixture
+                    .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
+                    .ConfigureAwait(false);
+
+                var sessionFactory = new DefaultSessionFactory(Telemetry);
+
+                // Throttle the concurrent secure-channel handshakes so the RSA
+                // handshakes do not oversubscribe the CPU and self-inflict a
+                // connect storm.
+                using var connectThrottle = new SemaphoreSlim(maxConnectConcurrency);
+                var createSessionTasks = new List<Task>();
+                var swConnect = System.Diagnostics.Stopwatch.StartNew();
+                CancellationToken connectToken = connectCts.Token;
+                for (int i = 0; i < sessionCount; i++)
+                {
+                    int sessionIndex = i;
+                    createSessionTasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await connectThrottle.WaitAsync(connectToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Connect deadline reached before this session started.
+                            return;
+                        }
+                        try
+                        {
+                            // Secure-channel handshakes can transiently time out under
+                            // load; retry a bounded number of times so the full session
+                            // count can be established on capable hardware. Cancellation
+                            // is handled locally so it can never fault Task.WhenAll.
+                            for (int attempt = 1; attempt <= maxConnectAttempts; attempt++)
+                            {
+                                if (connectToken.IsCancellationRequested)
+                                {
+                                    return;
+                                }
+
+                                ManagedSession session = null;
+                                try
+                                {
+                                    session = await ManagedSession.CreateAsync(
+                                        ClientFixture.Config,
+                                        configuredEndpoint,
+                                        sessionFactory,
+                                        engineFactory: DefaultSubscriptionEngineFactory.Instance,
+                                        ct: connectToken)
+                                        .ConfigureAwait(false);
+
+                                    var handler = new ManySessionsNotificationHandler(
+                                        sessionIndex,
+                                        notificationsPerSession);
+
+                                    Client.Subscriptions.ISubscription subscription = session.AddSubscription(
+                                        handler,
+                                        o => o with
+                                        {
+                                            PublishingInterval = TimeSpan.FromMilliseconds(publishingInterval),
+                                            PublishingEnabled = true
+                                        });
+
+                                    subscription.TryAddMonitoredItem(
+                                        monitoredNodeId.ToString(),
+                                        monitoredNodeId,
+                                        o => o with
+                                        {
+                                            AttributeId = Attributes.Value,
+                                            MonitoringMode = MonitoringMode.Reporting,
+                                            SamplingInterval = TimeSpan.Zero,
+                                            QueueSize = 1
+                                        },
+                                        out _);
+
+                                    sessions.Add(session);
+                                    break;
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    // Connect deadline reached; stop retrying.
+                                    session?.Dispose();
+                                    return;
+                                }
+                                catch (Exception ex)
+                                {
+                                    session?.Dispose();
+                                    if (attempt >= maxConnectAttempts)
+                                    {
+                                        createErrors.Add(ex.Message);
+                                        return;
+                                    }
+
+                                    // Bounded backoff before the next attempt. Swallow
+                                    // cancellation so it never escapes to Task.WhenAll.
+                                    try
+                                    {
+                                        await Task.Delay(attempt * 250, connectToken)
+                                            .ConfigureAwait(false);
+                                    }
+                                    catch (OperationCanceledException)
+                                    {
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            connectThrottle.Release();
+                        }
+                    }));
+                }
+                await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
+                swConnect.Stop();
+
+                TestContext.Out.WriteLine(
+                    $"Established {sessions.Count} sessions in {swConnect.ElapsedMilliseconds} ms " +
+                    $"({sessions.Count / Math.Max(swConnect.Elapsed.TotalSeconds, 0.001):F0} sessions/sec).");
+
+                if (!createErrors.IsEmpty)
+                {
+                    foreach (string error in createErrors.Take(10))
+                    {
+                        TestContext.Out.WriteLine($"Session create error: {error}");
+                    }
+                }
+
+                Assert.That(
+                    sessions,
+                    Has.Count.EqualTo(sessionCount),
+                    $"Not all {sessionCount} sessions could be created (errors: {createErrors.Count}).");
+
+                // Writer session changes the monitored value periodically.
+                ISession writerSession = await ClientFixture
+                    .ConnectAsync(configuredEndpoint)
+                    .ConfigureAwait(false);
+                sessions.Add(writerSession);
+
+                short writeCount = 0;
+                using var writerCts = new CancellationTokenSource();
+                var writerTask = Task.Run(async () =>
+                {
+                    while (!writerCts.IsCancellationRequested)
+                    {
+                        writeCount++;
+                        var nodesToWrite = new List<WriteValue>
+                        {
+#pragma warning disable CS0618 // Type or member is obsolete
+                            new WriteValue
+                            {
+                                NodeId = monitoredNodeId,
+                                AttributeId = Attributes.Value,
+                                Value = new DataValue(
+                                    new Variant(
+                                        Convert.ChangeType(
+                                            writeCount,
+                                            monitoredNodeType,
+                                            CultureInfo.InvariantCulture)))
+                            }
+#pragma warning restore CS0618 // Type or member is obsolete
+                        };
+                        try
+                        {
+                            await writerSession.WriteAsync(null, nodesToWrite, writerCts.Token)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                        catch (ServiceResultException sre)
+                        {
+                            TestContext.Out.WriteLine($"Writer session write error: {sre.Message}");
+                        }
+
+                        try
+                        {
+                            await Task.Delay(writerInterval, writerCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                    }
+                }, writerCts.Token);
+
+                // Run the steady-state load for the configured duration. Because
+                // connecting the sessions used its own separate deadline, the
+                // measurement window is always the full duration regardless of how
+                // long establishing the sessions took.
+                await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds)).ConfigureAwait(false);
+
+                // Stop the writer.
+                await writerCts.CancelAsync().ConfigureAwait(false);
+                try
+                {
+                    await writerTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    /* expected */
+                }
+
+                // Allow the slow subscriptions enough publishing cycles to deliver the last writes.
+                await Task.Delay(publishingInterval * 5).ConfigureAwait(false);
+
+                int sessionsWithNotifications = notificationsPerSession.Count;
+                long totalNotifications = notificationsPerSession.Values.Sum(v => (long)v);
+
+                TestContext.Out.WriteLine($"Writer performed {writeCount} writes.");
+                TestContext.Out.WriteLine(
+                    $"{sessionsWithNotifications}/{sessionCount} sessions received notifications " +
+                    $"(total {totalNotifications}).");
+
+                Assert.That(
+                    sessionsWithNotifications,
+                    Is.EqualTo(sessionCount),
+                    "Some sessions did not receive any notifications under load.");
+            }
+            finally
+            {
+                // Cleanup all sessions.
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (session.Connected)
+                        {
+                            await session.CloseAsync().ConfigureAwait(false);
+                        }
+
+                        session.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"Failed to close session: {ex.Message}");
+                    }
+                })).ToList();
+                await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Notification handler for the V2 SubscriptionManager path in load tests.
         /// Routes each <see cref="DataValueChange"/> back to the shared
         /// <paramref name="valueChanges"/> counter dict via <paramref name="clientHandles"/>.
@@ -821,6 +1166,73 @@ namespace Opc.Ua.Sessions.Tests
                     {
                         m_valueChanges.AddOrUpdate(nodeId, 1, (_, count) => count + 1);
                     }
+                }
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                Client.Subscriptions.PublishState publishStateMask)
+            {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+        }
+
+        /// <summary>
+        /// Per-session notification handler for the many-sessions load test.
+        /// Counts the data-value changes delivered to a single session so the
+        /// test can assert every session receives notifications under load.
+        /// </summary>
+        private sealed class ManySessionsNotificationHandler : Client.Subscriptions.ISubscriptionNotificationHandler
+        {
+            private readonly int m_sessionIndex;
+            private readonly ConcurrentDictionary<int, int> m_notificationsPerSession;
+
+            public ManySessionsNotificationHandler(
+                int sessionIndex,
+                ConcurrentDictionary<int, int> notificationsPerSession)
+            {
+                m_sessionIndex = sessionIndex;
+                m_notificationsPerSession = notificationsPerSession;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                int count = notification.Length;
+                if (count > 0)
+                {
+                    m_notificationsPerSession.AddOrUpdate(
+                        m_sessionIndex,
+                        count,
+                        (_, existing) => existing + count);
                 }
                 return default;
             }

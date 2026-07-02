@@ -32,6 +32,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -524,18 +525,45 @@ namespace Opc.Ua.Bindings
 
             string id = Guid.NewGuid().ToString();
 
-            // create the channel.
-            var channel = new UaSCUaBinaryClientChannel(
-                id,
-                m_bufferManager,
-                m_transportFactory,
-                m_quotas,
-                m_settings.ClientCertificate,
-                m_settings.ClientCertificateChain,
-                m_settings.ServerCertificate,
-                m_settings.Description,
-                telemetry,
-                m_timeProvider);
+            // Hand the channel its own owning references to the shared
+            // certificates. The inner channel disposes ClientCertificate,
+            // ClientCertificateChain and ServerCertificate when it is
+            // disposed, while m_settings retains its own owning references
+            // (released by DisposeSettingsCertificates). A transport channel
+            // can create several inner channels over its lifetime (connect
+            // retry, reconnect, failover); without a per-channel AddRef the
+            // first channel's disposal would release the single shared
+            // reference and invalidate the certificate handle still used by
+            // the surviving channel - surfacing as a CryptographicException
+            // ("m_safeCertContext is an invalid handle") on the next signing.
+            Certificate? clientCertificate = m_settings.ClientCertificate?.AddRef();
+            CertificateCollection? clientCertificateChain =
+                m_settings.ClientCertificateChain?.AddRef();
+            Certificate? serverCertificate = m_settings.ServerCertificate?.AddRef();
+            UaSCUaBinaryClientChannel channel;
+            try
+            {
+                channel = new UaSCUaBinaryClientChannel(
+                    id,
+                    m_bufferManager,
+                    m_transportFactory,
+                    m_quotas,
+                    clientCertificate,
+                    clientCertificateChain,
+                    serverCertificate,
+                    m_settings.Description,
+                    telemetry,
+                    m_timeProvider);
+            }
+            catch
+            {
+                // The channel never took ownership; release the references
+                // we added above so they are not leaked.
+                clientCertificate?.Dispose();
+                clientCertificateChain?.Dispose();
+                serverCertificate?.Dispose();
+                throw;
+            }
 
             // use transport for reverse connections, ignore otherwise
             if (transport != null)
