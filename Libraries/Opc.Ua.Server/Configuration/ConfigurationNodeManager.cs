@@ -538,59 +538,29 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // Verify chain integrity: build a chain rooted at any of the provided
-                        // issuer certificates and ensure all signatures are valid. We do not
-                        // consult the application's trust list here — the caller is supplying
-                        // the issuer chain as part of the UpdateCertificate input. Policy checks
-                        // (minimum key size, SHA-1, revocation) are intentionally not applied here;
-                        // the server's configured SecurityConfiguration governs certificate
-                        // acceptance on its communication channels.
-                        var chainPolicy = new X509ChainPolicy
-                        {
-                            RevocationFlag = X509RevocationFlag.EntireChain,
-                            RevocationMode = X509RevocationMode.NoCheck,
-                            VerificationFlags =
-                                X509VerificationFlags.AllowUnknownCertificateAuthority |
-                                X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
-                                X509VerificationFlags.IgnoreEndRevocationUnknown |
-                                X509VerificationFlags.IgnoreRootRevocationUnknown,
-#if NET5_0_OR_GREATER
-                            DisableCertificateDownloads = true,
-#endif
-                            UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
-                        };
+                        // Verify the integrity of the new certificate and the supplied issuer
+                        // chain. Seed the validator from the server's SecurityConfiguration so
+                        // operator-configured policy (minimum key size, SHA-1, revocation) is
+                        // honored, then trust the caller-supplied issuer chain as the trust
+                        // anchor for the new certificate. The application trust list is not
+                        // consulted here since the caller supplies the issuer chain as part of
+                        // the UpdateCertificate input.
+                        var certValidator = new CertificateValidator(Server.Telemetry);
+                        await certValidator.UpdateAsync(
+                            m_configuration.SecurityConfiguration,
+                            m_configuration.ApplicationUri,
+                            ct).ConfigureAwait(false);
 
+                        var issuerStore = new CertificateTrustList();
+                        var issuerCollection = new CertificateIdentifierCollection();
                         foreach (X509Certificate2 issuerCert in newIssuerCollection)
                         {
-                            chainPolicy.ExtraStore.Add(issuerCert);
+                            issuerCollection.Add(new CertificateIdentifier(issuerCert));
                         }
+                        issuerStore.TrustedCertificates = issuerCollection;
+                        certValidator.Update(issuerStore, issuerStore, null);
 
-                        using var chain = new X509Chain { ChainPolicy = chainPolicy };
-                        chain.Build(newCert);
-
-                        foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
-                        {
-                            X509ChainStatusFlags disallowedStatus =
-                                chainStatus.Status & ~X509ChainStatusFlags.UntrustedRoot;
-                            if (disallowedStatus == X509ChainStatusFlags.NoError)
-                            {
-                                continue;
-                            }
-
-                            throw new ServiceResultException(
-                                StatusCodes.BadSecurityChecksFailed,
-                                Utils.Format(
-                                    "Certificate chain validation failed. {0}: {1}",
-                                    chainStatus.Status,
-                                    chainStatus.StatusInformation));
-                        }
-
-                        if (newIssuerCollection.Count + 1 != chain.ChainElements.Count)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The supplied issuer chain is incomplete.");
-                        }
+                        await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException)
                     {
