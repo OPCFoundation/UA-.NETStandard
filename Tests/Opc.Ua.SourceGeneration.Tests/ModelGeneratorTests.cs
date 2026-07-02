@@ -185,6 +185,102 @@ namespace Opc.Ua.SourceGeneration
                 Does.Contain("<ua:Model ModelUri=\"http://test.org/UA/Data/\" Version=\"1.0.0\""));
         }
 
+        [Theory]
+        public void GenerateAndCompileModelDesignReferencingNodeSet2TypesTest(
+            LanguageVersion languageVersion)
+        {
+            // Regression test for issue #3937: a ModelDesign describing object
+            // instances (Priklad02-EquipmentInstancesModelDesign.xml) whose
+            // TypeDefinition references an ObjectType defined in a separate
+            // NodeSet2 AdditionalFile (Priklad02-EquipmentTypes.xml). The
+            // ModelDesign generation pass must receive the NodeSet2 input as a
+            // dependency so the cross-model type reference resolves; otherwise
+            // generation fails with MODELGEN003 ("The TypeDefinition reference
+            // for node Equipment01 is not the expected type: ObjectTypeDesign.").
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    // The test compilation includes Core stubs but no Server
+                    // reference. Suppress fluent-builder emission so the
+                    // generated code compiles standalone.
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+
+            // Per-file metadata mirrors the reporter's AdditionalFiles entries.
+            options.TextOptions["Priklad02-EquipmentTypes.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://stuba.fei.sk/priklad02/EquipmentTypes"
+                };
+            options.TextOptions["Priklad02-EquipmentInstancesModelDesign.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://stuba.fei.sk/priklad02/EquipmentInstances",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "Priklad02",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "Priklad02"
+                };
+
+            // Create the driver that executes the generator
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                .AddAdditionalTexts(
+                [
+                    EmbeddedText.From("Priklad02-EquipmentTypes.xml"),
+                    EmbeddedText.From("Priklad02-EquipmentInstancesModelDesign.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options)
+                ;
+
+            // This test targets the cross-model resolution fixed for #3937,
+            // not full downstream compilation: the reporter's model also uses a
+            // component named "Description" (which shadows the built-in
+            // NodeState.Description attribute) and a NamespaceMetadata object
+            // (NamespaceMetadataState is absent from the test's stub stack) —
+            // both are unrelated to the reported MODELGEN003 and would only
+            // surface as C# compile errors. So the generator is run directly
+            // and its own diagnostics/output are asserted rather than compiling.
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out _,
+                out ImmutableArray<Diagnostic> diagnostics);
+
+            // Before the fix the ModelDesign pass could not resolve the
+            // NodeSet2-defined type and generation failed with MODELGEN003;
+            // after the fix the generator completes without error diagnostics.
+            Assert.That(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty, "generator reported error diagnostics");
+
+            GeneratorRunResult generatorResult = driver.GetRunResult().Results[0];
+            Assert.That(generatorResult.Exception, Is.Null);
+            Assert.That(
+                generatorResult.Diagnostics.Where(d => d.Id == "MODELGEN003"),
+                Is.Empty,
+                "cross-model TypeDefinition reference to the NodeSet2 type must resolve");
+            Assert.That(generatorResult.GeneratedSources, Is.Not.Empty);
+
+            // The instance output must reference the type class generated from
+            // the NodeSet2 input (its C# namespace is derived from the type
+            // model URI: "priklad02EquipmentTypes"). A resolved cross-model
+            // reference proves the NodeSet2 input was wired into the ModelDesign
+            // generation pass as a dependency.
+            string allSources = string.Join(
+                "\n",
+                generatorResult.GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(allSources,
+                Does.Contain("priklad02EquipmentTypes.SimpleEquipmentState"),
+                "instance output should reference the generated NodeSet2 type class");
+        }
+
         private static string ValidateXmlSchema(
             LanguageVersion languageVersion,
             GeneratorRunResult generatorResult)

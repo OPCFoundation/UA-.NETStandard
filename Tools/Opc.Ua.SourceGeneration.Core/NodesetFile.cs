@@ -117,6 +117,19 @@ namespace Opc.Ua.SourceGeneration
             .Where(x => !string.IsNullOrEmpty(x));
 
         /// <summary>
+        /// The design file entries for every nodeset in the collection,
+        /// encoded as <c>"{file},{prefix},{name}"</c> (the same encoding
+        /// used by <see cref="GetDesignFileListForModel"/>). These are
+        /// suitable for use as <c>Dependencies</c> of a ModelDesign
+        /// generation pass so that a ModelDesign referencing a type
+        /// defined in a NodeSet2 input can resolve it. The built-in OpcUa
+        /// namespace and ignored nodesets are excluded.
+        /// </summary>
+        public IEnumerable<string> DesignFileEntries => m_nodesets.Values
+            .Where(x => !x.Info.Ignore && x.Info.ModelUri != Namespaces.OpcUa)
+            .Select(x => $"{x.FileName},{x.Info.Prefix},{x.Info.Name}");
+
+        /// <summary>
         /// Create collection
         /// </summary>
         public NodesetFileCollection(

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet LastModified="2026-04-10T17:14:50.636Z" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns:si="http://www.siemens.com/OPCUA/2017/SimaticNodeSetExtensions" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <NamespaceUris>
+        <Uri>http://stuba.fei.sk/priklad02/EquipmentTypes</Uri>
+    </NamespaceUris>
+    <Models>
+        <Model ModelUri="http://stuba.fei.sk/priklad02/EquipmentTypes" PublicationDate="2026-04-08T16:04:11+02:00" Version="1.01">
+            <RequiredModel ModelUri="http://opcfoundation.org/UA/" PublicationDate="2025-01-08T00:00:00Z" Version="1.05.04"/>
+        </Model>
+    </Models>
+    <Aliases>
+        <Alias Alias="Boolean">i=1</Alias>
+        <Alias Alias="Int32">i=6</Alias>
+        <Alias Alias="DateTime">i=13</Alias>
+        <Alias Alias="String">i=12</Alias>
+        <Alias Alias="HasComponent">i=47</Alias>
+        <Alias Alias="HasProperty">i=46</Alias>
+        <Alias Alias="HasSubtype">i=45</Alias>
+        <Alias Alias="HasTypeDefinition">i=40</Alias>
+        <Alias Alias="HasModellingRule">i=37</Alias>
+    </Aliases>
+    <Extensions>
+        <Extension>
+            <si:Generator Product="SiOME" Edition="Standard" Version="3.2.0"/>
+        </Extension>
+        <Extension>
+            <si:GeneratorExtension Hash="b3ed3e169d15749385e45121bcf83ffe"/>
+        </Extension>
+    </Extensions>
+    <UAObject SymbolicName="http___stuba_fei_sk_priklad02_EquipmentTypes" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes" BrowseName="1:http://stuba.fei.sk/priklad02/EquipmentTypes" ParentNodeId="i=11715">
+        <DisplayName>http://stuba.fei.sk/priklad02/EquipmentTypes</DisplayName>
+        <References>
+            <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="Boolean" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.IsNamespaceSubset" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>IsNamespaceSubset</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="DateTime" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.NamespacePublicationDate" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>NamespacePublicationDate</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:DateTime>2026-04-08T16:04:11+02:00</uax:DateTime>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.NamespaceUri" BrowseName="NamespaceUri" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>NamespaceUri</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:String>http://stuba.fei.sk/priklad02/EquipmentTypes</uax:String>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.NamespaceVersion" BrowseName="NamespaceVersion" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>NamespaceVersion</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:String>1.01</uax:String>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="i=256" ValueRank="1" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.StaticNodeIdTypes" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>StaticNodeIdTypes</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="i=291" ValueRank="1" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.StaticNumericNodeIdRange" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>StaticNumericNodeIdRange</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.StaticStringNodeIdPattern" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>StaticStringNodeIdPattern</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="i=96" ValueRank="1" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.DefaultRolePermissions" BrowseName="DefaultRolePermissions" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>DefaultRolePermissions</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="i=95" NodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes.DefaultAccessRestrictions" BrowseName="DefaultAccessRestrictions" ParentNodeId="ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes">
+        <DisplayName>DefaultAccessRestrictions</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Root.Objects.Server.Namespaces.http://stuba.fei.sk/priklad02/EquipmentTypes</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAObjectType IsAbstract="true" NodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType" BrowseName="1:GenericEquipmentType">
+        <DisplayName>GenericEquipmentType</DisplayName>
+        <Description>Typ pre generické zariadenie</Description>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+        </References>
+    </UAObjectType>
+    <UAObjectType NodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType" BrowseName="1:SimpleEquipmentType">
+        <DisplayName>SimpleEquipmentType</DisplayName>
+        <Description>Typ pre jednoduché zariadenie</Description>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType.Input</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType.Output</Reference>
+            <Reference ReferenceType="HasProperty">ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType.Description</Reference>
+        </References>
+    </UAObjectType>
+    <UAVariable DataType="Int32" NodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType.Input" BrowseName="1:Input" ParentNodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType" UserAccessLevel="3" AccessLevel="3">
+        <DisplayName>Input</DisplayName>
+        <Description>Premenná pre vstup</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Int32" NodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType.Output" BrowseName="1:Output" ParentNodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType">
+        <DisplayName>Output</DisplayName>
+        <Description>Premenná pre výstup</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType.Description" BrowseName="1:Description" ParentNodeId="ns=1;s=Root.Types.ObjectTypes.BaseObjectType.GenericEquipmentType.SimpleEquipmentType">
+        <DisplayName>Description</DisplayName>
+        <Description>Popis zariadenia</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+</UANodeSet>
