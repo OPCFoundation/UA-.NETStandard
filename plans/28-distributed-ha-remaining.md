@@ -19,13 +19,13 @@ See `Docs/HighAvailability.md` and `Docs/Kubernetes.md` for the full, current de
 
 ## Remaining work
 
-### 1. True on-demand fault-in for very large, sparsely-accessed graphs — deferred
+### 1. True on-demand fault-in for very large, sparsely-accessed graphs — deferred (tracked in #3938)
 
-Hydration now uses a snapshot + bounded delta log (fast time-to-ready without transferring one key/value entry per node), but a standby still fully materializes the mirrored graph. The next step — materializing a node only when it is first browsed/read, keeping only a hot subset resident — would further cut time-to-ready and steady-state memory for very large, sparsely-accessed address spaces. It requires an asynchronous node-resolution seam through the core node-manager read/browse contract (today `PredefinedNodes.TryGetValue` is synchronous at dozens of call sites), so it is a larger, higher-risk change scoped separately. The eventual-consistency CRDT path already exchanges a snapshot plus deltas.
+Hydration now uses a snapshot + bounded delta log (fast time-to-ready without transferring one key/value entry per node), but a standby still fully materializes the mirrored graph. The next step — materializing a node only when it is first browsed/read, keeping only a hot subset resident — would further cut time-to-ready and steady-state memory for very large, sparsely-accessed address spaces. It requires an asynchronous node-resolution seam through the core node-manager read/browse contract (today `PredefinedNodes.TryGetValue` is synchronous at dozens of call sites), so it is a larger, higher-risk change scoped separately. The eventual-consistency CRDT path already exchanges a snapshot plus deltas. Tracked as OPCFoundation/UA-.NETStandard#3938.
 
-### 2. Monitored-item data/event queue restore on failover — deferred
+### 2. Monitored-item data/event queue restore on failover — deferred (tracked in #3939)
 
-`SharedKeyValueSubscriptionStore` restores subscription definitions and retransmission state, but the per-monitored-item data/event queues are not restored (`RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` run on the synchronous monitored-item creation path). After failover an item resumes sampling and delivers fresh values, but values queued on the failed replica and not yet published are lost. Restoring the queues needs the monitored-item creation path to accept an async restore (or a pre-hydrated queue) without blocking. Documented as a Note in `Docs/HighAvailability.md`.
+`SharedKeyValueSubscriptionStore` restores subscription definitions and retransmission state, but the per-monitored-item data/event queues are not restored (`RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` run on the synchronous monitored-item creation path). After failover an item resumes sampling and delivers fresh values, but values queued on the failed replica and not yet published are lost. Restoring the queues needs the monitored-item creation path to accept an async restore (or a pre-hydrated queue) without blocking. Documented as a Note in `Docs/HighAvailability.md`. Tracked as OPCFoundation/UA-.NETStandard#3939.
 
 ### 3. Integration coverage for the transparent client session facade — follow-up
 
