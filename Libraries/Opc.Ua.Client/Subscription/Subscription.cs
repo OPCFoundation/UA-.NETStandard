@@ -858,6 +858,7 @@ namespace Opc.Ua.Client.Subscriptions
         private async Task StateManagerAsync(CancellationToken ct)
         {
             OnSubscriptionStateChanged(SubscriptionState.Opened);
+            int consecutiveApplyFailures = 0;
             try
             {
                 while (!ct.IsCancellationRequested)
@@ -865,6 +866,7 @@ namespace Opc.Ua.Client.Subscriptions
                     await m_stateControl.WaitAsync(ct).ConfigureAwait(false);
                     await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
                     SubscriptionOptions options = Options;
+                    bool applyFailed = false;
                     try
                     {
                         while (!ct.IsCancellationRequested)
@@ -928,11 +930,67 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogError(ex, "Failed to apply subscription changes.");
+                        applyFailed = true;
+                        // Rate-limit: log the first failure of a streak at Error
+                        // and the subsequent retries at Debug so a persistently
+                        // failing apply cannot flood the log.
+                        if (consecutiveApplyFailures == 0)
+                        {
+                            Logger.LogError(
+                                ex, "Failed to apply subscription changes; will retry.");
+                        }
+                        else
+                        {
+                            Logger.LogDebug(
+                                ex,
+                                "Retrying subscription changes failed (attempt {Attempt}).",
+                                consecutiveApplyFailures + 1);
+                        }
                     }
                     finally
                     {
                         m_stateLock.Release();
+                    }
+
+                    // A per-item change can fail transiently (e.g. a bad status
+                    // in a CreateMonitoredItems response while the server is
+                    // saturated) without throwing; it then stays queued but is
+                    // only retried on the next apply pass. Treat leftover pending
+                    // changes like a failure so the retrigger below re-schedules
+                    // - and, via the escalating backoff, spaces - the bounded
+                    // per-item retries across the transient overload instead of
+                    // exhausting them instantly and leaving the item un-created.
+                    bool retryNeeded = applyFailed ||
+                        (!ct.IsCancellationRequested && m_monitoredItems.HasPendingChanges);
+
+                    if (retryNeeded && !ct.IsCancellationRequested)
+                    {
+                        // A transient failure (e.g. BadRequestTimeout while the
+                        // server is saturated during a connect burst) would
+                        // otherwise leave the subscription un-applied until an
+                        // unrelated change next signals m_stateControl. Re-trigger
+                        // the apply with a bounded, escalating backoff so the
+                        // subscription self-heals instead of silently delivering
+                        // no notifications.
+                        consecutiveApplyFailures++;
+                        int backoffMs = Math.Min(
+                            kBaseApplyRetryBackoffMs << Math.Min(consecutiveApplyFailures - 1, 5),
+                            kMaxApplyRetryBackoffMs);
+                        try
+                        {
+                            await TimeProvider
+                                .Delay(TimeSpan.FromMilliseconds(backoffMs), ct)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+                        m_stateControl.Set();
+                    }
+                    else
+                    {
+                        consecutiveApplyFailures = 0;
                     }
                 }
             }
@@ -1302,6 +1360,8 @@ namespace Opc.Ua.Client.Subscriptions
 
         private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
+        private const int kBaseApplyRetryBackoffMs = 250;
+        private const int kMaxApplyRetryBackoffMs = 5000;
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
         private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;

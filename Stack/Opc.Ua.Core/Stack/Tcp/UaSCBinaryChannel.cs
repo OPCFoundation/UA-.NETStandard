@@ -186,11 +186,20 @@ namespace Opc.Ua.Bindings
             CertificateCollection? serverCertificateChain = null;
             if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
-                serverCertificate =
-                    serverCertificates.GetInstanceCertificate(securityPolicyUri)?.Certificate
-                    ?? throw new ArgumentNullException(nameof(serverCertificate));
+                // Acquire a caller-owned entry (certificate + issuer chain),
+                // validate it, then keep independent ref-counted handles so the
+                // channel stays valid even if the registry later hot-swaps its
+                // certificates.
+                using CertificateEntry instanceEntry =
+                    serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri)
+                    ?? throw new ArgumentException(
+                        Utils.Format(
+                            "The certificate registry has no instance certificate for security policy {0}.",
+                            securityPolicyUri),
+                        nameof(securityPolicyUri));
 
-                if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
+                Certificate borrowed = instanceEntry.Certificate;
+                if (borrowed.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
                     throw new ArgumentException(
                         Utils.Format(
@@ -200,7 +209,10 @@ namespace Opc.Ua.Bindings
                         nameof(serverCertificate));
                 }
 
-                serverCertificateChain = serverCertificates.LoadCertificateChain(serverCertificate);
+                serverCertificate = borrowed.AddRef();
+                // The entry already carries the issuer chain; build the
+                // [leaf, ...issuers] collection without a second registry lookup.
+                serverCertificateChain = BuildServerCertificateChain(instanceEntry);
             }
 
             if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits
@@ -288,11 +300,12 @@ namespace Opc.Ua.Bindings
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
-                if (m_serverCertificates == null)
-                {
-                    ServerCertificate?.Dispose();
-                    ServerCertificate = null;
-                }
+                // The channel always owns an independent handle on
+                // ServerCertificate (the server side AddRef's it from the
+                // registry; the client side receives an owned handle), so
+                // always release it.
+                ServerCertificate?.Dispose();
+                ServerCertificate = null;
 
                 ClientCertificateChain?.Dispose();
                 ClientCertificateChain = null;

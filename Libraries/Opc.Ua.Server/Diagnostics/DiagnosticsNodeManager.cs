@@ -1092,8 +1092,15 @@ namespace Opc.Ua.Server
 
                 m_sessions.Add(sessionData);
 
-                // send initial update.
-                DoScan(true);
+                // Mark the diagnostics arrays dirty instead of rebuilding them
+                // synchronously here. Rebuilding on every CreateSession is O(N) in
+                // the session count, so establishing N sessions is O(N^2) - a
+                // dominant connect-time cost at scale. The read paths
+                // (OnBeforeReadDiagnostics / OnReadDiagnosticsArray) and the
+                // periodic scan timer honor this flag and run a single fresh scan
+                // when the arrays are actually read or monitored, so correctness
+                // is preserved without the per-create quadratic work.
+                m_forceDiagnosticsScan = true;
             }
             finally
             {
@@ -1226,8 +1233,11 @@ namespace Opc.Ua.Server
                         diagnosticsNode.NodeId);
                 }
 
-                // send initial update.
-                DoScan(true);
+                // Mark the diagnostics arrays dirty rather than rebuilding them
+                // synchronously on every CreateSubscription (O(N) per call, hence
+                // O(N^2) over N subscriptions). The read paths and periodic scan
+                // timer run a single fresh scan on demand, honoring this flag.
+                m_forceDiagnosticsScan = true;
             }
             finally
             {

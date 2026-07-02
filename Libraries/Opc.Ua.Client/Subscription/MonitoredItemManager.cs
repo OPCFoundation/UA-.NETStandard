@@ -640,6 +640,36 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// True when monitored-item changes are still queued to be applied
+        /// (a pending create/modify, or a delete awaiting retry) so the owning
+        /// subscription must schedule another <see cref="ApplyChangesAsync"/>
+        /// pass. A transient per-item failure (e.g. a bad status during a
+        /// connect burst) leaves the change pending; without re-scheduling the
+        /// item would never be (re)created and would silently deliver no data.
+        /// </summary>
+        internal bool HasPendingChanges
+        {
+            get
+            {
+                lock (m_monitoredItemsLock)
+                {
+                    if (m_deletedItems.Count != 0)
+                    {
+                        return true;
+                    }
+                    foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                    {
+                        if (monitoredItem.TryGetPendingChange(out _))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
         /// Get monitored item changes
         /// </summary>
         /// <param name="itemsToDelete"></param>

@@ -777,6 +777,15 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxFailedAuthenticationAttempts(
+            int maxFailedAuthenticationAttempts)
+        {
+            ApplicationConfiguration.ServerConfiguration!.MaxFailedAuthenticationAttempts
+                = maxFailedAuthenticationAttempts;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(
             int maxBrowseContinuationPoints)
         {

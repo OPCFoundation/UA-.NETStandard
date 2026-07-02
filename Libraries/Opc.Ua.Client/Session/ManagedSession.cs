@@ -1115,6 +1115,29 @@ namespace Opc.Ua.Client
                                     ct: ct)
                                 .ConfigureAwait(false);
                         }
+                        catch (ServiceResultException sre) when (
+                            RequiresSessionRecreate(sre.StatusCode))
+                        {
+                            // The server-side session can no longer be reactivated
+                            // by a plain reconnect: e.g. under load the server
+                            // processed an ActivateSession (rotating its nonce) but
+                            // the response was lost, so every subsequent reconnect
+                            // signs the now-stale nonce and is rejected with
+                            // BadApplicationSignatureInvalid forever. Fall back to a
+                            // fresh CreateSession/ActivateSession, which establishes
+                            // a new nonce and recovers the session instead of
+                            // looping on the unrecoverable reactivate.
+                            m_logger.LogInformation(
+                                sre,
+                                "ManagedSession: reconnect rejected with {Status}; " +
+                                "recreating session in place.",
+                                sre.StatusCode);
+                            await session.RecreateInPlaceAsync(
+                                    endpoint: null,
+                                    budget: budget,
+                                    ct: ct)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -1164,6 +1187,24 @@ namespace Opc.Ua.Client
             }
 
             m_reconnectPolicy.Reset();
+        }
+
+        /// <summary>
+        /// True when a reconnect (reactivate) failure status indicates the
+        /// server-side session can no longer be reactivated and must be fully
+        /// recreated (fresh CreateSession/ActivateSession). These arise when the
+        /// server dropped or closed the session, or when a lost ActivateSession
+        /// response left the client signing a stale server nonce that is now
+        /// permanently rejected.
+        /// </summary>
+        private static bool RequiresSessionRecreate(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                statusCode == StatusCodes.BadSessionIdInvalid ||
+                statusCode == StatusCodes.BadSessionClosed ||
+                statusCode == StatusCodes.BadSessionNotActivated ||
+                statusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                statusCode == StatusCodes.BadIdentityTokenInvalid;
         }
 
         private async Task<ServiceResult> HandleFailoverAsync(

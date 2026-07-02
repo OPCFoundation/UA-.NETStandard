@@ -105,6 +105,21 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Returns a NEW caller-owned <see cref="CertificateEntry"/> over the
+        /// same certificate and issuer chain. The underlying
+        /// <see cref="Certificate"/> and <see cref="IssuerChain"/> handles are
+        /// reference-counted, so the returned entry is an independent owner
+        /// that must be balanced by exactly one call to <see cref="Dispose()"/>.
+        /// Disposing the returned entry does not affect this entry or any other
+        /// owner of the same certificate core.
+        /// </summary>
+        /// <returns>A new owning <see cref="CertificateEntry"/> over the same data.</returns>
+        public CertificateEntry AddRef()
+        {
+            return new CertificateEntry(Certificate, IssuerChain, CertificateType);
+        }
+
+        /// <summary>
         /// Returns a DER-encoded blob containing the certificate
         /// followed by each issuer in the chain, suitable for
         /// wire transmission.

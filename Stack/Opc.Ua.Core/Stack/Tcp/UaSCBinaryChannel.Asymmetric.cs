@@ -108,6 +108,21 @@ namespace Opc.Ua.Bindings
         internal CertificateCollection? ClientCertificateChain { get; set; }
 
         /// <summary>
+        /// Builds a new owned collection holding the entry's certificate
+        /// followed by its issuer chain (<c>[leaf, ...issuers]</c>) for wire
+        /// transmission. The caller owns and must dispose the result.
+        /// </summary>
+        private static CertificateCollection BuildServerCertificateChain(CertificateEntry entry)
+        {
+            var chain = new CertificateCollection { entry.Certificate };
+            foreach (Certificate issuer in entry.IssuerChain)
+            {
+                chain.Add(issuer);
+            }
+            return chain;
+        }
+
+        /// <summary>
         /// Returns the thumbprint as a uppercase string.
         /// </summary>
         protected static string GetThumbprintString(ByteString thumbprint)
@@ -919,15 +934,23 @@ namespace Opc.Ua.Bindings
             // verify receiver thumbprint.
             if (thumbprintData.Length > 0)
             {
-                bool loadChain = false;
                 // TODO: client should use the proider too!
                 if (m_serverCertificates != null)
                 {
-                    receiverCertificate =
-                        m_serverCertificates.GetInstanceCertificate(
-                            securityPolicyUri)?.Certificate;
-                    ServerCertificate = receiverCertificate;
-                    loadChain = true;
+                    // Replace the channel-owned instance certificate (and its
+                    // issuer chain) with independent handles on the registry's
+                    // current entry.
+                    using (CertificateEntry? receiverEntry =
+                        m_serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri))
+                    {
+                        ServerCertificate?.Dispose();
+                        ServerCertificate = receiverEntry?.Certificate.AddRef();
+                        ServerCertificateChain?.Dispose();
+                        ServerCertificateChain = receiverEntry == null
+                            ? null
+                            : BuildServerCertificateChain(receiverEntry);
+                    }
+                    receiverCertificate = ServerCertificate;
                 }
 
                 if (receiverCertificate == null)
@@ -944,14 +967,6 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateInvalid,
                         "The receiver's certificate thumbprint is not valid.");
-                }
-
-                if (loadChain)
-                {
-                    ServerCertificateChain?.Dispose();
-                    ServerCertificateChain =
-                        m_serverCertificates?.LoadCertificateChain(
-                            receiverCertificate);
                 }
             }
             else if (securityPolicyUri != SecurityPolicies.None)
@@ -982,15 +997,17 @@ namespace Opc.Ua.Bindings
                         {
                             SecurityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
-                            ServerCertificate =
+                            using (CertificateEntry? instanceEntry =
                                 m_serverCertificates!
-                                    .GetInstanceCertificate(
-                                        SecurityPolicyUri)?.Certificate;
-                            ServerCertificateChain?.Dispose();
-                            ServerCertificateChain =
-                                m_serverCertificates
-                                    .LoadCertificateChain(
-                                        ServerCertificate);
+                                    .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicyUri))
+                            {
+                                ServerCertificate?.Dispose();
+                                ServerCertificate = instanceEntry?.Certificate.AddRef();
+                                ServerCertificateChain?.Dispose();
+                                ServerCertificateChain = instanceEntry == null
+                                    ? null
+                                    : BuildServerCertificateChain(instanceEntry);
+                            }
                             supported = true;
                             break;
                         }
@@ -1034,12 +1051,17 @@ namespace Opc.Ua.Bindings
 
                 SecurityMode = endpoint.SecurityMode;
                 SecurityPolicyUri = endpoint.SecurityPolicyUri!;
-                ServerCertificate =
-                    m_serverCertificates!.GetInstanceCertificate(
-                        SecurityPolicyUri!)?.Certificate;
-                ServerCertificateChain?.Dispose();
-                ServerCertificateChain =
-                    m_serverCertificates.LoadCertificateChain(ServerCertificate);
+                using (CertificateEntry? instanceEntry =
+                    m_serverCertificates!.AcquireApplicationCertificateBySecurityPolicy(
+                        SecurityPolicyUri!))
+                {
+                    ServerCertificate?.Dispose();
+                    ServerCertificate = instanceEntry?.Certificate.AddRef();
+                    ServerCertificateChain?.Dispose();
+                    ServerCertificateChain = instanceEntry == null
+                        ? null
+                        : BuildServerCertificateChain(instanceEntry);
+                }
                 m_selectedEndpoint = endpoint;
                 return true;
             }

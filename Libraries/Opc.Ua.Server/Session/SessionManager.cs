@@ -87,6 +87,8 @@ namespace Opc.Ua.Server
             m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
             m_maxSessionCount = configuration.ServerConfiguration.MaxSessionCount;
+            m_maxFailedAuthenticationAttempts = configuration.ServerConfiguration
+                .MaxFailedAuthenticationAttempts;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
@@ -210,6 +212,8 @@ namespace Opc.Ua.Server
 
             ISession session;
             Nonce? tempNonce = null;
+            Nonce? serverNonceObject = null;
+            bool reserved = false;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -268,7 +272,7 @@ namespace Opc.Ua.Server
                 // create server nonce.
                 tempNonce = Nonce.CreateNonce(
                     channelContext.EndpointDescription!.SecurityPolicyUri!);
-                Nonce serverNonceObject = tempNonce;
+                serverNonceObject = tempNonce;
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -295,35 +299,50 @@ namespace Opc.Ua.Server
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
 
-                // complete the asynchronous part of session creation
-                // (registers the session diagnostics node and sets Id).
-                try
-                {
-                    await session.InitializeAsync(context, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    serverNonceObject.Dispose();
-                    session.Dispose();
-                    throw;
-                }
-
-                // get the session id.
-                sessionId = session.Id;
-                serverNonce = serverNonceObject.Data.ToByteString();
-
-                // save session.
+                // Reserve the session slot while holding the lock so the session
+                // count cap and client-nonce uniqueness stay enforced atomically.
+                // The expensive asynchronous part (registering the session
+                // diagnostics node) runs after the lock is released, so it no
+                // longer serializes every concurrent CreateSession/ActivateSession
+                // behind the session-manager lock. m_sessions is a concurrent
+                // dictionary; the lock is only needed for the check-then-add
+                // atomicity above.
                 if (!m_sessions.TryAdd(authenticationToken, session))
                 {
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
+                reserved = true;
             }
             finally
             {
                 tempNonce?.Dispose();
                 m_semaphoreSlim.Release();
             }
+
+            // complete the asynchronous part of session creation
+            // (registers the session diagnostics node and sets Id) outside the
+            // global session-manager lock.
+            try
+            {
+                await session.InitializeAsync(context, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // roll back the reserved slot; m_sessions is concurrent so this
+                // needs no lock.
+                if (reserved)
+                {
+                    m_sessions.TryRemove(authenticationToken, out _);
+                }
+                serverNonceObject.Dispose();
+                session.Dispose();
+                throw;
+            }
+
+            // get the session id.
+            sessionId = session.Id;
+            serverNonce = serverNonceObject.Data.ToByteString();
 
             // raise session related event.
             RaiseSessionEvent(session, SessionEventReason.Created);
@@ -367,6 +386,13 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             try
             {
+                // The global lock guards the session-manager dictionary and
+                // session lifecycle (lookup, lockout, expiry). It is deliberately
+                // released before the client-signature verification below:
+                // ValidateBeforeActivate only touches this session's own state
+                // (guarded by the session's own lock), so running the CPU-bound
+                // RSA verify under the global lock would serialize every
+                // concurrent ActivateSession and cap connect throughput.
                 await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
@@ -418,7 +444,25 @@ namespace Opc.Ua.Server
 
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
+                }
 
+                // Note: session lookup, lockout and expiry failures above are not
+                // authentication failures and deliberately do NOT record a
+                // brute-force attempt - only a failed client-signature or user
+                // identity validation below does, so a timed-out or unknown session
+                // cannot lock out a legitimate client.
+
+                // Verify the client signature outside the global lock. This is the
+                // CPU-bound part of activation (RSA/ECDSA verify); keeping it out of
+                // the session-manager lock lets concurrent activations verify in
+                // parallel. It operates only on this session's state, which is
+                // guarded by the session's own lock inside ValidateBeforeActivate.
+                try
+                {
                     // create new server nonce.
                     serverNonceObject = Nonce.CreateNonce(
                         context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
@@ -438,10 +482,6 @@ namespace Opc.Ua.Server
                 {
                     RecordFailedAuthentication(clientKey!);
                     throw;
-                }
-                finally
-                {
-                    m_semaphoreSlim.Release();
                 }
                 IUserIdentity? identity = null;
                 IUserIdentity? effectiveIdentity = null;
@@ -1236,7 +1276,7 @@ namespace Opc.Ua.Server
         private readonly int m_maxHistoryContinuationPoints;
 
         private readonly ConcurrentDictionary<string, ClientLockoutInfo> m_clientLockouts = new();
-        private const int kMaxFailedAuthenticationAttempts = 5;
+        private readonly int m_maxFailedAuthenticationAttempts;
         private readonly long m_lockoutDurationTicks;
         private readonly long m_failureExpirationTicks;
 
@@ -1436,8 +1476,9 @@ namespace Opc.Ua.Server
         {
             remainingLockoutTicks = 0;
 
-            if (string.IsNullOrEmpty(clientKey))
+            if (m_maxFailedAuthenticationAttempts <= 0 || string.IsNullOrEmpty(clientKey))
             {
+                // Lockout disabled (MaxFailedAuthenticationAttempts <= 0) or no key.
                 return false;
             }
 
@@ -1464,17 +1505,18 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RecordFailedAuthentication(string clientKey)
         {
-            if (string.IsNullOrEmpty(clientKey))
+            if (m_maxFailedAuthenticationAttempts <= 0 || string.IsNullOrEmpty(clientKey))
             {
+                // Lockout disabled (MaxFailedAuthenticationAttempts <= 0) or no key.
                 return;
             }
 
             long currentTicks = m_timeProvider.GetTimestamp();
             ClientLockoutInfo lockoutInfo = m_clientLockouts.AddOrUpdate(
                 clientKey,
-                _ => new ClientLockoutInfo(1, currentTicks, m_lockoutDurationTicks, kMaxFailedAuthenticationAttempts),
+                _ => new ClientLockoutInfo(1, currentTicks, m_lockoutDurationTicks, m_maxFailedAuthenticationAttempts),
                 (_, existing) => existing.IncrementFailures(
-                    currentTicks, m_lockoutDurationTicks, m_failureExpirationTicks, kMaxFailedAuthenticationAttempts));
+                    currentTicks, m_lockoutDurationTicks, m_failureExpirationTicks, m_maxFailedAuthenticationAttempts));
 
             if (lockoutInfo.IsLockedOut(currentTicks))
             {

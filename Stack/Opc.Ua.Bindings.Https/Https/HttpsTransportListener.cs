@@ -76,9 +76,7 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
-            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeHttps, telemetry));
-#pragma warning restore CA2000
+            return new HttpsTransportListener(Utils.UriSchemeHttps, telemetry, [.. StartupContributors]);
         }
     }
 
@@ -105,9 +103,7 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
-            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry));
-#pragma warning restore CA2000
+            return new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry, [.. StartupContributors]);
         }
     }
 
@@ -133,9 +129,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
-            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeWss, telemetry));
-#pragma warning restore CA2000
+            return new HttpsTransportListener(Utils.UriSchemeWss, telemetry, [.. StartupContributors]);
         }
     }
 
@@ -161,9 +155,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-#pragma warning disable CA2000 // ownership transfers to the caller via the returned interface
-            return ApplyContributorsTo(new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry));
-#pragma warning restore CA2000
+            return new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry, [.. StartupContributors]);
         }
     }
 
@@ -332,6 +324,22 @@ namespace Opc.Ua.Bindings
             UriScheme = uriScheme;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<HttpsTransportListener>();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HttpsTransportListener"/>
+        /// class with the supplied startup contributors already applied, so the
+        /// owning factory can construct and return the listener in a single
+        /// expression (transferring ownership to the caller without an
+        /// intermediate, undisposed local).
+        /// </summary>
+        internal HttpsTransportListener(
+            string uriScheme,
+            ITelemetryContext telemetry,
+            IReadOnlyList<IHttpsListenerStartupContributor> startupContributors)
+            : this(uriScheme, telemetry)
+        {
+            StartupContributors = startupContributors;
         }
 
         /// <summary>
@@ -941,13 +949,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void PrepareTlsCertificate()
         {
-            // prepare the server TLS certificate. The provider returns a
-            // borrowed reference owned by the registry; AddRef so this
-            // listener owns the cert independent of the registry's lifetime
-            // (the registry may dispose its snapshot during cert hot-update,
-            // which would otherwise free the OS handle Kestrel still holds).
-            Certificate? serverCertificate = m_serverCertProvider.GetInstanceCertificate(
-                SecurityPolicies.Https)?.Certificate?.AddRef();
+            // prepare the server TLS certificate. AcquireApplicationCertificateBySecurityPolicy
+            // returns a caller-owned entry; take an independent handle on the
+            // certificate so this listener owns it for its full lifetime,
+            // independent of the entry (disposed below) and of any concurrent
+            // registry hot-update that would otherwise free the OS handle
+            // Kestrel still holds.
+            using CertificateEntry? instanceEntry = m_serverCertProvider
+                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https);
+            Certificate? serverCertificate = instanceEntry?.Certificate?.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -1514,16 +1524,6 @@ namespace Opc.Ua.Bindings
                 context.Connection.RemoteIpAddress,
                 context.Connection.RemotePort);
 
-#pragma warning disable CA2000 // transport disposed in the finally block below
-            var transport = new WebSocketServerByteTransport(
-                ws,
-                localEndpoint,
-                remoteEndpoint,
-                m_bufferManager,
-                m_quotas.MaxBufferSize,
-                m_telemetry);
-#pragma warning restore CA2000
-
             var perWsListener = new WssChannelListener(this);
             uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
 
@@ -1563,8 +1563,16 @@ namespace Opc.Ua.Bindings
 
             perWsListener.AttachChannel(channelId, channel);
 
+            WebSocketServerByteTransport? transport = null;
             try
             {
+                transport = new WebSocketServerByteTransport(
+                    ws,
+                    localEndpoint,
+                    remoteEndpoint,
+                    m_bufferManager,
+                    m_quotas.MaxBufferSize,
+                    m_telemetry);
                 channel.Attach(channelId, transport);
 
                 // Hold the request open until the channel is torn down (the
@@ -1592,14 +1600,10 @@ namespace Opc.Ua.Bindings
                 {
                     // Dispose is best-effort.
                 }
-                try
-                {
-                    transport.Close();
-                }
-                catch
-                {
-                    // Close is best-effort.
-                }
+                // The channel closes the attached transport on Dispose; this
+                // direct, idempotent Dispose covers the path where Attach was
+                // never reached (e.g. the transport ctor threw).
+                transport?.Dispose();
             }
         }
 
