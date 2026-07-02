@@ -134,6 +134,21 @@ namespace Opc.Ua.Redundancy.Client
         public int SubscriptionCount => RequireCurrentSession().SubscriptionCount;
 
         /// <inheritdoc/>
+        public bool TryGetSubscriptionManager(
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+            out Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager)
+        {
+            ISession? session = GetCurrentSession();
+            if (session != null)
+            {
+                return session.TryGetSubscriptionManager(out manager);
+            }
+
+            manager = null;
+            return false;
+        }
+
+        /// <inheritdoc/>
         public bool DeleteSubscriptionsOnClose
         {
             get => RequireCurrentSession().DeleteSubscriptionsOnClose;
