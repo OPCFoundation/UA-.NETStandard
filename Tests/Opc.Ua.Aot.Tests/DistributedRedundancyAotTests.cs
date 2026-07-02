@@ -117,7 +117,7 @@ namespace Opc.Ua.Aot.Tests
             leaderOptions.Kubernetes.Namespace = "default";
             leaderOptions.Kubernetes.NodeId = "replica-a";
             leaderOptions.LeaseName = "opcua-leader";
-            var election = new KubernetesLeaseLeaderElection(client, leaderOptions);
+            await using var election = new KubernetesLeaseLeaderElection(client, leaderOptions);
 
             bool acquired = await election.TryAcquireOrRenewAsync();
 

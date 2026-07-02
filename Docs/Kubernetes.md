@@ -10,18 +10,15 @@ The API names distinguish standardized OPC UA model wiring from deployment exten
 
 Use **non-transparent redundancy** when each pod has its own OPC UA endpoint and clients use `Server.ServerRedundancy`, `FindServers`, and `ServiceLevel` to fail over. Use **transparent redundancy** when clients connect to one virtual address, typically a `Service` or external load balancer, and the pods share the endpoint URL, application URI, certificate, session state, and subscription state required to hide failover.
 
-A multi-pod deployment needs a shared store reachable by all replicas for distributed address-space/session/subscription state. The in-memory store is only for single-process tests and local samples. Protect the store conduit with authenticated encryption, provision a shared record-protection key through a Kubernetes Secret or CSI-backed secret store, and size/expire session, nonce, and subscription keys so a faulty replica cannot exhaust the backend.
+A multi-pod deployment needs a shared store reachable by all replicas for distributed address-space/session/subscription state. Configure a networked, authenticated, encrypted, capacity-bounded backend — the in-package Raft store, or a CRDT gossip fabric over the pod network: protect the store conduit with authenticated encryption, provision a shared record-protection key through a Kubernetes Secret or CSI-backed secret store, and size/expire session, nonce, and subscription keys so a faulty replica cannot exhaust the backend.
 
-### Running without Kubernetes API integration
+A server can run HA on Kubernetes two ways, and you choose one: **with** Kubernetes API integration (Kubernetes-native Lease election, EndpointSlice discovery, and readiness), or **without** it (the in-package Raft/CRDT layers self-manage membership and leadership). The two options are described next.
 
-The `Opc.Ua.Redundancy.Kubernetes` extension (`UseKubernetesLeaderElection`, `UseKubernetesPeerDiscovery`, `UseKubernetesReadiness`) is **optional**. Because the in-package consensus layers self-manage membership and leadership, you can run a fully working HA replica set on Kubernetes with **no Kubernetes API access, RBAC, or ServiceAccount** at all:
+## Running with Kubernetes API integration
 
-- **Raft (strong consistency)** — `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)` elects a single leader through the Raft protocol itself and provides a linearizable shared store, so no Kubernetes Lease is needed. Deploy the members as a `StatefulSet` with a headless `Service`; each pod derives its Raft node id from the StatefulSet ordinal and reaches its peers by stable pod DNS (`pod-0.svc`, `pod-1.svc`, …). A `RaftCs.Storage.File` WAL on a `PersistentVolumeClaim` lets a restarted pod rejoin without a full snapshot.
-- **CRDT (eventual consistency, active/active)** — `UseReplicatedAddressSpace`/`UseReplicatedSessions` converge leaderlessly over gossip, so there is no election to coordinate. Point each pod's gossip peer list at the other pods' DNS names (again a headless `Service` over a `StatefulSet`).
+Use the `Opc.Ua.Redundancy.Kubernetes` extension (`UseKubernetesLeaderElection`, `UseKubernetesPeerDiscovery`, `UseKubernetesReadiness`) when you want Kubernetes-native Lease leader election, EndpointSlice peer discovery, and `ServiceLevel`-driven HTTP readiness. This option calls the Kubernetes API, so it needs a `ServiceAccount` and the [RBAC](#rbac) shown below.
 
-In both cases readiness/liveness can be a plain HTTP probe your app exposes from `Server.ServiceLevel` without `UseKubernetesReadiness`. Reach for the `Opc.Ua.Redundancy.Kubernetes` extension only when you specifically want Kubernetes-native Lease election or EndpointSlice-based peer discovery instead of the self-managed Raft/CRDT wiring above.
-
-## Application wiring
+### Application setup with "full" K8s integration
 
 ```csharp
 services.AddOpcUa()
@@ -67,6 +64,17 @@ services.AddOpcUa()
 ```
 
 `UseKubernetesLeaderElection` uses the in-cluster service account token, namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`. Outside Kubernetes it falls back to `SharedStoreLeaseElection` by default (`UseSharedStoreFallback = true`) so local development can still exercise the distributed path. (`UseKubernetes()` registers the shared in-cluster Kubernetes API client that these extensions consume; the leader-election, peer-discovery, and readiness helpers add it automatically, but you can call it directly when adding your own Kubernetes-backed component.)
+
+## Running without Kubernetes API integration
+
+The `Opc.Ua.Redundancy.Kubernetes` extension is **optional**. Because the in-package consensus layers self-manage membership and leadership, you can run a fully working HA replica set on Kubernetes with **no Kubernetes API access, RBAC, or ServiceAccount** at all.
+
+### Simple setup option
+
+- **Strong** consistency (via Raft) — `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)` elects a single leader through the Raft protocol itself and provides a linearizable shared store, so no Kubernetes Lease is needed. Deploy the members as a `StatefulSet` with a headless `Service`; each pod derives its Raft node id from the StatefulSet ordinal and reaches its peers by stable pod DNS (`pod-0.svc`, `pod-1.svc`, …). A `RaftCs.Storage.File` WAL on a `PersistentVolumeClaim` lets a restarted pod rejoin without a full snapshot.
+- **Eventual** consistency (via CRDT and Raft) — `UseReplicatedAddressSpace`/`UseReplicatedSessions` converge leaderlessly over gossip, so there is no election to coordinate. Point each pod's gossip peer list at the other pods' DNS names (again a headless `Service` over a `StatefulSet`). Exactly-once primitives such as the single-use nonce and the leader lease still ride the in-package Raft keyspace, so "eventual" here is the hybrid CRDT-plus-Raft store rather than pure gossip.
+
+In both cases readiness/liveness can be a plain HTTP probe your app exposes from `Server.ServiceLevel` without `UseKubernetesReadiness`.
 
 ## RBAC
 
