@@ -251,6 +251,16 @@ docker compose -f Applications\RedundantServer\docker-compose.transparent.yml up
 
 Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer`, `:62544`, `:62545`). Set `HA_HOST` to the reachable hostname (the compose file uses the container/service name) so peers and clients connect across the container network. Three replicas run in every topology (Raft needs a 3-node quorum; active/active eventual works with 2 or 3 — remove `server-c` for a 2-node run, so the replica count is configurable). The Raft topologies are real cross-container HA deployments whose RaftCs cluster is the shared, linearizable store; active/active eventual converges leaderlessly over CRDT gossip with no shared store.
 
+### Scale active/active eventual replicas
+
+`docker-compose.scale.yml` has a single `server` service for active/active eventual (CRDT gossip) runs. Docker Compose can scale it to any replica count because the sample discovers peers from the `server` DNS alias instead of a fixed `HA_GOSSIP_PEERS` list:
+
+```powershell
+docker compose -f Applications\RedundantServer\docker-compose.scale.yml up --build --scale server=5
+```
+
+The scale file sets `HA_PEER_DISCOVERY=dns` and `HA_SERVICE_NAME=server`; every replica resolves the service alias, removes its own container IP, and seeds gossip with the remaining task IPs on `HA_GOSSIP_PORT` (session gossip uses the next port). No host ports are published, so clients should run inside the same compose network or attach to it. This dynamic scaling path is gossip-only. Dynamic Raft scaling is intentionally unsupported because Raft needs stable replica identities and an odd quorum; use the Kubernetes StatefulSet deployment with `UseKubernetesRaftConsensus` for strong consistency.
+
 ### Watch replication and failover
 
 The `clients` (and `demo`) profile adds one or more `RedundantClient` instances (set `CLIENT_REPLICAS` for a client replica set). To see replication and failover end to end:

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 using Crdt;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -143,11 +145,10 @@ if (activeActive)
     builder.Services.AddSingleton<ILeaderElection>(_ => new StaticLeaderElection(true));
 
     int gossipPort = int.TryParse(builder.Configuration["HA_GOSSIP_PORT"], out int gp) ? gp : 4840;
-    var gossipPeers = new List<IPEndPoint>();
-    foreach (string peer in ReadList(builder.Configuration, "HA_GOSSIP_PEERS"))
-    {
-        gossipPeers.Add(ParseEndpoint(peer));
-    }
+    List<IPEndPoint> gossipPeers = await ReadGossipPeersAsync(
+        builder.Configuration,
+        gossipPort,
+        useStrongConsistency).ConfigureAwait(false);
     ReplicaId replicaId = ReplicaIdFromNodeId(nodeId);
 
     ua.UseReplicatedAddressSpace(r =>
@@ -359,6 +360,125 @@ static IEnumerable<string> ReadList(IConfiguration configuration, string key)
         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
     {
         yield return item;
+    }
+}
+
+static async Task<List<IPEndPoint>> ReadGossipPeersAsync(
+    IConfiguration configuration,
+    int gossipPort,
+    bool useStrongConsistency)
+{
+    string peerDiscovery = (configuration["HA_PEER_DISCOVERY"] ?? "static").Trim();
+    if (peerDiscovery.Equals("dns", StringComparison.OrdinalIgnoreCase))
+    {
+        if (useStrongConsistency)
+        {
+            Console.WriteLine(
+                "Warning: HA_PEER_DISCOVERY=dns is supported only for active/active eventual gossip. " +
+                "Dynamic Raft scaling needs stable identities and an odd quorum; use Kubernetes StatefulSet " +
+                "deployment with UseKubernetesRaftConsensus. Falling back to HA_GOSSIP_PEERS.");
+        }
+        else
+        {
+            return await DiscoverDnsGossipPeersAsync(configuration, gossipPort).ConfigureAwait(false);
+        }
+    }
+
+    var gossipPeers = new List<IPEndPoint>();
+    foreach (string peer in ReadList(configuration, "HA_GOSSIP_PEERS"))
+    {
+        gossipPeers.Add(ParseEndpoint(peer));
+    }
+
+    return gossipPeers;
+}
+
+static async Task<List<IPEndPoint>> DiscoverDnsGossipPeersAsync(IConfiguration configuration, int gossipPort)
+{
+    const int maxAttempts = 10;
+    TimeSpan retryDelay = TimeSpan.FromSeconds(1);
+    string serviceName = configuration["HA_SERVICE_NAME"] ?? "server";
+    HashSet<IPAddress> localAddresses = await GetLocalAddressesAsync(configuration).ConfigureAwait(false);
+    var gossipPeers = new List<IPEndPoint>();
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        gossipPeers.Clear();
+        try
+        {
+            IPAddress[] addresses = await Dns.GetHostAddressesAsync(serviceName).ConfigureAwait(false);
+            var peerAddresses = new HashSet<IPAddress>();
+            foreach (IPAddress address in addresses)
+            {
+                if (address.AddressFamily == AddressFamily.InterNetwork &&
+                    !localAddresses.Contains(address) &&
+                    peerAddresses.Add(address))
+                {
+                    gossipPeers.Add(new IPEndPoint(address, gossipPort));
+                }
+            }
+
+            if (gossipPeers.Count > 0 || attempt == maxAttempts)
+            {
+                Console.WriteLine(
+                    "DNS peer discovery for service '{0}' found {1} peer(s) on gossip port {2}.",
+                    serviceName,
+                    gossipPeers.Count,
+                    gossipPort);
+                return new List<IPEndPoint>(gossipPeers);
+            }
+        }
+        catch (Exception ex) when (ex is SocketException or ArgumentException)
+        {
+            if (attempt == maxAttempts)
+            {
+                Console.WriteLine(
+                    "DNS peer discovery for service '{0}' found 0 peers on gossip port {1}: {2}",
+                    serviceName,
+                    gossipPort,
+                    ex.Message);
+                return [];
+            }
+        }
+
+        await Task.Delay(retryDelay).ConfigureAwait(false);
+    }
+
+    return [];
+}
+
+static async Task<HashSet<IPAddress>> GetLocalAddressesAsync(IConfiguration configuration)
+{
+    var localAddresses = new HashSet<IPAddress>();
+    await AddHostAddressesAsync(localAddresses, Dns.GetHostName()).ConfigureAwait(false);
+
+    foreach (string localAddress in ReadList(configuration, "HA_LOCAL_ADDRESS"))
+    {
+        await AddHostAddressesAsync(localAddresses, localAddress).ConfigureAwait(false);
+    }
+
+    return localAddresses;
+}
+
+static async Task AddHostAddressesAsync(HashSet<IPAddress> addresses, string hostOrAddress)
+{
+    if (IPAddress.TryParse(hostOrAddress, out IPAddress? address))
+    {
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+        {
+            addresses.Add(address);
+        }
+
+        return;
+    }
+
+    IPAddress[] resolvedAddresses = await Dns.GetHostAddressesAsync(hostOrAddress).ConfigureAwait(false);
+    foreach (IPAddress resolvedAddress in resolvedAddresses)
+    {
+        if (resolvedAddress.AddressFamily == AddressFamily.InterNetwork)
+        {
+            addresses.Add(resolvedAddress);
+        }
     }
 }
 

@@ -18,6 +18,9 @@ dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- `
 | `--nosecurity` | off | Select endpoints with `MessageSecurityMode.None`. |
 | `--autoaccept` | off | Automatically accept untrusted server certificates (sample only). |
 | `--duration`, `-d` | `00:02:00` | How long to monitor before exiting; `00:00:00` runs until Ctrl+C. |
+| `--replicas` | `1` | Run an in-process client replica set of this size (the leader holds the session). |
+| `--standby` | `Cold` | Standby mode for the replica set: `Cold`, `Warm`, or `Hot`. |
+| `--suite` | off | Run a browse/read/subscribe workload against the redundant `ISession`. |
 
 The sample connects, logs the server's reported `RedundancySupport` (or notes that the server is not redundant), subscribes to `Server.ServerStatus.CurrentTime`, and logs the values together with any transparent connection-state changes (reconnect or failover). To observe failover, lower the active server's service level (for example with the `RedundantServer` sample's manual failover support) or stop the active server; the managed session reconnects to a healthy peer on its own.
 
@@ -25,10 +28,10 @@ See [HighAvailability.md](../../Docs/HighAvailability.md) for the redundancy des
 
 ## Client replica set (high availability)
 
-Run an in-process client replica set where exactly one leader holds the session and followers stand by:
+Run an in-process client replica set where exactly one leader holds the session and followers stand by. Each replica exposes a transparent `RedundantClientSession` (`ISession`): calls block on a follower until it is promoted, and the same handle keeps serving after a leader change. Choose the standby behaviour with `--standby` (Cold connects on promotion; Warm/Hot keep a standby session ready), and add `--suite` to run a browse/read/subscribe workload through the leader:
 
 ```powershell
-dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- --server opc.tcp://localhost:62543/RedundantServer --autoaccept --nosecurity --replicas 3
+dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- --server opc.tcp://localhost:62543/RedundantServer --autoaccept --nosecurity --replicas 3 --standby Hot --suite
 ```
 
-Leader election uses a shared `ISharedKeyValueStore` + `SharedStoreLeaseElection` (in-memory here). A multi-process deployment uses a CAS-capable shared store (Redis) or Kubernetes Lease election with the same `ClientReplicaCoordinator`.
+Leader election uses a shared `ISharedKeyValueStore` + `SharedStoreLeaseElection` (in-memory here). A multi-process deployment uses any CAS-capable shared store, or Kubernetes Lease election, with the same `RedundantClientSession` / `ClientReplicaCoordinator`. The simplest way to consume this in your own app is `AddRedundantClientSession(...)` — see [HighAvailability.md](../../Docs/HighAvailability.md).
