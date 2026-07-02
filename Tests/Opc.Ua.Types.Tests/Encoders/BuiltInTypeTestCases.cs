@@ -1380,6 +1380,16 @@ namespace Opc.Ua.Tests
         {
             return new TestEncodeable();
         }
+
+        public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
+        {
+            return new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields = []
+            };
+        }
     }
 
     public enum TestByteEnum : byte

@@ -33,6 +33,29 @@ namespace Opc.Ua.Client.TestFramework
 {
     public static class Extensions
     {
+        /// <summary>
+        /// Test helper that returns the session's V2 subscription manager,
+        /// throwing when the session does not expose one (classic engine).
+        /// Replaces the removed ManagedSession.SubscriptionManager property in
+        /// tests that require the V2 engine (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>).
+        /// </summary>
+        public static Subscriptions.ISubscriptionManager RequireSubscriptionManager(
+            this ISession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (!session.TryGetSubscriptionManager(
+                    out Subscriptions.ISubscriptionManager? manager))
+            {
+                throw new InvalidOperationException(
+                    "The session does not expose a V2 subscription manager.");
+            }
+            return manager;
+        }
+
         public static bool HasArgsOfType(
             this ArrayOf<CallMethodRequest> requests,
             params Type[] argTypes)

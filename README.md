@@ -88,10 +88,9 @@ Each sample has its own `README.md` with build and run instructions.
 
 **PubSub samples**
 
-- [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) —
-  PubSub publisher across the supported transport profiles.
-- [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) —
-  matching subscriber.
+- [Console Reference PubSub Client](Applications/ConsoleReferencePubSubClient/README.md) —
+  one executable with `publisher`, `subscriber`, and `external` (external-server
+  adapter) modes across the supported transport profiles.
 
 **Minimal / Device-Integration samples**
 

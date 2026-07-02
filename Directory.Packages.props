@@ -15,6 +15,7 @@
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="DotNext" Version="5.26.3" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
+    <PackageVersion Include="JsonSchema.Net" Version="7.4.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.28" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.28" />
@@ -64,8 +65,10 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
       PacketDotNet and SharpPcap are native-code dependencies of
-      Opc.Ua.Core.Diagnostics. They dynamically load libpcap on
-      Linux/macOS and Npcap on Windows. Per SDL native-code policy:
+      Opc.Ua.Core.Diagnostics, Opc.Ua.PubSub.Diagnostics and (for the
+      opt-in WithPcap() backend, net8.0+ only) Opc.Ua.PubSub.Eth. They
+      dynamically load libpcap on Linux/macOS and Npcap on Windows. Per
+      SDL native-code policy:
       - Versions are pinned (no floating range)
       - SBOM tracking is required for every release
       - Subscribe to upstream CVE feeds:
@@ -98,7 +101,6 @@
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Formats.Asn1" Version="10.0.8" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
-    <PackageVersion Include="System.Net.NetworkInformation" Version="4.3.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
@@ -126,5 +128,6 @@
   </ItemGroup>
   <ItemGroup Condition="('$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1') AND '$(CustomTestTarget)' != 'netstandard2.1'">
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
+    <PackageVersion Include="MQTTnet.Server" Version="5.1.0.1559" />
   </ItemGroup>
 </Project>

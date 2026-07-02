@@ -59,6 +59,27 @@ namespace Opc.Ua.Security.Certificates
         public ushort? MinimumCertificateKeySize { get; set; }
 
         /// <summary>
+        /// Gets or sets whether the chain engine may download issuer
+        /// certificates (via the AIA extension) during chain construction.
+        /// The default (<c>null</c> or <c>false</c>) does not allow downloads,
+        /// so validation performs no outbound network access.
+        /// </summary>
+        /// <remarks>
+        /// This option only takes effect on .NET 5.0 and later, where it maps
+        /// to <c>X509ChainPolicy.DisableCertificateDownloads</c>. On .NET
+        /// Framework and .NET Standard 2.x that X509ChainPolicy property does
+        /// not exist, so the setting has no effect and any AIA retrieval is
+        /// bounded only by <see cref="UrlRetrievalTimeout"/>.
+        /// </remarks>
+        public bool? AllowCertificateDownload { get; set; }
+
+        /// <summary>
+        /// Gets or sets the URL retrieval timeout used during chain
+        /// construction. <c>null</c> means the default behavior is used.
+        /// </summary>
+        public TimeSpan? UrlRetrievalTimeout { get; set; }
+
+        /// <summary>
         /// Gets or sets a value that overrides the global setting for
         /// automatically accepting untrusted certificates.
         /// <c>null</c> means the global setting is used.

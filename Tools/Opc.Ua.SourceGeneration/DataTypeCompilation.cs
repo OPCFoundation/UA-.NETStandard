@@ -231,8 +231,10 @@ namespace Opc.Ua.SourceGeneration
                     }
                     else
                     {
-                        allTypes.Add(model with { Fields = comp.ValidFields });
-                        allActivators.Add(model);
+                        TypeSourceModel withValidFields =
+                            model with { Fields = comp.ValidFields };
+                        allTypes.Add(withValidFields);
+                        allActivators.Add(withValidFields);
                     }
                 }
 
@@ -462,6 +464,11 @@ namespace Opc.Ua.SourceGeneration
                 namedFieldType.BaseType.Name != "Object" &&
                 namedFieldType.BaseType.ImplementsInterface("IEncodeable");
 
+            string dataTypeNodeId = ResolveFieldDataTypeNodeId(
+                isArray || isMatrix ? elementShortTypeName : shortName,
+                isEncodeable,
+                isEnum);
+
             return new TypeFieldModel
             {
                 PropertyName = prop.Name,
@@ -477,6 +484,7 @@ namespace Opc.Ua.SourceGeneration
                 IsEnum = isEnum,
                 Order = order,
                 HasDataTypeFieldAttribute = hasDataTypeFieldAttr,
+                DataTypeNodeId = dataTypeNodeId,
                 StructureHandling = structureHandling,
                 DefaultValueHandling = defaultValueHandling,
                 FieldTypeIsSealed = fieldTypeIsSealed,
@@ -490,6 +498,99 @@ namespace Opc.Ua.SourceGeneration
                     : null
             };
         }
+
+        /// <summary>
+        /// Resolves the OPC UA DataType NodeId expression for a field so a
+        /// non-null StructureField.DataType can be emitted. OPC UA built-in
+        /// types resolve to the exact fixed numeric DataType identifier
+        /// (mirrors the canonical map in <c>TypeInfo.GetDataTypeId</c>).
+        /// Complex (IEncodeable) and enum field types cannot be resolved to a
+        /// concrete DataType NodeId from the attribute model alone (no
+        /// companion DataType NodeId is carried on the field type), so they
+        /// fall back to the Structure (i=22) / Enumeration (i=29) DataType
+        /// respectively. This is a best-effort fallback; the definition is
+        /// always non-null which is the hard contract.
+        /// The expression uses an inline <c>NodeId</c> literal (rather than a
+        /// <c>DataTypeIds</c> constant) so the generated code only depends on
+        /// Opc.Ua.Types and not on the Opc.Ua.Core.Types assembly, matching
+        /// the attribute generator's existing inline-literal convention.
+        /// </summary>
+        private static string ResolveFieldDataTypeNodeId(
+            string shortTypeName, bool isEncodeable, bool isEnum)
+        {
+            if (shortTypeName != null &&
+                s_builtInDataTypeIdMap.TryGetValue(shortTypeName, out uint id))
+            {
+                return FormatNodeIdLiteral(id);
+            }
+            if (isEnum)
+            {
+                // Enumeration (i=29)
+                return FormatNodeIdLiteral(29);
+            }
+            if (isEncodeable)
+            {
+                // Structure (i=22)
+                return FormatNodeIdLiteral(22);
+            }
+            // Last-resort fallback for an unexpected/unsupported scalar type;
+            // BaseDataType (i=24) keeps the emitted definition non-null.
+            return FormatNodeIdLiteral(24);
+        }
+
+        /// <summary>
+        /// Formats a namespace-zero numeric DataType identifier as an inline
+        /// <c>NodeId</c> literal expression.
+        /// </summary>
+        internal static string FormatNodeIdLiteral(uint identifier)
+        {
+            return $"new global::Opc.Ua.NodeId({identifier}u)";
+        }
+
+        /// <summary>
+        /// Maps OPC UA built-in C# short type names to the namespace-zero
+        /// numeric DataType identifier. Mirrors the canonical BuiltInType to
+        /// DataTypeId mapping in <c>TypeInfo.GetDataTypeId</c>.
+        /// </summary>
+        private static readonly Dictionary<string, uint> s_builtInDataTypeIdMap =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Boolean"] = 1,
+                ["bool"] = 1,
+                ["SByte"] = 2,
+                ["Byte"] = 3,
+                ["Int16"] = 4,
+                ["short"] = 4,
+                ["UInt16"] = 5,
+                ["ushort"] = 5,
+                ["Int32"] = 6,
+                ["int"] = 6,
+                ["UInt32"] = 7,
+                ["uint"] = 7,
+                ["Int64"] = 8,
+                ["long"] = 8,
+                ["UInt64"] = 9,
+                ["ulong"] = 9,
+                ["Single"] = 10,
+                ["float"] = 10,
+                ["Double"] = 11,
+                ["String"] = 12,
+                ["DateTime"] = 13,
+                ["DateTimeUtc"] = 13,
+                ["Guid"] = 14,
+                ["Uuid"] = 14,
+                ["ByteString"] = 15,
+                ["XmlElement"] = 16,
+                ["NodeId"] = 17,
+                ["ExpandedNodeId"] = 18,
+                ["StatusCode"] = 19,
+                ["QualifiedName"] = 20,
+                ["LocalizedText"] = 21,
+                ["ExtensionObject"] = 22,
+                ["DataValue"] = 23,
+                ["Variant"] = 24,
+                ["DiagnosticInfo"] = 25
+            };
 
         /// <summary>
         /// Extracts the default value initializer expression from a
