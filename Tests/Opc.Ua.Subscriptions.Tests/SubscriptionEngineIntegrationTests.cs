@@ -94,7 +94,7 @@ namespace Opc.Ua.Subscriptions.Tests
             try
             {
                 Assert.That(session.Connected, Is.True);
-                ISubscriptionManager manager = session.SubscriptionManager;
+                ISubscriptionManager manager = session.RequireSubscriptionManager();
                 Assert.That(manager, Is.Not.Null,
                     "V2 session must expose ISubscriptionManager");
                 Assert.That(manager.Count, Is.Zero);
@@ -127,7 +127,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         Priority = 0
                     });
 
-                Assert.That(session.SubscriptionManager.Count, Is.EqualTo(1));
+                Assert.That(session.RequireSubscriptionManager().Count, Is.EqualTo(1));
 
                 bool created = await WaitForAsync(
                     () => subscription.Created,
@@ -180,7 +180,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 nameof(V2EnginePublishRequestCountScalesAsync), ct).ConfigureAwait(false);
             try
             {
-                ISubscriptionManager manager = session.SubscriptionManager;
+                ISubscriptionManager manager = session.RequireSubscriptionManager();
                 int initial = manager.GoodPublishRequestCount;
                 TestContext.Out.WriteLine("Initial V2 GoodPublishRequestCount: {0}",
                     initial);

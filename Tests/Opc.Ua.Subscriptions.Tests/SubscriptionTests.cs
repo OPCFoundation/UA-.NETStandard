@@ -108,7 +108,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         Priority = 0
                     });
 
-                Assert.That(session.SubscriptionManager.Count, Is.EqualTo(1));
+                Assert.That(session.RequireSubscriptionManager().Count, Is.EqualTo(1));
 
                 bool created = await WaitForAsync(() => subscription.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
@@ -227,7 +227,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
                 using (FileStream output = File.Create(s_saveFile))
                 {
-                    await session.SubscriptionManager.SaveAsync(
+                    await session.RequireSubscriptionManager().SaveAsync(
                         output, session.MessageContext, null, ct)
                         .ConfigureAwait(false);
                 }
@@ -242,7 +242,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     var reloadHandler = new RecordingSubscriptionHandler();
                     using FileStream input = File.OpenRead(s_saveFile);
                     IReadOnlyList<ISubscription> loaded = await reloadSession
-                        .SubscriptionManager.LoadAsync(input,
+                        .RequireSubscriptionManager().LoadAsync(input,
                             reloadSession.MessageContext,
                             _ => reloadHandler,
                             transferSubscriptions: false,
@@ -435,7 +435,7 @@ namespace Opc.Ua.Subscriptions.Tests
             ManagedSession session = await ConnectV2Async(nameof(PublishRequestCountV2Async), ct).ConfigureAwait(false);
             try
             {
-                ISubscriptionManager manager = session.SubscriptionManager;
+                ISubscriptionManager manager = session.RequireSubscriptionManager();
                 manager.MinPublishWorkerCount = 3;
 
                 const int subscriptionCount = 5;

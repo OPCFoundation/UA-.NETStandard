@@ -47,10 +47,29 @@ namespace Opc.Ua.Client
     /// </summary>
     public static class ManagedSessionExtensions
     {
+        private static Subscriptions.ISubscriptionManager GetSubscriptionManager(
+            this ManagedSession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (!session.TryGetSubscriptionManager(
+                    out Subscriptions.ISubscriptionManager? manager))
+            {
+                throw new InvalidOperationException(
+                    "The managed session does not expose a V2 subscription manager. " +
+                    "The session is using the classic engine; recreate the ManagedSession " +
+                    "with the V2 subscription engine factory.");
+            }
+            return manager;
+        }
+
         /// <summary>
         /// Add a new subscription to the session using the supplied options
-        /// snapshot. The subscription is registered with
-        /// <see cref="ManagedSession.SubscriptionManager"/> and starts
+        /// snapshot. The subscription is registered with the session's V2
+        /// subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>) and starts
         /// asynchronously.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
@@ -72,7 +91,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(options));
             }
             var monitor = new OptionsMonitor<Subscriptions.SubscriptionOptions>(options);
-            return session.SubscriptionManager.Add(handler, monitor);
+            return session.GetSubscriptionManager().Add(handler, monitor);
         }
 
         /// <summary>
@@ -170,8 +189,8 @@ namespace Opc.Ua.Client
         /// portable across sessions whose tables index URIs in different
         /// positions.
         /// </summary>
-        /// <param name="session">Session whose
-        /// <see cref="ManagedSession.SubscriptionManager"/> is being
+        /// <param name="session">Session whose V2 subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>) is being
         /// snapshotted.</param>
         /// <param name="destination">Writable destination stream.</param>
         /// <param name="subscriptions">Optional subset of subscriptions
@@ -189,15 +208,15 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            return session.SubscriptionManager.SaveAsync(
+            return session.GetSubscriptionManager().SaveAsync(
                 destination, session.MessageContext, subscriptions, ct);
         }
 
         /// <summary>
         /// Restore subscriptions previously persisted by
         /// <see cref="SaveSubscriptionsAsync"/>. Each restored subscription is
-        /// re-registered with
-        /// <see cref="ManagedSession.SubscriptionManager"/>.
+        /// re-registered with the session's V2 subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>).
         /// </summary>
         /// <param name="session">Session that owns the V2 subscription
         /// manager and supplies the active message context.</param>
@@ -223,7 +242,7 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            return session.SubscriptionManager.LoadAsync(source,
+            return session.GetSubscriptionManager().LoadAsync(source,
                 session.MessageContext, handlerFactory,
                 transferSubscriptions, ct);
         }
@@ -246,7 +265,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(session));
             }
             var result = new List<SubscriptionStateSnapshot>();
-            foreach (ISubscription s in session.SubscriptionManager.Items)
+            foreach (ISubscription s in session.GetSubscriptionManager().Items)
             {
                 if (s is LogicalSubscription logical)
                 {
@@ -308,7 +327,7 @@ namespace Opc.Ua.Client
             }
             var result = new List<ISubscription>(states.Count);
             var manager =
-                (SubscriptionManager)session.SubscriptionManager;
+                (SubscriptionManager)session.GetSubscriptionManager();
 
             // Group by LogicalGroupId; null group = standalone. The
             // grouping logic mirrors the stream-based LoadAsync

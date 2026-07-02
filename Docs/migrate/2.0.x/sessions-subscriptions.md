@@ -190,9 +190,20 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 `Build()` returns an immutable `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` and `ManagedSession.CreateAsync(...)` so most callers can use the builder directly.
 
-**New subscription API on `ManagedSession`:**
+**New subscription API on `ISession`:**
 
-`ManagedSession` now exposes an `ISubscriptionManager` (the V2 options-based API) alongside the classic `Subscriptions` property. The V2 engine is the default for `ManagedSession`. Use `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)` on the builder if you need the legacy classic engine instead — accessing `SubscriptionManager` then throws `InvalidOperationException`.
+The V2 options-based subscription manager (`ISubscriptionManager`) is exposed on `ISession` through `bool TryGetSubscriptionManager(out ISubscriptionManager? manager)` — it returns `true` and the manager for V2-engine sessions (the default for `ManagedSession`) and `false` for classic-engine sessions. The classic `Subscriptions` property remains available alongside it. Use `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)` on the builder if you need the legacy classic engine instead.
+
+> **Source-breaking (2.0 preview):** the earlier throwing `ManagedSession.SubscriptionManager` property has been **removed** in favor of `ISession.TryGetSubscriptionManager`. Replace `var manager = session.SubscriptionManager;` (which threw `InvalidOperationException` on classic-engine sessions) with:
+>
+> ```csharp
+> if (session.TryGetSubscriptionManager(out ISubscriptionManager? manager))
+> {
+>     // use manager (V2 engine)
+> }
+> ```
+>
+> The `session.AddSubscription(...)` fluent extensions are unchanged.
 
 ```csharp
 using Opc.Ua.Client;

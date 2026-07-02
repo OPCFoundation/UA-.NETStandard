@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -378,6 +379,25 @@ namespace Opc.Ua.Client
             Stream stream,
             bool transferSubscriptions = false,
             IEnumerable<Type>? knownTypes = null);
+
+        /// <summary>
+        /// Gets the options-based V2 subscription manager for this session.
+        /// The manager is available when the session was created with the V2
+        /// subscription engine (the default for
+        /// <see cref="ManagedSession"/>). Sessions using the classic
+        /// subscription engine do not expose a manager.
+        /// </summary>
+        /// <param name="manager">
+        /// When this method returns <c>true</c>, contains the session's
+        /// <see cref="Subscriptions.ISubscriptionManager"/>; otherwise
+        /// <c>null</c>.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the session uses the V2 subscription engine and a
+        /// manager is available; otherwise <c>false</c>.
+        /// </returns>
+        bool TryGetSubscriptionManager(
+            [NotNullWhen(true)] out Subscriptions.ISubscriptionManager? manager);
 
         /// <summary>
         /// Returns the active session configuration and writes it to a stream.
