@@ -342,22 +342,24 @@ namespace Opc.Ua.Server
                     m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
-                // Read synchronously: ReadAttributeAsync performs no asynchronous
-                // work - it locks the node and calls the synchronous ReadAttribute -
-                // so avoid the sync-over-async and take the same node lock directly.
-                DataValue snapshot = dataValue;
-#pragma warning disable CA2002 // ReadAttributeAsync locks the node instance too
-                lock (node)
-#pragma warning restore CA2002
-                {
-                    node.ReadAttribute(
-                        context,
-                        attributeId,
-                        default,
-                        QualifiedName.Null,
-                        ref snapshot);
-                }
-                attributeSnapshots[attributeId] = snapshot;
+                // Read through the async entry point so a node that registers a
+                // genuinely asynchronous value read handler (OnReadValueAsync /
+                // OnSimpleReadValueAsync) is honored. ReadAttributeAsync is the
+                // unified path: when no async handler is registered it just locks
+                // the node and calls the synchronous ReadAttribute, completing
+                // synchronously - so the common path unwraps an already-completed
+                // ValueTask without blocking, and only a node that opts into a
+                // real async read incurs a (its own) synchronous wait here.
+                ValueTask<(ServiceResult Result, DataValue Value)> readTask = node.ReadAttributeAsync(
+                    context,
+                    attributeId,
+                    default,
+                    QualifiedName.Null,
+                    dataValue);
+
+                attributeSnapshots[attributeId] = readTask.IsCompletedSuccessfully
+                    ? readTask.Result.Value
+                    : readTask.AsTask().GetAwaiter().GetResult().Value;
             }
 
             var notification = new DataChangeSnapshot
