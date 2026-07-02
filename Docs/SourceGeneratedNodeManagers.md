@@ -812,11 +812,21 @@ points at those NodeSet2 types:
 
 ```xml
 <!-- Instances.ModelDesign.xml -->
-<opc:Namespaces>
-  <opc:Namespace Name="EquipmentTypes"
-    >http://example.org/EquipmentTypes</opc:Namespace>
-</opc:Namespaces>
-<opc:Object SymbolicName="Equipment01" TypeDefinition="et:SimpleEquipmentType" />
+<opc:ModelDesign
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:et="http://example.org/EquipmentTypes"
+  xmlns="http://example.org/EquipmentInstances"
+  TargetNamespace="http://example.org/EquipmentInstances">
+  <opc:Namespaces>
+    <opc:Namespace Name="EquipmentInstances"
+      >http://example.org/EquipmentInstances</opc:Namespace>
+    <!-- Bind the same URI to the "et" XML prefix used below. -->
+    <opc:Namespace Name="EquipmentTypes" XmlPrefix="et"
+      >http://example.org/EquipmentTypes</opc:Namespace>
+  </opc:Namespaces>
+  <!-- "et:" resolves to the NodeSet2 namespace declared via xmlns:et. -->
+  <opc:Object SymbolicName="Equipment01" TypeDefinition="et:SimpleEquipmentType" />
+</opc:ModelDesign>
 ```
 
 ```xml
