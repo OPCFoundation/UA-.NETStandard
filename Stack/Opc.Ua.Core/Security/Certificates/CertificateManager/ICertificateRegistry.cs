@@ -54,60 +54,47 @@ namespace Opc.Ua
         bool SendCertificateChain { get; }
 
         /// <summary>
-        /// Gets the list of all application certificate entries.
+        /// Returns a caller-owned snapshot of all application certificate
+        /// entries.
         /// </summary>
-        IReadOnlyList<CertificateEntry> ApplicationCertificates { get; }
+        /// <remarks>
+        /// The returned <see cref="CertificateEntryCollection"/> owns an
+        /// independent reference-counted handle on every entry. The caller is
+        /// responsible for disposing it (a <c>using</c> is recommended);
+        /// disposing it has no effect on the registry's own entries, and the
+        /// registry may concurrently replace its entries (e.g. a certificate
+        /// hot-update) without affecting the returned snapshot.
+        /// </remarks>
+        /// <returns>A new owned snapshot the caller must dispose.</returns>
+        CertificateEntryCollection SnapshotApplicationCertificates();
 
         /// <summary>
-        /// Returns the application certificate entry that matches the
-        /// specified OPC UA certificate type <see cref="NodeId"/>.
+        /// Returns a caller-owned application certificate entry that matches
+        /// the specified OPC UA certificate type <see cref="NodeId"/>.
         /// </summary>
         /// <param name="certificateType">
         /// The OPC UA certificate type node identifier.
         /// </param>
         /// <returns>
-        /// The matching <see cref="CertificateEntry"/>, or <see langword="null"/>
-        /// if no certificate of that type is registered.
+        /// A new owned <see cref="CertificateEntry"/> the caller must dispose,
+        /// or <see langword="null"/> if no certificate of that type is
+        /// registered.
         /// </returns>
-        CertificateEntry? GetApplicationCertificate(NodeId certificateType);
+        CertificateEntry? AcquireApplicationCertificateByType(NodeId certificateType);
 
         /// <summary>
-        /// Returns the instance certificate entry that is appropriate for the
-        /// specified security policy URI.
+        /// Returns a caller-owned instance certificate entry that is
+        /// appropriate for the specified security policy URI.
         /// </summary>
         /// <param name="securityPolicyUri">
         /// The OPC UA security policy URI (e.g.
         /// <c>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</c>).
         /// </param>
         /// <returns>
-        /// The matching <see cref="CertificateEntry"/>, or <see langword="null"/>
-        /// if no suitable certificate is found.
+        /// A new owned <see cref="CertificateEntry"/> the caller must dispose,
+        /// or <see langword="null"/> if no suitable certificate is found.
         /// </returns>
-        CertificateEntry? GetInstanceCertificate(string securityPolicyUri);
-
-        /// <summary>
-        /// Returns the DER-encoded certificate chain blob for the instance
-        /// certificate matching the specified security policy URI.
-        /// </summary>
-        /// <param name="securityPolicyUri">
-        /// The OPC UA security policy URI.
-        /// </param>
-        /// <returns>The encoded chain blob.</returns>
-        byte[] GetEncodedChainBlob(string securityPolicyUri);
-
-        /// <summary>
-        /// Returns the DER-encoded chain blob for a specific application
-        /// certificate, or <see langword="null"/> if the certificate is
-        /// not registered.
-        /// </summary>
-        /// <param name="certificate">
-        /// The instance certificate to look up.
-        /// </param>
-        /// <returns>
-        /// The DER-encoded chain blob (instance certificate followed by
-        /// issuers), or <see langword="null"/> if no entry matches.
-        /// </returns>
-        byte[]? LoadCertificateChainRaw(Certificate certificate);
+        CertificateEntry? AcquireApplicationCertificateBySecurityPolicy(string securityPolicyUri);
 
         /// <summary>
         /// Resolves the issuers for the supplied <paramref name="certificate"/>

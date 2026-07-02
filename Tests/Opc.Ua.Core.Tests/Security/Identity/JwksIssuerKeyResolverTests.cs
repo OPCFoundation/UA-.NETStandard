@@ -60,8 +60,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 new FakeTimeProvider(),
                 TimeSpan.FromMinutes(5));
 
-            IReadOnlyList<IssuerVerificationKey> keys = await resolver.GetKeysAsync("kid-rsa").ConfigureAwait(false);
-            IReadOnlyList<IssuerVerificationKey> cached = await resolver.GetKeysAsync("kid-rsa").ConfigureAwait(false);
+            IReadOnlyList<IIssuerVerificationKey> keys = await resolver.GetKeysAsync("kid-rsa").ConfigureAwait(false);
+            IReadOnlyList<IIssuerVerificationKey> cached = await resolver.GetKeysAsync("kid-rsa").ConfigureAwait(false);
 
             Assert.That(keys, Has.Count.EqualTo(1));
             Assert.That(cached, Has.Count.EqualTo(1));
@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(handler.RequestCount, Is.EqualTo(1));
 
             timeProvider.Advance(TimeSpan.FromMinutes(5));
-            IReadOnlyList<IssuerVerificationKey> refreshed = await resolver
+            IReadOnlyList<IIssuerVerificationKey> refreshed = await resolver
                 .GetKeysAsync("kid-2")
                 .ConfigureAwait(false);
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 new FakeTimeProvider(),
                 TimeSpan.FromMinutes(5));
 
-            IReadOnlyList<IssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            IReadOnlyList<IIssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
             byte[] data = Encoding.ASCII.GetBytes("header.payload");
             byte[] rsaSignature = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             byte[] ecSignature = ecdsa.SignData(data, HashAlgorithmName.SHA256);
@@ -137,12 +137,12 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 new FakeTimeProvider(),
                 TimeSpan.FromMinutes(5));
 
-            IReadOnlyList<IssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            IReadOnlyList<IIssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
 
             Assert.That(keys, Is.Empty);
         }
 
-        private static IssuerVerificationKey FindKey(IReadOnlyList<IssuerVerificationKey> keys, string kid)
+        private static IIssuerVerificationKey FindKey(IReadOnlyList<IIssuerVerificationKey> keys, string kid)
         {
             for (int i = 0; i < keys.Count; i++)
             {

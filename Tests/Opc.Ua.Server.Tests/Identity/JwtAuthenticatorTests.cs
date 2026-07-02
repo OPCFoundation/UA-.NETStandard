@@ -219,20 +219,38 @@ namespace Opc.Ua.Server.Tests.Identity
             return "\"" + value + "\"";
         }
 
-#pragma warning disable CA2000 // IssuerVerificationKey owns verification keys; TODO: add ownership annotations when available.
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            var publicKey = RSA.Create();
-            publicKey.ImportParameters(rsa.ExportParameters(false));
-            return new IssuerVerificationKey(keyId, publicKey, "RS256");
+            RSA publicKey = null;
+            try
+            {
+                publicKey = RSA.Create();
+                publicKey.ImportParameters(rsa.ExportParameters(false));
+                var key = new IssuerVerificationKey(keyId, publicKey, "RS256");
+                publicKey = null;
+                return key;
+            }
+            finally
+            {
+                publicKey?.Dispose();
+            }
         }
 
         private static IssuerVerificationKey CreateEcdsaVerificationKey(ECDsa ecdsa, string keyId)
         {
-            var publicKey = ECDsa.Create(ecdsa.ExportParameters(false));
-            return new IssuerVerificationKey(keyId, publicKey, "ES256");
+            ECDsa publicKey = null;
+            try
+            {
+                publicKey = ECDsa.Create(ecdsa.ExportParameters(false));
+                var key = new IssuerVerificationKey(keyId, publicKey, "ES256");
+                publicKey = null;
+                return key;
+            }
+            finally
+            {
+                publicKey?.Dispose();
+            }
         }
-#pragma warning restore CA2000
 
         private static string Base64UrlEncode(byte[] bytes)
         {
@@ -254,11 +272,11 @@ namespace Opc.Ua.Server.Tests.Identity
 
             public string IssuerUri { get; }
 
-            public ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+            public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
                 string keyId,
                 CancellationToken ct = default)
             {
-                return new ValueTask<IReadOnlyList<IssuerVerificationKey>>(m_keys);
+                return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(m_keys);
             }
         }
     }
