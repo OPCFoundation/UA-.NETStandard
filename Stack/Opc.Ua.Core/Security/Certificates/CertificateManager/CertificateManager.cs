@@ -667,7 +667,7 @@ namespace Opc.Ua
                 options?.AcceptError ?? m_acceptError;
 
             CertificateValidationResult result = await core
-                .ValidateAsync(chain, acceptError, ct)
+                .ValidateAsync(chain, acceptError, options, ct)
                 .ConfigureAwait(false);
 
             if (!result.IsValid && chain != null && chain.Count > 0)
