@@ -1170,7 +1170,7 @@ namespace Opc.Ua.Server
                 {
                     lock (activeNode)
                     {
-                        activeNode.OnReportEvent = OnReportEvent;
+                        activeNode.OnReportEventAsync = OnReportEventAsync;
 
                         if (!activeNode.ReferenceExists(
                             ReferenceTypeIds.HasNotifier,
@@ -4525,7 +4525,7 @@ namespace Opc.Ua.Server
             {
                 lock (notifier)
                 {
-                    notifier.OnReportEvent = OnReportEvent;
+                    notifier.OnReportEventAsync = OnReportEventAsync;
 
                     if (!notifier.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
@@ -4566,7 +4566,7 @@ namespace Opc.Ua.Server
             {
                 lock (notifier)
                 {
-                    notifier.OnReportEvent = null;
+                    notifier.OnReportEventAsync = null;
 
                     if (notifier.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
@@ -4592,6 +4592,24 @@ namespace Opc.Ua.Server
             IFilterTarget e)
         {
             Server.ReportEvent(context, e);
+        }
+
+        /// <summary>
+        /// Asynchronously reports an event for a root notifier, awaiting the server report so the
+        /// producing thread is never blocked. This is the sink wired to the root notifier; the
+        /// synchronous <see cref="OnReportEvent"/> is retained for compatibility.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="node">The notifier node.</param>
+        /// <param name="e">The event.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnReportEventAsync(
+            ISystemContext context,
+            NodeState node,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
+        {
+            return Server.ReportEventAsync(context, e, cancellationToken);
         }
 
         /// <summary>

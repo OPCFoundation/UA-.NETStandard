@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            folder.ClearChangeMasks(context, includeChildren: true);
+            await folder.ClearChangeMasksAsync(context, includeChildren: true, ct).ConfigureAwait(false);
         }
 
         private async ValueTask<CreateCredentialMethodStateResult> OnCreateCredentialAsync(
