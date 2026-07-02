@@ -290,7 +290,6 @@ namespace Opc.Ua.Client
                     using CertificateEntry clientEntry = await Session.LoadInstanceCertificateEntryAsync(
                         configuration,
                         endpointDescription.SecurityPolicyUri,
-                        messageContext.Telemetry,
                         ct).ConfigureAwait(false);
                     channelClientCertificate = clientEntry.Certificate.AddRef();
                     channelClientCertificateChain = Session.BuildTransportChain(clientEntry);

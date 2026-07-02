@@ -413,7 +413,6 @@ namespace Opc.Ua.Client
                 using CertificateEntry clientEntry = await Session.LoadInstanceCertificateEntryAsync(
                     configuration,
                     securityPolicyUri,
-                    messageContext.Telemetry,
                     ct).ConfigureAwait(false);
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 m_manager.UpdateClientCertificate(

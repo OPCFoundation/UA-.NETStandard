@@ -275,7 +275,7 @@ namespace Opc.Ua.Client
             if (secPolicy != SecurityPolicies.None)
             {
                 using CertificateEntry clientEntry = await LoadInstanceCertificateEntryAsync(
-                    configuration, secPolicy, probeContext.Telemetry, ct)
+                    configuration, secPolicy, ct)
                     .ConfigureAwait(false);
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 manager.UpdateClientCertificate(

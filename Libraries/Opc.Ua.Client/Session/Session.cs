@@ -4876,7 +4876,6 @@ namespace Opc.Ua.Client
                 m_instanceCertificateEntry = await LoadInstanceCertificateEntryAsync(
                     m_configuration,
                     endpoint.Description.SecurityPolicyUri,
-                    m_telemetry,
                     ct).ConfigureAwait(false);
                 m_effectiveEndpoint = endpoint;
             }
@@ -4960,62 +4959,29 @@ namespace Opc.Ua.Client
 
 
         /// <summary>
-        /// Load the client instance certificate together with its issuer chain
-        /// for the supplied security profile, as a single owned
+        /// Acquires the client instance certificate together with its issuer
+        /// chain for the supplied security profile, as a single owned
         /// <see cref="CertificateEntry"/> (certificate plus issuers-only chain).
         /// </summary>
+        /// <remarks>
+        /// The certificate manager already holds each application certificate
+        /// with its private key and the issuer chain resolved at load time, so
+        /// the owned entry is acquired directly from the manager instead of
+        /// re-reading the certificate from disk and re-resolving the chain.
+        /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
+        internal static Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
-            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            using Certificate certificate = await configuration.SecurityConfiguration
-                .FindApplicationCertificateAsync(
-                    securityProfile,
-                    privateKey: true,
-                    telemetry,
-                    ct).ConfigureAwait(false)
+            ct.ThrowIfCancellationRequested();
+            return Task.FromResult(
+                configuration.CertificateManager
+                    ?.AcquireApplicationCertificateBySecurityPolicy(securityProfile)
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
-                    securityProfile);
-
-            using var issuerChain = new CertificateCollection();
-            // Resolve the issuer chain only when the application is configured
-            // to send it; the leaf lives in CertificateEntry.Certificate.
-            if (configuration.SecurityConfiguration.SendCertificateChain &&
-                configuration.CertificateManager != null)
-            {
-                var issuers = new List<CertificateIssuerReference>();
-                try
-                {
-                    await configuration.CertificateManager
-                        .GetIssuersAsync(certificate, issuers, ct)
-                        .ConfigureAwait(false);
-
-                    for (int i = 0; i < issuers.Count; i++)
-                    {
-                        issuerChain.Add(issuers[i].Certificate);
-                    }
-                }
-                finally
-                {
-                    // GetIssuersAsync returns caller-owned references; the
-                    // chain AddRefs each one above, so we must dispose ours.
-                    for (int i = 0; i < issuers.Count; i++)
-                    {
-                        issuers[i].Certificate?.Dispose();
-                    }
-                }
-            }
-
-            // CertificateEntry AddRefs both the certificate and the chain, so
-            // the returned entry is independent of the using-scoped locals.
-            return new CertificateEntry(
-                certificate,
-                issuerChain,
-                CertificateIdentifier.GetCertificateType(certificate));
+                    securityProfile));
         }
 
         /// <summary>
