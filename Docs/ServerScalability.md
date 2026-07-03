@@ -87,6 +87,8 @@ A subscription expires when its lifetime counter reaches the maximum while it is
 
 ## Where to linearize: admission control and rate limiting
 
+> **Partially implemented** — see [Rate Limiting and Admission Control](RateLimiting.md). B1 (configurable backlog, default 512) and B2 (a connection rate limiter plus a session-establishment concurrency limiter that returns `BadServerTooBusy`) are implemented and on by default with conservative limits, together with a client-side server-signal-aware adaptive backoff. The HTTPS/Kestrel injection, the client-wide connect limiter, a structured retry-after hint, and B4 are tracked as follow-ups.
+
 Because the collapse is a positive-feedback loop, the highest-leverage fix is **explicit backpressure** so the server degrades gracefully — a fast, deterministic rejection the client can honor — instead of aborting mid-handshake and inviting a retry that doubles the load:
 
 1. **Connection-admission rate limit at the listener** (token bucket) plus a larger, configurable socket backlog. Bound the rate of new secure-channel handshakes to what the RSA-handshake CPU can absorb; hold or fast-reject the excess with a `BadServerTooBusy`/Retry-After rather than letting it fail deep in the handshake. Addresses B1, B2, B5.
