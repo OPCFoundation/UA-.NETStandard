@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -42,6 +43,12 @@ namespace Opc.Ua
     /// <see cref="ResponseHeader.AdditionalHeader"/>, so a cooperating client can
     /// back off deterministically without requesting diagnostics.
     /// </remarks>
+    [SuppressMessage(
+        "Design",
+        "CA1032:Implement standard exception constructors",
+        Justification = "A ServerBusyException must carry a ServiceResult describing " +
+            "the overload; the parameterless and message-only constructors are " +
+            "intentionally omitted so callers always supply that result.")]
     public sealed class ServerBusyException : ServiceResultException
     {
         /// <summary>

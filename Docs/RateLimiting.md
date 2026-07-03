@@ -92,8 +92,9 @@ To keep a bulk connect from bursting, a client-wide **connect admission gate** r
 
 ## Delivered and planned follow-ups
 
-- **Structured retry-after (delivered)**: the server carries a machine-readable retry-after to the client independently of diagnostics — as a `RetryAfterMs` value in `ResponseHeader.additionalHeader` on a `BadServerTooBusy` `ServiceFault`, and as the standard HTTP `Retry-After` header on the HTTPS 429. The client honors both via `IReconnectPolicy.TryGetNextDelay`. The legacy `RetryAfterMs=N` `AdditionalInfo` token remains a best-effort compatibility hint. See [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md).
-- **Planned**: a structured retry-after on the UA-TCP `Error` message for connection-level rejection, and a dynamic `Server.ServiceLevel` a client can use to stagger connects proactively. See the [RetryAfter specification proposal](proposals/RetryAfter.md).
+- **Structured retry-after (delivered)**: the server carries a machine-readable retry-after to the client independently of diagnostics — as a `RetryAfterMs` value in `ResponseHeader.additionalHeader` on a `BadServerTooBusy` `ServiceFault`, and as the standard HTTP `Retry-After` header on the HTTPS 429. The client honors both via `IReconnectPolicy.TryGetNextDelay`. The UA-TCP client also honors a `RetryAfterMs=N` token in a transient server-busy `Error` message reason as a lower bound on channel-reconnect backoff. The legacy `RetryAfterMs=N` `AdditionalInfo` token remains a best-effort compatibility hint. See [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md).
+- **Load-based `Server.ServiceLevel` (delivered)**: the reference server computes `Server.ServiceLevel` from session-establishment headroom (255 at low load, scaling toward a floor as sessions approach `MaxSessionCount`, with hysteresis), so a client can read/subscribe to it as a proactive capacity signal.
+- **Planned**: a standardized structured retry-after field, a server-emitted UA-TCP `Error` retry-after on connection-level rejection, and client-side proactive server reselection driven by `ServiceLevel`. See the [RetryAfter specification proposal](proposals/RetryAfter.md).
 
 ## See also
 

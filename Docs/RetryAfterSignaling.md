@@ -9,7 +9,12 @@ Two diagnostics-independent carriers are implemented and on by default, feeding 
 - **`ResponseHeader.additionalHeader`** (all UA transports): the server attaches a structured `RetryAfterMs` value (a whole-millisecond `Int64` in the standard `AdditionalParametersType`) to a `BadServerTooBusy` `ServiceFault` via `RetryAfterHeader` / `ServerBusyException` (`EndpointBase.CreateFault`). The client reads it in `ClientBase.ValidateResponse` and surfaces it to the reconnect policy. Delivered regardless of `ReturnDiagnostics`.
 - **HTTP `Retry-After`** (HTTPS transport): the `AddHttpsRateLimiter` gate sets the header on its HTTP 429; the client's `HttpsTransportChannel` maps a 429/503 with `Retry-After` to `BadServerTooBusy` carrying the hint.
 
-The client honors any of these hints through `IReconnectPolicy.TryGetNextDelay` (the retry-after survives the diagnostics gate and client exception re-wrapping). The legacy `RetryAfterMs=N` `AdditionalInfo` token remains as a best-effort compatibility hint. The UA-TCP `Error` message reason token and dynamic `Server.ServiceLevel` remain future work (see below).
+Two further pieces are also delivered:
+
+- **UA-TCP `Error` reason (client honoring)**: the UA-TCP client honors a `RetryAfterMs=N` token carried in a transient server-busy `Error` (ERR) message reason as a lower bound on channel-reconnect backoff (`RetryAfterHint`, clamped to the channel reconnect policy's max delay). The connection-level rejection deliberately stays a cheap socket-drop, so the reference server does not emit an ERR there; the client honors the token from any server that does send one.
+- **Load-based `Server.ServiceLevel`**: the reference server now computes `Server.ServiceLevel` from session-establishment headroom (`ServerServiceLevelCalculator`), staying at 255 at low load and scaling toward a floor of 1 as sessions approach `MaxSessionCount`, with hysteresis to avoid oscillation. Clients can read or subscribe to it as a proactive capacity signal.
+
+The client honors the reactive hints through `IReconnectPolicy.TryGetNextDelay` (the retry-after survives the diagnostics gate and client exception re-wrapping). The legacy `RetryAfterMs=N` `AdditionalInfo` token remains as a best-effort compatibility hint. Remaining future work: a structured retry-after field standardized in the spec, an ERR retry-after emitted by the server on connection-level rejection, and client-side proactive server reselection driven by `ServiceLevel`.
 
 ## Problem with the current fault `AdditionalInfo` token
 
