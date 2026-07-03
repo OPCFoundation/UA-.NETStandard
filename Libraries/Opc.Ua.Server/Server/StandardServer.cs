@@ -562,19 +562,20 @@ namespace Opc.Ua.Server
 
                     // return the endpoints supported by the server.
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, default);
-
-                    // sign the nonce provided by the client.
-                    serverSignature = CreateSessionServerSignature(
-                        context,
-                        instanceCertificate,
-                        parsedClientCertificate,
-                        clientNonce,
-                        serverNonce);
                 }
                 finally
                 {
                     m_semaphoreSlim.Release();
                 }
+
+                // The acquired certificate entry is a caller-owned ref-counted handle, so rotation cannot
+                // dispose the X509Certificate2 core while the signature is created outside the server lock.
+                serverSignature = CreateSessionServerSignature(
+                    context,
+                    instanceCertificate,
+                    parsedClientCertificate,
+                    clientNonce,
+                    serverNonce);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
