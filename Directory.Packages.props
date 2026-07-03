@@ -130,4 +130,12 @@
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
     <PackageVersion Include="MQTTnet.Server" Version="5.1.0.1559" />
   </ItemGroup>
+  <!-- Confluent.Kafka wraps native librdkafka (BSD-2) and ships
+       [netstandard2.0, net462, net8.0, net10.0], covering every LibxTargetFrameworks entry
+       through NuGet compatibility fallback. It is NOT NativeAOT/trim-safe, so the
+       Opc.Ua.PubSub.Kafka library deliberately does not set IsAotCompatible and is kept out
+       of every AOT-published project. Apache-2.0 licensed. -->
+  <ItemGroup>
+    <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
+  </ItemGroup>
 </Project>
