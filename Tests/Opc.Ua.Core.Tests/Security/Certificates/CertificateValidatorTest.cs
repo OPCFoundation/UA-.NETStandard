@@ -2077,6 +2077,210 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
         }
 
+        /// <summary>
+        /// Verify the issuer KeyUsage helper enforces the CA KeyUsage required
+        /// by OPC 10000-6 §6.2.4 Table 52 (keyCertSign and cRLSign) and treats
+        /// an absent / empty KeyUsage as non-compliant (issue #3944).
+        /// </summary>
+        [Test]
+        public void HasRequiredIssuerKeyUsageEnforcesCaKeyUsage()
+        {
+            // compliant: the default the builder emits for a CA
+            // (digitalSignature + keyCertSign + cRLSign).
+            using X509Certificate2 defaultCa = CreateRootCa(null, "default");
+            Assert.IsTrue(X509Utils.HasRequiredIssuerKeyUsage(defaultCa));
+
+            // compliant: keyCertSign + cRLSign only.
+            using X509Certificate2 compliant = CreateRootCa(
+                X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign,
+                "compliant");
+            Assert.IsTrue(X509Utils.HasRequiredIssuerKeyUsage(compliant));
+
+            // non-compliant: empty KeyUsage (equivalent to an absent extension).
+            using X509Certificate2 emptyUsage = CreateRootCa(X509KeyUsageFlags.None, "empty");
+            Assert.IsFalse(X509Utils.HasRequiredIssuerKeyUsage(emptyUsage));
+
+            // non-compliant: keyCertSign only (cannot sign CRLs).
+            using X509Certificate2 certSignOnly = CreateRootCa(
+                X509KeyUsageFlags.KeyCertSign,
+                "certsign");
+            Assert.IsFalse(X509Utils.HasRequiredIssuerKeyUsage(certSignOnly));
+
+            // non-compliant: cRLSign only (cannot sign certificates).
+            using X509Certificate2 crlSignOnly = CreateRootCa(X509KeyUsageFlags.CrlSign, "crlsign");
+            Assert.IsFalse(X509Utils.HasRequiredIssuerKeyUsage(crlSignOnly));
+
+            // non-compliant: digitalSignature only (as reported in #3944).
+            using X509Certificate2 digitalSignatureOnly = CreateRootCa(
+                X509KeyUsageFlags.DigitalSignature,
+                "digsig");
+            Assert.IsFalse(X509Utils.HasRequiredIssuerKeyUsage(digitalSignatureOnly));
+        }
+
+        /// <summary>
+        /// Verify that a chain whose CA does not assert the required KeyUsage
+        /// (keyCertSign, cRLSign) is rejected with
+        /// Bad_CertificateIssuerUseNotAllowed even when the CA is trusted
+        /// (OPC 10000-4 §6.1.3 Table 100 "Certificate Usage").
+        /// </summary>
+        [Test]
+        public async Task RejectCaWithoutRequiredIssuerKeyUsageAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            (X509Certificate2 rootCa, X509CRL rootCrl, X509Certificate2 appCert) =
+                CreateIssuerKeyUsageChain(X509KeyUsageFlags.None, "reject");
+            using (rootCa)
+            using (appCert)
+            {
+                using var validator = TemporaryCertValidator.Create(telemetry);
+                await validator.TrustedStore.AddAsync(rootCa).ConfigureAwait(false);
+                await validator.TrustedStore.AddCRLAsync(rootCrl).ConfigureAwait(false);
+                CertificateValidator certValidator = validator.Update();
+
+                var certs = new X509Certificate2Collection { appCert, rootCa };
+                ServiceResultException sre = NUnit.Framework.Assert
+                    .ThrowsAsync<ServiceResultException>(
+                        async () => await certValidator
+                            .ValidateAsync(certs, CancellationToken.None)
+                            .ConfigureAwait(false));
+                Assert.IsTrue(
+                    ContainsStatusCode(
+                        sre.Result,
+                        StatusCodes.BadCertificateIssuerUseNotAllowed),
+                    sre.Message);
+            }
+        }
+
+        /// <summary>
+        /// Verify that the Bad_CertificateIssuerUseNotAllowed error raised for a
+        /// non-compliant CA KeyUsage can be suppressed via the
+        /// CertificateValidation event (the error is suppressible per
+        /// OPC 10000-4 §6.1.3 Table 100).
+        /// </summary>
+        [Test]
+        public async Task SuppressedCaWithoutRequiredIssuerKeyUsageIsAcceptedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            (X509Certificate2 rootCa, X509CRL rootCrl, X509Certificate2 appCert) =
+                CreateIssuerKeyUsageChain(X509KeyUsageFlags.None, "suppress");
+            using (rootCa)
+            using (appCert)
+            {
+                using var validator = TemporaryCertValidator.Create(telemetry);
+                await validator.TrustedStore.AddAsync(rootCa).ConfigureAwait(false);
+                await validator.TrustedStore.AddCRLAsync(rootCrl).ConfigureAwait(false);
+                CertificateValidator certValidator = validator.Update();
+
+                var approver = new CertValidationApprover(
+                    [
+                        StatusCodes.BadCertificateIssuerUseNotAllowed,
+                        StatusCodes.BadCertificateUseNotAllowed,
+                        StatusCodes.BadCertificateRevocationUnknown,
+                        StatusCodes.BadCertificateIssuerRevocationUnknown
+                    ]);
+                certValidator.CertificateValidation += approver.OnCertificateValidation;
+
+                var certs = new X509Certificate2Collection { appCert, rootCa };
+                await certValidator.ValidateAsync(certs, CancellationToken.None)
+                    .ConfigureAwait(false);
+                certValidator.CertificateValidation -= approver.OnCertificateValidation;
+
+                Assert.Greater(approver.AcceptedCount, 0);
+            }
+        }
+
+        /// <summary>
+        /// Verify that a chain whose CA asserts the required KeyUsage
+        /// (the default keyCertSign + cRLSign) passes validation.
+        /// </summary>
+        [Test]
+        public async Task AcceptCaWithRequiredIssuerKeyUsageAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            (X509Certificate2 rootCa, X509CRL rootCrl, X509Certificate2 appCert) =
+                CreateIssuerKeyUsageChain(null, "accept");
+            using (rootCa)
+            using (appCert)
+            {
+                using var validator = TemporaryCertValidator.Create(telemetry);
+                await validator.TrustedStore.AddAsync(rootCa).ConfigureAwait(false);
+                await validator.TrustedStore.AddCRLAsync(rootCrl).ConfigureAwait(false);
+                CertificateValidator certValidator = validator.Update();
+
+                var certs = new X509Certificate2Collection { appCert, rootCa };
+                await certValidator.ValidateAsync(certs, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates a self-signed root CA. When <paramref name="keyUsage"/> is
+        /// null the builder emits its default CA KeyUsage
+        /// (digitalSignature + keyCertSign + cRLSign); otherwise the supplied
+        /// KeyUsage overrides the default so non-compliant CAs can be built.
+        /// </summary>
+        private static X509Certificate2 CreateRootCa(X509KeyUsageFlags? keyUsage, string slug)
+        {
+            var baseTime = new DateTime(
+                DateTime.UtcNow.Year - 1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                DateTimeKind.Utc);
+            ICertificateBuilder builder = CertificateFactory
+                .CreateCertificate($"CN=Issuer KeyUsage {slug} Root, O=OPC Foundation")
+                .SetNotBefore(baseTime)
+                .SetLifeTime(120)
+                .SetCAConstraint();
+            if (keyUsage.HasValue)
+            {
+                builder = builder.AddExtension(
+                    new X509KeyUsageExtension(keyUsage.Value, true));
+            }
+            return builder.SetRSAKeySize(2048).CreateForRSA();
+        }
+
+        /// <summary>
+        /// Creates a root CA (optionally with a non-compliant KeyUsage), its
+        /// CRL and an application certificate issued by that CA.
+        /// </summary>
+        private static (X509Certificate2 rootCa, X509CRL rootCrl, X509Certificate2 appCert)
+            CreateIssuerKeyUsageChain(X509KeyUsageFlags? issuerKeyUsage, string slug)
+        {
+            X509Certificate2 rootCa = CreateRootCa(issuerKeyUsage, slug);
+            X509CRL rootCrl = CertificateFactory.RevokeCertificate(rootCa, null, null);
+            X509Certificate2 appCert = CertificateFactory
+                .CreateCertificate(
+                    $"urn:opcfoundation.org:{slug}:app",
+                    $"Issuer KeyUsage {slug} App",
+                    $"CN=Issuer KeyUsage {slug} App, O=OPC Foundation",
+                    new List<string> { "localhost" })
+                .SetIssuer(rootCa)
+                .CreateForRSA();
+            return (rootCa, rootCrl, appCert);
+        }
+
+        /// <summary>
+        /// Returns whether the supplied status code appears anywhere in the
+        /// (possibly nested) validation error result.
+        /// </summary>
+        private static bool ContainsStatusCode(ServiceResult error, uint expectedCode)
+        {
+            for (ServiceResult sr = error; sr != null; sr = sr.InnerResult)
+            {
+                if (sr.StatusCode.Code == expectedCode)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
         {
         }
