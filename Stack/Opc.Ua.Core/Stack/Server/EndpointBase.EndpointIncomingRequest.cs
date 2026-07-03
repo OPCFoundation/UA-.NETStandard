@@ -53,7 +53,11 @@ namespace Opc.Ua
                 SecureChannelContext = context;
                 Request = request;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
-                m_parkSink = new RequestParkSink();
+
+                // Only requests that can park (currently Publish long-polls) carry a park
+                // sink; every other request uses the legacy inline path with no extra
+                // per-request allocation or work.
+                m_parkSink = request is PublishRequest ? new RequestParkSink() : null;
             }
 
             /// <inheritdoc/>
@@ -63,7 +67,7 @@ namespace Opc.Ua
             public IServiceRequest Request { get; }
 
             /// <inheritdoc/>
-            RequestParkSink IParkableIncomingRequest.ParkSink => m_parkSink;
+            RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
 
             /// <summary>
             /// Process an incoming request
@@ -97,7 +101,10 @@ namespace Opc.Ua
 
                 // Flow the park sink so a handler that parks (e.g. a held Publish
                 // waiting for notifications) can release the processing worker.
-                requestLifetime.ParkSink = m_parkSink;
+                if (m_parkSink != null)
+                {
+                    requestLifetime.ParkSink = m_parkSink;
+                }
 
                 try
                 {
@@ -201,7 +208,7 @@ namespace Opc.Ua
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
-            private readonly RequestParkSink m_parkSink;
+            private readonly RequestParkSink? m_parkSink;
         }
     }
 }

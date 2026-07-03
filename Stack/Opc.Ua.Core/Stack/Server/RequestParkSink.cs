@@ -41,9 +41,11 @@ namespace Opc.Ua
     internal interface IParkableIncomingRequest : IEndpointIncomingRequest
     {
         /// <summary>
-        /// Gets the park sink observed by the request-processing worker.
+        /// Gets the park sink observed by the request-processing worker, or <c>null</c>
+        /// when the request cannot park (so the worker uses the legacy inline path with
+        /// no additional per-request overhead).
         /// </summary>
-        RequestParkSink ParkSink { get; }
+        RequestParkSink? ParkSink { get; }
     }
 
     /// <summary>

@@ -211,10 +211,13 @@ namespace Opc.Ua
                             // small worker pool can hold many outstanding requests. The
                             // response is still delivered out-of-band by the request
                             // itself, so the worker does not need to await completion.
+                            // Requests that cannot park (ParkSink is null) use the legacy
+                            // inline path with no additional per-request overhead.
                             if (m_decoupleHeldPublishRequests &&
-                                request is IParkableIncomingRequest parkable)
+                                request is IParkableIncomingRequest parkable &&
+                                parkable.ParkSink is RequestParkSink parkSink)
                             {
-                                await ProcessWithParkAsync(request, parkable.ParkSink, ct)
+                                await ProcessWithParkAsync(request, parkSink, ct)
                                     .ConfigureAwait(false);
                             }
                             else
