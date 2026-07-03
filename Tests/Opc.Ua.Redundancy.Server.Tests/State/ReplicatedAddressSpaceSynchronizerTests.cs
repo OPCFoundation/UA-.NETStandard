@@ -166,6 +166,71 @@ namespace Opc.Ua.Redundancy.Server.Tests
                 "concurrent value writes must converge to the same value on both replicas").ConfigureAwait(false);
         }
 
+        [Test]
+        public void ConstructorRejectsNullAddressSpace()
+        {
+            Assert.That(
+                () => new ReplicatedAddressSpaceSynchronizer(
+                    null!, m_messageContext, ReplicaId.FromUInt64(1), null!,
+                    TimeProvider.System, CrdtReaderOptions.Default),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("addressSpace"));
+        }
+
+        [Test]
+        public void ConstructorRejectsNullMessageContext()
+        {
+            var space = new DictionaryAddressSpace(m_systemContext);
+            Assert.That(
+                () => new ReplicatedAddressSpaceSynchronizer(
+                    space, null!, ReplicaId.FromUInt64(1), null!,
+                    TimeProvider.System, CrdtReaderOptions.Default),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("messageContext"));
+        }
+
+        [Test]
+        public void ConstructorRejectsNullTransport()
+        {
+            var space = new DictionaryAddressSpace(m_systemContext);
+            Assert.That(
+                () => new ReplicatedAddressSpaceSynchronizer(
+                    space, m_messageContext, ReplicaId.FromUInt64(1), null!,
+                    TimeProvider.System, CrdtReaderOptions.Default),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("transport"));
+        }
+
+        [Test]
+        public async Task StartIsIdempotentAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var sync = new ReplicatedAddressSpaceSynchronizer(
+                space, m_messageContext, ReplicaId.FromUInt64(1),
+                network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            await sync.SeedOrHydrateAsync().ConfigureAwait(false);
+
+            sync.Start();
+
+            Assert.That(() => sync.Start(), Throws.Nothing);
+        }
+
+        [Test]
+        public async Task DisposeAsyncIsIdempotentAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var sync = new ReplicatedAddressSpaceSynchronizer(
+                space, m_messageContext, ReplicaId.FromUInt64(1),
+                network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            await sync.SeedOrHydrateAsync().ConfigureAwait(false);
+            sync.Start();
+
+            await sync.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(
+                async () => await sync.DisposeAsync().ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
         private BaseDataVariableState NewVariable(string id, double value)
         {
             return new BaseDataVariableState(null)

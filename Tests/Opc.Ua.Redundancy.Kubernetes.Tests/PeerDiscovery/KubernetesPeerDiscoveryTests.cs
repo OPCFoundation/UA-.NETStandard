@@ -166,6 +166,24 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.Throws<ArgumentNullException>(() => KubernetesPeerDiscovery.ToPeerUris(NewSlices(), null!));
         }
 
+        [Test]
+        public async Task PublicConstructorBuildsDiscoveryOutsideClusterAsync()
+        {
+            var discovery = new KubernetesPeerDiscovery(NewOptions());
+
+            ArrayOf<string> refreshed = await discovery.RefreshAsync().ConfigureAwait(false);
+
+            Assert.That(refreshed.Count, Is.Zero);
+        }
+
+        [Test]
+        public void PublicConstructorRejectsNullOptions()
+        {
+            Assert.That(
+                () => new KubernetesPeerDiscovery((KubernetesPeerDiscoveryOptions)null!),
+                Throws.ArgumentNullException);
+        }
+
         private static KubernetesPeerDiscoveryOptions NewOptions()
         {
             var options = new KubernetesPeerDiscoveryOptions

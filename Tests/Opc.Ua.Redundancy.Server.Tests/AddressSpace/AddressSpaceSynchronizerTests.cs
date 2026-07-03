@@ -250,6 +250,77 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 "a promoted reader continues assigning sequences from the writer's high-water mark");
         }
 
+        [Test]
+        public async Task DeletedMaskChangeIsIgnoredButValueStillReplicatesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            var readerSpace = new DictionaryAddressSpace(m_systemContext);
+
+            BaseDataVariableState nodeX = NewVariable("X", 1.0);
+            await writerSpace.AddOrUpdateNodeAsync(nodeX).ConfigureAwait(false);
+
+            await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
+            await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
+
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
+            writer.Start();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
+            reader.Start();
+
+            // A StateChanged carrying the Deleted mask must be ignored by the
+            // writer (deletes are driven by NodeRemoved, not StateChanged).
+            nodeX.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+            nodeX.ClearChangeMasks(m_systemContext, false);
+
+            // A subsequent value change proves the pipeline survived the ignored
+            // delete mask and still replicates to the reader.
+            Task<bool> valueApplied = WaitForInboundAsync(
+                reader, c => c.Kind == NodeStateChangeKind.Value && c.NodeId == nodeX.NodeId);
+            nodeX.Value = new Variant(55.0);
+            nodeX.ClearChangeMasks(m_systemContext, false);
+            await AwaitWithTimeoutAsync(valueApplied).ConfigureAwait(false);
+
+            Assert.That(readerSpace.TryGetNode(nodeX.NodeId, out NodeState? rx), Is.True);
+            Assert.That(((BaseDataVariableState)rx!).Value, Is.EqualTo(new Variant(55.0)));
+        }
+
+        [Test]
+        public async Task StartIsIdempotentAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            await using var writer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
+
+            writer.Start();
+
+            Assert.That(() => writer.Start(), Throws.Nothing);
+        }
+
+        [Test]
+        public async Task DisposeAsyncIsIdempotentAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            await using var writer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
+            writer.Start();
+
+            await writer.DisposeAsync().ConfigureAwait(false);
+
+            // The second disposal must be a no-op; the await-using scope exit
+            // disposes a third time, also without effect.
+            Assert.That(
+                async () => await writer.DisposeAsync().ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
         private BaseDataVariableState NewVariable(string id, double value)
         {
             return new BaseDataVariableState(null)

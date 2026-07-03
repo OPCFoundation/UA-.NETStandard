@@ -290,6 +290,57 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)200), "a disposed task must not react to further changes");
         }
 
+        [Test]
+        public async Task InitialPublishFailuresAreSwallowedAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            using var store = new ThrowingSharedKeyValueStore(inner, throwOnSet: true);
+            var options = new LoadDirectionOptions();
+            var time = new FakeTimeProvider();
+            using var task = new PeerDirectionPublishStartupTask(
+                store,
+                NullRecordProtector.Instance,
+                options,
+                new TriggerableServiceLevelProvider(200),
+                new TriggerableLoadWeightProvider(30),
+                time);
+
+            Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
+
+            // Both the ServiceLevel and load publishes fail against the store; the task must swallow them.
+            Assert.That(async () => await task.OnServerStartedAsync(server.Object), Throws.Nothing);
+
+            var view = new SharedPeerDirectionView(inner, context, NullRecordProtector.Instance, options, time);
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            Assert.That(peers.Count, Is.Zero, "a failed publish must not surface a record");
+        }
+
+        [Test]
+        public async Task LoadTimerWithoutChangeDoesNotRepublishAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var time = new FakeTimeProvider();
+            using var task = new PeerDirectionPublishStartupTask(
+                store,
+                NullRecordProtector.Instance,
+                options,
+                new TriggerableServiceLevelProvider(200),
+                new TriggerableLoadWeightProvider(30),
+                time);
+
+            Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
+            await task.OnServerStartedAsync(server.Object);
+
+            // Let the coalescing timer tick several times without any load change: each tick must be a no-op.
+            await Task.Delay(150);
+
+            var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            Assert.That(peers.Count, Is.EqualTo(1));
+            Assert.That(peers[0].LoadWeight, Is.EqualTo((byte)30), "an unchanged load is not republished by the timer");
+        }
+
         private static async Task<PeerDirectionRecord> WaitForPeerAsync(
             SharedPeerDirectionView view,
             Func<PeerDirectionRecord, bool> predicate)

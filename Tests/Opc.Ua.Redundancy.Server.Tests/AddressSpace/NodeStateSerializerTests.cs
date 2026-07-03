@@ -129,5 +129,147 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 () => NodeStateSerializer.Deserialize(m_context, tooShort),
                 Throws.TypeOf<ServiceResultException>());
         }
+
+        [Test]
+        public void SerializeThrowsOnNullContext()
+        {
+            var node = new BaseObjectState(null);
+
+            Assert.That(
+                () => NodeStateSerializer.Serialize(null!, node),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void SerializeThrowsOnNullNode()
+        {
+            Assert.That(
+                () => NodeStateSerializer.Serialize(m_context, null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void DeserializeThrowsOnNullContext()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("obj", NamespaceIndex),
+                BrowseName = new QualifiedName("Obj", NamespaceIndex)
+            };
+            ByteString payload = NodeStateSerializer.Serialize(m_context, node);
+
+            Assert.That(
+                () => NodeStateSerializer.Deserialize(null!, payload),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void ViewRoundTripsAsViewState()
+        {
+            var original = new ViewState
+            {
+                NodeId = new NodeId("view", NamespaceIndex),
+                BrowseName = new QualifiedName("View", NamespaceIndex),
+                DisplayName = new LocalizedText("View"),
+                ContainsNoLoops = true
+            };
+
+            NodeState restored = RoundTrip(original);
+
+            Assert.That(restored, Is.InstanceOf<ViewState>());
+            Assert.That(restored.NodeClass, Is.EqualTo(NodeClass.View));
+            Assert.That(((ViewState)restored).ContainsNoLoops, Is.True);
+        }
+
+        [Test]
+        public void ObjectTypeRoundTripsAsBaseObjectTypeState()
+        {
+            var original = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("otype", NamespaceIndex),
+                BrowseName = new QualifiedName("OType", NamespaceIndex),
+                DisplayName = new LocalizedText("OType"),
+                IsAbstract = true
+            };
+
+            NodeState restored = RoundTrip(original);
+
+            Assert.That(restored, Is.InstanceOf<BaseObjectTypeState>());
+            Assert.That(restored.NodeClass, Is.EqualTo(NodeClass.ObjectType));
+            Assert.That(((BaseObjectTypeState)restored).IsAbstract, Is.True);
+        }
+
+        [Test]
+        public void VariableTypeRoundTripsAsBaseDataVariableTypeState()
+        {
+            var original = new BaseDataVariableTypeState
+            {
+                NodeId = new NodeId("vtype", NamespaceIndex),
+                BrowseName = new QualifiedName("VType", NamespaceIndex),
+                DisplayName = new LocalizedText("VType"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            NodeState restored = RoundTrip(original);
+
+            Assert.That(restored, Is.InstanceOf<BaseDataVariableTypeState>());
+            Assert.That(restored.NodeClass, Is.EqualTo(NodeClass.VariableType));
+            Assert.That(((BaseDataVariableTypeState)restored).DataType, Is.EqualTo(DataTypeIds.Int32));
+        }
+
+        [Test]
+        public void ReferenceTypeRoundTripsAsReferenceTypeState()
+        {
+            var original = new ReferenceTypeState
+            {
+                NodeId = new NodeId("rtype", NamespaceIndex),
+                BrowseName = new QualifiedName("RType", NamespaceIndex),
+                DisplayName = new LocalizedText("RType"),
+                InverseName = new LocalizedText("RTypeInverse"),
+                Symmetric = false
+            };
+
+            NodeState restored = RoundTrip(original);
+
+            Assert.That(restored, Is.InstanceOf<ReferenceTypeState>());
+            Assert.That(restored.NodeClass, Is.EqualTo(NodeClass.ReferenceType));
+            Assert.That(((ReferenceTypeState)restored).InverseName, Is.EqualTo(original.InverseName));
+        }
+
+        [Test]
+        public void DataTypeRoundTripsAsDataTypeState()
+        {
+            var original = new DataTypeState
+            {
+                NodeId = new NodeId("dtype", NamespaceIndex),
+                BrowseName = new QualifiedName("DType", NamespaceIndex),
+                DisplayName = new LocalizedText("DType"),
+                IsAbstract = true
+            };
+
+            NodeState restored = RoundTrip(original);
+
+            Assert.That(restored, Is.InstanceOf<DataTypeState>());
+            Assert.That(restored.NodeClass, Is.EqualTo(NodeClass.DataType));
+            Assert.That(((DataTypeState)restored).IsAbstract, Is.True);
+        }
+
+        [Test]
+        public void DeserializeUnknownNodeClassThrows()
+        {
+            // A framed payload whose header is a NodeClass value the reconstructor does not support.
+            var payload = ByteString.From(new byte[] { 3, 0, 0, 0 });
+
+            Assert.That(
+                () => NodeStateSerializer.Deserialize(m_context, payload),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        private NodeState RoundTrip(NodeState original)
+        {
+            ByteString payload = NodeStateSerializer.Serialize(m_context, original);
+            return NodeStateSerializer.Deserialize(m_context, payload);
+        }
     }
 }

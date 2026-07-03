@@ -33,6 +33,7 @@
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Hosting;
 
@@ -84,6 +85,37 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.That(
                 () => ((IOpcUaServerBuilder)null!).UseKubernetesReadiness(),
                 Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task LeaderElectionUsesKubernetesLeaseWhenInClusterAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<IKubernetesApiClient>(x => x.IsInCluster));
+            services.AddOpcUa()
+                .AddServer(_ => { })
+                .UseKubernetesLeaderElection();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                provider.GetRequiredService<ILeaderElection>(),
+                Is.InstanceOf<KubernetesLeaseLeaderElection>());
+        }
+
+        [Test]
+        public async Task LeaderElectionFallsBackToSharedStoreOutsideClusterAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddServer(_ => { })
+                .UseKubernetesLeaderElection(options => options.UseSharedStoreFallback = true);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                provider.GetRequiredService<ILeaderElection>(),
+                Is.InstanceOf<SharedStoreLeaseElection>());
         }
     }
 }

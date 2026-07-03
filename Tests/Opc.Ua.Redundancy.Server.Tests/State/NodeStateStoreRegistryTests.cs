@@ -234,6 +234,66 @@ namespace Opc.Ua.Redundancy.Server.Tests
         }
 
         [Test]
+        public void UnregisterNamespaceKeepsStoreWhenReferencedByNode()
+        {
+            var namespaceTable = new NamespaceTable();
+            int nsIndex = namespaceTable.Append("http://test/ns");
+            using var registry = new NodeStateStoreRegistry(namespaceTable);
+            INodeStateStore shared = Mock.Of<INodeStateStore>();
+            var nodeId = new NodeId(1u);
+
+            registry.RegisterForNode(nodeId, shared);
+            registry.RegisterForNamespace("http://test/ns", shared);
+
+            Assert.That(registry.UnregisterForNamespace("http://test/ns"), Is.True);
+            Assert.That(
+                registry.Stores,
+                Contains.Item(shared),
+                "the store remains while a node binding still references it");
+            Assert.That(registry.Resolve(nodeId), Is.SameAs(shared));
+            Assert.That(registry.Resolve(new NodeId(2u, (ushort)nsIndex)), Is.Null);
+        }
+
+        [Test]
+        public void UnregisterNodeKeepsStoreWhenReferencedByNamespace()
+        {
+            var namespaceTable = new NamespaceTable();
+            int nsIndex = namespaceTable.Append("http://test/ns");
+            using var registry = new NodeStateStoreRegistry(namespaceTable);
+            INodeStateStore shared = Mock.Of<INodeStateStore>();
+            var nodeId = new NodeId(1u);
+
+            registry.RegisterForNode(nodeId, shared);
+            registry.RegisterForNamespace("http://test/ns", shared);
+
+            Assert.That(registry.UnregisterForNode(nodeId), Is.True);
+            Assert.That(
+                registry.Stores,
+                Contains.Item(shared),
+                "the store remains while a namespace binding still references it");
+            Assert.That(registry.Resolve(new NodeId(7u, (ushort)nsIndex)), Is.SameAs(shared));
+        }
+
+        [Test]
+        public void UnregisterNodeKeepsStoreWhenReferencedByAnotherNode()
+        {
+            using var registry = new NodeStateStoreRegistry(new NamespaceTable());
+            INodeStateStore shared = Mock.Of<INodeStateStore>();
+            var firstNode = new NodeId(1u);
+            var secondNode = new NodeId(2u);
+
+            registry.RegisterForNode(firstNode, shared);
+            registry.RegisterForNode(secondNode, shared);
+
+            Assert.That(registry.UnregisterForNode(firstNode), Is.True);
+            Assert.That(
+                registry.Stores,
+                Contains.Item(shared),
+                "the store remains while another node binding still references it");
+            Assert.That(registry.Resolve(secondNode), Is.SameAs(shared));
+        }
+
+        [Test]
         public void DisposeDisposesDisposableStores()
         {
             var registry = new NodeStateStoreRegistry(new NamespaceTable());

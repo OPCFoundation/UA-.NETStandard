@@ -99,6 +99,56 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.That(accepted, Is.False);
         }
 
+        [Test]
+        public void WhitespaceExpectedHostIsRejected()
+        {
+            using X509Certificate2 root = CreateRootCertificate("Pinned Kubernetes CA");
+            using X509Certificate2 server = CreateServerCertificate(root, "kubernetes.default.svc");
+            using var chain = new X509Chain();
+
+            bool accepted = KubernetesHttpApiClient.ValidateServerCertificate(
+                root,
+                "   ",
+                server,
+                chain,
+                SslPolicyErrors.RemoteCertificateChainErrors);
+
+            Assert.That(accepted, Is.False);
+        }
+
+        [Test]
+        public void NullCertificateIsRejected()
+        {
+            using X509Certificate2 root = CreateRootCertificate("Pinned Kubernetes CA");
+            using var chain = new X509Chain();
+
+            bool accepted = KubernetesHttpApiClient.ValidateServerCertificate(
+                root,
+                "kubernetes.default.svc",
+                null,
+                chain,
+                SslPolicyErrors.RemoteCertificateChainErrors);
+
+            Assert.That(accepted, Is.False);
+        }
+
+        [Test]
+        public void CertificateWithoutSslPolicyErrorsIsAccepted()
+        {
+            using X509Certificate2 root = CreateRootCertificate("Pinned Kubernetes CA");
+            using X509Certificate2 server = CreateServerCertificate(root, "kubernetes.default.svc");
+            using var chain = new X509Chain();
+
+            bool accepted = KubernetesHttpApiClient.ValidateServerCertificate(
+                root,
+                "kubernetes.default.svc",
+                server,
+                chain,
+                SslPolicyErrors.None);
+
+            Assert.That(accepted, Is.True);
+        }
+
         private static X509Certificate2 CreateRootCertificate(string commonName)
         {
             using var key = RSA.Create(2048);

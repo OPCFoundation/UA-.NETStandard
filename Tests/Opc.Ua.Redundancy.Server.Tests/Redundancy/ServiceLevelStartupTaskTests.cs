@@ -41,9 +41,8 @@ using Opc.Ua.Redundancy.Server;
 namespace Opc.Ua.Server.Tests.Redundancy
 {
     /// <summary>
-    /// Unit tests for <see cref="ServiceLevelStartupTask"/> guard paths. The
-    /// happy-path update of the live <c>Server.ServiceLevel</c> node is
-    /// exercised by the hosted-server end-to-end test.
+    /// Unit tests for <see cref="ServiceLevelStartupTask"/> guard paths and the happy-path update of the live
+    /// <c>Server.ServiceLevel</c> node from an <see cref="IServiceLevelProvider"/>.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
@@ -74,6 +73,49 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             server.VerifyGet(s => s.ServerObject, Times.Once);
+        }
+
+        [Test]
+        public async Task OnServerStartedAppliesInitialAndChangedServiceLevelAsync()
+        {
+            using DiagnosticsServerHarness harness = await DiagnosticsServerHarness.CreateAsync().ConfigureAwait(false);
+            var provider = new MutableServiceLevelProvider(150);
+            var task = new ServiceLevelStartupTask(provider);
+
+            await task.OnServerStartedAsync(harness.Server.Object).ConfigureAwait(false);
+
+            Assert.That(harness.ServerObject.ServiceLevel, Is.Not.Null);
+            Assert.That(harness.ServerObject.ServiceLevel!.Value, Is.EqualTo((byte)150), "the initial level is applied");
+
+            provider.Raise(42);
+
+            Assert.That(
+                harness.ServerObject.ServiceLevel!.Value,
+                Is.EqualTo((byte)42),
+                "a provider change is mirrored onto the live node");
+        }
+
+        private sealed class MutableServiceLevelProvider : IServiceLevelProvider
+        {
+            public MutableServiceLevelProvider(byte serviceLevel)
+            {
+                m_serviceLevel = serviceLevel;
+            }
+
+            public event System.Action<byte>? ServiceLevelChanged;
+
+            public byte GetServiceLevel()
+            {
+                return m_serviceLevel;
+            }
+
+            public void Raise(byte serviceLevel)
+            {
+                m_serviceLevel = serviceLevel;
+                ServiceLevelChanged?.Invoke(serviceLevel);
+            }
+
+            private byte m_serviceLevel;
         }
     }
 }

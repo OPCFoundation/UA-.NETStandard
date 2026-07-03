@@ -41,6 +41,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
@@ -259,6 +260,69 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.Throws<ArgumentNullException>(() => new KubernetesLeaseLeaderElection(null!));
         }
 
+        [Test]
+        public async Task PublicConstructorBuildsElectionOutsideClusterAsync()
+        {
+            await using var election = new KubernetesLeaseLeaderElection(NewOptions());
+
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+
+            Assert.That(acquired, Is.False);
+            Assert.That(election.IsLeader, Is.False);
+        }
+
+        [Test]
+        public async Task DisposeIsIdempotentAsync()
+        {
+            var api = new Mock<IKubernetesApiClient>(MockBehavior.Strict);
+            api.SetupGet(x => x.IsInCluster).Returns(false);
+
+            var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), new FakeTimeProvider());
+            await election.DisposeAsync().ConfigureAwait(false);
+            await election.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(election.IsLeader, Is.False);
+        }
+
+        [Test]
+        public async Task RenewLoopLogsAndContinuesOnErrorAsync()
+        {
+            var api = new Mock<IKubernetesApiClient>();
+            api.SetupGet(x => x.IsInCluster).Returns(true);
+            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .Callback(() => signal.TrySetResult())
+                .ThrowsAsync(new InvalidOperationException("boom"));
+            var logger = new CountingLogger();
+            KubernetesLeaderElectionOptions options = NewOptions();
+            options.RenewInterval = TimeSpan.FromMilliseconds(5);
+
+            var election = new KubernetesLeaseLeaderElection(api.Object, options, new FakeTimeProvider(), logger);
+            election.Start();
+            await signal.Task.ConfigureAwait(false);
+            await election.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(logger.ErrorCount, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public async Task RenewLoopStopsOnCanceledExceptionAsync()
+        {
+            var api = new Mock<IKubernetesApiClient>();
+            api.SetupGet(x => x.IsInCluster).Returns(true);
+            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .Callback(() => signal.TrySetResult())
+                .ThrowsAsync(new OperationCanceledException());
+
+            var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), new FakeTimeProvider());
+            election.Start();
+            await signal.Task.ConfigureAwait(false);
+            await election.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(election.IsLeader, Is.False);
+        }
+
         private static DateTimeOffset ParseUtc(string value)
         {
             return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
@@ -303,6 +367,37 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var api = new Mock<IKubernetesApiClient>(MockBehavior.Strict);
             api.SetupGet(x => x.IsInCluster).Returns(true);
             return api;
+        }
+
+        private sealed class CountingLogger : ILogger
+        {
+            public int ErrorCount => m_errorCount;
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                if (logLevel == LogLevel.Error)
+                {
+                    Interlocked.Increment(ref m_errorCount);
+                }
+            }
+
+            private int m_errorCount;
         }
     }
 }

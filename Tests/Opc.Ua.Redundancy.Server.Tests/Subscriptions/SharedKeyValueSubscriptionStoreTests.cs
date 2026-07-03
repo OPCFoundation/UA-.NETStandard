@@ -490,6 +490,148 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(envelopes, Is.Empty);
         }
 
+        [Test]
+        public void StoreSubscriptionsRejectsNullArgument()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            Assert.That(
+                async () => await store.StoreSubscriptionsAsync(null!).ConfigureAwait(false),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void StoreContinuationPointRejectsNullArgument()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            Assert.That(() => store.StoreContinuationPoint(null!), Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void RemoveContinuationPointIgnoresNullSession()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            Assert.That(
+                () => store.RemoveContinuationPoint(NodeId.Null, ContinuationPointKind.Browse, Guid.NewGuid()),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public async Task LoadContinuationPointsReturnsEmptyForNullSessionAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            ArrayOf<ContinuationPointEnvelope> envelopes =
+                await store.LoadContinuationPointsAsync(NodeId.Null).ConfigureAwait(false);
+
+            Assert.That(envelopes, Is.Empty);
+        }
+
+        [Test]
+        public async Task LoadRetransmissionStateReturnsNullForUnsupportedVersionAsync()
+        {
+            const uint subscriptionId = 720;
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            using var encoder = new BinaryEncoder(CreateContext());
+            encoder.WriteInt32(null, 999);
+            encoder.WriteUInt32(null, 5);
+            await kv.SetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(subscriptionId),
+                ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
+
+            SubscriptionRetransmissionState? state =
+                await store.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+
+            Assert.That(state, Is.Null);
+        }
+
+        [Test]
+        public async Task RetransmissionMirrorRequeuesBatchAfterTransientFailureAsync()
+        {
+            const uint subscriptionId = 721;
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new ThrowOnceOnPrefixStore(inner, "subscription-retransmission/");
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
+
+            store.StoreRetransmissionState(subscriptionId, 3, [NewNotification(1)]);
+            await store.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state =
+                await store.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+
+            Assert.That(kv.ThrowCount, Is.EqualTo(1));
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(3));
+            Assert.That(
+                state.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
+                Is.EqualTo(new uint[] { 1 }));
+        }
+
+        [Test]
+        public async Task ContinuationPointMirrorRequeuesBatchAfterTransientFailureAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new ThrowOnceOnPrefixStore(inner, "continuation-point/");
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            var continuationPointId = Guid.NewGuid();
+
+            store.StoreContinuationPoint(new ContinuationPointEnvelope
+            {
+                Id = continuationPointId,
+                OwnerSessionId = sessionId,
+                Kind = ContinuationPointKind.Browse,
+                Index = 4
+            });
+            await store.FlushAsync().ConfigureAwait(false);
+            ArrayOf<ContinuationPointEnvelope> envelopes =
+                await store.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
+
+            Assert.That(kv.ThrowCount, Is.EqualTo(1));
+            Assert.That(envelopes, Has.Count.EqualTo(1));
+            Assert.That(envelopes[0].Id, Is.EqualTo(continuationPointId));
+            Assert.That(envelopes[0].Index, Is.EqualTo(4));
+        }
+
+        [Test]
+        public async Task LegacyRetransmissionMessageDecodesViaFallbackAsync()
+        {
+            const uint subscriptionId = 722;
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            using var stateEncoder = new BinaryEncoder(CreateContext());
+            stateEncoder.WriteInt32(null, 1);
+            stateEncoder.WriteUInt32(null, 7);
+            await kv.SetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(subscriptionId),
+                ByteString.From(stateEncoder.CloseAndReturnBuffer())).ConfigureAwait(false);
+
+            ServiceMessageContext messageContext = CreateContext();
+            using var messageEncoder = new BinaryEncoder(messageContext);
+            messageEncoder.WriteStringArray(null, messageContext.NamespaceUris.ToArrayOf());
+            messageEncoder.WriteStringArray(null, messageContext.ServerUris.ToArrayOf());
+            messageEncoder.WriteEncodeable(null, NewNotification(3));
+            await kv.SetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(subscriptionId, 3),
+                ByteString.From(messageEncoder.CloseAndReturnBuffer())).ConfigureAwait(false);
+
+            SubscriptionRetransmissionState? state =
+                await store.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(7));
+            Assert.That(
+                state.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
+                Is.EqualTo(new uint[] { 3 }));
+        }
+
         private static SharedKeyValueSubscriptionStore CreateStore(InMemorySharedKeyValueStore kv)
         {
             return new SharedKeyValueSubscriptionStore(kv, CreateContext());
@@ -830,6 +972,69 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             private int m_blockedSetCount;
+        }
+
+        private sealed class ThrowOnceOnPrefixStore : ISharedKeyValueStore
+        {
+            public ThrowOnceOnPrefixStore(ISharedKeyValueStore inner, string keyPrefix)
+            {
+                m_inner = inner;
+                m_keyPrefix = keyPrefix;
+            }
+
+            public int ThrowCount => m_throwCount;
+
+            public ValueTask<(bool Found, ByteString Value)> TryGetAsync(
+                string key,
+                CancellationToken ct = default)
+            {
+                return m_inner.TryGetAsync(key, ct);
+            }
+
+            public ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
+            {
+                if (key.StartsWith(m_keyPrefix, StringComparison.Ordinal) &&
+                    Interlocked.Exchange(ref m_throwGate, 1) == 0)
+                {
+                    Interlocked.Increment(ref m_throwCount);
+                    throw new InvalidOperationException("Injected transient mirror failure.");
+                }
+
+                return m_inner.SetAsync(key, value, ct);
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                CancellationToken ct = default)
+            {
+                return m_inner.CompareAndSwapAsync(key, expected, value, ct);
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                return m_inner.DeleteAsync(key, ct);
+            }
+
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_inner.ScanAsync(keyPrefix, ct);
+            }
+
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_inner.WatchAsync(keyPrefix, ct);
+            }
+
+            private readonly ISharedKeyValueStore m_inner;
+            private readonly string m_keyPrefix;
+            private int m_throwGate;
+            private int m_throwCount;
         }
     }
 }

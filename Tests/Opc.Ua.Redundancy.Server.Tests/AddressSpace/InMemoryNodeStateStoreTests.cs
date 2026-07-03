@@ -468,6 +468,132 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(node, Is.Null);
         }
 
+        [Test]
+        public void UpsertNodeRejectsNullArgument()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            Assert.That(
+                async () => await store.UpsertNodeAsync(null!).ConfigureAwait(false),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task DeltaLogReplaysUpsertAndDeleteChangesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var a = new NodeId("a", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 }))).ConfigureAwait(false);
+            bool deleted = await store.DeleteNodeAsync(a).ConfigureAwait(false);
+
+            var replayed = new List<NodeStateChange>();
+            await foreach (NodeStateChange change in store.ReadDeltaLogAsync(0))
+            {
+                replayed.Add(change);
+            }
+
+            Assert.That(deleted, Is.True);
+            Assert.That(replayed, Has.Count.EqualTo(2));
+            Assert.That(replayed[0].Kind, Is.EqualTo(NodeStateChangeKind.Upsert));
+            Assert.That(replayed[0].NodeId, Is.EqualTo(a));
+            Assert.That(replayed[0].Node, Is.Not.Null);
+            Assert.That(replayed[1].Kind, Is.EqualTo(NodeStateChangeKind.Delete));
+            Assert.That(replayed[1].NodeId, Is.EqualTo(a));
+        }
+
+        [Test]
+        public async Task WriteSnapshotOnEmptyStoreProducesEmptySnapshotAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
+
+            Assert.That(snapshot, Is.Not.Null);
+            int count = 0;
+            await foreach (NodeStateChange _ in snapshot!.Entries)
+            {
+                count++;
+            }
+            Assert.That(count, Is.Zero);
+        }
+
+        [Test]
+        public async Task RepeatedSnapshotsCollectSupersededGenerationAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var a = new NodeId("a", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(a, ByteString.From(new byte[] { 1 }))).ConfigureAwait(false);
+
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+
+            int generations = await CountSnapshotGenerationsAsync(kv).ConfigureAwait(false);
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
+
+            // The predecessor-of-predecessor generation is garbage-collected once
+            // the third manifest is published, leaving the live and one retained.
+            Assert.That(generations, Is.EqualTo(2));
+            Assert.That(snapshot, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task EnumerateSkipsMalformedNodeKeysAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var valid = new NodeId("good", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(valid, ByteString.From(new byte[] { 1 }))).ConfigureAwait(false);
+
+            // A bare-prefix key and an unparseable NodeId suffix must both be skipped.
+            var record = ByteString.From(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 1 });
+            await kv.SetAsync("n/", record).ConfigureAwait(false);
+            await kv.SetAsync("n/i=abc", record).ConfigureAwait(false);
+
+            var ids = new List<NodeId>();
+            await foreach (IStoredNode node in store.EnumerateAsync())
+            {
+                ids.Add(node.NodeId);
+            }
+
+            Assert.That(ids, Is.EquivalentTo([valid]));
+        }
+
+        [Test]
+        public async Task TryGetNodeReturnsNullForTruncatedRecordAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var nodeId = new NodeId("short", NamespaceIndex);
+
+            // A record shorter than the 8-byte sequence header cannot be split.
+            await kv.SetAsync("n/" + nodeId, ByteString.From(new byte[] { 1, 2, 3 })).ConfigureAwait(false);
+
+            IStoredNode? node = await store.TryGetNodeAsync(nodeId).ConfigureAwait(false);
+
+            Assert.That(node, Is.Null);
+        }
+
+        private static async Task<int> CountSnapshotGenerationsAsync(InMemorySharedKeyValueStore kv)
+        {
+            var generations = new HashSet<string>(StringComparer.Ordinal);
+            await foreach (KeyValuePair<string, ByteString> entry in kv.ScanAsync("snap/"))
+            {
+                string remainder = entry.Key["snap/".Length..];
+                string[] parts = remainder.Split('/');
+                if (parts.Length > 1 && parts[0].Length > 0)
+                {
+                    generations.Add(parts[0]);
+                }
+            }
+            return generations.Count;
+        }
+
         private static byte[] MakeKey(byte seed)
         {
             byte[] key = new byte[32];

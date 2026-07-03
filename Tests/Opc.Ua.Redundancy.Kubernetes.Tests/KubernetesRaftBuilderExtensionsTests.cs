@@ -146,5 +146,26 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 () => provider.GetRequiredService<IRaftConsensus>(),
                 Throws.InvalidOperationException);
         }
+
+        [Test]
+        public void ResolvingRejectsOutOfRangeOrdinal()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddServer(_ => { })
+                .UseKubernetesRaftConsensus(options =>
+                {
+                    options.PodName = "opcua-ha-5";
+                    options.HeadlessServiceName = "h";
+                    options.ReplicaCount = 3;
+                    options.UseDurableStorage = false;
+                });
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                () => provider.GetRequiredService<IRaftConsensus>(),
+                Throws.InvalidOperationException);
+        }
     }
 }
