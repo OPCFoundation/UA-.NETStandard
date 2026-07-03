@@ -21,7 +21,7 @@
 - [Security Key Service (SKS)](#security-key-service-sks)
 - [Server-side address space](#server-side-address-space)
 - [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
-- [High availability state providers](#high-availability-state-providers)
+- [High availability and redundancy](#high-availability-and-redundancy)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
@@ -399,7 +399,7 @@ only makes sense together with the PubSub feature:
 - `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
   MQTT 3.1.1 + 5.0 via MQTTnet.
 - `IPubSubBuilder.AddKafkaTransport(Action<KafkaConnectionOptions>?)` —
-  Apache Kafka broker transport; see [Kafka transport](PubSubKafka.md).
+  Apache Kafka broker transport; see [Apache Kafka](#apache-kafka).
 - `IPubSubBuilder.AddEthTransport(Action<EthTransportOptions>?)` —
   Ethernet Layer 2 (`opc.eth://`); chain `.WithPcap()` for the
   SharpPcap (libpcap / Npcap) backend.
@@ -677,15 +677,45 @@ var options = new MqttConnectionOptions
 };
 ```
 
-### Apache Kafka
-
-Implemented in `Opc.Ua.PubSub.Kafka`. Wire profiles [`PubSub Kafka UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-uadp) and [`PubSub Kafka JSON`](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-json) implement the Part 14 Annex B.2 Kafka broker mapping over `kafka://` and `kafkas://` endpoints. See [Kafka transport](PubSubKafka.md) for DI registration, topic mapping, SASL/TLS configuration, `content-type` record headers, QoS mapping, and NativeAOT notes.
-
 ### DTLS transport status
 
 The `opc.dtls://` transport URI is parsed for Part 14 §7.3.2.4 unicast endpoints and wired through the UDP transport factory when `.WithDtls(...)` is registered on the `IUdpTransportBuilder` returned by `AddUdpTransport()`. The DTLS 1.3 handshake is implemented, including ECDHE negotiation, HelloRetryRequest cookies, and certificate authentication. The key schedule/HKDF, AEAD record protection, and anti-replay window are implemented for the registered runtime profiles.
 
 The runtime profile registry remains fail-closed: Curve25519 / Curve448 profiles are not registered because the portable .NET BCL does not expose RFC 7748 ECDH APIs, and optional NIST / Brainpool profiles are registered only when the required BCL cipher, HKDF, and ECDH curve probes succeed.
+
+### Apache Kafka
+
+Implemented in `Opc.Ua.PubSub.Kafka`. Wire profiles [`PubSub Kafka UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-uadp) and [`PubSub Kafka JSON`](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-json) implement the [Part 14 Annex B.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/Annex-B.2) Kafka broker mapping. Use `kafka://host[:port][,host...]` for plaintext bootstrap servers and `kafkas://host[:port][,...]` for TLS; the default Kafka port is `9092`.
+
+Register the transport with `AddKafkaTransport()` (in the `Microsoft.Extensions.DependencyInjection` namespace), which adds both profile factories. Options come from `KafkaConnectionOptions` — supplied by callback or bound from the `OpcUa:PubSub:Kafka` configuration section:
+
+```csharp
+pubsub.AddPublisher()
+    .AddKafkaTransport(options =>
+    {
+        options.Endpoint = "kafkas://broker1:9093,broker2:9093";
+        options.SecurityProtocol = KafkaSecurityProtocol.SaslSsl;
+        options.SaslMechanism = KafkaSaslMechanism.ScramSha256;
+        options.UserName = "pubsub-publisher";
+        options.PasswordSecretId = "KafkaPublisherPassword"; // resolved via the secret store
+        options.DeliveryGuarantee = KafkaQualityOfService.AtLeastOnce;
+        options.Tls = new KafkaTlsOptions
+        {
+            ValidateServerCertificate = true,
+            CaCertificatePath = "pki/kafka/ca.pem"
+        };
+    });
+```
+
+Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the delivery guarantee. Writer and reader groups use the same fluent `PubSubConfigurationBuilder` shown under [Fluent builder walkthrough](#fluent-builder-walkthrough); the [reference sample](../Applications/ConsoleReferencePubSubClient/README.md) contains complete Kafka publisher and subscriber configurations.
+
+**Topic mapping.** Kafka topics come from the OPC UA broker transport settings: `BrokerDataSetWriterTransportDataType.QueueName` / `BrokerDataSetReaderTransportDataType.QueueName` select the per-writer/reader data topic, `BrokerWriterGroupTransportDataType.QueueName` is the writer-group fallback, and `MetaDataQueueName` selects the metadata topic. When `MetaDataQueueName` is unset the transport derives a deterministic fallback from `KafkaConnectionOptions.Topics.Prefix`, the encoding, message type, PublisherId, WriterGroupId, and DataSetWriterId (segments joined with `.`). Use Kafka-safe characters (letters, digits, `.`, `_`, `-`).
+
+**Record headers and delivery guarantees.** Every record carries the normative `content-type` header (Annex B.2): `application/opcua+uadp` for `pubsub-kafka-uadp` and `application/json` for `pubsub-kafka-json`. The record key derives from the PublisherId so a publisher's records keep partition ordering. `KafkaConnectionOptions.DeliveryGuarantee` maps to producer settings: `BestEffort` → `acks=0`; `AtMostOnce` → `acks=1`; `AtLeastOnce` and `ExactlyOnce` → `acks=all` with the idempotent producer enabled. Per-writer `RequestedDeliveryGuarantee` on the broker transport settings overrides the connection default.
+
+**SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
+
+**NativeAOT.** On `net10.0` the transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) client and is NativeAOT/trimming compatible; on `net472`, `net48`, `netstandard2.1`, `net8.0`, and `net9.0` it uses `Confluent.Kafka` (native librdkafka), which is not AOT-compatible. See [Native AOT](#native-aot).
 
 ## Encodings
 
@@ -1363,7 +1393,11 @@ See `Applications\ConsoleReferencePubSubClient` (the `external` mode) for a comp
 - [Certificates](Certificates.md)
 - [OPC UA Part 14](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/)
 
-## High availability state providers
+## High availability and redundancy
+
+Part 14 §9.1.6 HA deployments run several publisher / subscriber instances over a shared configuration and elect a single active owner per component. PubSub splits this into two injectable concerns — externalized **state providers** and **active/standby activation** — each with a zero-overhead in-memory default so single-instance deployments are unaffected. These abstractions align with the server-side OPC 10000-4 §6.6 redundancy model documented in [High availability](HighAvailability.md).
+
+### State providers
 
 Part 14 deployments that run multiple server instances should externalize the
 state that otherwise lives in one process. The PubSub DI surface provides
@@ -1394,6 +1428,30 @@ configuration and per-dataset `ConfigurationVersion`, SKS key changes are
 mirrored to the security-key store, and component run-state transitions are
 mirrored to the runtime-state store.
 
+### Active/standby activation
+
+Redundant sets elect one active owner per component so exactly one instance drives each `WriterGroup` / `ReaderGroup` while the others stand by and take over on failover. Two provider contracts express this:
+
+- `IPubSubActivationCoordinator` answers, per component, whether this instance is `PubSubComponentRole.Active` (drive the transport) or `PubSubComponentRole.Standby` (wait to take over), and raises `RoleChanged` so the runtime pauses or resumes the component. Components are addressed by a deterministic id — for example `pubsub:writergroup:<connection>:<group>` — so every replica agrees on the key.
+- `IPubSubLeaseStore` is the shared coordination primitive: `TryAcquireAsync` / `TryRenewAsync` / `ReleaseAsync` grant a single owner per lease key and stamp a monotonic **fencing token** on each ownership change so a paused owner cannot resume after its lease expired (renewal of an expired lease is rejected and forces reacquisition, which advances the token).
+
+The default coordinator is `AlwaysActiveCoordinator`, which reports every component active — non-redundant deployments incur no overhead. Redundant deployments register `LeaseActivationCoordinator` (a background acquire/renew loop over an `IPubSubLeaseStore`); the built-in `InMemoryPubSubLeaseStore` is single-process, and a distributed store backs true cross-instance failover:
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub()
+    .WithLeaseStore(distributedLeaseStore)          // shared, cross-instance
+    .WithActivationCoordinator(new LeaseActivationCoordinator(
+        distributedLeaseStore,
+        telemetry,
+        ownerId: Environment.MachineName,
+        leaseDuration: TimeSpan.FromSeconds(15)));
+```
+
+`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally tracks live sequence / keep-alive state so take-over introduces no gap.
+
+**Alignment with the core redundancy abstractions.** The server-side redundancy work (Part 4 §6.6, see [High availability](HighAvailability.md)) introduces the core primitives `Opc.Ua.Redundancy.ISharedKeyValueStore` (a `CompareAndSwapAsync` "master-write" primitive) and `Opc.Ua.Redundancy.ILeaderElection` (`IsLeader` / `LeadershipChanged` / `TryAcquireOrRenewAsync`), and drives the OPC UA `ServiceLevel` from leadership. The PubSub `IPubSubLeaseStore` / lease model maps directly onto that compare-and-swap primitive (a lease is a fenced CAS on a per-component key), and `IPubSubActivationCoordinator` mirrors per-component leader election. Once the core abstractions ship, the PubSub lease store is intended to converge onto `ISharedKeyValueStore.CompareAndSwapAsync` so a single shared store and leader-election stack serves both the server address space and PubSub components.
+
 ## Diagnostics
 
 `IPubSubDiagnostics` is the per-component counter sink. Every
@@ -1422,7 +1480,11 @@ detailed the counters become; configure via
 
 ## Native AOT
 
-PubSub is AOT-clean across all four assemblies.
+The four core PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`) are
+AOT-clean on every target framework. The `Opc.Ua.PubSub.Kafka` transport is
+AOT-clean only on `net10.0` (managed Dekaf client); on the other frameworks it
+uses `Confluent.Kafka` / native librdkafka and is not AOT-compatible (see
+[Apache Kafka](#apache-kafka)).
 
 - **No reflection-based serialization.** Source-generated
   `IEncodeable` types (Part 14 datatypes) plus hand-written
