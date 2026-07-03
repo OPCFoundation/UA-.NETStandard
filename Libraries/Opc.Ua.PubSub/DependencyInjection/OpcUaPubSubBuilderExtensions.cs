@@ -302,7 +302,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     securityWrapperResolver:
                         sp.GetRequiredService<IPubSubSecurityWrapperResolver>(),
                     configurationStore: store,
-                    runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>());
+                    runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>(),
+                    activationCoordinator:
+                        sp.GetRequiredService<IPubSubActivationCoordinator>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

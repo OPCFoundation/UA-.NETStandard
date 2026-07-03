@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Kafka
                 KafkaQualityOfService.AtMostOnce =>
                     new KafkaDeliveryGuarantee(KafkaAcks.Leader, EnableIdempotence: false),
                 KafkaQualityOfService.AtLeastOnce =>
-                    new KafkaDeliveryGuarantee(KafkaAcks.All, EnableIdempotence: false),
+                    new KafkaDeliveryGuarantee(KafkaAcks.All, EnableIdempotence: true),
                 KafkaQualityOfService.ExactlyOnce =>
                     new KafkaDeliveryGuarantee(KafkaAcks.All, EnableIdempotence: true),
                 _ => throw new ArgumentOutOfRangeException(nameof(qualityOfService))

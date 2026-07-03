@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         [Test]
         [TestCase(KafkaQualityOfService.BestEffort, KafkaAcks.None, false)]
         [TestCase(KafkaQualityOfService.AtMostOnce, KafkaAcks.Leader, false)]
-        [TestCase(KafkaQualityOfService.AtLeastOnce, KafkaAcks.All, false)]
+        [TestCase(KafkaQualityOfService.AtLeastOnce, KafkaAcks.All, true)]
         [TestCase(KafkaQualityOfService.ExactlyOnce, KafkaAcks.All, true)]
         public void QualityOfServiceMapsToKafkaDeliveryGuarantee(
             KafkaQualityOfService qos,

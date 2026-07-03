@@ -35,6 +35,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Scheduling;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.StateMachine;
 using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
@@ -65,6 +66,9 @@ namespace Opc.Ua.PubSub.Groups
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<ushort, WriterRuntimeState> m_writerState;
         private readonly System.Threading.Lock m_gate = new();
+        private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
+        private string m_componentId = string.Empty;
+        private bool m_roleChangedSubscribed;
         private IAsyncDisposable? m_schedule;
         private long m_lastPublishedTicks;
         private bool m_disposed;
@@ -78,13 +82,17 @@ namespace Opc.Ua.PubSub.Groups
         /// <param name="scheduler">Scheduler used to drive the publish loop.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="timeProvider">Clock.</param>
+        /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
+        /// <param name="componentId">Deterministic redundancy component id.</param>
         public WriterGroup(
             WriterGroupDataType configuration,
             ArrayOf<DataSetWriter> writers,
             PubSubSchedule schedule,
             IPubSubScheduler scheduler,
             ITelemetryContext telemetry,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            string? componentId = null)
         {
             if (configuration is null)
             {
@@ -106,6 +114,9 @@ namespace Opc.Ua.PubSub.Groups
             m_timeProvider = timeProvider;
             WriterGroupId = configuration.WriterGroupId;
             Name = configuration.Name ?? string.Empty;
+            ConfigureActivationCoordinator(
+                componentId ?? string.Concat("pubsub:writergroup::", Name),
+                activationCoordinator);
             m_logger = telemetry.CreateLogger<WriterGroup>();
             State = new PubSubStateMachine(
                 string.IsNullOrEmpty(Name) ? $"group-{WriterGroupId}" : Name,
@@ -167,6 +178,8 @@ namespace Opc.Ua.PubSub.Groups
             {
                 _ = State.TryResumeCascade();
             }
+            SubscribeRoleChanges();
+            await ApplyActivationRoleAsync(cancellationToken).ConfigureAwait(false);
             m_schedule = await m_scheduler.ScheduleAsync(
                 Schedule,
                 PublishOnceAsync,
@@ -180,6 +193,7 @@ namespace Opc.Ua.PubSub.Groups
         public async ValueTask DisableAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            UnsubscribeRoleChanges();
             IAsyncDisposable? schedule;
             lock (m_gate)
             {
@@ -204,7 +218,7 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return;
             }
-            if (State.State == PubSubState.Disabled)
+            if (State.State != PubSubState.Operational)
             {
                 return;
             }
@@ -259,6 +273,112 @@ namespace Opc.Ua.PubSub.Groups
             catch (Exception ex)
             {
                 m_logger.LogError(ex, "WriterGroup {Group} publish failed.", Name);
+            }
+        }
+
+
+        internal void ConfigureActivationCoordinator(
+            string componentId,
+            IPubSubActivationCoordinator? activationCoordinator)
+        {
+            if (string.IsNullOrEmpty(componentId))
+            {
+                throw new ArgumentException("componentId is required.", nameof(componentId));
+            }
+
+            IPubSubActivationCoordinator previous;
+            bool unsubscribe;
+            lock (m_gate)
+            {
+                previous = m_activationCoordinator;
+                unsubscribe = m_roleChangedSubscribed;
+                m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
+                m_componentId = componentId;
+                m_roleChangedSubscribed = false;
+            }
+            if (unsubscribe)
+            {
+                previous.RoleChanged -= OnRoleChanged;
+                SubscribeRoleChanges();
+            }
+        }
+
+        internal async ValueTask ApplyActivationRoleAsync(CancellationToken cancellationToken = default)
+        {
+            IPubSubActivationCoordinator coordinator;
+            string componentId;
+            lock (m_gate)
+            {
+                coordinator = m_activationCoordinator;
+                componentId = m_componentId;
+            }
+
+            PubSubComponentRole role = await coordinator.GetRoleAsync(componentId, cancellationToken)
+                .ConfigureAwait(false);
+            ApplyActivationRole(role);
+        }
+
+        private void SubscribeRoleChanges()
+        {
+            IPubSubActivationCoordinator coordinator;
+            lock (m_gate)
+            {
+                if (m_roleChangedSubscribed)
+                {
+                    return;
+                }
+
+                coordinator = m_activationCoordinator;
+                m_roleChangedSubscribed = true;
+            }
+            coordinator.RoleChanged += OnRoleChanged;
+        }
+
+        private void UnsubscribeRoleChanges()
+        {
+            IPubSubActivationCoordinator coordinator;
+            lock (m_gate)
+            {
+                if (!m_roleChangedSubscribed)
+                {
+                    return;
+                }
+
+                coordinator = m_activationCoordinator;
+                m_roleChangedSubscribed = false;
+            }
+            coordinator.RoleChanged -= OnRoleChanged;
+        }
+
+        private void OnRoleChanged(object? sender, PubSubRoleChangedEventArgs e)
+        {
+            if (!string.Equals(e.ComponentId, m_componentId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            ApplyActivationRole(e.Role);
+        }
+
+        private void ApplyActivationRole(PubSubComponentRole role)
+        {
+            if (role == PubSubComponentRole.Standby)
+            {
+                _ = State.TryPause(PubSubStateTransitionReason.ByParent);
+                return;
+            }
+
+            if (State.State == PubSubState.Paused)
+            {
+                _ = State.TryResume(PubSubStateTransitionReason.ByParent);
+            }
+            if (State.State == PubSubState.PreOperational)
+            {
+                _ = State.TryMarkOperational(PubSubStateTransitionReason.ByParent);
+            }
+            if (State.State == PubSubState.Operational)
+            {
+                _ = State.TryResumeCascade();
             }
         }
 
