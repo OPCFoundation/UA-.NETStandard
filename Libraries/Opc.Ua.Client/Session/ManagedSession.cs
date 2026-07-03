@@ -79,7 +79,8 @@ namespace Opc.Ua.Client
             bool checkDomain,
             bool transferSubscriptionsOnRecreate,
             bool poolNotifications,
-            IClientChannelManager? channelManager)
+            IClientChannelManager? channelManager,
+            IClientConnectGate? connectGate)
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
@@ -105,6 +106,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
             m_poolNotifications = poolNotifications;
             m_channelManager = channelManager;
+            m_connectGate = connectGate;
 
             StateMachine = new ConnectionStateMachine(
                 reconnectPolicy,
@@ -164,6 +166,8 @@ namespace Opc.Ua.Client
         /// inner Session shares its transport channel with any other
         /// session/discovery client targeting the same endpoint, and
         /// channel reconnect is coordinated centrally.</param>
+        /// <param name="connectGate">Optional shared initial connect
+        /// admission gate.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -184,6 +188,7 @@ namespace Opc.Ua.Client
             IClientIdentityProvider? identityProvider = null,
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
+            IClientConnectGate? connectGate = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -224,7 +229,8 @@ namespace Opc.Ua.Client
                 checkDomain,
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
-                channelManager)
+                channelManager,
+                connectGate)
             {
                 m_engineFactory = engineFactory
             };
@@ -945,50 +951,65 @@ namespace Opc.Ua.Client
                 bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
                     && !Profiles.IsWssOpenApi(profile);
 
-                Session session;
-                if (m_channelManager != null)
+                IDisposable? connectLease = null;
+                try
                 {
-                    // Channel-manager-aware path: acquire a shared
-                    // managed channel and let the manager drive any
-                    // future reconnect transparently. Other sessions
-                    // sharing this endpoint join the same channel.
-                    session = await Session.CreateAsync(
-                        m_channelManager,
-                        m_configuration,
-                        ConfiguredEndpoint,
-                        updateBeforeConnect,
-                        m_checkDomain,
-                        m_sessionName,
-                        m_sessionTimeout,
-                        m_identityProvider == null ? m_identity : null,
-                        m_preferredLocales,
-                        m_engineFactory,
-                        m_timeProvider,
-                        ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    session = (Session)await SessionFactory.CreateAsync(
-                        m_configuration,
-                        ConfiguredEndpoint,
-                        updateBeforeConnect,
-                        m_checkDomain,
-                        m_sessionName,
-                        m_sessionTimeout,
-                        m_identityProvider == null ? m_identity : null,
-                        m_preferredLocales,
-                        ct).ConfigureAwait(false);
-                }
+                    if (m_connectGate != null)
+                    {
+                        connectLease = await m_connectGate
+                            .AcquireAsync(ct)
+                            .ConfigureAwait(false);
+                    }
 
-                WireSessionEvents(session);
-                m_session = session;
+                    Session session;
+                    if (m_channelManager != null)
+                    {
+                        // Channel-manager-aware path: acquire a shared
+                        // managed channel and let the manager drive any
+                        // future reconnect transparently. Other sessions
+                        // sharing this endpoint join the same channel.
+                        session = await Session.CreateAsync(
+                            m_channelManager,
+                            m_configuration,
+                            ConfiguredEndpoint,
+                            updateBeforeConnect,
+                            m_checkDomain,
+                            m_sessionName,
+                            m_sessionTimeout,
+                            m_identityProvider == null ? m_identity : null,
+                            m_preferredLocales,
+                            m_engineFactory,
+                            m_timeProvider,
+                            ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        session = (Session)await SessionFactory.CreateAsync(
+                            m_configuration,
+                            ConfiguredEndpoint,
+                            updateBeforeConnect,
+                            m_checkDomain,
+                            m_sessionName,
+                            m_sessionTimeout,
+                            m_identityProvider == null ? m_identity : null,
+                            m_preferredLocales,
+                            ct).ConfigureAwait(false);
+                    }
+
+                    WireSessionEvents(session);
+                    m_session = session;
+                }
+                finally
+                {
+                    connectLease?.Dispose();
+                }
 
                 if (m_identityProvider != null)
                 {
                     using (await m_serviceLock.WriterLockAsync(ct)
                         .ConfigureAwait(false))
                     {
-                        await session
+                        await InnerSession
                             .UpdateIdentityAsync(m_identityProvider, ct: ct)
                             .ConfigureAwait(false);
                     }
@@ -1002,7 +1023,7 @@ namespace Opc.Ua.Client
                 // once applied here. No-op when the classic engine is
                 // in use.
                 if ((m_transferSubscriptionsOnRecreate || m_poolNotifications) &&
-                    session.SubscriptionEngine
+                    InnerSession.SubscriptionEngine
                         is DefaultSubscriptionEngine v2 &&
                     v2.SubscriptionManager
                         is Subscriptions.SubscriptionManager v2Manager)
@@ -1026,7 +1047,7 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation(
                     "ManagedSession: Connected, SessionId={SessionId}.",
-                    session.SessionId);
+                    InnerSession.SessionId);
 
                 return ServiceResult.Good;
             }
@@ -1772,6 +1793,7 @@ namespace Opc.Ua.Client
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
         private readonly IClientChannelManager? m_channelManager;
+        private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
